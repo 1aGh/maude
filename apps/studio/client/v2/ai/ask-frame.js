@@ -3,7 +3,7 @@
 //
 //   newAskId()                    the id of one send: `a_` + 20 hex (the server's ASK_ID_RE). One typed ask = one
 //                                 askId, so a retry of the same frame folds into the run it already made.
-//   runScopeOf({canvas, scope})   `{canvas, artboards}` (ids, or '*' for the whole canvas) for the server's lease
+//   runScopeOf({canvas, scope})   `{canvas, artboards, elements?}` (ids, or '*' for the whole canvas) for the server's lease
 //                                 registry; undefined when the ask has no canvas scope.
 //   promptFrame({...})            `{t:'prompt', text, chat, model, effort, mode, askId, scope}` — the text still
 //                                 carries the `[maude-scope …]` line, which is what an older server reads.
@@ -26,6 +26,39 @@ export const isAskId = (v) => typeof v === 'string' && ASK_ID_RE.test(v);
 export function runScopeOf({ canvas, scope } = {}) {
   if (!canvas || typeof canvas !== 'string' || !scope) return undefined;
   if (scope.kind === 'whole') return { canvas, artboards: '*' };
+  // S2.19 — ⌘/ on a selection: the artboards it sits on are leased, the elements are held
+  if (scope.kind === 'elements' && Array.isArray(scope.refs) && Array.isArray(scope.ids)) {
+    const artboards = [
+      ...new Set(scope.ids.filter((id) => typeof id === 'string' && ARTBOARD_ID_RE.test(id))),
+    ].slice(0, 64);
+    const elements = scope.refs
+      .filter(
+        (r) =>
+          r &&
+          artboards.includes(r.artboard) &&
+          typeof r.element === 'string' &&
+          ARTBOARD_ID_RE.test(r.element)
+      )
+      .slice(0, 200)
+      .map((r) => ({
+        artboard: r.artboard,
+        element: r.element,
+        ...(Number.isInteger(r.occurrence) ? { occurrence: r.occurrence } : {}),
+      }));
+    return artboards.length && elements.length ? { canvas, artboards, elements } : undefined;
+  }
+  // S4.15 — ⌘/ on stickies: the artboards they sit on (and their arrows reach) are leased; none → the whole
+  // canvas. Annotation writes themselves take no lease (contract S4-S5-ai-annotations §1/§2).
+  if (scope.kind === 'annotations' && Array.isArray(scope.ids) && scope.ids.length) {
+    const boards = [
+      ...new Set(
+        (Array.isArray(scope.artboards) ? scope.artboards : []).filter(
+          (id) => typeof id === 'string' && ARTBOARD_ID_RE.test(id)
+        )
+      ),
+    ].slice(0, 64);
+    return boards.length ? { canvas, artboards: boards } : { canvas, artboards: '*' };
+  }
   if (scope.kind === 'artboards' && Array.isArray(scope.ids)) {
     const ids = [
       ...new Set(scope.ids.filter((id) => typeof id === 'string' && ARTBOARD_ID_RE.test(id))),

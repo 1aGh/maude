@@ -41,23 +41,23 @@ Native iOS / Android + web-mobile intentionally **skipped** — Phase 5.1's inpu
    - Assert no SVG strokes under `.dc-annot-svg`.
 
 2. **Pen-circle while space-held mid-gesture pans (coexistence).**
-   - `keydown B` → pen active (palette aria-pressed on pen).
+   - `keydown M` → Marker active with the pen tip (toolbar button "Marker (M)" aria-pressed).
    - Pointerdown at (640, 320), draw a half-circle stroke.
    - Mid-stroke, hold Space + drag 80 px right → viewport pans (assert `.dc-world` style.transform translate changed).
    - Release space; resume drawing. Pointerup.
    - Assert: exactly one `<path data-tool="pen">` rendered.
    - Wait 300 ms; GET `/_api/annotations?file=.design/ui/Canvas%20Viewport.tsx` → body contains `data-mdcc-annotations="1"`.
 
-3. **Draw an ellipse with `O`, with amber fill.**
-   - `keydown O` → ellipse active.
-   - In `.dc-annot-chrome`, click the second fill swatch (`aria-label="Fill #e6f4ea"`).
+3. **Draw an ellipse, then give it a fill.** (S4.8 retired the `.dc-annot-chrome` swatch tray: the shape kind is a toolbar popover, the fill lives on the small toolbar above a selection.)
+   - `keydown R` → Shape active; open the shape-kind popover (`toolbar-popover-shape-kinds`, aria-label "Shape type") and pick Ellipse.
    - Drag from (220, 320) → (380, 420) → release.
+   - The new ellipse is selected: in the small toolbar above it (`.dc-annot-ctx`), click the fill swatch (`aria-label="Fill #e6f4ea"`).
    - Assert: one `<ellipse data-tool="ellipse">` rendered with `fill="#e6f4ea"`.
    - Reload page; assert ellipse persists with same fill.
 
 4. **Switch to thick pen + draw an arrow.**
-   - `keydown B` → pen.
-   - In chrome, click `Thick` chip → next pen stroke uses width 6.
+   - `keydown M` → Marker (its tip is the pen); the Marker popover (`toolbar-popover-marker-tips`) opens with the tool.
+   - In that popover, click the thick radio (`toolbar-thickness-thick`) → next pen stroke uses width 6.
    - Draw a 60-px pen stroke; assert `stroke-width="6"` on the new `<path>`.
    - `keydown A` → arrow. Draw arrow (200, 500) → (340, 500); assert arrow rendered.
 

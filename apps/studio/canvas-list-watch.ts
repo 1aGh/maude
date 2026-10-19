@@ -152,6 +152,10 @@ export function createCanvasListWatch(
     return out;
   }
 
+  /** Paths of a move the API announced and has not finished: path → when the hold lapses. */
+  const heldMoves = new Map<string, number>();
+  const MOVE_HOLD_MS = 30_000;
+
   // True while this watcher is emitting, so its own events are not mistaken for
   // a change announced by someone else (the bus is synchronous).
   let emitting = false;
@@ -194,9 +198,24 @@ export function createCanvasListWatch(
       known = next; // seed — no emit
       return;
     }
-    for (const rel of next) if (!known.has(rel)) emit('added', rel);
-    for (const rel of known) if (!next.has(rel)) emit('removed', rel);
+    // A move the API announced (`canvas-move-begin`) and has not finished is not two changes: its two
+    // paths keep the baseline they had until `moved` moves it.
+    const held = (rel: string) => {
+      const until = heldMoves.get(rel);
+      if (until === undefined) return false;
+      if (until > Date.now()) return true;
+      heldMoves.delete(rel);
+      return false;
+    };
+    for (const rel of next) if (!known.has(rel) && !held(rel)) emit('added', rel);
+    for (const rel of known) if (!next.has(rel) && !held(rel)) emit('removed', rel);
+    const prev = known;
     known = next;
+    for (const rel of heldMoves.keys()) {
+      if (!held(rel)) continue;
+      if (prev.has(rel)) known.add(rel);
+      else known.delete(rel);
+    }
   }
 
   // Serialize every recompute through one chain so the boot-time seed always
@@ -230,13 +249,24 @@ export function createCanvasListWatch(
   // and every open view keeps a row that no longer exists. It also stops the
   // watcher re-announcing the API's own change as a second added/removed pair.
   // Shapes without a canvas `rel` (folder ops, config) just get a recompute.
+  const prefixed = (rel: unknown) =>
+    typeof rel === 'string' && rel ? path.posix.join(ctx.paths.designRel, rel) : null;
+  // The API says it is ABOUT to move a canvas, before it renames the file: until `moved` arrives (or the
+  // hold lapses) a snapshot sees neither `removed` for the old path nor `added` for the new one.
+  const offBegin = ctx.bus.on('canvas-move-begin', (change: unknown) => {
+    const c = (change ?? {}) as { rel?: unknown; fromRel?: unknown };
+    const until = Date.now() + MOVE_HOLD_MS;
+    for (const rel of [prefixed(c.rel), prefixed(c.fromRel)]) if (rel) heldMoves.set(rel, until);
+  });
   const offAnnounced = ctx.bus.on('canvas-list-update', (change: unknown) => {
     if (emitting) return;
     const c = (change ?? {}) as { action?: unknown; rel?: unknown; fromRel?: unknown };
-    const prefixed = (rel: unknown) =>
-      typeof rel === 'string' && rel ? path.posix.join(ctx.paths.designRel, rel) : null;
     const to = prefixed(c.rel);
     const from = prefixed(c.fromRel);
+    if (c.action === 'moved') {
+      if (to) heldMoves.delete(to);
+      if (from) heldMoves.delete(from);
+    }
     if (known && to) {
       if (c.action === 'removed') known.delete(to);
       else if (c.action === 'added' || c.action === 'moved') {
@@ -249,6 +279,7 @@ export function createCanvasListWatch(
 
   function stop() {
     off();
+    offBegin();
     offAnnounced();
     if (pending) clearTimeout(pending);
     pending = null;

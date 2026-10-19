@@ -201,9 +201,12 @@ export function splitChord(c: Chord): { mods: string[]; key: string } {
 /** Display form. Canonical chords are already the macOS display form ('⇧⌘E', 'esc', '?');
  *  `spaced` puts a space between the parts ('⇧ ⌘ E'). */
 export function formatChord(c: Chord, opts: { spaced?: boolean } = {}): string {
-  if (!opts.spaced) return c;
-  const { mods, key } = splitChord(c);
-  return [...mods, key].join(' ');
+  // S3.15 (md-keys, decision v2-lead-menu-key-glyphs-apple-order): the ONE renderer of a key glyph (menus, the
+  // "?" sheet, ⌘K). Modifiers always read ⌃⌥⇧⌘ whatever order they were written in, and Zoom in reads ⌘+ —
+  // the ⌘= binding is the same physical key without ⇧ and stays the registry's primary.
+  const { mods, key: raw } = splitChord(chord(c) ?? c);
+  const key = raw === '=' && mods.includes('⌘') ? '+' : raw;
+  return opts.spaced ? [...mods, key].join(' ') : mods.join('') + key;
 }
 
 /** Chords a focused text field owns natively (C26: the text field wins). Plus every chord without

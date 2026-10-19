@@ -10,6 +10,7 @@
  *             lite comment mount.
  */
 
+import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
 import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
@@ -435,6 +436,17 @@ function styleMapsFor(el: Element | null): {
       if (ATTR_SKIP.test(a.name)) continue;
       attrs[a.name] = a.value;
     }
+    // S2.14 — a Pen path says how many points it has ("Pen · 4 points"): computed from its `d`, never stored.
+    if (el.tagName.toLowerCase() === 'svg' && el.getAttribute('data-shape') === 'path') {
+      const d = el.querySelector('path')?.getAttribute('d');
+      if (d) {
+        try {
+          attrs['data-dc-pen-points'] = String(pointCount(parsePathD(d)));
+        } catch {
+          /* arcs: no count */
+        }
+      }
+    }
     // Dogfood follow-up (print artboards) — ATTR_SKIP deliberately hides the
     // engine's own `data-dc-*` plumbing from the generic "custom HTML
     // attributes" panel, but for a whole-ARTBOARD selection those attributes
@@ -542,7 +554,7 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     // `bounds`, which is the SCREEN rect and lies at any zoom other than 100%).
     // The Inspector's artboard-resize fields (Stage D4 tail) need the true
     // JSX-authored width/height to pre-fill correctly regardless of zoom.
-    worldW: el instanceof HTMLElement ? Math.round(el.offsetWidth) : undefined,
+    worldW: el instanceof HTMLElement ? Math.round(artboardWorldW(el)) : undefined,
     worldH: el instanceof HTMLElement ? Math.round(artboardWorldH(el)) : undefined,
     // S2.3 (via S2.1) — world-px box + the offset parent's client size (Position / Size /
     // Constraints). Layout px, so zoom-independent like worldW/worldH.
@@ -654,6 +666,23 @@ export function openCommentComposer(selection: Selection, clientX: number, clien
   }
 }
 
+/** The design surface of an artboard frame: its body, the box the name tag and the resize handles measure. */
+function artboardBody(el: HTMLElement): HTMLElement | null {
+  if (!el.hasAttribute('data-dc-screen')) return null;
+  const body = Array.from(el.children).find((c) => c.classList.contains('dc-artboard-body')) as
+    | HTMLElement
+    | undefined;
+  return body && body.offsetWidth ? body : null;
+}
+
+/**
+ * World-unit width of a selected element. An artboard reads its design surface (S2.22 G1: the declared 1440,
+ * not the frame with its border), so the Preset row matches and a write-back never grows the board.
+ */
+export function artboardWorldW(el: HTMLElement): number {
+  return artboardBody(el)?.offsetWidth ?? el.offsetWidth;
+}
+
 /**
  * World-unit height of a selected element. A FIXED artboard's frame is its
  * label strip + the declared body (V2-2.8 "fixed artboard loses 24 px"), so the
@@ -661,6 +690,8 @@ export function openCommentComposer(selection: Selection, clientX: number, clien
  * number it always showed, never the label on top of it.
  */
 export function artboardWorldH(el: HTMLElement): number {
+  const body = artboardBody(el);
+  if (body) return body.offsetHeight;
   if (el.getAttribute('data-dc-fixed') !== 'true' || !el.hasAttribute('data-dc-screen')) {
     return el.offsetHeight;
   }

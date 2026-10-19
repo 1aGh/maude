@@ -160,6 +160,19 @@ export interface WriteScopeVerdict {
  *    `runOn: folderOpen` execute when the user opens the project in their
  *    editor, which is the most likely thing they do next after opening a design
  *    project.
+ *  • Hook-runner configs (sec-a2 C7) — `lefthook*.yml|yaml` (all four spellings,
+ *    plus the `-local` overrides and `.config/lefthook.*`), `.husky/**`,
+ *    `.pre-commit-config.yaml`, and the lint-staged configs husky usually runs.
+ *    "Save version" commits WITHOUT `--no-verify`, so the runner the repo
+ *    already installed executes the written command through a shell on the
+ *    person's next click — no executable bit needed (husky wraps each script
+ *    in `sh`, lefthook/pre-commit/lint-staged read commands from config). The
+ *    hook scripts under `.git/hooks` were already covered by `.git`, and
+ *    `package.json` (whose `scripts` simple-git-hooks/husky v4 read) already
+ *    was. A custom `core.hooksPath` folder (`.githooks/`) is NOT added: git
+ *    runs only executable hooks there, and `Write` creates 0644.
+ *  • `.ai/workflows.config.json` (root only — a PREFIX rule below) — flow
+ *    `eval`s its `quality` gates on the next /flow:validate or commit gate.
  *
  * THE PREDICATE, recorded so this list is extended by RE-DERIVATION rather than
  * by pattern-matching the entries above: **an in-project path that reaches
@@ -191,6 +204,27 @@ export const PROTECTED_IN_PROJECT: readonly string[] = [
   'yarn.lock',
   'bun.lock',
   'bun.lockb',
+  // sec-a2 C7 — hook-runner configs (see the bullet above).
+  'lefthook.yml',
+  'lefthook.yaml',
+  '.lefthook.yml',
+  '.lefthook.yaml',
+  'lefthook-local.yml',
+  'lefthook-local.yaml',
+  '.lefthook-local.yml',
+  '.lefthook-local.yaml',
+  '.husky',
+  '.pre-commit-config.yaml',
+  '.lintstagedrc',
+  '.lintstagedrc.json',
+  '.lintstagedrc.yaml',
+  '.lintstagedrc.yml',
+  '.lintstagedrc.js',
+  '.lintstagedrc.mjs',
+  '.lintstagedrc.cjs',
+  'lint-staged.config.js',
+  'lint-staged.config.mjs',
+  'lint-staged.config.cjs',
 ];
 
 /**
@@ -204,7 +238,14 @@ export const PROTECTED_IN_PROJECT: readonly string[] = [
  * (ISSUE_TEMPLATE, CODEOWNERS, dependabot.yml), so a segment match on `.github`
  * would deny normal work — hence a prefix rule for this one.
  */
-export const PROTECTED_PREFIXES: readonly string[][] = [['.github', 'workflows']];
+export const PROTECTED_PREFIXES: readonly string[][] = [
+  ['.github', 'workflows'],
+  // sec-a2 C7 — lefthook also reads `.config/lefthook.*`; `.config/` itself is ordinary.
+  ['.config', 'lefthook.yml'],
+  ['.config', 'lefthook.yaml'],
+  // flow's `quality` gates are `eval`ed; the rest of `.ai/` (plans, logs) is ordinary work.
+  ['.ai', 'workflows.config.json'],
+];
 
 /**
  * True when `target` (resolved, already known to be inside `root`) touches a

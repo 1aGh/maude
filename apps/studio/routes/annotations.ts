@@ -3,6 +3,7 @@
 //   POST /_api/annotations/to-comment     { file, id }     → 200 { ok, commentId, actionId? | undoToken? }
 //   POST /_api/comments/to-sticky         { commentId }    → 200 { ok, stickyId, actionId? | undoToken? }
 //   POST /_api/annotations/convert-undo   { token }        → 200 { ok } · 409 stale | has-replies
+//   POST /_api/annotations/figjam         { file, url, at?, confirmLarge? } → 200 { ok, section, items, comments, widgets, line, actionId? | undoToken? }   (S4.16)
 //
 // ONE conversion = ONE project action with two `lane.replace` ops — the board
 // (`annotations`) and the thread list (`comments`) of the same canvas — so ⌘Z,
@@ -21,9 +22,13 @@
 // body — `from` enters the record only through the trusted `OpContext.from`.
 
 import { randomBytes } from 'node:crypto';
+import { arrivalLine, guardFigjamOps, parseFigjamBody } from '../annotations/figjam-into.ts';
 import { keyBetween } from '../annotations/fractional-index.ts';
+import type { Op as AnnotationOp } from '../annotations/ops.ts';
+import { parseBoard } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import type { Comment, ConvertSnapshot, LaneChange, LanesOutcome, LanesProposer } from '../api.ts';
+import { AI_FROM_AUTHOR } from '../comments/from-line.ts';
 import {
   applyCommentOp,
   type CommentRecord,
@@ -32,6 +37,8 @@ import {
   isOwnComment,
   type OpActor,
 } from '../comments/ops.ts';
+import { FigmaApiError } from '../figma/client.ts';
+import { FigmaUrlError, parseFigmaTarget } from '../figma/url.ts';
 import type { UndoTarget } from '../sync/undo-target.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -65,6 +72,8 @@ export interface AnnotationRouteDeps {
     loadAllComments(): Promise<Record<string, Comment[]>>;
     convertLanes: import('../api.ts').Api['convertLanes'];
     restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }>;
+    /** S4.16 - the board as it is now, for the FigJam plan's placement. */
+    readBoard?: import('../api.ts').Api['readBoard'];
   };
   /** `ctx.syncControl.current()` — the hub runtime, the local home, or null. */
   control: () => LanesRuntime | null | undefined;
@@ -73,7 +82,70 @@ export interface AnnotationRouteDeps {
   /** S9.9 — the per-request canvas scope; a Response refuses (`not-in-scope`, as missing). */
   scope?: (req: Request, file: string) => Response | null;
   now?: () => Date;
+  /** S4.16 - `POST /_api/annotations/figjam`: where the project lives, and (a test seam) the planner. */
+  figjam?: { root: string; designRel: string; plan?: FigjamPlan };
 }
+
+/** What the FigJam planner hands the route: ops to apply (nothing written to the board yet) and counts. */
+export interface FigjamPlanResult {
+  ops: AnnotationOp[];
+  section: string;
+  items: number;
+  comments: number;
+  widgets: number;
+}
+export type FigjamPlan = (a: {
+  url: string;
+  root: string;
+  designRootRel: string;
+  into: string;
+  at: { x: number; y: number } | null;
+  confirmLarge: boolean;
+  existing: AnnotationElement[];
+}) => Promise<FigjamPlanResult>;
+
+/** The S4.5 engine, loaded on first use (it brings the Figma client and the asset fetcher with it). */
+const enginePlan: FigjamPlan = async (a) => {
+  // The verb is plain JS (its option defaults read as `null` to the checker): the typed seam is here.
+  const { planBoardInto } = (await import('../bin/_import-figma.mjs')) as unknown as {
+    planBoardInto(o: Record<string, unknown>): Promise<FigjamPlanResult>;
+  };
+  const p = await planBoardInto({
+    url: a.url,
+    root: a.root,
+    designRootRel: a.designRootRel,
+    into: a.into,
+    at: a.at,
+    confirmLarge: a.confirmLarge,
+    existing: a.existing,
+  });
+  return {
+    ops: p.ops,
+    section: p.section,
+    items: p.items,
+    comments: p.comments,
+    widgets: p.widgets,
+  };
+};
+
+/** An import failure as the route answers it: a code and a code-owned line - never text the board or Figma wrote. */
+function figjamFailure(err: unknown): Response {
+  if (err instanceof FigmaApiError) {
+    if (err.kind === 'not_configured')
+      return json(409, { ok: false, reason: 'not-configured', line: err.message });
+    if (err.kind === 'unauthorized' || err.kind === 'forbidden')
+      return json(403, { ok: false, reason: 'figma-refused', line: err.message });
+    return json(502, { ok: false, reason: 'figma-unavailable' });
+  }
+  if (err instanceof FigmaUrlError) return json(400, { ok: false, reason: 'bad-url' });
+  // The engine's own refusals carry a numeric exit code (bin/_import-figma.mjs ImportFigmaError).
+  const code = (err as { code?: unknown } | null)?.code;
+  if (code === 2) return json(400, { ok: false, reason: 'bad-file' });
+  if (code === 3) return json(422, { ok: false, reason: 'rejected' });
+  if (code === 6) return json(409, { ok: false, reason: 'unreadable' });
+  return json(502, { ok: false, reason: 'import-failed' });
+}
+const FIGJAM_LABEL = 'Imported a FigJam board';
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -131,6 +203,26 @@ function arrowHost(board: AnnotationElement[], stickyId: string): Host | null {
     };
   }
   return null;
+}
+
+/**
+ * The ops a sticky -> comment conversion writes (S4.19, canvas 15 `an-convert`): the sticky goes to the trash and so
+ * does every arrow that was ITS arrow. The thread now sits where that arrow pointed (§3.3), so the arrow has said
+ * its piece, and re-binding it to the new pin is not on offer (a bind names a board element or an artboard, never a
+ * comment). Left alone it kept a loose start. An arrow somebody else drew AT the sticky stays: the dangling card
+ * (S4.11) is how that one is meant to read. One batch, so one undo puts the sticky and its arrows back.
+ */
+export function convertOps(
+  board: readonly AnnotationElement[],
+  stickyId: string
+): Array<{ op: 'delete'; id: string }> {
+  const ids = [stickyId];
+  for (const el of board) {
+    if (el.type !== 'arrow') continue;
+    const a = el as AnnotationElement & { start?: { el?: string } };
+    if (a.start?.el === stickyId) ids.push(el.id);
+  }
+  return ids.map((id) => ({ op: 'delete' as const, id }));
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -262,7 +354,7 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
           const y = num(el.y) ?? 0;
           const w = num(el.w) ?? 0;
           const h = num(el.h) ?? 0;
-          const author = (el.author ?? {}) as { name?: unknown; id?: unknown };
+          const author = (el.author ?? {}) as { kind?: unknown; name?: unknown; id?: unknown };
           const parentArtboard =
             typeof el.parentArtboard === 'string' && ARTBOARD_RE.test(el.parentArtboard)
               ? el.parentArtboard
@@ -288,7 +380,13 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
               from: {
                 kind: 'sticky',
                 id,
-                author: typeof author.name === 'string' ? author.name.slice(0, 120) : '',
+                // An AI sticky has no person's name: say so, so the thread reads "From AI's sticky" (S4.20)
+                author:
+                  author.kind === 'ai'
+                    ? AI_FROM_AUTHOR
+                    : typeof author.name === 'string'
+                      ? author.name.slice(0, 120)
+                      : '',
                 ...(typeof author.id === 'string' ? { authorId: author.id } : {}),
                 at,
                 spot: { x, y, ...(parentArtboard ? { artboard: parentArtboard } : {}) },
@@ -303,7 +401,7 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             return { ok: false, status: 409, body: { ok: false, reason: 'invalid' } };
           return {
             ok: true,
-            ops: [{ op: 'delete', id }],
+            ops: convertOps(board, id),
             comments: added.list as Comment[],
             result: { commentId: added.comment.id },
           };
@@ -383,7 +481,9 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             .filter((k): k is string => typeof k === 'string')
             .sort()
             .at(-1);
-          const authorName = typeof from.author === 'string' ? from.author.slice(0, 64) : '';
+          const byAi = from.author === AI_FROM_AUTHOR;
+          const authorName =
+            !byAi && typeof from.author === 'string' ? from.author.slice(0, 64) : '';
           const sticky: AnnotationElement = {
             id: stickyId,
             type: 'sticky',
@@ -394,17 +494,19 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             h: sh,
             ...(fill ? { fill } : {}),
             text: c.text,
-            ...(authorName
-              ? {
-                  author: {
-                    kind: 'human',
-                    name: authorName,
-                    ...(typeof from.authorId === 'string' && from.authorId.length <= 64
-                      ? { id: from.authorId }
-                      : {}),
-                  },
-                }
-              : {}),
+            ...(byAi
+              ? { author: { kind: 'ai' } }
+              : authorName
+                ? {
+                    author: {
+                      kind: 'human',
+                      name: authorName,
+                      ...(typeof from.authorId === 'string' && from.authorId.length <= 64
+                        ? { id: from.authorId }
+                        : {}),
+                    },
+                  }
+                : {}),
             ...(typeof spot.artboard === 'string' && ARTBOARD_RE.test(spot.artboard)
               ? { parentArtboard: spot.artboard }
               : {}),
@@ -454,7 +556,85 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
     },
   };
 
-  return { specs: [toComment, toSticky, convertUndo], undoGuard };
+  /**
+   * S4.16 (canvas 15 an-figjam) - a FigJam link arrives as ONE "From FigJam" section in the open canvas.
+   * The S4.5 engine PLANS it (fetch, map, ops - nothing written); the ops are checked again here
+   * (`guardFigjamOps`: FigJam content is untrusted) and then land through `convertLanes` as ONE board change,
+   * so the toast's Undo (and ⌘Z) takes the whole section back - the same action/token machinery as a sticky
+   * turned into a comment. The answer carries counts and the toast's sentence, never a word the board said.
+   */
+  const figjam: RouteSpec = {
+    method: 'POST',
+    path: '/_api/annotations/figjam',
+    origin: 'main',
+    readOnly: 'refused',
+    handle: async (req) => {
+      const body = await readBody(req);
+      if (body instanceof Response) return body;
+      const parsed = parseFigjamBody(body);
+      if (!parsed.ok) return json(parsed.status, { ok: false, reason: parsed.reason });
+      const { file, url, at, confirmLarge } = parsed.req;
+      try {
+        // FigJam only: a design-file link is another import door, and the parser is the host gate.
+        // sec-a2 — the board surface must come FROM the link: a bare key carries none, so it
+        // parses as `design` here and is refused (it could name a design file).
+        if (parseFigmaTarget(url, 'design').surface !== 'board')
+          return json(400, { ok: false, reason: 'bad-url' });
+      } catch {
+        return json(400, { ok: false, reason: 'bad-url' });
+      }
+      const refused = deps.scope?.(req, file);
+      if (refused) return refused;
+      if (!deps.figjam || !deps.api.readBoard) return json(501, { ok: false, reason: 'not-wired' });
+      const read = await deps.api.readBoard(file);
+      if (!read.ok) return json(409, { ok: false, reason: 'unreadable' });
+      const existing = read.text ? parseBoard(read.text).elements : [];
+
+      let plan: FigjamPlanResult;
+      try {
+        plan = await (deps.figjam.plan ?? enginePlan)({
+          url,
+          root: deps.figjam.root,
+          designRootRel: deps.figjam.designRel,
+          into: file,
+          at: at ?? null,
+          confirmLarge,
+          existing,
+        });
+      } catch (err) {
+        return figjamFailure(err);
+      }
+      const first = guardFigjamOps(plan.ops, new Set(existing.map((e) => e.id)));
+      if (!first.ok)
+        return json(first.reason === 'too-many' ? 413 : 422, {
+          ok: false,
+          reason: first.reason === 'too-many' ? 'too-large' : 'rejected',
+          detail: first.reason,
+        });
+
+      const r = await deps.api.convertLanes<{ items: number }>(
+        file,
+        ({ board, comments }) => {
+          // The board as it is NOW (it may have moved while Figma was answering): a plan that no longer
+          // fits is refused whole, never half-applied.
+          const again = guardFigjamOps(plan.ops, new Set(board.map((e) => e.id)));
+          if (!again.ok) return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+          return { ok: true, ops: plan.ops, comments, result: { items: again.items } };
+        },
+        lazyProposer(() => proposerFor(file, FIGJAM_LABEL))
+      );
+      if (!r.ok) return json(r.status, r.body);
+      return answerOf(r, [], {
+        section: plan.section,
+        items: r.result.items,
+        comments: plan.comments,
+        widgets: plan.widgets,
+        line: arrivalLine(r.result.items),
+      });
+    },
+  };
+
+  return { specs: [toComment, toSticky, convertUndo, figjam], undoGuard };
 }
 
 /**

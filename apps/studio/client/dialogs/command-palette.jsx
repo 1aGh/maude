@@ -110,7 +110,11 @@ export function CommandPalette({ open, onClose, actions }) {
       if (res && !ctl.signal.aborted)
         setRemote({
           q: clean,
-          rows: remoteRows(res, { designRel: getPaletteEnv().designRel, query: clean }),
+          rows: remoteRows(res, {
+            designRel: getPaletteEnv().designRel,
+            query: clean,
+            project: getPaletteEnv().projectName,
+          }),
         });
     }, REMOTE_DEBOUNCE_MS);
     // Other projects answer through the shell, on the same pause; a browser tab has none to ask.

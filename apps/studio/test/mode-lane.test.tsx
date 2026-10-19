@@ -32,7 +32,7 @@ import { createPanelLayout } from '../client/v2/shell/panel-layout.js';
 import { type RouterAction, type Tool, useInputRouter } from '../input-router.tsx';
 import { peersPayload } from '../participants-chrome.tsx';
 import { _resetReadOnlyCache } from '../read-only-mode.ts';
-import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
+import { DEFAULT_TOOLS, ToolProvider, useToolMode } from '../use-tool-mode.tsx';
 
 const EDITOR = capsFor({ canEdit: true });
 const COMMENTER = capsFor({ canEdit: false, role: 'viewer' });
@@ -617,14 +617,14 @@ describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
     ]);
   });
 
-  test('set-mode naming a tool this canvas cannot arm (S2’s Pen — Frame is armed since S2.13) lands on the mode’s rest', () => {
+  test('set-mode naming a tool this canvas cannot arm (a canvas that does not offer Crop; every S2 tool is built since S2.15) lands on the mode’s rest', () => {
     mount(
-      <ToolProvider governed>
+      <ToolProvider governed tools={DEFAULT_TOOLS.filter((t) => t.id !== 'crop')}>
         <CapB />
       </ToolProvider>
     );
     setMode(canvasModeStore(window).get().modeSeq + 1, 'preview');
-    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'el-pen' });
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'crop' });
     expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']);
   });
 

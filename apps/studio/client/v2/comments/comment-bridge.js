@@ -12,10 +12,36 @@
 // What the iframe may ask is narrowed here, not trusted: an `add` is PINNED to the open canvas (the
 // iframe's `file` is ignored — the same rule as `comment-submit`), and only the six op names pass.
 
-import { COMMENT_OPS, c2sSpec } from '../../../bridge/dgn-protocol.ts';
+import { COMMENT_CONVERT_OPS, COMMENT_OPS, c2sSpec } from '../../../bridge/dgn-protocol.ts';
+import {
+  conversionOf,
+  turnBackIntoSticky,
+  undoConversion,
+} from '../annotations/annotation-asks.js';
 import { postCommentOp, fetchMentionPeople } from './comment-client.js';
 
 const OPS = new Set(COMMENT_OPS);
+const CONVERT_OPS = new Set(COMMENT_CONVERT_OPS);
+
+/**
+ * S4.V4 G5 — the thread's conversion asks, answered by the shell (S4-S9 §3.4): `to-sticky` runs the S4.7
+ * route as the session; `convert-undo` undoes THIS session's conversion of that comment (its action id or
+ * token never reaches the canvas); `convert-undoable` says whether the header may offer Undo.
+ */
+async function convertOp(op, ctx) {
+  if (op.op === 'convert-undoable') return { ok: !!conversionOf(op.commentId) };
+  if (op.op === 'convert-undo') {
+    const undo = conversionOf(op.commentId);
+    if (!undo) return { ok: false, error: 'Couldn’t undo that. The comment is still there.' };
+    const r = await undoConversion(undo, { fetchImpl: ctx.fetchImpl ?? globalThis.fetch });
+    return r.ok ? { ok: true } : { ok: false, error: r.line };
+  }
+  const r = await turnBackIntoSticky({
+    commentId: op.commentId,
+    fetchImpl: ctx.fetchImpl ?? globalThis.fetch,
+  });
+  return r.ok ? { ok: true } : { ok: false, error: r.line };
+}
 
 /** Is `m` one of this bridge's messages? (The caller checks the source window first.) */
 export const isCommentBridgeMessage = (m) =>
@@ -77,6 +103,15 @@ export async function handleCommentBridgeMessage(m, ctx) {
   // ack must mean "this shell owns the op" — before any await, whatever the door later says.
   ctx.reply({ dgn: 'comment-op-ack', reqId });
   const op = m.op;
+  if (op && typeof op === 'object' && CONVERT_OPS.has(op.op)) {
+    const r = await convertOp(op, ctx);
+    ctx.reply(
+      r.ok
+        ? { dgn: 'comment-op-result', reqId, ok: true, comment: null }
+        : { dgn: 'comment-op-result', reqId, ok: false, error: r.error }
+    );
+    return true;
+  }
   if (!op || typeof op !== 'object' || !OPS.has(op.op)) {
     ctx.reply({ dgn: 'comment-op-result', reqId, ok: false, error: 'That did not go through.' });
     return true;

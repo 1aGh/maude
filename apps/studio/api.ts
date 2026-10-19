@@ -28,11 +28,14 @@ import {
   diffToOps,
 } from './annotations/ops.ts';
 import './annotations/ops-merge.ts';
+import { runTagOf } from './annotations/run-tag.ts';
 import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import { type BoardGuard, voteDoorOnly } from './annotations/vote-guard.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
 import {
+  foldToAllowedName,
   nameFromPrompt,
   nextFreeCanvasName,
   renderBlankCanvas,
@@ -60,6 +63,7 @@ import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
 import { isRuntimeStateRel } from './sync/file-membership.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
+import { findCloseName, tooCloseText } from './sync-name-key.ts';
 
 // Re-exported so existing external callers (canvas-list-watch.ts, tests) keep
 // importing it from api.ts — the actual implementation now lives in
@@ -607,6 +611,14 @@ export interface Api {
   readBoard(
     file: string
   ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
+  /**
+   * S4.V4 G4 — `readBoard`, but a live collab room's board wins over the file its debounced flush has
+   * not caught up with: read-your-writes for a door that reads right after `applyAnnotationOps` (the vote
+   * door: start → GET, start → ballot).
+   */
+  readBoardLive(
+    file: string
+  ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
   /** Whole-board write (board text or legacy SVG, canonicalized). */
   saveAnnotations(file: string, text: string, writeId?: string, base?: string): Promise<boolean>;
   /** The canvas write path: an op batch under the DDR-242 merge rule. */
@@ -616,7 +628,12 @@ export interface Api {
     actionId?: string,
     /** S2.10c — `hooks: false`: the file only (no live room, no change hook) — an accepted-mode
      *  action already carries the annotations lane (routes/edit.ts, an artboard moved to the trash) */
-    opts?: { hooks?: boolean }
+    opts?: {
+      hooks?: boolean;
+      /** sec-a M1 — refuse the WHOLE batch when the guard names a change (HTTP writers pass
+       *  `voteDoorOnly`; the in-process vote door passes none). `refused` in the result. */
+      guard?: BoardGuard;
+    }
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
@@ -1024,11 +1041,15 @@ export interface ApiHooks {
    * board (code review H1). `null` = no live room / accepted mode — the batch
    * goes to disk. The room's persistence projects the result to the file.
    */
+  /** S4.V4 G4 — the live room's board text (`null` = no live room / accepted mode: read the file). */
+  readAnnotationsLive?: (file: string) => string | null;
   applyAnnotationOpsLive?: (
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
-  ) => ApplyResult | 'too-large' | null;
+    actionId?: string,
+    /** sec-a M1 — checked against the ROOM's before/after; a hit writes nothing (`'refused'`). */
+    guard?: BoardGuard
+  ) => ApplyResult | 'too-large' | 'refused' | null;
   /**
    * Accepted-revisions mode (DDR-241): propose a folder operation as ONE
    * project action before touching disk. Absent, or answering `null`, means
@@ -1085,6 +1106,8 @@ export interface AnnotationOpsResult {
   error?: string;
   /** The board on disk exists but can't be read — nothing was written (HTTP 409). */
   unreadable?: boolean;
+  /** sec-a M1 — the batch's guard refused it (a vote / ballot change off the vote door; HTTP 403). */
+  refused?: string;
 }
 
 /**
@@ -1438,6 +1461,81 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return canvasSlugFromRel(file, paths.designRel);
   }
 
+  // S1.23b — names that collide in sync. Two names that differ only in what the sync slug flattens
+  // (an em dash vs a hyphen, `a%20b` vs `a b`, case, `ui/a/b` vs `ui/a-b`) share ONE sync document,
+  // and one canvas would overwrite the other on every peer. Every path that writes a new canvas or
+  // folder name asks here first; `sync-name-key.ts` holds the key and the words.
+  /** Every canvas under a canvas group, as design-root-relative paths (`ui/Poster.tsx`). */
+  async function allCanvasRels(): Promise<string[]> {
+    const drPrefix = paths.designRel.replace(/^\/+|\/+$/g, '');
+    const out: string[] = [];
+    for (const g of cfg.canvasGroups) {
+      let files: string[];
+      try {
+        files = await findHtmlFiles(
+          path.join(paths.designRoot, g.path),
+          path.posix.join(paths.designRel, g.path)
+        );
+      } catch {
+        continue;
+      }
+      for (const f of files)
+        out.push(f.startsWith(`${drPrefix}/`) ? f.slice(drPrefix.length + 1) : f);
+    }
+    return out;
+  }
+
+  /** The 409 for `toRel` (a canvas or a folder, design-root-relative) when its sync key is one an
+   *  existing different canvas already has. `except` is what is moving (the same canvas, or a batch
+   *  that goes together). Returns null when the name is clear. */
+  async function closeCanvasName(
+    name: string,
+    toRel: string,
+    except: (rel: string) => boolean = () => false
+  ): Promise<{ ok: false; status: 409; error: string } | null> {
+    const other = findCloseName(toRel, await allCanvasRels(), except);
+    if (!other) return null;
+    const dir = path.posix.dirname(toRel);
+    return {
+      ok: false,
+      status: 409,
+      error: tooCloseText(name, other, dir === '.' ? '' : dir),
+    };
+  }
+
+  /** Same, for a FOLDER name among the folders beside it: two sibling folders that share a key give
+   *  every same-named canvas inside them one document. */
+  async function closeFolderName(
+    name: string,
+    parentRel: string,
+    selfRel?: string
+  ): Promise<{ ok: false; status: 409; error: string } | null> {
+    let entries: Dirent[];
+    try {
+      entries = await readdir(path.join(paths.designRoot, parentRel), { withFileTypes: true });
+    } catch {
+      return null;
+    }
+    const siblings = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_'))
+      .map((e) => path.posix.join(parentRel, e.name));
+    const toRel = path.posix.join(parentRel, name);
+    const other = findCloseName(toRel, siblings, (r) => r === selfRel);
+    if (!other) return null;
+    return { ok: false, status: 409, error: tooCloseText(name, other, parentRel) };
+  }
+
+  /** True when both paths are the one file or folder (a case-only rename on a case-insensitive
+   *  volume: the target "exists" because it is the source). */
+  async function isSameEntry(a: string, b: string): Promise<boolean> {
+    try {
+      const [sa, sb] = await Promise.all([statp(a), statp(b)]);
+      return sa.dev === sb.dev && sa.ino === sb.ino && sa.ino !== 0;
+    } catch {
+      return false;
+    }
+  }
+
   async function fileForSlug(slug: string): Promise<string | null> {
     // Authoritative slug → canvas-file resolver: enumerate the real canvas
     // files under each canvas group and match by the canonical slug. Unlike a
@@ -1460,8 +1558,26 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return null;
   }
 
+  /**
+   * sec-a2 (Windows backslash) — a per-canvas sidecar is ONE file directly in `dir`.
+   * `canvasSlugFromRel` flattens `/` but not `\`, and on Windows `path.join` treats `\` as a
+   * separator, so a canvas named `..\..\x` reached a board or comment file outside the design
+   * root. A slug carrying `\` is refused everywhere (it is never a canvas a person made in the
+   * studio, which writes `/`), and the result must still sit directly in `dir`. Throws — every
+   * caller is a read that already fails soft or a write that must not happen.
+   */
+  function sidecarPath(dir: string, file: string, suffix: string): string {
+    const slug = fileSlug(file);
+    const base = path.resolve(dir);
+    const abs = path.resolve(base, `${slug}${suffix}`);
+    if (!slug || slug.includes('\\') || slug.includes('\0') || path.dirname(abs) !== base) {
+      throw new Error('not a canvas path');
+    }
+    return abs;
+  }
+
   function commentsPath(file: string): string {
-    return path.join(paths.commentsDir, `${fileSlug(file)}.json`);
+    return sidecarPath(paths.commentsDir, file, '.json');
   }
 
   async function loadCommentsForFile(file: string): Promise<Comment[]> {
@@ -2404,11 +2520,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // migrate-boot.ts) rewrites it on disk.
 
   function annotationsPath(file: string): string {
-    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.json`);
+    return sidecarPath(paths.designRoot, file, '.annotations.json');
   }
 
   function legacyAnnotationsPath(file: string): string {
-    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.svg`);
+    return sidecarPath(paths.designRoot, file, '.annotations.svg');
   }
 
   type BoardRead = { ok: true; text: string | null } | { ok: false; error: string };
@@ -2419,7 +2535,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    * empty board, or the next write would silently erase it (code review H2).
    */
   async function readBoard(file: string): Promise<BoardRead> {
-    for (const p of [annotationsPath(file), legacyAnnotationsPath(file)]) {
+    let candidates: string[];
+    try {
+      candidates = [annotationsPath(file), legacyAnnotationsPath(file)];
+    } catch {
+      return { ok: false, error: 'not a canvas path' };
+    }
+    for (const p of candidates) {
       const f = Bun.file(p);
       if (!(await f.exists())) continue;
       // Untrusted (peer / git) content: size gate BEFORE reading (DDR-054).
@@ -2438,6 +2560,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         : { ok: true, text };
     }
     return { ok: true, text: null };
+  }
+
+  async function readBoardLive(file: string): Promise<BoardRead> {
+    let live: string | null = null;
+    try {
+      live = hooks.readAnnotationsLive?.(file) ?? null;
+    } catch {
+      live = null;
+    }
+    if (live !== null) {
+      const text = canonicalAnnotations(live);
+      if (text !== null) return { ok: true, text };
+    }
+    return readBoard(file);
   }
 
   /** Canonical board text, or null when the canvas has no annotations (or they can't be read). */
@@ -2497,13 +2633,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         // (code review M5). Same one merge rule as the op path.
         const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
         const ops = diffToOps(byId(cleanBase), byId(clean));
-        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId) ?? null;
-        if (live === 'too-large') return false;
+        // sec-a M1 — a whole-board write never touches a vote or a ballot (the vote door does).
+        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId, voteDoorOnly) ?? null;
+        if (live === 'too-large' || live === 'refused') return false;
         if (live) return true;
         const current = read.text ?? serializeBoard([]);
-        next = serializeBoard([...applyAnnotationOpsPure(byId(current), ops).state.values()]);
+        const currentMap = byId(current);
+        const merged = applyAnnotationOpsPure(currentMap, ops).state;
+        if (voteDoorOnly(currentMap, merged) !== null) return false;
+        next = serializeBoard([...merged.values()]);
         if (next.length > MAX_ANNOTATIONS_BYTES) return false;
         if (next === current) return true;
+      }
+      if (cleanBase === undefined) {
+        // A replace: every vote and ballot must be exactly the stored ones (sec-a M1).
+        const byId = (t: string | null) =>
+          new Map((t ? parseBoard(t).elements : []).map((e) => [e.id, e]));
+        if (voteDoorOnly(byId(read.text), byId(next)) !== null) return false;
       }
       await writeBoardFile(file, next);
       onAnnotationsChanged?.(file, next, writeId, cleanBase);
@@ -2520,9 +2666,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     file: string,
     ops: readonly AnnotationOp[],
     actionId?: string,
-    opts?: { hooks?: boolean }
+    opts?: { hooks?: boolean; guard?: BoardGuard }
   ): Promise<AnnotationOpsResult> {
     const withHooks = opts?.hooks !== false;
+    const guard = opts?.guard;
+    const refusedResult = (id: string): AnnotationOpsResult => ({
+      ok: false,
+      changed: false,
+      rejected: [],
+      error: 'votes and ballots change only through the vote',
+      refused: id,
+    });
     return onAnnotationChain(file, async () => {
       const rejectedOf = (r: ApplyResult) =>
         r.rejected.map((x) => ({
@@ -2532,7 +2686,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }));
       // A live room is ahead of the file (its flush is debounced): the batch
       // goes to its replica, or it would revert a peer's unflushed edit (H1).
-      const live = withHooks ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null) : null;
+      // A run-tagged batch (`run:<runId>`, an AI run's resolves and review stickies) never takes the live-room
+      // shortcut: the room's flush would publish it as a person's "Edit annotations" action, outside the run's
+      // stage, and ⌘Z / "Undo this chat" would miss it (contract S4-S5-ai-annotations §2; S4.20).
+      const live =
+        withHooks && runTagOf(actionId) === null
+          ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId, guard) ?? null)
+          : null;
+      if (live === 'refused') return refusedResult('?');
       if (live === 'too-large') {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }
@@ -2543,7 +2704,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       const before = read.text ? parseBoard(read.text).elements : [];
       const beforeText = serializeBoard(before);
-      const r = applyAnnotationOpsPure(new Map(before.map((e) => [e.id, e])), ops);
+      const beforeMap = new Map(before.map((e) => [e.id, e]));
+      const r = applyAnnotationOpsPure(beforeMap, ops);
+      const hit = guard?.(beforeMap, r.state) ?? null;
+      if (hit !== null) return refusedResult(hit);
       const rejected = rejectedOf(r);
       if (!r.touched.size) return { ok: true, changed: false, rejected };
       const text = serializeBoard([...r.state.values()]);
@@ -2563,6 +2727,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   ): Promise<boolean> {
     if (typeof text !== 'string' || text.length > MAX_ANNOTATIONS_BYTES) return false;
     if (!isCurrent()) return false;
+    let dest: string;
+    try {
+      dest = annotationsPath(file);
+    } catch {
+      return false;
+    }
     const clean = canonicalAnnotations(text);
     if (clean === null) return false;
     // Runtime scratch stays out of the file plane. The async IO must not touch
@@ -2574,7 +2744,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     try {
       await Bun.write(temp, clean);
       if (!isCurrent()) return false;
-      renameSync(temp, annotationsPath(file));
+      renameSync(temp, dest);
       announceWritten(`${fileSlug(file)}.annotations.json`);
       return true;
     } finally {
@@ -3761,11 +3931,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const base =
         input.fromPrompt == null ? UNTITLED_CANVAS : nameFromPrompt(input.fromPrompt).canvas;
       // A canvas in the trash is not in the folder, so it does not hold its name.
+      const existingRels = await allCanvasRels();
       const free = nextFreeCanvasName(
         base,
         (n) =>
           existsSync(path.join(groupAbs, `${n}.tsx`)) ||
-          existsSync(path.join(groupAbs, `${n}.meta.json`))
+          existsSync(path.join(groupAbs, `${n}.meta.json`)) ||
+          // S1.23b — a name too close to one already here is taken too.
+          findCloseName(path.posix.join(group, `${n}.tsx`), existingRels) !== null
       );
       v = validateCanvasName(free);
       if (!v.ok || !v.name || !v.componentName) {
@@ -3796,6 +3969,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'resolved path escapes the canvas group' };
     }
+    // S1.23b — before the plain "already exists", so a case-only variant says the same words on a
+    // case-insensitive volume (where it IS the file) as on a case-sensitive one.
+    const closeToCreate = await closeCanvasName(v.name, path.posix.join(group, `${v.name}.tsx`));
+    if (closeToCreate) return closeToCreate;
     if (await Bun.file(fileAbs).exists()) {
       return {
         ok: false,
@@ -3938,7 +4115,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!(await Bun.file(fileAbs).exists())) {
       return { ok: false, status: 404, error: 'canvas not found' };
     }
-    const base = path.basename(rel).replace(/\.tsx$/i, '');
+    // A canvas made before names were held to the allowed set (S1.23c) may carry an accent or a dash the
+    // set no longer takes: its copy is named from the folded base, so duplicating is never refused.
+    const srcBase = path.basename(rel).replace(/\.tsx$/i, '');
+    const base = foldToAllowedName(srcBase) || UNTITLED_CANVAS;
     const dir = path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel);
     // "<name> copy", then "<name> copy 2", … — the first free, valid name.
     let name: string | null = null;
@@ -3949,6 +4129,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const candidate = path.posix.join(dir, `${v.name}.tsx`);
       if (await Bun.file(path.join(paths.designRoot, candidate)).exists()) continue;
       if (await fileForSlug(fileSlug(candidate))) continue;
+      // S1.23b — a copy name that shares a sync document with another canvas is taken too.
+      if (await closeCanvasName(v.name, candidate)) continue;
       name = v.name;
     }
     if (!name) return { ok: false, status: 409, error: 'too many copies of this canvas' };
@@ -3961,7 +4143,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       try {
         const meta = JSON.parse(text) as Record<string, unknown>;
         const now = new Date().toISOString();
-        if (typeof meta.title !== 'string' || meta.title === base) meta.title = name;
+        if (typeof meta.title !== 'string' || meta.title === srcBase) meta.title = name;
         meta.created = now;
         meta.last_modified = now;
         text = `${JSON.stringify(meta, null, 2)}\n`;
@@ -4602,7 +4784,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'source and destination are the same' };
     }
     const toAbs = path.join(paths.designRoot, toRel);
-    if (await Bun.file(toAbs).exists()) {
+    // S1.23b — a rename onto ITSELF with a case change is the same file on a case-insensitive
+    // volume: it "exists", and is not a collision. Anything else already at the target is.
+    if ((await Bun.file(toAbs).exists()) && !(await isSameEntry(fileAbs, toAbs))) {
       return {
         ok: false,
         status: 409,
@@ -4636,6 +4820,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         };
       }
     }
+    // S1.23b — the exact slug is the case above; this is the SYNC key, which flattens further (an
+    // em dash and a hyphen are one document on the wire). The canvas itself is not a collision.
+    const closeTo = await closeCanvasName(base.replace(/\.tsx$/i, ''), toRel, (r) => r === rel);
+    if (closeTo) return closeTo;
 
     // Collab guard — a pinned room (shared-doc hub provider attached, DDR-064)
     // must not have its file renamed out from under it. The old behaviour was
@@ -4666,6 +4854,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // Primary `.tsx` moves FIRST — abort the whole op if this fails so the
     // tree is never wrong about where the canvas lives.
     await mkdir(toDirAbs, { recursive: true });
+    // Said BEFORE the rename: the local history must not read the old path vanishing as a delete (a
+    // Trash row for a rename) while the sidecars below are still moving; `moved` follows when all is done.
+    ctx.bus.emit('canvas-move-begin', { rel: toRel, fromRel: rel });
     try {
       await rename(fileAbs, toAbs);
     } catch (err) {
@@ -4864,11 +5055,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'source and destination are the same' };
     }
     const toDirFinalAbs = path.join(paths.designRoot, toRelDir);
-    try {
-      await statp(toDirFinalAbs);
-      return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
-    } catch {
-      /* good — doesn't exist yet */
+    // S1.23b — a folder renamed onto ITSELF with a case change is the same folder on a
+    // case-insensitive volume; a sibling that shares a sync key with the new name is a collision.
+    const caseOnlyFolder = await isSameEntry(dirAbs, toDirFinalAbs);
+    if (!caseOnlyFolder) {
+      const closeFolder = await closeFolderName(base, toDir, relDir);
+      if (closeFolder) return closeFolder;
+      try {
+        await statp(toDirFinalAbs);
+        return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
+      } catch {
+        /* good — doesn't exist yet */
+      }
     }
 
     // Enumerate every .tsx canvas under this folder (recursive) BEFORE the
@@ -4910,6 +5108,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           };
         }
       }
+      // S1.23b — the SYNC key, which flattens further than the exact slug above.
+      const closeNested = await closeCanvasName(
+        path.posix.basename(toRel).replace(/\.tsx$/i, ''),
+        toRel,
+        (o) => batchRelSet.has(o)
+      );
+      if (closeNested) return closeNested;
     }
 
     // ONE project action for the whole folder (accepted-revisions mode) —
@@ -4957,7 +5162,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // leaving the old folder in this person's tree while every teammate had
     // the move (plan T31/L02). A destination holding nothing but placeholders
     // is that projection; it is replaced, never merged into.
-    if (await onlyFolderPlaceholders(toDirFinalAbs)) {
+    // (Never when this IS the source — a case-only rename — or the source would be removed.)
+    if (!caseOnlyFolder && (await onlyFolderPlaceholders(toDirFinalAbs))) {
       await rm(toDirFinalAbs, { recursive: true, force: true });
     }
     try {
@@ -5119,6 +5325,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'resolved path escapes the parent folder' };
     }
+    // S1.23b — a sibling folder that shares a sync key with this name is a collision (before the
+    // plain "already exists", so a case-only variant says the same words on either volume).
+    const closeFolder = await closeFolderName(v.name, parent);
+    if (closeFolder) return closeFolder;
     try {
       await statp(dirAbs); // throws if absent (works for files AND dirs)
       return { ok: false, status: 409, error: `"${v.name}" already exists` };
@@ -5230,7 +5440,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     abs: string,
     run: () => Promise<{ delta: number; changed?: boolean; previous?: AttributeState }>,
     errLabel: string,
-    describe?: Parameters<typeof describeSourceOp>[2]
+    describe?: Parameters<typeof describeSourceOp>[2],
+    /** S2.25 G2: what the undo history calls this write (one line); absent = the default row */
+    label?: string
   ): Promise<EditOpResult> {
     const rel = path.relative(paths.designRoot, abs);
     ctx.bus.emit('activity:suppress', rel);
@@ -5263,7 +5475,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // This API write is complete: accepted sync need not wait for an
       // external editor's quiet window. It is still only a proposal, not an
       // acknowledgement; the normal hub validation/acceptance path owns that.
-      if (after !== before) ctx.bus.emit('source-written', { rel, content: after });
+      if (after !== before)
+        ctx.bus.emit('source-written', { rel, content: after, ...(label ? { label } : {}) });
       return { ok: true, delta: res.delta, seq, ...previous };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
@@ -5286,6 +5499,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     reset?: unknown;
     idIndex?: unknown;
     expected?: unknown;
+    /** S2.25 G2: more properties of the SAME element, written in the same request (a move is left + top) */
+    also?: unknown;
+    /** S2.25 G2: what the undo history calls this write */
+    label?: unknown;
   }): Promise<EditOpResult> {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -5293,6 +5510,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
+    const said = typeof input.label === 'string' ? input.label.trim().slice(0, 120) : '';
     // Stage H3 — optional DOM-occurrence index. Present only for a whole-instance
     // move/resize (reposition/resize-request); routes the write to the dragged
     // component instance's own `<Component/>` usage so it stays LOCAL. Absent for
@@ -5329,12 +5547,60 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           id,
           attr: `style.${camel}`,
           ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
-        }
+        },
+        said || undefined
       );
     }
     const value = typeof input.value === 'string' ? input.value : '';
     if (!value.trim()) return { ok: false, status: 400, error: 'value required' };
     if (value.length > 256) return { ok: false, status: 413, error: 'value too long' };
+    // S2.25 G2 — the other properties of the same move, validated like the first (a name, a short value)
+    const more: Array<{ camel: string; value: string }> = [];
+    if (input.also !== undefined) {
+      const list = Array.isArray(input.also) ? input.also : null;
+      if (!list || list.length > 4) return { ok: false, status: 400, error: 'invalid also' };
+      for (const item of list as Array<{ property?: unknown; value?: unknown }>) {
+        const p = typeof item?.property === 'string' ? item.property.trim() : '';
+        const v = typeof item?.value === 'string' ? item.value : '';
+        if (!/^-?[a-z][a-z-]*$/.test(p) || !v.trim() || v.length > 256) {
+          return { ok: false, status: 400, error: 'invalid also' };
+        }
+        more.push({ camel: p.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), value: v });
+      }
+    }
+    if (more.length > 0) {
+      // ONE write for the whole move: one undo step, one `source-written` (a half-moved element has no row)
+      return suppressedEdit(
+        r.abs,
+        async () => {
+          const first = await editAttribute(
+            r.abs,
+            id,
+            `style.${camel}`,
+            JSON.stringify(value),
+            idIndex,
+            pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
+          );
+          let delta = first.delta;
+          let changed = first.changed !== false;
+          for (const m of more) {
+            const next = await editAttribute(
+              r.abs,
+              id,
+              `style.${m.camel}`,
+              JSON.stringify(m.value),
+              idIndex
+            );
+            delta += next.delta;
+            if (next.changed !== false) changed = true;
+          }
+          return { delta, changed, previous: first.previous };
+        },
+        'edit failed',
+        undefined,
+        said || undefined
+      );
+    }
     // The value is always written as a JS STRING literal: JSON.stringify escapes
     // quotes/backslashes/newlines so it can never break out of the string, and
     // React accepts string values for every style prop — so `var(--accent)`,
@@ -5357,7 +5623,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         attr: `style.${camel}`,
         value: JSON.stringify(value),
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
-      }
+      },
+      said || undefined
     );
   }
 
@@ -7541,6 +7808,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     writeCanvasMetaText,
     loadAnnotations,
     readBoard,
+    readBoardLive,
     saveAnnotations,
     applyAnnotationOps,
     projectAnnotations,

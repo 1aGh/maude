@@ -39,9 +39,11 @@ import {
 const STUDIO = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
 
-describe('the ten sections (14 Editing, ed-inspector)', () => {
-  test('in the drawn order, numbered 1 to 10, with the drawn titles', () => {
+describe('the sections (14 Editing, ed-inspector)', () => {
+  test('in the drawn order, numbered 1 to 10; Combine shapes (11, S2.14) and a picture’s Image and Adjust (12, 13; S2.15) are numbered after the ten drawn ones', () => {
     expect(SECTIONS.map((s) => [s.n, s.id, s.title])).toEqual([
+      [12, 'image', 'Image'],
+      [13, 'adjust', 'Adjust'],
       [1, 'position', 'Position'],
       [2, 'size', 'Size'],
       [3, 'layout', 'Layout'],
@@ -50,10 +52,11 @@ describe('the ten sections (14 Editing, ed-inspector)', () => {
       [6, 'border', 'Border'],
       [7, 'effects', 'Effects'],
       [8, 'type', 'Type'],
+      [11, 'combine', 'Combine shapes'], // S2.14
       [9, 'interaction', 'Interaction'],
       [10, 'export', 'Export'],
     ]);
-    expect(SECTION_IDS).toHaveLength(10);
+    expect(SECTION_IDS).toHaveLength(13);
   });
 
   test('every section carries its one-line explainer, in CONTRACT words (no "island", no "screen")', () => {
@@ -349,6 +352,7 @@ describe('the registry carries the inspector actions (rule 14: each with its AI 
       'inspector.copy-code',
       'inspector.edit-css-as-text',
       'element.detach',
+      'component.go-to-main', // S2.17
       'inspect.copy-code', // S3.11
     ]);
     for (const id of INSPECTOR_ACTION_IDS) {

@@ -37,6 +37,23 @@ import { clampInsets, type Insets } from './occlusion.ts';
 export const DGN_V = 2;
 type Id = string;
 type Rect = { x: number; y: number; w: number; h: number };
+/** S4.8 — what the annotation tools remember per person (annotations/ui/tool-prefs.ts is the palette gate). */
+export type AnnotationPrefsPayload = {
+  stickyColor?: string;
+  ink?: string;
+  thickness?: 3 | 6;
+  tip?: 'pen' | 'highlighter' | 'eraser';
+  highlighterColor?: string;
+  highlighterWidth?: number;
+};
+/** S2.19 — what the prompt may say of a selected element: locators only, never its markup (DDR-054). */
+export type AskLocator = {
+  id?: string;
+  tag?: string;
+  text?: string;
+  selector?: string;
+  index?: number;
+};
 
 // Payload shapes still private to their modules (names fixed by the contract). Opaque here; each is
 // lifted beside its builder when its listener is routed through the accept helpers (V2-2.10b).
@@ -100,6 +117,33 @@ export interface CanvasToShell {
   // the studio answers with `ds-pins`. A value is a name, never a path.
   'ds-pins-want': { revs: string[] };
   'canvas-expired': Empty;
+  // S4.9 — the annotation board of `file` changed (a local write, a peer's, an undo): the shell's
+  // Preview annotation list (client/v2/annotations/annotation-list.jsx) re-reads it.
+  'annotations-changed': { file: string };
+  // S4.12 (S4-S9 §3.3) — Turn into a comment: the canvas names the sticky; the SHELL calls
+  // POST /_api/annotations/to-comment with the active canvas as `file` (the canvas is untrusted, DDR-054).
+  'annotation-to-comment': { id: string };
+  // S4.12 (S4-S5 §1) — what is selected on the annotation layer: ids, a count per type and the artboards
+  // they ride with — never their words. `ids: []` clears. The AI chat's scope chip reads it (S4.15).
+  'annotation-selection': { ids: string[]; kinds: Record<string, number>; artboards: string[] };
+  // S4.12 — a toast the shell owns, because a canvas notice cannot carry an Undo button
+  // (decision v2-S4.9-shell-owns-hidden-toast): "6 stickies moved to the trash" + Undo.
+  'annotation-toast': { v: 1; message: string; undo: boolean };
+  // S4.12 — ⌘/ (or Ask AI about it) with annotations selected: open the AI chat with that scope.
+  'annotation-ask-ai': { v: 1 };
+  // S4.14 (S4-S9 §2.6) — a formal vote. The canvas holds no vote: it names an artboard for one dot more or
+  // less (`remove`), and the SHELL posts the ballot to /_api/votes/ballot as the session.
+  'vote-cast': { artboard: string; remove?: boolean };
+  // S4.14 — the canvas's artboards (names + world rects; untrusted, text only) for the Start a vote sheet
+  // and the result section's place. `open` = "Start a vote…" (⌘K / the artboard's right-click, `focus`).
+  'vote-board': {
+    artboards: Array<{ id: string; label: string; x: number; y: number; w: number; h: number }>;
+    open?: boolean;
+    focus?: string;
+  };
+  // S4.18 (an-visibility) — ⇧P pressed inside the canvas hid or showed the layer: the shell keeps the pref
+  // and shows "Annotations hidden. Press ⇧P to bring them back." + Show (it owns that toast).
+  'annotations-visibility': { v: 1; visible: boolean };
   'canvas-notice': {
     message: string;
     kind: 'info' | 'success' | 'error' | 'warning' | 'undo';
@@ -239,6 +283,15 @@ export interface CanvasToShell {
     label?: string;
     from?: string;
   };
+  /**
+   * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
+   * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
+   * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
+   * elements moved (`null`: it is gone — the run is over).
+   */
+  // S2.21: an artboard's "Ask AI about this artboard" names the artboard instead of elements (`refs` is [])
+  'ask-selection': { refs: ElementRef[]; selection?: AskLocator[]; rect: Rect; artboard?: Id };
+  'ask-selection-rect': { rect: Rect | null };
   'insert-artboard-request': { id?: Id; label?: string; width?: number; height?: number };
 
   // ── V2-1.2 mode lane — live since V2-4.3b (set-mode / mode-changed / mode-request); the rest new ──
@@ -262,6 +315,10 @@ export interface CanvasToShell {
     /** S4.3: the id of the sticker being replaced (Replace… on a selected sticker opens the gallery in replace mode) */
     replace?: Id;
   };
+  // S4.8 — a change to what the annotation tools remember per person (sticky colour, Marker ink / thickness /
+  // tip, Highlighter hue / nib): the shell writes prefs.json and tells every canvas (`annotation-prefs`).
+  // Only fields that are members of their palette survive `parse` + the receivers' sanitiser.
+  'annotation-prefs-set': { prefs: AnnotationPrefsPayload };
   'viewport-zoom': { zoom: number };
   // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
   'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
@@ -422,7 +479,13 @@ export interface ShellToCanvas {
     items: Array<{ id: Id; label: string; rect: Rect | null }>;
   };
   'insert-annotation-media': { paths: string[] };
-  'replace-annotation-media': { id: Id; path: string };
+  // `sticker` (S4.13): Replace… on a gallery sticker names the new one, so the canvas keeps its identity (a
+  // pick that is not a gallery sticker omits it and the canvas clears the old identity)
+  'replace-annotation-media': {
+    id: Id;
+    path: string;
+    sticker?: { pack: string; id: string; flip?: boolean };
+  };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
   'photo-busy': { asset: string; busy: boolean };
   // comments
@@ -480,6 +543,21 @@ export interface ShellToCanvas {
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S4.8 (Q8) — the person's annotation-tool memory, seeded on `loaded` / `canvas-rendered` and re-sent on
+  // each change made in another canvas. State, not an event.
+  'annotation-prefs': { prefs: AnnotationPrefsPayload };
+  // S4.14 (S4-S9 §2.6) — the vote the canvas shows: the projection only (targets, state, YOUR dots, the
+  // counts once ended). Never a name, never another person's picks — the parser keeps nothing else.
+  'vote-state': {
+    vote: {
+      id: string;
+      targets: string[];
+      state: 'open' | 'ended';
+      perVoter: number;
+      tallies?: Record<string, number>;
+    } | null;
+    mine: Record<string, number>;
+  };
   // S2.18 (V2-1.15 §5.12) — what the canvas can't see for this person's `holding`: an inspector field has
   // focus (`field`), the app has focus (`app`), an inspector edit just landed (`gesture`). State, sent on
   // every change to the active canvas.
@@ -487,8 +565,23 @@ export interface ShellToCanvas {
   // S2.18 (V2-1.15 §5.8) — the objects live AI runs hold on this canvas (a run's `objects`): the canvas
   // draws the spark outline + tag and the click tip. A tag and a flag per object — never a prompt.
   'ai-holds': {
-    holds: Array<{ artboard: Id; element: Id; occurrence?: number; tag: string; mine: boolean }>;
+    /** `scope: true` (S2.19) — the object was ASKED about by a ⌘/ selection: the canvas draws those as one outline */
+    holds: Array<{
+      artboard: Id;
+      element: Id;
+      occurrence?: number;
+      tag: string;
+      mine: boolean;
+      scope?: boolean;
+      /** S5.19 (03 `ai-question`) — a spot the AI points at (a small spark ring, gone on a click); the tag is its name only */
+      point?: boolean;
+    }>;
   };
+  // S4.15 (an-ai-read) — the places the AI means, while its "Make these changes" card is the latest message:
+  // the annotation layer draws a dashed spark outline and a tag. `ref` is `ab:<artboard>` or `el:<artboard>/<id>`;
+  // the tag is built by the shell from the ref alone (the element's name) — never a word of the agent's answer
+  // (DDR-054, v2-lead-neutral-ai-ring-tags). `[]` clears.
+  'ai-seen': { targets: Array<{ ref: string; tag: string }> };
   // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
   'undo-preview': { artboards: string[]; tag: string | null };
   // S2.20b — state, not an event: `opLog: true` → the shell owns ⌘Z (the op log) and the canvas
@@ -634,6 +727,9 @@ const recOf =
     }
     return out;
   };
+/** S4.12 — an annotation element id as the layer mints it (`s_xxxxxxxx`) or a migrated one: word chars and dashes. */
+const annotationIdV: V = (v) =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : BAD;
 const shortStr =
   (max: number): V =>
   (v) =>
@@ -662,6 +758,17 @@ const intIn =
 /** The `data-cd-id` grammar the writers accept (api.ts CD_ID_RE): word characters and dashes, 1–64. */
 const cdId: V = (v) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : BAD);
 const rect = shape({ x: num, y: num, w: num, h: num });
+/** A palette colour as the tools store it: `#rrggbb` or `#rrggbbaa` (the receivers check palette membership). */
+const hexColour: V = (v) =>
+  typeof v === 'string' && /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(v) ? v : BAD;
+const annotationPrefs = shape({
+  stickyColor: opt(hexColour),
+  ink: opt(hexColour),
+  thickness: opt(lit(3, 6)),
+  tip: opt(lit('pen', 'highlighter', 'eraser')),
+  highlighterColor: opt(hexColour),
+  highlighterWidth: opt(intIn(1, 64)),
+});
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
@@ -769,12 +876,32 @@ const aiHoldList: V = (v) =>
           ),
           tag: holdText,
           mine: bool,
+          scope: opt(bool),
+          point: opt(bool),
+        })
+      )(v)
+    : BAD;
+
+/** S4.15 — `ai-seen`: where the AI points, as host refs (`ab:<id>` | `el:<artboard>/<id>`) and a bounded tag. */
+export const AI_SEEN_MAX = 8;
+export const AI_SEEN_TAG_MAX = 40;
+const SEEN_ID = '[A-Za-z0-9_.:-]{1,128}';
+const SEEN_REF = new RegExp(`^(?:ab:${SEEN_ID}|el:${SEEN_ID}/${SEEN_ID})$`);
+const aiSeenList: V = (v) =>
+  Array.isArray(v) && v.length <= AI_SEEN_MAX
+    ? arrOf(
+        shape({
+          ref: (x) => (typeof x === 'string' && SEEN_REF.test(x) ? x : BAD),
+          tag: (x) => (typeof x === 'string' && x.length <= AI_SEEN_TAG_MAX ? x : BAD),
         })
       )(v)
     : BAD;
 
 /** S9.22 — the comment bridge. The op names the door takes (comments/ops.ts `parseCommentOp`). */
 export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own'] as const;
+/** S4.V4 G5 — the sticky ↔ comment conversion asks the thread makes; the SHELL answers them (S4.7 routes,
+ *  its own session conversion map), never the comment door. `{ op, commentId }` only. */
+export const COMMENT_CONVERT_OPS = ['to-sticky', 'convert-undo', 'convert-undoable'] as const;
 const reqIdV: V = (v) =>
   (typeof v === 'string' && v.length > 0 && v.length <= 64) ||
   (typeof v === 'number' && Number.isSafeInteger(v))
@@ -782,7 +909,12 @@ const reqIdV: V = (v) =>
     : BAD;
 /** The op body: a plain object with a known `op`, every value under the JSON caps. */
 const commentOpV: V = (v) => {
-  if (!isPlain(v) || !(COMMENT_OPS as readonly unknown[]).includes(v.op)) return BAD;
+  if (!isPlain(v)) return BAD;
+  if ((COMMENT_CONVERT_OPS as readonly unknown[]).includes(v.op))
+    return typeof v.commentId === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(v.commentId)
+      ? { op: v.op, commentId: v.commentId }
+      : BAD;
+  if (!(COMMENT_OPS as readonly unknown[]).includes(v.op)) return BAD;
   return json(v);
 };
 const mentionPerson = shape({ id: shortStr(200), name: shortStr(120), role: opt(shortStr(40)) });
@@ -825,6 +957,18 @@ const anchor = {
 };
 const tlId = { id: opt(str) };
 const elementRef = shape({ artboard: str, element: str, occurrence: opt(num) });
+/** An array no longer than `max` (refused whole past it, never trimmed). */
+const capped =
+  (max: number, f: V): V =>
+  (v) =>
+    Array.isArray(v) && v.length <= max ? f(v) : BAD;
+const askLocator = shape({
+  id: opt(shortStr(128)),
+  tag: opt(shortStr(24)),
+  text: opt(shortStr(160)),
+  selector: opt(shortStr(200)),
+  index: opt(num),
+});
 const crumb = shape({ label: str, ref: nul(elementRef) });
 const EDIT_OP_CODES = ['held-by-ai', 'locked', 'stale', 'invalid', 'forbidden'] as const;
 
@@ -854,6 +998,68 @@ const c2s: C2S = {
     parse: p({ revs: pinValues }),
   },
   'canvas-expired': { gate: 'frame', status: 'live', owner: 'h/use-shell-core', parse: none },
+  // S4.9 — sent by annotations-layer after a write lands; the shell relays it to the annotation list
+  // (ANNOTATIONS_CHANGED_EVENT) in the same slice that mounts the list (S4.17's mount point).
+  'annotations-changed': {
+    gate: 'active',
+    status: 'live',
+    orphan: 'no-handler',
+    owner: 'annotations-layer (S4.9) → annotation-list (S4.17)',
+    parse: p({ file: str }),
+  },
+  'annotation-to-comment': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → shell convert (routes/annotations.ts, S4.7)',
+    parse: p({ id: annotationIdV }),
+  },
+  'annotation-selection': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → AI scope chip (S4.15, S5.8)',
+    parse: p({
+      ids: capped(500, arrOf(annotationIdV)),
+      kinds: recOf(count, 16),
+      artboards: capped(200, arrOf(shortStr(128))),
+    }),
+  },
+  'annotation-toast': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → shell toast',
+    parse: p({ v: lit(1), message: shortStr(300), undo: bool }),
+  },
+  'annotation-ask-ai': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → shell AI chat',
+    parse: p({ v: lit(1) }),
+  },
+  'vote-cast': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/vote-dots (S4.14) → shell vote store (routes/votes.ts)',
+    parse: p({ artboard: linkArtboardIdV, remove: opt(bool) }),
+  },
+  'vote-board': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/vote-dots + editing/artboard-menu (S4.14) → shell vote sheet',
+    parse: p({
+      artboards: capped(
+        200,
+        arrOf(shape({ id: linkArtboardIdV, label: shortStr(120), x: num, y: num, w: num, h: num }))
+      ),
+      open: opt(bool),
+      focus: opt(linkArtboardIdV),
+    }),
+  },
+  'annotations-visibility': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer ⇧P (S4.18) → shell use-photo-and-timeline',
+    parse: p({ v: lit(1), visible: bool }),
+  },
   'canvas-notice': {
     gate: 'active',
     status: 'live',
@@ -1196,6 +1402,23 @@ const c2s: C2S = {
     owner: 'v2/empty (S11.2)',
     parse: p({ artboardId: nul(str), rect: nul(rect), label: opt(str), from: opt(str) }),
   },
+  'ask-selection': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/ask-bubble (S2.19)',
+    parse: p({
+      refs: capped(200, arrOf(elementRef)),
+      selection: opt(capped(12, arrOf(askLocator))),
+      rect,
+      artboard: opt(str),
+    }),
+  },
+  'ask-selection-rect': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/ai-scope-outline (S2.19)',
+    parse: p({ rect: nul(rect) }),
+  },
   'insert-artboard-request': {
     gate: 'active',
     status: 'legacy',
@@ -1244,6 +1467,12 @@ const c2s: C2S = {
   },
   // S3.2b — Present: the canvas posts its zoom for the pill (present/present-zoom.ts). S3.9 — canvas-lib's
   // ViewportZoomReporter posts it too; the shell's ZoomOnly readout (Preview) listens.
+  'annotation-prefs-set': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/tool-state (S4.8); shell v2/shell/use-annotation-prefs (S4.8)',
+    parse: p({ prefs: annotationPrefs }),
+  },
   'viewport-zoom': {
     gate: 'active',
     status: 'live',
@@ -1521,8 +1750,7 @@ const s2c: S2C = {
   'insert-template': {
     gate: 'parent',
     status: 'live',
-    // S4.4 sends it (Templates panel, ⌘K rows); the annotations layer's handler lands in S4.13
-    orphan: 'no-handler',
+    // S4.4 sends it (Templates panel, ⌘K rows); the annotations layer's handler is S4.13's (a pick that follows the pointer)
     owner: 'annotations-layer',
     parse: p({ id: str, follow: opt(bool) }),
   },
@@ -1557,7 +1785,7 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'live',
     owner: 'annotations-layer',
-    parse: p({ id: str, path: str }),
+    parse: p({ id: str, path: str, sticker: opt(shape({ pack: str, id: str, flip: opt(bool) })) }),
   },
   'photo-preview': {
     gate: 'any',
@@ -1611,19 +1839,17 @@ const s2c: S2C = {
     owner: 'comments-overlay (S9.22)',
     parse: p({ reqId: nul(reqIdV), people: nul(arrOf(mentionPerson)) }),
   },
-  // S4.17 sends them (client/v2/annotations/annotation-list-model.js); the annotations layer's
-  // handler lands with S4.9 (rows added by S9.22b: the coverage gate named them unlisted)
+  // S4.17 sends them (client/v2/annotations/annotation-list-model.js); the annotations layer hears
+  // them (S4.9, annotations/ui/visibility.ts).
   'annotation-select': {
     gate: 'parent',
     status: 'live',
-    orphan: 'no-handler',
     owner: 'annotations-layer (S4.9)',
     parse: p({ v: lit(1), ids: arrOf(shortStr(200)) }),
   },
   'annotation-filter': {
     gate: 'parent',
     status: 'live',
-    orphan: 'no-handler',
     owner: 'annotations-layer (S4.9)',
     parse: p({ v: lit(1), authors: arrOf(shortStr(200)) }),
   },
@@ -1755,6 +1981,30 @@ const s2c: S2C = {
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
   },
+  'annotation-prefs': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'annotations/ui/tool-state (S4.8)',
+    parse: p({ prefs: annotationPrefs }),
+  },
+  // S4.14 — the parser IS the projection: a field it does not name never reaches the canvas.
+  'vote-state': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'annotations/ui/vote-dots (S4.14)',
+    parse: p({
+      vote: nul(
+        shape({
+          id: annotationIdV,
+          targets: capped(32, arrOf(shortStr(200))),
+          state: lit('open', 'ended'),
+          perVoter: intIn(1, 99),
+          tallies: opt(recOf(count, 32)),
+        })
+      ),
+      mine: recOf(count, 32),
+    }),
+  },
   'hold-intent': {
     gate: 'parent',
     status: 'live',
@@ -1768,6 +2018,12 @@ const s2c: S2C = {
     status: 'live',
     owner: 'editing/hold-rings (S2.18)',
     parse: p({ holds: aiHoldList }),
+  },
+  'ai-seen': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'annotations/ui/ai-seen (S4.15); sent by v2/ai/seen-relay.js',
+    parse: p({ targets: aiSeenList }),
   },
   'undo-preview': {
     gate: 'parent',

@@ -24,7 +24,15 @@ const labelOf = (format) =>
   OTHER_GROUPS.flatMap((g) => g.items).find((i) => i.format === format && !i.needs)?.label ??
   String(format).toUpperCase();
 
-export function WebSection({ state, setFormat, set, other, onHandoff, annotationsOff = false }) {
+export function WebSection({
+  state,
+  setFormat,
+  set,
+  other,
+  onHandoff,
+  annotationsOff = false,
+  annotationsNote,
+}) {
   const image = RASTER.has(state.format);
   const pdf = state.format === 'pdf';
   const group = image ? 'image' : pdf ? 'pdf' : state.format;
@@ -75,9 +83,9 @@ export function WebSection({ state, setFormat, set, other, onHandoff, annotation
           </Row>
         </>
       ) : null}
-      <Row k="Annotations" testid="export-row-annotations">
+      <Row k="Annotations" note={annotationsNote} testid="export-row-annotations">
         <Check
-          checked={state.annotations}
+          checked={state.annotations && !annotationsOff}
           disabled={annotationsOff}
           sub={ANNOTATIONS_SUB}
           testid="export-include-annotations"

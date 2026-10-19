@@ -1,0 +1,19 @@
+# S4.V5 (verify-s4c, wave-A gate) — build = feat/maude-v2 b98576a62 (committed dist), rig scripts/v2-verify/s34-rig.mjs + s4v2 pre.js, Preview mode, split OFF, scratch project, ports 4497/9397.
+VERIFIED  15/an-place  15/an-sticky  15/an-plan  15/an-stamps  15/an-vote
+  an-place/an-sticky  Esc right after typing keeps the text (fast Esc on artboard / between boards / stacked: all kept; stacked lands +12/+12). Growth: 8 chars 200x200; 260 chars 420x236 (6 lines, wider, no clip); 150 words 480x1106 font 12 (smaller only past 120 words, nothing clipped, size menu reads Small). Tag "On Homepage . moves with it", "Not printed" over a print artboard.
+  an-plan  `annotate --board` with three Czech groups: columns "Napady 4 / Rozpracovane 3 / Hotovo 2", grey / yellow (#e0b92e) / green (#4caf72) tones, world x 3033-3954 = clear of Mobile (ends 2953) and every artboard. Legend, stamps on cards and arrows to artboards are the agent's part (U1).
+  an-stamps  row island has paper + shadow + UI face: "Stamps" + six faces + chevron + Done; card "2 stamps on Homepage" in the UI face, rows "You / Yes", "You / Star".
+  an-vote  Cmd-K "Start a vote..." -> sheet (3 artboards ticked, Votes each 3, Time 2 min) -> Start vote: bar at once "Vote | 3 artboards | 3 left of your 3 | 1:59 | 0 done | End vote" (semibold runs). + on an artboard -> "2 left of your 3" with Clear + Cast; Clear -> "3 left"; two + then Cast -> "1 left of your 3 | I | 1 done".
+NOT VERIFIED (gaps)
+G1 an-templates  panel is right now (v2 face, all eight thumbnails drawn, words match, places 3 sections To do / Doing / Done with cards). But the pick's ghost (annot-placing data-placing=template) is a bare dashed box in the accent fallback #d63b1f, no column titles / card strips; the canvas draws .an-ghostboard (3 columns "To do / Doing / Done", dashed grey, yellow card strips, 55 % opacity). S. annotations/ui/placement.tsx:168. an-templates-ghost.png
+G2 an-convert  behaviour complete: sticky -> comment (toast + Undo), thread from-line "From AI's sticky . turned into a comment by You . Undo" (Undo restores sticky AND arrow), thread menu "Turn back into a sticky" (sticky returns; its arrow does not). Still the v1 popover: mono caps EDIT / RESOLVE / DELETE COMMENT, docked top-left at x 16 under the shell rail (first letters of the from-line are covered by the rail buttons), not the canvas card at the pin (avatar + name + ghost Resolve + more). S-M, lead decides whether the thread card belongs to this row or to the comments canvas. an-convert.png, an-convert-menu.png
+NOTES (not row-blocking)
+N1 an-vote  the vote bar sits where the "Previewing Site . esc to edit" pill sits; the translucent bar lets the pill show through ("ev... esc" ghost between the time and "0 done"). The canvas hides the pill during a vote (PvChrome bar={false}). S.
+N2 an-vote  the Start-a-vote sheet uses native checkboxes / select / default blue button (no canvas artboard draws the sheet).
+N3 an-plan  hotovo / rozpracovane header chips touch at 34 % zoom (counter-scaled headers over 280 wide columns); fine at 100 %.
+PARTIAL (not set)
+an-today  multi-select small toolbar has "Group selection" + "Align and distribute" as icon buttons (aria-labels), not the "Group" word the canvas draws; sticky Text size select reads Small / Medium / Large / Extra large / Huge (sticky). The text TOOL's size menu was not reached. an-today-multi.png
+an-follow  not re-looked (route around an obstacle was not observable before either).
+UNREACHABLE
+U1 an-plan stamps / legend / arrows and an-templates "describe it and AI builds it" (the Ask field reads "AI chat is in the Maude desktop app." in browser): need an ACP agent session.
+U2 an-vote second voter, "4 of 5 done", counts as others cast: two sessions on a hub.

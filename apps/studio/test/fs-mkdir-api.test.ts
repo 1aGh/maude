@@ -9,12 +9,18 @@ import { validateFolderName } from '../canvas-create.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 describe('validateFolderName', () => {
-  test('accepts ordinary names (incl. spaces + accents)', () => {
-    for (const n of ['Marketing', 'checkout-flow', 'Krok_1', 'Přihlášení']) {
+  test('accepts ordinary names (letters, numbers, spaces, - and _)', () => {
+    for (const n of ['Marketing', 'checkout-flow', 'Krok_1', 'Prihlaseni', 'Two words']) {
       const v = validateFolderName(n);
       expect(v.ok).toBe(true);
       expect(v.name).toBe(n);
     }
+  });
+
+  test('an accented folder name is refused with the accent-free suggestion (S1.23c)', () => {
+    const v = validateFolderName('Přihlášení');
+    expect(v.ok).toBe(false);
+    expect(v.suggestion).toBe('Prihlaseni');
   });
 
   const REJECT: Array<[string, unknown]> = [

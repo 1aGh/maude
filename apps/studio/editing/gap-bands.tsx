@@ -41,6 +41,13 @@ export interface Pad {
 
 const MIN = 0.5;
 
+/** A world length for a chip: whole px when it is whole within 0.05 ("24", not "23.95"), else two decimals at most. */
+export function worldWords(n: number): string {
+  const whole = Math.round(n);
+  if (Math.abs(n - whole) <= 0.05 + 1e-9) return String(whole);
+  return `${Math.round(n * 100) / 100}`;
+}
+
 /**
  * The bands of one auto-layout frame. `frame` and `kids` are screen rects; `padding` is world px;
  * `scale` is screen px per world unit; `axis` is the main axis ('x' for a row).
@@ -53,7 +60,7 @@ export function computeBands(
   scale: number
 ): Band[] {
   const k = scale > 0 ? scale : 1;
-  const world = (n: number) => `${Math.round((n / k) * 100) / 100}`.replace(/\.0+$/, '');
+  const world = (n: number) => worldWords(n / k);
   const bands: Band[] = [];
   const pt = padding.top * k;
   const pr = padding.right * k;

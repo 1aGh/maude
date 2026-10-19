@@ -15,11 +15,13 @@ import { AssetAbsentBox } from '../assets/missing-frame.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
+import { blocksFor, blocksVersion, subscribeBlocks } from './blocks.js';
 import { bindInspectorActions } from './inspector-actions.js';
 import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
+import { useInstanceSelection } from './kinds/instance.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
-import { SECTIONS } from './sections.js';
+import { sectionsFor } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
 import { HoldLine, useHoldView, viewModeOf } from './view-mode.jsx';
 
@@ -48,7 +50,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
         <span className="insp-sec-name" title={def.explain}>
           {title}
         </span>
-        {asideNode != null ? (
+        {asideNode === '' ? null : asideNode != null ? (
           <span className="insp-sec-a">{asideNode}</span>
         ) : def.aside && def.aside !== 'unlink' ? (
           <span className="insp-sec-a">{def.aside}</span>
@@ -74,7 +76,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
 }
 
 export function InspectorFrame({
-  selected,
+  selected: selectedProp,
   layersTree,
   cfg,
   canvasFile,
@@ -82,6 +84,8 @@ export function InspectorFrame({
   onRecordEdit,
   onRunAction,
   onReplaceMedia,
+  onOpenPhoto,
+  photoPerUse,
   onUndoRedo,
   onRenameElementId,
   onResizeArtboard,
@@ -97,6 +101,9 @@ export function InspectorFrame({
 }) {
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
+  useSyncExternalStore(subscribeBlocks, blocksVersion, blocksVersion);
+  // S2.17 — the server says whether a single selection is an instance; the answer rides on the selection
+  const { selected, refresh: refreshInstance } = useInstanceSelection(selectedProp, canvasFile);
   const el = Array.isArray(selected) ? selected[0] : selected;
   const adv = useAdvancedOpen(hasAnySlot());
   // S2.18 — someone else holds the selection: view mode (view-mode.jsx)
@@ -160,11 +167,15 @@ export function InspectorFrame({
     canvasFile,
     cfg,
     editable: !!el.id,
+    refreshInstance,
     onOptimistic,
     onRecordEdit,
     onRunAction,
     onUndoRedo,
     onReplaceMedia,
+    // S2.15 — Adjust… / Remove background hand off to Photo; drawn only when the panel can open it (kinds/image.jsx)
+    onOpenPhoto,
+    photoPerUse,
     artboard,
   };
   const edit = { onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo };
@@ -200,7 +211,11 @@ export function InspectorFrame({
       <HoldLine line={hold.line} />
       {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
       <fieldset className="ed-insp-fields" disabled={hold.view}>
-        {SECTIONS.map((def) => {
+        {/* S2.17 — what only this kind has (an instance: Component · Content), above the ten sections */}
+        {blocksFor(kind.id, 'top').map(({ id, Body }) => (
+          <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
+        ))}
+        {sectionsFor(kind.id).map((def) => {
           const entries = slotsFor(def.id, kind.id, selected, ctx);
           if (!entries.length) return null;
           return (
@@ -215,6 +230,9 @@ export function InspectorFrame({
             />
           );
         })}
+        {blocksFor(kind.id, 'bottom').map(({ id, Body }) => (
+          <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
+        ))}
         <InspectorAdvanced
           selected={selected}
           el={el}

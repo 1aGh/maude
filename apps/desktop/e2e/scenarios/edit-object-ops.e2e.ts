@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -37,7 +38,10 @@ function rectOf(text: string): Promise<{ x: number; y: number; id: string | null
   }, text);
 }
 
-/** A pointer click on the frame's document at (x, y), then a chord on its body. */
+/**
+ * A ⌘-click on the frame's document at (x, y): a bare click selects the TOP-level object (here the
+ * artboard's content wrapper), ⌘ the deepest element under the pointer — the heading itself.
+ */
 async function click(x: number, y: number): Promise<void> {
   await browser.execute(
     (px, py) => {
@@ -46,7 +50,13 @@ async function click(x: number, y: number): Promise<void> {
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click']) {
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+          new MouseEvent(type, {
+            bubbles: true,
+            clientX: px,
+            clientY: py,
+            button: 0,
+            metaKey: true,
+          })
         );
       }
     },
@@ -68,6 +78,32 @@ async function chord(key: string, mods: Partial<KeyboardEventInit> = {}): Promis
   );
 }
 
+/**
+ * Select the object at `text`, press the chord, and wait for the file to show `done`. The file write
+ * re-renders the frame a beat later and the new DOM starts with nothing selected, so a chord pressed
+ * in that gap goes nowhere — select again and press again until the effect lands.
+ */
+async function pressOn(
+  text: string,
+  key: string,
+  mods: Partial<KeyboardEventInit>,
+  done: () => boolean
+): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      if (done()) return true;
+      const at = await rectOf(text);
+      if (at) {
+        await click(at.x, at.y);
+        await chord(key, mods);
+      }
+      await browser.pause(400);
+      return done();
+    },
+    { timeout: 15000, timeoutMsg: `${key} on "${text}" never reached the file` }
+  );
+}
+
 const inFrame = (testid: string) =>
   browser.execute((id) => {
     const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
@@ -77,9 +113,16 @@ const inFrame = (testid: string) =>
 describe('object ops on a canvas (S2.6)', () => {
   before(async () => {
     await waitForSidecar();
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
   });
-  after(() => fixtures.restore());
+  after(async () => {
+    fixtures.restore();
+    // the unlock went through the Layers tab; hand the dock back on Files for the next spec
+    await browser.execute(() => {
+      document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]')?.click();
+    });
+  });
 
   it('⇧⌘L locks the object in the file; the pointer on it shows the badge; ⇧⌘L again unlocks', async () => {
     const report = startReport('edit-object-ops-lock');
@@ -88,21 +131,48 @@ describe('object ops on a canvas (S2.6)', () => {
     await click(h1!.x, h1!.y);
     await chord('L', { metaKey: true, shiftKey: true });
     await browser.waitUntil(async () => /data-cd-locked/.test(source()), { timeout: 8000 });
-    await browser.execute(
-      (px, py) => {
-        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-        const doc = frame.contentDocument as Document;
-        (doc.elementFromPoint(px, py) ?? doc.body).dispatchEvent(
-          new PointerEvent('pointermove', { bubbles: true, clientX: px, clientY: py })
+    // The file is written first and the frame re-renders from it a beat later (the lock attribute is
+    // on the NEW element), so the pointer is moved again until the badge answers — one move at the
+    // moment of the write lands on the element that is about to be replaced.
+    await browser.waitUntil(
+      async () => {
+        await browser.execute(
+          (px, py) => {
+            const frame = document.querySelector(
+              '[data-testid="canvas-frame"]'
+            ) as HTMLIFrameElement;
+            const doc = frame.contentDocument as Document;
+            (doc.elementFromPoint(px, py) ?? doc.body).dispatchEvent(
+              new PointerEvent('pointermove', { bubbles: true, clientX: px, clientY: py })
+            );
+          },
+          h1!.x,
+          h1!.y
         );
+        await browser.pause(150);
+        return inFrame('edit-lock-badge');
       },
-      h1!.x,
-      h1!.y
+      { timeout: 8000, timeoutMsg: 'the lock badge never showed under the pointer' }
     );
-    await browser.waitUntil(async () => inFrame('edit-lock-badge'), { timeout: 4000 });
     await capture(report, 'locked-badge');
-    await chord('L', { metaKey: true, shiftKey: true });
-    await browser.waitUntil(async () => !/data-cd-locked/.test(source()), { timeout: 8000 });
+    // A click on a locked object selects its parent (feature-4 T7b), so it is the Layers row — the
+    // one door the product leaves open to it — that selects the object to unlock.
+    await browser.waitUntil(
+      async () => {
+        if (!/data-cd-locked/.test(source())) return true;
+        await browser.execute(() => {
+          // Layers is a tab of the left dock (Files · Layers · Assets)
+          if (!document.querySelector('.st-layer'))
+            document.querySelector<HTMLElement>('[data-testid="panel-tab-layers"]')?.click();
+          const lock = document.querySelector('.st-layer-lock[data-on="true"]');
+          (lock?.closest('.st-layer') as HTMLElement | null)?.click();
+        });
+        await chord('L', { metaKey: true, shiftKey: true });
+        await browser.pause(400);
+        return !/data-cd-locked/.test(source());
+      },
+      { timeout: 15000, timeoutMsg: '⇧⌘L on the Layers-selected object never unlocked it' }
+    );
   });
 
   it('⌥⌘G frames the selection with a NEW frame id and keeps every other id; ⇧⌘G undoes it byte for byte', async () => {
@@ -112,8 +182,17 @@ describe('object ops on a canvas (S2.6)', () => {
     await chord('g', { metaKey: true, altKey: true, code: 'KeyG' });
     await browser.waitUntil(async () => /data-cd-id="frame"/.test(source()), { timeout: 8000 });
     expect(source()).toMatch(/display: 'flex', flexDirection: 'column'/);
-    await chord('g', { metaKey: true, shiftKey: true });
-    await browser.waitUntil(async () => !/data-cd-id="frame"/.test(source()), { timeout: 8000 });
+    // the new frame is the selection after the write; a fresh ⌘-click on the heading would pick the
+    // heading again, so ⇧⌘G goes to whatever the write left selected — retried like the others
+    await browser.waitUntil(
+      async () => {
+        if (!/data-cd-id="frame"/.test(source())) return true;
+        await chord('g', { metaKey: true, shiftKey: true });
+        await browser.pause(400);
+        return !/data-cd-id="frame"/.test(source());
+      },
+      { timeout: 15000, timeoutMsg: '⇧⌘G never took the frame off' }
+    );
     // the frame is gone; what it held is back where it was (ids the dispatcher stamped may remain)
     expect(source().replace(/ data-cd-id="[a-z0-9-]+"/g, '')).toBe(
       before.replace(/ data-cd-id="[a-z0-9-]+"/g, '')
@@ -125,9 +204,7 @@ describe('object ops on a canvas (S2.6)', () => {
     await click(h1!.x, h1!.y);
     const order = () => source().indexOf('smoke-h1');
     const start = order();
-    await chord(']', { metaKey: true });
-    await browser.waitUntil(async () => order() !== start, { timeout: 8000 });
-    await chord('[', { metaKey: true });
-    await browser.waitUntil(async () => order() === start, { timeout: 8000 });
+    await pressOn('Maude desktop E2E', ']', { metaKey: true }, () => order() !== start);
+    await pressOn('Maude desktop E2E', '[', { metaKey: true }, () => order() === start);
   });
 });

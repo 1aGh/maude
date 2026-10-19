@@ -496,9 +496,12 @@
 
   /* Preview: the cluster goes compact — the faces and the status word step aside (V2-1.2 §5.4). The form
      comes from the what-shows table (`share-cluster` row → data-cluster). The ACCESS word is not a status:
-     it says what this person may do, so it stays (04 md-edge-viewer shows "Can view" in Preview). */
+     it says what this person may do, so it stays (04 md-edge-viewer shows "Can view" in Preview). The strip
+     with the face menu sits in a `.st-faces-host` wrapper (S9.23): hide the wrapper, or the faces stay
+     (S3.14 G1 — the rule named only the inner `.st-faces`). */
   .st-share[data-cluster="compact"] > .st-acct,
   .st-share[data-cluster="compact"] > .st-faces,
+  .st-share[data-cluster="compact"] > .st-faces-host,
   .st-share[data-cluster="compact"] > .st-saved:not([data-status="access"]),
   .st-share[data-cluster="compact"] > .st-share-act {
     display: none;

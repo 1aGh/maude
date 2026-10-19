@@ -74,6 +74,12 @@ export interface ResolvedEditOp {
 export interface EditCtx {
   /** `meta.dsRev` — set on a canvas left out of the design system's current revision */
   dsRev: string | null;
+  /**
+   * S2.17 — the variants the canvas's design system really gives this component (its `components.json`,
+   * else the shipped defaults); null = the system does not say. A swap is checked against this, never
+   * against what the request claims.
+   */
+  variantsOf?(component: string): readonly string[] | null;
 }
 
 /** One writer. Pure: bytes in, bytes out; throw `CanvasEditError` to refuse with `invalid`. */

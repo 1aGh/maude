@@ -57,7 +57,15 @@ function Group({ kind, row, pick, cloud, onPick }) {
  * @param other    the "Other…" button node (the sheet owns that menu)
  * @param setFormat  the sheet's format setter (Project ZIP instead)
  */
-export function BatchSection({ state, set, est, other, annotationsOff = false, setFormat }) {
+export function BatchSection({
+  state,
+  set,
+  est,
+  other,
+  annotationsOff = false,
+  annotationsNote,
+  setFormat,
+}) {
   const byKind = est?.byKind ?? {};
   const kinds = orderKinds(Object.keys(byKind));
   const picks = state.kindPicks ?? {};
@@ -112,9 +120,9 @@ export function BatchSection({ state, set, est, other, annotationsOff = false, s
       <Row k={OTHER_ROW} testid="export-row-other">
         {other}
       </Row>
-      <Row k="Annotations" testid="export-row-annotations">
+      <Row k="Annotations" note={annotationsNote} testid="export-row-annotations">
         <Check
-          checked={state.annotations}
+          checked={state.annotations && !annotationsOff}
           disabled={annotationsOff}
           sub={ANNOTATIONS_SUB}
           testid="export-include-annotations"

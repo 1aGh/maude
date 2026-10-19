@@ -42,10 +42,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'select.all',
     exec: 'canvas',
     visible: { minRole: 'comment' },
-    keys: [
-      { chord: '⌘A', layer: 'selection', when: { focus: ['canvas'] } },
-      { chord: '⇧⌘A', layer: 'selection', when: { focus: ['canvas'] }, alias: true },
-    ],
+    keys: [{ chord: '⌘A', layer: 'selection', when: { focus: ['canvas'] } }],
+  },
+  {
+    id: 'select.all-annotations',
+    exec: 'canvas',
+    visible: { minRole: 'edit' },
+    keys: [{ chord: '⇧⌘A', layer: 'global', inText: false, when: { focus: ['canvas'] } }],
   },
   {
     id: 'object.duplicate',
@@ -88,7 +91,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '↵',
         layer: 'selection',
-        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'], notFacts: ['toolArmed'] },
       },
     ],
   },
@@ -100,10 +103,12 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'object.select-next',
     exec: 'canvas',
-    keys: [
-      { chord: 'tab', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
-      { chord: '⇧tab', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
-    ],
+    keys: [{ chord: 'tab', layer: 'selection', when: { focus: ['canvas'], mode: ['edit'] } }],
+  },
+  {
+    id: 'object.select-prev',
+    exec: 'canvas',
+    keys: [{ chord: '⇧tab', layer: 'selection', when: { focus: ['canvas'], mode: ['edit'] } }],
   },
   {
     id: 'object.remove',
@@ -295,6 +300,19 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         layer: 'selection',
         when: { focus: ['canvas'], selection: ['artboard'] },
         alias: true,
+      },
+    ],
+  },
+  {
+    id: 'ai.ask-selection',
+    exec: 'canvas',
+    visible: { minRole: 'edit' },
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘/',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
       },
     ],
   },
@@ -516,6 +534,17 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: 'R', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
   },
   {
+    id: 'tool.el-pen',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'P',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
     id: 'tool.el-text',
     exec: 'canvas',
     keys: [{ chord: 'T', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
@@ -666,6 +695,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'tool.create-default',
+    exec: 'canvas',
+    enabled: { minRole: 'edit' },
+    keys: [
+      {
+        chord: '↵',
+        layer: 'tools',
+        when: { focus: ['canvas'], mode: ['edit'], facts: ['toolArmed'] },
+      },
+    ],
+  },
+  {
     id: 'ui.step-back',
     exec: 'shell',
     keys: [
@@ -719,6 +760,15 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         when: { focus: ['canvas'] },
         alias: true,
       },
+    ],
+  },
+  {
+    id: 'ui.cycle-region',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [
+      { chord: 'F6', layer: 'global', inText: true },
+      { chord: '⇧F6', layer: 'global', inText: true, alias: true },
     ],
   },
   {
@@ -914,6 +964,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         layer: 'selection',
         when: { focus: ['canvas'], selection: ['annotation'] },
         alias: true,
+      },
+    ],
+  },
+  {
+    id: 'annotation.ask-ai',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '⌘/',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
       },
     ],
   },

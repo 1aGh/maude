@@ -61,7 +61,9 @@ export type Fact =
   | 'commentFocused'
   | 'selfHostedHub'
   | 'selectFocused'
-  | 'rangeFocused';
+  | 'rangeFocused'
+  // S2.21 — a create tool (F · R · T) is armed in the canvas: ↵ adds one at its default size, not "go inside"
+  | 'toolArmed';
 
 /** Declarative predicate — serialisable into the manifest, evaluable in the shell, the iframe and
  *  (role half) the server. Every present field must hold (AND); `any` is an OR of sub-predicates. */
@@ -195,7 +197,10 @@ export type HumanReason =
   // S11.10: the git half of Version history › Advanced (branch, save with a note, publish, open a pull
   // request…). The person's working tree and remote; an agent runs git itself in the project folder —
   // decision:maude/v2-S11.10-git-actions-human
-  | 'git';
+  | 'git'
+  // S4.14: a formal vote is people's decision (Gate 0 A18). The agent has no vote verb; it reads the
+  // result section the vote leaves (`maude design read-annotations`) — decision:maude/v2-S4.14-votes-human
+  | 'vote';
 
 export type AgentPath =
   | { path: 'file'; format: FormatId; skill: SkillRef; how: string }

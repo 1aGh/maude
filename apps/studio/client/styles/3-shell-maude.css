@@ -3647,6 +3647,11 @@
     align-items: center;
     justify-content: center;
     border-right: 1px solid var(--border-subtle);
+    /* gate-a-polish: a <button> takes the UA face (~15px) without this */
+    font: inherit;
+    font-size: var(--type-sm, 12px);
+    color: var(--fg-1);
+    white-space: nowrap;
   }
   .st-cp-segbtn:last-child {
     border-right: 0;
@@ -6285,15 +6290,16 @@
   }
   /* DDR-150 dogfood — the right-click clip menu reuses the canvas's shared
    .dc-context-menu component. Its injected CSS reads --maude-chrome-* tokens
-   that the CANVAS defines (dark floating chrome) but the SHELL never set — so it
-   fell back to white and looked nothing like the canvas menu. Define the same
-   dark chrome tokens ON the menu so shell + canvas menus match. */
+   that the CANVAS defines but the SHELL never set. gate-a-polish: map them to the shell's own
+   ladder (theme-following, island material, body face) instead of a hard-coded dark oklch set. */
   .dc-context-menu {
-    --maude-chrome-bg-0: oklch(0.165 0.012 255);
-    --maude-chrome-fg-0: oklch(0.955 0.005 250);
-    --maude-chrome-border: oklch(0.29 0.012 255);
-    --maude-chrome-shadow: rgba(0, 0, 0, 0.46);
-    --maude-chrome-font-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    --maude-chrome-bg-2: var(--bg-2);
+    --maude-chrome-fg-0: var(--fg-0);
+    --maude-chrome-fg-1: var(--fg-1);
+    --maude-chrome-border: var(--border-subtle);
+    --maude-chrome-shadow: color-mix(in oklab, var(--fg-0) 14%, transparent);
+    --maude-chrome-error: var(--status-error-text, var(--fg-0));
+    --maude-chrome-font-body: var(--font-body);
   }
   /* Clip layer decomposition — expand toggle + indented sub-rows. */
   .tl-expand {

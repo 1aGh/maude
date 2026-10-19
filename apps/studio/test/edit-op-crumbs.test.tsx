@@ -64,6 +64,23 @@ describe('crumbs (pure)', () => {
     ]);
     expect(c.map((x) => x.label)).toEqual(['Main menu', 'Made in Brno,', 'div']);
   });
+  test('G8: a shape the drawing tools made is named by its id, a name or text still wins', () => {
+    const c = buildCrumbs('a', [
+      { id: 'rectangle', tag: 'div' },
+      { id: 'ellipse-2', tag: 'div' },
+      { id: 'rectangle-3', tag: 'div', name: 'Hero card' },
+      { id: 'frame', tag: 'div', text: 'Hello there friend' },
+      { id: 'rectangles', tag: 'div' },
+    ]);
+    expect(c.map((x) => x.label)).toEqual([
+      'Rectangle',
+      'Ellipse',
+      'Hero card',
+      'Hello there friend',
+      'div',
+    ]);
+    expect(nameTag(c[0].label, 120, 27)).toBe('Rectangle · 120 × 27');
+  });
   test('name tag and kind', () => {
     expect(nameTag('Brand systems', 400.4, 231.6)).toBe('Brand systems · 400 × 232');
     expect(selectionKind(3, null)).toBe('multi');

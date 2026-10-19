@@ -342,6 +342,9 @@
     color: var(--accent-text, var(--accent));
   }
   .vh-viewbar-t {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--fg-1);
   }
@@ -350,6 +353,7 @@
     font-weight: var(--w-semibold);
   }
   .vh-viewbar-esc {
+    flex: none;
     appearance: none;
     border: 0;
     background: transparent;
@@ -460,7 +464,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    padding: 64px var(--space-4) var(--space-4);
+    /* S1.23: clear of the floating panels (`--cmp-in-*` = what the islands cover, set by CompareView) */
+    padding: max(64px, var(--cmp-in-t, 0px)) max(var(--space-4), var(--cmp-in-r, 0px))
+      max(var(--space-4), var(--cmp-in-b, 0px)) max(var(--space-4), var(--cmp-in-l, 0px));
     background: var(--bg-1);
     color: var(--fg-1);
     animation: st-island-in var(--dur-panel) var(--ease-out);

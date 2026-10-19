@@ -23,7 +23,9 @@ import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
 import { compareOrder, keyBetween } from './fractional-index.ts';
 import { guardLockedOps, isLocked } from './lock.ts';
 import { type ApplyResult, applyOps, type Op } from './ops.ts';
-import './ops-merge.ts';
+// No `import './ops-merge.ts'` here: ai-write is reached from the canvas-lib graph (S4.13 template-place),
+// and ops-merge pulls sync/source-merge + the npm `diff` package into the canvas iframe. Server entry points
+// (api.ts, collab, codec, bin/annotate.mjs) register the merge themselves.
 import { defOf, extSpecOf, REGISTRY, specOf } from './registry.ts';
 import { Scene } from './scene.ts';
 import type { AnnotationElement, Box } from './types.ts';

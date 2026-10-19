@@ -242,6 +242,13 @@ export async function nameVersion({ path, at, name, fetchImpl, onChanged }) {
 const PICTURE_POLLS_MS = [1500, 3000, 5000, 8000, 12000, 20000];
 /** The shell turns the socket's `{type:'thumb-ready'}` into this window event (app.jsx). */
 export const THUMB_EVENT = 'maude:thumb-ready';
+/**
+ * The shell turns the socket's `project:action` (every accepted action, a person's edit and an outside
+ * write alike — sync/action-feed.ts) into this window event (app.jsx). A local project has no applied
+ * revision to key a re-read on, so without it the list only moved while a picture was still drawing and a
+ * second outside edit never became a row (G9).
+ */
+export const PROJECT_ACTION_EVENT = 'maude:project-action';
 
 const EMPTY = { status: 'loading', rows: [], now: null, offline: null, next: null };
 
@@ -310,6 +317,21 @@ export function useVersions({ path, filter = 'all', refreshKey = 0, enabled = tr
       cancelled = true;
     };
   }, [enabled, path, filter, refreshKey, nonce, read]);
+
+  // An accepted action landed (any canvas): look again, softly. A burst of actions is one read.
+  useEffect(() => {
+    if (!enabled || !path) return undefined;
+    let timer = null;
+    const onAction = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setNonce((n) => n + 1), 250);
+    };
+    window.addEventListener(PROJECT_ACTION_EVENT, onAction);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener(PROJECT_ACTION_EVENT, onAction);
+    };
+  }, [enabled, path]);
 
   // Pictures still being drawn: look again when the server says one landed, and on a soft schedule.
   const pending = state.status === 'ready' && wantsPictures(state.rows);

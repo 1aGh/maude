@@ -228,11 +228,17 @@ async function openExportDialog(port: number) {
   }
   // S8.2: "this artboard" is the sheet's `selection` scope, off while nothing is selected ("Nothing is
   // selected."), and without the render service a workspace exports one artboard only. The cell's shell
-  // opens in Preview (esc → Viewing); select the artboard by clicking it, as a person does.
+  // opens in Preview (esc → Viewing); select the artboard by clicking its name, as a person does.
+  // gate-a-polish (v2-gate-a-polish-artboard-name-out-of-flow): the name sits ABOVE the frame now, so a
+  // click at the frame's corner lands on the board's content and selects that element — an HTML export
+  // then refuses it (`format-unit`). The name is what selects the artboard.
   await page.evaluate(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   });
-  await canvasFrame?.click('[data-dc-screen]', { timeout: 15_000, position: { x: 3, y: 3 } });
+  await canvasFrame
+    ?.locator('[data-dc-screen] .dc-artboard-label')
+    .first()
+    .click({ timeout: 15_000 });
   await page.waitForTimeout(400);
   // ⌘⇧E opens the dialog. Dispatch it on the SHELL window rather than through
   // `keyboard.press`: once the canvas iframe has mounted it holds focus, and a
@@ -820,7 +826,12 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             // The CHROME ELEMENT is gone (a stylesheet rule naming the class
             // may legitimately remain — every rule is inlined).
             expect(html as string).not.toMatch(/<[a-z]+[^>]*class="[^"]*dc-artboard-label/);
-            expect(html as string).not.toContain('Board A · export fixture');
+            // The board's NAME may ride along as an attribute (S2.22 `data-dc-label`, which the inspector
+            // reads); what must not be there is the label as rendered text.
+            const rendered = (html as string)
+              .replace(/<style[\s\S]*?<\/style>/g, ' ')
+              .replace(/<[^>]+>/g, ' ');
+            expect(rendered).not.toContain('Board A · export fixture');
           } else {
             // pptx IS a zip — PK\x03\x04.
             expect(head4).toEqual([0x50, 0x4b, 0x03, 0x04]);

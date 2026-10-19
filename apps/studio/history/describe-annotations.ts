@@ -28,6 +28,7 @@ const TYPES: Record<string, TypeWords> = {
   section: { one: 'Section', many: 'sections' },
   stamp: { one: 'Stamp', many: 'stamps' },
   vote: { one: 'Vote', many: 'votes' },
+  ballot: { one: 'Ballot', many: 'ballots' },
 };
 
 /** Housekeeping: never a visible change of the element. */
@@ -117,13 +118,23 @@ export function describeAnnotations(ctx: LaneContext): Change[] {
     }
   };
 
-  for (const [id, e] of ea) if (!eb.has(id) && e.type !== 'ballot') count(e.type, 'added', abOf(e));
+  // sec-a C1(d) — a ballot change is always a line ("Ballot cast" / "changed" / "taken back"), so a
+  // forged or edited ballot can't land unseen; its picks stay secret (never in the words).
+  for (const [id, e] of ea)
+    if (!eb.has(id)) count(e.type, e.type === 'ballot' ? 'cast' : 'added', abOf(e));
   for (const [id, e] of eb)
-    if (!ea.has(id) && e.type !== 'ballot') count(e.type, 'removed', abOf(e));
+    if (!ea.has(id)) count(e.type, e.type === 'ballot' ? 'taken back' : 'removed', abOf(e));
 
   for (const [id, n] of ea) {
     const o = eb.get(id);
-    if (!o || n.type === 'ballot') continue;
+    if (!o) continue;
+    if (n.type === 'ballot' || o.type === 'ballot') {
+      const changed = [...new Set([...Object.keys(o), ...Object.keys(n)])].some(
+        (k) => k !== 'index' && !same(o[k], n[k])
+      );
+      if (changed) count('ballot', 'changed', abOf(n));
+      continue;
+    }
     const artboards = abOf(n);
     const t = typeOf(n.type);
     const keys = [...new Set([...Object.keys(o), ...Object.keys(n)])].filter(

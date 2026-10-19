@@ -49,6 +49,12 @@ export interface AskQueueDeps {
   gates: () => GateFacts;
   /** read lazily: the registry may be built after the queue */
   runs: () => RunRegistry | null;
+  /**
+   * S5.18 (G10): settle the slow gate facts (is Claude Code signed in) before the chat decides "send now or
+   * keep". The gate facts themselves are sync; without this a signed-out Mac reads as connected and the
+   * prompt starts a run that fails. Optional: a queue without it decides on the facts as they stand.
+   */
+  ready?: () => Promise<unknown> | null;
   actor?: string;
   device?: string;
   project?: () => { id: string | null; hub: string | null };
@@ -160,12 +166,37 @@ export function createAskQueue(deps: AskQueueDeps) {
       origin: 'maude-chat',
       label: record.label,
       prompt: p.text,
-      scope: p.scope ? { canvas: p.scope.canvas, artboards: p.scope.artboards } : null,
+      scope: p.scope
+        ? {
+            canvas: p.scope.canvas,
+            artboards: p.scope.artboards,
+            ...(p.scope.elements?.length ? { elements: p.scope.elements } : {}),
+          }
+        : null,
     });
     return { ok: true, ref: rec.runId };
   };
 
-  return { closed, chatHasQueued, maybeQueue, sender };
+  /**
+   * Settle the slow gate facts. null = nothing to wait for (the caller stays synchronous); never rejects
+   * (a probe that fails leaves the facts as they were).
+   */
+  function ready(): Promise<void> | null {
+    let p: Promise<unknown> | null | undefined;
+    try {
+      p = deps.ready?.();
+    } catch {
+      return null;
+    }
+    return p
+      ? p.then(
+          () => undefined,
+          () => undefined
+        )
+      : null;
+  }
+
+  return { closed, chatHasQueued, maybeQueue, sender, ready };
 }
 
 // ── the allowance gate's fact (`ai-allowance`, §5.7) ─────────────────────────────────────────

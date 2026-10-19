@@ -15,6 +15,11 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  baselineFixtureTree,
+  releaseFixtureTree,
+  restoreFixtureTree,
+} from './helpers/fixture-tree';
 import { pinCurrentWindow } from './helpers/windows';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -48,6 +53,10 @@ const DEDICATED: Record<string, string> = {
   's20-deployment.e2e.ts': 'pnpm test:e2e:desktop:s20',
   // V2-3.9: open, quit, relaunch, twice — against one kept app-state.
   'relaunch.e2e.ts': 'pnpm test:e2e:desktop:relaunch',
+  // S5.14: ⌘Q while AI works, then a relaunch — needs a signed-in `claude`.
+  'ai-quit.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ai-quit',
+  // S9.17: a cloud cell tab's browser door — needs a cell.
+  'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above
@@ -191,7 +200,9 @@ function resolveAppPath(): string {
       `[wdio] no built app at:\n  ${candidates.join('\n  ')}\nRun \`pnpm test:e2e:desktop:build\` first (or set MAUDE_E2E_APP).`
     );
   }
-  return found;
+  // Canonical, symlink-free: a worktree that links `src-tauri/target` to another checkout's build
+  // would otherwise start the app but never its sidecar (the same resolver rule as above).
+  return realpathSync(found);
 }
 
 export const config: WebdriverIO.Config = {
@@ -202,6 +213,9 @@ export const config: WebdriverIO.Config = {
     // dozen specs against the SAME fixture project, so a panel one spec collapsed
     // was still collapsed in the next. Runs before this session's app starts.
     if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
+    // …and a pristine fixture project: the specs share one, and the app itself writes it (version
+    // restores, edits, moves) — see helpers/fixture-tree.ts.
+    restoreFixtureTree();
     // The runner can install a newer Undici global dispatcher before WebDriver
     // loads its own copy. Mixing their header representations fails POST /session
     // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.
@@ -238,6 +252,7 @@ export const config: WebdriverIO.Config = {
   maxInstances: 1, // one native window at a time
 
   onPrepare: (cfg: WebdriverIO.Config) => {
+    baselineFixtureTree();
     // Only when THIS config is the one running — a dedicated config spreads
     // `...base` and would otherwise print a banner about specs it never meant
     // to run. Identity holds because each override supplies a fresh array.
@@ -251,6 +266,11 @@ export const config: WebdriverIO.Config = {
           .join('\n') +
         '\n'
     );
+  },
+
+  // The lane ends on the baseline `onPrepare` took, whatever failed in the middle.
+  onComplete: () => {
+    releaseFixtureTree();
   },
 
   capabilities: [

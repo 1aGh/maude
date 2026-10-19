@@ -20,6 +20,19 @@ export function inspectsSelection(mode: CanvasModeV2 | null, tool: string): bool
   return modeShows(mode, 'inspect-panel');
 }
 
+/**
+ * S3.15 (md-model) — an inspection is MARKED. The shell's selection is one value shared by every mode, so a
+ * selection made in Edit would open the Inspect panel the moment Preview was entered; the panel opens only for
+ * a selection the canvas made while inspecting (`inspected`). Anything else comes back untouched.
+ */
+export function inspectedSelection<T extends object>(
+  sel: T,
+  mode: CanvasModeV2 | null,
+  tool: string
+): T {
+  return inspectsSelection(mode, tool) ? { ...sel, inspected: true } : sel;
+}
+
 /** ⌘-click from Browse flips to Move on a free canvas; a governed Preview keeps its mode (inspect). */
 export function shouldFlipToMove(tool: string, mode: CanvasModeV2 | null): boolean {
   return tool === 'browse' && mode === null;

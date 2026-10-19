@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -14,7 +15,7 @@ import { canvasRow } from '../helpers/tree';
  * the instance as the artboard's last child, in ONE write that ⌘Z takes back whole. ↵ places a pick in the
  * selected frame instead. A canvas left out of the design system's current revision (`meta.dsRev`) gives
  * the new instance `data-ds-rev="head"`; a canvas that follows the system does not.
- * Part 2 (instances: override, swap, reset, detach) is S2.17.
+ * Part 2 (instances: override, swap, reset, detach) is S2.17, at the end of this file.
  *
  * Driving model (memory: the canvas iframe is unreachable by DOM selectors once the origin split is on):
  * the toolbar slot and the pointer are driven by synthetic events on the frame's document, the picker is
@@ -45,19 +46,33 @@ export default function Smoke() {
 }
 `;
 
-const inFrame = <T>(fn: (doc: Document, win: Window) => T, ...args: unknown[]) =>
-  browser.execute(
+const inFrame = async <T>(
+  fn: (doc: Document, win: Window, ...rest: any[]) => T,
+  ...args: unknown[]
+): Promise<T> => {
+  // A throw inside `execute` reaches the spec as "A JavaScript exception occurred" and nothing else;
+  // carry the page's own message out instead so a red run says WHY.
+  const out = (await browser.execute(
     (src: string, a: unknown[]) => {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      return new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
-        frame.contentDocument,
-        frame.contentWindow,
-        a
-      );
+      try {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        return {
+          v: new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
+            frame.contentDocument,
+            frame.contentWindow,
+            a
+          ),
+        };
+      } catch (e) {
+        return { __inFrameError: String(e) };
+      }
     },
     fn.toString(),
     args
-  );
+  )) as { v?: T; __inFrameError?: string };
+  if (out.__inFrameError) throw new Error(`inFrame: ${out.__inFrameError}`);
+  return out.v as T;
+};
 
 const press = (key: string, shift = false) =>
   inFrame(
@@ -100,13 +115,53 @@ const ghost = () =>
     return g ? { snapped: g.getAttribute('data-snapped') === 'true' } : null;
   });
 
+/**
+ * A person's ⌘-click on the element with this id: down, up and click AT ITS CENTRE (the router picks its target by
+ * the pointer's position, not by where the event was fired), so the deepest object there is selected.
+ */
+const selectFrame = async (id: string) => {
+  await inFrame((doc, win, elId: string) => {
+    const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement;
+    const r = el.getBoundingClientRect();
+    const at = {
+      bubbles: true,
+      cancelable: true,
+      clientX: r.left + r.width / 2,
+      clientY: r.top + r.height / 2,
+      button: 0,
+      metaKey: true,
+    };
+    for (const t of ['pointerdown', 'pointerup', 'click'])
+      el.dispatchEvent(new (win as any).MouseEvent(t, at));
+  }, id);
+  await browser.pause(700); // the selection settles a beat after the press
+};
+
 const openPicker = async () => {
-  await press('I', true);
+  // the tool keys register once the editing layer has mounted over the canvas, a beat after it renders:
+  // press again until the picker answers (a press on an open picker would close it, so only while it is shut)
   await browser.waitUntil(
-    async () => (await $('[data-testid="tool-panel-components"]')).isExisting(),
-    {
-      timeout: 5000,
-    }
+    async () => {
+      if (await $('[data-testid="tool-panel-components"]').isExisting()) return true;
+      // the shell opens a tool panel only for a FOCUSED canvas (tool-panels gate, testids.json tool-panel-<panel>)
+      await browser.execute(() => {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        frame.focus();
+        frame.contentWindow?.focus();
+      });
+      await press('I', true);
+      await browser.pause(700);
+      if (await $('[data-testid="tool-panel-components"]').isExisting()) return true;
+      // the toolbar's own Components slot, in the frame — what a person without the key presses
+      await inFrame((doc) => {
+        (
+          doc.querySelector('[data-testid="toolbar-slot-components"]') as HTMLElement | null
+        )?.click();
+      });
+      await browser.pause(700);
+      return $('[data-testid="tool-panel-components"]').isExisting();
+    },
+    { timeout: 15000, timeoutMsg: '⇧I never opened the Component picker' }
   );
 };
 
@@ -115,7 +170,8 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
@@ -139,7 +195,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await (await $('[data-testid="component-picker-row-Button"]')).click();
     // the picker lets go of the screen and the canvas carries the ghost
     await browser.waitUntil(
-      async () => !(await $('[data-testid="tool-panel-components"]')).isExisting(),
+      async () => !(await (await $('[data-testid="tool-panel-components"]')).isExisting()),
       {
         timeout: 5000,
       }
@@ -177,11 +233,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
   it('↵ in the picker puts it in the selected frame, in the flow, without a second import', async () => {
     const report = startReport('edit-components-enter');
     // select the flex frame by its id through the editing layer's selection
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
-    });
+    await selectFrame('row');
     await openPicker();
     const search = await $('[data-testid="component-picker-search"]');
     await search.setValue('badge');
@@ -196,16 +248,106 @@ describe('the Component picker and placing from it (S2.16)', () => {
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, `${JSON.stringify({ dsRev: 'a'.repeat(64) })}\n`);
     await browser.pause(800);
-    await (await canvasRow('smoke')).click();
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
-    });
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
+    await selectFrame('row');
     await openPicker();
     await (await $('[data-testid="component-picker-search"]')).setValue('chip');
     await browser.keys(['Enter']);
     await browser.waitUntil(async () => source().includes('<Chip '), { timeout: 8000 });
     expect(source()).toMatch(/<Chip data-cd-id="chip" data-ds-rev="head"/);
+  });
+});
+
+/**
+ * S2.17 (artboard ed-comp-instance) — part 2: an instance of a design-system component. Selecting it makes
+ * the inspector's chip say Instance; Component · Variant swap it (the words and the colour come along, ONE
+ * write); the Content line counts what differs and Reset takes back only that; Detach turns it into a plain
+ * frame with the same classes, id and token references and drops the `@maude/ds` import. Each step is one
+ * undo. The inspector is the shell's own DOM (`data-testid`s from client/v2/inspector/kinds/instance.jsx);
+ * the canvas is read as the file on disk. Written, not run, by the slice.
+ */
+const INSTANCE = `import { DCArtboard, DesignCanvas } from "@maude/canvas-lib";
+import { Button } from "@maude/ds";
+
+export default function Smoke() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="smoke" label="SMOKE/02 · INSTANCE" width={900} height={420}>
+        <Button data-cd-id="cta" variant="primary" style={{ background: "var(--accent)" }}>REGISTRUJ SE</Button>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+
+describe('an instance: override, swap, reset, detach (S2.17)', () => {
+  before(async () => {
+    await waitForSidecar();
+    writeFileSync(CANVAS, INSTANCE);
+    writeFileSync(META, '{}\n');
+    await browser.pause(800);
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
+    await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
+      timeout: 15000,
+    });
+    await inFrame((doc) => {
+      (doc.querySelector('[data-cd-id="cta"]') as HTMLElement).dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+    await browser.waitUntil(
+      async () => (await (await $('[data-testid="inspector-kind"]')).getText()) === 'Instance',
+      { timeout: 10000 }
+    );
+  });
+  after(() => fixtures.restore());
+
+  it('says Instance, names the master, and counts what it changes', async () => {
+    const report = startReport('edit-components-instance');
+    expect(await (await $('[data-testid="insp-sec-component"]')).isExisting()).toBe(true);
+    expect(await (await $('[data-testid="insp-content-text"]')).getValue()).toBe('REGISTRUJ SE');
+    expect(await (await $('[data-testid="insp-instance-changes"]')).getText()).toMatch(
+      /^2 changes from .+\./
+    );
+    await capture(report, 'instance');
+  });
+
+  it('another variant is ONE write: the words and the colour come along; ⌘Z takes it back', async () => {
+    const before = source();
+    const select = await $('[data-testid="insp-variant-select"]');
+    const options = await select.$$('option');
+    const values = await Promise.all(options.map((o) => o.getAttribute('value')));
+    const other = values.find((v) => v && v !== 'primary') as string;
+    await select.selectByAttribute('value', other);
+    await browser.waitUntil(async () => source().includes(`variant="${other}"`), { timeout: 8000 });
+    expect(source()).toContain('REGISTRUJ SE');
+    expect(source()).toContain('var(--accent)');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(async () => source() === before, { timeout: 8000 });
+  });
+
+  it('Reset takes back the words and the colour, nothing else', async () => {
+    await (await $('[data-testid="insp-instance-reset"]')).click();
+    await browser.waitUntil(async () => !source().includes('REGISTRUJ SE'), { timeout: 8000 });
+    expect(source()).toContain('>Button</Button>');
+    expect(source()).not.toContain('var(--accent)');
+    expect(source()).toContain('variant="primary"');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(async () => source().includes('REGISTRUJ SE'), { timeout: 8000 });
+  });
+
+  it('Detach keeps the look as a plain frame: same classes, same id, same token reference, no import', async () => {
+    const report = startReport('edit-components-detach');
+    await (await $('[data-testid="insp-instance-detach"]')).click();
+    await browser.waitUntil(async () => !source().includes('@maude/ds'), { timeout: 8000 });
+    const out = source();
+    expect(out).toMatch(/<button data-cd-id="cta" className="btn btn--primary"/);
+    expect(out).toContain('var(--accent)');
+    expect(out).not.toMatch(/\d+px/);
+    await capture(report, 'detached');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(async () => source().includes('<Button '), { timeout: 8000 });
   });
 });

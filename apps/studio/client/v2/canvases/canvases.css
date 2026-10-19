@@ -10,6 +10,15 @@
     display: flex;
     flex-direction: column;
   }
+  /* a11y gate B1: the Sort lane rides over the tree's project row from outside the role=tree element */
+  .cv-sort-lane {
+    position: absolute;
+    right: var(--space-3);
+    z-index: 2;
+    height: 20px;
+    display: flex;
+    align-items: center;
+  }
   .cv-tree.st-tree {
     flex: 1 1 auto;
     min-height: 0;
@@ -303,11 +312,12 @@
     outline-offset: -2px;
   }
 
-  /* ── the Sort menu (a panel-level popover, so the list's scroll never clips it) ── */
+  /* ── the Sort menu: 260 wide like 11 · pn-organise, placed in the window (fixed, inline left/top) so the
+     panel's edge never clips it ── */
   .cv-menu {
-    position: absolute;
+    position: fixed;
     z-index: 5;
-    width: 240px;
+    width: 260px;
     padding: var(--space-1);
     border-radius: var(--radius-md);
     background: var(--bg-2);
@@ -461,6 +471,26 @@
       inset 0 0 0 0.5px var(--status-error);
     color: var(--status-error);
     font-size: var(--type-xs);
+  }
+  /* "↵ rename · esc keep “name”" (11 · pn-move .pn-inset-foot): under the field, gone once an error speaks. */
+  .cv-rename-hint {
+    position: absolute;
+    left: var(--space-2);
+    right: var(--space-2);
+    top: calc(100% - 2px);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .cv-rowmenu .cv-menu-sep {
     margin: var(--space-1) 0;

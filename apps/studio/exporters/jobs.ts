@@ -50,7 +50,13 @@ import {
   renderRemotely,
   resolveRenderService,
 } from './remote.ts';
-import { type ResolveScopeArgs, resolveScope, type SpecUnit, type Target } from './scope.ts';
+import {
+  enforceAnnotationsPolicy,
+  type ResolveScopeArgs,
+  resolveScope,
+  type SpecUnit,
+  type Target,
+} from './scope.ts';
 import {
   collectGroup,
   type ExportJobItem,
@@ -583,7 +589,12 @@ export function createExportJobQueue(
       // pure data, and the render service holds no tenant store to resolve
       // against (DDR-230 §1).
       const remoteTargets = dispatchRemote
-        ? await resolveScope({ scope: args.scope, ...args.resolve, options: args.options })
+        ? enforceAnnotationsPolicy(
+            await resolveScope({ scope: args.scope, ...args.resolve, options: args.options }),
+            args.format,
+            args.options,
+            args.resolve.designRoot
+          )
         : [];
       const res = dispatchRemote
         ? await renderRemotely({

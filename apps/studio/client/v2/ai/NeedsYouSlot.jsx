@@ -22,6 +22,8 @@ import { needsYouNotice, openAiChat } from './needs-you-toast.js';
 import { QueuedState } from './NotReady.jsx';
 import PermissionCard from './PermissionCard.jsx';
 import ProblemCard from './ProblemCard.jsx';
+import { changedSomething } from './run-model.js';
+import { useChatRuns } from './use-chat-runs.js';
 
 /** This chat's waiting prompts: frames now, the outbox after a reload, kept honest while any is waiting. */
 export function useQueuedPrompts(conn, chatId) {
@@ -80,7 +82,7 @@ function useWaitingQuestions({ conn, chatId, away, requests }) {
           id: nid,
           canvas: conn.askCanvas,
           line: r.line,
-          onOpen: () => openAiChat(chatId),
+          onOpen: () => openAiChat(chatId, { canvas: conn.askCanvas }),
         })
       );
     }
@@ -109,6 +111,9 @@ export default function NeedsYouSlot({
   onConnected,
 }) {
   const { queued, refresh } = useQueuedPrompts(conn, chatId);
+  // S5.17b G7 — the failure card says "Nothing changed" only when this chat's run touched nothing; no run seen = not claimed
+  const { run: chatRun } = useChatRuns(conn, chatId);
+  const changed = chatRun ? changedSomething(chatRun) : null;
 
   const requests = useMemo(
     () => [
@@ -165,6 +170,29 @@ export default function NeedsYouSlot({
   const activeElicitation = activePermission ? null : (pendingElicitations[0] ?? null);
   const choice = activeElicitation ? choiceModel(activeElicitation) : null;
 
+  // S5.18 G6 (03 `picked`): an answered question stays as a settled card with the picked row marked — until a
+  // new question replaces it, or the chat is asked something new (a turn that starts after the run went idle).
+  const [settled, setSettled] = useState(null); // { model, picked }
+  const respondChoice = useCallback(
+    (answer, meta) => {
+      if (choice && answer?.action === 'accept' && meta?.picked) {
+        setSettled({ model: choice, picked: meta.picked });
+      }
+      onRespondElicitation?.(answer);
+    },
+    [choice, onRespondElicitation]
+  );
+  useEffect(() => {
+    let idleSeen = false;
+    return conn.onBusy?.((busy) => {
+      if (!busy) idleSeen = true;
+      else if (idleSeen) setSettled(null);
+    });
+  }, [conn]);
+  useEffect(() => {
+    if (activeElicitation || activePermission) setSettled(null);
+  }, [activeElicitation, activePermission]);
+
   return (
     <div className="ai-nc-slot" data-testid="ai-needs-slot">
       {activePermission ? (
@@ -175,15 +203,17 @@ export default function NeedsYouSlot({
         />
       ) : activeElicitation ? (
         choice ? (
-          <ChoiceCard request={activeElicitation} model={choice} onRespond={onRespondElicitation} />
+          <ChoiceCard request={activeElicitation} model={choice} onRespond={respondChoice} />
         ) : (
           <ElicitationPrompt request={activeElicitation} onRespond={onRespondElicitation} />
         )
+      ) : settled ? (
+        <ChoiceCard settled model={settled.model} picked={settled.picked} />
       ) : turnError?.code ? (
         // A refusal the server coded (S5.6: view only, prompt not kept) says plainly what happened.
         <ProblemCard error={turnError} />
       ) : (
-        <ErrorCard error={turnError} onRetry={onRetry} />
+        <ErrorCard error={turnError} onRetry={onRetry} changed={changed} />
       )}
       {queued.length > 0 ? (
         <QueuedState queued={queued[0]} count={queued.length}>

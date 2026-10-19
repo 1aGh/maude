@@ -31,7 +31,8 @@ export function ShellInspectPanel() {
   const el = inspectedElement(selected);
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   if (!canvasOpen || !el || !modeShows(snap.mode, 'inspect-panel')) return null;
-  if (!inspectOpensOnSelect({ mode: snap.mode, hasId: !!el.id })) return null;
+  if (!inspectOpensOnSelect({ mode: snap.mode, hasId: !!el.id, inspected: !!el.inspected }))
+    return null;
   const access = advancedAccess(cfg, undefined);
   // The shell's caps are the truth for Edit: a role with the edit cap, nothing else.
   const canEdit = capsFor({ canEdit: !viewerMode, role: cfg?.cloud?.role }).edit && access.canEdit;

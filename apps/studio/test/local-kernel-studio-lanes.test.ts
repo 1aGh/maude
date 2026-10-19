@@ -258,6 +258,18 @@ describe('the 1 ms race — a ⌘Z right after an edit sees that edit', () => {
     expect(p.read(REL)).toBe(canvas('A'));
   });
 
+  test('S2.24 G3: a source write that says what it was is that row, not "Edit canvas"', async () => {
+    const p = project();
+    const h = open(p.designRoot);
+    await h.ready();
+    p.write(REL, canvas('A'));
+    h.noteWritten(REL, canvas('A'), 'Headline text');
+    h.observe(REL);
+    await h.flush();
+    const [top] = await mineRows(h);
+    expect([top.kind, top.label]).toEqual(['edit', 'Headline text']);
+  });
+
   test('a noted layout write is waited on too', async () => {
     const p = project();
     const h = open(p.designRoot);

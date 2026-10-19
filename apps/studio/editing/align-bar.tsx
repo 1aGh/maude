@@ -248,6 +248,30 @@ export function AlignBarView({
 
 // ── the canvas bar ────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Where the bar sits: above the selection, as 14 Editing draws it; below when the selection is too near the top for
+ * that and there is room under it; otherwise at the top of the window, under the chrome. Always on screen — a group that
+ * fills the window used to put the bar under the selection, off the bottom edge (S2.V2 ed-ab-tidy).
+ */
+export function barPlacement(
+  box: { l: number; t: number; r: number; b: number },
+  bar: { w: number; h: number },
+  view: { w: number; h: number }
+): { left: number; top: number } {
+  const MARGIN = 8;
+  const CHROME = 60;
+  const GAP = 14;
+  const left = Math.max(
+    MARGIN,
+    Math.min(Math.round((box.l + box.r) / 2 - bar.w / 2), view.w - bar.w - MARGIN)
+  );
+  const above = box.t - bar.h - GAP;
+  if (above >= CHROME) return { left, top: Math.round(above) };
+  const below = box.b + GAP;
+  if (below + bar.h <= view.h - MARGIN) return { left, top: Math.round(below) };
+  return { left, top: CHROME };
+}
+
 function boxOf(els: Element[]): { l: number; t: number; r: number; b: number } | null {
   let l = Number.POSITIVE_INFINITY;
   let t = Number.POSITIVE_INFINITY;
@@ -396,9 +420,13 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
       const box = (mode ?? 'edit') === 'edit' && !isElementDragActive() ? boxOf(els) : null;
       if (!box) return hide();
       div.style.display = 'flex';
-      const top = box.t - div.offsetHeight - 14;
-      div.style.left = `${Math.round((box.l + box.r) / 2 - (div.offsetWidth || 0) / 2)}px`;
-      div.style.top = `${Math.round(top < 60 ? box.b + 14 : top)}px`;
+      const at = barPlacement(
+        box,
+        { w: div.offsetWidth || 0, h: div.offsetHeight },
+        { w: window.innerWidth, h: window.innerHeight }
+      );
+      div.style.left = `${at.left}px`;
+      div.style.top = `${at.top}px`;
       div.setAttribute('data-on', 'true');
     };
     raf = requestAnimationFrame(tick);

@@ -24,6 +24,8 @@ afterAll(async () => {
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { toolState } from '../annotations/ui/tool-state.ts';
+import { STICKY_PALETTE, STROKE_PALETTE } from '../annotations-model.ts';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import {
   ALL_CAPS,
@@ -145,16 +147,17 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
 });
 
 describe('visibleSlots / role, pending and read-only', () => {
-  test('an editor sees the Edit slots that exist today; Pen (its slice) stays hidden', () => {
+  test('an editor sees the Edit slots that exist today; Crop (its slice) stays hidden', () => {
     expect(ids(visibleSlots('edit', 'edit', armableDefault))).toEqual([
       'move',
       'hand',
       'frame', // S2.13: drawn by dragging
       'el-shape', // S2.13
+      'el-pen', // S2.14: click for a point, drag for a smooth one
       'el-text', // S2.12b: click to type
-      'image', // today's insert Image
+      'image', // S2.15: I opens the Assets tab (a panel-first slot)
       'components', // S2.16: the shell's Component picker (a panel-only slot)
-      'more', // S2.13: Line · Ellipse · Polygon · Export area (Crop is still pending)
+      'more', // S2.13/S2.15: Line · Ellipse · Polygon · Crop · Export area
     ]);
   });
 
@@ -165,6 +168,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'hand',
       'frame',
       'el-shape',
+      'el-pen',
       'el-text',
       'image',
       'components',
@@ -213,7 +217,8 @@ describe('visibleSlots / role, pending and read-only', () => {
     expect(armTarget('inspect', armableDefault)).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'inspect')).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'move')).toBeNull();
-    expect(armTarget('el-pen', armableDefault)).toBeNull();
+    expect(armTarget('crop', armableDefault)).toBe('crop'); // S2.15
+    expect(armTarget('el-pen', armableDefault)).toBe('el-pen'); // S2.14
   });
 });
 
@@ -222,8 +227,8 @@ describe('pending slots / no dead buttons', () => {
   // package list only shrinks when that package lands (the lead edits this list in the same commit).
   test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
     const pend = pendingSlots();
-    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area, S2.16 the Component slot; Pen and Crop remain
-    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['crop', 'el-pen'].sort());
+    // S2.13 built Shape and More's Line, Ellipse, Polygon, Export area; S2.14 the Pen, S2.15 Crop, S2.16 the Component slot; none remain
+    expect(pend.map((p) => p.slot.tool).sort()).toEqual([]);
     for (const p of pend) {
       expect(p.slot.pending).toBe('S2');
       expect(p.mode).toBe('edit');
@@ -237,7 +242,7 @@ describe('pending slots / no dead buttons', () => {
       if (s.pending) return;
       if (s.more) return void s.more.forEach(check);
       if (s.insert) return; // today's insert action
-      if (s.tool === null) return expect(s.panel).toBeDefined(); // Stickers
+      if (s.tool === null || s.panelFirst) return expect(s.panel).toBeDefined(); // Stickers, Image
       expect(pendingTools.has(s.tool)).toBe(false);
       expect(armTarget(s.tool, armableDefault)).not.toBeNull();
     };
@@ -452,13 +457,14 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
       'hand',
       'frame',
       'el-shape',
+      'el-pen',
       'el-text',
       'image',
       'components',
       'more',
     ]);
-    // Pen waits for its slice; Line · Ellipse · Polygon · Export area are behind More only (D2)
-    for (const dead of ['el-pen', 'component', 'line', 'ellipse', 'polygon', 'slice'])
+    // Line · Ellipse · Polygon · Export area are behind More only (D2)
+    for (const dead of ['component', 'line', 'ellipse', 'polygon', 'slice'])
       expect(q(`toolbar-slot-${dead}`)).toBeNull();
     expect(document.querySelector('[aria-label^="Export"]')).toBeNull();
     expect(document.querySelector('[aria-label^="Insert element"]')).toBeNull(); // the "+" is Frame/Text/Image now
@@ -475,16 +481,16 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     expect(q('toolbar-slot-hand')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('Image adds one through today’s insert verb and arms nothing; Frame and Shape are tools (S2.13)', () => {
+  test('Image asks the shell for the Assets tab and arms nothing; Frame and Shape are tools (S2.13, S2.15)', () => {
     const art = document.createElement('div');
     art.innerHTML =
       '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
     document.body.appendChild(art);
     mountBar();
     click(q('toolbar-slot-image'));
-    expect(verbs()).toEqual([{ dgn: 'insert-image-request', refId: 'p1', position: 'after' }]);
+    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'assets', anchor: null }]);
     expect(ctx?.tool).toBe('move');
-    expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false); // momentary, not a tool
+    expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false); // a panel, not a tool
     click(q('toolbar-slot-frame'));
     expect(ctx?.tool).toBe('frame');
     expect(q('toolbar-slot-frame')?.getAttribute('aria-pressed')).toBe('true');
@@ -496,13 +502,19 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     art.remove();
   });
 
-  test('More is a labelled list: Line · Ellipse · Polygon · Export area (Crop waits); a row arms that tool', () => {
+  test('More is a labelled list: Line · Ellipse · Polygon · Crop · Export area; a row arms that tool', () => {
     mountBar();
     expect(q('toolbar-popover-more')).toBeNull();
     click(q('toolbar-slot-more'));
     expect(q('toolbar-popover-more')?.getAttribute('role')).toBe('menu');
     const rows = [...document.querySelectorAll('[data-testid^="toolbar-more-"]')];
-    expect(rows.map((r) => r.textContent)).toEqual(['Line', 'Ellipse', 'Polygon', 'Export area']);
+    expect(rows.map((r) => r.textContent)).toEqual([
+      'Line',
+      'Ellipse',
+      'Polygon',
+      'Crop',
+      'Export area',
+    ]);
     click(q('toolbar-more-ellipse'));
     expect(ctx?.tool).toBe('ellipse');
     expect(q('toolbar-popover-more')).toBeNull(); // chose, closed
@@ -565,37 +577,139 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     expect(ctx?.mode).toBe('preview'); // annotation tools are mode-neutral
   });
 
-  test('Marker: the first click arms the default tip; the next opens the tips; a pick arms it and sticks (Q4)', () => {
+  test('Marker: the first click arms the default tip and shows its options; a pick arms that tip and sticks (Q4)', () => {
     mountBar();
     act(() => ctx?.setMode('preview'));
     expect(lastMarkerTip()).toBe('pen');
     click(q('toolbar-slot-pen'));
     expect(ctx?.tool).toBe('pen');
-    expect(q('toolbar-popover-marker-tips')).toBeNull();
-    click(q('toolbar-slot-pen'));
+    // S4.8 — the options open with the tool (they replace the dark tray that always stood above it)
     const pop = q('toolbar-popover-marker-tips');
-    expect(pop?.getAttribute('role')).toBe('menu');
+    expect(pop?.tagName).toBe('FIELDSET');
     expect(
-      [...(pop?.querySelectorAll('[role="menuitemradio"]') ?? [])].map((e) => e.textContent?.trim())
+      [...(pop?.querySelectorAll('[data-testid^="toolbar-tip-"]') ?? [])].map((e) =>
+        e.textContent?.trim()
+      )
     ).toEqual(['Marker', 'Highlighter', 'Eraser']);
     click(q('toolbar-tip-highlighter'));
     expect(ctx?.tool).toBe('highlighter');
     expect(lastMarkerTip()).toBe('highlighter');
-    expect(q('toolbar-popover-marker-tips')).toBeNull();
+    expect(q('toolbar-popover-marker-tips')).not.toBeNull(); // the Highlighter's own options are next
     // the slot stays lit for every tip, and shows the tip in use
     expect(q('toolbar-slot-pen')?.getAttribute('aria-pressed')).toBe('true');
     expect(q('toolbar-slot-pen')?.getAttribute('data-tip')).toBe('highlighter');
-    // leaving the Marker and coming back re-arms the last tip, not the first
+    // leaving the Marker closes the options; coming back re-arms the last tip, not the first
     click(q('toolbar-slot-arrow'));
+    expect(q('toolbar-popover-marker-tips')).toBeNull();
     expect(q('toolbar-slot-pen')?.getAttribute('aria-pressed')).toBe('false');
     click(q('toolbar-slot-pen'));
     expect(ctx?.tool).toBe('highlighter');
+    expect(q('toolbar-popover-marker-tips')).not.toBeNull();
+    click(q('toolbar-slot-pen')); // the armed slot is also the switch for its options
+    expect(q('toolbar-popover-marker-tips')).toBeNull();
     click(q('toolbar-slot-pen'));
     click(q('toolbar-tip-pen')); // restore for later tests
     expect(lastMarkerTip()).toBe('pen');
   });
 
-  test('Shape: kinds popover as before — arm, click again, pick', () => {
+  test('Marker options (an-marker): five inks + "+4", two thicknesses; the pick is the person\'s and sticks', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    click(q('toolbar-slot-pen'));
+    const pop = q('toolbar-popover-marker-tips') as HTMLElement;
+    const inks = () => [...pop.querySelectorAll('[aria-label="Ink"] button')];
+    expect(inks().map((e) => e.getAttribute('aria-label'))).toEqual([
+      'Ink',
+      'Red',
+      'Amber',
+      'Green',
+      'Blue',
+    ]);
+    expect(inks()[0]?.getAttribute('aria-pressed')).toBe('true'); // black first, the default
+    const more = q('toolbar-ink-more') as HTMLElement;
+    expect(more.textContent).toBe('+4');
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    click(more);
+    expect(
+      [...pop.querySelectorAll('[aria-label="More ink"] button')].map((e) =>
+        e.getAttribute('aria-label')
+      )
+    ).toEqual(['Orange', 'Purple', 'Pink', 'Grey']);
+    click(q('toolbar-ink-blue'));
+    expect(toolState().get().ink).toBe(STROKE_PALETTE[4]);
+    expect(q('toolbar-ink-blue')?.getAttribute('aria-pressed')).toBe('true');
+    // two thicknesses: Thin (the default) and Thick
+    const thick = [...pop.querySelectorAll('[aria-label="Thickness"] button')];
+    expect(thick.map((e) => e.getAttribute('aria-label'))).toEqual(['Thin', 'Thick']);
+    click(q('toolbar-thickness-thick'));
+    expect(toolState().get().thickness).toBe(6);
+    // the Highlighter swaps in its own: four hues and three nibs
+    click(q('toolbar-tip-highlighter'));
+    expect([...pop.querySelectorAll('[aria-label="Highlighter colour"] button')].length).toBe(4);
+    expect([...pop.querySelectorAll('[aria-label="Highlighter width"] button')].length).toBe(3);
+    expect(q('toolbar-ink-blue')).toBeNull();
+    // the Eraser has nothing to choose
+    click(q('toolbar-tip-eraser'));
+    expect(pop.querySelectorAll('fieldset fieldset').length).toBe(1); // the tips themselves
+    // restore for later tests
+    click(q('toolbar-tip-pen'));
+    click(q('toolbar-ink-ink'));
+    click(q('toolbar-thickness-thin'));
+    expect(toolState().get()).toMatchObject({ ink: STROKE_PALETTE[8], thickness: 3 });
+  });
+
+  test('Sticky colours (an-sticky): armed, five papers + "+5" open above it; a pick is remembered', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    expect(q('toolbar-popover-sticky-colours')).toBeNull();
+    click(q('toolbar-slot-sticky'));
+    expect(ctx?.tool).toBe('sticky');
+    const pop = q('toolbar-popover-sticky-colours') as HTMLElement;
+    expect(pop.getAttribute('aria-label')).toBe('Sticky colour');
+    const dots = () =>
+      [...pop.querySelectorAll('fieldset button[aria-label]:not([aria-expanded])')].map((e) =>
+        e.getAttribute('aria-label')
+      );
+    expect(dots()).toEqual(['Yellow', 'Coral', 'Green', 'Sky', 'Lilac']);
+    expect(q('toolbar-sticky-yellow')?.getAttribute('aria-pressed')).toBe('true');
+    const more = q('toolbar-sticky-more') as HTMLElement;
+    expect(more.textContent).toBe('+5');
+    click(more);
+    expect(dots()).toEqual([
+      'Yellow',
+      'Coral',
+      'Green',
+      'Sky',
+      'Lilac',
+      'White',
+      'Grey',
+      'Peach',
+      'Aqua',
+      'Pink',
+    ]);
+    click(q('toolbar-sticky-sky'));
+    expect(toolState().get().stickyColor).toBe(STICKY_PALETTE[7]);
+    expect(q('toolbar-sticky-sky')?.getAttribute('aria-pressed')).toBe('true');
+    expect(q('toolbar-sticky-yellow')?.getAttribute('aria-pressed')).toBe('false');
+    // placing a sticky is a press on the canvas: the colours stay while the tool is armed
+    act(() => {
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(q('toolbar-popover-sticky-colours')).not.toBeNull();
+    // the armed slot is also the switch for them; leaving the tool closes them
+    click(q('toolbar-slot-sticky'));
+    expect(q('toolbar-popover-sticky-colours')).toBeNull();
+    click(q('toolbar-slot-sticky'));
+    expect(q('toolbar-popover-sticky-colours')).not.toBeNull();
+    click(q('toolbar-slot-arrow'));
+    expect(q('toolbar-popover-sticky-colours')).toBeNull();
+    click(q('toolbar-slot-sticky')); // the next sticky is still sky
+    expect(q('toolbar-sticky-sky')?.getAttribute('aria-pressed')).toBe('true');
+    click(q('toolbar-sticky-yellow')); // restore for later tests
+    expect(toolState().get().stickyColor).toBe(STICKY_PALETTE[0]);
+  });
+
+  test("Shape: canvas 15's five kinds — arm, click again, pick", () => {
     mountBar();
     act(() => ctx?.setMode('preview'));
     click(q('toolbar-slot-shape'));
@@ -604,10 +718,23 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     click(q('toolbar-slot-shape'));
     const pop = q('toolbar-popover-shape-kinds');
     expect(pop?.getAttribute('aria-label')).toBe('Shape type');
-    expect(pop?.querySelectorAll('[role="menuitemradio"]').length).toBe(6);
-    click(pop?.querySelector('[aria-label="Circle"]') ?? null);
+    expect(
+      [...(pop?.querySelectorAll('[role="menuitemradio"]') ?? [])].map((e) =>
+        e.getAttribute('aria-label')
+      )
+    ).toEqual(['Rectangle', 'Ellipse', 'Diamond', 'Triangle', 'Triangle down']);
+    click(pop?.querySelector('[aria-label="Ellipse"]') ?? null);
     expect(ctx?.shapeKind).toBe('circle');
     expect(q('toolbar-popover-shape-kinds')).toBeNull();
+    // a square drawn from the small toolbar still lights Rectangle
+    act(() => ctx?.setShapeKind('square'));
+    click(q('toolbar-slot-shape'));
+    expect(
+      q('toolbar-popover-shape-kinds')
+        ?.querySelector('[aria-label="Rectangle"]')
+        ?.getAttribute('aria-checked')
+    ).toBe('true');
+    act(() => ctx?.setShapeKind('rounded'));
   });
 
   test('esc and an outside press close a popover; arming another tool closes it', () => {
@@ -647,6 +774,38 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'stickers', anchor: null }]);
     expect(ctx?.tool).toBe(before);
     expect(q('toolbar-slot-stickers')?.hasAttribute('aria-pressed')).toBe(false);
+  });
+});
+
+describe('S4.19 G3 - arming Section opens the Templates panel above the toolbar (canvas 15 an-templates)', () => {
+  beforeAll(asIframe);
+  afterAll(restoreParent);
+
+  test('the Section button arms the tool AND asks the shell for the Templates panel', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    click(q('toolbar-slot-section'));
+    expect(ctx?.tool).toBe('section');
+    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'templates', anchor: null }]);
+  });
+
+  test('arming it any other way (key, tool-set) asks the same; staying on Section does not re-ask', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    act(() => ctx?.setTool('section'));
+    expect(verbs().map((m) => m.panel)).toEqual(['templates']);
+    act(() => ctx?.setTool('section'));
+    expect(verbs()).toHaveLength(1);
+    act(() => ctx?.setTool('arrow'));
+    act(() => ctx?.setTool('section'));
+    expect(verbs()).toHaveLength(2);
+  });
+
+  test('arming any other tool opens no panel', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    act(() => ctx?.setTool('arrow'));
+    expect(verbs()).toEqual([]);
   });
 });
 

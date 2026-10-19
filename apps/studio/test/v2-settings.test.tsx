@@ -273,6 +273,7 @@ describe('the desktop sheet renders every Settings row', () => {
     for (const id of [
       'settings-account',
       'settings-open-dashboard',
+      'settings-open-emails',
       'settings-theme',
       'settings-inspector-vocabulary',
       'settings-canvas-view',

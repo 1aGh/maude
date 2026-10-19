@@ -29,6 +29,8 @@ import { ShareCluster } from './share-cluster.jsx';
 import { AccountChip } from './account-card.jsx';
 import { accountCard, accountChip } from './account-card-model.js';
 import { presentFromLabel } from './present-from-label.js';
+import { copyPresentationLink, copyRowState } from '../present/copy-link.js';
+import { normalizeOpenPath } from '../../share-link.js';
 import { useAccount } from './use-account.js';
 import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
@@ -97,6 +99,7 @@ export function ShellShareCluster() {
       viewerMode,
     },
     keyboardShortcuts: { totalOpen },
+    tabs: { shareLinksFor },
     paletteAndPanels: { rightActive },
     // S9.22b — the unread @mention count (useCommentsShell); a shell without it keeps the open count
     comments,
@@ -170,6 +173,25 @@ export function ShellShareCluster() {
   const presenterView = presenterAvailable(pv)
     ? { name: chosenDisplay(pv)?.name ?? '', on: pv.wanted }
     : null;
+  // S3.14 (G3) — Present ⌄ › Copy presentation link: enabled on a cloud link + the network (the registry's
+  // `present.copy-link` enabled rule, S3.8), greyed with the reason otherwise.
+  const copyLink = useMemo(
+    () => copyRowState({ cloud: !!cfg?.cloud || !!cloudLinkedHub?.url, online }),
+    [cfg?.cloud, cloudLinkedHub?.url, online]
+  );
+  // The row's click: the same copy `present.copy-link` runs from ⌘K (use-palette-and-panels.jsx), here against
+  // the active canvas — the menu runner has no handler for it.
+  const copyPresentation = useCallback(
+    () =>
+      copyPresentationLink({
+        rel: normalizeOpenPath(activePath, cfg?.designRel),
+        webLink: shareLinksFor?.(activePath)?.web,
+        online,
+        writeText: (t) => navigator.clipboard.writeText(t),
+        notify: ({ title, kind }) => shellToast(title, kind === 'success'),
+      }),
+    [activePath, cfg?.designRel, shareLinksFor, online]
+  );
   const fromLabel = useMemo(
     () => presentFromLabel({ selected, inView: canvasActiveArtboard, boards }),
     [selected, canvasActiveArtboard, boards]
@@ -266,8 +288,13 @@ export function ShellShareCluster() {
           onSelect={lane.select}
           // S3.5 — Order and notes… is a registry action (minRole edit), not a way into Present.
           onPresent={(kind) =>
-            kind === 'order-notes' ? menuRunner.run('present.order-notes') : lane.present(kind)
+            kind === 'order-notes'
+              ? menuRunner.run('present.order-notes')
+              : kind === 'copy-link'
+                ? copyPresentation()
+                : lane.present(kind)
           }
+          copyLink={copyLink}
           presentFromLabel={fromLabel}
           presenterView={presenterView}
           onPresenterView={() => menuRunner.run('present.presenter-view')}

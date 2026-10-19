@@ -8,6 +8,8 @@
 // Words are CONTRACT §3–§4: "AI is drawing the footer" (a name, no article), "Done — <artboard> is
 // <result>." (the AI describes the result, never itself), Undo first and then the way on.
 
+import { groupLabel } from '../history/use-versions.js';
+import { humanize } from './runs-model.js';
 import { shortArtboardName } from './scope.js';
 
 /** The run is on a turn (or about to be): the working line shows, with Stop. */
@@ -237,4 +239,46 @@ export function createAnnouncer() {
       return text;
     },
   };
+}
+
+/**
+ * S5.18 G2 (03 `ai-copy`) — the divider above a run that ran on a copy: "Ran on a copy — Post 1:1 was busy".
+ * `name` is the artboard the copy was made of (its short name); null when the run is not a copy.
+ */
+export function copyDividerText(run, { name = null } = {}) {
+  const of = run?.copyOf?.artboard;
+  if (!of) return null;
+  return `Ran on a copy — ${name || humanize(of)} was busy`;
+}
+
+// ── day dividers in a long chat (S5.19 G4, 03 `ai-long`) ─────────────────────────────────────────────
+
+const two = (n) => String(n).padStart(2, '0');
+
+/**
+ * "Yesterday, 18:20" · "Today, 09:12" · "6 Oct, 14:05" (CONTRACT §4: relative first, absolute 24-hour) — the
+ * divider above the first ask of a new day. `stamps` is the chat's asks in order, `[[messageId, ms | null], …]`
+ * (null = no time known: no divider). The first ask of a chat gets one only when it is not from today (a
+ * fresh chat needs no "Today"). Words are the history groups' own (`groupLabel`), so the two never disagree.
+ */
+export function dayDividerFor(stamps, id, now = Date.now()) {
+  const list = Array.isArray(stamps) ? stamps : [];
+  const at = list.findIndex((s) => s && s[0] === id);
+  const ms = at >= 0 ? list[at][1] : null;
+  if (!Number.isFinite(ms)) return null;
+  let prev = null;
+  for (let i = at - 1; i >= 0; i -= 1) {
+    if (Number.isFinite(list[i]?.[1])) {
+      prev = list[i][1];
+      break;
+    }
+  }
+  const word = groupLabel(ms, now);
+  if (prev === null ? word === 'Today' : groupLabel(prev, now) === word) {
+    // same day as the one before — except a "6 Oct" and a "6 Oct" of another year, which differ by label
+    return null;
+  }
+  const d = new Date(ms);
+  const time = `${two(d.getHours())}:${two(d.getMinutes())}`;
+  return `${word}, ${time}`;
 }

@@ -120,6 +120,12 @@ const CANVAS = [
   '/_api/ai/runs/:id/copy',
   '/_api/annotations/to-comment',
   '/_api/annotations/convert-undo',
+  '/_api/annotations/figjam', // S4.16 - one canvas (`file`)
+  // S4.14 — votes: each names one canvas (`file`); the vote door scopes by it (routes/votes.ts `scope`)
+  '/_api/votes',
+  '/_api/votes/start',
+  '/_api/votes/ballot',
+  '/_api/votes/end',
   '/_api/comments/to-sticky',
   '/_api/comments/op',
   '/_api/links',
@@ -136,6 +142,7 @@ const CANVAS = [
   '/_api/comp-media',
   '/_api/ds/canvas',
   '/_api/ds/components',
+  '/_api/edit-instance',
   '/_api/sync/conflicts/resolve',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
   // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).

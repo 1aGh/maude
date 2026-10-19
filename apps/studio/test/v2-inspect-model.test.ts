@@ -228,10 +228,12 @@ describe('inspectRows — one fixture element, the rows 04 md-inspect draws', ()
 
 describe('the Inspect panel opens on a selection in Preview and Viewing only', () => {
   test('rule', () => {
-    expect(inspectOpensOnSelect({ mode: 'preview', hasId: true })).toBe(true);
-    expect(inspectOpensOnSelect({ mode: 'viewing', hasId: true })).toBe(true);
-    expect(inspectOpensOnSelect({ mode: 'edit', hasId: true })).toBe(false);
-    expect(inspectOpensOnSelect({ mode: 'present', hasId: true })).toBe(false);
-    expect(inspectOpensOnSelect({ mode: 'preview', hasId: false })).toBe(false);
+    // S3.15: …for a selection the canvas marked `inspected` (a ⌘-click / click), never an Edit one carried over
+    const inspected = true;
+    expect(inspectOpensOnSelect({ mode: 'preview', hasId: true, inspected })).toBe(true);
+    expect(inspectOpensOnSelect({ mode: 'viewing', hasId: true, inspected })).toBe(true);
+    expect(inspectOpensOnSelect({ mode: 'edit', hasId: true, inspected })).toBe(false);
+    expect(inspectOpensOnSelect({ mode: 'present', hasId: true, inspected })).toBe(false);
+    expect(inspectOpensOnSelect({ mode: 'preview', hasId: false, inspected })).toBe(false);
   });
 });

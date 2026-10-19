@@ -1,0 +1,148 @@
+/* client/v2/annotations/vote.css — S4.14: the vote bar and the Start a vote sheet (canvas 15 `.an-vbar`, an-vote).
+   Tokens only; motion collapses under reduced motion via the token set.
+
+   S4.20 — MATERIAL. `VoteHost` mounts beside the shell, not inside `.st-body--float`, so the `.island` rule
+   (floating-panels.css, keyed on that ancestor) never reached these two and they drew bare (mono face, no
+   paper, no radius). They carry the island material themselves, from the same tokens, with the island's
+   own values as fallbacks outside the floating body. */
+
+.an-vbar,
+.an-vsheet {
+  font-family: var(--font-body, system-ui, sans-serif);
+  background: var(--island-bg, var(--bg-1));
+  border-radius: var(--island-radius, 14px);
+  box-shadow:
+    var(--island-shadow, 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26)),
+    inset 0 0 0 0.5px var(--island-edge, oklch(1 0 0 / 0.09));
+}
+
+.an-vbar {
+  position: fixed;
+  left: 50%;
+  /* Canvas 15 an-vote: on the top row with the project pill and the share cluster (16px in, shifted left of
+     centre to clear the cluster), so it never sits on the artboards' top-edge "+" dots. */
+  top: var(--space-4);
+  z-index: 40;
+  translate: -58% 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-2) 0 var(--space-4);
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+  white-space: nowrap;
+}
+.an-vbar b {
+  font-weight: var(--w-semibold);
+  color: var(--fg-0);
+}
+.an-vbar-t {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+.an-vbar-div {
+  width: 1px;
+  height: 20px;
+  background: var(--line-1, var(--bg-3));
+}
+.an-vbar-time {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--fg-0);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--w-semibold);
+}
+.an-vbar-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.an-vbar-av {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-3);
+  color: var(--fg-0);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+}
+.an-vbar-av:last-of-type {
+  margin-right: var(--space-2);
+}
+
+.an-vsheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--scrim, color-mix(in oklch, var(--bg-0) 40%, transparent));
+}
+.an-vsheet {
+  width: min(440px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - 2 * var(--space-6));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+}
+.an-vsheet-h {
+  margin: 0;
+  font-size: var(--type-md);
+  font-weight: var(--w-semibold);
+  color: var(--fg-0);
+}
+.an-vsheet-targets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.an-vsheet-targets legend {
+  margin-bottom: var(--space-1);
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.an-vsheet-t {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-0);
+}
+.an-vsheet-row {
+  display: grid;
+  grid-template-columns: 1fr 88px 96px;
+  gap: var(--space-2);
+}
+.an-vsheet-f {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.an-vsheet-line,
+.an-vsheet-empty {
+  margin: 0;
+  font-size: var(--type-xs);
+  color: var(--fg-1);
+}
+.an-vsheet-err {
+  margin: 0;
+  font-size: var(--type-xs);
+  color: var(--danger, var(--fg-0));
+}
+.an-vsheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

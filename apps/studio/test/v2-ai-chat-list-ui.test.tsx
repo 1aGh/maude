@@ -65,14 +65,20 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-// React listens to `input` for text fields and `change` for selects; set through the native setter.
+// Text fields call their own React onChange: react-dom decides at import time whether the page can hear
+// `input` events, and an earlier file in the same bun process may have loaded it before happy-dom registered
+// (then a dispatched `input` never reaches onChange). Call it in its own act() so the state lands before a
+// test waits on a debounce. Selects are heard on `change`, set through the native setter.
 function setValue(el: HTMLInputElement | HTMLSelectElement, value: string) {
-  const proto =
-    el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
-  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value);
-  el.dispatchEvent(
-    new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })
-  );
+  if (el instanceof HTMLSelectElement) {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(el, value);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  const propsKey = Object.keys(el).find((k) => k.startsWith('__reactProps$')) as string;
+  const props = (el as unknown as Record<string, { onChange: (e: unknown) => void }>)[propsKey];
+  el.value = value; // the instance setter keeps React's value tracker in step
+  props.onChange({ target: el, currentTarget: el });
 }
 const key = (el: Element, k: string) =>
   el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
@@ -252,10 +258,8 @@ describe('search', () => {
   test('typing finds words inside chats, marks them, and counts the results', async () => {
     const m = await mountList();
     const input = q('[data-testid="ai-chat-list-search"]') as HTMLInputElement;
-    await m.act(async () => {
-      setValue(input, 'translate');
-      await tick(250);
-    });
+    await m.act(async () => setValue(input, 'translate'));
+    await m.act(async () => tick(250));
     expect(qa('.ai-cl-mark').length).toBeGreaterThan(0);
     expect(text()).toContain('1 result');
     expect(text()).not.toContain('Running');

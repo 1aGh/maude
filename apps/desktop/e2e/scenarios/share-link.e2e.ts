@@ -46,6 +46,10 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     await active('.design/ui/Smoke.tsx');
     await (await $(tid('share-cluster-share'))).click();
     await (await $(tid('share-dialog'))).waitForDisplayed();
+    // The raw links sit under Advanced · Other ways in (S9.19) — folded until asked for.
+    if (!(await $(tid('share-app-url')).isExisting())) {
+      await (await $(tid('share-other-ways-toggle'))).click();
+    }
     expect(await (await $(tid('share-app-url'))).getValue()).toBe(
       'maude://open/project?open=ui/Smoke.tsx'
     );
@@ -104,13 +108,19 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     // (deep_link.rs `parse_link`). The debug delivery hands the window that rebuilt form directly.
     await arrive(`${stableLink}&a=export-a4`);
     await active('.design/ui/Export.tsx');
+    // a toast is short-lived: poll fast, keep what it said
+    let said = '';
     await browser.waitUntil(
-      async () =>
-        (await browser.execute(() => document.body.innerText)).includes(
-          'Opened from a link — Export · export-a4.'
-        ),
-      { timeout: 10_000, timeoutMsg: 'no "Opened from a link" toast' }
+      async () => {
+        const t = await browser.execute(
+          () => document.body.innerText.split('\n').find((l) => l.includes('Opened from')) ?? ''
+        );
+        if (t) said = t;
+        return !!t;
+      },
+      { timeout: 10_000, interval: 50, timeoutMsg: 'no "Opened from a link" toast' }
     );
+    expect(said).toContain('Opened from a link — Export · export-a4.');
     await capture('stable link with artboard anchor');
     // An entry this project never had: the calm "isn't in <project> any more", and nothing moves.
     await arrive('maude://open/project?c=n_neverwashere0');

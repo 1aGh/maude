@@ -368,17 +368,18 @@ describe('the artboard menu', () => {
       ['ask-ai'],
       ['duplicate-artboard', 'duplicate-at-width', 'rename-artboard'],
       ['add-comment'],
+      ['start-vote'], // S4.14
       ['export-artboard'],
       ['advanced'],
       ['delete-artboard'],
     ]);
   });
 
-  test('Ask AI is drawn with ⌘/ but greyed with its own line until the AI chat takes the artboard', () => {
+  test('Ask AI is drawn with ⌘/ and is live (S2.21: it opens the AI chat on this artboard)', () => {
     const ask = find('ask-ai');
     expect(ask.shortcut).toBe('⌘/');
-    expect(ask.disabled).toBe(true);
-    expect(ask.disabledHint).toBe('Ask AI arrives with the AI chat');
+    expect(ask.disabled).toBeUndefined();
+    expect(ask.disabledHint).toBeUndefined();
   });
 
   test('Duplicate ⌘D, Rename, Export… ⇧⌘E and Move to trash ⌫ say their words', () => {

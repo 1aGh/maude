@@ -142,7 +142,10 @@ const RINGS_CSS = `
 .dc-ai-ring[data-at="below"] .dc-ai-tag { top: calc(100% + 8px); }
 .dc-ai-ring[data-state="running"] .dc-ai-tag { background: var(--dc-ai-spark); color: var(--dc-ai-spark-fg); }
 .dc-ai-ring[data-state="needs-you"] .dc-ai-tag { background: var(--dc-ai-azure); color: var(--dc-ai-azure-fg); }
-.dc-ai-ring[data-state="done"] .dc-ai-tag { background: transparent; color: var(--dc-ai-spark-text); right: 0; bottom: calc(100% + 4px); padding: 0; font-weight: 500; }
+/* The settled tag takes its placement from data-at: pinning bottom here as well as the below placement top
+   stretched an absolute, overflow-hidden tag to a negative height — "Made by AI" vanished on a narrow artboard. */
+.dc-ai-ring[data-state="done"] .dc-ai-tag { background: transparent; color: var(--dc-ai-spark-text); right: 0; padding: 0; font-weight: 500; }
+.dc-ai-ring[data-state="done"][data-at="above"] .dc-ai-tag { bottom: calc(100% + 4px); }
 .dc-ai-face {
   display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 999px;
   background: var(--dc-ai-ink); color: var(--dc-ai-spark-fg); font: 600 9px/1 system-ui, sans-serif;

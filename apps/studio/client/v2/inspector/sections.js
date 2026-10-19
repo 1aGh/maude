@@ -15,6 +15,21 @@
 /** @type {ReadonlyArray<Readonly<{ n: number, id: string, title: string, explain: string, adder?: boolean, aside?: string }>>} */
 export const SECTIONS = Object.freeze(
   [
+    // S2.15 — a picture's own rows come first (14 Editing, ed-img). Both are drawn for the Image kind only: the frame
+    // draws a section only when a body is registered for the selected kind. Numbered after the ten drawn ones and S2.14's Combine (11).
+    {
+      n: 12,
+      id: 'image',
+      title: 'Image',
+      explain:
+        'The picture, its size and how it fits the frame: Fill crops it to fit, Fit shows all of it, Crop moves and zooms it inside the frame, Tile repeats it.',
+    },
+    {
+      n: 13,
+      id: 'adjust',
+      title: 'Adjust',
+      explain: 'The look of the picture and its background open Photo.',
+    },
     {
       n: 1,
       id: 'position',
@@ -75,6 +90,14 @@ export const SECTIONS = Object.freeze(
       explain: 'For the text inside. The style first; size and weight override it, with a dot.',
     },
     {
+      // S2.14 (ed-pen): "Two or more" — greyed for one shape, live for several. Drawn only for shapes and paths.
+      n: 11,
+      id: 'combine',
+      title: 'Combine shapes',
+      explain:
+        'Union, Subtract, Intersect or Exclude two or more shapes into one path. The shapes stay editable points; it exports as plain SVG.',
+    },
+    {
       n: 9,
       id: 'interaction',
       title: 'Interaction',
@@ -96,3 +119,14 @@ export const SECTION_IDS = Object.freeze(SECTIONS.map((s) => s.id));
 
 const BY_ID = new Map(SECTIONS.map((s) => [s.id, s]));
 export const sectionById = (id) => BY_ID.get(id);
+
+/**
+ * The sections in the order a kind draws them. An artboard puts Fill before Layout (14 Editing, ed-ab-select:
+ * Artboard, Fill, Layout, Export); every other kind keeps the table's order.
+ */
+export function sectionsFor(kindId) {
+  if (kindId !== 'artboard') return SECTIONS;
+  const rest = SECTIONS.filter((s) => s.id !== 'fill');
+  const at = rest.findIndex((s) => s.id === 'layout');
+  return [...rest.slice(0, at), BY_ID.get('fill'), ...rest.slice(at)];
+}

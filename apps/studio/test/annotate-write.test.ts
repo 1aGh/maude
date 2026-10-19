@@ -1536,3 +1536,153 @@ describe('annotate — format-2 agent surface (S4.5)', () => {
     expect(byId('ui-auth').a?.author).toEqual(human);
   });
 });
+
+// gate-a-fix3b (G3, an-plan) — a `--board` of columns carries a TONE per column and lands in free
+// space: never on an artboard, never on an existing annotation.
+describe('annotate --board: column tone + free-space placement', () => {
+  const spec = (name: string, body: unknown) => {
+    const p = join(root, name);
+    writeFileSync(p, JSON.stringify(body));
+    return p;
+  };
+  const sections = (slug: string) =>
+    board(slug)
+      .filter((e) => e.type === 'section')
+      .sort((a, b) => (a.x as number) - (b.x as number));
+  const czech = () => ({
+    groups: [
+      { title: 'Nápady', cards: ['a', 'b', 'c', 'd'] },
+      { title: 'Rozpracované', cards: ['e', 'f', 'g'] },
+      { title: 'Hotovo', cards: ['h', 'i'] },
+    ],
+  });
+
+  test('a custom three-column board gets grey / yellow / green tones by default', () => {
+    const res = annotate(['ui/ToneDefault.tsx', '--board', spec('tone-default.json', czech())]);
+    expect(res.code).toBe(0);
+    const colors = sections('ui-tonedefault').map((s) => s.color ?? '#8b8b94');
+    expect(new Set(colors).size).toBe(3);
+    expect(colors[0]).toBe('#8b8b94');
+  });
+
+  test('groups[].tone names a tone; an explicit colour wins over it', () => {
+    const res = annotate([
+      'ui/ToneNamed.tsx',
+      '--board',
+      spec('tone-named.json', {
+        groups: [
+          { title: 'A', tone: 'coral', cards: ['x'] },
+          { title: 'B', tone: 'sky', color: '#123456', cards: ['y'] },
+        ],
+      }),
+    ]);
+    expect(res.code).toBe(0);
+    const [a, b] = sections('ui-tonenamed');
+    expect(a?.color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(a?.color).not.toBe('#8b8b94');
+    expect(b?.color).toBe('#123456');
+  });
+
+  test('an unknown tone name is a spec error, nothing written', () => {
+    const res = annotate([
+      'ui/ToneBad.tsx',
+      '--board',
+      spec('tone-bad.json', { groups: [{ title: 'A', tone: 'mauve', cards: [] }] }),
+    ]);
+    expect(res.code).not.toBe(0);
+    expect(res.err).toContain('tone');
+    expect(boardText('ui-tonebad')).toBe('');
+  });
+
+  test('a starter template id stays colourless (the panel and the verb expand the same board)', () => {
+    const res = annotate(['ui/ToneTemplate.tsx', '--board', 'kanban']);
+    expect(res.code).toBe(0);
+    for (const s of sections('ui-tonetemplate')) expect(s.color ?? '#8b8b94').toBe('#8b8b94');
+  });
+
+  const rectOf = (e: AnnotationElement, slug: string) => {
+    const b = new Scene(board(slug)).worldBox(e.id) as {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    };
+    return b;
+  };
+  const hits = (
+    a: { x: number; y: number; w: number; h: number },
+    b: { x: number; y: number; w: number; h: number }
+  ) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  test('the board does not land on an artboard (meta positions are read without flags)', () => {
+    mkdirSync(join(root, '.design', 'ui'), { recursive: true });
+    const rel = 'ui/Plan.tsx';
+    writeFileSync(
+      join(root, '.design', rel),
+      '<DCArtboard id="desk" width={1280} height={800}></DCArtboard>\n<DCArtboard id="mobile" width={390} height={844}></DCArtboard>\n'
+    );
+    writeFileSync(
+      join(root, '.design', 'ui', 'Plan.meta.json'),
+      JSON.stringify({
+        layout: {
+          artboards: [
+            { id: 'desk', x: 0, y: 0 },
+            { id: 'mobile', x: 1360, y: 0 },
+          ],
+        },
+      })
+    );
+    const res = annotate([rel, '--board', spec('tone-plan.json', czech())]);
+    expect(res.code).toBe(0);
+    const artboards = [
+      { x: 0, y: 0, w: 1280, h: 800 },
+      { x: 1360, y: 0, w: 390, h: 844 },
+    ];
+    for (const s of sections('ui-plan')) {
+      for (const ab of artboards) expect(hits(rectOf(s, 'ui-plan'), ab)).toBe(false);
+    }
+  });
+
+  test('the board does not land on an existing annotation either', () => {
+    mkdirSync(join(root, '.design', 'ui'), { recursive: true });
+    const rel = 'ui/PlanNote.tsx';
+    writeFileSync(
+      join(root, '.design', rel),
+      '<DCArtboard id="desk" width={1280} height={800}></DCArtboard>\n<DCArtboard id="late" width={300} height={600}></DCArtboard>\n'
+    );
+    writeFileSync(
+      join(root, '.design', 'ui', 'PlanNote.meta.json'),
+      JSON.stringify({
+        layout: {
+          artboards: [
+            { id: 'desk', x: 0, y: 0 },
+            { id: 'late', x: 1900, y: 0 },
+          ],
+        },
+      })
+    );
+    seed('ui-plannote', [
+      {
+        id: 'old-note',
+        index: 'a0',
+        type: 'sticky',
+        x: 1400,
+        y: 20,
+        w: 400,
+        h: 300,
+        text: 'keep clear',
+      },
+    ]);
+    const res = annotate([rel, '--board', spec('tone-plannote.json', czech())]);
+    expect(res.code).toBe(0);
+    const old = rectOf(
+      board('ui-plannote').find((e) => e.id === 'old-note') as AnnotationElement,
+      'ui-plannote'
+    );
+    for (const s of sections('ui-plannote')) {
+      expect(hits(rectOf(s, 'ui-plannote'), old)).toBe(false);
+      expect(hits(rectOf(s, 'ui-plannote'), { x: 0, y: 0, w: 1280, h: 800 })).toBe(false);
+      expect(hits(rectOf(s, 'ui-plannote'), { x: 1900, y: 0, w: 300, h: 600 })).toBe(false);
+    }
+  });
+});

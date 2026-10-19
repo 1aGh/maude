@@ -8,7 +8,7 @@
  */
 
 import { ARROW_HEADS, ARROW_LINES, DEFAULT_INK } from '../constants.ts';
-import { bool, color, type FieldSpec, id, num, oneOf, round } from '../fields.ts';
+import { bool, color, type FieldSpec, id, num, oneOf, round, str } from '../fields.ts';
 import type { AnnotationElement, ArrowEnd, Box, ElementDef, GeomCtx } from '../types.ts';
 import { canvasHostField, get, pointSegmentDist, rotatePoint } from './_shared.ts';
 
@@ -159,7 +159,13 @@ export const arrow: ElementDef = {
   // Format 2 (R5, contract S4 Q1): ends bound to an artboard (`ab:`) or a
   // canvas element (`el:`). `start` / `end` keep caching the last resolved
   // point, so a format-1 peer draws the arrow frozen (R2/R3).
-  ext: { endHost: canvasHostField(), startHost: canvasHostField() },
+  // `label` (S4.11, an-arrow-kinds 3): the words written on the line. It is the arrow's own field,
+  // so it follows every re-route and an agent reads it with the arrow; a 1.x peer keeps it unread.
+  ext: {
+    endHost: canvasHostField(),
+    startHost: canvasHostField(),
+    label: str({ max: 200, plain: true }),
+  },
   caps: {
     box: false,
     rotatable: false,

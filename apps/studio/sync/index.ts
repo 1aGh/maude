@@ -1294,7 +1294,15 @@ export function createSyncRuntime(
   /** Slugs whose file moved away; kept attached until the peer's canvas lands there. */
   const vacated = new Set<string>();
   let collisionRenamer: ReturnType<typeof createCollisionRenamer> | null = null;
-  const noticesBeforeStore: Array<{ id: string; severity: 'info'; text: string }> = [];
+  const noticesBeforeStore: Array<{ id: string; severity: 'info' | 'warn'; text: string }> = [];
+  // C5 — two local canvases on one wire document: say so in the Sync panel.
+  const reportCollisions = (collisions: DocCollision[]): void => {
+    for (const c of collisions) {
+      const notice = docCollisionNotice(c, ctx.paths.designRoot);
+      if (statusStore) statusStore.notice?.(notice);
+      else noticesBeforeStore.push(notice);
+    }
+  };
   const acceptedLink: AcceptedLink | null = useSharedDoc
     ? createAcceptedLink({
         hubUrl: linkedHub.url,
@@ -2738,7 +2746,10 @@ export function createSyncRuntime(
     const scan = opts.canvases ? { canvases: opts.canvases, tsxCount: 0 } : await scanCanvases(ctx);
     // DDR-064 pre-cutover A4 + A6 — two files must never share a document, and
     // the pinned set must be bounded. See `admitCanvases`.
-    const localCanvases = admitCanvases(scan.canvases, useSharedDoc);
+    const localCanvases = admitCanvases(scan.canvases, useSharedDoc, {
+      docNameOf: docNameFor,
+      onCollisions: reportCollisions,
+    });
 
     // PULL THE REST OF THE PROJECT DOWN.
     //
@@ -3029,7 +3040,8 @@ export function createSyncRuntime(
         run: async () => {
           if (stopped || opts.canvases) return;
           const again = await scanCanvases(ctx);
-          if (admitCanvases(again.canvases, useSharedDoc).length === 0) return;
+          if (admitCanvases(again.canvases, useSharedDoc, { docNameOf: docNameFor }).length === 0)
+            return;
           console.log('[sync] the project has its first syncable canvas — starting sync.');
           ctx.bus.emit('sync:needs-restart');
         },
@@ -4648,7 +4660,10 @@ export function createSyncRuntime(
         // membership; rescanning would silently overrule them.
         if (opts.canvases) return;
         const fresh = await scanCanvases(ctx);
-        const admitted = admitCanvases(fresh.canvases, useSharedDoc);
+        const admitted = admitCanvases(fresh.canvases, useSharedDoc, {
+          docNameOf: docNameFor,
+          onCollisions: reportCollisions,
+        });
         const bySlug = new Map(admitted.map((c) => [c.slug, c]));
         // THE PULL PIN IS A RACE GUARD, NOT A PERMANENT EXEMPTION.
         //
@@ -6372,13 +6387,25 @@ function maxPinnedRooms(): number {
 /**
  * Filter the discovered set down to what may safely be synced.
  *
- * **A4 — slug collisions.** `slugFor` flattens `/` to `-`, so `ui/a/b.tsx` and
- * `ui/a-b.tsx` produce the same slug. Two files on one document is not a
- * degraded experience, it is silent cross-contamination: each would receive the
- * other's body as a remote change and write it over itself, forever. Neither
- * file is more correct than the other, so BOTH are excluded rather than one
- * being picked — refusing to sync two canvases is recoverable by renaming a
- * file; overwriting one with the other is not.
+ * **A4 — document collisions.** Two canvases collide when they reach the SAME
+ * wire document, not merely the same slug. `slugFor` flattens `/` to `-`, so
+ * `ui/a/b.tsx` and `ui/a-b.tsx` share a slug; in a namespaced project
+ * `sanitizeComponent` collapses further (an em dash and a hyphen, `a.b` runs,
+ * 64-character truncation), so `ui/a—b.tsx` and `ui/a-b.tsx` share a document
+ * though their slugs differ. The create/rename doors refuse such a name
+ * (S1.23b, `sync-name-key.ts`), but a file written outside them — the AI's
+ * Write, a `git pull`, Syncthing — never meets that guard, so this is the one
+ * that holds. Grouping is by `docNameOf(slug)`, the FINAL wire name; the
+ * doc-name algorithm itself is untouched, so v1 peers keep their ids.
+ *
+ * Two files on one document is not a degraded experience, it is silent
+ * cross-contamination: each would receive the other's body as a remote change
+ * and write it over itself, forever, on every peer. Neither file is more
+ * correct than the other, so BOTH are excluded rather than one being picked —
+ * refusing to sync two canvases is recoverable by renaming a file; overwriting
+ * one with the other is not. Both files stay on disk untouched; `onCollisions`
+ * lets the caller say so in the Sync panel (a console line never reaches a
+ * terminal-free desktop user).
  *
  * **A6 — pinned-room ceiling.** Under shared-doc, admit at most
  * `maxPinnedRooms()`. Named loudly, because the ones past the ceiling stop
@@ -6386,32 +6413,84 @@ function maxPinnedRooms(): number {
  *
  * Exported for the pre-cutover tests.
  */
+export interface DocCollision {
+  /** The wire document both files would share. */
+  docName: string;
+  /** The colliding canvas bodies (absolute paths, scan order). */
+  files: string[];
+}
+
+export interface AdmitCanvasesOptions {
+  /** slug → wire document name (`docNameFor`). Default: the flat slug. */
+  docNameOf?: (slug: string) => string;
+  /** Called once per call with every collision found (never with an empty list). */
+  onCollisions?: (collisions: DocCollision[]) => void;
+}
+
+/** The Sync-panel notice for one collision (CONTRACT §4: what happened · what is safe · one verb). */
+export function docCollisionNotice(
+  c: DocCollision,
+  designRoot: string
+): { id: string; severity: 'warn'; text: string } {
+  const names = c.files.map(
+    (f) =>
+      `“${path
+        .relative(designRoot, f)
+        .split(path.sep)
+        .join('/')
+        .replace(/\.(tsx|html)$/i, '')}”`
+  );
+  const list =
+    names.length <= 2
+      ? names.join(' and ')
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const lead = names.length <= 2 ? 'neither is syncing' : 'none of them is syncing';
+  const safe = names.length <= 2 ? 'Both files are' : 'All the files are';
+  return {
+    id: `doc-collision-${c.docName}`,
+    severity: 'warn',
+    text: `${list} would share one sync document, so ${lead}. ${safe} safe on this machine. Rename one.`,
+  };
+}
+
 export function admitCanvases(
   canvases: readonly CanvasDescriptor[],
-  sharedDoc: boolean
+  sharedDoc: boolean,
+  opts: AdmitCanvasesOptions = {}
 ): CanvasDescriptor[] {
-  const bySlug = new Map<string, CanvasDescriptor[]>();
+  const docNameOf = opts.docNameOf ?? ((slug: string) => slug);
+  const byDoc = new Map<string, CanvasDescriptor[]>();
   for (const c of canvases) {
-    const group = bySlug.get(c.slug);
+    // `buildDocName` throws on a slug with nothing left after sanitising; such
+    // a canvas cannot reach the wire under that name, so it keys by its slug
+    // (and collides only with an identical slug, as before).
+    let key: string;
+    try {
+      key = docNameOf(c.slug);
+    } catch {
+      key = `\0slug:${c.slug}`;
+    }
+    const group = byDoc.get(key);
     if (group) group.push(c);
-    else bySlug.set(c.slug, [c]);
+    else byDoc.set(key, [c]);
   }
 
   const admitted: CanvasDescriptor[] = [];
-  const collisions: string[] = [];
-  for (const [slug, group] of bySlug) {
+  const collisions: DocCollision[] = [];
+  for (const [docName, group] of byDoc) {
     if (group.length > 1) {
-      collisions.push(`${slug} ← ${group.map((c) => c.html).join(' , ')}`);
+      collisions.push({ docName, files: group.map((c) => c.html) });
       continue;
     }
     admitted.push(group[0] as CanvasDescriptor);
   }
   if (collisions.length > 0) {
     console.error(
-      `[sync] ${collisions.length} slug collision(s) — these canvases are NOT syncing, because two files sharing one document would overwrite each other (DDR-064 A4). Rename one of each pair:\n${collisions
-        .map((c) => `  ${c}`)
+      `[sync] ${collisions.length} document collision(s) — these canvases are NOT syncing, because two files sharing one document would overwrite each other (DDR-064 A4). Rename one of each pair:\n${collisions
+        .map((c) => `  ${c.docName} ← ${c.files.join(' , ')}`)
         .join('\n')}`
     );
+    opts.onCollisions?.(collisions);
   }
 
   if (!sharedDoc) return admitted;
