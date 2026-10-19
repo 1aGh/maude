@@ -34,6 +34,7 @@ import {
 import { TOOL_CURSORS } from './canvas-cursors.ts';
 import type { Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { openToolPanel, panelOnArm } from './toolbars/tool-panel.ts';
 
 /** V2-4.3b — the governed path (V2-1.2 §5.4): once the shell has sent its first `set-mode`, the mode
  *  is the shell's. A gesture that would cross modes asks the shell (`mode-request`) instead of moving
@@ -309,6 +310,13 @@ export function ToolProvider({
   modeRef.current = mode;
   const toolNowRef = useRef(tool);
   toolNowRef.current = tool;
+  // S4.19 (canvas 15 `an-templates`) - arming Section, by any road, opens the Templates panel above the toolbar.
+  const armedWasRef = useRef<Tool>(tool);
+  useEffect(() => {
+    const panel = panelOnArm(armedWasRef.current, tool);
+    armedWasRef.current = tool;
+    if (panel) openToolPanel(panel);
+  }, [tool]);
   useEffect(() => {
     if (!governed || typeof window === 'undefined') return;
     const store = canvasModeStore(window);

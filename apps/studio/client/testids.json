@@ -16068,6 +16068,12 @@
       "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
       "symbol": "LockedToolbar"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/annotations-context-toolbar.tsx",
+        "symbol": "AnnotationContextToolbar"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
@@ -16082,6 +16088,12 @@
       "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
       "symbol": "LockedDragTip"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/annotations/ui/locked.tsx",
+        "symbol": "LockedDragTip"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
@@ -22649,6 +22661,54 @@
     ],
     "sourceConsumers": [
       "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticky-paper-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.19: \"+5\" on the small toolbar over a sticky - opens the other five papers in place.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/s4-19-fidelity.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticky-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.19: the Small / Medium / Large / Extra large / Huge size select on the small toolbar over a sticky.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/s4-19-fidelity.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticky-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.19: List on the small toolbar over a sticky - bullets, then numbers, then off.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/s4-19-fidelity.test.tsx"
     ],
     "v2": "new"
   },

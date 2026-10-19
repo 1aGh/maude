@@ -67,6 +67,15 @@ export function placementOf(m: unknown): Pending | null {
   };
 }
 
+/**
+ * What the placement ghost shows. A gallery pick or a stamp arms placement from ANY Preview tool (S4.19, canvas
+ * 15 `an-stk-drop` / `an-stamps`): under the Hand - Preview's default - the draw tools are off, so the ghost must
+ * follow the layer's visibility alone, never the active tool.
+ */
+export function pendingFor(placing: Pending | null, visible: boolean): Pending | null {
+  return visible ? placing : null;
+}
+
 /** The picture a pick makes, STICKER_DROP_SIZE square and centred on `at` (world). */
 export function dropSticker(
   pick: { path: string; sticker?: StickerRef },
@@ -92,6 +101,16 @@ export function dropSticker(
 export function isGallerySticker(s: unknown): s is ImageStroke & { sticker: StickerRef } {
   const i = s as ImageStroke | null | undefined;
   return !!i && i.tool === 'image' && !!stickerRefOf(i.sticker);
+}
+
+/**
+ * Whether selecting this annotation opens the Photo inspector (S4.19 G6, lead decision
+ * v2-lead-sticker-selection-annotation-toolbar). A pasted or dropped picture does; a gallery sticker never
+ * does - it is annotation chrome and answers with the small toolbar (Replace... Flip Lock Duplicate).
+ */
+export function opensPhotoInspector(s: unknown): boolean {
+  const i = s as ImageStroke | null | undefined;
+  return !!i && i.tool === 'image' && !isGallerySticker(i);
 }
 
 /** Replace…: another picture in the same place at the same size; a mirrored sticker stays mirrored. */

@@ -59,6 +59,7 @@ import {
   rectsReady,
   viewStrokes,
 } from './annotations/ui/host-view.ts';
+import { LockedDragTip } from './annotations/ui/locked.tsx';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
 import { PlacementGhost, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
@@ -90,7 +91,9 @@ import { stampElement, stampTargetAt, upsertStampStroke } from './annotations/ui
 import {
   dropSticker,
   isGallerySticker,
+  opensPhotoInspector,
   type Pending,
+  pendingFor,
   placementOf,
   replacePatch,
   stickerRefOf,
@@ -114,9 +117,9 @@ import {
   type TextSession,
 } from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
+import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
 // S4.14 — a formal vote: your dots on the voted artboards, the counts once it has ended.
 import { VoteDots } from './annotations/ui/vote-dots.tsx';
-import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
@@ -1193,6 +1196,9 @@ export function AnnotationsLayer() {
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   // S4.13 - a gallery pick, a stamp or a template that trails the pointer until a click (placement.tsx).
   const [placing, setPlacing] = useState<Pending | null>(null);
+  // S4.19 G5 (canvas 15 `an-layers`) - a drag begun on a locked annotation says why nothing moves.
+  const [lockedTip, setLockedTip] = useState<{ x: number; y: number } | null>(null);
+  const clearLockedTip = useCallback(() => setLockedTip(null), []);
   // FigJam v3 — smart-guide lines painted while a drag is snapping, and the
   // id of the host a dragged arrow endpoint would bind to (accent halo).
   const [snapGuides, setSnapGuides] = useState<SnapGuide[] | null>(null);
@@ -3259,7 +3265,9 @@ export function AnnotationsLayer() {
         // isn't needed (photoSel already takes precedence in tab resolution) and
         // is the only case that races with a still-in-flight photo-tab request.
         const strokeTool = target?.closest?.('[data-id][data-tool]')?.getAttribute('data-tool');
-        if (strokeTool !== 'image') elementSel?.clear();
+        // S4.19 G6 - a gallery sticker never rides the Photo tab, so it clears the DOM selection like any other.
+        const hitStroke = strokesStoreRef.current.strokes.find((x) => x.id === strokeId);
+        if (strokeTool !== 'image' || !opensPhotoInspector(hitStroke)) elementSel?.clear();
         // FigJam v3 — clicking a group member acts on the WHOLE outermost
         // group. Double-click deep-selects the member (see the dblclick
         // handler); an already-selected stroke keeps the current selection, so
@@ -3324,7 +3332,10 @@ export function AnnotationsLayer() {
         // unlocked COPIES and leaves the originals where they are.
         if (!e.altKey) {
           const locked = lockedStrokeIds(strokesRef.current);
-          if (locked.size && ids.some((id) => locked.has(id))) return { kind: 'locked' };
+          if (locked.size && ids.some((id) => locked.has(id))) {
+            setLockedTip({ x: e.clientX, y: e.clientY });
+            return { kind: 'locked' };
+          }
         }
         // Capture a snapshot of all strokes at drag start. Every pointermove
         // re-translates FROM the snapshot using the cumulative cursor delta
@@ -4882,8 +4893,9 @@ export function AnnotationsLayer() {
   // requiring a right-click detour to reach it was pure friction. Same
   // `edit-annotation-photo-request` message + confused-deputy gate (DDR-054)
   // the context-menu action already used.
+  // S4.19 G6 - a gallery sticker is annotation chrome: it selects with the small toolbar, not the Photo tab.
   const singleSelectedImageId =
-    selCount === 1 && strokesById.get(annotSel?.selectedIds[0] as string)?.tool === 'image'
+    selCount === 1 && opensPhotoInspector(strokesById.get(annotSel?.selectedIds[0] as string))
       ? (annotSel?.selectedIds[0] as string)
       : null;
   useEffect(() => {
@@ -4939,8 +4951,9 @@ export function AnnotationsLayer() {
   return (
     <AnnotationPipelineContext.Provider value={pipeline}>
       <StrokesStoreContext.Provider value={strokesStore}>
+        <LockedDragTip at={lockedTip} onDone={clearLockedTip} />
         <PlacementGhost
-          pending={isActive && visible ? placing : null}
+          pending={pendingFor(placing, visible)}
           zoom={vp?.zoom || 1}
           resolveAsset={resolveAssetHref}
           templateSize={templateExtent}

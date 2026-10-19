@@ -777,6 +777,38 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
   });
 });
 
+describe('S4.19 G3 - arming Section opens the Templates panel above the toolbar (canvas 15 an-templates)', () => {
+  beforeAll(asIframe);
+  afterAll(restoreParent);
+
+  test('the Section button arms the tool AND asks the shell for the Templates panel', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    click(q('toolbar-slot-section'));
+    expect(ctx?.tool).toBe('section');
+    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'templates', anchor: null }]);
+  });
+
+  test('arming it any other way (key, tool-set) asks the same; staying on Section does not re-ask', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    act(() => ctx?.setTool('section'));
+    expect(verbs().map((m) => m.panel)).toEqual(['templates']);
+    act(() => ctx?.setTool('section'));
+    expect(verbs()).toHaveLength(1);
+    act(() => ctx?.setTool('arrow'));
+    act(() => ctx?.setTool('section'));
+    expect(verbs()).toHaveLength(2);
+  });
+
+  test('arming any other tool opens no panel', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    act(() => ctx?.setTool('arrow'));
+    expect(verbs()).toEqual([]);
+  });
+});
+
 describe('ToolbarMorph', () => {
   beforeAll(asIframe);
   afterAll(restoreParent);
