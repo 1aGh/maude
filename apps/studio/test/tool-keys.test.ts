@@ -266,8 +266,11 @@ describe('registry: the toolbar keys per mode (rule 13)', () => {
       ACTIONS.filter((a) => (a.keys ?? []).some((b) => b.chord === k(c))).map((a) => a.id);
     expect(owners('⌘E')).toEqual([]);
     expect(owners('⇧⌘E')).toEqual(['export.open']);
-    expect(owners('⇧⌘A')).toEqual(['select.all']); // v1's ⇧-alias of ⌘A (defect 1); Assistant left
-    expect(owners('⌘/')).toEqual(['ai.ask-selection', 'ai.chat']); // S2.19: ⌘/ on a selection asks
+    // S4.9: ⌘A's ⇧-alias (v1 defect 1) died with its binding; ⇧⌘A is Select all annotations. Assistant left.
+    expect(owners('⇧⌘A')).toEqual(['select.all-annotations']);
+    // S2.19: ⌘/ on a selection asks. S4.12: with annotations selected in Preview it asks about them
+    // (annotation.ask-ai, its own scope, so it never meets the other two).
+    expect(owners('⌘/')).toEqual(['ai.ask-selection', 'ai.chat', 'annotation.ask-ai']);
   });
 });
 

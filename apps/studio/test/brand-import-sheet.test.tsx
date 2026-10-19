@@ -20,10 +20,15 @@ afterAll(() => GlobalRegistrator.unregister());
 
 const tid = (s: string) => document.querySelector(`[data-testid="${s}"]`) as HTMLElement | null;
 
+// Typing calls the input's own React onChange: react-dom decides at import time whether the page can hear
+// `input` events, and when an earlier file in the same bun process loaded react-dom before happy-dom was
+// registered, a dispatched `input` event never reaches onChange (see v2-search-ui.test.tsx).
 function type(el: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-  setter?.call(el, value);
-  el.dispatchEvent(new window.Event('input', { bubbles: true }));
+  const propsKey = Object.keys(el).find((k) => k.startsWith('__reactProps$')) as string;
+  const props = (el as unknown as Record<string, { onChange: (e: unknown) => void }>)[propsKey];
+  // the instance setter keeps React's value tracker in step, as after a real keystroke
+  el.value = value;
+  props.onChange({ target: el, currentTarget: el });
 }
 
 async function until(fn: () => unknown, ms = 2000) {
