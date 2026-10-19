@@ -43,6 +43,19 @@ export const ANNOTATION_ACTIONS: ActionDef[] = [
   ]),
 ];
 
+// S4.9 (C29): resolved stickies stay struck through in place; this hides them for the person who
+// asks. Per person (Q8: annotationPrefs), never in the file, so it is a view preference.
+export const VISIBILITY_ACTIONS: ActionDef[] = [
+  {
+    id: 'annotations.hide-resolved',
+    label: 'Hide resolved stickies',
+    kind: 'command',
+    exec: 'canvas',
+    visible: { minRole: 'view' },
+    search: { keywords: ['resolved', 'done', 'sticky', 'hide', 'show'] },
+  },
+];
+
 // S4.4: one ⌘K row per whiteboard template ("Kanban template"). The shell runs it (menu-runner.js
 // posts `insert-template` to the open canvas, the same message a Templates-panel pick sends), so the
 // row, the panel tile and `maude design annotate <canvas> --board <id>` expand the same spec.

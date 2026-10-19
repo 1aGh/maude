@@ -42,10 +42,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'select.all',
     exec: 'canvas',
     visible: { minRole: 'comment' },
-    keys: [
-      { chord: '⌘A', layer: 'selection', when: { focus: ['canvas'] } },
-      { chord: '⇧⌘A', layer: 'selection', when: { focus: ['canvas'] }, alias: true },
-    ],
+    keys: [{ chord: '⌘A', layer: 'selection', when: { focus: ['canvas'] } }],
+  },
+  {
+    id: 'select.all-annotations',
+    exec: 'canvas',
+    visible: { minRole: 'edit' },
+    keys: [{ chord: '⇧⌘A', layer: 'global', inText: false, when: { focus: ['canvas'] } }],
   },
   {
     id: 'object.duplicate',

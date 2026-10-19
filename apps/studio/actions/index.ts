@@ -2,7 +2,7 @@
 // concatenated and frozen. Lanes add entries to `defs/<area>.ts`; the lead owns this file.
 
 import { AI_RUN_ACTIONS } from './defs/ai-runs.ts';
-import { ANNOTATION_ACTIONS, TEMPLATE_ACTIONS } from './defs/annotation.ts';
+import { ANNOTATION_ACTIONS, TEMPLATE_ACTIONS, VISIBILITY_ACTIONS } from './defs/annotation.ts';
 import { APP_ACTIONS } from './defs/app.ts';
 import { CANVAS_ACTIONS } from './defs/canvas.ts';
 import { CHAT_ACTIONS } from './defs/chat.ts';
@@ -37,6 +37,7 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...DIAGNOSTICS_ACTIONS,
   ...ANNOTATION_ACTIONS,
   ...TEMPLATE_ACTIONS,
+  ...VISIBILITY_ACTIONS,
   ...NATIVE_ACTIONS,
   ...CHAT_ACTIONS,
   ...HISTORY_ACTIONS,

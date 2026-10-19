@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f6333031813a",
+  "manifestVersion": "e16179418467",
   "actions": [
     {
       "id": "search.open",
@@ -3777,6 +3777,18 @@
       "agent": {
         "path": "cli",
         "verb": "maude design annotate <canvas> --board blank"
+      }
+    },
+    {
+      "id": "annotations.hide-resolved",
+      "label": "Hide resolved stickies",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "per-person view preference (C29); never written to the board"
       }
     },
     {

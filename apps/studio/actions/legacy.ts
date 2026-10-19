@@ -180,7 +180,7 @@ export const V1_MENUBAR: Readonly<Record<V1MenuName, readonly V1MenuRow[]>> = {
     { id: 'edit.redo', kbd: '⇧⌘Z', viewer: false },
     { sep: true, viewer: false },
     { id: 'select.none', kbd: 'Esc', keyOf: 'ui.step-back' },
-    { id: 'select.all-annotations', kbd: '⇧⌘A', viewer: false, dead: 'defect-1' },
+    { id: 'select.all-annotations', kbd: '⇧⌘A', viewer: false },
     { sep: true, viewer: false, canvas: true },
     { id: 'artboard.new-desktop', viewer: false, canvas: true },
     { id: 'artboard.new-laptop', viewer: false, canvas: true },
@@ -216,7 +216,7 @@ export const V1_MENUBAR: Readonly<Record<V1MenuName, readonly V1MenuRow[]>> = {
   ],
   selection: [
     { id: 'select.none', kbd: 'Esc', keyOf: 'ui.step-back' },
-    { id: 'select.all-annotations', kbd: '⌘ ⇧ A', viewer: false, dead: 'defect-1' },
+    { id: 'select.all-annotations', kbd: '⌘ ⇧ A', viewer: false },
   ],
   // Mirrors DEFAULT_TOOLS in use-tool-mode.tsx (Rect / Ellipse are dead — defect 5: `setTool`
   // knows only `shape`); a viewer keeps only the navigate / inspect tools.

@@ -117,6 +117,9 @@ export interface CanvasToShell {
   // the studio answers with `ds-pins`. A value is a name, never a path.
   'ds-pins-want': { revs: string[] };
   'canvas-expired': Empty;
+  // S4.9 — the annotation board of `file` changed (a local write, a peer's, an undo): the shell's
+  // Preview annotation list (client/v2/annotations/annotation-list.jsx) re-reads it.
+  'annotations-changed': { file: string };
   'canvas-notice': {
     message: string;
     kind: 'info' | 'success' | 'error' | 'warning' | 'undo';
@@ -919,6 +922,15 @@ const c2s: C2S = {
     parse: p({ revs: pinValues }),
   },
   'canvas-expired': { gate: 'frame', status: 'live', owner: 'h/use-shell-core', parse: none },
+  // S4.9 — sent by annotations-layer after a write lands; the shell relays it to the annotation list
+  // (ANNOTATIONS_CHANGED_EVENT) in the same slice that mounts the list (S4.17's mount point).
+  'annotations-changed': {
+    gate: 'active',
+    status: 'live',
+    orphan: 'no-handler',
+    owner: 'annotations-layer (S4.9) → annotation-list (S4.17)',
+    parse: p({ file: str }),
+  },
   'canvas-notice': {
     gate: 'active',
     status: 'live',
@@ -1699,19 +1711,17 @@ const s2c: S2C = {
     owner: 'comments-overlay (S9.22)',
     parse: p({ reqId: nul(reqIdV), people: nul(arrOf(mentionPerson)) }),
   },
-  // S4.17 sends them (client/v2/annotations/annotation-list-model.js); the annotations layer's
-  // handler lands with S4.9 (rows added by S9.22b: the coverage gate named them unlisted)
+  // S4.17 sends them (client/v2/annotations/annotation-list-model.js); the annotations layer hears
+  // them (S4.9, annotations/ui/visibility.ts).
   'annotation-select': {
     gate: 'parent',
     status: 'live',
-    orphan: 'no-handler',
     owner: 'annotations-layer (S4.9)',
     parse: p({ v: lit(1), ids: arrOf(shortStr(200)) }),
   },
   'annotation-filter': {
     gate: 'parent',
     status: 'live',
-    orphan: 'no-handler',
     owner: 'annotations-layer (S4.9)',
     parse: p({ v: lit(1), authors: arrOf(shortStr(200)) }),
   },
