@@ -2,6 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { focusCanvasFrame } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -1095,6 +1096,9 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       }
     );
     await browser.pause(1500);
+    // On the op log the canvas hands `edit.undo` back to the shell (`undo-key`), and the shell runs it
+    // only while the canvas holds focus in the active window (sec-a) — where the person's ⌘Z is.
+    await focusCanvasFrame();
     await postToCanvas({ dgn: 'run-action', v: 1, id: 'edit.undo' });
     await browser.waitUntil(
       async () =>
@@ -1107,6 +1111,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await capture('var-card-undo-reverted');
 
     // Redo — re-applies to CARDS[1] only.
+    await focusCanvasFrame();
     await postToCanvas({ dgn: 'run-action', v: 1, id: 'edit.redo' });
     await browser.waitUntil(
       async () =>
