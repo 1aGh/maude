@@ -549,7 +549,11 @@ export interface LocalRuntime {
     slug: string,
     lane: 'comments' | 'annotations' | 'meta',
     text: string,
-    opts?: { baseText?: string; writeId?: string }
+    /**
+     * `stageable` (S4.20 G3): a run-tagged board batch (annotations/run-tag.ts `stageRunAnnotations`)
+     * joins the run's stage when the stage claims it, so the run lands as ONE `ai` action.
+     */
+    opts?: { baseText?: string; writeId?: string; stageable?: boolean }
   ): null;
   endAiAction(
     key: string,
@@ -1486,6 +1490,89 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     strokes.add(run);
   }
 
+  /**
+   * S4.20 G3 — a run-tagged board batch (server.ts onAnnotationsChanged → `stageRunAnnotations`) joins
+   * the run's stage, like the hub's `proposeLane` honours `stageable`: the run's design change and its
+   * resolves end as ONE `ai` action, so one ⌘Z takes back both. Answers false when no open run claims
+   * this board (the caller records it as the person's stroke, as before). The same bytes are then
+   * one stroke (`lastStroke`): server.ts's plain proposal right after — a local home answers null —
+   * adds nothing. A board the store has not caught up with is first brought to `baseText` by an
+   * `outside` row, so the run's undo takes back exactly its own change. The capture is not awaited:
+   * it settles when the run ends, and `settled()` (which `endAiAction` waits on) must not wait for it.
+   */
+  function stageStroke(
+    slug: string,
+    text: string,
+    baseText: string | undefined,
+    writeId: string | undefined
+  ): boolean {
+    const value = laneValueFromFile('annotations', text);
+    const canvas = value === null ? null : canvasForSlug(slug);
+    if (value === null || canvas === null || !stage.captures(canvas, true, value)) return false;
+    lastStroke.set(slug, text);
+    const run: Promise<unknown> = readyP
+      .then(() =>
+        serial(async () => {
+          if (!opened || !kernel) return null;
+          const store = opened.store;
+          const m = await store.manifest();
+          const live = (m.docs as { doc: string; path: string; retired: boolean }[]).find(
+            (d) => !d.retired && d.path === canvas
+          );
+          // The run ended (or the canvas went) meanwhile: the board is the person's stroke after all.
+          if (!live || !stage.captures(canvas, true, value)) {
+            return proposeLanesNow(
+              slug,
+              [{ lane: 'annotations', text, baseText: baseText ?? null }],
+              { kind: 'edit', label: STUDIO_LANE_LABEL.annotations }
+            );
+          }
+          const head = (await store.heads([live.doc]))[live.doc] as {
+            lanes: Record<string, { hash: string | null }>;
+          };
+          const headHash = hashOr(head?.lanes?.annotations?.hash);
+          const headValue =
+            headHash === EMPTY_HASH ? '' : (((await store.blob(headHash)) as string | null) ?? '');
+          const base =
+            baseText === undefined ? headValue : laneValueFromFile('annotations', baseText);
+          if (base === null) return null;
+          if (laneHash(base) !== headHash) {
+            const r = await submit(
+              [
+                {
+                  op: 'lane.replace',
+                  doc: live.doc,
+                  lane: 'annotations',
+                  content: base,
+                  base: headHash,
+                },
+              ],
+              { kind: OUTSIDE_KIND, label: null },
+              actor,
+              {},
+              true
+            );
+            if (r.status !== 'accepted') return r;
+          }
+          void stage
+            .capture(canvas, live.doc, {
+              lane: 'annotations',
+              content: value,
+              baseContent: base,
+              transactionId: `lt_stage_${now().toString(36)}_${(++runTx).toString(36)}`,
+              ...(writeId ? { writeId } : {}),
+              stageable: true,
+            })
+            .catch(() => null);
+          return null;
+        })
+      )
+      .catch((err) => log.error(`[local-kernel] staging the ${slug} board failed:`, err))
+      .finally(() => strokes.delete(run));
+    strokes.add(run);
+    return true;
+  }
+
   /** Write one lane's value to its file (an empty side lane removes the file). */
   function writeLane(canvasRel: string, l: LocalLane, value: string): void {
     const rel = sibling(canvasRel, l);
@@ -1930,8 +2017,10 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     },
     proposeLane(slug, lane, text, o) {
       if (!lock || closed) return null;
-      if (lane === 'annotations') proposeStroke(slug, text, o?.baseText);
-      else noteLane(slug, lane, text);
+      if (lane === 'annotations') {
+        if (!(o?.stageable === true && stageStroke(slug, text, o.baseText, o.writeId)))
+          proposeStroke(slug, text, o?.baseText);
+      } else noteLane(slug, lane, text);
       return null;
     },
     claimAiWrite(key, repoRel, hash) {

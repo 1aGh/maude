@@ -102,6 +102,10 @@ export const SHELL_KEY_HANDLERS = {
   // Esc — v1 ran the transport's clip deselect, then the global ladder: leave Presentation Mode
   // (it fired even in a text field), else clear the focused comment pin.
   'ui.step-back': (d, { event: e, ctx }) => {
+    // A press a shell widget already consumed (the tree's search field clears or blurs and prevents
+    // it — React runs that before this window listener, which then sees focus on BODY) was that
+    // widget's step: the v1 rungs below still run as they did, but the mode and the canvas keep still.
+    const consumed = e.defaultPrevented;
     if (transportLive(ctx)) {
       const s = d.tlKeyRef.current;
       if (s.selected != null) {
@@ -126,6 +130,7 @@ export const SHELL_KEY_HANDLERS = {
     const hasCanvas = !!d.activePath && d.activePath !== SYSTEM_TAB;
     const step = shellStepBack({
       canEdit: !d.viewerMode,
+      typing: consumed,
       forward: () => {
         if (!hasCanvas) return false;
         d.postToActiveCanvas(runActionMessage('ui.step-back'));
