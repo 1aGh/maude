@@ -1201,6 +1201,14 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-choice-question` | testid | The choice card's question line. | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
 | `ai-copy-divider` | testid | "Ran on a copy — <artboard> was busy": the rule above a run that ran on a copy (03 `ai-copy`). | `client/v2/ai/RunSurface.jsx` · `RunSurface` | — | new |
 | `ai-choice-settled` | testid | An answered question: the choice card read only, the picked row marked (03 `picked`). | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
+| `ai-offer` | testid | The AI offer card: it read the stickies and offers one change (15 `an-ai-read`). Nothing has changed yet. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-says` | testid | The plan in one line, as the agent wrote it, rendered as text. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-leaves` | testid | The line that names how many stickies the offer leaves alone. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-make` | testid | The offer card's one button, "Make these changes": sends the follow-up with the same stickies as the scope. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-skip` | testid | The offer card's "Not now": folds the card, sends nothing. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-seen` | testid | Canvas side: the layer that holds the AI offer's outlines (aria-hidden, no pointer events). | `annotations/ui/ai-seen.tsx` · `AiSeenRings` | — | new |
+| `ai-seen-ring` | testid | Canvas side: one dashed spark outline + tag round what the AI's offer means ("The hero picture"). | `annotations/ui/ai-seen.tsx` · `AiSeenRings` | — | new |
+| `annot-ai-badge` | testid | Canvas side: the small spark badge on a status sticker the AI placed ("Placed by AI"). | `annotations/ui/element-node.tsx` · `ImageView` | — | new |
 | `ai-problem-card` | testid | A refusal the server coded (`read-only`, `not-queued`): what happened and what is safe. `data-code` = the code. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
 | `ai-problem-title` | testid | The problem card's sentence. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
 | `ai-problem-verb` | testid | The problem card's one verb, when it has one. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |

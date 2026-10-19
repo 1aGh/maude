@@ -14,6 +14,8 @@ import { observeReplica } from './annotations/replica.ts';
 import { createArrowRouter } from './annotations/route.ts';
 import { parseBoard, validateElements } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import { AI_MARKS_CSS } from './annotations/ui/ai-marks.tsx';
+import { AiSeenRings } from './annotations/ui/ai-seen.tsx';
 import {
   type AimRects,
   asHostRects,
@@ -778,7 +780,7 @@ function ensureAnnotStyles(): void {
   if (document.getElementById('dc-annot-css')) return;
   const s = document.createElement('style');
   s.id = 'dc-annot-css';
-  s.textContent = `${ANNOT_CSS}\n${LOD_CSS}\n${TEXT_LAYER_CSS}`;
+  s.textContent = `${ANNOT_CSS}\n${AI_MARKS_CSS}\n${LOD_CSS}\n${TEXT_LAYER_CSS}`;
   document.head.appendChild(s);
 }
 
@@ -5274,6 +5276,7 @@ function AnnotationsSvg({
   if (!target) return null;
   return (
     <>
+      <AiSeenRings />
       {lod
         ? createPortal(
             <LodMosaic model={lod} zoom={lodZoom} quiet={quiet} onZoomTo={zoomToRect} />,

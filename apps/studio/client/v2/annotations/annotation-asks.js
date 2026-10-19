@@ -79,19 +79,46 @@ export async function undoConversion(undo, { fetchImpl = globalThis.fetch } = {}
   return { ok: false, line };
 }
 
-/** The most recent `annotation-selection` of each canvas, for the AI chat's scope chip (S4.15 reads it). */
+/**
+ * The most recent `annotation-selection` of each canvas, for the AI chat's scope chip (S4.15): the composer
+ * follows it through `subscribeAnnotationSelection` (a snapshot per change, so `useSyncExternalStore` sees it).
+ */
 const scopes = new Map();
+const listeners = new Set();
+let version = 0;
+const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
 export function noteAnnotationSelection(file, scope) {
   if (!file) return;
-  if (!scope || !Array.isArray(scope.ids) || scope.ids.length === 0) scopes.delete(file);
-  else
-    scopes.set(file, {
+  if (!scope || !Array.isArray(scope.ids) || scope.ids.length === 0) {
+    if (!scopes.delete(file)) return;
+  } else {
+    const next = {
       file,
       ids: scope.ids,
       kinds: scope.kinds ?? {},
       artboards: scope.artboards ?? [],
-    });
+    };
+    const before = scopes.get(file);
+    // the same selection announced again is not news (the chip's own choice lives until it changes)
+    if (
+      before &&
+      sameList(before.ids, next.ids) &&
+      sameList(before.artboards, next.artboards) &&
+      JSON.stringify(before.kinds) === JSON.stringify(next.kinds)
+    )
+      return;
+    scopes.set(file, next);
+  }
+  version += 1;
+  for (const fn of listeners) fn();
 }
 export function annotationScopeOf(file) {
   return scopes.get(file) ?? null;
 }
+export function subscribeAnnotationSelection(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+/** A cheap snapshot for `useSyncExternalStore`. */
+export const annotationSelectionVersion = () => version;

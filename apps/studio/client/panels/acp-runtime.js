@@ -7,6 +7,7 @@
 
 import { attachmentBlock } from '../v2/ai/attach.js';
 import { mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
+import { noteAskedAnnotations } from '../v2/ai/ai-offer.js';
 
 const WS_PATH = '/_ws/acp';
 
@@ -950,6 +951,7 @@ export function makeAcpAdapter(
       // APPENDED after the typed text (paste-chip semantics) so the user's own
       // words stay first — chat titles and history read naturally.
       const frozen = getContext?.();
+      noteAskedAnnotations(frozen); // S4.15: the offer card checks the AI's answer against this ask
       const text = frozen?.block ? `${typed}\n\n${frozen.block}` : typed;
 
       const parts = [];

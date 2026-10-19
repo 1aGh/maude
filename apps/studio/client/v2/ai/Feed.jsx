@@ -11,7 +11,9 @@ import {
   filterTranscriptParts,
   transcriptForcesExpand,
 } from '../../panels/transcript-view.js';
+import { stripOffer } from './ai-offer.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
+import { OfferSlot } from './OfferCard.jsx';
 import { dayDividerFor } from './run-model.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
@@ -354,7 +356,7 @@ export function AssistantMessage() {
             verbose={forceExpand}
           />
         ) : g.part?.type === 'text' ? (
-          <ChatText key={`t-${i}`} text={g.part.text} />
+          <ChatText key={`t-${i}`} text={stripOffer(g.part.text)} />
         ) : g.part?.type === 'reasoning' ? (
           <ChatReasoning key={`r-${i}`} text={g.part.text} />
         ) : g.part?.type === 'tool-call' ? (
@@ -368,6 +370,8 @@ export function AssistantMessage() {
           />
         ) : null
       )}
+      {/* S4.15 (15 `an-ai-read`): the AI's offer to change what the stickies ask for — one button. */}
+      <OfferSlot parts={rawParts} status={status} />
       {/* S5.8 (03 `ai-question`): an answer that touched nothing says so. Off for a running turn and for any
           tool that can write — see answer-note.js. */}
       {canvasUnchanged(rawParts, status === 'complete') && !alreadySaysUnchanged(rawParts) ? (

@@ -6,9 +6,15 @@
 // canvas or the panel changes — then the chip follows the selection again ("⌘/ always attaches what is
 // selected now").
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { buildChatContext } from '../../panels/chat-context.js';
 import {
+  annotationScopeOf,
+  annotationSelectionVersion,
+  subscribeAnnotationSelection,
+} from '../annotations/annotation-asks.js';
+import {
+  annotationsScope,
   autoScope,
   resolveScope,
   scopeForPrompt,
@@ -91,15 +97,27 @@ export function useAiScope({ activeCanvas, selected, panelHidden = false, viewAr
     [selected, activeCanvas]
   );
   const artboards = useCanvasArtboards(activeCanvas, selectedIds);
+  // S4.15 — stickies / arrows selected in Preview (`annotation-selection`): the chip follows them while they
+  // are selected. Annotation and element selections are exclusive (Preview vs Edit), so whichever is non-empty.
+  const annVersion = useSyncExternalStore(
+    subscribeAnnotationSelection,
+    annotationSelectionVersion,
+    annotationSelectionVersion
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: annVersion is the store's snapshot id
+  const annScope = useMemo(
+    () => annotationsScope(activeCanvas ? (annotationScopeOf(activeCanvas) ?? {}) : {}),
+    [activeCanvas, annVersion]
+  );
   const auto = useMemo(
-    () => autoScope({ selected, canvas: activeCanvas }),
-    [selected, activeCanvas]
+    () => annScope ?? autoScope({ selected, canvas: activeCanvas }),
+    [annScope, selected, activeCanvas]
   );
   const scope = resolveScope(choice, auto);
 
   // The selection, the canvas or the panel changed → follow the selection again. The SELECTION is compared by
   // what it is, not by array identity: the same selection announced again must not undo the person's pick (G11).
-  const selKey = selectionKey(selected);
+  const selKey = `${selectionKey(selected)}\u0003${annScope ? annScope.ids.join(',') : ''}`;
   // biome-ignore lint/correctness/useExhaustiveDependencies: the reset runs on the selection's content (selKey) and the canvas, not on a re-announced array
   useEffect(() => {
     setChoice(null);
@@ -114,10 +132,16 @@ export function useAiScope({ activeCanvas, selected, panelHidden = false, viewAr
       canvas: activeCanvas,
       // A scope the person picked replaces the selection: its element locators do not ride — except a ⌘/ ask on
       // a selection (S2.19), whose scope carries the locators of exactly the elements it names.
-      selected: choice ? (choice.kind === 'elements' ? choice.selected : null) : selected,
+      selected: choice
+        ? choice.kind === 'elements'
+          ? choice.selected
+          : null
+        : annScope
+          ? null // the stickies ride as ids in the scope line; no element locators
+          : selected,
       scope: scopeForPrompt(scope, artboards),
     });
-  }, [activeCanvas, selected, choice, scope, artboards]);
+  }, [activeCanvas, selected, choice, scope, artboards, annScope]);
 
   // What the adapter freezes at send.
   const contextRef = useRef(null);

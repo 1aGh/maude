@@ -48,6 +48,7 @@ import { colorForName } from '../../use-collab.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
+import { AI_PAPER, AI_SPARK, isAiAuthored, resolvedByAi, SparkGlyph } from './ai-marks.tsx';
 import { quietPaper } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
 import { labelPoint } from './rest-route.ts';
@@ -164,6 +165,7 @@ function Node({
       data-id={el.id}
       data-tool={tool}
       data-type={el.type}
+      {...(isAiAuthored(el) ? { 'data-author': 'ai' } : {})}
       {...(tool === 'polygon' ? { 'data-shape': str(el.kind) } : {})}
       style={{
         left: x,
@@ -255,7 +257,10 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const w = num(el.w);
   const h = num(el.h);
   const r = num(el.radius, STICKY_CORNER_RADIUS);
-  const fill = quiet ? quietPaper(str(el.fill, '#fce8a6')) : str(el.fill, '#fce8a6');
+  // S4.15 - an AI sticky is neutral paper with a spark edge, never a swatch (ai-marks.tsx)
+  const aiMade = isAiAuthored(el);
+  const paper = aiMade ? AI_PAPER : str(el.fill, '#fce8a6');
+  const fill = quiet ? quietPaper(paper) : paper;
   const resolved =
     el.resolved && typeof el.resolved === 'object'
       ? (el.resolved as { by?: unknown; at?: unknown })
@@ -265,7 +270,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const style = {
     ...slotTextStyle('sticky', resolved ? { ...fmt, strike: true } : fmt),
     color: '#2a2a28',
-    padding: '14px 16px',
+    padding: aiMade ? '14px 16px 14px 28px' : '14px 16px',
     ...(resolved ? { opacity: 0.72 } : {}),
   };
   const text = str(el.text);
@@ -295,8 +300,8 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
         <path
           d={stickyCornerPath(x, y, w, h, r)}
           fill={fill}
-          stroke="rgba(0,0,0,0.05)"
-          strokeWidth={1}
+          stroke={aiMade ? AI_SPARK : 'rgba(0,0,0,0.05)'}
+          strokeWidth={aiMade ? 2 : 1}
           vectorEffect="non-scaling-stroke"
           filter="url(#dc-sticky-shadow)"
           pointerEvents={hit(interactive)}
@@ -353,13 +358,15 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
         </div>
       )}
       {edit ? <EditNotice notice={edit.notice} /> : null}
+      {aiMade && !edit ? <SparkGlyph className="dc-annot-spark" /> : null}
       {resolved ? (
         <span
           className="dc-annot-done"
           data-resolved="1"
-          title="Resolved"
+          {...(resolvedByAi(el) ? { 'data-by': 'ai' } : {})}
+          title={resolvedByAi(el) ? 'Resolved by AI' : 'Resolved'}
           role="img"
-          aria-label="Resolved"
+          aria-label={resolvedByAi(el) ? 'Resolved by AI' : 'Resolved'}
         >
           <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
             <path
@@ -588,13 +595,17 @@ function ArrowView({ el, ends, interactive }: ElementNodeProps) {
   const lp = label ? labelPoint(el, ends) : null;
   // A dangling end (its host is gone) keeps its place, dashed, with no head (an-dangling).
   const dangling = ends.dangling;
-  const drawn = danglingEl(el, dangling);
+  // S4.15 - an arrow the AI drew is spark-coloured, shaft and head alike
+  const aiMade = isAiAuthored(el);
+  const drawn = aiMade
+    ? { ...danglingEl(el, dangling), color: AI_SPARK }
+    : danglingEl(el, dangling);
   const prims = routed ? polylinePrims(routed, drawn) : arrowPrimitives(arrowGeom(drawn, ends));
   return (
     <Node el={el} x={x} y={y} w={w} h={h}>
       <Geo x={x} y={y} w={w} h={h}>
         <g
-          stroke={str(el.color, '#1a1a1a')}
+          stroke={aiMade ? AI_SPARK : str(el.color, '#1a1a1a')}
           strokeWidth={width}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -699,6 +710,12 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
           pointerEvents={hit(interactive)}
         />
       </Geo>
+      {/* S4.15 - a status sticker the AI placed (Done! / Flagged) wears a small spark badge */}
+      {el.sticker && isAiAuthored(el) ? (
+        <span className="dc-annot-ai-badge" data-testid="annot-ai-badge" title="Placed by AI">
+          <SparkGlyph size={10} />
+        </span>
+      ) : null}
     </Node>
   );
 }

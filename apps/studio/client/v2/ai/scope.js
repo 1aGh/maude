@@ -6,7 +6,9 @@
 // (⌘/) or changing the selection puts it back on "follows the selection" (⌘/ always attaches what is
 // selected now).
 //
-// A scope is `{ kind: 'whole' } | { kind: 'artboards', ids: string[] } | { kind: 'none' }` or, since S2.19
+// A scope is `{ kind: 'whole' } | { kind: 'artboards', ids: string[] } | { kind: 'none' }` or, since S4.15, the
+// stickies and arrows selected in Preview: `{ kind: 'annotations', file, ids, artboards, kinds }` (contract
+// S4-S5-ai-annotations §1) — or, since S2.19
 // (⌘/ on a selection, in place), `{ kind: 'elements', refs, ids, selected? }`: the elements the person selected
 // (`refs`: `{artboard, element, occurrence?}`), the artboards they sit on (`ids`, what the run leases) and the
 // canvas's locators for them (`selected`, only for the prompt's `[selected: …]` lines). A *choice* is a scope
@@ -106,6 +108,62 @@ export function elementsScope(refs, selected = []) {
   };
 }
 
+/** One annotation id, as the canvas names it (annotation-selection's `annotationIdV`). */
+const ANNOTATION_ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
+/** The most annotations one ask names (the canvas posts ≤ 500; a prompt line stays readable). */
+export const SCOPE_ANNOTATIONS_MAX = 100;
+
+/**
+ * S4.15 — the scope of ⌘/ on selected stickies / arrows (S4.12 `annotation-selection`). Ids and artboard ids
+ * only: the stickies' words are other people's input and are read through `maude design read-annotations`,
+ * which wraps them as untrusted data (contract §1). Nothing valid → null.
+ * @returns {{ kind: 'annotations', file: string, ids: string[], artboards: string[], kinds: Record<string, number> } | null}
+ */
+export function annotationsScope({ file, ids, artboards, kinds, answers } = {}) {
+  if (typeof file !== 'string' || !file) return null;
+  const okIds = [
+    ...new Set(first(ids).filter((id) => typeof id === 'string' && ANNOTATION_ID_RE.test(id))),
+  ].slice(0, SCOPE_ANNOTATIONS_MAX);
+  if (!okIds.length) return null;
+  const okBoards = [
+    ...new Set(first(artboards).filter((id) => typeof id === 'string' && ID_RE.test(id))),
+  ].slice(0, 64);
+  const counts = {};
+  for (const [k, v] of Object.entries(kinds && typeof kinds === 'object' ? kinds : {})) {
+    if (/^[a-z-]{1,24}$/.test(k) && Number.isInteger(v) && v > 0) counts[k] = v;
+  }
+  // "Make these changes" (ai-offer.js): the ids of the offer's `answers` — the apply run resolves exactly those
+  const okAnswers = first(answers).filter((id) => okIds.includes(id));
+  return {
+    kind: 'annotations',
+    file,
+    ids: okIds,
+    artboards: okBoards,
+    kinds: counts,
+    ...(okAnswers.length ? { answers: okAnswers } : {}),
+  };
+}
+
+const KIND_WORDS = {
+  sticky: ['sticky', 'stickies'],
+  arrow: ['arrow', 'arrows'],
+  section: ['section', 'sections'],
+  text: ['text', 'texts'],
+  sticker: ['sticker', 'stickers'],
+  image: ['picture', 'pictures'],
+};
+
+/** "3 stickies" · "1 sticky" · "2 arrows"; several types → "5 annotations". */
+export function annotationsLabel(scope) {
+  const n = scope?.ids?.length ?? 0;
+  const types = Object.keys(scope?.kinds || {});
+  if (types.length === 1 && KIND_WORDS[types[0]]) {
+    const [one, many] = KIND_WORDS[types[0]];
+    return `${scope.kinds[types[0]]} ${scope.kinds[types[0]] === 1 ? one : many}`;
+  }
+  return n === 1 ? '1 annotation' : `${n} annotations`;
+}
+
 /**
  * S2.21 — the scope of an artboard's “Ask AI about this artboard”: that artboard, whole. A plain id or nothing.
  * @returns {{ kind: 'artboards', ids: string[] } | null}
@@ -127,6 +185,7 @@ export function scopeLabel(scope, artboards = []) {
     const n = scope.refs?.length ?? 0;
     return n === 1 ? '1 element' : `${n} elements`;
   }
+  if (scope.kind === 'annotations') return annotationsLabel(scope);
   const ids = scope.ids || [];
   if (ids.length === 0) return 'Whole canvas';
   if (ids.length === 1) return shortArtboardName(labelOf(ids[0], artboards));
@@ -144,6 +203,12 @@ export function scopeTitle(scope, artboards = []) {
   if (scope?.kind === 'none') return 'AI answers without the canvas';
   if (scope?.kind === 'elements')
     return scope.refs.length === 1 ? 'AI works on this element' : 'AI works on these elements';
+  if (scope?.kind === 'annotations') {
+    const label = annotationsLabel(scope);
+    return scope.ids.length === 1
+      ? `AI reads this ${label.replace(/^1 /, '')}`
+      : `AI reads these ${label}`;
+  }
   if (scope?.kind === 'artboards' && scope.ids.length > 1)
     return `AI works on: ${scopeNames(scope, artboards).join(', ')}`;
   if (scope?.kind === 'artboards') return `AI works on ${scopeNames(scope, artboards)[0]}`;
@@ -159,6 +224,8 @@ export function sameScope(scope, other) {
     const key = (r) => `${r.artboard}\u0000${r.element}\u0000${r.occurrence ?? ''}`;
     return sameIds(scope.refs.map(key), other.refs.map(key));
   }
+  if (scope.kind === 'annotations')
+    return scope.file === other.file && sameIds(scope.ids, other.ids);
   return scope.kind !== 'artboards' || sameIds(scope.ids, other.ids);
 }
 
@@ -212,5 +279,16 @@ export function scopeForPrompt(scope, artboards = []) {
   // ids only — the elements' text is the canvas's untrusted data and rides sanitised as `[selected: …]` lines
   if (scope.kind === 'elements')
     return { kind: 'elements', ids: scope.ids, refs: scope.refs, names: [] };
+  // ids only — a sticky's words are other people's input; the agent reads them with `read-annotations`
+  if (scope.kind === 'annotations')
+    return {
+      kind: 'annotations',
+      file: scope.file,
+      ids: scope.ids,
+      artboards: scope.artboards || [],
+      kinds: scope.kinds || {},
+      ...(scope.answers?.length ? { answers: scope.answers } : {}),
+      names: [],
+    };
   return { kind: 'artboards', ids: scope.ids, names: scopeNames(scope, artboards) };
 }
