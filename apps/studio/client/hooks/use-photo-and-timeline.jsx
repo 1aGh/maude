@@ -1,6 +1,8 @@
 // hooks/use-photo-and-timeline.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ANNOTATIONS_HIDDEN_TOAST } from '../../annotations/ui/visibility.ts';
+import { notify } from '../../notifications.tsx';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
 import { installDropGuard } from '../shell/drop-guard.js';
 import { togglePresentCanvas, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
@@ -472,6 +474,17 @@ export function usePhotoAndTimeline({
         try {
           el.contentWindow.postMessage({ dgn: 'view-annotations', visible: next }, '*');
         } catch {}
+      }
+      // S4.9: hiding says how to bring them back; the shell owns the toast because canvas notices
+      // can't carry an action (decision v2-S4.9-shell-owns-hidden-toast).
+      if (!next) {
+        queueMicrotask(() =>
+          notify({
+            id: 'annotations-hidden',
+            title: ANNOTATIONS_HIDDEN_TOAST.title,
+            action: { label: ANNOTATIONS_HIDDEN_TOAST.action, onClick: () => toggleAnnotations() },
+          }),
+        );
       }
       return next;
     });

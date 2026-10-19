@@ -1864,6 +1864,9 @@ export function createHttp(
       designRel: ctx.paths.designRel,
       // S1.13 — Go back reads `_state/render-ok.json` under the design root
       designRoot: ctx.paths.designRoot,
+      // S1.14 — row pictures from the project's picture service; `thumbs` is created further down,
+      // so it is read lazily (S1.V G4: without it every versions row drew an empty box)
+      thumb: (req) => thumbs.thumb(req),
       cache: (() => {
         let cache: AttributionCache | null = null;
         return () => {
