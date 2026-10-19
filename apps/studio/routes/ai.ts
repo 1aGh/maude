@@ -205,7 +205,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
           // the copy is the WAITING run's write: claimed for its stage before it lands
           beforeWrite: (next) => {
             if (!stage || !control) return;
-            control.beginAiAction?.(stage.key, `Claude: ${was.label}`, stage.meta);
+            control.beginAiAction?.(stage.key, was.label, stage.meta);
             control.claimAiWrite?.(stage.key, repoRel, hashBytes(next));
           },
         }

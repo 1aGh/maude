@@ -173,7 +173,7 @@ export function parseRunScope(raw: unknown, designRel = ''): RunScope | null {
  */
 export function turnLabelOf(prompt: string): string {
   const words = promptLabel(prompt);
-  return words ? `Claude: ${words}` : 'Claude edit';
+  return words || 'AI edit';
 }
 
 /** S2.19 — the most elements one ask names (the registry's per-run cap). */

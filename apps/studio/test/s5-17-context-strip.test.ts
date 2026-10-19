@@ -56,9 +56,9 @@ describe('title, search snippet and history label', () => {
     expect(searchChats(root, 'whole-canvas')).toEqual([]);
   });
 
-  test('the Version-history label is "Claude: <what was typed>"', () => {
+  test('the Version-history label is what was typed (03: the row title is the ask)', () => {
     for (const p of [PROMPTS.whole, PROMPTS.boards, PROMPTS.elements])
-      expect(turnLabelOf(p)).toBe('Claude: Make it blue');
-    expect(turnLabelOf(`${HEAD}\n[maude-scope whole-canvas]`)).toBe('Claude edit');
+      expect(turnLabelOf(p)).toBe('Make it blue');
+    expect(turnLabelOf(`${HEAD}\n[maude-scope whole-canvas]`)).toBe('AI edit');
   });
 });
