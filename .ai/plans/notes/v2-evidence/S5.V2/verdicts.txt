@@ -1,15 +1,34 @@
-S5.V2 — pass 2 on 03 AI Chat (package S5), base feat/maude-v2 incl. S5.17 + S5.17b. Rig: scripts/v2-verify/S5-rig.mjs (fake ACP agent, VERIFY_PRE=1 so the real pre-edit hook half runs). Never a real provider.
-Browser pane at 1440x900 with window.__TAURI__ stubbed, panel via ⌘/ . Scratch project: 3-artboard Site canvas.
+S5.V2 — pass 2 on 03 AI Chat (package S5). Base feat/maude-v2 faa450a14 (has S5.17 + S5.17b). Rig: scripts/v2-verify/S5-rig.mjs (fake ACP agent, VERIFY_PRE=1 runs the real pre-edit hook half; never a real provider).
+Browser pane 1440x900, window.__TAURI__ stubbed, panel via ⌘/. Scratch project: 3-artboard Site canvas (.design/ui/Site.tsx) + 3 open comments.
+Rig additions this pass: S5V_PROJ / S5V_WT env (no hard paths), EDITID:<id> and EDITCOPY (edit a copy artboard), session/set_mode + set_config_option handlers, plan-mode answer, LONG SLOW (slow stream).
+Pass-1 gaps G1 (scope path form), G2 (chip), G3 (context block leak), G4 (empty chat), G5 (grouping), G9 (spark tip) are FIXED; G8 mostly fixed (tag + chips present now).
 
-VERIFIED (ledger set)
-  ai-open           hint only + one suggestion strip ("Resolve 3 comments · Reply to the comments · List what changed" + "Because 3 comments are open on this canvas"), chip "Pricing" (ai-open.jpg)
-  ai-scope          chip = artboard short name; menu "Whole canvas / <label> / Choose artboards… / No canvas — just ask"; shift-select → "3 artboards" with names on hover; folded spark title "Ask AI ⌘/" (ai-scope-menu.jpg)
-  ai-working        dashed ring + "AI is working" tag on the artboard, panel line + Stop (ai-working.jpg)  [G1 gone: own edits are no longer denied, leases keyed .design/ui/Site.tsx]
-  ai-done           solid ring + wipe, "Made by AI" tag, "Done — …", Undo · Keep going, "What AI did · 1 step · 8 s", follow-up chips (ai-done.jpg)
-  ai-same-artboard  2nd ask on a busy artboard: "Waiting for “…” to finish on Landing." + "AI is working · 1 waiting" tag (ai-same-artboard.jpg)
-  ai-queue-rule     rules 1-4 measured on /_api/ai/runs (ai-queue-rule.txt)
-  ai-advanced       Ask before (optgroups "AI asks before…" / "AI changes nothing"), Model, Show in chat, Suggestions, AI may › Folders AI may read, This chat › Context used / Session, Raw log / Copy transcript / Open in terminal + foot — the backed subset per decision v2-S5.17b-advanced-only-backed-blocks (ai-advanced.jpg). Nit: Ask before is drawn above Model; the canvas has Model first.
-  ai-attach         drop overlay "Drop to attach / AI can use it in this chat"; paste + drop make an image chip (40px thumb + ×), a PDF chip "Combine-brief-2026.pdf / PDF" (canvas says "PDF · 12 pages": no page count) (ai-attach.jpg)
+VERIFIED (ledger set, 9)
+  ai-open           hint only + one suggestion strip + why line; chip "Pricing"                              ai-open.jpg
+  ai-scope          chip = short name; menu words exact; shift-select -> "3 artboards"; spark tip "Ask AI ⌘/"   ai-scope-menu.jpg
+  ai-working        dashed ring + "AI is working" tag + panel line + Stop; the own edit is no longer denied    ai-working.jpg
+  ai-done           solid ring + wipe + "Made by AI" + Undo · Keep going + "What AI did · 1 step · 8 s" + chips  ai-done.jpg
+  ai-same-artboard  "Waiting for “…” to finish on Landing." + tag "AI is working · 1 waiting"                ai-same-artboard.jpg
+  ai-queue-rule     rules 1-4 measured on /_api/ai/runs                                                      ai-queue-rule.txt
+  ai-advanced       the backed subset (decision v2-S5.17b-advanced-only-backed-blocks); nit: Ask before above Model  ai-advanced.jpg
+  ai-attach         drop overlay words; paste + drop chips (image thumb, PDF "name / PDF")                    ai-attach.jpg
+  ai-panel-closed   busy dot on the folded spark, outline stays, toast "Done — …" + Show                      ai-panel-closed.jpg
 
-GAPS (details in the hand-back)
-  see hand-back G-list
+GAPS (not verified)
+  ai-two-artboards   rings, tags, ✦ 2 count all right; the run-list popover (320 px) is wider than the 288 px dock column and is clipped at the left edge (ai-two-artboards-runs-clipped.jpg)
+  ai-copy            copy lands beside the original, "Made by AI" tag, Undo · Keep the copy, chip all right; missing: the "Ran on a copy — <artboard> was busy" divider and the "Copied from <X> before “<ask>”" caption + link on the canvas (no string in client/); the copy has no meta entry so the scope chip/menu show its id, and with explicit layout.artboards entries it lands on top of the next artboard (default-grid cell)  (ai-copy.jpg)
+  ai-permission      ring + "Waiting for you" tag + Not now / verb ok; the "Always for this canvas" box is never drawn: bridge.ts stripAlways removes allow_always from every write-shaped request (security F6) — canvas vs security, lead decides (ai-permission.jpg)
+  ai-needs-hidden    toast + azure folded spark count + ring ok; canvas row "Needs you" is not drawn: nothing calls setRowSlots('ai', …) (client/v2/canvases/row-slots.js has the slot, no provider); toast Open opens the question but stays on the other canvas (ai-needs-hidden.jpg)
+  ai-chat-list       Running/Earlier, grouping by canvas, search, row menu ok; idle rows have no "where" line (03 draws the artboard under each title) (ai-chat-list.jpg, ai-chat-list-search.jpg)
+  ai-choice-fail     question card + failure card ok in shape; an answered question leaves no card with the picked option marked (03 `picked`); no point-ring/hint (ai-choice.jpg, ai-fail.jpg)
+  ai-question        no way for AI to point at a spot: no point ring (03 `Ring kind=point`, "gone when you click") exists anywhere in client/ or canvas-lib; the answer line itself is right
+  ai-adv-edges       mode picker words (optgroups), Suggest-only banner + Allow changes, paste chip, Copy/Retry ok; slash menu is the v1 list (arg hints, long manifest descriptions, no "Slash commands" group, not trimmed to 5) (ai-adv-edges-slash.jpg, ai-adv-edges-suggest-only.jpg)
+  ai-long            full height by double-click on the edge, resizable edge tip, "Jump to latest" ok; no Before/After thumbs + Compare in the Result, no day dividers, long chats are only "long" by message count (ai-long.jpg)
+  ai-not-ready       signed-out Claude: v1 setup list "AI editing isn't ready yet" fills the panel; a first send is dropped (outbox empty), no ConnectSheet, no kept prompt, no "Queued" line (ai-not-ready.jpg)
+  Whole canvas pick: choosing "Whole canvas" in the chip menu while an artboard is selected shows the chip but the run is sent with the selection (scope artboards [landing]); with nothing selected it is "*" and starts at once.
+
+UNREACHABLE (U)
+  ai-hero          Tereza's AI half needs a hub peer (own half — ring, wipe, tag, attach chips — matches)
+  ai-suggest       comments + last-ask contexts match; clips (a selected video clip) and shared (share action raising justShared) need a video canvas / a hub
+  ai-history       Version history panel has no DOM opener here (dock `changes` panel, S1). API row ok: kind ai, chips ["Made by AI"], chatId; title "Claude: <ask>", sub "<time> · pricing" (03: "<ask>" / "Post 1:1 · 14:32")
+  ai-quit, ai-other-tab, ai-needs-tab, ai-needs-away, ai-tereza   native / desktop lane or a hub peer, as in pass 1

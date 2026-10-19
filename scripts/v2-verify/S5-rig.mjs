@@ -170,7 +170,7 @@ acp
     if (/LONG/.test(text)) {
       for (let i = 1; i <= 40; i++) {
         await say(ctx, `Paragraph ${i}. This is a long reply line to fill the chat feed so it scrolls.\n\n`);
-        await sleep(30);
+        await sleep(/SLOW/.test(text) ? 600 : 30); // LONG SLOW streams slowly enough to scroll up mid-reply (Jump to latest)
       }
       return { stopReason: 'end_turn' };
     }
