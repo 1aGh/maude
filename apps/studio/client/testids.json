@@ -22025,6 +22025,51 @@
     "v2": "new"
   },
   {
+    "hook": "annot-ride",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.10: the live re-route overlay drawn while an artboard is dragged (bound arrows; one g[data-ride-arrow] each).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ride.ts",
+      "symbol": "createDomRideSink"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/e2e/annotations-follow.e2e.mjs"],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-reroute-live.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-cross-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.10: the refused-straight chip on a re-routed arrow (\"the straight line would cross Mobile\").",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ride.ts",
+      "symbol": "createDomRideSink"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/e2e/annotations-follow.e2e.mjs"],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-reroute-live.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-belongs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.10: the outline of the artboard a selection belongs to, with \"On <artboard> · moves with it\".",
+    "producer": {
+      "file": "apps/studio/annotations-layer.tsx",
+      "symbol": "BelongsOutline"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/e2e/annotations-follow.e2e.mjs"],
+    "v2": "new"
+  },
+  {
     "hook": "annotations-lod",
     "kind": "testid",
     "pattern": false,

@@ -1862,6 +1862,42 @@ export function useDragFrames(): DragBusCore | null {
   return useContext(DragFramesContext);
 }
 
+/** S4.10 — the handlers a layer rides the bus with (contract §1–§2). */
+export interface DragBusRide {
+  /** Every drag frame, synchronously, outside React. */
+  frame?: (f: DragFrame) => void;
+  /** The ops that ride with a position commit (one undo group). */
+  rider?: CommitRider;
+}
+
+/**
+ * S4.10 — subscribe a frame handler and a commit rider to `bus` THROUGH A REF: the
+ * handlers may change on every render, the subscription does not, and a frame never
+ * sets React state — a layer moving 200 members at 60 fps renders nothing per frame
+ * (S4 Risk 1). Returns the bus (null outside a DesignCanvas: nothing rides).
+ */
+export function useDragBusRideOn(bus: DragBusCore | null, ride: DragBusRide): DragBusCore | null {
+  const ref = useRef(ride);
+  ref.current = ride;
+  useEffect(() => {
+    if (!bus) return;
+    const offFrames = bus.subscribeFrames((f) => ref.current.frame?.(f));
+    const offRider = bus.onCommit(
+      (moved, undoGroup) => ref.current.rider?.(moved, undoGroup) ?? null
+    );
+    return () => {
+      offFrames();
+      offRider();
+    };
+  }, [bus]);
+  return bus;
+}
+
+/** `useDragBusRideOn` on this DesignCanvas's bus. */
+export function useDragBusRide(ride: DragBusRide): DragBusCore | null {
+  return useDragBusRideOn(useDragFrames(), ride);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Frame envelope
 
