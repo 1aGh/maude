@@ -34,6 +34,8 @@ import {
 } from './annotations/ui/arrow-kinds.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
 import { SECTION_TONES } from './annotations/ui/section-fold.ts';
+import { postToShell } from './annotations/ui/shell-asks.ts';
+import { flipPatch, isGallerySticker } from './annotations/ui/sticker-drop.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
@@ -929,6 +931,72 @@ export function AnnotationContextToolbar({
           type="button"
           className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
           aria-label="Delete media reference"
+          title="Delete"
+          onClick={remove}
+        >
+          <IconTrash />
+        </button>
+      </div>
+    );
+  }
+  if (soleMedia?.tool === 'image' && isGallerySticker(soleMedia)) {
+    // S4.13 (canvas 15 `an-stk-drop`) - a sticker from the gallery: Replace… swaps the picture in place
+    // (same spot, same size), Flip mirrors it, then Lock and Duplicate. It is never part of the design.
+    const stk = soleMedia;
+    const flipped = stk.sticker.flip === true;
+    return (
+      <div
+        ref={ref}
+        className="dc-annot-ctx"
+        role="toolbar"
+        aria-label="Sticker properties"
+        style={{ display: 'flex', top: -9999, left: -9999 }}
+      >
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          data-testid="annot-ctx-replace"
+          title="Swap this sticker for another, in the same place and size"
+          onClick={() =>
+            postToShell({
+              dgn: 'tool-panel-open',
+              panel: 'stickers',
+              anchor: null,
+              replace: stk.id,
+            })
+          }
+        >
+          Replace…
+        </button>
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          data-testid="annot-ctx-flip"
+          aria-pressed={flipped}
+          title="Mirror this sticker"
+          onClick={() => {
+            const patch = flipPatch(stk);
+            if (patch) store.updateStroke(stk.id, patch);
+          }}
+        >
+          Flip
+        </button>
+        <div className="dc-annot-ctx-sep" />
+        {lockBtn}
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+          data-testid="annot-ctx-duplicate"
+          title="Duplicate (⌘D)"
+          onClick={() => store.runAction?.('annotation.duplicate')}
+        >
+          Duplicate
+        </button>
+        <div className="dc-annot-ctx-sep" />
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn dc-annot-ctx-ibtn--danger"
+          aria-label="Delete sticker"
           title="Delete"
           onClick={remove}
         >

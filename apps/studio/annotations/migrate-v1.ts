@@ -146,7 +146,9 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
   );
   const worldBox = new Map<string, Box>();
   for (const s of kept) {
-    const bb = strokeBBox(s);
+    // S4.13 - a folded section is drawn and grabbed as one line, but the FILE keeps its full size (and its
+    // members stay inside it), so the element geometry reads the unfolded box.
+    const bb = strokeBBox(s.tool === 'section' && s.folded ? { ...s, folded: undefined } : s);
     if (bb) worldBox.set(s.id, normBox(bb.x, bb.y, bb.w, bb.h));
   }
   for (const { t, at } of extraText) worldBox.set(t.id, at);
@@ -335,7 +337,15 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
         });
         break;
       case 'image':
-        raw.push({ ...base, type: 'image', ...rel(b as Box, o), rot, href: s.href, alt: s.alt });
+        raw.push({
+          ...base,
+          type: 'image',
+          ...rel(b as Box, o),
+          rot,
+          href: s.href,
+          alt: s.alt,
+          sticker: s.sticker,
+        });
         break;
       case 'link':
         raw.push({

@@ -107,7 +107,9 @@ describe('clusters count one per person per kind (Q7)', () => {
     expect(typeof free?.x).toBe('number');
   });
   test('anything that is not a stamp, or has no kind, is ignored', () => {
-    expect(clusterStamps([{ id: 'x', type: 'sticky' } as never, { ...mk('yes', 'A'), kind: '' }])).toEqual([]);
+    expect(
+      clusterStamps([{ id: 'x', type: 'sticky' } as never, { ...mk('yes', 'A'), kind: '' }])
+    ).toEqual([]);
   });
 });
 
@@ -122,7 +124,11 @@ describe('the hover card', () => {
       clusterStamps([mk('star', 'Tereza'), mk('yes', 'You'), mk('heart', 'Tereza')])[0]!,
       'You'
     );
-    expect(rows.map((r) => `${r.who} ${r.name}`)).toEqual(['You Yes', 'Tereza Star', 'Tereza Love it']);
+    expect(rows.map((r) => `${r.who} ${r.name}`)).toEqual([
+      'You Yes',
+      'Tereza Star',
+      'Tereza Love it',
+    ]);
     expect(STAMP_KINDS.some((k) => k.name === 'Love it')).toBe(true);
   });
 });

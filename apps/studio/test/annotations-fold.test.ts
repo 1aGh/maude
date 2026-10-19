@@ -5,7 +5,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-
+import { SECTION_FOLDED_H } from '../annotations/constants.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import { ElementNode } from '../annotations/ui/element-node.tsx';
 import { strokeToRenderItem } from '../annotations/ui/render-model.ts';
@@ -20,7 +20,6 @@ import {
   withoutFolded,
 } from '../annotations/ui/section-fold.ts';
 import { elementsToStrokes, strokesToElementMap } from '../annotations/v1-adapter.ts';
-import { SECTION_FOLDED_H } from '../annotations/constants.ts';
 import {
   type SectionStroke,
   type StickyStroke,
@@ -207,5 +206,12 @@ describe('a folded section collapses to one line', () => {
   test('a section already shorter than the strip keeps its own height', () => {
     const short = setFolded([section('t', { h: 30 })], 't', true)[0] as SectionStroke;
     expect(strokeBBox(short)).toMatchObject({ h: 30 });
+  });
+  test('writing a folded section back never shrinks the file or loses its members', () => {
+    const sec = section('s', { folded: true });
+    const note1 = note('n1', 'Jonas', { x: 20, y: 200 }); // inside the full box, far below the header strip
+    const map = strokesToElementMap([sec, note1], new Map());
+    expect(map.get('s')?.h).toBe(400);
+    expect(map.get('n1')?.parent).toBe('s');
   });
 });

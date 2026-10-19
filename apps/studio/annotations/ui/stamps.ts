@@ -12,10 +12,10 @@
  *             A local author id can be forged — accepted: formal votes (S4.14) are the secure path.
  */
 
+import { type ElementStroke, type Stroke, strokeHitTest } from '../../annotations-model.ts';
 import { stampCell, stampId, stampSpotOf } from '../elements/stamp.model.ts';
 import { stampKindById } from '../stamp-kinds.ts';
 import type { AnnotationElement, Box } from '../types.ts';
-import type { ElementStroke, Stroke } from '../../annotations-model.ts';
 
 /** World size of one stamp (a 28 px disc: canvas 15 draws 32 at 34 %…60 %, the glyph is the same hand). */
 export const STAMP_BOX = 28;
@@ -198,4 +198,24 @@ export function stampCardRows(cluster: StampCluster, me?: string | null): StampC
       kindRank(a.kind) - kindRank(b.kind) ||
       (a.id < b.id ? -1 : 1)
   );
+}
+
+/**
+ * What a stamp put down at `at` (world) lands on: the topmost card under it (a sticky or a picture - its id),
+ * else the artboard it is over (`ab:<id>`), else nothing (the stamp then takes the 40 px world cell).
+ * Stamps and sections are never a target: you vote on a thing, not on a vote.
+ */
+export function stampTargetAt(
+  at: { x: number; y: number },
+  strokes: readonly Stroke[],
+  artboards: readonly { id: string; x: number; y: number; w: number; h: number }[]
+): string | null {
+  for (let i = strokes.length - 1; i >= 0; i--) {
+    const s = strokes[i] as Stroke;
+    if ((s.tool === 'sticky' || s.tool === 'image') && strokeHitTest(s, at.x, at.y, 2)) return s.id;
+  }
+  const ab = artboards.find(
+    (a) => at.x >= a.x && at.x <= a.x + a.w && at.y >= a.y && at.y <= a.y + a.h
+  );
+  return ab ? `ab:${ab.id}` : null;
 }

@@ -285,6 +285,12 @@ export interface ImageStroke extends StrokeBase {
    * in-canvas `aria-label` is pruned; the alt's audience is the export. Absent ⇒ ''.
    */
   alt?: string;
+  /**
+   * S4.13 — set when the picture came from the Stickers gallery: which bundled sticker (`pack` slug + catalogue
+   * `id`) and whether it is mirrored. The stroke view of the image element's `sticker` (format-2 ext), so
+   * Replace… and Flip are real writes. Absent = a pasted / dropped picture.
+   */
+  sticker?: { pack: string; id: string; flip?: boolean };
 }
 /**
  * Phase 23 — pasted / dropped URL rendered as a client-only preview chip. NO
@@ -2204,7 +2210,10 @@ export function strokeBBox(
       x: Math.min(s.x, s.x + s.w),
       y: Math.min(s.y, s.y + s.h),
       w: Math.abs(s.w),
-      h: s.tool === 'section' && s.folded ? Math.min(Math.abs(s.h), SECTION_FOLDED_H) : Math.abs(s.h),
+      h:
+        s.tool === 'section' && s.folded
+          ? Math.min(Math.abs(s.h), SECTION_FOLDED_H)
+          : Math.abs(s.h),
     };
   }
   // text — anchored inherits its host's bbox; standalone (Phase 21) gets a

@@ -212,6 +212,7 @@ export function strokeToRenderItem(s: Stroke, label?: Label): RenderItem | null 
           ...rot,
           href: s.href,
           alt: s.alt ?? '',
+          ...(s.sticker ? { sticker: s.sticker } : {}),
         },
       };
     case 'link':

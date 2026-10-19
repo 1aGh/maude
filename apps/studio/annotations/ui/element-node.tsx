@@ -677,6 +677,7 @@ function PenView({ el, interactive }: ElementNodeProps) {
 }
 
 function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
+  const flipped = (el.sticker as { flip?: unknown } | undefined)?.flip === true;
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
@@ -689,6 +690,9 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
           y={y}
           width={w}
           height={h}
+          // S4.13 - Flip mirrors the picture about its own centre; the box and the handles stay put.
+          transform={flipped ? `translate(${2 * x + w} 0) scale(-1 1)` : undefined}
+          data-flipped={flipped ? '1' : undefined}
           href={resolveAsset(str(el.href))}
           preserveAspectRatio="xMidYMid meet"
           aria-label={str(el.alt) || undefined}
