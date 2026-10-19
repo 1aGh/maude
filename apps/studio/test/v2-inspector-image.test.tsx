@@ -147,12 +147,29 @@ describe('the Image section', () => {
     const { asked } = await frame();
     const buttons = [...(q('insp-ctl-image-fit')?.querySelectorAll('button') ?? [])];
     expect(buttons.map((b) => b.textContent)).toEqual(['Fill', 'Fit', 'Crop', 'Tile']);
+    await act(async () => buttons[0]?.click()); // already Fill: nothing to ask
+    expect(asked.length).toBe(0);
     await act(async () => buttons[1]?.click());
     expect(asked).toEqual([
       { dgn: 'run-action', v: 1, id: 'image.crop', params: { targets: [REF], fit: 'fit' } },
     ]);
-    await act(async () => buttons[0]?.click()); // already Fill: nothing to ask
-    expect(asked.length).toBe(1);
+  });
+
+  // I1 (wave-A gate): the file is re-read a beat after a write, and a second choice in that beat was compared
+  // with the OLD fit — Fit then Fill at once was read as "already Fill" and asked nothing. The choice just made
+  // shows at once and is what the next one is compared with.
+  test('Fit then Fill before the file is re-read: both are asked and the control follows the choice', async () => {
+    const on = () => q('insp-ctl-image-fit')?.querySelector('[aria-checked="true"]')?.textContent;
+    const { asked } = await frame();
+    const buttons = [...(q('insp-ctl-image-fit')?.querySelectorAll('button') ?? [])];
+    await act(async () => buttons[1]?.click());
+    expect(on()).toBe('Fit');
+    await act(async () => buttons[0]?.click());
+    expect(on()).toBe('Fill');
+    expect(asked.map((m) => (m as { params: { fit: string } }).params.fit)).toEqual([
+      'fit',
+      'fill',
+    ]);
   });
 
   test('a picture pasted from Figma says so and offers only Fill and Fit', async () => {

@@ -116,7 +116,18 @@ function ImageBody({ el, ctx }) {
   const url = assetUrl(ctx, src);
   const size = useNaturalSize(url);
   const editable = ctx?.editable !== false && !!el?.id;
-  const fit = fitOf(el);
+  // the Fit just asked, shown (and compared against) until the canvas re-posts the file as it is now
+  const [askedFit, setAskedFit] = useState(null);
+  const fresh = `${el?.id ?? ''}#${el?.index ?? 0}~${JSON.stringify(el?.authored ?? null)}~${JSON.stringify(el?.attrs ?? null)}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear on a fresh selection payload only
+  useEffect(() => setAskedFit(null), [fresh]);
+  // a refused write never re-posts: give the control back to the file after a moment
+  useEffect(() => {
+    if (!askedFit) return undefined;
+    const t = setTimeout(() => setAskedFit(null), 2500);
+    return () => clearTimeout(t);
+  }, [askedFit]);
+  const fit = askedFit ?? fitOf(el);
   const figma = isFromFigma(el);
   const options = figma ? FIGMA_FITS : FITS;
   const zoom = zoomOf(el);
@@ -153,7 +164,9 @@ function ImageBody({ el, ctx }) {
             value={fit}
             ariaLabel="Picture fit"
             options={options}
-            onChange={(next) => editable && next !== fit && askCrop(ctx, el, { fit: next })}
+            onChange={(next) => {
+              if (editable && next !== fit && askCrop(ctx, el, { fit: next })) setAskedFit(next);
+            }}
           />
         </span>
       </Row>
