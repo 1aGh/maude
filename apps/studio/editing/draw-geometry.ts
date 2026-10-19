@@ -16,9 +16,11 @@ export const isDrawTool = (t: string | null | undefined): t is DrawTool =>
   !!t && (DRAW_TOOLS as readonly string[]).includes(t);
 
 /** The drag tool a registry action arms (`tool.line` → 'line'), or null. ⌘K and the More popover use these. */
-export function drawToolOfAction(id: unknown): DrawTool | null {
+export function drawToolOfAction(id: unknown): DrawTool | 'el-pen' | null {
   if (typeof id !== 'string' || !id.startsWith('tool.')) return null;
   const t = id.slice(5);
+  // S2.14: ⌘K arms the Pen too (it draws through editing/pen/draw.tsx, not DrawTools)
+  if (t === 'el-pen') return t;
   return isDrawTool(t) ? t : null;
 }
 

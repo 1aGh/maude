@@ -362,6 +362,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'
   ),
   'artboard.ask-ai': { effect: 'none', agent: human('ai-chat') },
+  // S2.19 — ⌘/ on a selection: the person's way into the AI chat with a scope; an agent IS the chat
+  'ai.ask-selection': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   // A5 lead (S2.2b): an agent does not rename ids — the references live in lanes it never writes
   // (_comments/, the board's hosts); `maude design check` reports the old id as id-lost.
   'element.set-id': {
@@ -524,9 +526,33 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'component.insert': TSX(
     'Add the component to the artboard (or the frame) as a linked instance: put its name in the file’s `import { … } from "@maude/ds"` once and write `<Button variant="primary">…</Button>` as the last child, with a data-cd-id. On a canvas whose meta has dsRev (left out of the system’s current revision) add data-ds-rev="head" to it. Names and variants: GET /_api/ds/components or system/<ds>/components.json. Over HTTP: POST /_api/edit-op {op: "component.insert", targets: [frame?], params: {component, variant?, text?, artboard?, at?: {x: number|"centre", y}}}'
   ),
+  // S2.15 — pictures: plain `<img>` edits; the recipes are canvas-tsx.md § Place, replace and crop an image.
+  'image.place': TSX(
+    'Add <img src="assets/<sha8>.<ext>" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> as the last child of the frame (import the file first with the asset import; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: "absolute", left: "0", top: "0" and put it first. Over HTTP: POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset | assets, mode: "fill" | "loose" | "fill-in-order" | "grid", artboard?, natural?: {w, h}, alt?}}'
+  ),
+  'image.crop': TSX(
+    'Fill is objectFit: "cover"; Fit is objectFit: "contain"; Crop is "cover" + objectPosition: "X% Y%" + data-image-fit="crop", and past 100 % transform: "scale(Z)" with transformOrigin: "X% Y%" and overflow: "hidden" on the frame; Tile is a <div role="img" data-image-tile="assets/…" style={{ backgroundImage: "url(\\"assets/…\\")", backgroundRepeat: "repeat" }}>. Over HTTP: POST /_api/edit-op {op: "image.crop", targets: [picture], params: {fit?, zoom?, x?, y?}}'
+  ),
+  'image.replace': TSX(
+    'Change the <img>’s src to the new assets/<sha8>.<ext> and remove its data-photo-edit (a per-use edit belongs to the old picture); keep the box, the fit and the alt. Over HTTP: POST /_api/edit-op {op: "image.replace", targets: [picture], params: {asset}}'
+  ),
+  // Registered, visible to no shell until S8.17 (Figma import) lands; its verb is S8's.
+  'figma.make-editable': { effect: 'external', agent: cli('maude design import-figma') },
+  'tool.crop': TSX('Crop a picture: see image.crop (objectPosition and transform on the <img>)'),
   'tool.components': TSX(
     'Place a component from the design system: see component.insert (write `<Name>` with `import { Name } from "@maude/ds"`)'
   ),
+  // S2.17 — an instance: the same result by hand is in canvas-tsx.md § Instances of a design-system component
+  'component.swap-variant': TSX(
+    'Change `variant="…"` on the component (add or delete the attribute); a variant must be one system/<ds>/components.json lists for it. To change the component, rename the tag (open and close), import the new name from "@maude/ds" once and drop the old import when nothing else uses it — only between components that hold words (Button · Chip · Badge · Card · Callout). The words and style stay. Over HTTP: POST /_api/edit-op {op: "component.swap-variant", targets: [instance], params: {variant?: string|null, component?}}'
+  ),
+  'component.reset': TSX(
+    'Set the instance’s words back to the master’s (the component name) and delete its inline style declarations that are not placement (position, left, right, top, bottom, inset, zIndex, transform, translate, rotate, margin) — delete the style attribute when none is left. variant, data-cd-id and placement stay. Over HTTP: POST /_api/edit-op {op: "component.reset", targets: [instance], params: {props?}}'
+  ),
+  'component.detach': TSX(
+    'Replace the instance with the plain markup it renders to: the same tags, className, style (token references stay var(--…)) and words, the same data-cd-id, no @maude/ds component and no data-ds-rev; delete an import nothing uses any more. A local component’s usage: copy the definition under a new name and point that one usage at the copy (see element.detach). Over HTTP: POST /_api/edit-op {op: "component.detach", targets: [instance], params: {tree}} — tree is the rendered subtree {tag, attrs, kids}'
+  ),
+  'component.go-to-main': NAV('<design-system canvas>@<component>'),
   'text.detach-style': TSX(
     'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "var(--type-xl)", …}}} — the values as the design system wrote them (tokens), not px'
   ),
@@ -727,6 +753,28 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'object.set-corner-radius': TSX(
     'Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius'
+  ),
+  // S2.14 — the Pen: a path is a plain <svg>; Combine composes shapes inside one <svg> (non-destructive, Q6)
+  'tool.el-pen': TSX(
+    'Add <svg data-cd-id="path" data-shape="path" width viewBox style={{ position: "absolute", left, top, overflow: "visible", fill: "none", stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}><path d="M…C…" /></svg> to the artboard or frame; the svg box is the path bounds and d is relative to it — see canvas-tsx.md § Draw a path'
+  ),
+  'object.insert-path': TSX(
+    'Add the same <svg data-shape="path"> as the Pen tool writes (d in the box\'s own px, left / top its place in the frame) — see canvas-tsx.md § Draw a path'
+  ),
+  'path.edit': TSX(
+    "Rewrite the d of the svg's <path>, then width, height, viewBox and style left / top to the new bounds so every point keeps its place — see canvas-tsx.md § Draw a path"
+  ),
+  'shape.combine.union': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="union"> holding ONE <path d> of every outline (each wound clockwise), fillRule="nonzero" — see canvas-tsx.md § Combine shapes'
+  ),
+  'shape.combine.exclude': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="exclude"> holding ONE <path d> of every outline, fillRule="evenodd" — see canvas-tsx.md § Combine shapes'
+  ),
+  'shape.combine.subtract': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="subtract">: the bottom shape\'s <path mask="url(#id-mask)"> first, then <defs><mask> holding a white <rect> and the other shapes in black — see canvas-tsx.md § Combine shapes'
+  ),
+  'shape.combine.intersect': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="intersect">: the bottom shape\'s <path clipPath="url(#id-clip-1)"> first, then <defs> with a <clipPath> per other shape (more than one nest <g clipPath>) — see canvas-tsx.md § Combine shapes'
   ),
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),

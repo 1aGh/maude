@@ -3,8 +3,11 @@
 // frame is wired (client/inspector/inspector-panel.jsx).
 
 import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
+import { offImage } from '../kinds/image.jsx';
 import { offInspectorExport } from '../../export/inspector-export.jsx';
+import { offInstance } from '../kinds/instance.jsx';
 import { offMulti } from '../kinds/multi.jsx';
+import { offPath } from '../kinds/path.jsx';
 import { offShape } from '../kinds/shape.jsx';
 import { offTextBody, offTextStyle } from '../kinds/text.jsx';
 import { offArtboardSections } from '../kinds/artboard.jsx';
@@ -41,4 +44,7 @@ export function unregisterSections() {
   offConvert();
   offArtboardSections();
   offShape();
+  offPath();
+  offImage();
+  offInstance();
 }

@@ -299,6 +299,19 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'ai.ask-selection',
+    exec: 'canvas',
+    visible: { minRole: 'edit' },
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘/',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
     id: 'inspect.edit',
     exec: 'canvas',
     enabled: { minRole: 'edit', mode: ['preview', 'viewing'], selection: ['object'] },
@@ -514,6 +527,17 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'tool.el-shape',
     exec: 'canvas',
     keys: [{ chord: 'R', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
+  },
+  {
+    id: 'tool.el-pen',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'P',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
   },
   {
     id: 'tool.el-text',

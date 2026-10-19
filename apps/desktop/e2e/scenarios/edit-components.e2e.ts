@@ -14,7 +14,7 @@ import { canvasRow } from '../helpers/tree';
  * the instance as the artboard's last child, in ONE write that ⌘Z takes back whole. ↵ places a pick in the
  * selected frame instead. A canvas left out of the design system's current revision (`meta.dsRev`) gives
  * the new instance `data-ds-rev="head"`; a canvas that follows the system does not.
- * Part 2 (instances: override, swap, reset, detach) is S2.17.
+ * Part 2 (instances: override, swap, reset, detach) is S2.17, at the end of this file.
  *
  * Driving model (memory: the canvas iframe is unreachable by DOM selectors once the origin split is on):
  * the toolbar slot and the pointer are driven by synthetic events on the frame's document, the picker is
@@ -207,5 +207,97 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await browser.keys(['Enter']);
     await browser.waitUntil(async () => source().includes('<Chip '), { timeout: 8000 });
     expect(source()).toMatch(/<Chip data-cd-id="chip" data-ds-rev="head"/);
+  });
+});
+
+/**
+ * S2.17 (artboard ed-comp-instance) — part 2: an instance of a design-system component. Selecting it makes
+ * the inspector's chip say Instance; Component · Variant swap it (the words and the colour come along, ONE
+ * write); the Content line counts what differs and Reset takes back only that; Detach turns it into a plain
+ * frame with the same classes, id and token references and drops the `@maude/ds` import. Each step is one
+ * undo. The inspector is the shell's own DOM (`data-testid`s from client/v2/inspector/kinds/instance.jsx);
+ * the canvas is read as the file on disk. Written, not run, by the slice.
+ */
+const INSTANCE = `import { DCArtboard, DesignCanvas } from "@maude/canvas-lib";
+import { Button } from "@maude/ds";
+
+export default function Smoke() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="smoke" label="SMOKE/02 · INSTANCE" width={900} height={420}>
+        <Button data-cd-id="cta" variant="primary" style={{ background: "var(--accent)" }}>REGISTRUJ SE</Button>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+
+describe('an instance: override, swap, reset, detach (S2.17)', () => {
+  before(async () => {
+    await waitForSidecar();
+    writeFileSync(CANVAS, INSTANCE);
+    writeFileSync(META, '{}\n');
+    await browser.pause(800);
+    await (await canvasRow('smoke')).click();
+    await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
+      timeout: 15000,
+    });
+    await inFrame((doc) => {
+      (doc.querySelector('[data-cd-id="cta"]') as HTMLElement).dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+    await browser.waitUntil(
+      async () => (await (await $('[data-testid="inspector-kind"]')).getText()) === 'Instance',
+      { timeout: 10000 }
+    );
+  });
+  after(() => fixtures.restore());
+
+  it('says Instance, names the master, and counts what it changes', async () => {
+    const report = startReport('edit-components-instance');
+    expect(await (await $('[data-testid="insp-sec-component"]')).isExisting()).toBe(true);
+    expect(await (await $('[data-testid="insp-content-text"]')).getValue()).toBe('REGISTRUJ SE');
+    expect(await (await $('[data-testid="insp-instance-changes"]')).getText()).toMatch(
+      /^2 changes from .+\./
+    );
+    await capture(report, 'instance');
+  });
+
+  it('another variant is ONE write: the words and the colour come along; ⌘Z takes it back', async () => {
+    const before = source();
+    const select = await $('[data-testid="insp-variant-select"]');
+    const options = await select.$$('option');
+    const values = await Promise.all(options.map((o) => o.getAttribute('value')));
+    const other = values.find((v) => v && v !== 'primary') as string;
+    await select.selectByAttribute('value', other);
+    await browser.waitUntil(async () => source().includes(`variant="${other}"`), { timeout: 8000 });
+    expect(source()).toContain('REGISTRUJ SE');
+    expect(source()).toContain('var(--accent)');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(async () => source() === before, { timeout: 8000 });
+  });
+
+  it('Reset takes back the words and the colour, nothing else', async () => {
+    await (await $('[data-testid="insp-instance-reset"]')).click();
+    await browser.waitUntil(async () => !source().includes('REGISTRUJ SE'), { timeout: 8000 });
+    expect(source()).toContain('>Button</Button>');
+    expect(source()).not.toContain('var(--accent)');
+    expect(source()).toContain('variant="primary"');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(async () => source().includes('REGISTRUJ SE'), { timeout: 8000 });
+  });
+
+  it('Detach keeps the look as a plain frame: same classes, same id, same token reference, no import', async () => {
+    const report = startReport('edit-components-detach');
+    await (await $('[data-testid="insp-instance-detach"]')).click();
+    await browser.waitUntil(async () => !source().includes('@maude/ds'), { timeout: 8000 });
+    const out = source();
+    expect(out).toMatch(/<button data-cd-id="cta" className="btn btn--primary"/);
+    expect(out).toContain('var(--accent)');
+    expect(out).not.toMatch(/\d+px/);
+    await capture(report, 'detached');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(async () => source().includes('<Button '), { timeout: 8000 });
   });
 });

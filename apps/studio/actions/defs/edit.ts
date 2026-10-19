@@ -403,6 +403,42 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     search: { hidden: true },
   },
+  // S2.14 (ed-pen) — the Pen's finished path and a point drag: gestures (the P tool and a double-click are how a
+  // person starts them), so not offered in ⌘K.
+  {
+    id: 'object.insert-path',
+    label: 'Draw a path',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'path.edit',
+    label: 'Edit path points',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  // S2.14 — Combine shapes (S2-slices Q6): non-destructive SVG composition, one edit-op each. The Combine row of the
+  // inspector, ⌘K and an agent run these; they need two or more shapes (the canvas says so in a line).
+  ...(
+    [
+      ['union', 'Union selection'],
+      ['subtract', 'Subtract selection'],
+      ['intersect', 'Intersect selection'],
+      ['exclude', 'Exclude selection'],
+    ] as const
+  ).map(
+    ([kind, label]): ActionDef => ({
+      id: `shape.combine.${kind}`,
+      label,
+      kind: 'command',
+      exec: 'canvas',
+      enabled: { ...EDITS, selection: ['object'] },
+    })
+  ),
   {
     id: 'object.set-corner-radius',
     label: 'Round a corner',
@@ -463,6 +499,79 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'canvas',
     enabled: { ...EDITS },
+    search: { hidden: true },
+  },
+  // S2.15 (ed-img) — pictures. A tile dropped on a frame, ↵ on a selected artboard and Generate end in
+  // `image.place` (a gesture: the Assets tab and the drop are how a person starts it, so no ⌘K row).
+  // Crop is ⌘K-able (it enters crop mode on the selected picture); Replace… opens the picker. Make editable
+  // (the Figma paste bar) is registered with its row but visible to no shell until S8.17's Figma import lands.
+  {
+    id: 'image.place',
+    label: 'Place a picture',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'image.crop',
+    label: 'Crop',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['crop', 'fit', 'fill', 'tile', 'zoom', 'picture', 'image', 'photo'] },
+  },
+  {
+    id: 'image.replace',
+    label: 'Replace…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['replace', 'swap', 'picture', 'image', 'photo'] },
+  },
+  {
+    id: 'figma.make-editable',
+    label: 'Make editable',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: [] },
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  // S2.17 (ed-comp-instance) — an instance of a design-system component. Swap takes a value (a variant, a
+  // component), so its control is the inspector's Component · Variant rows and ⌘K does not offer it; Reset
+  // and Detach need no choice and are offered. Go to the main component is S10's door (`ds.go-to`): the row
+  // and ⌘K entry say nothing until that id is registered.
+  {
+    id: 'component.swap-variant',
+    label: 'Swap variant or component',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'component.reset',
+    label: 'Reset to the main component',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['reset', 'override', 'instance', 'component', 'changes', 'master'] },
+  },
+  {
+    id: 'component.detach',
+    label: 'Detach instance',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['detach', 'unlink', 'instance', 'component', 'plain', 'frame'] },
+  },
+  {
+    id: 'component.go-to-main',
+    label: 'Go to the main component',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { selection: ['object'] },
     search: { hidden: true },
   },
   {
@@ -586,6 +695,25 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
+  },
+  // S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected asks AI about THEM, in place: the canvas says what is
+  // selected and where, the shell draws the bubble and hands the words to the AI chat's composer with an
+  // `elements` scope (S4-S5 contract §1). Canvas-focus + Edit mode + an object selected; ⌘/ elsewhere stays
+  // `ai.chat`'s (chrome / timeline / text foci), so the two never meet (registry uniqueness per document).
+  {
+    id: 'ai.ask-selection',
+    label: 'Ask AI about the selection',
+    kind: 'command',
+    icon: 'sparkle',
+    exec: 'canvas',
+    // The chat runs Claude Code on this Mac — the desktop app only (as `ai.chat`). That is NOT a predicate here:
+    // the canvas resolves this binding with a browser-shaped KeyCtx (ctx.ts › canvasKeyCtx), so a `shell`
+    // predicate would unbind the chord inside the app. The shell's host (AskSelectionHost) draws nothing
+    // outside the desktop app.
+    visible: EDITS,
+    enabled: { ...EDITS, selection: ['object'] },
+    keys: [kb('⌘/', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
+    search: { keywords: ['ask ai', 'selection', 'in place', 'change these'] },
   },
   // S3.10a — where a click goes: `data-cd-link` on the element (S3-links-format). Both are `edit-op`s
   // (`edit-ops/{set,clear}-link.ts`) on POST /_api/edit-op. Clear link runs from ⌘K through the inspector's

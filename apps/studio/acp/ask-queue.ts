@@ -160,7 +160,13 @@ export function createAskQueue(deps: AskQueueDeps) {
       origin: 'maude-chat',
       label: record.label,
       prompt: p.text,
-      scope: p.scope ? { canvas: p.scope.canvas, artboards: p.scope.artboards } : null,
+      scope: p.scope
+        ? {
+            canvas: p.scope.canvas,
+            artboards: p.scope.artboards,
+            ...(p.scope.elements?.length ? { elements: p.scope.elements } : {}),
+          }
+        : null,
     });
     return { ok: true, ref: rec.runId };
   };

@@ -122,6 +122,17 @@ export function buildChatContext({ canvas, selected, scope } = {}) {
       .map((id) => sanitize(id, 64))
       .filter(Boolean);
     if (ids.length) lines.push(`[maude-scope artboards="${ids.join(',')}"]`);
+  } else if (scope?.kind === 'elements' && Array.isArray(scope.refs) && scope.refs.length) {
+    // S2.19 — ⌘/ on a selection: the asked elements by their data-cd-id (ids only, never their text)
+    const ids = scope.refs
+      .slice(0, CONTEXT_MAX_ELEMENTS)
+      .map((r) => sanitize(r.element, 64))
+      .filter(Boolean);
+    const boards = (scope.ids || []).slice(0, CONTEXT_MAX_ELEMENTS).map((id) => sanitize(id, 64));
+    const more = scope.refs.length - ids.length;
+    lines.push(
+      `[maude-scope elements="${ids.join(',')}${more > 0 ? `,+${more} more` : ''}" artboards="${boards.filter(Boolean).join(',')}" change-only-these]`
+    );
   }
   for (const el of els.slice(0, CONTEXT_MAX_ELEMENTS)) {
     const parts = [sanitize(el.tag || 'element', 24)];

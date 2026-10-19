@@ -15,6 +15,21 @@
 /** @type {ReadonlyArray<Readonly<{ n: number, id: string, title: string, explain: string, adder?: boolean, aside?: string }>>} */
 export const SECTIONS = Object.freeze(
   [
+    // S2.15 — a picture's own rows come first (14 Editing, ed-img). Both are drawn for the Image kind only: the frame
+    // draws a section only when a body is registered for the selected kind. Numbered after the ten drawn ones and S2.14's Combine (11).
+    {
+      n: 12,
+      id: 'image',
+      title: 'Image',
+      explain:
+        'The picture, its size and how it fits the frame: Fill crops it to fit, Fit shows all of it, Crop moves and zooms it inside the frame, Tile repeats it.',
+    },
+    {
+      n: 13,
+      id: 'adjust',
+      title: 'Adjust',
+      explain: 'The look of the picture and its background open Photo.',
+    },
     {
       n: 1,
       id: 'position',
@@ -73,6 +88,14 @@ export const SECTIONS = Object.freeze(
       title: 'Type',
       aside: 'text inside',
       explain: 'For the text inside. The style first; size and weight override it, with a dot.',
+    },
+    {
+      // S2.14 (ed-pen): "Two or more" — greyed for one shape, live for several. Drawn only for shapes and paths.
+      n: 11,
+      id: 'combine',
+      title: 'Combine shapes',
+      explain:
+        'Union, Subtract, Intersect or Exclude two or more shapes into one path. The shapes stay editable points; it exports as plain SVG.',
     },
     {
       n: 9,

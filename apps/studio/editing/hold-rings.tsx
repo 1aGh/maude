@@ -108,6 +108,8 @@ export interface AiHoldRow {
   tag: string;
   /** a run of this Mac's person: Stop is in their AI chat */
   mine: boolean;
+  /** S2.19 — the object was ASKED about (⌘/ on a selection): `ai-scope-outline.tsx` draws those as one outline */
+  scope?: boolean;
 }
 
 export interface HoldView {
@@ -355,7 +357,9 @@ export function HoldRings() {
   // ── follow the objects through pan / zoom / re-render ──
   const rootRef = useRef<HTMLDivElement | null>(null);
   const rings = [...live.entries()];
-  const drawn = rings.length + aiHolds.length;
+  // S2.19 — the objects a ⌘/ ask names are one outline (ai-scope-outline.tsx), not one ring each
+  const aiRings = aiHolds.filter((h) => !h.scope);
+  const drawn = rings.length + aiRings.length;
   useEffect(() => {
     if (!drawn || typeof document === 'undefined') return;
     let raf: number | null = null;
@@ -399,7 +403,7 @@ export function HoldRings() {
           <span className="ed-hold-tag">{h.name}</span>
         </div>
       ))}
-      {aiHolds.map((h) => (
+      {aiRings.map((h) => (
         <div
           key={`ai-${h.artboard}-${h.element}-${h.occurrence ?? 0}`}
           className="ed-ai-hold"

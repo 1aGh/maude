@@ -10845,6 +10845,19 @@
     "v2": "stable"
   },
   {
+    "hook": "settings-open-emails",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "settings-theme",
     "kind": "testid",
     "pattern": false,
@@ -12915,6 +12928,132 @@
       "symbol": "HoldRings"
     },
     "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ONE spark-dashed outline around the elements a ⌘/ ask names, with the neutral tag (\"AI is working on 3 elements\"). Only the selection, never the page.",
+    "producer": {
+      "file": "apps/studio/editing/ai-scope-outline.tsx",
+      "symbol": "AiScopeOutline"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-scope-skeleton",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one skeleton line per asked element, where the change will land.",
+    "producer": {
+      "file": "apps/studio/editing/ai-scope-outline.tsx",
+      "symbol": "AiScopeOutline"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-bubble",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble under the selection after ⌘/: scope chip, field, send. The words are the person's; the canvas never sees them.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble's scope chip, \"◆ 3 elements\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble's field (\"Ask AI…\"); ↵ sends, esc closes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble's send button (azure, white spark).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-asked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble once sent: what was asked, ⌘/, and the one-step hint, while the AI works.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What was asked, in the asked bubble (one line, cut with an ellipsis).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"One step — ⌘Z undoes all of it · the rest of the page stays yours\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
     "consumers": [],
     "sourceConsumers": [],
     "v2": "new"
@@ -16496,6 +16635,216 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-component",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Component block — Component and Variant rows, \"Your text and colour come along.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-component-select",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Component select (the system's own label, e.g. Tlačítko); another component asks `component.swap-variant {component}`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-variant-select",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Variant select (Default + the variants the system lists); a pick asks `component.swap-variant {variant}`. Not drawn for a component with no variants.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: \"Your text and colour come along.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-repeats",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the line for an instance in a `.map()` (\"This one repeats in the code; change it where it is written.\"); its controls are off.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-content",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Content block — Text, Fill, \"N changes from <master>.\" with Reset.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-content-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: the words input; leaving it asks `text.set` (Escape takes it back). Disabled when the words are code.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "TextRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-changes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: \"2 changes from Tlačítko.\" with Reset — drawn only when the instance overrides something.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: Reset — asks `component.reset` (takes back the words and the non-placement style only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-follows",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: \"Follows <master>.\" — the quiet line when nothing is overridden.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: \"Update <master> for every canvas…\" — drawn only once S10 registers `ds.review-update` (S10-ds-review-entry.md).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-main",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Main component block — Go to <master>, Detach and its line.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-goto",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Main component: \"Go to <master>\" — drawn only once S10 registers `ds.go-to` (S10-ds-review-entry.md).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-detach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Main component: Detach — asks `component.detach` (the canvas measures what the instance renders to).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-detach-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Main component: \"Detach keeps this exact look as a plain frame. Nothing breaks; it stops following <master>.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
     "v2": "new"
   },
   {
@@ -20945,6 +21294,619 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/edit-place-ghost.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the overlay that takes the pointer while the Pen (P) is armed.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the key hints while drawing — click, drag, ⇧ 45° steps, ↵ or esc finishes.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-svg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the path being drawn, in screen px (points, the pulled handle, the close ring).",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the outline of the path being drawn.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-rubber",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed segment from the last point to the pointer (⇧ snaps it to 45°).",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring over the first point; press it to close the path.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Click here to close\", shown with the pointer over the first point.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-45",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"45°\" chip beside the pointer while ⇧ is held.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-points",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the point-editing overlay of a double-clicked Pen path (points, the selected point’s handles, the path).",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-edit-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the key hints while editing points — click adds, drag bends, ⌥-drag breaks a handle, double-click flips smooth and sharp, ⌫ removes, ↵ is done.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-outline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the path as the overlay holds it while a point or handle is dragged.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-was",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the previous curve, dashed, while a drag is in flight.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-segments",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the wide invisible stroke over the path; a press on it adds a point there.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-point-<sub>-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one anchor of the path being edited (sub-path, point). `data-on` on the selected one.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-handle-<which>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: a handle of the selected point (`in`, `out`); drag to bend, ⌥-drag to break.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-type",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Smooth\" or \"Sharp\" beside the selected point.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-path-ends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stroke › Ends: Round or Flat, on a Pen path that has a stroke.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "PathEndsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-path-ends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Round / Flat segmented control of a Pen path’s Ends row.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "PathEndsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-combine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Combine shapes: the row (\"Two or more\"), dimmed for one shape.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-combine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Combine shapes: the group of four buttons.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-combine-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Combine shapes: one button — `union`, `subtract`, `intersect`, `exclude`. Disabled for one shape; a click asks the canvas for ONE `shape.combine.<kind>` edit-op.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "hook": "insp-image-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Image section's first row: the picture's thumb, its file name and size, and Replace….",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-thumb",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the picture's small thumb (served from the project's assets).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the file the picture shows (`ab12cd34.jpg`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the picture's own size, \"4032 × 3024\", once it has loaded.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Replace… — opens the asset picker; its pick is the `image.replace` edit-op. Disabled below Can edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-source",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › From: where a pasted picture came from (\"Figma · Hero / v3\", read from `data-source`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-image-fit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Fit: Fill · Fit · Crop · Tile (a picture pasted from Figma: Fill · Fit). One choice asks the canvas for one `image.crop`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-zoom",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Zoom (percent), shown for Crop; typed or stepped it asks `image.crop` with the zoom.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-crop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the line under Zoom: \"Double-click the picture to move it inside the frame.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-adjust",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › Adjust… — opens Photo. Drawn only where the panel can open Photo.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-remove-bg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › ✦ Remove background — opens Photo (the existing editor).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-photo-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › the line under the two rows; \"Edits apply to this use only.\" is said only where Photo edits one use (S8.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-mode",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: crop mode is open on a picture (ghost, frame, brackets, handles, tag, hint).",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the whole picture, faded, beyond the frame in crop mode; drag it to move it inside the frame.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the frame the picture is cropped to, outlined in crop mode.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-bracket-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the four brackets on the frame in crop mode (`nw` `ne` `se` `sw`).",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-handle-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the four corner handles of the faded picture in crop mode; drag to zoom, the opposite corner stays.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the tag over the frame in crop mode (\"<name> · crop\").",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line under the frame in crop mode: \"↵ done · esc cancel\".",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-drop-target",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring on the picture, frame or artboard an Assets tile would land on while it is dragged over the canvas (`data-kind`).",
+    "producer": {
+      "file": "apps/studio/editing/image-drop.tsx",
+      "symbol": "ImageDrop"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the bar after a Figma paste (\"Pasted from Figma as an image of “Hero / v3”.\"), `data-state` placed or layers.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-as-picture",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Paste as picture\" on the paste bar when Figma sent layers and no picture.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-make-editable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Make editable\" on the paste bar. Not drawn until Figma import (S8.17) lands.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
     "v2": "new"
   }
 ]

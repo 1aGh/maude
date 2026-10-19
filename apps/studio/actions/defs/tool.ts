@@ -129,4 +129,6 @@ export const TOOL_ACTIONS: ActionDef[] = [
   keyless('tool.line', 'Line'),
   keyless('tool.polygon', 'Polygon'),
   keyless('tool.slice', 'Export area'),
+  // S2.15 — More › Crop: arm it, then click a picture (editing/crop-mode.tsx)
+  keyless('tool.crop', 'Crop'),
 ];
