@@ -3027,22 +3027,19 @@ export function AnnotationsLayer() {
     );
   }, [renderStrokes, authorFilter, hideResolved, collab?.myName, board.committed]);
   // S4.12 - the count line on a folded section's chip: what is inside, and how many people wrote it.
+  // S4.13 - and an open section says how many it holds (canvas 15 an-plan: "Nápady 4"): its value is just the number.
   const foldNotes = useMemo(() => {
     const m = new Map<string, string>();
-    if (!renderStrokes.some((s) => s.tool === 'section' && s.folded)) return m;
-    const c = new Containment(strokesToElementMap(renderStrokes, board.committed).values());
-    for (const s of renderStrokes) {
-      if (s.tool === 'section' && s.folded)
-        m.set(
-          s.id,
-          foldSummary(
-            membersOf(renderStrokes, s.id, (id) => c.contentsOf(id)),
-            collab?.myName
-          )
-        );
+    if (!viewedStrokes.some((s) => s.tool === 'section')) return m;
+    const c = new Containment(strokesToElementMap(viewedStrokes, board.committed).values());
+    for (const s of viewedStrokes) {
+      if (s.tool !== 'section') continue;
+      const members = membersOf(viewedStrokes, s.id, (id) => c.contentsOf(id));
+      if (s.folded) m.set(s.id, foldSummary(members, collab?.myName));
+      else if (members.length > 0) m.set(s.id, String(members.length));
     }
     return m;
-  }, [renderStrokes, board.committed, collab?.myName]);
+  }, [viewedStrokes, board.committed, collab?.myName]);
   // Task 22 — what is being drawn, live for peers (pen ink tail, or the box).
   const drawPublishedRef = useRef(false);
   useEffect(() => {

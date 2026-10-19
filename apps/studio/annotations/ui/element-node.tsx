@@ -862,11 +862,14 @@ function SectionChip({
   interactive,
   edit,
   note,
+  count,
 }: {
   el: AnnotationElement;
   interactive: boolean;
   edit: EditRequest | null;
   note?: string;
+  /** S4.13 - how many an open section holds, drawn as a small number after its name. */
+  count?: string;
 }) {
   // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
   const zoom = useLiveViewport().zoom || 1;
@@ -913,10 +916,15 @@ function SectionChip({
     <div
       className="dc-annot-chip"
       data-section-chip="1"
-      style={{ ...box, width: note ? undefined : g.chipW, whiteSpace: 'nowrap' }}
+      style={{ ...box, width: note || count ? undefined : g.chipW, whiteSpace: 'nowrap' }}
     >
       <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
         {label}
+        {count ? (
+          <span data-section-count="1" style={{ opacity: 0.7, marginLeft: 6, fontWeight: 500 }}>
+            {count}
+          </span>
+        ) : null}
         {note ? (
           <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
             {note}
@@ -980,6 +988,7 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
         interactive={interactive}
         edit={edit}
         note={folded ? (foldNote ?? '') : undefined}
+        count={!folded && foldNote ? foldNote : undefined}
       />
       {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>

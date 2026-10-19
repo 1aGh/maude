@@ -70,9 +70,20 @@ export function expandTemplate(
   who?: string | null
 ): TemplatePlacement | null {
   const spec = templateBoard(id);
-  if (!spec) return null;
+  return spec ? expandBoard(spec as Record<string, unknown>, origin, who) : null;
+}
+
+/**
+ * Any `--board` spec (a template's, or the one "describe it" asks AI for: the same shape, any language) with
+ * its top-left corner at `origin`. Throws `BoardSpecError` for a spec the layout engine refuses.
+ */
+export function expandBoard(
+  spec: Record<string, unknown>,
+  origin: { x: number; y: number },
+  who?: string | null
+): TemplatePlacement {
   const batch = new AiBatch([]);
-  run(batch, applyOriginOffset(boardToOps(spec as Record<string, unknown>), origin));
+  run(batch, applyOriginOffset(boardToOps(spec), origin));
   const els = batch.elements.map((e) => {
     const { author: _ai, ...rest } = e;
     return who ? ({ ...rest, author: { kind: 'human', name: who } } as AnnotationElement) : e;
