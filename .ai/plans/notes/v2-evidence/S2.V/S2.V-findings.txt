@@ -1,0 +1,26 @@
+S2.V wave-A verifier — live-studio probe notes (scratch project, MAUDE_CANVAS_ORIGIN_SPLIT=0, Playwright over CDP).
+Fixture: ui/Site.tsx, 4 web artboards (Desktop 1440 / Laptop 1280 / Tablet 834 / Mobile 390), header, hero, Services row (3 cards), image, footer.
+
+ed-ab-select  : name turns azure "Desktop 1440 x 1543", 8 handles OK. Inspector title reads the id "desktop" (canvas: "Desktop");
+                Size W/H = 1447 x 1580 vs tag 1440 x 1543, so Preset = Custom; Fill sits after Layout (canvas: before).
+ed-ab-resize  : mid-drag OK (ghost, ruler Tablet 834 / Laptop 1280 lit / Desktop 1440, bubble "Laptop · 1280 x 1544",
+                hint "⌘ ignores presets · ⌥ from the centre"). After release the file is written (width={1280}) but the
+                selection is gone and the inspector shows W 0 / H 0 "Fixed size".
+ed-ab-arrange : drag bubble "X 3960 · Y 0" OK, grid guides drawn; the equal-gap chips never appear: the grid snap (3800) wins
+                over the equal-gap landing (3794) and no sibling top-edge guide is drawn.
+ed-ab-tidy    : marquee -> align bar "4 artboards" + Tidy up, hover -> dashed ghosts + "One row, even gaps". The inspector
+                stays on the first artboard ("desktop · Fixed size", W 0 / H 0) instead of "4 artboards … Changes go to all 4."
+ed-ab-menu    : menu = Ask AI about this artboard ⌘/ · Duplicate ⌘D · Duplicate at another width ▸ · Rename · Add comment C ·
+                Export… ⇧⌘E · Advanced ▸ · Move to trash ⌫. Canvas: Ask AI about “Desktop”, + Copy ⌘C / Paste ⌘V, no Add comment.
+                ⌘D -> "Desktop 2" OK; dblclick name -> rename input OK.
+ed-obj-enter  : VERIFIED. click selects the top object, dblclick goes inside (tag "section · 1440 × 160"), dashed parent outline,
+                crumbs "Desktop › div › section" + esc kbd, esc steps out one level.
+ed-obj-multi  : ⇧-click gives the align bar "2 objects" but the inspector keeps the single element (no "3 objects · Mixed",
+                no "Changes go to all 3").
+ed-obj-order  : object menu lacks Ask AI about “…” ⌘/, Cut/Copy/Paste, "same style" on Select matching; Advanced ▸ is the plan's.
+ed-shape      : R + drag shows "Rectangle · 291 × 291", the shape is written and the Shape inspector opens (Position · Constraints ·
+                Size/Kind · Fill · Corners · Border · Effects · Opacity · Combine shapes); no tag / corner dots on the canvas
+                after the draw. Toast "That frame is not on this artboard." when the drop target is a component shared by 4 artboards.
+ed-edge-keys  : Tab -> badges 1, 1.1 … + aria-live "div, frame, 6 items. Press Return to go inside."
+                (canvas: "Services, frame, 3 items, in a row — 4 of 6. …").
+ed-comp-pick  : ⇧I did not open a picker in this probe (testid not found).
