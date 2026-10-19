@@ -1204,6 +1204,25 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // person's view). Light | Dark is the canvas's own viewing preference and writes nothing; an
   // agent sees the other mode by capturing the canvas URL with `&dsMode=dark`.
   'ds.open': NAV('<ds.path>/design-system.tsx'),
+  // S10.8 — the entries into the review. Push an override: merge it into the system's pending changes,
+  // then the same publish as any other change. Go to: navigation. Instance update: one edit on the
+  // instance (data-ds-rev="head"), one ⌘Z.
+  'ds.review-update': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/pending', method: 'POST' },
+    agent: cli('maude design ds pending <ds> --set <file.json> then maude design ds publish <ds>'),
+  },
+  'ds.go-to': NAV('<ds.path>/design-system.tsx@<--token|Component>'),
+  'ds.instance-update': {
+    ...TSX(
+      'Add data-ds-rev="head" to the instance’s element (right after its data-cd-id; overwrite the attribute if it has one); the rest of the canvas keeps its version. Over HTTP: POST /_api/edit-op {op: "ds.instance-update", targets: [instance]} — refused on a canvas that follows the system already'
+    ),
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+  },
   'ds.set-theme-preview': {
     effect: 'none',
     agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),
