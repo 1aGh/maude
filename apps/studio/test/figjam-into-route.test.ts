@@ -281,6 +281,7 @@ describe('POST /_api/annotations/figjam', () => {
       'https://www.figma.com@evil.example/board/Em6NOwaOFTYV7NlQT4NK8l/x',
       'file:///etc/passwd',
       `https://www.figma.com/design/${KEY}/a-design-file`, // a design file is S8's other door, not FigJam
+      KEY, // sec-a2 — a bare key names no surface; it could be a design file
     ]) {
       const res = await post({ file: FILE, url });
       expect(res.status).toBe(400);
