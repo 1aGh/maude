@@ -27,6 +27,7 @@ const VERB = {
  * @param {string} [p.note]           the one line when a verb did not happen
  * @param {string[]} [p.steps]        what the run did, one title each
  * @param {string} [p.stepsLabel]     "What AI did · 6 steps · 41 s"
+ * @param {{before:string, after:string}|null} [p.thumbs]  S5.19 — the run's Before / After pictures (run-compare.js); null = Compare alone
  * @param {string[]} [p.followUps]
  * @param {(text:string)=>void} [p.onFollowUp]
  */
@@ -38,6 +39,7 @@ export function ResultCard({
   note,
   steps = [],
   stepsLabel,
+  thumbs = null,
   followUps = [],
   onFollowUp,
 }) {
@@ -45,6 +47,21 @@ export function ResultCard({
   return (
     <div className="ai-result" data-testid="ai-result" data-status={status}>
       {headline ? <p className="ai-result-line">{headline}</p> : null}
+      {thumbs && status === 'idle' ? (
+        <span className="ai-ba" data-testid="ai-result-before-after">
+          <span className="ai-ba-pic">
+            <img className="ai-ba-img" src={thumbs.before} alt="" draggable="false" />
+            <span className="ai-ba-l">Before</span>
+          </span>
+          <span className="ai-ba-arrow" aria-hidden="true">
+            →
+          </span>
+          <span className="ai-ba-pic">
+            <img className="ai-ba-img" src={thumbs.after} alt="" draggable="false" />
+            <span className="ai-ba-l">After</span>
+          </span>
+        </span>
+      ) : null}
       {status === 'undone' ? (
         <span className="ai-result-acts">
           <span className="ai-result-state" data-testid="ai-result-state">

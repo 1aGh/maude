@@ -73,6 +73,33 @@
     font-size: var(--type-base);
     line-height: var(--lh-base);
   }
+  /* S5.19 G4 (03 `ai-long`): the run's Before / After pictures, from the versions list */
+  .ai-ba {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-left: var(--space-1);
+    color: var(--fg-2);
+  }
+  .ai-ba-pic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .ai-ba-img {
+    display: block;
+    width: 64px;
+    height: 114px;
+    object-fit: cover;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-ba-l {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
   .ai-result-acts {
     display: flex;
     flex-wrap: wrap;

@@ -12,6 +12,7 @@ import {
   transcriptForcesExpand,
 } from '../../panels/transcript-view.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
+import { dayDividerFor } from './run-model.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
 import { failureModel } from './needs-you.js';
@@ -278,7 +279,35 @@ function UserBubble({ text }) {
   );
 }
 
+/** S5.19 G4 (03 `ai-long`): "Yesterday, 18:20" above the first ask of a new day. Silent when no time is known. */
+function DayDivider() {
+  const id = useMessage((m) => m.id);
+  // a string selector: re-rendered only when the asks or their times change
+  const key = useThread((t) =>
+    JSON.stringify(
+      t.messages
+        .filter((m) => m.role === 'user')
+        .map((m) => [m.id, m.createdAt instanceof Date ? m.createdAt.getTime() : null])
+    )
+  );
+  const text = useMemo(() => dayDividerFor(JSON.parse(key), id), [key, id]);
+  return text ? (
+    <p className="ai-day-rule" data-testid="ai-day-divider">
+      {text}
+    </p>
+  ) : null;
+}
+
 export function UserMessage() {
+  return (
+    <>
+      <DayDivider />
+      <UserMessageBody />
+    </>
+  );
+}
+
+function UserMessageBody() {
   return (
     <div className="chat-msg chat-msg--user">
       <MessagePrimitive.Parts components={{ Text: UserBubble }} />
