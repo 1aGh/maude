@@ -108,6 +108,22 @@ describe('G2 — the artboard is still selected after the write reloads the canv
     expect(isArtboardSelectionOf(echo, 'laptop', FILE)).toBe(true);
   });
 
+  test('S2.23 G1: the canvas’s own select-set names no file; the board still goes back when the canvas that loaded is the one', () => {
+    // what `select-set` actually carries (dom-selection.ts): no `file` — the shell knows the canvas
+    const own = { selector: '[data-dc-screen="desktop"]', artboardId: 'desktop', tag: 'article' };
+    expect(restoreAfterLoad(own, FILE)).toEqual({
+      kind: 'artboard',
+      artboardId: 'desktop',
+      file: FILE,
+    });
+    expect(isArtboardSelectionOf(own, 'desktop', FILE)).toBe(true);
+    // a selection that names ANOTHER canvas is still not this one's
+    expect(restoreAfterLoad({ ...own, file: '.design/ui/Other.tsx' }, FILE)).toBeNull();
+    expect(isArtboardSelectionOf({ ...own, file: '.design/ui/Other.tsx' }, 'desktop', FILE)).toBe(
+      false
+    );
+  });
+
   test('another canvas, another board, or nothing restores nothing', () => {
     expect(restoreAfterLoad(board('laptop'), '.design/ui/Other.tsx')).toBeNull();
     expect(restoreAfterLoad(null, FILE)).toBeNull();

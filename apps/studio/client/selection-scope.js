@@ -80,7 +80,7 @@ const SCREEN_SELECTOR = /^\[data-dc-screen="([^"]+)"\]$/;
 /** Is `sel` the whole-artboard selection of `artboardId` on `file`? The server's echo drops `artboardId`, so the
  *  `[data-dc-screen="…"]` selector is the identity that survives it. */
 export function isArtboardSelectionOf(sel, artboardId, file) {
-  if (!sel || !artboardId || sel.file !== file || sel.id) return false;
+  if (!sel || !artboardId || (sel.file && sel.file !== file) || sel.id) return false;
   return sel.artboardId === artboardId || sel.selector === `[data-dc-screen="${artboardId}"]`;
 }
 
@@ -92,8 +92,10 @@ export function isArtboardSelectionOf(sel, artboardId, file) {
  */
 export function restoreAfterLoad(selected, file) {
   const sel = Array.isArray(selected) ? selected[0] : selected;
-  if (!sel || sel.file !== file) return null;
-  if (sel.id) return { kind: 'element', sel };
+  // S2.23 G1 — the canvas's own `select-set` carries no `file` (the shell knows which canvas it is): a selection
+  // without one belongs to the canvas that just loaded, and goes back like one that names it.
+  if (!sel || (sel.file && sel.file !== file)) return null;
+  if (sel.id) return { kind: 'element', sel: sel.file ? sel : { ...sel, file } };
   const artboardId = sel.artboardId || SCREEN_SELECTOR.exec(sel.selector || '')?.[1] || null;
   return artboardId ? { kind: 'artboard', artboardId, file } : null;
 }
