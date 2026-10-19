@@ -17,6 +17,8 @@ import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
 import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
 import { nativeDoors } from '../v2/shell/native-doors.js';
 import { EmptyProjectSlot } from '../v2/create/empty-project.jsx';
+import { RenderErrorHost } from '../v2/create/render-error.jsx';
+import { useRenderSignal } from '../v2/create/use-render-error.js';
 import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
 
 export function Viewport({
@@ -91,6 +93,9 @@ export function Viewport({
   // S1.14 — Version history's Viewing: the held canvas is framed at that version (`?sha=`, read-only);
   // the frame is a different document, so it remounts (below) and comes back at now when the hold ends.
   const viewing = useViewing();
+  // S6.12 (C5) — what the open canvases say about drawing: one listener for every frame. The card is below.
+  const wsSend = useContext(ShellStoreContext)?.local?.wsSend;
+  const renderSignal = useRenderSignal({ cfg, wsSend, viewingPath: viewing?.path ?? null });
   const stableSrc = (path) => {
     const opts = viewing?.path === path ? { viewing: viewing.at } : undefined;
     // A frame that changes between now and a past version is a new frame: the entry it comes back to is
@@ -276,6 +281,23 @@ export function Viewport({
             />
           )}
         </div>
+      )}
+      {canvasTab && !notLocal && !arriving && (
+        // S6.12 — the code compiles and then throws while drawing: S11.7's card over the dimmed last good
+        // render, with Go back to 14:05. Silent while this Mac's own AI run draws on it.
+        <RenderErrorHost
+          key={canvasTab}
+          canvas={canvasTab}
+          entry={renderSignal[canvasTab]}
+          designRel={designRel}
+          loadFailed={canvasState === 'error'}
+          viewing={viewing?.path === canvasTab}
+          canEdit={!cfg?.readOnly}
+          askAiAvailable={isNativeApp() && !cfg?.readOnly}
+          onAskAi={(text) => dispatchCanvasOp('ask-ai-fix', canvasTab, text)}
+          onReload={() => onRetryCanvasLoad?.(canvasTab)}
+          onNotify={(msg, ok) => shellToast(msg, ok)}
+        />
       )}
       {/* S1.15 — Compare two versions: over the canvas while a Compare rides on the Viewing hold */}
       <CompareHost cfg={cfg} />

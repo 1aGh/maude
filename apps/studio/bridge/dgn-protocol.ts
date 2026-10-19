@@ -113,6 +113,10 @@ export interface CanvasToShell {
   'canvas-rendered': { file: string };
   'canvas-failed': { file: string };
   'canvas-mounted': { file: string; children: number };
+  // S6.12 (C5) — the canvas could not draw / drew without an error. `message` is plain text (≤ 300). The
+  // shell never trusts `file`: it names the frame the message came from (DDR-054).
+  'render-error': { file: string; message: string };
+  'render-ok': { file: string };
   // S10.4 (V2-1.6 §5.8) — the `data-ds-rev` values (`head` | a revision id) the canvas document carries;
   // the studio answers with `ds-pins`. A value is a name, never a path.
   'ds-pins-want': { revs: string[] };
@@ -989,6 +993,20 @@ const c2s: C2S = {
     owner: 'tpl/_shell.html (probe)',
     orphan: 'no-handler',
     parse: p({ file: str, children: num }),
+  },
+  // S6.12 — handled by client/v2/create/use-render-error.js; `frame` (not `active`): a background tab's
+  // canvas that breaks must be known when it is brought forward.
+  'render-error': {
+    gate: 'frame',
+    status: 'live',
+    owner: 'v2/create/use-render-error',
+    parse: p({ file: str, message: shortStr(600) }),
+  },
+  'render-ok': {
+    gate: 'frame',
+    status: 'live',
+    owner: 'v2/create/use-render-error',
+    parse: p({ file: str }),
   },
   // S10.4 — handled by client/v2/ds/pins.js (createPinsHost.onMessage)
   'ds-pins-want': {

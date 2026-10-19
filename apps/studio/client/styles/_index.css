@@ -108,6 +108,8 @@
 @import url("../v2/empty/empty.css");
 /* S6.2 — a project with no canvases: the prompt box + the panel line (client/v2/create/). */
 @import url("../v2/create/empty-project.css");
+/* S6.12 — a canvas that draws, then throws: the card over its dimmed last good render (client/v2/create/). */
+@import url("../v2/create/render-error.css");
 /* S9.24 — the "2 versions" mark and the object-conflict card (client/v2/sync-states/). */
 @import url("../v2/sync-states/sync-states.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
