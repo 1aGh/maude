@@ -22007,5 +22007,69 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Annotation context toolbar: the count of a multi-selection (\"5 annotations\"), shown after Select all annotations.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-mode-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annotations-lod",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The zoomed-out mosaic of the annotation layer (below 25 %): stickies as colour blocks.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/lod.tsx",
+      "symbol": "LodMosaic"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-lod.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annotations-lod-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A section's sticky count on the mosaic (\"Nápady 84\"). Repeats.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/lod.tsx",
+      "symbol": "LodMosaic"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-lod.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annotations-lod-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hover card on a mosaic section (\"Nápady · 84 stickies\", \"Click to zoom to it\"); absent until hover.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/lod.tsx",
+      "symbol": "LodMosaic"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-lod.test.ts"
+    ],
+    "v2": "new"
   }
 ]

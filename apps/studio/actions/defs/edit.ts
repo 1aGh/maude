@@ -132,9 +132,9 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'canvas',
     // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
     visible: { minRole: 'comment' },
-    // v1 use-keyboard-discipline matches `e.key === 'a'` with any ⇧ — so ⇧⌘A selects every element
-    // too (V2-1.3 defect 1).
-    keys: mods('⌘A', '⇧', 'selection', { when: OBJ }),
+    // v1 matched `e.key === 'a'` with any ⇧, so ⇧⌘A also selected every element (V2-1.3 defect 1).
+    // S4.9: ⇧⌘A is Select all annotations now (its binding died with the old one, rule 13).
+    keys: [kb('⌘A', 'selection', { when: OBJ })],
   },
   {
     // Menu only in v1 (posts `selection-clear` to the canvas); the "Esc" its rows show is
@@ -148,7 +148,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     legacy: { menu: 'Deselect all' },
   },
   {
-    // Menu only in v1: no key handler implements the ⇧⌘A its rows show (V2-1.3 defect 1).
+    // Menu only in v1: no key handler implemented the ⇧⌘A its rows show (V2-1.3 defect 1). S4.9: bound —
+    // in Edit the canvas asks the shell for Preview first (annotations are Preview's to change).
     id: 'select.all-annotations',
     label: 'Select all annotations',
     kind: 'command',
@@ -156,6 +157,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     // V2-4 gate (roles): annotations are selected to change them, and `annotate` is Can edit's
     // (V2-1.7 §5.2). No key, so absent rather than greyed.
     visible: EDITS,
+    keys: [kb('⇧⌘A', 'global', { inText: false, when: IN_CANVAS })],
     legacy: { menu: 'Select all annotations' },
   },
   {

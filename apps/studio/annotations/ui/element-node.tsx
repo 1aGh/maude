@@ -46,6 +46,7 @@ import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
 import { colorForName } from '../../use-collab.tsx';
 import type { AnnotationElement } from '../types.ts';
+import { quietPaper } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
 import { type CommitInfo, type SizeMode, TextEditor } from './text-editor.tsx';
 import {
@@ -76,6 +77,8 @@ export interface ElementNodeProps {
   /** Resolved arrow endpoints (arrows only). */
   ends?: ResolvedEnds;
   interactive: boolean;
+  /** S4.9 — Edit's posture: a sticky's paper is mixed with grey (its words keep their ink); CSS fades the rest. */
+  quiet?: boolean;
   edit: EditRequest | null;
   /** Maps a stored `assets/…` path to a URL the canvas can load. */
   resolveAsset: (href: string) => string;
@@ -234,13 +237,13 @@ function EditNotice({ notice }: { notice: EditRequest['notice'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-type views
 
-function StickyView({ el, interactive, edit }: ElementNodeProps) {
+function StickyView({ el, interactive, edit, quiet }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
   const r = num(el.radius, STICKY_CORNER_RADIUS);
-  const fill = str(el.fill, '#fce8a6');
+  const fill = quiet ? quietPaper(str(el.fill, '#fce8a6')) : str(el.fill, '#fce8a6');
   const style = {
     ...slotTextStyle('sticky', textFmt(el, 'left')),
     color: '#2a2a28',
@@ -956,6 +959,7 @@ export const ElementNode = memo(
   (a, b) =>
     a.el === b.el &&
     a.interactive === b.interactive &&
+    a.quiet === b.quiet &&
     a.edit === b.edit &&
     a.resolveAsset === b.resolveAsset &&
     sameEnds(a.ends, b.ends)

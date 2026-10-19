@@ -665,6 +665,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
+  'annotations.hide-resolved': PREF('per-person view preference (C29); never written to the board'),
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),

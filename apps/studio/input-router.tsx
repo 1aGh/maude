@@ -351,6 +351,18 @@ function classifyKey(input: ClassifyInput): RouterAction {
 
 const metaOrCtrl = (i: ClassifyInput): boolean => !!(i.metaKey || i.ctrlKey);
 
+/**
+ * S4.9 - does an armed annotation tool own the pointer here? Only where annotations are Preview's to change.
+ * In Edit (quiet layer), Viewing and Present a leftover annotation tool id owns nothing: the click reaches the
+ * design under the sticky. A canvas no shell governs (mode null) keeps v1: the armed tool owns the pointer.
+ */
+export function annotationToolOwnsPointer(
+  input: Pick<ClassifyInput, 'activeTool' | 'mode'>
+): boolean {
+  if (!isAnnotationTool(input.activeTool)) return false;
+  return !input.mode || modeShows(input.mode, 'annotations-editable');
+}
+
 export function classify(input: ClassifyInput): RouterAction {
   if (input.type === 'keydown') return classifyKey(input);
 
@@ -366,7 +378,7 @@ export function classify(input: ClassifyInput): RouterAction {
     // Phase 5 draw tools: pen / rect / arrow / eraser own all their pointer
     // events through `AnnotationsLayer`. The router never paints a hover halo
     // while drawing — that affordance is reserved for select / comment.
-    if (isAnnotationTool(input.activeTool)) return { kind: 'no-op' };
+    if (annotationToolOwnsPointer(input)) return { kind: 'no-op' };
     // Hand tool: drag pan is owned by useViewportController; no hover paint.
     if (input.activeTool === 'hand') return { kind: 'no-op' };
     // Browse tool (feature-4 boot default): pass-through — no hover halo,
@@ -428,7 +440,7 @@ export function classify(input: ClassifyInput): RouterAction {
     // the SVG layer's own listeners (no preventDefault) fire normally. Cmd-
     // modified clicks still flow into the move-tool select path below — that
     // stays available as an escape hatch even while a draw tool is active.
-    if (isAnnotationTool(input.activeTool) && !metaOrCtrl(input)) {
+    if (annotationToolOwnsPointer(input) && !metaOrCtrl(input)) {
       return { kind: 'no-op' };
     }
 
@@ -743,7 +755,7 @@ function postLinkFollow(e: MouseEvent): boolean {
 /** V2-4.5b — a key's `mode-request` (M3: no local change). Both routers of a document can see one
  *  keydown (the comment-mount ancestor claims esc too), so the document asks once (claimRequest).
  *  Literal posts, so the dgn inventory sees the send sites. */
-function postModeRequest(r: {
+export function postModeRequest(r: {
   mode: CanvasModeV2 | 'back';
   tool?: ToolId;
   cause: 'key' | 'esc';

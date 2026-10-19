@@ -23,6 +23,7 @@ export interface PendingText {
 export function AnnotationScene({
   items,
   interactive,
+  quiet = false,
   editingId,
   edit,
   pending,
@@ -30,6 +31,8 @@ export function AnnotationScene({
 }: {
   items: readonly RenderItem[];
   interactive: boolean;
+  /** S4.9 — Edit's posture (annotations/ui/posture.ts): faded, readable, click-through. */
+  quiet?: boolean;
   /** Element whose text slot is open in the editor. */
   editingId: string | null;
   edit: EditRequest | null;
@@ -38,13 +41,18 @@ export function AnnotationScene({
   resolveAsset: (href: string) => string;
 }) {
   return (
-    <div className="dc-annot-scene" data-mdcc-annotations="1">
+    <div
+      className="dc-annot-scene"
+      data-mdcc-annotations="1"
+      {...(quiet ? { 'data-an-quiet': '1' } : {})}
+    >
       {items.map((it) => (
         <ElementNode
           key={it.el.id}
           el={it.el}
           ends={it.ends}
           interactive={interactive}
+          quiet={quiet}
           edit={it.el.id === editingId ? edit : null}
           resolveAsset={resolveAsset}
         />
