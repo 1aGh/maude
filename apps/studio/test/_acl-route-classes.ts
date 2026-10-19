@@ -118,6 +118,7 @@ const CANVAS = [
   '/_api/ai/runs/:id/copy',
   '/_api/annotations/to-comment',
   '/_api/annotations/convert-undo',
+  '/_api/annotations/figjam', // S4.16 - one canvas (`file`)
   '/_api/comments/to-sticky',
   '/_api/comments/op',
   '/_api/links',

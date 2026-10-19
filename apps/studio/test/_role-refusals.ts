@@ -81,6 +81,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view', 'comment'],
     body: { file: '.design/ui/a.tsx', id: 'st-1' },
   },
+  // S4.16 - a FigJam board arrives as annotations: an edit (hub `annotate`), refused before the body is read
+  {
+    method: 'POST',
+    route: '/_api/annotations/figjam',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', url: 'https://www.figma.com/board/Em6NOwaOFTYV7NlQT4NK8l/x' },
+  },
   // edit — the versioned layout lane, canvas writes, the AI chat (D2)
   {
     method: 'PATCH',

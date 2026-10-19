@@ -159,6 +159,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'legacy only — both files written back through the comments/annotations hooks',
     test: 'test/annotations-convert.test.ts',
   },
+  // S4.16 - a FigJam board arrives as one section: one board change through the same two-lane door
+  // as the conversions above (the comments lane is carried unchanged), so one undo takes it all back.
+  '/_api/annotations/figjam': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, annotations lane.replace with the read base (comments carried unchanged)',
+    test: 'test/figjam-into-route.test.ts',
+  },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
   '/_api/links': { class: 'read' }, // S3.10a routes/element-links.ts: where on-click links go, parsed from the TSX

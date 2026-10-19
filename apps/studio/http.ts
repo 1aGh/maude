@@ -1940,6 +1940,8 @@ export function createHttp(
     annotations: {
       api,
       control: () => ctx.syncControl?.current?.() ?? null,
+      // S4.16 - POST /_api/annotations/figjam plans the import under the project (the S4.5 engine)
+      figjam: { root: ctx.paths.repoRoot, designRel: ctx.paths.designRel },
       person: async (req) => {
         const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
         return { name: vouched || (await api.gitCurrentUser()) || 'You' };

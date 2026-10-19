@@ -23,11 +23,15 @@ export type AnnotationPosture = 'drawn' | 'quiet' | 'read-only' | 'hidden';
 export function annotationPosture(
   mode: CanvasModeV2 | null | undefined,
   visible: boolean,
-  presenting = false
+  presenting = false,
+  caps?: { annotate: boolean } | null
 ): AnnotationPosture {
   if (presenting || !visible) return 'hidden';
   if (!mode) return 'drawn';
-  return modeCell('annotations', mode) as AnnotationPosture;
+  const cell = modeCell('annotations', mode) as AnnotationPosture;
+  // S4.16 (canvas 15 an-viewer): Can comment holds Hand + Comment; the board is read-only for it, whichever
+  // mode it is in (the server refuses the ops anyway - this only stops the layer offering them).
+  return cell === 'drawn' && caps && !caps.annotate ? 'read-only' : cell;
 }
 
 /** The layer takes pointer input (tools, selection, drags) only when it is Preview's. */

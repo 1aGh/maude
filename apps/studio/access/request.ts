@@ -102,6 +102,8 @@ export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
   '/_api/annotations/to-comment',
   '/_api/comments/to-sticky',
   '/_api/annotations/convert-undo',
+  // S4.16 - a FigJam board arrives as one section of annotations (routes/annotations.ts)
+  '/_api/annotations/figjam',
 ]);
 
 /** Clearing out the trash is the owner's (§5.5 `delete`); the per-Mac `_trash/` prune is not this. */

@@ -63,6 +63,7 @@ import {
   type TextSlot,
   withListMarkers,
 } from './text-style.ts';
+import { PinTags, useTimePin } from './time-pins.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -145,6 +146,7 @@ function Node({
   rot = 0,
   raised = false,
   extraStyle,
+  extraAttrs,
   children,
 }: {
   el: AnnotationElement;
@@ -156,6 +158,8 @@ function Node({
   /** An open editor floats above the elements painted after it. */
   raised?: boolean;
   extraStyle?: CSSProperties;
+  /** S4.16 — `data-pin` on a note pinned to a moment of a video. */
+  extraAttrs?: Record<string, string>;
   children: ReactNode;
 }) {
   const tool = v1ToolOf(el);
@@ -167,6 +171,7 @@ function Node({
       data-type={el.type}
       {...(isAiAuthored(el) ? { 'data-author': 'ai' } : {})}
       {...(tool === 'polygon' ? { 'data-shape': str(el.kind) } : {})}
+      {...extraAttrs}
       style={{
         left: x,
         top: y,
@@ -294,8 +299,10 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
       ? `Resolved by ${resolved.by}${typeof resolved.at === 'string' ? ` · ${relativeTime(resolved.at, Date.now())}` : ''}`
       : null;
   const shown = [line, origin, doneLine].filter(Boolean).join(' · ');
+  const pin = useTimePin(el); // S4.16 — the time chip, the fade off range, "Not printed"
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={rot} raised={!!edit}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={rot} raised={!!edit} extraAttrs={pin.attrs}>
+      <PinTags pin={pin} />
       <Geo x={x} y={y} w={w} h={h}>
         <path
           d={stickyCornerPath(x, y, w, h, r)}

@@ -145,6 +145,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/votes/start': REFUSED,
   '/_api/votes/ballot': REFUSED,
   '/_api/votes/end': REFUSED,
+  // S4.16 - a FigJam board arrives as a section of annotations: an annotation write.
+  '/_api/annotations/figjam': { safe: null, unsafe: 'annotate' },
   // The no-op-log undo token — a cell is always in accepted mode and never issues one.
   '/_api/annotations/convert-undo': REFUSED,
   // A photo edit is a validated JSON sidecar next to the asset
