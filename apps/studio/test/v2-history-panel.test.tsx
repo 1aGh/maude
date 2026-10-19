@@ -204,7 +204,9 @@ describe('the rows', () => {
     ] as typeof ROWS;
     await act(async () => {
       window.dispatchEvent(
-        new CustomEvent(PROJECT_ACTION_EVENT, { detail: { kind: 'outside', canvases: ['ui/x.tsx'] } })
+        new CustomEvent(PROJECT_ACTION_EVENT, {
+          detail: { kind: 'outside', canvases: ['ui/x.tsx'] },
+        })
       );
       await new Promise((r) => setTimeout(r, 450));
     });
