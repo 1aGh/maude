@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { placeMenu } from '../../tree-row-menu.jsx';
 import { pathTestIdSlug, shellToast } from '../../shell/util.js';
 import { useArrivingRows } from '../empty/arriving.jsx';
 import { copy } from '../empty/empty-copy.js';
@@ -71,6 +72,8 @@ import { useCanvasesSort } from './use-canvases-sort.js';
 import { ancestorDirs, useRowOps } from './use-move.js';
 import { usePins } from './use-pins.js';
 
+// The Sort menu is 260 wide in 11 · pn-organise (`.cv-menu` width below).
+const SORT_MENU_WIDTH = 260;
 const INDENT_BASE = 8;
 const INDENT_STEP = 16;
 const pad = (depth) => ({ paddingLeft: `${INDENT_BASE + depth * INDENT_STEP}px` });
@@ -305,16 +308,33 @@ export function CanvasesPanel({
   // ── the Sort menu ── mouse or keyboard: the checked choice takes the focus, ↑ ↓ Home End walk, ↵ / Space
   // choose, esc closes and gives the focus back to the Sort button, Tab leaves.
   const panelRef = useRef(null);
-  const [sortMenu, setSortMenu] = useState(null); // { top, right } | null
+  const [sortMenu, setSortMenu] = useState(null); // { anchor: {left,right,top,bottom} } | null
+  const [sortPlaced, setSortPlaced] = useState(null); // { left, top, maxHeight } | null
   const sortButton = () => panelRef.current?.querySelector('[data-testid="canvases-sort"]');
   const openSortMenuFrom = (btn) => {
     const a = btn?.getBoundingClientRect();
-    const p = panelRef.current?.getBoundingClientRect();
     setSortMenu({
-      top: p && a ? a.bottom - p.top + 4 : 28,
-      right: p && a ? Math.max(0, p.right - a.right) : 8,
+      anchor: a
+        ? { left: a.left, right: a.right, top: a.top, bottom: a.bottom }
+        : { left: 8, right: 8, top: 0, bottom: 24 },
     });
   };
+  // 11 · pn-organise draws the menu 260 wide OUTSIDE the panel, never clipped: it is placed in the window
+  // (fixed), at the button's left edge, and pulled back inside the window's edges (`placeMenu`).
+  useLayoutEffect(() => {
+    if (!sortMenu) {
+      setSortPlaced(null);
+      return;
+    }
+    const el = panelRef.current?.querySelector('[data-sort-menu]');
+    setSortPlaced(
+      placeMenu(
+        sortMenu.anchor,
+        { width: SORT_MENU_WIDTH, height: el?.scrollHeight || 0 },
+        { width: window.innerWidth, height: window.innerHeight }
+      )
+    );
+  }, [sortMenu]);
   const openSortMenu = (e) => {
     if (sortMenu) {
       setSortMenu(null);
@@ -551,7 +571,17 @@ export function CanvasesPanel({
           aria-label="Sort canvases"
           data-sort-menu
           data-testid="canvases-sort-menu"
-          style={{ top: sortMenu.top, right: sortMenu.right }}
+          style={
+            sortPlaced
+              ? {
+                  position: 'fixed',
+                  left: sortPlaced.left,
+                  top: sortPlaced.top,
+                  maxHeight: sortPlaced.maxHeight,
+                  overflowY: 'auto',
+                }
+              : { position: 'fixed', left: sortMenu.anchor.left, top: sortMenu.anchor.bottom + 4 }
+          }
           onKeyDown={onSortKeyDown}
         >
           <p className="cv-menu-group">Sort by</p>

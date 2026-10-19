@@ -58,6 +58,16 @@ const TAB_DIGITS = /^tab\.select-/;
 
 const modeOf = (bar) => (bar === null ? null : /^Preview/.test(bar) ? 'preview' : 'edit');
 
+/**
+ * The sheet's own words for a row where the canvas (11 · pn-switch-ai) says it differently from the
+ * action's menu label. `also` names the row an action's ALIAS keys get — two bindings are two rows, never
+ * one label with an "or" (canvas: "Next / previous tab, too"). Only the sheet is reworded: the registry, the
+ * menus and ⌘K keep the action's own label.
+ */
+const HELP_WORDS = Object.freeze({
+  'search.open': { label: 'Search every project', also: 'Search, too' },
+});
+
 /** The sheet group an action belongs in. */
 export function helpGroupOf(def) {
   if (def.help?.group) return def.help.group;
@@ -139,14 +149,26 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
       main.map((c) => formatChord(c)),
       alt.map((c) => formatChord(c))
     );
-    const row = { id: def.id, label: def.label, keys, alt: altKeys };
+    const words = HELP_WORDS[def.id];
+    const row = { id: def.id, label: words?.label ?? def.label, keys, alt: altKeys };
+    const order = def.help?.order ?? 1000;
+    if (words?.also && altKeys.length && !inAdvanced) {
+      row.alt = [];
+      byGroup.get(helpGroupOf(def))?.push({
+        id: `${def.id}:also`,
+        label: words.also,
+        keys: altKeys,
+        alt: [],
+        order: order + 0.5,
+      });
+    }
     if (inAdvanced) {
       advanced.push({ ...row, path: path ?? '' });
       continue;
     }
     const shown = shownKeys(main, ctx, path);
     if (shown) row.path = shown.text;
-    byGroup.get(helpGroupOf(def))?.push({ ...row, order: def.help?.order ?? 1000 });
+    byGroup.get(helpGroupOf(def))?.push({ ...row, order });
   }
   if (tabRow) {
     byGroup

@@ -49,11 +49,9 @@ describe('canvas-create / validateCanvasName (the security boundary)', () => {
     ['leading dot', '.hidden'],
     ['dot-dot', '..'],
     ['JSX break-out', 'X</div><script>alert(1)</script>'],
-    ['brace injection', 'A{2+2}B'],
     ['angle bracket', 'a<b'],
     ['double quote (JSON break-out)', 'a"b'],
     ['backslash (JSON break-out)', 'a\\b'],
-    ['leading hyphen', '-dash'],
     ['too long (61)', 'x'.repeat(61)],
     ['tab', 'a\tb'],
     ['newline', 'a\nb'],
@@ -64,6 +62,22 @@ describe('canvas-create / validateCanvasName (the security boundary)', () => {
       expect(validateCanvasName(value).ok).toBe(false);
     });
   }
+
+  // S1.23 G2 (`v2-lead-canvas-names-any-filename-safe`): braces and a leading hyphen are filename-safe, so
+  // they are accepted — the braces are ESCAPED where they reach the JSX text of a template.
+  test('braces and a leading hyphen are accepted; the braces cannot become a JSX expression', () => {
+    expect(validateCanvasName('A{2+2}B').ok).toBe(true);
+    expect(validateCanvasName('-dash').ok).toBe(true);
+    const out = renderBriefBoard({
+      name: 'A{2+2}B',
+      componentName: 'AB',
+      dsName: 'project',
+      platform: 'desktop',
+      seedHint: 'seed',
+      historyDir: '.design/_history/ui-ab',
+    });
+    expect(out).toContain('A&#123;2+2&#125;B\n');
+  });
 
   test('componentNameFrom yields a valid identifier', () => {
     expect(componentNameFrom('Onboarding Brief')).toBe('OnboardingBrief');

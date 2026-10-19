@@ -12530,6 +12530,19 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-rename-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The key line under the rename field, \"↵ rename · esc keep “<name>”\"; gone while a refusal speaks.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/inline-rename.jsx",
+      "symbol": "InlineRename"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "canvas-move-sheet",
     "kind": "testid",
     "pattern": false,

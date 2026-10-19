@@ -5,6 +5,7 @@ import {
   ARTBOARD_NOT_YET_LINE,
   clearOutcome,
   clearOutDialog,
+  folderOf,
   groupTrash,
   itemName,
   itemSub,
@@ -78,6 +79,23 @@ describe('S1.8 trash model — words', () => {
     expect(whoLabel({ actor: 'hub:x' }, { 'hub:x': 'Marek' })).toBe('Marek');
     expect(whoLabel({ actor: 'local:m1' })).toBe('You');
     expect(whoLabel({ actor: 'hub:9f3a' })).toBe('Someone');
+  });
+
+  test('a canvas row names its folder without the canvas group prefix (S1.23: "legacy", not "ui/legacy")', () => {
+    const inUi = { ...OLD, path: 'ui/legacy/letak-nabor-2022-old.tsx' };
+    expect(itemSub(inUi, { now: NOW })).toBe('legacy · Tereza, 3 Oct');
+    expect(itemSub({ ...AHOJ, path: 'ui/ahoj.tsx' }, { now: NOW })).toBe('root · You, just now');
+    expect(itemSub({ ...OLD, path: 'ui/2026/social/a.tsx' }, { now: NOW })).toBe(
+      '2026/social · Tereza, 3 Oct'
+    );
+    // the project's own groups, when it names them
+    expect(itemSub({ ...OLD, path: 'screens/web/a.tsx' }, { now: NOW, roots: ['screens'] })).toBe(
+      'web · Tereza, 3 Oct'
+    );
+    expect(folderOf('ui/a.tsx')).toBe('root');
+    expect(folderOf('ui/a/b/c.tsx')).toBe('a/b');
+    // outside every group: as it is
+    expect(folderOf('notes/a.tsx')).toBe('notes');
   });
 
   test('a row: name and the sub of pn-trash', () => {

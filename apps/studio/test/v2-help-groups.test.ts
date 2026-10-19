@@ -49,8 +49,37 @@ describe('"?" sheet · Tabs and windows / Finding a canvas (S1.21)', () => {
 
   test('Finding a canvas lists Search, Open project… and Version history', () => {
     const rows = rowsOf(sheet, 'finding');
-    expect(rows.map((r) => r.id)).toEqual(['search.open', 'project.open', 'history.open']);
-    expect(rows.map((r) => r.keys[0])).toEqual(['⌘K', '⌘O', '⌥⌘H']);
+    // S1.23: ⇧⌘K is its own binding, so it is its own row (not "⌘K or ⇧⌘K" on one label)
+    expect(rows.map((r) => r.id)).toEqual([
+      'search.open',
+      'search.open:also',
+      'project.open',
+      'history.open',
+    ]);
+    expect(rows.map((r) => r.keys[0])).toEqual(['⌘K', '⇧⌘K', '⌘O', '⌥⌘H']);
+  });
+
+  test('the canvas’s words: "Search every project ⌘K", the older key on its own row, no "or" (S1.23 G7)', () => {
+    const rows = rowsOf(sheet, 'finding');
+    const by = Object.fromEntries(rows.map((r) => [r.id, r]));
+    expect(by['search.open'].label).toBe('Search every project');
+    expect(by['search.open'].keys).toEqual(['⌘K']);
+    expect(by['search.open'].alt).toEqual([]);
+    expect(by['search.open:also'].label).toBe('Search, too');
+    expect(by['search.open:also'].keys).toEqual(['⇧⌘K']);
+    expect(by['project.open'].label).toBe('Open project…');
+    // only the sheet is reworded: the action keeps its menu label
+    expect(ACTIONS_BY_ID.get('search.open')?.label).toBe('Search');
+    expect(
+      filterHelpSheet(sheet, 'every project').groups.flatMap((g) => g.rows.map((r) => r.id))
+    ).toEqual(['search.open']);
+  });
+
+  test('Open project… ⌘O is a desktop row: a browser tab does not teach a key it does not have', () => {
+    expect(rowsOf(sheet, 'finding').map((r) => r.id)).toContain('project.open');
+    expect(rowsOf(buildHelpSheet(browser), 'finding').map((r) => r.id)).not.toContain(
+      'project.open'
+    );
   });
 
   test('the placement is the registry`s own help.group, not the help-model fallback', () => {

@@ -19,6 +19,7 @@ import { canvasUrl } from '../../canvas-url.js';
 import { JUMP_LADDER_MS, planJump } from '../canvases/jump-model.js';
 import { COMPARE_WORDS as W, focusGroup, groupByArtboard, summaryLine } from './blame.js';
 import { ChangeList } from './change-list.jsx';
+import { useIslandInsets } from './clear-band.js';
 import { compareStore, useCompare } from './compare-store.js';
 import { useViewing } from './history-host.jsx';
 
@@ -100,6 +101,9 @@ export function CompareView({ state, cfg, onMode, onFocus, onRetry }) {
   const frames = useRef([null, null]);
   const wipe = useRef(50);
   const stageRef = useRef(null);
+  const viewRef = useRef(null);
+  // S1.23: the A / B frames and the change list stay clear of the floating panels (V2-4.1 insets)
+  const inset = useIslandInsets(viewRef);
   const groups = answer.status === 'ready' ? groupByArtboard(answer.changes, answer.labels) : [];
   const target = focusGroup(groups, focus);
   const focusId = target?.id ?? null;
@@ -111,7 +115,18 @@ export function CompareView({ state, cfg, onMode, onFocus, onRetry }) {
   }, []);
 
   return (
-    <section className="cmp-view" aria-label="Comparing two versions" data-testid="cmp-view">
+    <section
+      ref={viewRef}
+      className="cmp-view"
+      aria-label="Comparing two versions"
+      data-testid="cmp-view"
+      style={{
+        '--cmp-in-t': `${inset.top}px`,
+        '--cmp-in-r': `${inset.right}px`,
+        '--cmp-in-b': `${inset.bottom}px`,
+        '--cmp-in-l': `${inset.left}px`,
+      }}
+    >
       <div
         ref={stageRef}
         className={`cmp-stage cmp-${mode}`}

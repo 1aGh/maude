@@ -7,8 +7,9 @@
 // canvas frame (`mode-request back`, handled by the mode lane); this listener is for the keys the shell
 // itself hears. It stands down for an open dialog (its own esc) and for typing.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Kbd } from '../../shell/icons.jsx';
+import { useViewBarPlacement } from './clear-band.js';
 import { HISTORY_WORDS } from './use-versions.js';
 
 /** The history glyph (a clock running back), in the shell's 16×16 thin-stroke family. */
@@ -37,6 +38,9 @@ const typing = (el) =>
   !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName ?? ''));
 
 export function ViewBar({ viewing, onLeave }) {
+  const barRef = useRef(null);
+  // S1.23: centred in the band BETWEEN the top islands (project pill, Share cluster), never under one
+  useViewBarPlacement(barRef, !!viewing);
   useEffect(() => {
     if (!viewing) return undefined;
     const onKey = (e) => {
@@ -52,6 +56,7 @@ export function ViewBar({ viewing, onLeave }) {
   if (!viewing) return null;
   return (
     <section
+      ref={barRef}
       className="island vh-viewbar"
       aria-label="Viewing a past version"
       data-testid="vh-viewbar"
