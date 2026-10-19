@@ -18,7 +18,12 @@ import {
   trashArtboardBody,
 } from '../edit-op-relay.ts';
 import { exportRegionOf } from '../export-region.ts';
-import { localSelectRecord, restoreAfterLoad, shellSelectionOf } from '../selection-scope.js';
+import {
+  localSelectRecord,
+  RESTORE_LEAD_MS,
+  restoreAfterLoad,
+  shellSelectionOf,
+} from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
 import { runActionMessage, runForwardedKey } from '../actions/shell-key-handlers.js';
@@ -1101,8 +1106,11 @@ export function useCanvasBridge({
             // S2.22 G2 — a whole artboard (no element id) is put back by its name, so a resize that
             // reloaded the canvas leaves the board selected, with its new size in the inspector.
             const back = restoreAfterLoad(selectedRef.current, m.file);
-            if (back?.kind === 'element') scheduleHaloRestore(back.sel);
-            else if (back?.kind === 'artboard') scheduleArtboardResync(back.artboardId, back.file);
+            // S2.23: not at 50 ms — a write of the person's own (a drawing, a paste) has the canvas select what it
+            // made a beat after it reloads, and this restore must not land on top of that.
+            if (back?.kind === 'element') scheduleHaloRestore(back.sel, RESTORE_LEAD_MS);
+            else if (back?.kind === 'artboard')
+              scheduleArtboardResync(back.artboardId, back.file, RESTORE_LEAD_MS);
           }
         }
       } else if (m.dgn === 'export-request' && m.id && m.payload) {

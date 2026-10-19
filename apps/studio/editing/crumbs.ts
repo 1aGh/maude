@@ -27,6 +27,8 @@ export interface CrumbNode {
 }
 
 const MAX_LABEL = 40;
+/** the readable ids `object.insert-shape` / `object.frame` / `object.insert-path` mint */
+const DRAWN_ID = /^(frame|rectangle|ellipse|line|polygon|path)(?:-\d+)?$/;
 
 function sentence(s: string): string {
   const t = s.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -44,6 +46,10 @@ export function crumbLabel(n: CrumbNode): string {
   if (n.aria) return clip(n.aria.trim());
   const words = (n.text ?? '').trim().split(/\s+/).filter(Boolean).slice(0, 3).join(' ');
   if (words) return clip(words);
+  // S2.23 G8: a shape the drawing tools made is named by the id they gave it ("rectangle", "ellipse-2"): the
+  // tag reads "Rectangle · 120 × 27", not "div · 120 × 27". The id is the name the Layers panel would show.
+  const drawn = n.id ? DRAWN_ID.exec(n.id) : null;
+  if (drawn) return sentence(drawn[1]);
   return n.tag;
 }
 

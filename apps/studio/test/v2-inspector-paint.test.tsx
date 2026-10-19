@@ -469,6 +469,42 @@ describe('several objects: Mixed', () => {
     expect(q(host, 'insp-sec-effects')).toBeNull();
   });
 
+  test('G2: Position and Size are drawn for several, with Mixed where the objects differ', async () => {
+    const at = (id: string, i: number, left: string, width: string) => ({
+      ...BOX,
+      id,
+      index: i,
+      worldW: Number.parseInt(width, 10),
+      authored: { position: 'absolute', left, top: '10px', width },
+    });
+    const host = await frame([at('a', 0, '64px', '200px'), at('b', 1, '70px', '240px')]);
+    const order = [...host.querySelectorAll('[data-testid^="insp-sec-"]')].map((e) =>
+      e.getAttribute('data-testid')
+    );
+    expect(order.slice(0, 3)).toEqual(['insp-sec-position', 'insp-sec-size', 'insp-sec-fill']);
+    expect(q(host, 'insp-mixed-x')).not.toBeNull();
+    expect(q(host, 'insp-mixed-y')).toBeNull();
+    expect(q(host, 'insp-mixed-width')).not.toBeNull();
+    expect(q(host, 'insp-num-rotation')).not.toBeNull();
+    // one value for every object, one write each where it differs: X typed once puts b where a already is
+    await enter(q(host, 'insp-num-x')?.querySelector('input') ?? null, '64');
+    expect(edits().map((p) => [p.body.id, p.body.property, p.body.value])).toEqual([
+      ['b', 'left', '64px'],
+    ]);
+  });
+
+  test('G2: when they agree, nothing says Mixed', async () => {
+    const same = (id: string, i: number) => ({
+      ...BOX,
+      id,
+      index: i,
+      authored: { position: 'absolute', left: '8px', top: '8px', width: '200px' },
+    });
+    const host = await frame([same('a', 0), same('b', 1)]);
+    expect(q(host, 'insp-mixed-x')).toBeNull();
+    expect(q(host, 'insp-mixed-width')).toBeNull();
+  });
+
   test('text settings show only when every object is text', async () => {
     const t = (id: string, i: number) => ({
       ...BOX,

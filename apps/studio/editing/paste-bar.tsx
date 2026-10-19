@@ -152,9 +152,42 @@ function ensureStyles(): void {
   document.head.appendChild(s);
 }
 
-type Bar =
-  | { kind: 'placed'; line: string; ref: ElementRef }
-  | { kind: 'layers'; paste: FigmaPaste };
+/**
+ * Does the "Pasted from Figma…" line stay? It belongs to the picture just placed, so it closes when something else is
+ * selected — but only once the picture HAS been selected: the bar opens the moment the write answers, before the canvas
+ * has re-rendered and `selectWhenRendered` moved the selection off the paste target (G5: the bar closed itself the
+ * instant it opened). Clearing the selection keeps it.
+ */
+export function placedBarFollows(
+  mine: string,
+  selectedKey: string,
+  seen: boolean
+): { stays: boolean; seen: boolean } {
+  if (selectedKey === mine) return { stays: true, seen: true };
+  return { stays: !seen || selectedKey === '[]', seen };
+}
+
+type Placed = { line: string; ref: ElementRef };
+type Bar = ({ kind: 'placed' } & Placed) | { kind: 'layers'; paste: FigmaPaste };
+
+const MEMORY = Symbol.for('maude.pasteBar.v1');
+/**
+ * The line under a placed picture, kept on the canvas DOCUMENT: the write that placed the picture reloads the canvas
+ * module, which remounts this bar and drops its state — the line opened and vanished before anyone read it (G5).
+ * Same idea as the undo-mode store: a soft swap keeps the document, so a Symbol.for slot on the window survives it.
+ */
+export function placedBarMemory(win: Window = window): {
+  recall(): Placed | null;
+  remember(p: Placed | null): void;
+} {
+  const slot = win as unknown as Record<symbol, Placed | null | undefined>;
+  return {
+    recall: () => slot[MEMORY] ?? null,
+    remember: (p) => {
+      slot[MEMORY] = p;
+    },
+  };
+}
 
 export function PasteBar({ readOnly }: { readOnly?: boolean }) {
   ensureStyles();
@@ -163,30 +196,44 @@ export function PasteBar({ readOnly }: { readOnly?: boolean }) {
   const tm = useToolModeOptional();
   const live = useRef({ selSet, undo });
   live.current = { selSet, undo };
-  const [bar, setBar] = useState<Bar | null>(null);
+  const memory = typeof window === 'undefined' ? null : placedBarMemory(window);
+  const [bar, setBarState] = useState<Bar | null>(() => {
+    const kept = memory?.recall();
+    return kept ? { kind: 'placed', ...kept } : null;
+  });
+  const setBar = useCallback(
+    (next: Bar | null) => {
+      memory?.remember(next?.kind === 'placed' ? { line: next.line, ref: next.ref } : null);
+      setBarState(next);
+    },
+    [memory]
+  );
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   const editChrome = (!tm || tm.mode === 'edit') && !isEmbedCanvas();
 
-  const place = useCallback(async (file: Blob, paste: FigmaPaste) => {
-    const target = pasteTarget(live.current.selSet.selected);
-    if (!target) return void showCanvasToast(OUTSIDE_LINE, 'info');
-    const up = await uploadAsset(file);
-    if (!('path' in up)) {
-      showCanvasToast(
-        `Nothing pasted — ${up.error || 'that picture could not be brought in'}.`,
-        'error'
-      );
-      return;
-    }
-    const natural = await naturalSizeOf(file);
-    const result = await runDrop(askForPaste(up.path, paste, target, natural), {
-      toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
-      record: (rec) => live.current.undo?.record(rec),
-      select: (refs) => selectWhenRendered(refs, (s) => live.current.selSet.replace(s)),
-    });
-    const made = result.ok ? result.created?.[0] : undefined;
-    if (made) setBar({ kind: 'placed', line: pastedLine(paste.name), ref: made });
-  }, []);
+  const place = useCallback(
+    async (file: Blob, paste: FigmaPaste) => {
+      const target = pasteTarget(live.current.selSet.selected);
+      if (!target) return void showCanvasToast(OUTSIDE_LINE, 'info');
+      const up = await uploadAsset(file);
+      if (!('path' in up)) {
+        showCanvasToast(
+          `Nothing pasted — ${up.error || 'that picture could not be brought in'}.`,
+          'error'
+        );
+        return;
+      }
+      const natural = await naturalSizeOf(file);
+      const result = await runDrop(askForPaste(up.path, paste, target, natural), {
+        toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
+        record: (rec) => live.current.undo?.record(rec),
+        select: (refs) => selectWhenRendered(refs, (s) => live.current.selSet.replace(s)),
+      });
+      const made = result.ok ? result.created?.[0] : undefined;
+      if (made) setBar({ kind: 'placed', line: pastedLine(paste.name), ref: made });
+    },
+    [setBar]
+  );
 
   // the paste itself — claimed ahead of the media intake and the board's own paste
   useEffect(() => {
@@ -203,7 +250,7 @@ export function PasteBar({ readOnly }: { readOnly?: boolean }) {
     };
     document.addEventListener('paste', onPaste, true);
     return () => document.removeEventListener('paste', onPaste, true);
-  }, [readOnly, editChrome, place]);
+  }, [readOnly, editChrome, place, setBar]);
 
   const asPicture = useCallback(
     async (paste: FigmaPaste) => {
@@ -222,7 +269,7 @@ export function PasteBar({ readOnly }: { readOnly?: boolean }) {
       }
       showCanvasToast(COPY_AS_PNG_LINE, 'info');
     },
-    [place]
+    [place, setBar]
   );
 
   // esc closes it; so does selecting something else
@@ -234,13 +281,19 @@ export function PasteBar({ readOnly }: { readOnly?: boolean }) {
     };
     document.addEventListener('keydown', key, true);
     return () => document.removeEventListener('keydown', key, true);
-  }, [bar]);
+  }, [bar, setBar]);
   const selectedKey = JSON.stringify(refsOf(selSet.selected));
+  const seenPlaced = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new picture starts unseen
+  useEffect(() => {
+    seenPlaced.current = false;
+  }, [placedRef]);
   useEffect(() => {
     if (!placedRef) return;
-    const mine = JSON.stringify([placedRef]);
-    if (selectedKey !== mine && selectedKey !== '[]') setBar(null);
-  }, [placedRef, selectedKey]);
+    const next = placedBarFollows(JSON.stringify([placedRef]), selectedKey, seenPlaced.current);
+    seenPlaced.current = next.seen;
+    if (!next.stays) setBar(null);
+  }, [placedRef, selectedKey, setBar]);
 
   // under the picture, following it while the view moves
   useEffect(() => {

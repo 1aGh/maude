@@ -20,6 +20,7 @@ afterAll(() => GlobalRegistrator.unregister());
 
 import {
   isArtboardSelectionOf,
+  RESTORE_LEAD_MS,
   restoreAfterLoad,
   shellSelectionOf,
 } from '../client/selection-scope.js';
@@ -106,6 +107,32 @@ describe('G2 — the artboard is still selected after the write reloads the canv
       file: FILE,
     });
     expect(isArtboardSelectionOf(echo, 'laptop', FILE)).toBe(true);
+  });
+
+  test('S2.23 G1: the canvas’s own select-set names no file; the board still goes back when the canvas that loaded is the one', () => {
+    // what `select-set` actually carries (dom-selection.ts): no `file` — the shell knows the canvas
+    const own = { selector: '[data-dc-screen="desktop"]', artboardId: 'desktop', tag: 'article' };
+    expect(restoreAfterLoad(own, FILE)).toEqual({
+      kind: 'artboard',
+      artboardId: 'desktop',
+      file: FILE,
+    });
+    expect(isArtboardSelectionOf(own, 'desktop', FILE)).toBe(true);
+    // an element drawn a moment ago (G8) goes back the same way, carrying the canvas it belongs to
+    const drawn = { selector: '[data-cd-id="rectangle"]', id: 'rectangle', artboardId: 'desktop' };
+    expect(restoreAfterLoad(drawn, FILE)).toEqual({
+      kind: 'element',
+      sel: { ...drawn, file: FILE },
+    });
+    // a selection that names ANOTHER canvas is still not this one's
+    expect(restoreAfterLoad({ ...own, file: '.design/ui/Other.tsx' }, FILE)).toBeNull();
+    expect(isArtboardSelectionOf({ ...own, file: '.design/ui/Other.tsx' }, 'desktop', FILE)).toBe(
+      false
+    );
+  });
+
+  test('S2.23: the restore waits longer than the canvas’s own select-what-I-made poll (100 ms), so it never lands on top', () => {
+    expect(RESTORE_LEAD_MS).toBeGreaterThan(100);
   });
 
   test('another canvas, another board, or nothing restores nothing', () => {

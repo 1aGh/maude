@@ -5,6 +5,8 @@
 import { useEffect, useState } from 'react';
 
 export const PEN_CSS = `
+/* the input layer pen/draw.tsx renders: its rule used to live only in the shape tool's style (G3) */
+.ed-draw-input { position: absolute; inset: 0; z-index: 4; touch-action: none; }
 .ed-pen-svg { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; overflow: visible; z-index: 5; pointer-events: none; }
 .ed-pen-path { fill: none; stroke: var(--maude-hud-accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ed-pen-was { fill: none; stroke: var(--maude-hud-accent); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: 0.55; }

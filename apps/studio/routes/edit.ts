@@ -391,7 +391,13 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
             return null;
           }
         },
-        write: writeSource,
+        // S2.23 (G4): say what the source became, like api.ts does for the studio's other writes — the
+        // local home then records it as the person's `edit` (a ⌘Z step), not an `outside` row the undo
+        // stack leaves out; an accepted home proposes it without waiting for the watcher's quiet window.
+        write: async (rel, before, after, label) => {
+          await writeSource(rel, before, after, label);
+          deps.emit('source-written', { rel, content: after });
+        },
         writeLayout,
         land,
         exists: (rel) => {

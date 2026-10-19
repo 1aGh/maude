@@ -111,7 +111,15 @@ describe('/_api/edit-op handler', () => {
       refs: [{ artboard: 'desktop', element: 'footer' }],
     });
     expect(readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8')).toContain("color: 'red'");
-    expect(events).toEqual([['activity:suppress', 'ui/Home.tsx']]);
+    // S2.23 (G4): the write is announced with its bytes, so the local home records it as the person's
+    // `edit` (one ⌘Z step) and not as an `outside` row the undo stack leaves out.
+    expect(events).toEqual([
+      ['activity:suppress', 'ui/Home.tsx'],
+      [
+        'source-written',
+        { rel: 'ui/Home.tsx', content: readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8') },
+      ],
+    ]);
     expect(snaps).toEqual(['ui/Home.tsx pre-test.paint']);
   });
 
