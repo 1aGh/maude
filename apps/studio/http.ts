@@ -1942,6 +1942,8 @@ export function createHttp(
       endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
       // S5.11b — Run on a copy: the accepted source + the waiting run's stage
       control: () => ctx.syncControl?.current?.() ?? null,
+      // S5.18 (G2) — the copy's name + place go into the canvas sidecar through the layout-write door
+      meta: { write: (file, text, base) => api.writeCanvasMetaText(file, text, base) },
     },
     agent: {
       repoRoot: ctx.paths.repoRoot,
