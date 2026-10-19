@@ -20,6 +20,7 @@ afterAll(() => GlobalRegistrator.unregister());
 
 import {
   isArtboardSelectionOf,
+  RESTORE_LEAD_MS,
   restoreAfterLoad,
   shellSelectionOf,
 } from '../client/selection-scope.js';
@@ -128,6 +129,10 @@ describe('G2 — the artboard is still selected after the write reloads the canv
     expect(isArtboardSelectionOf({ ...own, file: '.design/ui/Other.tsx' }, 'desktop', FILE)).toBe(
       false
     );
+  });
+
+  test('S2.23: the restore waits longer than the canvas’s own select-what-I-made poll (100 ms), so it never lands on top', () => {
+    expect(RESTORE_LEAD_MS).toBeGreaterThan(100);
   });
 
   test('another canvas, another board, or nothing restores nothing', () => {

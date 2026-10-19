@@ -75,6 +75,10 @@ export function shellSelectionOf(payload, described = (s) => s) {
   return payload;
 }
 
+/** How long after a reload the shell waits before it puts the selection back: the canvas's own select of what it just
+ *  made (a drawing, a paste — `selectWhenRendered` polls every 100 ms) goes first, so the restore never clobbers it. */
+export const RESTORE_LEAD_MS = 250;
+
 const SCREEN_SELECTOR = /^\[data-dc-screen="([^"]+)"\]$/;
 
 /** Is `sel` the whole-artboard selection of `artboardId` on `file`? The server's echo drops `artboardId`, so the
