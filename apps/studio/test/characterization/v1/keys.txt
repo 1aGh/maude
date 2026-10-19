@@ -1682,7 +1682,7 @@
     - div .ed-parent-outline [data-testid="edit-parent-outline"] [aria-hidden="true"]
 ## browser/in-canvas/canvas Meta+z
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="z" PREVENTED
-  to-shell: child undo-barrier
+  to-shell: child undo-barrier · {undo-key}
   to-canvas: parent undo-barrier-ok
   writes: (none)
   shell: =
@@ -2024,9 +2024,7 @@
   to-shell: child duplicate-request id=3807c330 · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
-  shell: +4 -1 #5ab6a6c6d3
-    - strong .insp-title [data-testid="inspector-title"] "main"
-    + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
+  shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
   canvas: +7 -3 #aef03dc995
     - @world translate(443.42px, 502.565px)
     - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
@@ -2036,27 +2034,10 @@
     + input [aria-label="Name"] [placeholder="Name"]
 ## browser/in-canvas/canvas Meta+g
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" PREVENTED
-  to-shell: child edit-op op=object.frame · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child edit-op op=object.frame · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent edit-op-result · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/edit-op
-  shell: +34 -10 #9e1496a7af
-    - button .insp-crumb.insp-crumb--btn [data-testid="inspector-crumb-0"] [title="Select Hero"] [type="button"] "Hero"
-    - button .is-active [role="radio"] [aria-label="Free"] [aria-checked="true"] [title="Free"] [type="button"]
-    - button [role="radio"] [aria-label="Column"] [aria-checked="false"] [title="Column"] [type="button"]
-    - kbd .insp-crumbs-esc [data-testid="inspector-crumbs-esc"] [title="esc steps out one level"] "esc"
-    - nav .insp-crumbs [data-testid="inspector-crumbs"] [aria-label="Where this is"]
-    - span .insp-crumb [data-testid="inspector-crumb-1"] [aria-current="location"] "main"
-    - span .insp-crumb-ch [aria-hidden="true"]
-    - strong .insp-title [data-testid="inspector-title"] "main"
-    + button .btn.btn--sm [data-testid="insp-layout-convert"] [type="button"] "Convert children to absolute position"
-    + button .insp-chip [aria-label="Gap"] [aria-expanded="false"] [type="button"]
-    + button .is-active [role="radio"] [aria-label="Column"] [aria-checked="true"] [title="Column"] [type="button"]
-    + button .is-active [role="radio"] [aria-label="align tc"] [aria-checked="true"] [type="button"]
-    + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "Packed"
-    + button .st-cp-segbtn [role="radio"] [aria-checked="false"] [type="button"] "Space between"
-    + button [role="radio"] [aria-label="Free"] [aria-checked="false"] [title="Free"] [type="button"]
-    + button [role="radio"] [aria-label="align bc"] [aria-checked="false"] [type="button"]
-    + … 20 more
+  shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
   canvas: +1 -29 #6981ce9e79
     - @world translate(443.42px, 502.565px)
     - button .ed-cdot [data-testid="edit-corner-dot-bl"] [aria-label="Round the bottom left corner"] [type="button"]
@@ -2107,9 +2088,7 @@
   to-shell: child edit-op op=object.bring-forward · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent edit-op-result · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/edit-op
-  shell: +4 -1 #5ab6a6c6d3
-    - strong .insp-title [data-testid="inspector-title"] "main"
-    + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
+  shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
   canvas: +1 -30 #ec360cb075
     - @world translate(443.42px, 502.565px)
     - button .ed-cdot [data-testid="edit-corner-dot-bl"] [aria-label="Round the bottom left corner"] [type="button"]
@@ -2347,9 +2326,7 @@
   to-shell: child duplicate-request id=3807c330 · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
-  shell: +4 -1 #5ab6a6c6d3
-    - strong .insp-title [data-testid="inspector-title"] "main"
-    + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
+  shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
   canvas: +9 -5 #74fb2d028f
     - @world translate(443.42px, 502.565px)
     - body [data-active-tool="move"]
@@ -2939,7 +2916,7 @@
 ## tauri/canvas/chrome Meta+n
   keydown: shell ⌘key="Meta" default · shell ⌘key="n" PREVENTED
   to-shell: child loaded · child loaded · child active-artboard · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
-  to-canvas: (canvas reloaded) parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit,timeline-request-comps}
+  to-canvas: (canvas reloaded) parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/canvas
   shell: +27 -236 #0c914d92a0
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]

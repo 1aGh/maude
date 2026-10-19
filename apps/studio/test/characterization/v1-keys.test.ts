@@ -1152,7 +1152,16 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
             ),
           }
         : d;
-    lines.push(...summarise('shell', maskNums(shellBefore), maskNums(shellAfter)));
+    // After a write the shell's Inspector re-renders on its own clock (layout rows, chips, numbers), so a
+    // write case pins the keydown, the messages and the write, not the shell DOM diff — the Inspector after a
+    // write is pinned by the v2-inspector-* tests (decision v2-lead-v1-keys-write-cases-skip-shell-dom).
+    lines.push(
+      ...(net.wrote()
+        ? [
+            '  shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)',
+          ]
+        : summarise('shell', maskNums(shellBefore), maskNums(shellAfter)))
+    );
     lines.push(...LATE);
     lines.push(
       ...(frame1 !== frame0 && frame0 && frame1
@@ -1166,7 +1175,13 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
 }
 
 // ── the test ──────────────────────────────────────────────────────────────────────────────
-test(
+// On demand since the wave-A gate (decision v2-lead-v1-keys-on-demand): after wave A the async message
+// stream (undo barriers, notices, reloads) differs run to run even with presence-normalising, so this
+// Phase-0 safety net runs at phase gates (MAUDE_V1_KEYS=1, or V1_KEYS_UPDATE=1) and not in every suite run.
+// Key behaviour in the default suite is pinned by the registry tests (tool-keys, actions-uniqueness,
+// actions-v1-parity, keys-docs, gate-keys).
+const RUN_V1_KEYS = UPDATE || process.env.MAUDE_V1_KEYS === '1';
+test.skipIf(!RUN_V1_KEYS)(
   'v1 keys: every pinned (setup, focus, key) case behaves as the golden says',
   async () => {
     const require = createRequire(join(STUDIO, 'package.json'));
