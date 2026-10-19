@@ -466,7 +466,13 @@ export interface ShellToCanvas {
     items: Array<{ id: Id; label: string; rect: Rect | null }>;
   };
   'insert-annotation-media': { paths: string[] };
-  'replace-annotation-media': { id: Id; path: string };
+  // `sticker` (S4.13): Replace… on a gallery sticker names the new one, so the canvas keeps its identity (a
+  // pick that is not a gallery sticker omits it and the canvas clears the old identity)
+  'replace-annotation-media': {
+    id: Id;
+    path: string;
+    sticker?: { pack: string; id: string; flip?: boolean };
+  };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
   'photo-busy': { asset: string; busy: boolean };
   // comments
@@ -1663,8 +1669,7 @@ const s2c: S2C = {
   'insert-template': {
     gate: 'parent',
     status: 'live',
-    // S4.4 sends it (Templates panel, ⌘K rows); the annotations layer's handler lands in S4.13
-    orphan: 'no-handler',
+    // S4.4 sends it (Templates panel, ⌘K rows); the annotations layer's handler is S4.13's (a pick that follows the pointer)
     owner: 'annotations-layer',
     parse: p({ id: str, follow: opt(bool) }),
   },
@@ -1699,7 +1704,7 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'live',
     owner: 'annotations-layer',
-    parse: p({ id: str, path: str }),
+    parse: p({ id: str, path: str, sticker: opt(shape({ pack: str, id: str, flip: opt(bool) })) }),
   },
   'photo-preview': {
     gate: 'any',

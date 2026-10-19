@@ -3253,6 +3253,9 @@ function ShellTree() {
       {stickerPickerReq && (
         <StickersGallery
           onPick={onStickerPicked}
+          onPickStamp={
+            stickerPickerReq.replace ? undefined : (id) => onStickerPicked({ pack: 'stamps', id })
+          }
           onClose={() => setStickerPickerReq(null)}
           anchor={stickerPickerReq.anchor ?? null}
         />
