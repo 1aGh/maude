@@ -231,6 +231,14 @@
     padding: var(--space-2);
     padding-left: var(--space-4);
     border-radius: var(--radius-pill);
+    /* S4.V4 stamps-1 - the row mounts beside the shell, not inside `.st-body--float`, so the `.island` rule
+       never reaches it: it carries the island material itself (same tokens, vote.css's fallbacks). */
+    font-family: var(--font-body, system-ui, sans-serif);
+    background: var(--island-bg, var(--bg-1));
+    box-shadow:
+      var(--island-shadow, 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26)),
+      inset 0 0 0 0.5px var(--island-edge, oklch(1 0 0 / 0.09));
+    color: var(--fg-0);
   }
   .sg-stamprow[style*="left"] {
     translate: none;

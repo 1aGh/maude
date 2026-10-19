@@ -215,3 +215,32 @@ describe('placement', () => {
     expect(PANEL_SIZE.templates).toEqual({ w: 640 });
   });
 });
+
+// S4.V4 G2 - the panel is shell-side, outside `.maude-v2`, so the `--object-*` thumbnail colours, the
+// v2 body face and `--w-semibold` resolved to nothing (blank Kanban/Retro/Calendar/Roadmap tiles, mono
+// type). The dialog carries its own v2 token scope; nothing wider is wrapped.
+describe('v2 token scope', () => {
+  test('the dialog carries .maude-v2 with the shell theme; the scrim and the shell do not', async () => {
+    const shell = document.createElement('div');
+    shell.className = 'maude';
+    shell.setAttribute('data-theme', 'dark');
+    document.body.appendChild(shell);
+    const { host, done } = await mount();
+    shell.appendChild(host);
+    const dialog = host.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.classList.contains('maude-v2')).toBe(true);
+    expect(dialog.getAttribute('data-theme')).toBe('dark');
+    expect((host.querySelector('.st-scrim') as HTMLElement).classList.contains('maude-v2')).toBe(
+      false
+    );
+    await done();
+    shell.remove();
+  });
+
+  test('templates-panel.css sets the v2 body face on the panel', async () => {
+    const css = await Bun.file(
+      new URL('../client/v2/annotations/templates-panel.css', import.meta.url)
+    ).text();
+    expect(css).toMatch(/\.st-sticker-picker\.tp\s*\{[^}]*font-family:\s*var\(--font-body/);
+  });
+});

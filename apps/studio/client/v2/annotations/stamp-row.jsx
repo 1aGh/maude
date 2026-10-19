@@ -6,6 +6,7 @@
 // see ONE `tool-panel-stickers`). No scrim: the clicks that stamp must reach the canvas.
 
 import { STAMPS, StampGlyph } from './stamps-glyphs.jsx';
+import { v2Scope } from './v2-scope.js';
 
 /**
  * @param active the armed stamp id
@@ -17,7 +18,7 @@ import { STAMPS, StampGlyph } from './stamps-glyphs.jsx';
 export default function StampRow({ active, onPickStamp, onExpand, onClose, style, placement }) {
   return (
     <div
-      className="island sg-stamprow"
+      {...v2Scope('island sg-stamprow')}
       data-testid="tool-panel-stickers"
       data-folded="stamps"
       data-placement={placement}
