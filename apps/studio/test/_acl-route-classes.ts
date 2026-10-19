@@ -44,6 +44,8 @@ const NONE = [
   '/_api/report-fallback',
   '/_api/hub/link',
   '/_api/cloud/status',
+  // S9.20b — the account's plan (state, days left, plan name): about the account, not the project
+  '/_api/cloud/plan',
   '/_api/cloud/signin/start',
   '/_api/cloud/signin/poll',
   '/_api/cloud/signout',

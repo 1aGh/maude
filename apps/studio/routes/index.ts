@@ -25,6 +25,7 @@ import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-s
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
+import { type CloudPlanDeps, createCloudPlanRoutes } from './cloud-plan.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
@@ -109,6 +110,8 @@ export interface RouteDeps {
   settings?: SettingsRouteDeps;
   /** S6.0b — `POST|GET /_api/cloud/move`: a local folder becomes a cloud project (S6-S9 §5.5) */
   cloudMove: CloudMoveDeps;
+  /** S9.20b — `GET /_api/cloud/plan`: the account's plan words' facts (main origin, device token) */
+  cloudPlan?: CloudPlanDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
   assetState?: AssetStateRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
@@ -178,6 +181,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createSyncRoutes(deps.sync),
     ...(deps.settings ? createSettingsRoutes(deps.settings) : []),
     ...createCloudMoveRoutes(deps.cloudMove),
+    ...(deps.cloudPlan ? createCloudPlanRoutes(deps.cloudPlan) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),

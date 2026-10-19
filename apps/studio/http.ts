@@ -2120,6 +2120,8 @@ export function createHttp(
       localFormat: () => asFormat(ctx.cfg.formatVersion),
       cloud: cloudApi,
     },
+    // S9.20b — GET /_api/cloud/plan (routes/cloud-plan.ts): main origin only, the device token.
+    cloudPlan: { cloud: cloudApi },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
@@ -3682,7 +3684,8 @@ export function createHttp(
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      return gitJson(cloudApi.status());
+      // S9.20b — carries the account's `plan` (cloud /api/home, cached; null when not answered)
+      return gitJson(await cloudApi.statusWithPlan());
     },
     '/_api/cloud/signin/start': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });

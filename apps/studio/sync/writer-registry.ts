@@ -389,6 +389,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S6.0b routes/cloud-move.ts: creates the cloud project + links THIS folder (the attach lane);
   // the seed-up is the sync runtime's, never this route's
   '/_api/cloud/move': { class: 'local' },
+  // S9.20b routes/cloud-plan.ts: the account's plan from cloud /api/home (device token); writes nothing
+  '/_api/cloud/plan': { class: 'read' },
   '/_api/cloud/projects': { class: 'read' },
   '/_api/cloud/signin/poll': { class: 'local' },
   '/_api/cloud/signin/start': { class: 'local' },
