@@ -116,7 +116,13 @@ describe('object ops on a canvas (S2.6)', () => {
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await waitForCanvasRects();
   });
-  after(() => fixtures.restore());
+  after(async () => {
+    fixtures.restore();
+    // the unlock went through the Layers tab; hand the dock back on Files for the next spec
+    await browser.execute(() => {
+      document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]')?.click();
+    });
+  });
 
   it('⇧⌘L locks the object in the file; the pointer on it shows the badge; ⇧⌘L again unlocks', async () => {
     const report = startReport('edit-object-ops-lock');

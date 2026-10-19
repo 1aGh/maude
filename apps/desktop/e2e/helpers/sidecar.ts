@@ -22,6 +22,15 @@ export async function waitForSidecar(timeout = 150_000): Promise<string> {
       timeoutMsg: `webview never navigated to the loopback dev-server (last url: "${url}")`,
     }
   );
+  // The lane keeps one app across specs: start each with no sheet or popover left open by the last
+  // one, and on the Files tab of the left dock.
+  await browser.keys(['Escape', 'Escape']).catch(() => {});
+  await browser
+    .execute(() => {
+      const tab = document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]');
+      if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
+    })
+    .catch(() => {});
   return url;
 }
 
