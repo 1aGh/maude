@@ -303,6 +303,9 @@ export const ROUTE_ANSWERS = {
   // this Mac has opened nothing yet (GET /_api/pins): ⌘K's Recent says so
   pinsNone: { pins: [], opened: {} },
   commentRefused: { __status: 403, ok: false, error: 'That did not go through.' },
+  // a sticky turned into a comment by this session (S4.7's answer: the new thread's id and its op-log action): the
+  // shell remembers the conversion, so that thread's header offers Undo (the fixture's c1 is Tereza's converted sticky)
+  stickyConverted: { ok: true, commentId: 'c1', actionId: 'act-probe-1' },
   // ── routes that never answer / fail (a slow start, a canvas that does not load) ───────────────────
   pngImage: { __png: true },
   brandImportOk: { ok: true, path: 'assets/logo.svg' },
@@ -529,6 +532,11 @@ export const STATES = {
       're:/_comments\\?file=': 'commentsFile',
       're:/_api/git-user': 'viewerIdentity',
     },
+  },
+  // …and the sticky on the board turns into a comment of this session (the stub answers the convert route)
+  'comments-converted': {
+    extends: 'comments',
+    routes: { '/_api/annotations/to-comment': 'stickyConverted' },
   },
   'comments-refused': {
     extends: 'comments',
@@ -1598,6 +1606,23 @@ export const OPENERS = [
       { frameClick: tid('comment-edit'), optional: true },
     ],
   },
+  // … a converted comment's thread: the ⋯ menu with "Turn back into a sticky", and (the sticky was turned into this
+  // comment in this very session) the header's Undo
+  {
+    id: 'comment-thread-converted',
+    state: 'comments-converted',
+    steps: [
+      PREVIEW,
+      { frameClick: A('st1') },
+      { wait: 500 },
+      { frameClick: tid('annot-ctx-to-comment'), optional: true },
+      { wait: 800 },
+      { frameClick: '[data-comment-pin]', optional: true },
+      { wait: 800 },
+      { frameClick: '[data-testid^="comment-menu-"]', optional: true },
+      { wait: 300 },
+    ],
+  },
   // … and Resolve refused by the door: the canvas's one-sentence notice
   {
     id: 'comment-refused',
@@ -1690,7 +1715,7 @@ const WHERE = [
     /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
-  [/^(comments-panel|comment-thread|comment-refused)$/, LOCAL],
+  [/^(comments-panel|comment-thread|comment-thread-converted|comment-refused)$/, LOCAL],
 ];
 // Preview eases the camera onto the board in view and the studio remembers it per canvas (`_canvas-state/<slug>.view.json`):
 // an opener that went to Preview gives the camera back, so the Edit openers after it (the Hero's title, a board's label)
