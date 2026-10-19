@@ -262,7 +262,8 @@ export function HoldRings() {
           pubRef.current?.app(m.app);
           if (m.gesture) pubRef.current?.gesture();
         } else if (m?.dgn === 'ai-holds') {
-          setAiHolds(m.holds);
+          // S5.19 — a spot the AI points at (`point`) is not a hold: no outline, no inspector line
+          setAiHolds(m.holds.filter((h) => !h.point));
         }
         return;
       }

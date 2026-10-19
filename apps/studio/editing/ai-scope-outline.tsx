@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { AiPointRings } from './ai-point-ring.tsx';
 import { unionRect } from './ask-bubble.tsx';
 
 export interface ScopeRow {
@@ -66,7 +67,17 @@ const CSS_TEXT = `
 @media (prefers-reduced-motion: reduce) { .ed-ai-skel { animation-duration: 1ms; } }
 `;
 
-export function AiScopeOutline(): null | React.JSX.Element {
+/** The scope outline of a ⌘/ ask, and (S5.19) the small ring AI points a question's spot with. */
+export function AiScopeOutline(): React.JSX.Element {
+  return (
+    <>
+      <AiScopeBox />
+      <AiPointRings />
+    </>
+  );
+}
+
+function AiScopeBox(): null | React.JSX.Element {
   const [rows, setRows] = useState<ScopeRow[]>([]);
   const [tag, setTag] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
