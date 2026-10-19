@@ -3533,6 +3533,7 @@
     "testid:studio/client/testids.json#menubar/menubar-file": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#sidebar/tree/data-canvas-row": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#viewport/st-skel-cap": "historical hook: no live element in v1",
+    "testid:studio/editing/ai-point-ring.tsx#canvas/edit-ai-point": "v2 code (added after the freeze)",
     "testid:studio/editing/ai-scope-outline.tsx#canvas/edit-ai-scope": "v2 code (added after the freeze)",
     "testid:studio/editing/ai-scope-outline.tsx#canvas/edit-ai-scope-skeleton": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "v2 code (added after the freeze)",
