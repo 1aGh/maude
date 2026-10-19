@@ -189,7 +189,7 @@ ${boards
     ([id, label]) => `        <DCArtboard id="${id}" label="${label}" width={800} height={500}>
           <main style={{ padding: 40, fontFamily: 'system-ui' }}>
             <h1 data-cd-id="${id}-title">${label}</h1>
-            <p data-cd-id="${id}-body">Reachability fixture.</p>
+            <p data-cd-id="${id}-body" data-cd-link="https://cal.com/studio">Reachability fixture.</p>
             <div data-cd-id="${id}-grid" data-dc-element="Grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <span>A</span>
               <span>B</span>
@@ -575,6 +575,15 @@ async function runOpener(browser, srv, probe, opener) {
           await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
+      } else if (step.frameDom) {
+        // a click dispatched on the element itself: a flyout that opens off the edge of the window (a submenu of a
+        // menu opened low on the screen) is real UI that Playwright's own click refuses as "outside the viewport"
+        const target = page.frameLocator(tid('canvas-frame')).locator(step.frameDom).first();
+        if (step.optional) {
+          await target.waitFor({ state: 'attached', timeout: 4000 }).catch(() => {});
+          if (!(await target.count().catch(() => 0))) continue;
+        }
+        await target.evaluate((n) => n.click(), null, { timeout: 8000 });
       } else if (step.upload) {
         const [selector, name, text] = step.upload;
         await page
@@ -720,6 +729,7 @@ async function runOpener(browser, srv, probe, opener) {
       }
   } catch (err) {
     ev.ok = false;
+    if (process.env.PROBE_DEBUG) console.log(`  [error ${opener.id}] ${String(err?.message ?? err).slice(0, 900)}`);
     ev.err = String(err?.message ?? err)
       .split('\n')[0]
       .slice(0, 160);
@@ -740,6 +750,15 @@ try {
 const srv = await bootServer();
 const browser = await chromium.launch({ headless: true });
 let evidence = {};
+// A hold of the test lane is killed at --max, and a full pass takes longer than one hold: every opener's evidence is
+// written the moment it is in (--evidence), so a killed run loses one opener, not the pass, and the next hold
+// continues with --merge <that file>.
+const flushEvidence = () => {
+  if (!opt('--evidence')) return;
+  const base = MERGE && existsSync(MERGE) ? JSON.parse(readFileSync(MERGE, 'utf8')) : {};
+  for (const [p, byOpener] of Object.entries(evidence)) base[p] = { ...(base[p] ?? {}), ...byOpener };
+  writeFileSync(opt('--evidence'), JSON.stringify(base));
+};
 try {
   for (const probe of PROBES.filter((p) => !ONLY || ONLY.includes(p.id))) {
     evidence[probe.id] = {};
@@ -750,6 +769,7 @@ try {
       const t0 = Date.now();
       const ev = await runOpener(browser, srv, probe, o);
       evidence[probe.id][o.id] = ev;
+      flushEvidence();
       console.log(
         `${probe.id.padEnd(13)} ${o.id.padEnd(20)} ${ev.ok ? 'ok    ' : 'FAILED'} ${String(ev.testids.length).padStart(4)} hooks  ${Date.now() - t0} ms${ev.ok ? '' : `  ${ev.err}`}`
       );
@@ -786,7 +806,7 @@ const doc = summarize({
   bundle: `${BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js'}${MERGE ? ' (earlier run + re-run openers merged)' : ''}`,
 });
 if (!PARTIAL || args.includes('--write')) writeFileSync(OUT, `${JSON.stringify(doc, null, 2)}\n`);
-if (opt('--evidence')) writeFileSync(opt('--evidence'), JSON.stringify(evidence));
+flushEvidence();
 const okRows = Object.values(doc.rows).filter((v) => v === true).length;
 const okT = Object.values(doc.targets).filter((v) => v === true).length;
 console.log(

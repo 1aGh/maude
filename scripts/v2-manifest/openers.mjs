@@ -271,6 +271,9 @@ export const ROUTE_ANSWERS = {
         author: 'Tereza',
         thread: [],
         dom_path: ['div', 'h1'],
+        // a moment on a video (the thread's "at 0:12" chip) and a converted sticky (its "From Jonas's sticky…" line)
+        t: 12,
+        from: { author: 'Jonas', convertedBy: 'Tereza' },
       },
       {
         id: 'c2',
@@ -288,6 +291,8 @@ export const ROUTE_ANSWERS = {
     ],
   },
   viewerIdentity: { name: 'Tereza', email: 'tereza@example.com' },
+  // the comment door refuses a write (S9.22): the canvas says it in one sentence and keeps the text
+  commentRefused: { __status: 403, ok: false, error: 'That did not go through.' },
   // ── routes that never answer / fail (a slow start, a canvas that does not load) ───────────────────
   pngImage: { __png: true },
   brandImportOk: { ok: true, path: 'assets/logo.svg' },
@@ -310,6 +315,8 @@ export const ROUTE_ANSWERS = {
   },
   hang: { __hang: true },
   abort: { __abort: true },
+  // S8.19: the answer GET /_api/asset-state gives for a picture no device has (the canvas then frames it, Relink…)
+  assetMissing: { items: [{ rel: 'assets/ab12cd34.png', state: 'missing' }] },
   serverError: { __status: 500, error: 'probe: the server answered 500' },
   // ── the bug-report dialog's service, the source-conflict body, the offline download ──────────────
   reportOk: { ok: true, issueUrl: 'https://github.com/1aGh/maude/issues/1', issueNumber: 1 },
@@ -512,6 +519,10 @@ export const STATES = {
       're:/_api/git-user': 'viewerIdentity',
     },
   },
+  'comments-refused': {
+    extends: 'comments',
+    routes: { '/_api/comments/op': 'commentRefused' },
+  },
   'acp-chat-comments': {
     extends: 'acp-chat',
     routes: {
@@ -522,6 +533,11 @@ export const STATES = {
   },
   // the project index never answers: the tree shows its loading card
   'tree-slow': { routes: { '/_index-data': 'hang' } },
+  // a picture the fixture canvas names is gone from every device: the studio says Missing and the file never loads, so
+  // the canvas frames it (S8.19 — `asset-frames`, `asset-frame`, `asset-frame-relink`)
+  'asset-missing': {
+    routes: { '/_api/asset-state*': 'assetMissing', 're:/assets/ab12cd34\\.png': 'abort' },
+  },
   // the canvas shell never loads: the opening card, then (after the 15 s cap) the failure card
   'canvas-hung': { routes: { 're:/_canvas-shell': 'hang' } },
   // no Claude Code on this Mac: the explainer and its "Set up AI editing" button
@@ -581,7 +597,7 @@ const diagView = (v) => [
   { expand: tid('diagnostics-sheet') },
 ];
 
-/** step kinds: post ([path, body] — a same-origin POST) · hover · frameDown (press on a canvas element and hold) · mouseMove ([dx, dy] while held) · mouseUp · click (main frame) · frameClick (canvas iframe) · frameDblclick · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
+/** step kinds: frameDom (a DOM click on a canvas element Playwright would call off-screen) · post ([path, body] — a same-origin POST) · hover · frameDown (press on a canvas element and hold) · mouseMove ([dx, dy] while held) · mouseUp · click (main frame) · frameClick (canvas iframe) · frameDblclick · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
  *  aria-expanded=false inside a root, bounded) · palette (⌘K + type each needed action's label) ·
  *  run (⌘K, pick one action by id) · push (a WS frame) · type (into the focused field) · fill
  *  ([selector, text]) · ensureOpen (a fold toggle: clicked only while aria-expanded="false") · `optional`
@@ -882,8 +898,10 @@ export const OPENERS = [
     id: 'export-pdf',
     steps: [
       { key: 'Shift+Meta+E' },
+      // S8.2: PNG / JPG sit on the sheet; every other format is under "Other…"
+      { click: tid('export-other') },
       { click: tid('export-format-pdf') },
-      { click: tid('export-pdf-marks'), optional: true },
+      { ensureOpen: tid('export-advanced-toggle') },
     ],
   },
   // a video comp: open it, open the Timeline (⇧⌘T), pick the first clip (its inspector)
@@ -1002,7 +1020,9 @@ export const OPENERS = [
     id: 'asset-picker',
     steps: [
       { frameContext: '[data-cd-id="home-hero-photo"]' },
-      { frameClick: tid('canvas-menu-item-replace-media') },
+      // S2.6: "Replace image…" sits under the object menu's Advanced ▸ (its flyout opens off the window's edge)
+      { frameDom: tid('canvas-menu-item-advanced') },
+      { frameDom: tid('canvas-menu-item-replace-media') },
       { wait: 1000 },
     ],
   },
@@ -1053,6 +1073,34 @@ export const OPENERS = [
     id: 'canvas-load-failed',
     state: 'canvas-hung',
     steps: [{ wait: 2500 }, { wait: 14500 }],
+  },
+  // S8.19 — a missing picture is framed on the canvas, with Relink…
+  { id: 'asset-frames', state: 'asset-missing', steps: [{ wait: 2500 }] },
+  // Edit's More popover (Line · Ellipse · Polygon · Export area), the size tag of an element inspected in Preview, and
+  // the chip an element with a link carries when it is the one selection
+  { id: 'edit-more', steps: [{ frameClick: tid('toolbar-slot-more') }] },
+  {
+    id: 'preview-inspect',
+    steps: [
+      { click: tid('palette-mode-preview') },
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { wait: 400 },
+    ],
+  },
+  { id: 'edit-link', steps: [{ frameClick: '[data-cd-id="home-hero-body"]' }, { wait: 400 }] },
+  // the Design system canvas (S10): its bar and sections
+  { id: 'ds-board', steps: [{ click: tid('canvases-ds-row') }, { wait: 3500 }] },
+  // S8.3 — Advanced › Print PDF needs a print artboard: the Flyer
+  {
+    id: 'export-print',
+    steps: [
+      { click: tid('canvas-row-ui-flyer') },
+      { wait: 3500 },
+      { key: 'Shift+Meta+E' },
+      { click: tid('export-other') },
+      { click: tid('export-format-pdf') },
+      { ensureOpen: tid('export-advanced-toggle') },
+    ],
   },
   // ── the bug-report dialog, further along ───────────────────────────────────────────────────────
   {
@@ -1312,6 +1360,17 @@ export const OPENERS = [
       { frameClick: tid('comment-edit'), optional: true },
     ],
   },
+  // … and Resolve refused by the door: the canvas's one-sentence notice
+  {
+    id: 'comment-refused',
+    state: 'comments-refused',
+    steps: [
+      { frameClick: '[data-comment-pin]', optional: true },
+      { wait: 600 },
+      { frameClick: '[data-testid^="comment-resolve-"]', optional: true },
+      { wait: 800 },
+    ],
+  },
   {
     id: 'acp-error',
     state: 'acp-error',
@@ -1351,7 +1410,17 @@ export const OPENERS = [
 
 // Openers only the shells that draw their surface need to run (the full probe is ~100 openers × 7 shells).
 const LOCAL = ['desktop', 'browser'];
+// …and the shells whose person can change the project: a Can comment / Can view person has no Share button, no Figma
+// import and no shape tools, so an opener for them would only wait out its timeouts (absence is expressed here,
+// by role, not by waiting — the contract's "role/shell-gated expectation")
+const EDITORS = ['desktop', 'browser', 'cloud-owner', 'cloud-member'];
 const WHERE = [
+  // Settings has General only inside a cloud tab (DDR-209 D1, S11.13): Connections / Advanced are the Mac's
+  [
+    /^settings-(connections|advanced|cloud-in|cloud-signin$|github-in|figma-in|team-server)/,
+    LOCAL,
+  ],
+  [/^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share)$/, EDITORS],
   [/^(acp-|deeplink-|team-|settings-cloud-signin-link)/, ['desktop']],
   // the git buttons are the desktop app's (a browser tab reads the fold, it does not press it)
   [/^history-(save|branch|add)-dialog$/, ['desktop']],
@@ -1360,10 +1429,10 @@ const WHERE = [
     LOCAL,
   ],
   [
-    /^(annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
+    /^(asset-frames|ds-board|export-print|edit-more|preview-inspect|edit-link|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
-  [/^(comments-panel|comment-thread)$/, LOCAL],
+  [/^(comments-panel|comment-thread|comment-refused)$/, LOCAL],
 ];
 for (const o of OPENERS) {
   const hit = WHERE.find(([re]) => re.test(o.id));

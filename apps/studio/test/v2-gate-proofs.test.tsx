@@ -6,9 +6,13 @@
 //   · .dc-participants / .dc-participant   the canvas's own participant stack: the shell hosts the faces (the Share
 //                                    cluster) so a canvas inside it draws none; a standalone canvas still does
 //   · [data-section-chip]            a section's label chip: the probe fixture draws no section
+//   · root-missing-*                 the moved-folder card of apps/desktop/src/root-missing.html: an app-local page
+//                                    the desktop shell shows, never served by the studio the probe boots
 // Each test renders the hook and asserts it is on screen; `proofHolds` only checks this file still says so.
 
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
@@ -135,5 +139,55 @@ describe('V2-4.gate proofs: a section on a board', () => {
     const chip = document.querySelector('[data-section-chip]');
     expect(chip).not.toBeNull();
     expect(chip?.textContent).toContain('Ideas');
+  });
+});
+
+// ── the moved-folder card (apps/desktop/src/root-missing.html) ───────────────────────────────────
+// The page is plain HTML with one inline script. The test loads the file itself — its markup and its script,
+// not a copy — in the DOM, with a Tauri invoke that answers, and reads the five hooks off it.
+const ROOT_MISSING = readFileSync(
+  join(import.meta.dir, '../../desktop/src/root-missing.html'),
+  'utf8'
+);
+function loadRootMissing(invoke: (cmd: string, args?: unknown) => Promise<unknown>): void {
+  const body = ROOT_MISSING.match(/<body>([\s\S]*?)<script>/)?.[1] ?? '';
+  const script = ROOT_MISSING.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? '';
+  document.body.innerHTML = body;
+  (window as unknown as { __TAURI__?: unknown }).__TAURI__ = { core: { invoke } };
+  new Function(script)();
+}
+const rm = (hook: string) => document.querySelector(`[data-testid="${hook}"]`) as HTMLElement | null;
+
+describe('V2-4.gate proofs: the moved-folder card', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('root-missing-card names the project, where it was, and offers Find the folder…', async () => {
+    loadRootMissing(async (cmd) =>
+      cmd === 'resolve_dev_server_url'
+        ? { missing: true, pid: 'p1', name: 'Portfolio', place: 'Desktop › Portfolio 2026' }
+        : null
+    );
+    await flush();
+    expect(rm('root-missing-card')?.hidden).toBe(false);
+    expect(rm('root-missing-title')?.textContent).toBe("Portfolio isn't where it was.");
+    expect(rm('root-missing-place')?.textContent).toContain('It was in Desktop › Portfolio 2026.');
+    expect(rm('root-missing-place')?.textContent).toContain('Nothing inside has changed');
+    expect(rm('root-missing-find')?.textContent).toBe('Find the folder…');
+    expect(rm('root-missing-error')?.hidden).toBe(true);
+  });
+
+  test('root-missing-error says why a picked folder could not be used, and the button comes back', async () => {
+    loadRootMissing(async (cmd) => {
+      if (cmd === 'relink_project') throw 'That folder is not this project.';
+      return { missing: true, pid: 'p1', name: 'Portfolio', place: '' };
+    });
+    await flush();
+    act(() => rm('root-missing-find')?.click());
+    await flush();
+    expect(rm('root-missing-error')?.hidden).toBe(false);
+    expect(rm('root-missing-error')?.textContent).toBe('That folder is not this project.');
+    expect((rm('root-missing-find') as HTMLButtonElement).disabled).toBe(false);
   });
 });

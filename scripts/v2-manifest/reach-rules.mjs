@@ -39,6 +39,9 @@ export const PROBES = Object.freeze([
     role: 'viewer',
     config: {
       readOnly: true,
+      // the hub's viewer is Can comment (V2-1.7, S9.22): /_config.canComment puts cm=1 on the canvas URL, which
+      // is what lights the Comment tool in a read-only canvas
+      canComment: true,
       cloud: {
         dashboardUrl: 'https://cloud.example/dashboard',
         projectName: 'Studio site',
