@@ -19,10 +19,12 @@ import { CLEAR_LINK_OP } from './clear-link.ts';
 import { CLIP_OPS } from './clip/index.ts';
 import { objectConstrain } from './constraints.ts';
 import { objectSetCornerRadius } from './corner-radius.ts';
+import { imageCrop } from './crop.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
+import { imagePlace, imageReplace } from './image-fit.ts';
 import { componentInsert } from './insert-component.ts';
 import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { hasLayoutChange } from './layout-patch.ts';
@@ -109,6 +111,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   ...CLIP_OPS,
   // S2.16 — ⇧I: a linked instance from the design system
   componentInsert,
+  // S2.15 — images: a tile dropped / placed, Replace…, Fill · Fit · Crop · Tile
+  imagePlace,
+  imageReplace,
+  imageCrop,
 ];
 
 export interface AiHoldHit {

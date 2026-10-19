@@ -68,3 +68,15 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
   prefer a `--radius-*` token. Remove the `border-*-radius` longhands.
 - **Export area** writes nothing; export the rectangle with `maude design export`.
 - Full recipe: `apps/studio/schema/canvas-tsx.md` ("Draw a frame or a shape").
+
+## Images, crop and Tile (S2.15)
+
+- **A picture** is `<img src="assets/<sha8>.<ext>" alt="…">` with an `objectFit`. A tile dropped on a frame fills it
+  (`width: "100%"; height: "100%"; objectFit: "cover"`); dropped on a picture (or a frame holding one) it only swaps `src`.
+  The `src` is always a flat `assets/` name — import the file first; never a URL.
+- **Fit** is `objectFit`: Fill `cover`, Fit `contain`. **Crop** is `cover` + `objectPosition: "X% Y%"` + `data-image-fit="crop"`,
+  and a zoom is `transform: "scale(Z)"` about `transformOrigin: "X% Y%"` with `overflow: "hidden"` on the frame. **Tile** is a
+  `<div role="img" data-image-tile="assets/…">` with `backgroundRepeat: "repeat"`.
+- Replace… changes `src` only and removes `data-photo-edit` (a per-use photo edit belongs to the old picture).
+- A pasted Figma frame is Figma’s exact picture (`data-source="figma"`), not layers — never claim its text stays editable.
+- Full recipe: `apps/studio/schema/canvas-tsx.md` ("Place, replace and crop an image").
