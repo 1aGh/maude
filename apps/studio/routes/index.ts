@@ -26,6 +26,7 @@ import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
+import { createDiagnosticsRoutes, type DiagnosticsRouteDeps } from './diagnostics.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
@@ -108,6 +109,8 @@ export interface RouteDeps {
   availability?: AvailabilityRouteDeps;
   /** S11.11 — `POST /_api/sync/resync` (moved from http.ts) + the trace `/_sync-status` reports */
   sync: SyncRouteDeps;
+  /** S11.17 — errors and recovery: the crash line's last-work time, the full-disk hold + its Retry */
+  diagnostics?: DiagnosticsRouteDeps;
   /** S11.13 — `GET /_api/kg/summary` + `GET /_api/settings/about` (Settings › Advanced; counts and versions only) */
   settings?: SettingsRouteDeps;
   /** S6.0b — `POST|GET /_api/cloud/move`: a local folder becomes a cloud project (S6-S9 §5.5) */
@@ -181,6 +184,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
     ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
     ...createSyncRoutes(deps.sync),
+    ...createDiagnosticsRoutes(deps.diagnostics ?? { control: () => null }),
     ...(deps.settings ? createSettingsRoutes(deps.settings) : []),
     ...createCloudMoveRoutes(deps.cloudMove),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
