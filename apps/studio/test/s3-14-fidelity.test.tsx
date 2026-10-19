@@ -316,6 +316,41 @@ describe('G4 · a floating panel folds toward its corner icon (04 md-motion), it
     act(() => r.unmount());
   });
 
+  test('DockSlot: Preview folds the panels (the slot stays mounted, `hidden`): the ghost folds from the rect it had', () => {
+    const body = stage();
+    const r = createRoot(body);
+    const slot = (hidden: boolean) => (
+      <DockSlot
+        side="right"
+        width={320}
+        open
+        ids={['inspector']}
+        activeId="inspector"
+        onPick={() => {}}
+        onFold={() => {}}
+        floating
+        hidden={hidden}
+      >
+        <div>Inspector body</div>
+      </DockSlot>
+    );
+    act(() => r.render(slot(false)));
+    withBox(body.querySelector('[data-testid="dock-slot-right"]') as Element); // the rect a commit measures
+    act(() => r.render(slot(false))); // a commit while visible keeps the rect
+    expect(body.querySelector('.st-fold-ghost')).toBeNull();
+    act(() => r.render(slot(true)));
+    const ghost = body.querySelector('.st-fold-ghost') as HTMLElement | null;
+    expect(ghost).not.toBeNull();
+    expect(ghost?.getAttribute('data-fold')).toBe('top-right');
+    expect(ghost?.textContent).toContain('Inspector body');
+    expect(ghost?.style.width).toBe('320px');
+    // coming back is not a fold
+    body.querySelector('.st-fold-ghost')?.remove();
+    act(() => r.render(slot(false)));
+    expect(body.querySelector('.st-fold-ghost')).toBeNull();
+    act(() => r.unmount());
+  });
+
   test('the pinned layout is not floating: no ghost (today’s docked column stays a cut)', () => {
     const body = stage();
     const r = createRoot(body);

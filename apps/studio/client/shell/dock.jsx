@@ -145,25 +145,38 @@ export function DockSlot({
     if (gone?.isConnected && fl && !hid)
       spawnFoldGhost(gone, gone.closest('.st-body'), sd === 'left' ? 'top-left' : 'top-right');
   }, []);
-  // The chat island stays mounted when it folds (`hidden`, the stream survives): fold a picture of it from the
-  // rect it last had.
+  // The islands that stay MOUNTED when they stop showing - the whole slot folded away (`hidden`: Preview folds
+  // the panels, and ⌘\), or the chat island (`hidden` attribute; its stream survives) - fold from the rect they
+  // last had: the slot is already out of layout when the commit lands, so every commit while visible keeps the
+  // rects, and the fold reads them.
   const aiNode = useRef(null);
+  const mainBox = useRef(null);
   const aiBox = useRef(null);
   const aiWas = useRef(aiShown);
+  const hiddenWas = useRef(hidden);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on every commit, by design
   useLayoutEffect(() => {
-    const node = aiNode.current;
-    if (aiShown) {
-      aiBox.current = node?.getBoundingClientRect?.() ?? null;
-    } else if (aiWas.current && node && aiBox.current && floating && !hidden) {
-      spawnFoldGhost(
-        node,
-        node.closest('.st-body'),
-        side === 'left' ? 'bottom-left' : 'bottom-right',
-        aiBox.current
-      );
+    const main = mainNode.current;
+    const ai = aiNode.current;
+    const host = (main ?? ai)?.closest('.st-body');
+    const foldAi = () =>
+      ai &&
+      aiBox.current &&
+      spawnFoldGhost(ai, host, side === 'left' ? 'bottom-left' : 'bottom-right', aiBox.current);
+    if (hidden) {
+      if (!hiddenWas.current && floating) {
+        if (main && mainBox.current)
+          spawnFoldGhost(main, host, side === 'left' ? 'top-left' : 'top-right', mainBox.current);
+        if (aiWas.current) foldAi();
+      }
+    } else {
+      mainBox.current = main?.getBoundingClientRect?.() ?? null;
+      if (aiShown) aiBox.current = ai?.getBoundingClientRect?.() ?? null;
+      else if (aiWas.current && floating) foldAi();
     }
+    hiddenWas.current = hidden;
     aiWas.current = aiShown;
-  }, [aiShown, floating, hidden, side]);
+  });
   return (
     <div
       className={
