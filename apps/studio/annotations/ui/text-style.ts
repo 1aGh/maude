@@ -12,6 +12,9 @@
 import type { CSSProperties } from 'react';
 
 export const TEXT_FONT = 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)';
+/** S4.18 (an-sticky) — a sticky's words are set in the rounded face (canvas 15; CONTRACT `--font-rounded`). */
+export const STICKY_FONT =
+  'var(--font-rounded, ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif)';
 
 /** Line heights per slot — the values the v1 renderers used, so nothing moves. */
 export const LINE_HEIGHT = {
@@ -45,7 +48,7 @@ export function textDecoration(strike?: boolean, underline?: boolean): string | 
 export function slotTextStyle(slot: TextSlot, f: TextFormat): CSSProperties {
   const align = f.align ?? (slot === 'label' ? 'center' : 'left');
   return {
-    fontFamily: TEXT_FONT,
+    fontFamily: slot === 'sticky' ? STICKY_FONT : TEXT_FONT,
     fontSize: `${f.fontSize}px`,
     lineHeight: slot === 'title' ? undefined : LINE_HEIGHT[slot],
     fontWeight: f.bold ? 700 : undefined,

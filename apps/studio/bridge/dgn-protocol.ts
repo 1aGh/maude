@@ -141,6 +141,9 @@ export interface CanvasToShell {
     open?: boolean;
     focus?: string;
   };
+  // S4.18 (an-visibility) — ⇧P pressed inside the canvas hid or showed the layer: the shell keeps the pref
+  // and shows "Annotations hidden. Press ⇧P to bring them back." + Show (it owns that toast).
+  'annotations-visibility': { v: 1; visible: boolean };
   'canvas-notice': {
     message: string;
     kind: 'info' | 'success' | 'error' | 'warning' | 'undo';
@@ -1042,6 +1045,12 @@ const c2s: C2S = {
       open: opt(bool),
       focus: opt(linkArtboardIdV),
     }),
+  },
+  'annotations-visibility': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer ⇧P (S4.18) → shell use-photo-and-timeline',
+    parse: p({ v: lit(1), visible: bool }),
   },
   'canvas-notice': {
     gate: 'active',

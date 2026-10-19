@@ -15,6 +15,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { orderPacks, resolveRecent, searchStickers } from './sticker-search.js';
+
+/** S4.18 (an-stk-gallery) — the Stamps row's line, as canvas 15 draws it. */
+export const STAMPS_SUBTITLE = 'vote · one each · they count';
 import { annotationPrefsStore } from '../shell/use-annotation-prefs.js';
 import { loadRecent, rememberSticker } from './recent-stickers.js';
 import StampRow from './stamp-row.jsx';
@@ -286,6 +289,7 @@ function BrowseView({ packs, recent, open, onOpen, onPick, onPickStamp }) {
       <section className="sg-pk" data-testid="stickers-stamps">
         <p className="sg-ph">
           <strong>Stamps</strong>
+          <span>{STAMPS_SUBTITLE}</span>
         </p>
         <div className="sg-stamps">
           {STAMPS.map((s) => (

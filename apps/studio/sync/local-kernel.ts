@@ -1405,8 +1405,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           : laneValueFromFile(lane, l.baseText);
       if (content === null || base === null)
         return { status: 'rejected', code: 'invalid' } as LocalOutcome;
-      // A stroke that leaves the store's head as it is (a room repeating the PUT) is no action.
-      if (l.baseText === null && lanes.length === 1 && laneHash(content) === headHash)
+      // A stroke that leaves the store's head as it is (a room repeating the PUT) is no action —
+      // whatever base it names: a room projecting the board an artboard move's rider already
+      // recorded reads its base from the not-yet-flushed file, and a catch-up + second edit there
+      // made the move a two-step ⌘Z (S4.18 an-follow).
+      if (lanes.length === 1 && laneHash(content) === headHash)
         return { status: 'accepted' } as LocalOutcome;
       if (laneHash(base) !== headHash)
         catchUp.push({ op: 'lane.replace', doc: live.doc, lane, content: base, base: headHash });

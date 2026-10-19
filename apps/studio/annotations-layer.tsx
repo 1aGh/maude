@@ -165,7 +165,12 @@ import {
   useCanvasChromeTheme,
   useToolState,
 } from './annotations/ui/tool-state.ts';
-import { filterByAuthors, knownIds, withoutResolved } from './annotations/ui/visibility.ts';
+import {
+  filterByAuthors,
+  knownIds,
+  reportAnnotationsVisibility,
+  withoutResolved,
+} from './annotations/ui/visibility.ts';
 import {
   type AlignEdge,
   alignStrokes,
@@ -303,6 +308,7 @@ import {
 } from './use-annotation-resize.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
 import { useAnnotationsVisibility } from './use-annotations-visibility.tsx';
+import { useCanvasKeys } from './use-canvas-keys.ts';
 import {
   BATCH_DROP_CASCADE_PX,
   isHttpUrl,
@@ -1238,6 +1244,8 @@ export function AnnotationsLayer() {
   const [hideResolved, setHideResolved] = useState(false);
   // ⇧⌘A pressed in Edit: the layer asks the shell for Preview and selects once it has landed.
   const selectAllPending = useRef(false);
+  const visiblePrefRef = useRef(true);
+  visiblePrefRef.current = visibilityCtx?.visible ?? true;
   const setVisible = useCallback(
     (next: boolean | ((cur: boolean) => boolean)) => {
       if (!visibilityCtx) return;
@@ -1901,6 +1909,32 @@ export function AnnotationsLayer() {
     annotSel.replace(strokesRef.current.map((s) => s.id));
   }, [posture, annotSel]);
 
+  // S4.9 - annotations are Preview's to change: in Edit the layer asks for Preview first and selects them
+  // once it has landed (the effect above). One routine for the shell's run-action and the canvas's own
+  // ⇧⌘A (S4.18: the key pressed inside the canvas never reached it).
+  const selectAllAnnotationsRef = useRef<() => void>(() => {});
+  selectAllAnnotationsRef.current = () => {
+    const governed = canvasModeStore(window).get().mode;
+    if (governed && !modeShows(governed, 'annotations-editable')) {
+      selectAllPending.current = true;
+      postModeRequest({ mode: 'preview', cause: 'key' });
+      window.setTimeout(() => {
+        selectAllPending.current = false;
+      }, 2000);
+      return;
+    }
+    if (annotSel) annotSel.replace(strokesRef.current.map((s) => s.id));
+  };
+  useCanvasKeys(
+    {
+      'select.all-annotations': (e) => {
+        e.preventDefault();
+        selectAllAnnotationsRef.current();
+      },
+    },
+    { target: 'document', capture: true }
+  );
+
   // Menubar bridge (Phase 5.1 Task 10) — listen for postMessages from the
   // dev-server shell. `run-action` select.none + `tool-set` live in canvas-shell
   // (those providers are above us); we own visibility + select.all-annotations
@@ -1976,18 +2010,7 @@ export function AnnotationsLayer() {
         (m as { v?: unknown; id?: unknown }).v === 1 &&
         (m as { id?: unknown }).id === 'select.all-annotations'
       ) {
-        // S4.9 - annotations are Preview's to change: in Edit the layer asks for Preview first and
-        // selects them once it has landed (the effect below).
-        const governed = canvasModeStore(window).get().mode;
-        if (governed && !modeShows(governed, 'annotations-editable')) {
-          selectAllPending.current = true;
-          postModeRequest({ mode: 'preview', cause: 'key' });
-          window.setTimeout(() => {
-            selectAllPending.current = false;
-          }, 2000);
-          return;
-        }
-        if (annotSel) annotSel.replace(strokes.map((s) => s.id));
+        selectAllAnnotationsRef.current();
         return;
       }
       // Stage F3 — the shell's AssetPicker (main-origin, DDR-054) resolved a new
@@ -2076,7 +2099,11 @@ export function AnnotationsLayer() {
         // V2-4 gate (WCAG 2.1.4): ⇧P is a character key — off with the "Single-key shortcuts" switch.
         if (!canvasSingleKeys()) return;
         e.preventDefault();
-        setVisible((v) => !v);
+        const next = !visiblePrefRef.current;
+        setVisible(next);
+        // S4.18 (an-visibility) - the shell keeps the pref and owns the "Annotations hidden" toast
+        // (decision v2-S4.9-shell-owns-hidden-toast): tell it what ⇧P did here.
+        reportAnnotationsVisibility(window, next);
       }
     };
     document.addEventListener('keydown', onKey, true);

@@ -737,6 +737,12 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * refused-straight tag a chip. Settle crossfades on `--dur-soft` (160 ms); with
  * reduced motion it jumps.
  */
+/**
+ * S4.18 (an-follow) — what rides is lifted above the dragged artboard for the gesture
+ * (canvas-lib raises `.dc-artboard.dc-dragging` to z 5; the scene has no stacking context).
+ */
+export const RIDE_Z = 6;
+
 export function createDomRideSink(
   world: () => HTMLElement | null,
   reducedMotion: () => boolean
@@ -757,6 +763,7 @@ export function createDomRideSink(
     const doc = w.ownerDocument;
     root = doc.createElement('div');
     root.className = 'dc-annot-ride';
+    root.style.zIndex = String(RIDE_Z);
     root.setAttribute('aria-hidden', 'true');
     root.setAttribute('data-testid', 'annot-ride');
     svg = doc.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
@@ -799,6 +806,7 @@ export function createDomRideSink(
       const n = nodeOf(id);
       if (!n) return;
       n.style.translate = `${dx}px ${dy}px`;
+      n.style.zIndex = String(RIDE_Z);
       touched.add(n);
     },
     hide(id, hidden) {
@@ -856,6 +864,7 @@ export function createDomRideSink(
       for (const n of touched) {
         n.style.translate = '';
         n.style.visibility = '';
+        n.style.zIndex = '';
       }
       touched.clear();
       groups.clear();

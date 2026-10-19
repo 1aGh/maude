@@ -56,6 +56,19 @@ export const ANNOTATIONS_HIDDEN_TOAST = Object.freeze({
   action: 'Show',
 });
 
+/**
+ * S4.18 (an-visibility) — ⇧P toggled the layer inside the canvas: tell the shell, which keeps the pref and
+ * shows {@link ANNOTATIONS_HIDDEN_TOAST} once. A standalone canvas (no shell above it) says nothing.
+ */
+export function reportAnnotationsVisibility(win: Window, visible: boolean): void {
+  if (win.parent === win) return;
+  try {
+    win.parent.postMessage({ dgn: 'annotations-visibility', v: 1, visible }, '*');
+  } catch {
+    /* detached */
+  }
+}
+
 /** ids that exist, in the order asked, no repeats. */
 export function knownIds(ids: readonly string[], strokes: readonly Stroke[]): string[] {
   const have = new Set(strokes.map((s) => s.id));
