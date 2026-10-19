@@ -1843,7 +1843,8 @@ export function createHttp(
         health: (hubUrl) => hubHealth({ hubUrl }),
       }),
       person: async () => ((await api.gitCurrentUser()) || 'You').slice(0, 64),
-      readBoard: (file) => api.readBoard(file),
+      // S4.V4 G4 — a live room's board, ahead of its flush: start → GET must see the vote it just wrote
+      readBoard: (file) => api.readBoardLive(file),
       applyOps: (file, ops) => api.applyAnnotationOps(file, ops),
       // sec-a C1(c) — the result names come from the canvas source, never the canvas's vote-board
       labels: (canvas) => {

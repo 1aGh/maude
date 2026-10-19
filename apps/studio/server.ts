@@ -200,6 +200,11 @@ const api = createApi(ctx, {
     if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
     return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId, guard) ?? null;
   },
+  // S4.V4 G4 — the reader's half of the same shortcut (the vote door reads its own write back).
+  readAnnotationsLive: (file) => {
+    if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
+    return collab?.registry.readRoomBoard(api.fileSlug(file)) ?? null;
+  },
   // feature-file-tree-drag-drop-folders (Task 3) — moveCanvas's collab guard
   // + `_active.json` retarget, bridged the same forward-declared way as the
   // comments/annotations hooks above.
