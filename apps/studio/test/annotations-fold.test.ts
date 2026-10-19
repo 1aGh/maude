@@ -20,7 +20,14 @@ import {
   withoutFolded,
 } from '../annotations/ui/section-fold.ts';
 import { elementsToStrokes, strokesToElementMap } from '../annotations/v1-adapter.ts';
-import type { SectionStroke, StickyStroke, Stroke } from '../annotations-model.ts';
+import { SECTION_FOLDED_H } from '../annotations/constants.ts';
+import {
+  type SectionStroke,
+  type StickyStroke,
+  type Stroke,
+  strokeBBox,
+  strokeHitTest,
+} from '../annotations-model.ts';
 
 const section = (id: string, o: Partial<SectionStroke> = {}): SectionStroke => ({
   id,
@@ -156,5 +163,49 @@ describe('in the file, and on the screen', () => {
   });
   test('an open section has no count line', () => {
     expect(draw(section('s'))).not.toContain('data-fold-note');
+  });
+});
+
+// S4.13 (lead follow-up) — a folded section is ONE LINE on the board: drawn, grabbed and boxed as its
+// header strip, not as the full dashed outline. The file keeps the full size, so Unfold restores it.
+describe('a folded section collapses to one line', () => {
+  const open = section('s');
+  const folded = setFolded([open], 's', true)[0] as SectionStroke;
+
+  test('the box of a folded section is its header strip; unfolded it is the whole section', () => {
+    expect(strokeBBox(open)).toMatchObject({ x: 0, y: 0, w: 600, h: 400 });
+    expect(strokeBBox(folded)).toMatchObject({ x: 0, y: 0, w: 600, h: SECTION_FOLDED_H });
+  });
+  test('a click where the folded body used to be reaches what is behind; the header still grabs', () => {
+    expect(strokeHitTest(open, 300, 400, 4)).toBe(true); // the old bottom border
+    expect(strokeHitTest(folded, 300, 400, 4)).toBe(false); // folded: nothing there any more
+    expect(strokeHitTest(folded, 300, SECTION_FOLDED_H, 4)).toBe(true); // the strip's own border
+    expect(strokeHitTest(folded, 20, -10, 4)).toBe(true); // the label chip above the corner
+  });
+  test('the drawing is one line tall and the size in the file is untouched', () => {
+    const item = strokeToRenderItem(folded) as { el: AnnotationElement };
+    expect(item.el.h).toBe(400); // geometry stays the file's
+    const html = renderToStaticMarkup(
+      createElement(ElementNode, {
+        el: item.el,
+        interactive: true,
+        edit: null,
+        foldNote: '3 stickies',
+        resolveAsset: (h: string) => h,
+      })
+    );
+    expect(html).toContain(`height="${SECTION_FOLDED_H}"`);
+    expect(html).not.toContain('height="400"');
+  });
+  test('unfold restores the size', () => {
+    const back = setFolded([folded], 's', false)[0] as SectionStroke;
+    expect(back.h).toBe(400);
+    expect(back.w).toBe(600);
+    expect(back.folded).toBeUndefined();
+    expect(strokeBBox(back)).toMatchObject({ h: 400 });
+  });
+  test('a section already shorter than the strip keeps its own height', () => {
+    const short = setFolded([section('t', { h: 30 })], 't', true)[0] as SectionStroke;
+    expect(strokeBBox(short)).toMatchObject({ h: 30 });
   });
 });

@@ -25,6 +25,7 @@
  *   - sticky / polygon / image / link — see the per-tool serializers below.
  */
 
+import { SECTION_FOLDED_H } from './annotations/constants.ts';
 import type { CanvasHostBind } from './annotations/hosts.ts';
 import { defOf } from './annotations/registry.ts';
 import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
@@ -1890,6 +1891,11 @@ export function strokeCenter(s: Stroke): [number, number] | null {
   return [bb.x + bb.w / 2, bb.y + bb.h / 2];
 }
 
+/** S4.13 — where a section's grabbable body ends: its full bottom, or the header strip while folded. */
+function foldedBottom(s: SectionStroke, yMin: number): number {
+  return s.folded ? yMin + SECTION_FOLDED_H : Number.POSITIVE_INFINITY;
+}
+
 export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): boolean {
   // FigJam v3 — rotated strokes hit-test in their LOCAL frame: inverse-rotate
   // the probe around the pivot, then run the axis-aligned math unchanged.
@@ -1923,7 +1929,8 @@ export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): b
     const xMin = Math.min(s.x, s.x + s.w);
     const xMax = Math.max(s.x, s.x + s.w);
     const yMin = Math.min(s.y, s.y + s.h);
-    const yMax = Math.max(s.y, s.y + s.h);
+    // S4.13 — a folded section is one line: nothing is grabbable below its header strip.
+    const yMax = Math.min(Math.max(s.y, s.y + s.h), foldedBottom(s, yMin));
     // Label chip above the top-left corner.
     const chipW = Math.max(56, s.label.length * SECTION_LABEL_FONT * 0.62 + 18);
     if (wx >= xMin && wx <= xMin + chipW && wy >= yMin - SECTION_LABEL_H - 6 && wy <= yMin) {
@@ -2192,12 +2199,12 @@ export function strokeBBox(
     s.tool === 'section'
   ) {
     // Phase 23 — image + link + mediaref are rect-shaped cards, same bbox as a
-    // sticky; FigJam v3 sections share it too.
+    // sticky; FigJam v3 sections share it too (a folded one is its header strip, S4.13).
     return {
       x: Math.min(s.x, s.x + s.w),
       y: Math.min(s.y, s.y + s.h),
       w: Math.abs(s.w),
-      h: Math.abs(s.h),
+      h: s.tool === 'section' && s.folded ? Math.min(Math.abs(s.h), SECTION_FOLDED_H) : Math.abs(s.h),
     };
   }
   // text — anchored inherits its host's bbox; standalone (Phase 21) gets a

@@ -45,6 +45,7 @@ import {
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
 import { colorForName } from '../../use-collab.tsx';
+import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
 import { quietPaper } from './posture.ts';
@@ -930,15 +931,18 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
   const color = str(el.color, '#8a8a8a');
   // S4.12 - folded: the members are not drawn, so the body is a faint dashed outline and the chip says what is inside.
   const folded = el.folded === true;
+  // S4.13 - and a folded section is ONE LINE on the board: the strip under its chip, not the full outline.
+  // The element keeps its size in the file, so Unfold restores it.
+  const drawnH = folded ? Math.min(h, SECTION_FOLDED_H) : h;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} raised={!!edit}>
-      <Geo x={x} y={y} w={w} h={h}>
+    <Node el={el} x={x} y={y} w={w} h={drawnH} raised={!!edit}>
+      <Geo x={x} y={y} w={w} h={drawnH}>
         {/* Body: pure backdrop, click-through (content on a section selects normally). */}
         <rect
           x={x}
           y={y}
           width={w}
-          height={h}
+          height={drawnH}
           rx={SECTION_CORNER_RADIUS}
           ry={SECTION_CORNER_RADIUS}
           fill={color}
@@ -956,7 +960,7 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
             x={x}
             y={y}
             width={w}
-            height={h}
+            height={drawnH}
             rx={SECTION_CORNER_RADIUS}
             ry={SECTION_CORNER_RADIUS}
             fill="none"
