@@ -6161,6 +6161,12 @@ export function createSyncRuntime(
         name ? `Restored “${name}” from the trash` : 'Restored from the trash'
       );
       if (r.status !== 'accepted' || r.queued) return r;
+      // S9.21b (V2-1.14 G1) — what an open tab had not sent when the canvas went to the trash was
+      // parked with it; Restore brings those edits back into the chain too.
+      if (before?.doc)
+        void acceptedLink.client.requeueParked?.([before.doc]).catch((err: unknown) => {
+          console.warn(`[sync] could not put back the edits kept with ${name ?? entry}: ${err}`);
+        });
       // Where it came back: in place, or at `<name> 2` when the path was taken.
       const manifest = await acceptedLink.refresh().catch(() => null);
       const doc = manifest?.docs.find((d) => d.entry === entry && !d.retired);
