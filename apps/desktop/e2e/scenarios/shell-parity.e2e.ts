@@ -150,6 +150,37 @@ describe(`shell parity (${target()})`, () => {
     await capture('menu-walked');
   });
 
+  it('says where the server runs — "Runs in the cloud" in a cloud tab, a process word on a Mac (S11.15, 06 ad-edge-where)', async () => {
+    await openApp();
+    await (await $(tid('project-pill'))).click();
+    await (await $(tid('project-menu'))).waitForExist({ timeout: 10_000 });
+    const read = (await browser.executeAsync((done: (v: unknown) => void) => {
+      const sub = document.querySelector(
+        '[data-testid="project-menu"] [data-sub="Diagnostics"]'
+      ) as HTMLElement | null;
+      sub?.click();
+      setTimeout(() => {
+        const text = (id: string) =>
+          document.querySelector(`[data-action="${id}"]`)?.textContent?.trim() ?? null;
+        done({
+          server: text('diag.server'),
+          // the three Advanced values of a process a cloud tab does not run
+          address: text('diag.address'),
+        });
+      }, 150);
+    })) as { server: string | null; address: string | null };
+    const cloud = Boolean(shell.by.cloudRole);
+    eq(`${shell.id}: the Server row`, (read.server ?? '').includes('Runs in the cloud'), cloud);
+    // the rows the matrix swaps for that word are not offered in a cloud tab (they sit under Advanced, so a
+    // closed submenu may not draw them on a Mac either: only the cloud half is a hard claim)
+    if (cloud) eq(`${shell.id}: no Address row`, read.address, null);
+    for (let i = 0; i < 4; i++) {
+      if (!(await (await $(tid('project-menu'))).isExisting())) break;
+      await browser.keys([Key.Escape]);
+      await browser.pause(80);
+    }
+  });
+
   it('opens Settings with the sections the table lists — a reader gets General, never the Mac’s', async () => {
     await openApp();
     const settings = part('settings') as unknown as {

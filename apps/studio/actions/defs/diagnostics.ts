@@ -7,11 +7,16 @@
 import type { ActionDef, ActionId } from '../types.ts';
 
 // Decision v2-A6c-can-view-menu-minrole: Diagnostics is an app-level row — every role keeps it.
-const row = (id: ActionId, label: string): ActionDef => ({
+const row = (
+  id: ActionId,
+  label: string,
+  rest: Pick<ActionDef, 'visible' | 'enabled'> = {}
+): ActionDef => ({
   id,
   label,
   kind: 'command',
   exec: 'shell',
+  ...rest,
 });
 
 export const DIAGNOSTICS_ACTIONS: ActionDef[] = [
@@ -28,6 +33,11 @@ export const DIAGNOSTICS_ACTIONS: ActionDef[] = [
   row('diag.address', 'Address'),
   row('diag.process', 'Process'),
   row('diag.project-folder', 'Project folder'),
-  row('sync.resync', 'Resync now'),
-  row('sync.download-all', 'Download all'),
+  // S11.15 (06 ad-edge-where): Resync is a Can edit write (the route refuses a read-only session), and
+  // both Advanced rows need the internet — offline they stay in the menu, greyed.
+  row('sync.resync', 'Resync now', {
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['online'] },
+  }),
+  row('sync.download-all', 'Download all', { enabled: { facts: ['online'] } }),
 ];

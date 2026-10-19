@@ -68,6 +68,7 @@ export const GIT_WORDS = {
   undone: 'Undone.',
   undoFailed: 'Someone changed this since — nothing was undone.',
   published: 'Published — your team can Get latest.',
+  publishWaits: 'Publish waits until you are back online.',
   upToDate: 'Up to date with everyone.',
   saved: 'Version saved.',
   signIn: 'Sign in with GitHub to publish.',
@@ -147,7 +148,9 @@ const WRITES = new Set(['edit', 'owner']);
  * @param p.cellManaged  a cloud tab: the hub commits every edit as it lands (`cfg.cloud`)
  * @param p.cloudManaged a desktop repo linked + credentialed to Maude Cloud (DDR-218)
  * @param p.repo         `/_api/git/status` → `repo` (false = not versioned)
- * @returns { mode, canWrite, history, note }
+ * @param p.online       the network is up (default true). Offline, saving a version still works and
+ *                       Publish waits for the internet (S11.15, 06 · ad-edge-where): `publishWaits`.
+ * @returns { mode, canWrite, history, note, publishWaits }
  *   mode  'hidden'        Can comment / Can view — and the server refuses the writes whatever is drawn
  *         'cloud'         a cloud tab: "Cloud versions" only
  *         'cloud-saving'  a linked desktop repo: the note and the list, no buttons
@@ -161,6 +164,7 @@ export function gitSurface({
   cellManaged,
   cloudManaged,
   repo,
+  online = true,
 } = {}) {
   if (!WRITES.has(role)) return { mode: 'hidden', canWrite: false, history: false, note: null };
   if (cellManaged) return { mode: 'cloud', canWrite: false, history: true, note: null };
@@ -170,7 +174,7 @@ export function gitSurface({
     return { mode: 'not-versioned', canWrite: false, history: false, note: GIT_WORDS.notVersioned };
   if (!native)
     return { mode: 'read-only', canWrite: false, history: true, note: GIT_WORDS.readOnly };
-  return { mode: 'full', canWrite: true, history: true, note: null };
+  return { mode: 'full', canWrite: true, history: true, note: null, publishWaits: !online };
 }
 
 // ── branches ───────────────────────────────────────────────────────────────────────────────────────────────

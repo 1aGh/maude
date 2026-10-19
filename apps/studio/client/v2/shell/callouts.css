@@ -113,4 +113,52 @@
     background: color-mix(in oklab, var(--fg-0) 12%, transparent);
     color: var(--fg-0);
   }
+  /* S11.15 — a callout with a fold: the words and the one verb stay in the first row, the fold takes the
+     full width below it. */
+  .st-callout--fold {
+    flex-wrap: wrap;
+  }
+  .st-callout--fold .st-callout-t {
+    flex: 1 1 0;
+  }
+  .st-callout-fold {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .st-callout-fold .v2-fold {
+    margin: 0;
+  }
+  .st-callout-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+    min-height: 28px;
+    padding: 0 var(--space-1, 4px);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .st-callout-row--sub {
+    color: var(--fg-1);
+  }
+  .st-callout-mono {
+    font-family: var(--font-mono);
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .st-callout-files {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding: 0 var(--space-1, 4px) var(--space-1, 4px);
+    font-size: var(--type-xs, 12px);
+    text-align: left;
+  }
+  .st-callout-hint {
+    margin: var(--space-1, 4px) 0 0;
+    padding: 0 var(--space-1, 4px);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
 }

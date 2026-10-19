@@ -92,11 +92,22 @@ describe('menuStatuses', () => {
 });
 
 describe('rows left out', () => {
-  test('a cloud member has neither Resync nor Download all (the hub refuses the route)', () => {
+  test('a cloud member has neither Resync nor Download all (the hub refuses the route), nor the values of a process it does not run', () => {
     expect(hiddenMenuIds({ cloud: { url: 'x' }, syncStatus: linked({ files: {} }) })).toEqual([
+      'diag.address',
+      'diag.process',
+      'diag.project-folder',
       'sync.resync',
       'sync.download-all',
     ]);
+  });
+  test('a cloud tab says "Runs in the cloud" where the process would be (S11.15)', () => {
+    expect(serverWord({ cloud: { role: 'owner' } })).toEqual({
+      word: 'Runs in the cloud',
+      tone: 'neutral',
+    });
+    expect(serverWord({ cloud: { role: 'owner' }, unreachable: true }).word).toBe('Not responding');
+    expect(serverWord({ cloud: null }).word).toBe('Running');
   });
   test('a desktop copy with a file plane has both; without one, no Download all; unlinked, neither', () => {
     expect(hiddenMenuIds({ syncStatus: linked({ files: {} }) })).toEqual([]);

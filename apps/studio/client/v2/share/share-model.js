@@ -134,7 +134,9 @@ export function sheetView({ posture, me, target, project, scope } = {}) {
      * fail. The menu code, its testid and its words stay; turn this back on with the route.
      */
     makeOwner: false,
-    showLinkRow: access.links,
+    // Link rules are for whoever can change who gets in; the hub's own answer (`me.caps.edit`) says a
+    // read-only session cannot, and then the row is left out (S11.15, 06 · ad-edge-where).
+    showLinkRow: access.links && !(me?.caps && me.caps.edit === false),
     showRequests: access.requests,
   };
 }

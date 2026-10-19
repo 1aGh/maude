@@ -96,7 +96,16 @@ export function localIdentityMatches(local, project) {
   return linked ? linked === project : projectSlug(local.project) === project;
 }
 
-export function buildShareLinks({ rel, shell, location, linkedHubUrl, project, localUrl }) {
+export function buildShareLinks({
+  rel,
+  shell,
+  location,
+  linkedHubUrl,
+  project,
+  localUrl,
+  // S11.15 — a read-only session (Can view / Can comment) is never handed this Mac's own address.
+  readOnly = false,
+}) {
   const path = normalizeOpenPath(rel);
   const result = {
     web: null,
@@ -127,7 +136,7 @@ export function buildShareLinks({ rel, shell, location, linkedHubUrl, project, l
       : null;
   result.app = id ? `maude://open/${id}${query}` : null;
   result.appIsLocalOnly = !!id && !publicId;
-  const local = shell !== 'cloud' && httpUrl(localUrl);
+  const local = shell !== 'cloud' && !readOnly && httpUrl(localUrl);
   result.local = local ? `${local.origin}/${query}` : null;
   return result;
 }

@@ -7,6 +7,8 @@
 //   offline / reconnecting     the Share cluster's status word (save-status.js: Offline — kept on this Mac,
 //                              Syncing…, Saved) — nothing to add here except a LONG offline spell
 //   diverged / rejected        a callout (this file) with ONE action — Details → Menu › Diagnostics › Sync
+//   hub said "wait" (429)      a calm callout: what is waiting, that it is safe, ONE verb (Try now); the hub,
+//                              reply, next try and the waiting files are one fold down (S11.15, 06 ad-edge-sync)
 //   role line                  a callout the first time a role is seen; Can view / Can comment stay the
 //                              always-visible access word (save-status.js accessStatus)
 //   update ready               a callout with Restart now; the same action lives in Settings › Advanced
@@ -35,12 +37,81 @@ export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 const DETAILS = Object.freeze({ id: 'details', label: 'Details' });
 
+/** HH:MM:SS in this Mac's clock — a mono value in the fold, never prose. */
+export function clockOf(ms) {
+  const d = new Date(ms);
+  const two = (n) => String(n).padStart(2, '0');
+  return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
+}
+
+/** "40 s" · "3 min" · "a moment" — how long until the hub's pause lifts. */
+function untilWords(ms) {
+  const secs = Math.ceil(ms / 1000);
+  if (!(secs > 0)) return 'a moment';
+  return secs < 90 ? `${secs} s` : `${Math.ceil(secs / 60)} min`;
+}
+
+/** The doručenka's states that mean "still on this Mac, not yet acknowledged by the cloud". */
+const WAITING_STATES = new Set(['local-only', 'pushing', 'stuck']);
+const FOLD_FILES = 5;
+
+const hostOf = (url) => {
+  try {
+    return new URL(String(url)).host;
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * The hub asked this Mac to slow down (`files.rateLimited { until, waiting }`, a 429 with Retry-After):
+ * nothing is wrong and nothing is lost. The words come first; the developer's facts are a fold.
+ * `fold.waiting.files` are the paths the doručenka still has as local-only / pushing / stuck.
+ */
+function stuckCallout(status, now) {
+  const limited = status.files?.rateLimited;
+  const waiting = Number.isFinite(limited?.waiting) ? limited.waiting : 0;
+  if (!limited || waiting <= 0) return null;
+  const until = Number.isFinite(limited.until) ? limited.until : now;
+  const host = hostOf(status.url);
+  const rows = [
+    ...(host ? [{ id: 'hub', k: 'Hub', v: host }] : []),
+    { id: 'reply', k: 'Reply', v: '429 · rate limited' },
+    { id: 'next', k: 'Next try', v: clockOf(until) },
+    ...(Number.isFinite(status.lastSyncAt)
+      ? [{ id: 'last', k: 'Last good sync', v: clockOf(status.lastSyncAt) }]
+      : []),
+  ];
+  const paths = Object.entries(status.files?.delivery ?? {})
+    .filter(([, state]) => WAITING_STATES.has(state))
+    .map(([path]) => path);
+  return {
+    key: `stuck:${waiting}`,
+    kind: 'sync-stuck',
+    tone: 'info',
+    icon: 'clock',
+    title: `${plural(waiting, 'change is', 'changes are')} waiting to reach the cloud.`,
+    detail: `They're safe on this Mac. The cloud is busy and asked to wait — the next try is in ${untilWords(until - now)}, by itself.`,
+    action: { id: 'try-now', label: 'Try now', busyLabel: 'Trying…' },
+    fold: {
+      rows,
+      waiting: {
+        count: waiting,
+        files: paths.slice(0, FOLD_FILES),
+        more: Math.max(0, paths.length - FOLD_FILES),
+      },
+      hint: 'A full compare is Resync now, in Menu › Diagnostics › Advanced.',
+    },
+  };
+}
+
 /**
  * The sync callout, if the hub link has something to say that a status word cannot. At most one, in the
- * old banner's priority: reconnect flash > long offline > divergence > rejected documents. A short
- * offline spell is the status word's job.
+ * old banner's priority: reconnect flash > long offline > divergence > rejected documents > the hub
+ * asking to wait. A short offline spell is the status word's job.
+ * `now` is only read for the countdown in the "wait" callout.
  */
-export function syncCallout(status) {
+export function syncCallout(status, now = Date.now()) {
   if (!status || status.linked === false || status.notSyncable) return null;
   const { state, queuedOps, flash, conflicts } = status;
   if (flash === 'synced') {
@@ -109,7 +180,7 @@ export function syncCallout(status) {
       action: DETAILS,
     };
   }
-  return null;
+  return stuckCallout(status, now);
 }
 
 /**
@@ -221,6 +292,7 @@ const ORDER = { error: 0, warn: 1, info: 2, ok: 3 };
  * @param in.roleSeen     (role) => boolean
  * @param in.tour         `{ usage, collab, running }` — the first-run tour offers (tourCallout)
  * @param in.dismissed    Set of callout keys the person closed
+ * @param in.now          ms epoch for countdowns (default: now)
  * @returns the callouts to draw, most urgent first
  */
 export function calloutStack({
@@ -231,9 +303,10 @@ export function calloutStack({
   roleSeen = () => false,
   tour = null,
   dismissed = new Set(),
+  now = Date.now(),
 } = {}) {
   return [
-    syncCallout(syncStatus),
+    syncCallout(syncStatus, now),
     renamedCallout(syncStatus),
     repoCallout(gitLifecycle),
     updateCallout(updateReady),

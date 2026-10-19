@@ -366,6 +366,13 @@ export const STICONS = {
       <path d="M2.75 10.5V12a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-1.5" />
     </>
   ),
+  // S11.15 — the sync callout that says "waiting" (06 · ad-edge-sync)
+  clock: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 4.75V8l2.25 1.5" />
+    </>
+  ),
   'share-up': (
     <>
       <path d="M8 9.5v-7M5.25 5.25L8 2.5l2.75 2.75" />
