@@ -899,6 +899,9 @@ const aiSeenList: V = (v) =>
 
 /** S9.22 — the comment bridge. The op names the door takes (comments/ops.ts `parseCommentOp`). */
 export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own'] as const;
+/** S4.V4 G5 — the sticky ↔ comment conversion asks the thread makes; the SHELL answers them (S4.7 routes,
+ *  its own session conversion map), never the comment door. `{ op, commentId }` only. */
+export const COMMENT_CONVERT_OPS = ['to-sticky', 'convert-undo', 'convert-undoable'] as const;
 const reqIdV: V = (v) =>
   (typeof v === 'string' && v.length > 0 && v.length <= 64) ||
   (typeof v === 'number' && Number.isSafeInteger(v))
@@ -906,7 +909,12 @@ const reqIdV: V = (v) =>
     : BAD;
 /** The op body: a plain object with a known `op`, every value under the JSON caps. */
 const commentOpV: V = (v) => {
-  if (!isPlain(v) || !(COMMENT_OPS as readonly unknown[]).includes(v.op)) return BAD;
+  if (!isPlain(v)) return BAD;
+  if ((COMMENT_CONVERT_OPS as readonly unknown[]).includes(v.op))
+    return typeof v.commentId === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(v.commentId)
+      ? { op: v.op, commentId: v.commentId }
+      : BAD;
+  if (!(COMMENT_OPS as readonly unknown[]).includes(v.op)) return BAD;
   return json(v);
 };
 const mentionPerson = shape({ id: shortStr(200), name: shortStr(120), role: opt(shortStr(40)) });
