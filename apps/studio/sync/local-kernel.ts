@@ -1463,11 +1463,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    */
   const strokes = new Set<Promise<unknown>>();
   const lastStroke = new Map<string, string>();
+  /** The one dedupe key of a stroke — `proposeStroke` and `stageStroke` must agree on it. */
+  const strokeKey = (text: string, baseText: string | undefined) =>
+    `${baseText ?? '\u0000none'}\u0000${text}`;
   function proposeStroke(slug: string, text: string, baseText: string | undefined): void {
     // A room's projection repeats the board the PUT just proposed: the same bytes ON THE SAME BASE are
     // one stroke. sec-a L1: the base is part of the key — the same bytes over a base the last stroke
     // didn't name (an outside write in between) go on to proposeLanesNow, which keeps its outside row.
-    const key = `${baseText ?? '\u0000none'}\u0000${text}`;
+    const key = strokeKey(text, baseText);
     if (lastStroke.get(slug) === key) return;
     lastStroke.set(slug, key);
     const run: Promise<unknown> = readyP
@@ -1509,7 +1512,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const value = laneValueFromFile('annotations', text);
     const canvas = value === null ? null : canvasForSlug(slug);
     if (value === null || canvas === null || !stage.captures(canvas, true, value)) return false;
-    lastStroke.set(slug, text);
+    // The same key as proposeStroke (sec-a L1 keys on the base too): server.ts's plain proposal of the
+    // same bytes on the same base right after is this stroke, not a second "Edit annotations".
+    lastStroke.set(slug, strokeKey(text, baseText));
     const run: Promise<unknown> = readyP
       .then(() =>
         serial(async () => {
