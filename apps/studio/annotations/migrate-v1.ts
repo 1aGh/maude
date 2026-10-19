@@ -298,6 +298,10 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
           endHead: s.endHead,
           dashed: s.dashed,
           line: s.lineType,
+          // S4.11 — format-2 extension fields the stroke view carries (annotations/v1-adapter.ts).
+          startHost: s.startHost,
+          endHost: s.endHost,
+          label: s.label,
         });
         break;
       case 'text':

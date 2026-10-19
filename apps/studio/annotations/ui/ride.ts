@@ -640,7 +640,7 @@ export function createRideController(deps: RideDeps): RideController {
   };
 }
 
-function primsFor(el: AnnotationElement, a: Point, b: Point): SvgPrimitive[] {
+export function primsFor(el: AnnotationElement, a: Point, b: Point): SvgPrimitive[] {
   return arrowPrimitives({
     x1: a.x,
     y1: a.y,
@@ -656,7 +656,7 @@ function primsFor(el: AnnotationElement, a: Point, b: Point): SvgPrimitive[] {
 }
 
 /** A routed elbow: the polyline shaft plus the heads of its last / first segment. */
-function polylinePrims(points: readonly Point[], el: AnnotationElement): SvgPrimitive[] {
+export function polylinePrims(points: readonly Point[], el: AnnotationElement): SvgPrimitive[] {
   const n = points.length;
   const d = points.map((p, i) => `${i ? 'L' : 'M'}${r2(p.x)} ${r2(p.y)}`).join(' ');
   const shaft: SvgPrimitive = { el: 'path', d, dash: el.dashed === true };

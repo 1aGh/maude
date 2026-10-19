@@ -922,6 +922,11 @@
           ],
           "additionalProperties": false
         },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
         "parentArtboard": {
           "type": "string",
           "minLength": 1,
