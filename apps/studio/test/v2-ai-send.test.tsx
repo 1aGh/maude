@@ -289,6 +289,18 @@ describe('S6.3 relayAiSend — the composer path', () => {
 });
 
 describe('S6.3 AiChatIsland hears maude:ai-send', () => {
+  // The real island reads prefs on mount; happy-dom's base URL is :4399, where nothing listens. A stubbed fetch keeps
+  // this file from reaching the network (a refused connection surfaced as an unhandled error in a combined run).
+  const realFetch = globalThis.fetch;
+  beforeAll(() => {
+    globalThis.fetch = (async () =>
+      new Response('{}', {
+        headers: { 'content-type': 'application/json' },
+      })) as unknown as typeof fetch;
+  });
+  afterAll(() => {
+    globalThis.fetch = realFetch;
+  });
   test('the real island relays an event, and one parked before it mounted', async () => {
     const React = await import('react');
     const { createRoot } = await import('react-dom/client');
