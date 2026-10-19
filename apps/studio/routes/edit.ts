@@ -55,6 +55,7 @@ import {
 import type { ReferenceLanes } from '../edit-ops/references.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
+import { sourceHold, type WriteHold } from '../sync/write-hold.ts';
 import { heldByAi } from './agent.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -79,6 +80,8 @@ export interface EditLanesRuntime {
 }
 
 export interface EditRouteDeps {
+  /** S11.17 — a write the full disk refused waits here (default: the studio's one hold) */
+  hold?: WriteHold;
   designRoot: string;
   /** `.design` — a `file` may carry it as a prefix */
   designRel: string;
@@ -205,11 +208,33 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       return null;
     }
   };
-  /** The source write every path shares: announce the base, the bytes, the /design:rollback snapshot. */
-  const writeSource = async (rel: string, before: string, after: string, label: string) => {
-    deps.emit('activity:suppress', rel);
+  const hold = deps.hold ?? sourceHold();
+  /** The canvas source as this lane sees it: the held bytes while the disk is full (S11.17), else disk. */
+  const readSource = (rel: string): string | null => {
+    const held = hold.read(abs(rel));
+    if (held !== undefined) return typeof held === 'string' ? held : new TextDecoder().decode(held);
     try {
-      await Bun.write(abs(rel), after);
+      return readFileSync(abs(rel), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  /**
+   * The source write every path shares: announce the base, the bytes, the /design:rollback snapshot.
+   * S11.17 — a full disk HOLDS the bytes (sync/write-hold.ts) instead of failing the edit; `announce`
+   * then runs when they land, not now. Resolves true when the bytes are on disk.
+   */
+  const writeSource = async (
+    rel: string,
+    before: string,
+    after: string,
+    label: string,
+    announce?: () => void
+  ): Promise<boolean> => {
+    deps.emit('activity:suppress', rel);
+    let landed: boolean;
+    try {
+      landed = !(await hold.put(abs(rel), after, announce ? { onLanded: announce } : {})).held;
     } catch (e) {
       deps.emit('activity:unsuppress', rel);
       throw e;
@@ -219,6 +244,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     } catch {
       /* snapshot best-effort */
     }
+    return landed;
   };
   // S2.10c — the board (header). Without `deps.board`: `<designRoot>/<slug>.annotations.json` directly.
   const boardAbs = (slug: string) => path.join(deps.designRoot, `${slug}.annotations.json`);
@@ -319,12 +345,12 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       if (answer.status !== 'accepted') return refusalOf(answer.code);
       await writeMeta(false);
       await writeBoard(false);
-      await writeSource(p.rel, p.before, p.after, p.reason);
       // The write is complete: the projection reads these bytes now (they ARE the accepted
       // source, so nothing is proposed again) instead of holding its doc→file writer for a
       // watcher event — without it, the next accepted change (this action's ⌘Z) never reached
-      // this Mac's disk.
-      deps.emit('source-written', { rel: p.rel, content: p.after });
+      // this Mac's disk. Held by a full disk (S11.17): said when the bytes land.
+      const written = () => deps.emit('source-written', { rel: p.rel, content: p.after });
+      if (await writeSource(p.rel, p.before, p.after, p.reason, written)) written();
       return answer.queued
         ? { ok: true, actionId: null, queued: true }
         : { ok: true, actionId: answer.actionId ?? null };
@@ -384,24 +410,21 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     return serialized(key, () =>
       dispatchEditOp(body, {
         resolve: (f) => resolveCanvasRel(deps.designRoot, deps.designRel, f),
-        read: (rel) => {
-          try {
-            return readFileSync(abs(rel), 'utf8');
-          } catch {
-            return null;
-          }
-        },
+        // S11.17 — through the hold: an edit made while the disk is full builds on the held bytes
+        read: readSource,
         // S2.23 (G4): say what the source became, like api.ts does for the studio's other writes — the
         // local home then records it as the person's `edit` (a ⌘Z step), not an `outside` row the undo
         // stack leaves out; an accepted home proposes it without waiting for the watcher's quiet window.
+        // S11.17: a held write is said once, when it lands.
         write: async (rel, before, after, label, rowLine) => {
-          await writeSource(rel, before, after, label);
           // S2.24 G3: `label` names the history row the local home records for this write
-          deps.emit('source-written', {
-            rel,
-            content: after,
-            ...(rowLine ? { label: rowLine } : {}),
-          });
+          const written = () =>
+            deps.emit('source-written', {
+              rel,
+              content: after,
+              ...(rowLine ? { label: rowLine } : {}),
+            });
+          if (await writeSource(rel, before, after, label, written)) written();
         },
         writeLayout,
         land,
