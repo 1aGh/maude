@@ -32,7 +32,7 @@ import { AcpBridge, type BridgeUsage } from './bridge.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
 import { registerActivityProbe, registerRunningChatsProbe } from './running.ts';
-import { readChatLinesAfter } from './transcript.ts';
+import { linkChatCanvas, readChatLinesAfter } from './transcript.ts';
 
 /**
  * Browser → server frames: `{ t: 'attach', chat, seq }` (Addendum Task 8 — bind
@@ -141,24 +141,39 @@ const MAX_SCOPE_ARTBOARDS = 64;
  * malformed is no scope at all — the pre-S5.6 lazy run (each edit claims what it reaches), never a
  * guess. Element refs need the kernel's entry key, which the client does not have: not carried yet.
  */
-export function parseRunScope(raw: unknown): RunScope | null {
+export function parseRunScope(raw: unknown, designRel = ''): RunScope | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as { canvas?: unknown; artboards?: unknown; elements?: unknown };
   if (typeof o.canvas !== 'string' || !o.canvas || o.canvas.length > 512) return null;
   if (o.canvas.includes('\0') || o.canvas.includes('\\') || o.canvas.startsWith('/')) return null;
-  const parts = o.canvas.split('/');
-  if (parts.some((p) => p === '' || p === '.' || p === '..')) return null;
-  if (!isCanvasFile(o.canvas)) return null;
-  if (o.artboards === '*')
-    return o.elements === undefined ? { canvas: o.canvas, artboards: '*' } : null;
+  // S5.17 G1 — ONE path form: design-relative. The shell sends the frame's repo-relative data-path
+  // (`.design/ui/Site.tsx`); the hook, the lease key (`path:<designRel>/<rel>`) and a terminal run
+  // speak `ui/Site.tsx`. Strip the design root once; every check below runs on the stripped form.
+  const root = designRel.replace(/^\/+|\/+$/g, '');
+  const canvas =
+    root && o.canvas.startsWith(`${root}/`) ? o.canvas.slice(root.length + 1) : o.canvas;
+  const parts = canvas.split('/');
+  // inside the design root only: no traversal, no hidden segment (`.git/…`, a second `.design/`)
+  if (parts.some((p) => p === '' || p === '.' || p === '..' || p.startsWith('.'))) return null;
+  if (!isCanvasFile(canvas)) return null;
+  if (o.artboards === '*') return o.elements === undefined ? { canvas, artboards: '*' } : null;
   if (!Array.isArray(o.artboards) || o.artboards.length === 0) return null;
   if (o.artboards.length > MAX_SCOPE_ARTBOARDS) return null;
   if (!o.artboards.every((a) => typeof a === 'string' && ARTBOARD_ID_RE.test(a))) return null;
   const artboards = [...new Set(o.artboards as string[])];
-  if (o.elements === undefined) return { canvas: o.canvas, artboards };
+  if (o.elements === undefined) return { canvas, artboards };
   // S2.19 — a ⌘/ ask on a selection names its elements; they sit on artboards the ask leases
-  const elements = parseScopeElements(o.elements, o.canvas, artboards);
-  return elements ? { canvas: o.canvas, artboards, elements } : null;
+  const elements = parseScopeElements(o.elements, canvas, artboards);
+  return elements ? { canvas, artboards, elements } : null;
+}
+
+/**
+ * S5.17 G3 — the Version-history label of a chat turn: what the person typed, never the frozen
+ * `[maude-context …]` / `[maude-scope …]` / `[selected: …]` lines the shell appends (promptLabel).
+ */
+export function turnLabelOf(prompt: string): string {
+  const words = promptLabel(prompt);
+  return words ? `Claude: ${words}` : 'Claude edit';
 }
 
 /** S2.19 — the most elements one ask names (the registry's per-run cap). */
@@ -333,8 +348,7 @@ export function createAgentActivityTracker(
   }
 
   function beginTurn(prompt: string, runId: string | null = null): void {
-    const words = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
-    turnLabel = words ? `Claude: ${words}` : 'Claude edit';
+    turnLabel = turnLabelOf(prompt);
     turnRun = runId && STAGE_ID.test(runId) ? runId : null;
   }
 
@@ -855,6 +869,18 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     ask: { askId?: unknown; scope?: unknown } = {}
   ): Promise<void> {
     const safeChat = sanitizeChatId(chatId);
+    // S5.17 G1 — a scope that was sent but names nothing inside the design root (`..`, absolute, a
+    // hidden segment, a malformed list) refuses the prompt. It never degrades to the unscoped lazy
+    // run: that run may change every canvas, so a bad scope would WIDEN what the turn can write.
+    if (ask.scope != null && !parseRunScope(ask.scope, ctx.paths.designRel)) {
+      send(ws, {
+        t: 'error',
+        code: 'bad-scope',
+        chat: safeChat,
+        message: 'That selection is not on a canvas in this project. Choose it again and resend.',
+      });
+      return;
+    }
     const entry = attach(ws, safeChat);
     if (!entry) {
       send(ws, { t: 'error', message: 'Too many chats are open. Close one and try again.' });
@@ -862,6 +888,15 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     }
     bindChatFiles(entry);
     entry.bridge.setConfig(model, effort, modeId);
+    // S5.17 G5 — the chat list groups a chat under the canvas it asked about (design-relative)
+    const asked = ask.scope != null ? parseRunScope(ask.scope, ctx.paths.designRel) : null;
+    if (asked) {
+      try {
+        linkChatCanvas(ctx.paths.designRoot, safeChat, asked.canvas);
+      } catch {
+        /* a read-only _chat/ keeps the chat under "No canvas" — never blocks the prompt */
+      }
+    }
     if (!runs) {
       await runTurn(entry, text, null);
       return;
@@ -870,7 +905,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     // artboards (or lines up behind their holder, or behind this chat's own live run — chat-level
     // FIFO), and the registry sends the turn (`sendTurn`) only once the run is `starting`. The
     // `[maude-scope …]` text line stays in `text` for the agent (old clients send only that).
-    const scope = parseRunScope(ask.scope);
+    const scope = asked;
     // V2-1.14 — a closed gate (offline, AI not connected, allowance used up, setting up), or an
     // earlier prompt of this chat still queued (O2), keeps the prompt in the outbox; the drain
     // releases it into `registry.ask` by itself. Nothing is lost and nothing jumps the line.

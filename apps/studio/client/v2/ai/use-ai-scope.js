@@ -10,6 +10,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildChatContext } from '../../panels/chat-context.js';
 import { autoScope, resolveScope, scopeForPrompt, selectedArtboardIds } from './scope.js';
 
+/**
+ * S5.17 G2 — the artboards a `.meta.json` names, `{ id, label }[]`. Real sidecars carry them in
+ * `sections[].artboards` (the canvas's own sections) or, older ones, at the top level `artboards`; the
+ * label is the name a person knows ("Pricing"), the id only when the sidecar has none. Pure.
+ */
+export function artboardsFromMeta(meta) {
+  const fromSections = Array.isArray(meta?.sections)
+    ? meta.sections.flatMap((s) => (Array.isArray(s?.artboards) ? s.artboards : []))
+    : [];
+  const boards = fromSections.length
+    ? fromSections
+    : Array.isArray(meta?.artboards)
+      ? meta.artboards
+      : [];
+  const seen = new Set();
+  const out = [];
+  for (const a of boards) {
+    if (!a || typeof a.id !== 'string' || !a.id || seen.has(a.id)) continue;
+    seen.add(a.id);
+    out.push({ id: a.id, label: typeof a.label === 'string' && a.label.trim() ? a.label : a.id });
+  }
+  return out;
+}
+
 /** The canvas's artboards `{ id, label }[]`, from its `.meta.json` sidecar. Re-read when the selection names one it lacks. */
 export function useCanvasArtboards(canvas, wantedIds = []) {
   const [list, setList] = useState([]);
@@ -27,15 +51,7 @@ export function useCanvasArtboards(canvas, wantedIds = []) {
       .then((r) => r.json())
       .then((meta) => {
         if (off) return;
-        const boards = Array.isArray(meta?.artboards) ? meta.artboards : [];
-        setList(
-          boards
-            .filter((a) => a && typeof a.id === 'string' && a.id)
-            .map((a) => ({
-              id: a.id,
-              label: typeof a.label === 'string' && a.label.trim() ? a.label : a.id,
-            }))
-        );
+        setList(artboardsFromMeta(meta));
       })
       .catch(() => {});
     return () => {

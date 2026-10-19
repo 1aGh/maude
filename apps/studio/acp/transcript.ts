@@ -101,6 +101,16 @@ export function readChatMeta(designRoot: string, chatId: string): ChatMeta {
   }
 }
 
+/**
+ * S5.17 G5 — a chat belongs to the canvas it first asked about (design-relative, the run scope's
+ * form): the chat list groups it there. The first scoped ask links it; a later ask on another canvas
+ * keeps the first link. No-op when the chat is already linked or the path is not a plain relative one.
+ */
+export function linkChatCanvas(designRoot: string, chatId: string, canvas: string): void {
+  if (!plainCanvasKey(canvas) || plainCanvasKey(readRawChatMeta(designRoot, chatId).canvas)) return;
+  writeChatMeta(designRoot, chatId, { canvas });
+}
+
 /** The sidecar exactly as stored (any keys), or `{}` when missing/corrupt. */
 function readRawChatMeta(designRoot: string, chatId: string): Record<string, unknown> {
   try {
@@ -479,7 +489,9 @@ export function stripContextBlock(text: string): string {
     const tail = out.slice(i + 1);
     // Only strip when the remainder is EXACTLY the context block (all lines are
     // bracket lines) — a user merely quoting `[maude-context …]` mid-text stays.
-    if (/^\[maude-context [^\n]*\](\n\[selected:[^\n]*\])*\s*$/.test(tail)) {
+    // S5.17 G3: the scope line (`[maude-scope whole-canvas]`, `… artboards="…"`, `… elements="…"`)
+    // rides between the head line and the selection lines since S5.6 — part of the same block.
+    if (/^\[maude-context [^\n]*\](\n\[(?:maude-scope|selected:)[^\n]*\])*\s*$/.test(tail)) {
       out = out.slice(0, i).replace(/\s+$/, '');
     }
   }
