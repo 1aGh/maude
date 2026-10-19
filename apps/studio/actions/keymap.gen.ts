@@ -968,6 +968,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'annotation.ask-ai',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [
+      {
+        chord: '⌘/',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
+    ],
+  },
+  {
     id: 'project.new',
     exec: 'shell',
     visible: { minRole: 'comment' },

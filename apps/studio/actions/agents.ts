@@ -1000,6 +1000,29 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'annotation.edit-text': BOARD('Change the element’s text field'),
   'annotation.nudge': BOARD('Change the elements’ x / y'),
   'annotation.remove': BOARD('Remove the elements from the board file'),
+  'annotation.resolve': BOARD(
+    'Set the sticky’s resolved to { by, at } (the person’s name, an ISO UTC time); remove it to reopen'
+  ),
+  'annotation.fan-out': BOARD('Change the stacked stickies’ x / y so they sit in a row'),
+  'annotation.to-comment': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    // The studio's route (POST /_api/annotations/to-comment, S4.7) is the person's door; it is not declared as
+    // `server` here because the role suite (test/_role-refusals.ts) lands its row with S9.9's `annotate` gate.
+    agent: file(
+      'comments',
+      'design:whiteboard',
+      'Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the board file'
+    ),
+  },
+  'annotation.fold': BOARD('Set the section’s folded to true; remove it to unfold'),
+  // The agent IS the AI: what a person asks it about a selection, it reads from the board.
+  'annotation.ask-ai': { effect: 'none', agent: cli('maude design read-annotations') },
+  'annotations.trash-resolved': BOARD(
+    'Remove the stickies whose resolved is set from the board file'
+  ),
+  'annotations.select-resolved': { effect: 'none', agent: cli('maude design read-annotations') },
   'annotation.point-to': BOARD(
     'Set the arrow’s startHost / endHost to the new ab:<artboard> or el:<artboard>/<id> ref (with the name it is shown under) and move its start / end cache to where the host is'
   ),

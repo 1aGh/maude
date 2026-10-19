@@ -5,7 +5,14 @@ import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
 import { C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
 import { layersSlot } from '../v2/inspector/layers-slot.jsx';
-import { notifyCanvasText } from '../../notifications.tsx';
+import { notify, notifyCanvasText } from '../../notifications.tsx';
+import { isNativeApp } from '../github.js';
+import {
+  noteAnnotationSelection,
+  turnIntoComment,
+  undoConversion,
+} from '../v2/annotations/annotation-asks.js';
+import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
@@ -721,6 +728,58 @@ export function useCanvasBridge({
           setPhotoSel({ asset, strokeId: m.id });
           openRightPanel('inspector');
           setInspectorTab('photo');
+        }
+      } else if (
+        m.dgn === 'annotation-to-comment' ||
+        m.dgn === 'annotation-toast' ||
+        m.dgn === 'annotation-selection' ||
+        m.dgn === 'annotation-ask-ai'
+      ) {
+        // S4.12 — the annotation layer asks (annotations/ui/shell-asks.ts). Only the active canvas is heard.
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (e.source !== activeWin || !activePath) return;
+        const file = activePath;
+        if (m.dgn === 'annotation-to-comment') {
+          void turnIntoComment({ file, id: m.id }).then((r) => {
+            if (!r.ok || !r.undo) {
+              notify({ title: r.line, kind: r.ok ? 'success' : 'error' });
+              return;
+            }
+            notify({
+              title: r.line,
+              kind: 'success',
+              action: {
+                label: 'Undo',
+                onClick: () =>
+                  void undoConversion(r.undo).then((u) => {
+                    if (!u.ok) notify({ title: u.line, kind: 'error' });
+                  }),
+              },
+            });
+          });
+        } else if (m.dgn === 'annotation-toast') {
+          // "6 stickies moved to the trash" + Undo: the shell owns it, a canvas notice can't carry the button.
+          notify({
+            title: m.message,
+            kind: m.undo ? 'success' : 'info',
+            ...(m.undo
+              ? {
+                  action: {
+                    label: 'Undo',
+                    onClick: () =>
+                      void runUndoKey(file, false, () =>
+                        postToActiveCanvas(runActionMessage('edit.undo'))
+                      ),
+                  },
+                }
+              : {}),
+          });
+        } else if (m.dgn === 'annotation-selection') {
+          noteAnnotationSelection(file, { ids: m.ids, kinds: m.kinds, artboards: m.artboards });
+        } else if (m.dgn === 'annotation-ask-ai') {
+          // The chat opens; the scope chip that reads `noteAnnotationSelection` is S4.15's.
+          if (isNativeApp()) openRightPanel('assistant');
+          else notify({ title: 'AI chat is in the Maude desktop app.' });
         }
       } else if (m.dgn === 'insert-artboard-request') {
         // Stage I4 — insert a new empty artboard from a screen-size preset.

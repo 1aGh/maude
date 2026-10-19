@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "26cfecc25b3d",
+  "manifestVersion": "6ba299d2442a",
   "actions": [
     {
       "id": "search.open",
@@ -3724,6 +3724,71 @@
       }
     },
     {
+      "id": "annotation.resolve",
+      "label": "Resolve",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the sticky’s resolved to { by, at } (the person’s name, an ISO UTC time); remove it to reopen"
+      }
+    },
+    {
+      "id": "annotation.fan-out",
+      "label": "Fan out",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the stacked stickies’ x / y so they sit in a row"
+      }
+    },
+    {
+      "id": "annotation.to-comment",
+      "label": "Turn into a comment",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "file",
+        "format": "comments",
+        "skill": "design:whiteboard",
+        "how": "Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the board file"
+      }
+    },
+    {
+      "id": "annotation.fold",
+      "label": "Fold section",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the section’s folded to true; remove it to unfold"
+      }
+    },
+    {
+      "id": "annotation.ask-ai",
+      "label": "Ask AI about this",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design read-annotations"
+      }
+    },
+    {
       "id": "annotation.template-kanban",
       "label": "Kanban template",
       "kind": "command",
@@ -3821,6 +3886,30 @@
         "path": "human",
         "because": "view-pref",
         "note": "per-person view preference (C29); never written to the board"
+      }
+    },
+    {
+      "id": "annotations.trash-resolved",
+      "label": "Move resolved stickies to the trash",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Remove the stickies whose resolved is set from the board file"
+      }
+    },
+    {
+      "id": "annotations.select-resolved",
+      "label": "Select resolved stickies",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design read-annotations"
       }
     },
     {

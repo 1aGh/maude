@@ -78,6 +78,18 @@ function shared(el: AnnotationElement): Partial<Stroke> {
   }
   if (num(el.rot) !== 0) out.rotation = num(el.rot);
   if (el.locked === true) out.locked = true;
+  // S4.12 — the stroke view of the format-2 fields the sticky / section UI writes (Resolve, Fold), and of
+  // where an import came from. The stroke is the truth for these (see STROKE_EXT_OWNED).
+  const res = el.resolved as { by?: unknown; at?: unknown } | undefined;
+  if (el.type === 'sticky' && res && typeof res.by === 'string' && typeof res.at === 'string')
+    out.resolved = { by: res.by, at: res.at };
+  if (el.type === 'section' && el.folded === true) out.folded = true;
+  const src = el.source as { kind?: unknown; author?: unknown } | undefined;
+  if (src && typeof src.kind === 'string')
+    out.source = {
+      kind: src.kind,
+      ...(typeof src.author === 'string' ? { author: src.author } : {}),
+    };
   return out as Partial<Stroke>;
 }
 
@@ -285,6 +297,11 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
 }
 
 const ARROW_STROKE_EXT: ReadonlySet<string> = new Set(['startHost', 'endHost', 'label']);
+/** S4.12 — extension fields whose stroke view is the truth, per element type (a removal there is real). */
+const STROKE_EXT_OWNED: Readonly<Record<string, ReadonlySet<string>>> = {
+  sticky: new Set(['resolved', 'source']),
+  section: new Set(['folded', 'source']),
+};
 
 function isHostBind(v: unknown): v is CanvasHostBind {
   return (
@@ -439,7 +456,7 @@ export function strokesToElements(
       const base = new Set(Object.keys(rec));
       // An arrow's canvas binds and label are on its stroke view (S4.11): the stroke is the truth,
       // so removing them there (Point to…, a drag off the host) is a real removal.
-      const owned = el.type === 'arrow' ? ARROW_STROKE_EXT : null;
+      const owned = el.type === 'arrow' ? ARROW_STROKE_EXT : (STROKE_EXT_OWNED[el.type] ?? null);
       for (const k of extensionKeys(prevEl)) if (!base.has(k) && !owned?.has(k)) rec[k] = prevEl[k];
     }
     // Standalone text: v1 only knows a character estimate — keep the measured box while the text is unchanged.

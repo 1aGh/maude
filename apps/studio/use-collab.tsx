@@ -170,7 +170,8 @@ export type ForeignAwareness = Omit<CollabAwarenessState, '__connId'> & { client
 
 /** A live annotation gesture, in WORLD coordinates. */
 export interface AnnotationGesture {
-  kind: 'move' | 'resize' | 'draw';
+  /** `type` (S4.12): typing in a sticky — the ids are the sticky; peers edge it in this person's colour. */
+  kind: 'move' | 'resize' | 'draw' | 'type';
   /** Elements the gesture moves / resizes (empty while drawing a new one). */
   ids: string[];
   /** move: the drag offset. */
@@ -266,7 +267,7 @@ function sanitizeCursor(raw: unknown): { x: number; y: number } | null {
   return isFiniteNum(c.x) && isFiniteNum(c.y) ? { x: c.x, y: c.y } : null;
 }
 
-const GESTURE_KINDS = new Set(['move', 'resize', 'draw']);
+const GESTURE_KINDS = new Set(['move', 'resize', 'draw', 'type']);
 const MAX_GESTURE_POINTS = 512; // numbers, i.e. 256 points
 const GESTURE_COORD_LIMIT = 1e6;
 

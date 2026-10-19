@@ -120,6 +120,17 @@ export interface CanvasToShell {
   // S4.9 — the annotation board of `file` changed (a local write, a peer's, an undo): the shell's
   // Preview annotation list (client/v2/annotations/annotation-list.jsx) re-reads it.
   'annotations-changed': { file: string };
+  // S4.12 (S4-S9 §3.3) — Turn into a comment: the canvas names the sticky; the SHELL calls
+  // POST /_api/annotations/to-comment with the active canvas as `file` (the canvas is untrusted, DDR-054).
+  'annotation-to-comment': { id: string };
+  // S4.12 (S4-S5 §1) — what is selected on the annotation layer: ids, a count per type and the artboards
+  // they ride with — never their words. `ids: []` clears. The AI chat's scope chip reads it (S4.15).
+  'annotation-selection': { ids: string[]; kinds: Record<string, number>; artboards: string[] };
+  // S4.12 — a toast the shell owns, because a canvas notice cannot carry an Undo button
+  // (decision v2-S4.9-shell-owns-hidden-toast): "6 stickies moved to the trash" + Undo.
+  'annotation-toast': { v: 1; message: string; undo: boolean };
+  // S4.12 — ⌘/ (or Ask AI about it) with annotations selected: open the AI chat with that scope.
+  'annotation-ask-ai': { v: 1 };
   'canvas-notice': {
     message: string;
     kind: 'info' | 'success' | 'error' | 'warning' | 'undo';
@@ -678,6 +689,9 @@ const recOf =
     }
     return out;
   };
+/** S4.12 — an annotation element id as the layer mints it (`s_xxxxxxxx`) or a migrated one: word chars and dashes. */
+const annotationIdV: V = (v) =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : BAD;
 const shortStr =
   (max: number): V =>
   (v) =>
@@ -930,6 +944,34 @@ const c2s: C2S = {
     orphan: 'no-handler',
     owner: 'annotations-layer (S4.9) → annotation-list (S4.17)',
     parse: p({ file: str }),
+  },
+  'annotation-to-comment': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → shell convert (routes/annotations.ts, S4.7)',
+    parse: p({ id: annotationIdV }),
+  },
+  'annotation-selection': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → AI scope chip (S4.15, S5.8)',
+    parse: p({
+      ids: capped(500, arrOf(annotationIdV)),
+      kinds: recOf(count, 16),
+      artboards: capped(200, arrOf(shortStr(128))),
+    }),
+  },
+  'annotation-toast': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → shell toast',
+    parse: p({ v: lit(1), message: shortStr(300), undo: bool }),
+  },
+  'annotation-ask-ai': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations-layer (S4.12) → shell AI chat',
+    parse: p({ v: lit(1) }),
   },
   'canvas-notice': {
     gate: 'active',
