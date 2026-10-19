@@ -470,6 +470,17 @@ const ENGINE_CSS = `
   will-change: transform;
 }
 .dc-canvas .dc-artboard.dc-positioned { position: absolute; }
+/* gate-a-polish - a placed artboard's NAME sits above the frame (04/14 canvases, _kit.css .k-ab-name): a constant
+   11 px sans label in screen px at every zoom, not a strip inside the frame. It has to paint outside the frame, so
+   the frame stops clipping (overflow / paint containment) and the BODY carries both - the design surface still
+   clips, the compositor layer (will-change + isolation, above) is unchanged. */
+.dc-canvas .dc-artboard.dc-positioned {
+  overflow: visible;
+  contain: none;
+}
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-body {
+  contain: paint;
+}
 /* S3.14 - Present draws the work only (04 md-present-*): the editor chrome list is present/present-stage.tsx
    PRESENT_HIDES, keyed on the root attribute the stage sets while any Present is on. */
 ${presentHidesCss()}
@@ -487,8 +498,12 @@ ${presentHidesCss()}
 /* T3 — per-kind chrome. Subtle tint on the header + a small glyph before the
    label text, for any non-digital kind. digital (the default, and every
    unmigrated canvas) renders no chip and no tint — byte-identical chrome. */
-.dc-canvas .dc-artboard[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
+.dc-canvas .dc-artboard.dc-positioned[data-dc-kind]:not([data-dc-kind='digital']) > .dc-artboard-label,
+.dc-canvas .dc-artboard:not(.dc-positioned)[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
   background: color-mix(in oklab, var(--accent, var(--fg-2, #4a3f30)) 10%, var(--bg-2, #e8e3d8));
+}
+.dc-canvas .dc-artboard.dc-positioned[data-dc-kind]:not([data-dc-kind='digital']) > .dc-artboard-label {
+  background: transparent;
 }
 .dc-canvas .dc-artboard-kind-chip {
   display: inline-flex;
@@ -538,6 +553,48 @@ input.dc-artboard-rename {
   outline: 2px solid var(--maude-hud-accent, #d63b1f);
   outline-offset: -2px;
 }
+/* gate-a-polish - the placed artboard's name (and its rename field). Out of flow above the frame; scale(1 / zoom)
+   cancels the world's zoom (CSS zoom on Chromium, transform scale on WebKit) so it is 11 screen px at 8% and 800%.
+   Its box is the size of the text, capped to the frame's on-screen width. Unselected it reads --maude-chrome-fg-1;
+   selected (editing/artboard-handles.tsx) it is the accent pill with --maude-hud-accent-fg. */
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  z-index: 2;
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: calc(100% * var(--dc-zoom, 1));
+  box-sizing: border-box;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--maude-chrome-fg-1, #4a3f30);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.36;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: scale(calc(1 / var(--dc-zoom, 1)));
+  transform-origin: 0 100%;
+}
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label:focus-visible { outline-offset: 0; }
+.dc-canvas .dc-artboard.dc-positioned > input.dc-artboard-rename {
+  background: var(--maude-chrome-bg-2, #fff);
+  color: var(--maude-chrome-fg-0, #2a2520);
+  padding: 2px 8px;
+  max-width: none;
+  text-overflow: clip;
+  outline-offset: 0;
+}
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-label .dc-artboard-kind-chip { margin-right: 4px; }
 /* DDR-148 — video-artboard badge, overlaid top-right of the header. Opens
    the timeline panel (same postMessage the context-menu entry sends). */
 .dc-canvas .dc-artboard-video-badge {
@@ -557,6 +614,15 @@ input.dc-artboard-rename {
   background: var(--bg-2, #e8e3d8);
   color: var(--fg-1, #4a3f30);
   cursor: pointer;
+}
+/* gate-a-polish - the badge rides the name row above the frame, at the right end, in screen px. */
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-video-badge {
+  top: auto;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  transform: scale(calc(1 / var(--dc-zoom, 1)));
+  transform-origin: 100% 100%;
 }
 .dc-canvas .dc-artboard-video-badge:hover { background: color-mix(in oklab, var(--fg-0, #2a2520) 12%, var(--bg-2, #e8e3d8)); }
 .dc-canvas .dc-artboard-video-badge:focus-visible { outline: 2px solid var(--maude-hud-accent, #d63b1f); outline-offset: 1px; }
@@ -2924,8 +2990,7 @@ export function DCArtboard({
           // box so the model-based fit math (computeFit reads ArtboardRects,
           // never the DOM) and drag hit-testing are unaffected. RCA:
           // .ai/logs/rca/issue-canvas-pan-zoom-jank-large-moodboard.md
-          contentVisibility: 'auto',
-          containIntrinsicSize: `${rect.w}px ${rect.h}px`,
+          // gate-a-polish - the culling lives on the BODY (the frame no longer clips, so its name can sit above it).
         }}
         {...handleProps}
       >
@@ -2938,9 +3003,9 @@ export function DCArtboard({
             maxLength={80}
             // S2.10 — the field is as wide as the whole name (never the artboard's width, which would hide
             // the end of a long one); it grows with every key.
-            style={{ width: 'max-content', minWidth: `max(100%, ${growCh(label)}ch)` }}
+            style={{ width: 'max-content', minWidth: `${growCh(label)}ch` }}
             onInput={(e) => {
-              e.currentTarget.style.minWidth = `max(100%, ${growCh(e.currentTarget.value)}ch)`;
+              e.currentTarget.style.minWidth = `${growCh(e.currentTarget.value)}ch`;
             }}
             // biome-ignore lint/a11y/noAutofocus: the rename field opens on the designer's own double-click
             autoFocus
@@ -3020,7 +3085,15 @@ export function DCArtboard({
             </svg>
           </button>
         ) : null}
-        <div className="dc-artboard-body" ref={bodyRef} style={bodyStyle}>
+        <div
+          className="dc-artboard-body"
+          ref={bodyRef}
+          style={{
+            ...bodyStyle,
+            contentVisibility: 'auto',
+            containIntrinsicSize: `${rect.w}px ${rect.h}px`,
+          }}
+        >
           {children}
         </div>
       </article>
