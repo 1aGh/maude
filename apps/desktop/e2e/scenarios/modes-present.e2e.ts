@@ -44,7 +44,7 @@ async function chord(key: string, code: string, mods: Partial<KeyboardEventInit>
 
 const pressed = () =>
   browser.execute(() =>
-    [...document.querySelectorAll('[data-testid^="palette-mode-"]')]
+    Array.from(document.querySelectorAll('[data-testid^="palette-mode-"]'))
       .filter((e) => e.getAttribute('aria-pressed') === 'true')
       .map((e) => (e.getAttribute('data-testid') ?? '').replace('palette-mode-', ''))
   );

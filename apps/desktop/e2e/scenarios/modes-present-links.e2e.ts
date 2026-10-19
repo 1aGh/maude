@@ -103,7 +103,7 @@ describe('follow a link and back (S3.10a)', () => {
   after(() => fixtures.restore());
 
   it('Edit: selecting the linked heading shows the chip; nothing is written', async () => {
-    const report = startReport('modes-present-links-chip');
+    startReport('modes-present-links-chip');
     const before = source();
     const h1 = await rectOf(HEADING);
     await click(h1!.x, h1!.y);
@@ -112,12 +112,12 @@ describe('follow a link and back (S3.10a)', () => {
       timeoutMsg: 'the link chip never showed in Edit',
     });
     expect(await inFrame('edit-link-chip')).toContain('Go to Cut');
-    await capture(report, 'edit-chip');
+    await capture('edit-chip');
     expect(source()).toBe(before);
   });
 
   it('Preview: a click follows the link to Cut; the bar says where back goes', async () => {
-    const report = startReport('modes-present-links-follow');
+    startReport('modes-present-links-follow');
     await chord('p', { metaKey: true, altKey: true, code: 'KeyP' });
     await $('[data-testid="preview-bar"]').waitForExist({ timeout: 8000 });
     expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
@@ -131,18 +131,18 @@ describe('follow a link and back (S3.10a)', () => {
     });
     expect(await barText('preview-bar-title')).toContain('Cut');
     expect(await barText('preview-bar-back')).toContain('Smoke');
-    await capture(report, 'preview-on-cut');
+    await capture('preview-on-cut');
   });
 
   it('Back: the bar’s back button returns to Smoke and the button goes', async () => {
-    const report = startReport('modes-present-links-back');
+    startReport('modes-present-links-back');
     await $('[data-testid="preview-bar-back"]').click();
     await browser.waitUntil(async () => (await barText('preview-bar-title')).includes('Smoke'), {
       timeout: 10000,
       timeoutMsg: 'back never returned to the first canvas',
     });
     expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
-    await capture(report, 'back-on-smoke');
+    await capture('back-on-smoke');
     // leave Preview the ordinary way: esc is unchanged by links
     await chord('Escape', { code: 'Escape' });
   });

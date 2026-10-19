@@ -215,6 +215,32 @@
     bottom: 16px;
   }
 
+  /* S3.14 (G4, 04 md-motion): a panel that stops showing shrinks toward its corner icon. The ghost is a picture
+     of it (fold-ghost.js) — no hook, no focus, no clicks — gone when the animation ends. */
+  .st-body .st-fold-ghost {
+    z-index: 20;
+    transform-origin: top left;
+    animation: st-island-fold var(--dur-panel) var(--ease-out) forwards;
+  }
+  .st-body .st-fold-ghost[data-fold="top-right"] {
+    transform-origin: top right;
+  }
+  .st-body .st-fold-ghost[data-fold="bottom-left"] {
+    transform-origin: bottom left;
+  }
+  .st-body .st-fold-ghost[data-fold="bottom-right"] {
+    transform-origin: bottom right;
+  }
+  @keyframes st-island-fold {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.12);
+    }
+  }
   @keyframes st-island-in {
     from {
       opacity: 0;
@@ -229,6 +255,9 @@
     .st-body--float .st-dockslot-inner,
     .st-corner {
       animation: none;
+    }
+    .st-body .st-fold-ghost {
+      display: none; /* a cut (and fold-ghost.js spawns none at 1 ms) */
     }
   }
 }

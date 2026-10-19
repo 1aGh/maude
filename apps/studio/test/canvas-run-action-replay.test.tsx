@@ -41,6 +41,7 @@ test('the replayed chords are exactly the canvas actions with only a key handler
     'inspect.edit', // S3.11 — the Inspect panel's Edit button replays ↵
     'mode.preview',
     'select.all',
+    'ui.step-back', // S3.14 — esc with the shell focused: the canvas climbs its own ladder first
   ]);
   expect(replayActionKey('object.remove')).toBe(false);
   expect(replayActionKey(undefined)).toBe(false);

@@ -19,7 +19,7 @@
 // the viewport controller's, handed in as `setCamera`/`getCamera`. The engine below is plain TS with its
 // scheduling injected, so the tests drive it frame by frame.
 
-import { type RefObject, useEffect, useRef, useSyncExternalStore } from 'react';
+import { type RefObject, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { canvasModeStore, reportPresentPosition } from '../bridge/canvas-mode-store.ts';
 import type { ArtboardRect } from '../canvas-lib.tsx';
 import { resolveBleedMm, resolveMmPx } from '../print/units.ts';
@@ -52,6 +52,50 @@ export interface SelectionLike {
   readonly selected: readonly unknown[];
   replace(s: never): void;
   clear(): void;
+}
+
+/**
+ * S3.14 (G2) - the attribute the document root carries while ANY Present is on (Artboards or Canvas). canvas-lib's
+ * engine CSS keys on it to draw only the work, as 04 md-present-lift / -full / -canvas do: no artboard label
+ * bar, no breakpoint chip, no selection frame (the editor chrome list: `PRESENT_HIDES`).
+ */
+export const PRESENT_ATTR = 'data-maude-presenting';
+
+/** The editor chrome that never reaches an audience. Mirrored into the engine CSS of canvas-lib.tsx. */
+export const PRESENT_HIDES: readonly string[] = [
+  '.dc-canvas .dc-artboard-label', // the title bar of every artboard (hiding it hugs the artboard to its design)
+  '.dc-canvas .dc-artboard-video-badge',
+  '.dc-canvas .dc-artboard-guides', // the web breakpoint chip, print marks, generic guides
+  '.ed-ab-frame', // the selected artboard's frame and its eight handles
+  '.ed-ab-handle',
+  '.dc-cv-halo', // a selected / hovered element's halo
+  '.dc-cv-group-bbox',
+  '.dc-activity-rim',
+];
+
+/** The CSS the engine stylesheet carries for `PRESENT_HIDES`. */
+export const presentHidesCss = (): string =>
+  `${PRESENT_HIDES.map((sel) => `html[${PRESENT_ATTR}] ${sel}`).join(',\n')} { display: none !important; }
+/* the frame of an artboard (its hairline, and the active-artboard accent ring) is editor chrome too */
+html[${PRESENT_ATTR}] .dc-canvas .dc-artboard { box-shadow: none !important; border-color: transparent !important; }`;
+
+/**
+ * The artboards with the size they have NOW. The stage fits an artboard at `start` - one frame after the label
+ * bars went (PRESENT_HIDES), before the artboards' own observers have reported the shorter boxes - so it asks
+ * the DOM, not the state, for the height (a forced layout, once per fit).
+ */
+export function liveRects(
+  rects: readonly ArtboardRect[],
+  world: HTMLElement | null
+): readonly ArtboardRect[] {
+  if (!world) return rects;
+  const heights = new Map<string, number>();
+  for (const el of world.querySelectorAll<HTMLElement>('[data-dc-screen]'))
+    heights.set(el.getAttribute('data-dc-screen') ?? '', el.offsetHeight);
+  return rects.map((r) => {
+    const h = heights.get(r.id) ?? 0;
+    return h > 0 && Math.abs(h - r.h) >= 1 ? { ...r, h } : r;
+  });
 }
 
 /** The lift tween, in ms, when the token is absent: `--dur-route` (client/styles/1-tokens-maude.css). */
@@ -621,7 +665,8 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
     store ? store.get : NO_SNAPSHOT,
     NO_SNAPSHOT
   );
-  const active = !!snap && snap.mode === 'present' && snap.present?.kind === 'artboards';
+  const presenting = !!snap && snap.mode === 'present';
+  const active = presenting && snap?.present?.kind === 'artboards';
   const from = snap?.present?.from;
   const stepN = snap?.step?.n ?? 0;
   const stepTo = snap?.step?.to;
@@ -645,7 +690,7 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
       win,
       getHost: () => optsRef.current.hostRef.current,
       getWorld: () => optsRef.current.worldRef.current,
-      getArtboards: () => optsRef.current.artboards,
+      getArtboards: () => liveRects(optsRef.current.artboards, optsRef.current.worldRef.current),
       getCamera: () => ({ ...optsRef.current.controller.viewport }),
       setCamera: (c) => optsRef.current.controller.setViewport(c),
       getSelection: () => optsRef.current.selection,
@@ -693,6 +738,15 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
       }),
     });
   }
+
+  // S3.14 (G2) - the audience sees the work only. A layout effect, so the chrome is gone before the stage's
+  // effect below measures the artboards it is about to lift.
+  useLayoutEffect(() => {
+    if (!presenting || !win) return;
+    const root = win.document.documentElement;
+    root.setAttribute(PRESENT_ATTR, '');
+    return () => root.removeAttribute(PRESENT_ATTR);
+  }, [presenting, win]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `from` is read once, at the start
   useEffect(() => {
@@ -872,4 +926,38 @@ function usePresentFollow(
     engineRef.current?.setLocked(follow.locked);
     tickRef.current?.();
   }, [follow?.n, following]);
+}
+
+/**
+ * S3.14 (G2) - Present clears the selection (the audience sees no halo) and puts it back on the way out ("selection,
+ * zoom and panels are as you left them", 04 md-present-lift). Mounted by canvas-shell's `CanvasCore`, the one place
+ * the selection set is in scope: `usePresentStage` sits ABOVE the provider in canvas-lib (`DesignCanvasInner` renders
+ * `CanvasShell`), so the `selection` it is handed is null in a real canvas and its own clear/restore never ran.
+ * Covers Present · Canvas too, which has no stage. `annot` is the annotation selection (a `clear()` only).
+ */
+export function usePresentSelection(
+  sel: { selected: readonly unknown[]; clear(): void; replace(s: never): void },
+  annot: { clear(): void }
+): void {
+  const win = typeof window === 'undefined' ? null : window;
+  const store = win ? canvasModeStore(win) : null;
+  const snap = useSyncExternalStore(
+    store ? store.subscribe : NO_SUBSCRIBE,
+    store ? store.get : NO_SNAPSHOT,
+    NO_SNAPSHOT
+  );
+  const presenting = !!snap && snap.mode === 'present';
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  const annotRef = useRef(annot);
+  annotRef.current = annot;
+  useEffect(() => {
+    if (!presenting) return;
+    const saved = [...selRef.current.selected];
+    selRef.current.clear();
+    annotRef.current.clear();
+    return () => {
+      if (saved.length > 0) selRef.current.replace(saved as never);
+    };
+  }, [presenting]);
 }

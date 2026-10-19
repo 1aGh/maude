@@ -1,8 +1,9 @@
 // shell/dock.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useViewing } from '../v2/history/history-host.jsx';
+import { spawnFoldGhost } from '../v2/shell/fold-ghost.js';
 import { rovingTabKey } from '../v2/shell/modal-focus.js';
 import { StIcon } from './icons.jsx';
 
@@ -126,6 +127,43 @@ export function DockSlot({
   const tabs = open && hasPanelTabs(ids);
   const shown = open || aiShown;
   const viewing = !!useViewing();
+
+  // S3.14 (G4, 04 md-motion) — a floating panel that stops showing FOLDS toward its corner icon instead of
+  // cutting: just before the island leaves the DOM, a picture of it shrinks into the corner (fold-ghost.js).
+  // The refs below read their props through `live`, so a layout switch never looks like a detach.
+  const live = useRef({ floating, side, hidden });
+  live.current = { floating, side, hidden };
+  const mainNode = useRef(null);
+  const foldMain = useCallback((node) => {
+    if (node) {
+      mainNode.current = node;
+      return;
+    }
+    const gone = mainNode.current;
+    mainNode.current = null;
+    const { floating: fl, side: sd, hidden: hid } = live.current;
+    if (gone?.isConnected && fl && !hid)
+      spawnFoldGhost(gone, gone.closest('.st-body'), sd === 'left' ? 'top-left' : 'top-right');
+  }, []);
+  // The chat island stays mounted when it folds (`hidden`, the stream survives): fold a picture of it from the
+  // rect it last had.
+  const aiNode = useRef(null);
+  const aiBox = useRef(null);
+  const aiWas = useRef(aiShown);
+  useLayoutEffect(() => {
+    const node = aiNode.current;
+    if (aiShown) {
+      aiBox.current = node?.getBoundingClientRect?.() ?? null;
+    } else if (aiWas.current && node && aiBox.current && floating && !hidden) {
+      spawnFoldGhost(
+        node,
+        node.closest('.st-body'),
+        side === 'left' ? 'bottom-left' : 'bottom-right',
+        aiBox.current
+      );
+    }
+    aiWas.current = aiShown;
+  }, [aiShown, floating, hidden, side]);
   return (
     <div
       className={
@@ -139,6 +177,7 @@ export function DockSlot({
     >
       {open && (
         <div
+          ref={foldMain}
           className={'st-dockslot-inner' + (floating ? ' island' : '')}
           data-testid={`dock-slot-${side}`}
           data-occludes={floating && !hidden ? side : undefined}
@@ -158,6 +197,7 @@ export function DockSlot({
       )}
       {ai && (
         <div
+          ref={aiNode}
           className={'st-dockslot-inner st-dockslot-ai' + (floating ? ' island' : '')}
           data-testid={`dock-ai-${side}`}
           data-occludes={floating && aiShown && !hidden ? side : undefined}

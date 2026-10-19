@@ -120,7 +120,18 @@ export const SHELL_KEY_HANDLERS = {
     }
     // S3.12 — the mode's own step back, with the shell focused (Preview → Edit, a held past version →
     // now). The canvas keeps its tools/selection rungs; this is what is left once they are not in play.
-    if (shellStepBack({ canEdit: !d.viewerMode }) === 'set') e.preventDefault();
+    // S3.14 (G6) — a tool armed in the canvas is the canvas's rung: hand it the press (`forward`), take the
+    // terminal step here only when there is no canvas to hand it to.
+    const hasCanvas = !!d.activePath && d.activePath !== SYSTEM_TAB;
+    const step = shellStepBack({
+      canEdit: !d.viewerMode,
+      forward: () => {
+        if (!hasCanvas) return false;
+        d.postToActiveCanvas(runActionMessage('ui.step-back'));
+        return true;
+      },
+    });
+    if (step === 'set' || step === 'forward') e.preventDefault();
   },
   'search.open': (d, { event: e }) => {
     e.preventDefault();
