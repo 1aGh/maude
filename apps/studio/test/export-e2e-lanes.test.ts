@@ -228,11 +228,17 @@ async function openExportDialog(port: number) {
   }
   // S8.2: "this artboard" is the sheet's `selection` scope, off while nothing is selected ("Nothing is
   // selected."), and without the render service a workspace exports one artboard only. The cell's shell
-  // opens in Preview (esc → Viewing); select the artboard by clicking it, as a person does.
+  // opens in Preview (esc → Viewing); select the artboard by clicking its name, as a person does.
+  // gate-a-polish (v2-gate-a-polish-artboard-name-out-of-flow): the name sits ABOVE the frame now, so a
+  // click at the frame's corner lands on the board's content and selects that element — an HTML export
+  // then refuses it (`format-unit`). The name is what selects the artboard.
   await page.evaluate(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   });
-  await canvasFrame?.click('[data-dc-screen]', { timeout: 15_000, position: { x: 3, y: 3 } });
+  await canvasFrame
+    ?.locator('[data-dc-screen] .dc-artboard-label')
+    .first()
+    .click({ timeout: 15_000 });
   await page.waitForTimeout(400);
   // ⌘⇧E opens the dialog. Dispatch it on the SHELL window rather than through
   // `keyboard.press`: once the canvas iframe has mounted it holds focus, and a

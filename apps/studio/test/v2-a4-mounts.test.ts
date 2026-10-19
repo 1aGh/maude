@@ -36,8 +36,10 @@ describe('A4 host mounts', () => {
     const app = await read('client/app.jsx');
     expect(app).toContain("import FollowView from './v2/present/follow-view.jsx';");
     expect(app).toContain("import { isFollowLocation } from './v2/present/follow-location.js';");
+    // sec-a C3 wraps every root in the shell error boundary; the order (follow before embed) and the
+    // follower page as that root's only child are what this pins.
     expect(app).toMatch(
-      /if \(isFollowLocation\(location\)\) root\.render\(<FollowView \/>\);\s*else if \(isEmbedLocation\(location\)\)/
+      /if \(isFollowLocation\(location\)\)\s*root\.render\(\s*<ShellErrorBoundary>\s*<FollowView \/>\s*<\/ShellErrorBoundary>\s*\);\s*else if \(isEmbedLocation\(location\)\)/
     );
   });
 
