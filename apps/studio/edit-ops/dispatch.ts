@@ -19,6 +19,7 @@ import { CLEAR_LINK_OP } from './clear-link.ts';
 import { CLIP_OPS } from './clip/index.ts';
 import { objectConstrain } from './constraints.ts';
 import { objectSetCornerRadius } from './corner-radius.ts';
+import { componentDetach } from './detach-instance.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
@@ -31,11 +32,13 @@ import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
 import { assetRelink } from './relink.ts';
 import { reorderOps } from './reorder.ts';
+import { componentReset } from './reset-overrides.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
 import { layoutSetGap } from './set-gap.ts';
 import { elementSetId } from './set-id.ts';
 import { SET_LINK_OP } from './set-link.ts';
+import { componentSwapVariant } from './swap-variant.ts';
 import { textSet, textSetLanguage } from './text-copy.ts';
 import { textDetachStyle } from './text-detach.ts';
 import { textResetStyle, textSetCase, textUseStyle } from './text-style-ops.ts';
@@ -109,6 +112,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   ...CLIP_OPS,
   // S2.16 — ⇧I: a linked instance from the design system
   componentInsert,
+  // S2.17 — an instance: swap its variant / component, take its overrides back, break the link
+  componentSwapVariant,
+  componentReset,
+  componentDetach,
 ];
 
 export interface AiHoldHit {

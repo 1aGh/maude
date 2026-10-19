@@ -27,6 +27,13 @@ import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
 import {
+  INSTANCE_ACTIONS,
+  instanceOpDeps,
+  instanceParams,
+  isInstanceAction,
+  runInstanceAction,
+} from './instance-actions.ts';
+import {
   CONSTRAIN_ACTION,
   isConstrainAction,
   isLayoutAction,
@@ -76,6 +83,8 @@ export const EDITING_ACTIONS = [
   CONSTRAIN_ACTION,
   // S2.12 — text: language, case, style (use / reset / detach); `text.set` is the caret's commit
   ...TEXT_ACTIONS,
+  // S2.17 — an instance: swap its variant / component, Reset, Detach (the inspector's blocks, ⌘K)
+  ...INSTANCE_ACTIONS,
   // S2.9 — Tidy up over 2+ artboards (run by align-bar.tsx)
   TIDY_ACTION,
   // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
@@ -109,6 +118,11 @@ export function EditingLayer() {
       toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
       record: (rec) => undoRef.current?.record(rec),
     };
+    // S2.17 — and the instance actions
+    instanceOpDeps.current = {
+      toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
+      record: (rec) => undoRef.current?.record(rec),
+    };
   }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -134,6 +148,12 @@ export function EditingLayer() {
         if (!isReadOnlyCanvas()) {
           const { refs, params } = textParams(m.params);
           void runTextAction(m.id, selRef.current, refs, params, textOpDeps.current);
+        }
+      } else if (isInstanceAction(m.id)) {
+        // S2.17 — the Component / Content / Main component blocks; the one selected instance
+        if (!isReadOnlyCanvas()) {
+          const { refs, params } = instanceParams(m.params);
+          void runInstanceAction(m.id, selRef.current, refs, params, instanceOpDeps.current);
         }
       } else if (isConstrainAction(m.id)) {
         if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
