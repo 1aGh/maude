@@ -8,6 +8,7 @@ import { diagnosticsFacts, openDiagnostics } from './diagnostics-bus.js';
 import { logLines, logsText } from './diagnostics-model.js';
 import { runResync } from './resync-run.js';
 import { requestOffline } from './sync-actions.js';
+import { retryHeld } from '../shell/recovery-store.js';
 
 const noop = () => {};
 
@@ -89,6 +90,13 @@ export function createDiagnosticsHandlers(d, io = {}) {
         sleep: io.sleep,
         pollMs: io.pollMs,
       }),
+    // S11.17 — Retry while a full disk holds writes (the Not saved status's own action)
+    'save.retry-held': async () => {
+      const r = await retryHeld(io.fetchFn);
+      if (!r) toast('Couldn’t reach Maude. Try again in a moment.');
+      else if (r.held) toast("Still out of space — your changes wait here until there's room.");
+      else toast(r.landed ? 'Saved.' : 'Nothing is waiting to be saved.');
+    },
     'sync.download-all': async () => {
       toast('Downloading everything for offline…');
       toast(await requestOffline(io.fetchFn));

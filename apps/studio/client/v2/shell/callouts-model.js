@@ -11,12 +11,16 @@
 //                              always-visible access word (save-status.js accessStatus)
 //   update ready               a callout with Restart now; the same action lives in Settings › Advanced
 //   repo state changed         a callout with Reload; the same notice lives in Diagnostics › Server
+//   crashed (S11.17, C37)      after an unclean exit: "Maude quit unexpectedly. Your work up to 14:05 is
+//                              here." with Report a bug… (the dialog opens with the crash logs ticked)
+//   disk-full (S11.17, C37)    Not saved + "This Mac is out of space — …" with Show in Finder (desktop)
 //
 // CONTRACT §4: *what happened · what is safe · one verb*; a callout carries ONE action at most; counts use
 // the noun that reads for 1 and for many (never "canvas(es)"). Every item is `{ key, kind, tone, icon,
 // title, detail?, action? }` — `key` changes when the event does, so a dismissal never hides the next one.
 
 import { safeName } from '../../../sync/presentation.ts';
+import { DISK_FULL_DETAIL, WORDS } from './save-status.js';
 
 /**
  * What this role can do, said once, where a teammate lands (Cloud Phase 27 C3). `role-matrix.mjs` is the
@@ -210,6 +214,64 @@ export function tourCallout({ usage = false, collab = false, running = false } =
   return null;
 }
 
+// ── S11.17 (C37) — errors and recovery ─────────────────────────────────────────────────────────────
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pad = (n) => String(n).padStart(2, '0');
+
+/** "14:05" today, "Oct 18, 23:41" on another day (the person's clock), null when nothing is known. */
+export function workTime(ms, now = Date.now()) {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return null;
+  const d = new Date(ms);
+  const t = new Date(now);
+  const clock = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const today =
+    d.getFullYear() === t.getFullYear() &&
+    d.getMonth() === t.getMonth() &&
+    d.getDate() === t.getDate();
+  return today ? clock : `${MONTHS[d.getMonth()]} ${d.getDate()}, ${clock}`;
+}
+
+/** CONTRACT §6 C37 — the relaunch line; without a known time it still says the work is here. */
+export const CRASH_LINE = (time) =>
+  time
+    ? `Maude quit unexpectedly. Your work up to ${time} is here.`
+    : 'Maude quit unexpectedly. Your work is here.';
+
+/**
+ * After an unclean exit the desktop shell hands a reopened tab `{ kind: 'app://crashed', startedAt }`
+ * once (S11.16 `onCrashed`). `lastWorkAt` is the studio's `GET /_api/diagnostics/last-work`.
+ */
+export function crashedCallout(notice, lastWorkAt = null, now = Date.now()) {
+  if (!notice || notice.kind !== 'app://crashed') return null;
+  return {
+    key: `crashed:${notice.startedAt ?? ''}`,
+    kind: 'crashed',
+    tone: 'warn',
+    icon: 'problem',
+    title: CRASH_LINE(workTime(lastWorkAt, now)),
+    action: { id: 'report-bug', label: 'Report a bug…' },
+  };
+}
+
+/**
+ * A write the full disk refused is held (`GET /_api/diagnostics/disk` → `{ full, held, since }`). The
+ * status word says Not saved too; this is the sentence and the one way to make room. Show in Finder is the
+ * desktop app's (a browser tab has no Finder): `o.native`.
+ */
+export function diskFullCallout(disk, o = {}) {
+  if (!disk?.full) return null;
+  return {
+    key: `disk-full:${disk.since ?? ''}`,
+    kind: 'disk-full',
+    tone: 'error',
+    icon: 'problem',
+    title: WORDS['not-saved'],
+    detail: DISK_FULL_DETAIL,
+    ...(o.native === false ? {} : { action: { id: 'show-in-finder', label: 'Show in Finder' } }),
+  };
+}
+
 /** Errors first, then what asks for you, then the news. */
 const ORDER = { error: 0, warn: 1, info: 2, ok: 3 };
 
@@ -220,6 +282,9 @@ const ORDER = { error: 0, warn: 1, info: 2, ok: 3 };
  * @param in.cloud        `cfg.cloud` (role)
  * @param in.roleSeen     (role) => boolean
  * @param in.tour         `{ usage, collab, running }` — the first-run tour offers (tourCallout)
+ * @param in.crashed      `{ notice, lastWorkAt, now? }` — S11.17 the relaunch line (crashedCallout)
+ * @param in.disk         `{ full, held, since }` — S11.17 the full-disk hold (diskFullCallout)
+ * @param in.native       the desktop app (Show in Finder exists)
  * @param in.dismissed    Set of callout keys the person closed
  * @returns the callouts to draw, most urgent first
  */
@@ -230,9 +295,14 @@ export function calloutStack({
   cloud: cloudCfg = null,
   roleSeen = () => false,
   tour = null,
+  crashed = null,
+  disk = null,
+  native = true,
   dismissed = new Set(),
 } = {}) {
   return [
+    diskFullCallout(disk, { native }),
+    crashed ? crashedCallout(crashed.notice, crashed.lastWorkAt, crashed.now) : null,
     syncCallout(syncStatus),
     renamedCallout(syncStatus),
     repoCallout(gitLifecycle),

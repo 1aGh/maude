@@ -1,7 +1,10 @@
 // client/v2/shell/callouts-host.jsx — V2-4.8b: the callout stack wired to today's shell.
 //
 // Reads the shell store (sync payload, staged update, repo-changed flag, cloud role) and hands them to
-// the pure model. The four actions:
+// the pure model. S11.17 adds the crash line (the desktop shell's `app://crashed`, heard once on mount)
+// and the full-disk hold (recovery-store.js). The actions:
+//   · Report a bug…  → Help › Report a bug… with the crash logs ticked
+//   · Show in Finder → the project's design folder, selected in Finder (desktop only, S11.16 door)
 //   · Details      → Menu › Diagnostics › Sync (today's Sync panel, whole)
 //   · Restart now  → the desktop shell's own restart-to-update
 //   · Reload       → reload the page (re-reads the repo)
@@ -19,6 +22,9 @@ import { USAGE_TOUR } from '../../tour/usage-tour.js';
 import { openDiagnostics } from '../diagnostics/diagnostics-bus.js';
 import { calloutStack, roleSeenKey } from './callouts-model.js';
 import { CalloutStack } from './callouts.jsx';
+import { menuRunner } from './menu-runner.js';
+import { nativeDoors } from './native-doors.js';
+import { setReportEntry, useCrashNotice, useDiskHold } from './recovery-store.js';
 
 function roleSeen(role) {
   try {
@@ -47,6 +53,9 @@ export function ShellCallouts() {
   } = useShellStore();
   const [dismissed, setDismissed] = useState(() => new Set());
   const [busyKey, setBusyKey] = useState(null);
+  const crashed = useCrashNotice();
+  const disk = useDiskHold();
+  const doors = useMemo(() => nativeDoors(), []);
 
   // Read at render, not seeded into state: `cfg.cloud` is undefined until `/_config` lands, and a
   // state initializer would decide before there is a role (the v1 banner never appeared that way).
@@ -59,9 +68,15 @@ export function ShellCallouts() {
         cloud: cfg?.cloud,
         roleSeen,
         tour: { usage: !!usageNudge, collab: !!collabNudge, running: !!tourSteps },
+        crashed,
+        disk,
+        native: doors.available,
         dismissed,
       }),
     [
+      crashed,
+      disk,
+      doors.available,
       syncStatus,
       updateReady,
       gitLifecycle,
@@ -88,6 +103,13 @@ export function ShellCallouts() {
       switch (item.action?.id) {
         case 'details':
           openDiagnostics('sync');
+          break;
+        case 'report-bug':
+          setReportEntry('crash');
+          menuRunner.run('help.report-bug');
+          break;
+        case 'show-in-finder':
+          void doors.revealPath(cfg?.designRel || '.design');
           break;
         case 'restart':
           setBusyKey(item.key);
@@ -118,7 +140,7 @@ export function ShellCallouts() {
           break;
       }
     },
-    [cfg?.cloud?.role, hide, markUsageSeen, markCollabSeen, startTour]
+    [cfg?.cloud?.role, cfg?.designRel, doors, hide, markUsageSeen, markCollabSeen, startTour]
   );
 
   const onDismiss = useCallback(
