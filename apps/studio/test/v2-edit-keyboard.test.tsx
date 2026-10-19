@@ -19,6 +19,7 @@ import {
   cycleRegion,
   entryOf,
   nextIndex,
+  onScreen,
   readingOrder,
   regionOf,
   regionsIn,
@@ -388,6 +389,41 @@ describe('F6 between the panels and the canvas', () => {
     expect(entryOf(e, () => true)).toBe(e);
     expect(e.getAttribute('tabindex')).toBe('-1');
     expect(regionOf([e], e)).toBe(0);
+  });
+
+  // K1 (wave-A gate): the canvas frame runs full-bleed under the side panels, so its LEFT edge sorted it
+  // before the canvases list — F6 from the canvas went to the list, then the inspector, and never read
+  // "panels, canvas, panels". The frame sits in the order where its middle is.
+  test('a full-bleed canvas frame sits between the left and the right panels', () => {
+    shell();
+    at.set(byId('nav'), 16);
+    at.set(byId('frame'), 0);
+    at.set(byId('insp'), 1100);
+    const wide = {
+      shown: () => true,
+      rectOf: (e: Element) => ({
+        left: at.get(e) ?? 0,
+        top: 0,
+        width: e.id === 'frame' ? 1200 : 10,
+        height: 10,
+      }),
+    };
+    expect(regionsIn(document, wide).map((e: Element) => e.id)).toEqual(['nav', 'frame', 'insp']);
+    byId('frame').focus();
+    expect(cycleRegion(document, 1, wide)).toBe(true);
+    expect(document.activeElement?.id).toBe('insp-b');
+    expect(cycleRegion(document, 1, wide)).toBe(true);
+    expect(document.activeElement?.id).toBe('nav-b');
+    expect(cycleRegion(document, 1, wide)).toBe(true);
+    expect(document.activeElement?.id).toBe('frame');
+  });
+
+  test('a panel slid off the window is not a stop', () => {
+    const view = { w: 1400, h: 900 };
+    expect(onScreen({ left: 4796, top: 0, width: 320, height: 800 }, view)).toBe(false);
+    expect(onScreen({ left: -340, top: 0, width: 320, height: 800 }, view)).toBe(false);
+    expect(onScreen({ left: 1200, top: 0, width: 320, height: 800 }, view)).toBe(true); // half out is still there
+    expect(onScreen({ left: 0, top: 0, width: 0, height: 0 }, view)).toBe(false);
   });
 
   test('a nested labelled region is part of its outer one', () => {
