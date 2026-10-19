@@ -142,8 +142,13 @@ function Seed() {
   return null;
 }
 
-async function dragGap(altKey: boolean) {
+async function dragGap(altKey: boolean, opts: { scale?: string; metaKey?: boolean } = {}) {
   const q = tree();
+  const sheet = document.createElement('style');
+  if (opts.scale) {
+    sheet.textContent = opts.scale;
+    document.head.appendChild(sheet);
+  }
   // layout boxes for the overlay: the frame and its children have a size
   const box = (el: Element, x: number, y: number, w: number, h: number) => {
     (el as HTMLElement).getBoundingClientRect = () =>
@@ -154,7 +159,7 @@ async function dragGap(altKey: boolean) {
   box(q('row2'), 116, 0, 100, 100);
   box(q('row3'), 240, 0, 100, 100);
   box(q('block'), 356, 0, 40, 100);
-  const posts: { dgn?: string }[] = [];
+  const posts: { dgn?: string; patch?: Record<string, string> }[] = [];
   const realPost = window.parent.postMessage;
   window.parent.postMessage = ((m: { dgn?: string }) => void posts.push(m)) as never;
   const asks: { op: string; targets: { element: string }[]; params: unknown }[] = [];
@@ -189,6 +194,7 @@ async function dragGap(altKey: boolean) {
       clientX: x,
       clientY: 50,
       altKey,
+      metaKey: !!opts.metaKey,
       ...init,
     });
     (type === 'pointerdown' ? handle : window).dispatchEvent(ev);
@@ -202,6 +208,7 @@ async function dragGap(altKey: boolean) {
     await Promise.resolve();
   });
   window.parent.postMessage = realPost;
+  sheet.remove();
   return { asks, posts };
 }
 
@@ -218,5 +225,27 @@ describe('the ⌥ gap drag', () => {
     const { asks, posts } = await dragGap(false);
     expect(asks).toHaveLength(0);
     expect(posts.filter((p) => p.dgn === 'resize-request')).toHaveLength(1);
+  });
+});
+
+describe('S2.24 G4 — a plain gap drag that lands on a stop writes the token, not the number', () => {
+  const SCALE = ':root{--space-4:16px;--space-6:24px;--space-7:32px}';
+  const gapOf = (posts: { dgn?: string; patch?: Record<string, string> }[]) =>
+    posts.find((p) => p.dgn === 'resize-request')?.patch?.gap;
+
+  test('the stop 24 is var(--space-6)', async () => {
+    const { posts } = await dragGap(false, { scale: SCALE });
+    expect(gapOf(posts)).toBe('var(--space-6)');
+  });
+
+  test('⌘ (any number) writes the number, even where a stop is', async () => {
+    document.documentElement.style.setProperty('--space-6', '24px');
+    const { posts } = await dragGap(false, { scale: SCALE, metaKey: true });
+    expect(gapOf(posts)).toBe('24px');
+  });
+
+  test('a system with no space scale writes the number', async () => {
+    const { posts } = await dragGap(false);
+    expect(gapOf(posts)).toBe('24px');
   });
 });

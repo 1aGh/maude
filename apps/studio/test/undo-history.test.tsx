@@ -173,6 +173,13 @@ describe('S2.20 Undo history popover', () => {
     expect(rows[1].textContent).not.toContain('⌘Z');
   });
 
+  test('S2.24: the popover says where it was opened from (14 ed-edge-undo)', async () => {
+    await mountHost();
+    expect(q('[data-testid="undo-history"] .st-uh-from')?.textContent).toBe(
+      'Opened from Menu › Edit › Undo history'
+    );
+  });
+
   test('pointing at a row lights what it would undo in the canvas; leaving clears it', async () => {
     const { sent } = await mountHost();
     await act(async () => {

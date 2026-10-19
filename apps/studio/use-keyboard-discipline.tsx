@@ -26,8 +26,14 @@
 import { useEffect, useRef } from 'react';
 
 import { useArtboardsContext, useDragStateContext } from './canvas-lib.tsx';
-import { resolveSelectionEl, scopedCdSelector, selectorIndex } from './dom-selection.ts';
-import { isEditableTarget } from './input-router.tsx';
+import {
+  hoverTargetToSelection,
+  resolveSelectionEl,
+  scopedCdSelector,
+  selectorIndex,
+  shortText,
+} from './dom-selection.ts';
+import { type HoverTarget, isEditableTarget } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolModeOptional } from './use-tool-mode.tsx';
@@ -38,6 +44,19 @@ const STEP_LARGE = 10;
 export interface NudgeInput {
   key: string;
   shift: boolean;
+}
+
+/**
+ * S2.24 — the selection ↵ (descend) and ⇧↵ (parent) land on: the same payload a pointer pick makes (its text, classes,
+ * measured box, authored and computed style), so the inspector reads the same kind. A bare id/tag/index payload made
+ * an `h1` read as a Frame, because the inspector decides a text object by its `text`.
+ */
+export function keyboardSelection(el: Element): Selection {
+  return hoverTargetToSelection({
+    el,
+    cdId: el.getAttribute('data-cd-id'),
+    artboardId: el.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null,
+  } as HoverTarget);
 }
 
 /**
@@ -117,6 +136,7 @@ export function useKeyboardDiscipline(): void {
             artboardId: id,
             index: selectorIndex(document, kdSelector, el),
             tag: el.tagName.toLowerCase(),
+            text: shortText(el, 240),
           });
         }
         if (hits.length === 0) return;
@@ -187,19 +207,7 @@ export function useKeyboardDiscipline(): void {
         // Don't leave the artboard body (a parent hop past the artboard root).
         if (next?.closest('.dc-artboard-body') && next.getAttribute('data-cd-id')) {
           e.preventDefault();
-          const cdId = next.getAttribute('data-cd-id') as string;
-          const artboardId =
-            next.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null;
-          const sel = scopedCdSelector(cdId, artboardId);
-          selSet.replace([
-            {
-              id: cdId,
-              selector: sel,
-              artboardId,
-              index: selectorIndex(document, sel, next),
-              tag: next.tagName.toLowerCase(),
-            },
-          ]);
+          selSet.replace([keyboardSelection(next)]);
         }
         return;
       }

@@ -21,7 +21,13 @@ import { globalCdOccurrence, resolveSelectionEl } from './dom-selection.ts';
 import { isElementDragActive } from './drag-state.ts';
 import { layoutOpsDeps } from './editing/reorder-slot.tsx';
 import { framesWithGap, runSetGap } from './editing/set-gap.ts';
-import { gapValue, rulerWindow, spaceStops, tokenRuler } from './editing/token-ruler.tsx';
+import {
+  gapValue,
+  rulerWindow,
+  spaceStops,
+  spaceTokenFor,
+  tokenRuler,
+} from './editing/token-ruler.tsx';
 import {
   computeGapDrag,
   computeGapMidpoints,
@@ -248,9 +254,8 @@ export function SpacingHandlesOverlay(): ReactNode {
    *  drag has 2 or 4, all set to the SAME value (mirrors the CSS panel's own
    *  `side()` scrub semantics — every touched side becomes the dragged value,
    *  not each grown independently). */
-  const commit = useCallback((d: SpacingDrag, entries: PropEntry[], value: number) => {
+  const commit = useCallback((d: SpacingDrag, entries: PropEntry[], after: string) => {
     if (!entries.length) return;
-    const after = `${value}px`;
     lastCommitRef.current = { el: d.el, entries };
     const patch: Record<string, string> = {};
     const before: Record<string, string | null> = {};
@@ -393,12 +398,18 @@ export function SpacingHandlesOverlay(): ReactNode {
       const dy = e.clientY - d.startClientY;
       const next = valueFor(d, e, dx, dy);
       const entries = touchedEntries(d, e);
-      const after = `${next}px`;
-      const changed = entries.some((entry) => after !== (entry.before ?? `${d.startValue}px`));
+      // S2.24 G4 — a gap that clicked onto a stop of the system's scale is written as the stop (`var(--space-6)`),
+      // like the ⌥ drag does; ⌘ (any number), padding and a system without that stop write the number.
+      const token =
+        d.kind === 'gap' && !(e.metaKey || e.ctrlKey) ? spaceTokenFor(next, document) : null;
+      const after = token ? `var(${token})` : `${next}px`;
+      const changed = entries.some(
+        (entry) => `${next}px` !== (entry.before ?? `${d.startValue}px`) && after !== entry.before
+      );
       if (!changed) return; // no-op guard
       // ⌥ on a gap: one multi-frame op carries the held frame too (no second write for it)
       if (d.kind === 'gap' && e.altKey) void commitEveryGap(d, next);
-      else commit(d, entries, next);
+      else commit(d, entries, after);
     };
 
     // Restore the pre-drag inline value(s) if the shell reports the write

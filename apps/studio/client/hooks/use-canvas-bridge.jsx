@@ -28,8 +28,8 @@ import { exportRegionOf } from '../export-region.ts';
 import {
   localSelectRecord,
   RESTORE_LEAD_MS,
-  restoreAfterLoad,
   shellSelectionOf,
+  startSelectionRestore,
 } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
@@ -106,6 +106,25 @@ export function useCanvasBridge({
   // S9.22b — the viewer's display name (left out of the mention people); optional
   gitUser = null,
 }) {
+  // S2.24 — the selection ladder (selection-scope.js `startSelectionRestore`): one at a time, the newest wins.
+  const selectionRestoreRef = useRef(null);
+  const restoreSelectionOn = useCallback(
+    (file, lead) => {
+      selectionRestoreRef.current?.();
+      selectionRestoreRef.current = startSelectionRestore({
+        file,
+        lead,
+        getSelected: () => selectedRef.current,
+        post: (msg) => {
+          try {
+            iframesRef.current.get(file)?.contentWindow?.postMessage(msg, '*');
+          } catch {}
+        },
+      });
+    },
+    [selectedRef, iframesRef]
+  );
+  useEffect(() => () => selectionRestoreRef.current?.(), []);
   // ----- Inbound messages from iframes -----
   useEffect(() => {
     // Does this comment id belong to the canvas the user is actually looking
@@ -411,7 +430,13 @@ export function useCanvasBridge({
               body: JSON.stringify(body),
             })
               .then(readEditOpAnswer)
-              .then(reply)
+              .then((result) => {
+                reply(result);
+                // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
+                // what differs from it, the size): put the selection back so the canvas probes it again.
+                if (result?.ok && /^text\./.test(body.op) && body.file)
+                  restoreSelectionOn(body.file, RESTORE_LEAD_MS);
+              })
               .catch(() =>
                 reply({
                   ok: false,
@@ -1164,12 +1189,11 @@ export function useCanvasBridge({
             // post is lost on fresh iframes (canvas-switch restore case).
             // S2.22 G2 — a whole artboard (no element id) is put back by its name, so a resize that
             // reloaded the canvas leaves the board selected, with its new size in the inspector.
-            const back = restoreAfterLoad(selectedRef.current, m.file);
             // S2.23: not at 50 ms — a write of the person's own (a drawing, a paste) has the canvas select what it
             // made a beat after it reloads, and this restore must not land on top of that.
-            if (back?.kind === 'element') scheduleHaloRestore(back.sel, RESTORE_LEAD_MS);
-            else if (back?.kind === 'artboard')
-              scheduleArtboardResync(back.artboardId, back.file, RESTORE_LEAD_MS);
+            // S2.24 G2: and what it puts back is read when each rung FIRES, not now — the drawn rectangle's
+            // `select-set` arrives after this `loaded`, and a restore planned for the board dropped it.
+            restoreSelectionOn(m.file, RESTORE_LEAD_MS);
           }
         }
       } else if (m.dgn === 'export-request' && m.id && m.payload) {
@@ -1324,6 +1348,7 @@ export function useCanvasBridge({
     postToActiveCanvas,
     captureFromCanvas,
     gitUser,
+    restoreSelectionOn,
   ]);
 
   // Tell the active canvas iframe to drop any persistent selection (canvas

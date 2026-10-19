@@ -612,7 +612,7 @@ export interface LocalHome {
    * the watcher reads exactly that content it is the person's `edit`, never `outside` and never
    * an AI run's.
    */
-  noteWritten(rel: string, content: string): void;
+  noteWritten(rel: string, content: string, label?: string): void;
   /** S5.5b — the runs this home stages (open and held), no bytes. */
   aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
@@ -698,7 +698,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    * `${canvas}|${lane}` → the studio's own write of that lane (api.ts `source-written` for the
    * source, server.ts `proposeLane` for layout and board — S2.20b), until the watcher reads it.
    */
-  const notes = new Map<string, { hash: string; at: number }>();
+  const notes = new Map<string, { hash: string; at: number; label?: string }>();
   /** canvas slug → its design-root-relative path (the board file is named by the slug). */
   const slugs = new Map<string, string>();
   /** >0 while a proposal made FROM the disk is accepted: the disk already holds it. */
@@ -738,10 +738,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     },
   });
 
-  function noteWritten(rel: string, content: string): void {
+  function noteWritten(rel: string, content: string, label?: string): void {
     const canvas = canvasOfRel(rel);
     if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
-    notes.set(`${canvas}|html`, { hash: hashBytes(content), at: now() });
+    notes.set(`${canvas}|html`, {
+      hash: hashBytes(content),
+      at: now(),
+      ...(label ? { label } : {}),
+    });
   }
 
   /** S2.20b — the studio wrote lane `lane` of the canvas named `slug` (server.ts `proposeLane`). */
@@ -758,7 +762,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     rel: string,
     lane: LocalLane,
     value: string | undefined
-  ): { at: number } | null {
+  ): { at: number; label?: string } | null {
     const k = `${rel}|${lane}`;
     const n = notes.get(k);
     if (!n) return null;
@@ -768,7 +772,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     }
     if (value === undefined || hashBytes(value) !== n.hash) return null;
     notes.delete(k);
-    return { at: n.at };
+    return { at: n.at, ...(n.label ? { label: n.label } : {}) };
   }
 
   /** The canvas a slug names: the ones seen so far, else a walk of the disk. */
@@ -1007,7 +1011,12 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     // its lane like the hub link's `LANE_LABEL`, and a lane nobody noted in the same read stays
     // `outside` in its own action.
     type Group = { ops: unknown[]; seen: Array<[string, string]>; lanes: LocalLane[]; at: number };
-    const edit: Group = { ops: [], seen: [], lanes: [], at: Number.POSITIVE_INFINITY };
+    const edit: Group & { said?: string } = {
+      ops: [],
+      seen: [],
+      lanes: [],
+      at: Number.POSITIVE_INFINITY,
+    };
     const other: Group = { ops: [], seen: [], lanes: [], at: 0 };
     for (const lane of WATCHED_LANES) {
       const v = values[lane];
@@ -1033,7 +1042,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         continue;
       }
       const g = noted ? edit : other;
-      if (noted) g.at = Math.min(g.at, noted.at);
+      if (noted) {
+        g.at = Math.min(g.at, noted.at);
+        // S2.24 G3 — the studio said what the write was (edit-ops/op-label.ts): the row reads it
+        if (noted.label && lane === 'html') edit.said = noted.label;
+      }
       g.ops.push(
         laneHash(base) === headHash
           ? { op: 'lane.replace', doc: live, lane, content: v, base: headHash }
@@ -1045,7 +1058,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     let r: LocalOutcome | null = null;
     if (edit.ops.length) {
       const label = edit.lanes.includes('html')
-        ? STUDIO_LANE_LABEL.html
+        ? (edit.said ?? STUDIO_LANE_LABEL.html)
         : STUDIO_LANE_LABEL[edit.lanes[0]];
       r = await submit(edit.ops, { kind: 'edit', label }, as, { madeAt: edit.at }, true);
       if (r.status === 'accepted') for (const [k, v] of edit.seen) seen.set(k, v);
@@ -2109,10 +2122,15 @@ export function attachLocalHome<S extends SupervisorLike>(
     if (isLocal()) get()?.observe(rel);
   });
   // S5.5b — the studio's own write (api.ts, after it landed): the person's edit, by content.
-  ctx.bus.on('source-written', (p: { rel?: unknown; content?: unknown } | null) => {
-    if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
-    get()?.noteWritten(p.rel, p.content);
-  });
+  ctx.bus.on(
+    'source-written',
+    (p: { rel?: unknown; content?: unknown; label?: unknown } | null) => {
+      if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+      // S2.24 G3: a studio write may say what it was; one line, bounded, so a planted label cannot flood a row
+      const said = typeof p.label === 'string' ? p.label.trim().slice(0, 120) : '';
+      get()?.noteWritten(p.rel, p.content, said || undefined);
+    }
+  );
   // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
   ctx.bus.on('annotations-projected', (p: { slug?: unknown; board?: unknown } | null) => {
     if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;

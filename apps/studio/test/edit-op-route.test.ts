@@ -117,7 +117,12 @@ describe('/_api/edit-op handler', () => {
       ['activity:suppress', 'ui/Home.tsx'],
       [
         'source-written',
-        { rel: 'ui/Home.tsx', content: readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8') },
+        {
+          rel: 'ui/Home.tsx',
+          content: readFileSync(join(designRoot, 'ui', 'Home.tsx'), 'utf8'),
+          // S2.24 G3: and says what it was, so the history row reads it
+          label: 'Paint',
+        },
       ],
     ]);
     expect(snaps).toEqual(['ui/Home.tsx pre-test.paint']);

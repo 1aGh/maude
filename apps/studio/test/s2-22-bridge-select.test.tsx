@@ -19,9 +19,16 @@ afterAll(() => {
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
+import { RESTORE_LEAD_MS } from '../client/selection-scope.js';
+
 const CANVAS_ORIGIN = 'http://canvas.test';
 const FILE = '.design/ui/Site.tsx';
-const win = { name: 'active', postMessage: () => {} };
+const posted: Array<Record<string, unknown>> = [];
+const win = {
+  name: 'active',
+  postMessage: (m: Record<string, unknown>) => void posted.push(m),
+};
+const held: { current: unknown } = { current: null };
 
 const board = (id: string) => ({
   file: FILE,
@@ -51,10 +58,12 @@ afterEach(() => {
   set.length = 0;
   resync.length = 0;
   halo.length = 0;
+  posted.length = 0;
   globalThis.fetch = NativeFetch;
 });
 
 function props(selected: unknown) {
+  held.current = selected;
   const values: Record<string, unknown> = {
     selected,
     layersTree: null,
@@ -64,7 +73,7 @@ function props(selected: unknown) {
     theme: 'light',
     activePath: FILE,
     iframesRef: { current: new Map([[FILE, { contentWindow: win }]]) },
-    selectedRef: { current: selected },
+    selectedRef: held,
     setSelected: (s: unknown) => set.push(s),
     scheduleArtboardResync: (...a: unknown[]) => resync.push(a),
     scheduleHaloRestore: (s: unknown) => halo.push(s),
@@ -131,19 +140,75 @@ describe('select-set reaches the shell whole', () => {
   });
 });
 
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const restores = () => posted.filter((m) => m.dgn === 'select-by-id');
+
 describe('after the canvas reloads, the selection comes back', () => {
-  test('a selected artboard is resynced by its name (a resize reloads the canvas)', async () => {
+  test('a selected artboard is put back by its name (a resize reloads the canvas)', async () => {
     await mount(board('laptop'));
     post({ dgn: 'loaded', file: FILE });
-    expect(resync).toEqual([['laptop', FILE]]);
-    expect(halo).toEqual([]);
+    await act(async () => wait(RESTORE_LEAD_MS + 80));
+    expect(restores()[0]).toEqual({ dgn: 'select-by-id', artboardId: 'laptop' });
   });
 
-  test('a selected element still takes the halo ladder', async () => {
+  test('a selected element goes back by its id, on the ladder', async () => {
     const sel = element('aaaaaaaa');
     await mount(sel);
     post({ dgn: 'loaded', file: FILE });
-    expect(halo).toEqual([sel]);
-    expect(resync).toEqual([]);
+    await act(async () => wait(RESTORE_LEAD_MS + 80));
+    expect(restores()[0]).toEqual({
+      dgn: 'select-by-id',
+      id: 'aaaaaaaa',
+      artboardId: 'a1',
+      index: 0,
+    });
+  });
+
+  test('S2.24 G2: what the canvas selects AFTER `loaded` (a drawn rectangle) is what goes back, not the board', async () => {
+    await mount(board('desktop'));
+    post({ dgn: 'loaded', file: FILE });
+    // the old tree flushes its select-set a beat after the new tree's `loaded`
+    held.current = { ...element('rectangle'), artboardId: 'desktop' };
+    await act(async () => wait(RESTORE_LEAD_MS + 80));
+    const first = restores()[0];
+    expect(first).toEqual({
+      dgn: 'select-by-id',
+      id: 'rectangle',
+      artboardId: 'desktop',
+      index: 0,
+    });
+    expect(restores().some((m) => m.artboardId === 'desktop' && m.id === undefined)).toBe(false);
+  });
+});
+
+describe('S2.24 G1 — a write to the selected text puts the selection back so the canvas probes it again', () => {
+  const OK = { ok: true, actionId: null, writeId: 'w1', rev: 'r1', refs: [] };
+  const editOp = async (op: string) => {
+    const sel = element('aaaaaaaa');
+    await mount(sel);
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify(OK), { status: 200 })) as unknown as typeof fetch;
+    post({
+      dgn: 'edit-op',
+      requestId: 'eo_1',
+      op,
+      targets: [{ artboard: 'a1', element: 'aaaaaaaa' }],
+    });
+    await act(async () => wait(RESTORE_LEAD_MS + 120));
+  };
+
+  test('Reset on the Type section: the inspector gets the selection measured again', async () => {
+    await editOp('text.reset-style');
+    expect(restores()[0]).toEqual({
+      dgn: 'select-by-id',
+      id: 'aaaaaaaa',
+      artboardId: 'a1',
+      index: 0,
+    });
+  });
+
+  test('another kind of write does not touch the selection', async () => {
+    await editOp('object.lock');
+    expect(restores()).toEqual([]);
   });
 });

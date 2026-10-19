@@ -22,7 +22,9 @@ import {
   isArtboardSelectionOf,
   RESTORE_LEAD_MS,
   restoreAfterLoad,
+  restorePostOf,
   shellSelectionOf,
+  startSelectionRestore,
 } from '../client/selection-scope.js';
 import { SelectionSetProvider, useSelectionSet } from '../use-selection-set.tsx';
 
@@ -140,5 +142,66 @@ describe('G2 — the artboard is still selected after the write reloads the canv
     expect(restoreAfterLoad(null, FILE)).toBeNull();
     expect(isArtboardSelectionOf(board('laptop'), 'tablet', FILE)).toBe(false);
     expect(isArtboardSelectionOf(el('x'), 'a1', FILE)).toBe(false);
+  });
+});
+
+describe('S2.24 G2 — the restore reads the selection when it FIRES, not when the canvas said "loaded"', () => {
+  // The drawn rectangle: the old tree flushes its select-set a beat AFTER the new tree's `loaded`. At `loaded` time
+  // the shell still held the artboard, so the restore was planned for the artboard and then dropped as superseded
+  // when the rectangle arrived — the inspector showed the rectangle, the canvas drew no selection on it.
+  test('a selection that arrives after `loaded` is the one that is posted back to the canvas', () => {
+    let held: unknown = board('desktop');
+    const posts: Array<Record<string, unknown>> = [];
+    const fire: Array<() => void> = [];
+    startSelectionRestore({
+      file: FILE,
+      lead: 250,
+      getSelected: () => held,
+      post: (m: Record<string, unknown>) => posts.push(m),
+      timers: {
+        set: (fn: () => void) => {
+          fire.push(fn);
+          return fire.length;
+        },
+        clear: () => {},
+      },
+    });
+    // the rectangle's select-set lands after `loaded` but before the first rung fires
+    held = { ...el('rectangle'), artboardId: 'desktop', index: 0 };
+    for (const f of fire) f();
+    expect(posts.length).toBeGreaterThan(0);
+    for (const p of posts)
+      expect(p).toEqual({ dgn: 'select-by-id', id: 'rectangle', artboardId: 'desktop', index: 0 });
+  });
+
+  test('a whole board goes back by its name, and a multi-selection is left alone', () => {
+    expect(restorePostOf(board('laptop'), FILE)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'laptop',
+    });
+    expect(restorePostOf([el('a'), el('b')], FILE)).toBeNull();
+    expect(restorePostOf(null, FILE)).toBeNull();
+  });
+
+  test('cancelling stops every rung', () => {
+    const posts: unknown[] = [];
+    const fire: Array<() => void> = [];
+    const stop = startSelectionRestore({
+      file: FILE,
+      getSelected: () => board('desktop'),
+      post: (m: unknown) => posts.push(m),
+      timers: {
+        set: (fn: () => void) => {
+          fire.push(fn);
+          return fire.length;
+        },
+        clear: (h: number) => {
+          fire[h - 1] = () => {};
+        },
+      },
+    });
+    stop();
+    for (const f of fire) f();
+    expect(posts).toEqual([]);
   });
 });
