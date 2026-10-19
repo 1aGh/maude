@@ -9,6 +9,21 @@ import { browser } from '@wdio/globals';
  * boot-self-heal (bun install + build) up to ~90 s, so the default timeout is
  * generous. Returns the resolved URL.
  */
+/**
+ * tsx compiles with esbuild's `keepNames`: any named function or `const f = () => ...` inside a function
+ * passed to `browser.execute` is shipped as `__name(f, "f")`, and the page has no `__name` ("Can't find
+ * variable: __name"), which the driver reports as a bare "JavaScript exception". Give the shell window the
+ * one-line helper so a spec's page-side code may declare local helpers.
+ */
+export async function installNameShim(): Promise<void> {
+  await browser
+    .execute(() => {
+      const w = window as unknown as { __name?: unknown };
+      if (!w.__name) w.__name = (f: unknown) => f;
+    })
+    .catch(() => {});
+}
+
 export async function waitForSidecar(timeout = 150_000): Promise<string> {
   let url = '';
   await browser.waitUntil(
@@ -24,6 +39,7 @@ export async function waitForSidecar(timeout = 150_000): Promise<string> {
   );
   // The lane keeps one app across specs: start each with no sheet or popover left open by the last
   // one, and on the Files tab of the left dock.
+  await installNameShim();
   await browser.keys(['Escape', 'Escape']).catch(() => {});
   await browser
     .execute(() => {

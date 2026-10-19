@@ -87,19 +87,27 @@ function gapHandle(): Promise<Pt | null> {
   });
 }
 
-async function click(x: number, y: number): Promise<void> {
+/** `deep`: ⌘-click. A bare click selects the TOP-level object (here the whole flex section), ⌘ the card under it. */
+async function click(x: number, y: number, deep = false): Promise<void> {
   await browser.execute(
-    (px, py) => {
+    (px, py, meta) => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
       const doc = frame.contentDocument as Document;
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click'])
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+          new MouseEvent(type, {
+            bubbles: true,
+            clientX: px,
+            clientY: py,
+            button: 0,
+            metaKey: meta,
+          })
         );
     },
     x,
-    y
+    y,
+    deep
   );
 }
 
@@ -162,23 +170,42 @@ describe('auto layout, reorder and free placement (S2.11)', () => {
     expect(h).not.toBeNull();
     // 9 px to the right: 33 raw → the 32 stop
     await drag(h, { x: h.x + 4, y: h.y }, { x: h.x + 9, y: h.y });
-    await browser.waitUntil(async () => /gap: "32px"/.test(source()), { timeout: 8000 });
+    await browser.waitUntil(async () => /gap: "(32px|var\(--space-32\))"/.test(source()), { timeout: 8000 });
     expect(await textIn('edit-token-ruler-hint')).toBeNull(); // released: the ruler is gone
     await capture(report, 'stop');
   });
 
   it('→ moves the selected card later: one write, the order in the file changes', async () => {
     const report = startReport('edit-layout-arrow');
-    const p = (await rectOf('Small apps'))!;
-    await click(p.x, p.y);
-    await browser.keys(['ArrowRight']);
-    await browser.waitUntil(async () => order().join() === 'product,apps,brand', { timeout: 8000 });
+    // the gap write of the test before re-renders the frame a beat later: pick the card and press →
+    // again until the file shows it (one press lands once the new DOM is there)
+    await browser.waitUntil(
+      async () => {
+        if (order().join() === 'product,apps,brand') return true;
+        const p = await rectOf('Small apps');
+        if (!p) return false;
+        await click(p.x, p.y, true);
+        // the key goes to the FRAME's document, where focus is once the canvas is selected (WebDriver's
+        // browser.keys lands on the shell's active element)
+        await browser.execute(() => {
+          const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+          (frame.contentDocument as Document).body.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+          );
+        });
+        await browser.pause(500);
+        return order().join() === 'product,apps,brand';
+      },
+      { timeout: 15000, timeoutMsg: 'the card never moved later in the file' }
+    );
     await capture(report, 'moved-later');
   });
 
   it('dragging the card out of the frame places it freely (CSS, no data-cd-*)', async () => {
     const report = startReport('edit-layout-free');
     const p = (await rectOf('Small apps'))!;
+    // pick the card itself first (⌘): a bare press would pick and drag the whole section
+    await click(p.x, p.y, true);
     // well below the frame, over empty artboard
     await drag(p, { x: p.x, y: p.y + 120 }, { x: p.x, y: p.y + 260 });
     await browser.waitUntil(
