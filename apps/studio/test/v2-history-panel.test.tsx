@@ -218,10 +218,14 @@ describe('the rows', () => {
   test('before the first change: the Now row and "Versions appear here as you work."', async () => {
     answers.rows = [];
     await mount(<VersionHistoryPanel {...base} />);
-    expect(q('[data-testid="vh-empty"] strong')?.textContent).toBe(
-      'Versions appear here as you work.'
+    // S11.3: the kit's block with the 05 words, and no button — there is nothing to do (no door)
+    const empty = q('[data-testid="vh-empty"]');
+    expect(empty?.getAttribute('data-copy')).toBe('es-panels-canvas.vh-before-first');
+    expect(empty?.querySelector('.es-sit')?.textContent).toBe('Versions appear here as you work.');
+    expect(empty?.querySelector('.es-next')?.textContent).toBe(
+      "Every change is kept on its own. There's nothing to save."
     );
-    expect(q('[data-testid="vh-empty"]')?.textContent).toContain("There's nothing to save.");
+    expect(empty?.querySelector('button')).toBeNull();
     expect(q('[data-testid="vh-now"]')).not.toBeNull();
   });
 
@@ -232,7 +236,8 @@ describe('the rows', () => {
     expect(document.querySelectorAll('.vh-row').length).toBe(1);
     answers.rows = [];
     await click(q('[data-testid="vh-filter-ai"]'));
-    expect(q('[data-testid="vh-empty"] strong')?.textContent).toBe('Nothing made by AI yet.');
+    expect(q('[data-testid="vh-empty"] .es-sit')?.textContent).toBe('Nothing made by AI yet.');
+    expect(q('[data-testid="vh-empty"] button')).toBeNull();
   });
 
   test('a failed read is "Couldn’t load versions" and one button, pressed by hand', async () => {

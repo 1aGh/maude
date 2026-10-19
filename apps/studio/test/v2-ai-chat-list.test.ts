@@ -181,7 +181,8 @@ describe('search: words inside chats, marked', () => {
     expect(v.groups[0].rows[0].title.some((p: { mark: boolean }) => p.mark)).toBe(true);
     expect(v.groups[0].rows[1].via.find((p: { mark: boolean }) => p.mark)?.text).toBe('dres');
     expect(v.foot).toBe('2 results');
-    expect(buildSearchList([], 'zzz', NOW).foot).toBe('Nothing in your chats matches "zzz".');
+    // S11.3: no hits has no foot of its own — the panel keeps counting the chats it searched
+    expect(buildSearchList([], 'zzz', NOW).foot).toBe('');
   });
 });
 

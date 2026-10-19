@@ -43,6 +43,7 @@ import {
   viewingWords,
 } from './use-versions.js';
 import { HistoryGlyph } from './view-bar.jsx';
+import { Empty } from '../empty/index.js';
 
 function Picture({ row }) {
   const p = row.picture;
@@ -494,11 +495,16 @@ export function VersionHistoryPanel({
             <span className="vh-skel" />
           </p>
         ) : empty ? (
-          <div className="vh-empty" data-testid="vh-empty">
-            <HistoryGlyph size={20} />
-            <strong>{filter === 'all' ? W.empty : W.emptyFilter[filter]}</strong>
-            <span>{filter === 'all' ? W.emptyNote : W.emptyFilterNote[filter]}</span>
-          </div>
+          // S11.3: the kit's block. Before the first change it is 05's line (no button: nothing to do); a
+          // filter that matches nothing keeps its own two lines, through the same block.
+          <Empty
+            glyph="history"
+            testid="vh-empty"
+            className="es-e--inpanel"
+            {...(filter === 'all'
+              ? { copyId: 'es-panels-canvas.vh-before-first' }
+              : { title: W.emptyFilter[filter], next: W.emptyFilterNote[filter] })}
+          />
         ) : (
           <div className="vh-list" data-testid="vh-list">
             {groups.map((g) => (

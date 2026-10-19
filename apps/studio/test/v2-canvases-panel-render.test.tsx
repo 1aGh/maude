@@ -319,6 +319,8 @@ describe('an empty folder', () => {
     expect(card?.textContent).toContain('Nothing in 2027 yet.');
     expect(card?.textContent).toContain('Drag canvases in, or start one here.');
     expect(q(host, 'canvases-empty-new')?.textContent).toContain('New canvas in 2027');
+    // S11.3: it is the kit's block, with the 05 words, not ad-hoc markup
+    expect(card?.querySelector('[data-copy="es-panels-canvas.folder-none"]')).not.toBeNull();
     await click(q(host, 'canvases-empty-new'));
     expect(asked).toEqual([[`${ROOT}/2027`, '2027']]);
   });
@@ -365,11 +367,35 @@ describe('search', () => {
     expect(q(host, 'canvases-foot')?.textContent).toBe('6 results · ⌘K searches every project');
   });
 
-  test("nothing found says so in the contract's words", async () => {
+  test("nothing found says so in the contract's words; no AI here, so no second half and no button", async () => {
     const { host } = await mount({ search: 'pricng' });
-    expect(q(host, 'canvases-nothing')?.textContent).toBe(
-      'Nothing called “pricng”. Try another word, or ask AI to find it.'
-    );
+    const none = q(host, 'canvases-nothing');
+    expect(none?.getAttribute('data-copy')).toBe('es-search-panel.panel-search-none');
+    expect(none?.querySelector('.es-sit')?.textContent).toBe('Nothing called “pricng”.');
+    expect(none?.querySelector('.es-next')?.textContent).toBe('Try another word.');
+    expect(none?.querySelector('[data-testid="empty-ask"]')).toBeNull();
+    expect(none?.querySelector('.es-spot')).not.toBeNull();
+    expect(q(host, 'canvases-foot')?.textContent).toBe('Searched 93 canvases and their artboards');
+  });
+
+  test('with AI: "Try another word, or ask AI to find it." and one Ask AI button that hands over the query', async () => {
+    const { bindPaletteEnv } = await import('../client/v2/search/search-env.js');
+    const asked: string[] = [];
+    const unbind = bindPaletteEnv({ canAskAI: () => true, askAI: (t: string) => asked.push(t) });
+    try {
+      const { host } = await mount({ search: ' pricng ' });
+      const none = q(host, 'canvases-nothing');
+      expect(none?.querySelector('.es-next')?.textContent).toBe(
+        'Try another word, or ask AI to find it.'
+      );
+      const btn = none?.querySelector<HTMLElement>('[data-testid="empty-ask"]');
+      expect(btn?.textContent).toBe('Ask AI to find it');
+      expect(none?.querySelectorAll('button')).toHaveLength(1);
+      await click(btn ?? null);
+      expect(asked).toEqual(['pricng']);
+    } finally {
+      unbind();
+    }
   });
 });
 

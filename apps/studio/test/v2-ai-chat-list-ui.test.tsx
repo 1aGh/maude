@@ -267,6 +267,39 @@ describe('search', () => {
   });
 });
 
+describe('search with no hits (05 · es-edge-panels, S11.3)', () => {
+  test('says what was searched, offers a new chat about it, and the foot still counts the chats', async () => {
+    const f = fakeFetch({ '/_api/acp/chats/search': () => Response.json({ hits: [] }) });
+    const m = await mountList({}, f);
+    const input = q('[data-testid="ai-chat-list-search"]') as HTMLInputElement;
+    await m.act(async () => setValue(input, 'tabulka výsledků'));
+    await m.act(async () => tick(250));
+    const e = q('[data-copy="es-edge-panels.chat-search-none"]');
+    expect(e).not.toBeNull();
+    expect(e?.querySelector('.es-sit')?.textContent).toBe('No chat mentions “tabulka výsledků”.');
+    expect(e?.querySelector('.es-next')?.textContent).toBe(
+      'Searched 5 chats in Alligators brand — titles and every message.'
+    );
+    const btn = e?.querySelector<HTMLElement>('[data-testid="empty-ask"]');
+    expect(btn?.textContent).toBe('Start a chat about it');
+    expect(e?.querySelectorAll('button')).toHaveLength(1);
+    expect(q('.ai-cl-foot')?.textContent).toBe('5 chats · kept with the project');
+    await m.act(async () => m.root.unmount());
+  });
+
+  test('"Start a chat about it" hands the words to a new chat', async () => {
+    const f = fakeFetch({ '/_api/acp/chats/search': () => Response.json({ hits: [] }) });
+    const started: string[] = [];
+    const m = await mountList({ onStartChat: (t: string) => started.push(t) }, f);
+    const input = q('[data-testid="ai-chat-list-search"]') as HTMLInputElement;
+    await m.act(async () => setValue(input, 'zzz'));
+    await m.act(async () => tick(250));
+    await m.act(async () => q('[data-testid="empty-ask"]')?.click());
+    expect(started).toEqual(['zzz']);
+    await m.act(async () => m.root.unmount());
+  });
+});
+
 // ── Advanced ────────────────────────────────────────────────────────────────────────────────────────
 const MODES = {
   currentModeId: 'default',

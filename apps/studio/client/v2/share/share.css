@@ -141,6 +141,10 @@
     padding: 0;
     list-style: none;
   }
+  /* S11.3 — "Only you on …" sits under your own row, aligned with the names above it */
+  .v2sh-alone {
+    padding: var(--space-3) var(--space-2) var(--space-1);
+  }
   .v2sh-pp {
     position: relative;
     display: flex;

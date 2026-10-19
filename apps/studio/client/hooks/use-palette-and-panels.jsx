@@ -818,6 +818,10 @@ export function usePaletteAndPanels({
           // (read-only, `/_config.canComment`) resolves / reopens / deletes its own through the op door.
           {...commentActions}
           me={meName}
+          // S11.3 (05 · es-panels-canvas / es-viewer): "Share for feedback" where this session can share; the
+          // viewer's empty line names the people who see a comment right away
+          onShare={viewerMode ? undefined : () => showShare()}
+          viewer={viewerMode}
           artboardLabel={labelOfArtboard}
           resizing={resizingFor('comments')}
         />

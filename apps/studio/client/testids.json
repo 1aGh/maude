@@ -992,7 +992,7 @@
     "hook": "comments-empty",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Comments panel empty state; names the empty filter (\"No open comments.\").",
+    "meaning": "The Comments panel empty state (the kit's block): \"No comments on {canvas} yet.\" / \"All done.\" (the only confetti) / a plain line for an empty Mine or Resolved. `data-copy` names the 05 line.",
     "producer": {
       "file": "apps/studio/client/v2/comments/comments-panel.jsx",
       "symbol": "CommentsPanel"
@@ -1001,6 +1001,20 @@
     "consumers": [
       "apps/studio/test/v2-comments-panel-render.test.tsx"
     ],
+    "v2": "new"
+  },
+  {
+    "hook": "comments-share",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Comments, no comments yet: \"Share for feedback\" — opens the Share sheet; absent where the host cannot share (a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": [],
+    "sourceConsumers": [],
     "v2": "new"
   },
   {
@@ -5111,7 +5125,7 @@
     "hook": "share-people-empty",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The people list when nobody else has access.",
+    "meaning": "Under your own row in the Share sheet when nobody else is on the project: \"Only you on {project} so far.\" (no button). `data-copy` is es-edge-panels.share-alone.",
     "producer": {
       "file": "apps/studio/client/v2/share/people-list.jsx",
       "symbol": "PeopleList"
@@ -6338,6 +6352,20 @@
     "region": "other",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-search-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chat list, search with no hits: \"No chat mentions …\" with the number of chats searched and \"Start a chat about it\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
   },
   {
     "hook": "ai-chat-row-<id>",
@@ -12288,7 +12316,7 @@
     "hook": "palette-empty",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The “Nothing called …” empty state.",
+    "meaning": "The ⌘K no-hits block: the spot beside \"Nothing called …\". `data-copy` is es-search-k.search-none.",
     "producer": {
       "file": "apps/studio/client/dialogs/command-palette.jsx",
       "symbol": "CommandPalette"
@@ -13396,7 +13424,7 @@
     "hook": "canvases-nothing",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The \"Nothing called …\" line when the panel search finds nothing.",
+    "meaning": "The \"Nothing called …\" block when the panel search finds nothing (the kit's block, spot + words; Ask AI only where AI is on). `data-copy` is es-search-panel.panel-search-none.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
       "symbol": "CanvasesPanel"
@@ -15350,7 +15378,7 @@
     "hook": "vh-empty",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The empty state: \"Versions appear here as you work.\" (or the filter's own line).",
+    "meaning": "Version history before the first change (the kit's block, no button) or an empty filter. `data-copy` is es-panels-canvas.vh-before-first for the first.",
     "producer": {
       "file": "apps/studio/client/v2/history/history-panel.jsx",
       "symbol": "VersionHistoryPanel"

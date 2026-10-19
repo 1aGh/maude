@@ -11,6 +11,7 @@
 
 import { useCallback, useState } from 'react';
 
+import { Empty } from '../empty/index.js';
 import { RoleMenu } from './role-menu.jsx';
 import { countLine, roleWord } from './share-model.js';
 
@@ -20,13 +21,20 @@ export function PeopleList({ rows, canChange, roles, makeOwner, scopeName, busy,
   const [open, setOpen] = useState(null);
   // One stable callback: the menu's focus effect keys on it.
   const closeMenu = useCallback(() => setOpen(null), []);
-  if (!rows.length) {
-    return (
-      <p className="v2sh-hint" data-testid="share-people-empty">
-        Nobody else has access yet.
-      </p>
-    );
-  }
+  // 05 · es-edge-panels: nobody but you (or nobody listed at all) is the reason to invite — a quiet line under
+  // your own row. The Invite row above stays the one door; this block adds no button.
+  const alone = rows.every((r) => r.you);
+  const aloneBlock = alone ? (
+    <Empty
+      glyph="people"
+      align="left"
+      className="v2sh-alone"
+      copyId="es-edge-panels.share-alone"
+      vars={{ project: scopeName }}
+      testid="share-people-empty"
+    />
+  ) : null;
+  if (!rows.length) return aloneBlock;
   return (
     <div className="v2sh-ppl" data-testid="share-people">
       <p className="v2sh-ppl-h">{countLine(rows)}</p>
@@ -102,6 +110,7 @@ export function PeopleList({ rows, canChange, roles, makeOwner, scopeName, busy,
           );
         })}
       </ul>
+      {aloneBlock}
     </div>
   );
 }

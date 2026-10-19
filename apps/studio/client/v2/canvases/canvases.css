@@ -386,15 +386,24 @@
     gap: var(--space-1);
     padding-right: var(--space-2);
   }
-  .cv-empty-title {
-    margin: 0;
-    font-size: var(--type-sm);
-    color: var(--fg-0);
+  /* S11.3 — the kit's block, folded into the tree: left-aligned under its folder, panel-sized words */
+  .cv-empty .es-e--fold {
+    gap: var(--space-1);
+    align-items: flex-start;
+    text-align: left;
   }
-  .cv-empty-body {
-    margin: 0;
+  .cv-empty .es-e--fold .es-sit {
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+  }
+  .cv-empty .es-e--fold .es-next {
     font-size: var(--type-xs);
+    line-height: var(--lh-xs);
     color: var(--fg-2);
+  }
+  .cv-empty .es-e--fold .es-acts {
+    margin: 0;
+    justify-content: flex-start;
   }
   .cv-empty-action {
     appearance: none;

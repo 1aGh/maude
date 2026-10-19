@@ -156,6 +156,18 @@
     padding: var(--space-5) var(--space-4);
     text-align: left;
   }
+  /* S11.3 — 05 · es-search-k: the spot beside the two lines (a palette is wide, not tall) */
+  .st-pal-none--spot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-5) var(--space-2) var(--space-3);
+  }
+  .st-pal-txt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
   .st-pal-sit {
     font-size: var(--type-sm);
     font-weight: 600;
