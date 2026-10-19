@@ -247,8 +247,16 @@ const HOLD_TEXT_MAX = 120;
 const HOLDS_MAX = 256;
 const holdText = (v) => typeof v === 'string' && v.length > 0 && v.length <= HOLD_TEXT_MAX;
 
+/** S2.19 — the ring tag of a ⌘/ ask on `n` elements: a fixed phrase and a count, never a word of the prompt. */
+export const scopeTag = (n) => `AI is working on ${n} ${n === 1 ? 'element' : 'elements'}`;
+
+const holdKey = (o) =>
+  `${o?.artboard}\u0000${o?.element}\u0000${Number.isInteger(o?.occurrence) ? o.occurrence : ''}`;
+/** The keys of the elements a run was ASKED about (its scope's `elements`), not the ones it touched since. */
+const askedKeys = (r) => new Set((r?.scope?.elements || []).map(holdKey));
+
 /**
- * `[{artboard, element, occurrence?, tag, mine}]` — the objects running / needs-you runs hold on the open
+ * `[{artboard, element, occurrence?, tag, mine, scope?}]` — the objects running / needs-you runs hold on the open
  * canvas (a run's `objects`). The tag is the ring's fixed phrase (v2-lead-neutral-ai-ring-tags): built from
  * the state and the holder's NAME only. A run's label (its prompt), question and progress line never reach
  * the canvas — it is the untrusted side (DDR-054). One row per object; your run wins a shared object.
@@ -256,7 +264,7 @@ const holdText = (v) => typeof v === 'string' && v.length > 0 && v.length <= HOL
 export function holdsFor(view, { activeCanvas, entryOf } = {}) {
   const out = [];
   const seen = new Set();
-  const add = (o, tag, mine) => {
+  const add = (o, tag, mine, scoped = false) => {
     if (out.length >= HOLDS_MAX || !o || !onCanvas(o, activeCanvas, entryOf)) return;
     if (!holdText(o.artboard) || !holdText(o.element)) return;
     const occ =
@@ -272,13 +280,20 @@ export function holdsFor(view, { activeCanvas, entryOf } = {}) {
       ...(occ !== undefined ? { occurrence: occ } : {}),
       tag,
       mine,
+      ...(scoped ? { scope: true } : {}),
     });
   };
   const holding = (s) => s === 'running' || s === 'needs-you';
   for (const r of view?.mine || []) {
     if (!r || !holding(r.state)) continue;
+    // S2.19 — a ⌘/ ask on a selection: the asked elements are ONE outline on the canvas, tagged with how many
+    const asked = askedKeys(r);
     const tag = r.state === 'needs-you' ? TAG_NEEDS_YOU : TAG_WORKING;
-    for (const o of r.objects || []) add(o, tag, true);
+    const askedTag = r.state === 'needs-you' ? TAG_NEEDS_YOU : scopeTag(asked.size);
+    for (const o of r.objects || []) {
+      const hit = asked.has(holdKey(o));
+      add(o, hit ? askedTag : tag, true, hit);
+    }
   }
   for (const o of view?.others || []) {
     if (!o || !holding(o.state)) continue;
