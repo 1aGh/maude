@@ -42,3 +42,12 @@ export function openToolPanel(
     /* detached / cross-origin teardown */
   }
 }
+
+/**
+ * The panel arming `now` opens when the tool was `was` (S4.19, canvas 15 `an-templates`): Section (S) opens the
+ * Templates panel above the toolbar, whichever way it was armed (key, button, tool-set). Only the CHANGE asks, so
+ * a boot on Section, a re-arm of Section and every other tool are quiet.
+ */
+export function panelOnArm(was: string, now: string): SlotPanel | null {
+  return now === 'section' && was !== 'section' ? 'templates' : null;
+}

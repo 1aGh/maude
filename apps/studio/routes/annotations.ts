@@ -204,6 +204,26 @@ function arrowHost(board: AnnotationElement[], stickyId: string): Host | null {
   return null;
 }
 
+/**
+ * The ops a sticky -> comment conversion writes (S4.19, canvas 15 `an-convert`): the sticky goes to the trash and so
+ * does every arrow that was ITS arrow. The thread now sits where that arrow pointed (§3.3), so the arrow has said
+ * its piece, and re-binding it to the new pin is not on offer (a bind names a board element or an artboard, never a
+ * comment). Left alone it kept a loose start. An arrow somebody else drew AT the sticky stays: the dangling card
+ * (S4.11) is how that one is meant to read. One batch, so one undo puts the sticky and its arrows back.
+ */
+export function convertOps(
+  board: readonly AnnotationElement[],
+  stickyId: string
+): Array<{ op: 'delete'; id: string }> {
+  const ids = [stickyId];
+  for (const el of board) {
+    if (el.type !== 'arrow') continue;
+    const a = el as AnnotationElement & { start?: { el?: string } };
+    if (a.start?.el === stickyId) ids.push(el.id);
+  }
+  return ids.map((id) => ({ op: 'delete' as const, id }));
+}
+
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 /** A foreign reply on any of `ids` — the person who wrote it, else null. */
@@ -374,7 +394,7 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             return { ok: false, status: 409, body: { ok: false, reason: 'invalid' } };
           return {
             ok: true,
-            ops: [{ op: 'delete', id }],
+            ops: convertOps(board, id),
             comments: added.list as Comment[],
             result: { commentId: added.comment.id },
           };

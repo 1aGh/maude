@@ -33,6 +33,7 @@ import {
   twoWayPatch,
 } from './annotations/ui/arrow-kinds.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
+import { LOCKED_LINE } from './annotations/ui/locked.tsx';
 import { SECTION_TONES } from './annotations/ui/section-fold.ts';
 import { postToShell } from './annotations/ui/shell-asks.ts';
 import { flipPatch, isGallerySticker } from './annotations/ui/sticker-drop.ts';
@@ -42,6 +43,7 @@ import {
   type ArrowLineType,
   type ConvertibleShapeKind,
   convertShapeKind,
+  DEFAULT_FONT_SIZE,
   FILL_PALETTE,
   type ListType,
   STICKY_PALETTE,
@@ -161,6 +163,17 @@ const FONT_SIZE_PRESETS: ReadonlyArray<{ px: number; label: string }> = [
   { px: 36, label: 'Extra large' },
   { px: 64, label: 'Huge' },
 ];
+/** S4.19 - a sticky's five front papers (canvas 15 `an-sticky`); the other five sit behind "+5". */
+// Read at render time, never at module top level: annotations-layer and this file import each other.
+const stickyPapersFront = (): readonly string[] => STICKY_PALETTE.slice(0, 5);
+const stickyPapersRest = (): readonly string[] => STICKY_PALETTE.slice(5);
+/** A sticky's Small..Huge: its Medium is the sticky's own default size, so a fresh sticky reads "Medium". */
+const stickySizes = (): ReadonlyArray<{ px: number; label: string }> =>
+  FONT_SIZE_PRESETS.map((p) => (p.label === 'Medium' ? { ...p, px: DEFAULT_FONT_SIZE } : p));
+/** The size select's value: the preset's px, a custom px kept as itself, or `mixed`. */
+export function stickySizeValue(px: number | undefined): string {
+  return px == null ? 'mixed' : String(px);
+}
 const FONT_SIZE_MIN = 8;
 const FONT_SIZE_MAX = 200;
 
@@ -373,6 +386,20 @@ const TOOLBAR_CSS = `
   font-variant-numeric: tabular-nums;
 }
 .dc-annot-ctx-fs-val { font-size: 12px; }
+/* S4.19 - the sticky's Small to Huge size select (canvas 15 an-sticky). */
+.dc-annot-ctx-sel {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.dc-annot-ctx-sel:hover { background: rgba(255,255,255,0.12); }
+.dc-annot-ctx-sel option { color: #111; }
 .dc-annot-ctx-fs-menu {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -488,6 +515,8 @@ export function AnnotationContextToolbar({
   // auto-reverts to 'stroke' whenever caps.fill is false so the toggle
   // can't get stranded on a hidden mode after the selection changes type.
   const [swatchMode, setSwatchMode] = useState<SwatchMode>('stroke');
+  // S4.19 - a sticky's five front papers; "+5" opens the rest in place.
+  const [papersMore, setPapersMore] = useState(false);
 
   const selectedStrokes = useMemo<Stroke[]>(() => {
     if (!annotSel || !store) return [];
@@ -511,6 +540,7 @@ export function AnnotationContextToolbar({
         arrowDir: false,
         dash: false,
         shapeKind: false,
+        stickyBar: false,
       };
     }
     // Wave H — polygons (diamond / triangle) are full shapes: fill + stroke
@@ -549,6 +579,10 @@ export function AnnotationContextToolbar({
       fontSize: fontSizeApplicable,
       arrowDir: allArrow,
       dash: allDashable,
+      // S4.19 (canvas 15 an-sticky, lead decision v2-lead-sticky-toolbar-follows-canvas): a selection of only
+      // stickies gets the sticky's own small toolbar - papers, a Small-Huge size, list, Lock - not the text
+      // cluster. The sticky's face stays fixed: no B/I/S/U, no alignment.
+      stickyBar: selectedStrokes.every((s) => s.tool === 'sticky'),
       // Wave H — the shape-kind switcher (square/rounded/circle/diamond/
       // triangle conversion) shows when EVERY selected stroke is a closed
       // shape. Conversions keep ids, so anchored text + binds follow.
@@ -880,7 +914,42 @@ export function AnnotationContextToolbar({
         style={{ display: 'flex', top: -9999, left: -9999 }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {lockBtn}
+        {allLocked ? (
+          // S4.19 G5 (canvas 15 an-layers): "Locked · Unlock ⇧⌘L", the words the shell list speaks too.
+          <span
+            data-testid="annotation-locked-toolbar"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <span
+              className="dc-annot-ctx-label"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '0 6px 0 8px',
+                fontSize: 12,
+                opacity: 0.85,
+              }}
+            >
+              <IconLock size={12} />
+              {LOCKED_LINE.label}
+            </span>
+            <div className="dc-annot-ctx-sep" />
+            <button
+              type="button"
+              className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+              data-testid="annot-ctx-unlock"
+              aria-label="Unlock selection"
+              title="Unlock (⌘⇧L)"
+              onClick={() => store.setLocked(annotSel.selectedIds, false)}
+            >
+              {LOCKED_LINE.action}
+              <span style={{ marginLeft: 6, opacity: 0.6 }}>{LOCKED_LINE.kbd}</span>
+            </button>
+          </span>
+        ) : (
+          lockBtn
+        )}
       </div>
     );
   }
@@ -1274,8 +1343,12 @@ export function AnnotationContextToolbar({
     selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'section'
       ? selectedStrokes[0]
       : null;
+  const activeRest = allSticky && uniqColor != null && stickyPapersRest().includes(uniqColor);
+  const papersOpen = papersMore || activeRest;
   const showPalette = allSticky
-    ? STICKY_PALETTE
+    ? papersOpen
+      ? STICKY_PALETTE
+      : stickyPapersFront()
     : allSection
       ? SECTION_TONES.map((t) => t.value)
       : effectiveMode === 'stroke'
@@ -1361,6 +1434,18 @@ export function AnnotationContextToolbar({
               onClick={() => onSwatchClick(c)}
             />
           ))}
+          {allSticky && !papersOpen ? (
+            <button
+              type="button"
+              className="dc-annot-ctx-ibtn"
+              data-testid="annot-sticky-paper-more"
+              aria-label={`${stickyPapersRest().length} more papers`}
+              title="All papers"
+              onClick={() => setPapersMore(true)}
+            >
+              +{stickyPapersRest().length}
+            </button>
+          ) : null}
         </div>
       )}
       {caps.thickness && effectiveMode === 'stroke' ? (
@@ -1388,7 +1473,52 @@ export function AnnotationContextToolbar({
           </button>
         </>
       ) : null}
-      {caps.fontSize ? (
+      {caps.stickyBar ? (
+        <>
+          <div className="dc-annot-ctx-sep" />
+          <select
+            className="dc-annot-ctx-sel"
+            data-testid="annot-sticky-size"
+            aria-label="Text size"
+            title="Text size"
+            value={stickySizeValue(uniqFontSize)}
+            onChange={(e) => {
+              const px = Number(e.target.value);
+              if (Number.isFinite(px) && px > 0) setFontSize(px);
+            }}
+          >
+            {uniqFontSize != null && !stickySizes().some((p) => p.px === uniqFontSize) ? (
+              <option value={String(uniqFontSize)}>{uniqFontSize} px</option>
+            ) : null}
+            {uniqFontSize == null ? <option value="mixed">Mixed</option> : null}
+            {stickySizes().map((p) => (
+              <option key={p.px} value={String(p.px)}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn"
+            data-testid="annot-sticky-list"
+            aria-label="List"
+            aria-pressed={uniqListType === 'bullet' || uniqListType === 'number'}
+            title="List - bullets, then numbers, then off"
+            onClick={() =>
+              setListType(
+                uniqListType === 'bullet'
+                  ? 'number'
+                  : uniqListType === 'number'
+                    ? undefined
+                    : 'bullet'
+              )
+            }
+          >
+            {uniqListType === 'number' ? <IconListOrdered /> : <IconListBullet />}
+          </button>
+        </>
+      ) : null}
+      {caps.fontSize && !caps.stickyBar ? (
         <>
           <div className="dc-annot-ctx-sep" />
           <FontSizeDropdown value={uniqFontSize} onPick={setFontSize} />

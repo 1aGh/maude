@@ -20,6 +20,7 @@ import {
   dropSticker,
   flipPatch,
   isGallerySticker,
+  pendingFor,
   placementOf,
   replacePatch,
   STAMPS_PACK,
@@ -440,5 +441,25 @@ describe('stamps on the canvas gather into clusters', () => {
     expect(card.textContent).toContain('on Směr B');
     expect(card.querySelectorAll('[data-testid="annot-stamp-card-row"]')).toHaveLength(5);
     expect(card.textContent).toContain('You'); // Jonas, the signed-in person, reads "You"
+  });
+});
+
+describe('S4.19 G2 - a pick arms placement from any Preview tool', () => {
+  test('the ghost follows visibility alone, never the active tool (Hand has no draw tool)', () => {
+    const stamp = { kind: 'stamp', stampKind: 'yes' } as const;
+    expect(pendingFor(stamp, true)).toBe(stamp);
+    expect(pendingFor(stamp, false)).toBeNull();
+    expect(pendingFor(null, true)).toBeNull();
+  });
+  test('the layer hands the ghost pendingFor(), not an isActive gate', () => {
+    const src = require('node:fs').readFileSync(
+      require('node:path').join(import.meta.dir, '..', 'annotations-layer.tsx'),
+      'utf8'
+    ) as string;
+    const at = src.indexOf('<PlacementGhost');
+    expect(at).toBeGreaterThan(0);
+    const tag = src.slice(at, at + 200);
+    expect(tag).toContain('pending={pendingFor(placing, visible)}');
+    expect(tag).not.toContain('isActive');
   });
 });
