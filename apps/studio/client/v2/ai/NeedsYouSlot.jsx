@@ -82,7 +82,7 @@ function useWaitingQuestions({ conn, chatId, away, requests }) {
           id: nid,
           canvas: conn.askCanvas,
           line: r.line,
-          onOpen: () => openAiChat(chatId),
+          onOpen: () => openAiChat(chatId, { canvas: conn.askCanvas }),
         })
       );
     }

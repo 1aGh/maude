@@ -11,8 +11,14 @@
 /** Open the AI chat panel on a chat. The shell listens (lead patch); ChatPanel switches to the chat. */
 export const OPEN_AI_EVENT = 'maude:open-ai';
 
-export function openAiChat(chatId, target = globalThis) {
-  target.dispatchEvent?.(new CustomEvent(OPEN_AI_EVENT, { detail: { chat: chatId ?? null } }));
+/**
+ * `canvas` (optional, S5.18 G4): the canvas the chat is about. A "needs you" toast's Open lands on the canvas that
+ * needs you, not just the chat — the shell opens it (app.jsx, same event).
+ */
+export function openAiChat(chatId, { canvas = null, target = globalThis } = {}) {
+  target.dispatchEvent?.(
+    new CustomEvent(OPEN_AI_EVENT, { detail: { chat: chatId ?? null, canvas: canvas || null } })
+  );
 }
 
 /** ".design/ui/Uniformy-2027.tsx" → "Uniformy-2027". */
