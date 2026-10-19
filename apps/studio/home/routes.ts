@@ -31,7 +31,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-
+import { nameFromPrompt } from '../canvas-create.ts';
 import { fold } from '../index/match.ts';
 import { DIST_DIR } from '../paths.ts';
 import { serveClientAsset, serveFile, serveIndexHtml } from '../static-lane.ts';
@@ -370,8 +370,12 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
       handle: async (req) => {
         const b = await readBody(req);
         if (!b.ok) return b.res;
+        // S6.4 (Q4/Q6): "a new project" from the sentence is named by the same non-AI C4 rule as the
+        // first canvas; an explicit `name` still wins.
+        const body = (b.value ?? {}) as { name?: unknown; fromPrompt?: unknown };
         const r = createLocalProject(
-          (b.value as { name?: unknown } | null)?.name,
+          body.name ??
+            (body.fromPrompt === undefined ? undefined : nameFromPrompt(body.fromPrompt).project),
           deps.projectsDir
         );
         return r.ok ? json(200, r) : json(r.status, r);
