@@ -4713,6 +4713,136 @@
     "v2": "new"
   },
   {
+    "hook": "access-view-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dark tip a view-only person sees when an edit does nothing: \"You can look at <canvas>, not change it.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/access/ask-to-edit.jsx",
+      "symbol": "ViewOnlyTip"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-requests",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The owner's open Ask to edit requests at the top of Share (only when the hub reports `requests` and the session may invite).",
+    "producer": {
+      "file": "apps/studio/client/v2/access/ask-to-edit.jsx",
+      "symbol": "RequestBlocks"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-request-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One request block: \"<name> asks to edit <canvas>\" · \"<ago> · can view it now\"; `<id>` is the hub request id.",
+    "producer": {
+      "file": "apps/studio/client/v2/access/ask-to-edit.jsx",
+      "symbol": "RequestBlocks"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-request-approve-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Let <name> edit — the owner approves (POST /_api/share/requests/:id/approve).",
+    "producer": {
+      "file": "apps/studio/client/v2/access/ask-to-edit.jsx",
+      "symbol": "RequestBlocks"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-request-decline-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Not now — the owner declines (POST /_api/share/requests/:id/decline).",
+    "producer": {
+      "file": "apps/studio/client/v2/access/ask-to-edit.jsx",
+      "symbol": "RequestBlocks"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "access-ended",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The access-ended card: \"You no longer have access to <project>.\" (removed or expired).",
+    "producer": {
+      "file": "apps/studio/client/v2/access/access-card.jsx",
+      "symbol": "AccessEndedCard"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "access-ended-home",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Back to Home on the access-ended card.",
+    "producer": {
+      "file": "apps/studio/client/v2/access/access-card.jsx",
+      "symbol": "AccessEndedCard"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "access-link-off",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The link-off card: \"This link was turned off.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/access/link-off-card.jsx",
+      "symbol": "LinkOffCard"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-trashed-banner",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The trashed-while-open banner: \"<who> moved <canvas> to the trash · <ago>\" (writes stop).",
+    "producer": {
+      "file": "apps/studio/client/v2/access/trashed-banner.jsx",
+      "symbol": "TrashedBanner"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-trashed-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Restore on the trashed-while-open banner (POST /_api/trash/restore).",
+    "producer": {
+      "file": "apps/studio/client/v2/access/trashed-banner.jsx",
+      "symbol": "TrashedBanner"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "share-error",
     "kind": "testid",
     "pattern": false,

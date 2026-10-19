@@ -1,0 +1,119 @@
+/* client/v2/access/access.css — S9.21: the view-only tip, the owner's request block, the access-ended and
+ * link-off cards, the trashed-while-open banner (10 co-ask-edit · co-access-ends · co-browser-view · co-trashed).
+ * Every class is namespaced `v2ac-`. Tokens only; motion is `--dur-*` (the reduced-motion collapse shortens it). */
+
+@layer shell {
+  .v2ac-tip {
+    position: absolute;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 280px;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--fg-0);
+    color: var(--bg-0);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+    animation: st-pop var(--dur-soft) var(--ease-out);
+  }
+  .v2ac-tip-s {
+    opacity: 0.72;
+  }
+
+  .v2ac-reqs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .v2ac-req {
+    display: grid;
+    gap: 2px var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--bg-3);
+  }
+  .v2ac-req-t {
+    color: var(--fg-0);
+    font-weight: 500;
+  }
+  .v2ac-req-s {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .v2ac-req-a {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .v2ac-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: color-mix(in oklch, var(--bg-0) 64%, transparent);
+  }
+  .v2ac-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    width: min(340px, calc(100vw - 2 * var(--space-4)));
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    animation: st-pop var(--dur-route) var(--ease-out);
+  }
+  .v2ac-card-ic {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .v2ac-card-t {
+    margin: 0;
+    font-weight: 600;
+  }
+  .v2ac-card-b {
+    margin: 0;
+    color: var(--fg-1);
+  }
+
+  .v2ac-banner {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    translate: -50% 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    max-width: calc(100vw - 2 * var(--space-4));
+  }
+  .v2ac-banner-ic {
+    color: var(--fg-1);
+  }
+  .v2ac-banner-t {
+    display: flex;
+    flex-direction: column;
+    color: var(--fg-0);
+  }
+  .v2ac-banner-t > span {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+}
