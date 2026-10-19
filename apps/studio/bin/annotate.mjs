@@ -37,12 +37,14 @@ import {
   flowToOps,
   NODE_FILL,
   NODE_INK,
+  withDefaultTones,
 } from '../annotations/board-ops.ts';
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import { TEMPLATES, templateBoard } from '../annotations/templates.ts';
 import { STICKERS_DIR } from '../paths.ts';
 import { PostOpsError, postOps } from './_annotate-post.mjs';
+import { loadMetaLayout, resolveArtboards } from './_canvas-rects-static.mjs';
 import {
   canvasRelFromArg,
   fileSlug,
@@ -115,6 +117,8 @@ ${describeTypes()}
                     inside; "radial" = a centre topic with cards ringed around it;
                     "flow" = nodes/edges as in --flow. connections: [{from,to,label?}]
                     between minted refs (@sec<i>, @sec<i>card<j>, @center, @idea<i>).
+                    A group may carry tone (grey|yellow|green|coral|sky|lilac) or color (#hex);
+                    a column board naming neither gets grey / yellow / green by position.
 
 Shortcut flags (combine with any of the above, or use alone — alone, stdin is not read;
 add --ops - to also read ops from it):
@@ -128,6 +132,8 @@ add --ops - to also read ops from it):
 Votes, ballots and stamps are people's own: the verb refuses to write them.
 
 Placement (creates without x/y, and whole --flow/--board layouts):
+  (none)              a whole --flow/--board layout lands in FREE space: clear of the canvas's
+                      artboards (read from its source + .meta.json) and of existing annotations.
   --near <artboard>   beside the artboard (right of it)
   --in <artboard>     inside the artboard (top-left + 40px). Unknown id = error.
   --pin <cdId|sel>    beside a DOM element from a --rects manifest; a created
@@ -242,6 +248,7 @@ function buildPlacement(batch, artboards, elements, placement) {
   // --near stays lenient (an unmatched id falls through).
   let origin = { x: 100, y: 100 };
   let pinnedEl = null;
+  let implicit = false;
   if (placement.in) {
     const board = artboards.find((r) => r.id === placement.in);
     if (!board) fail(`--in: unknown artboard "${placement.in}"`, 2);
@@ -258,6 +265,7 @@ function buildPlacement(batch, artboards, elements, placement) {
     const nearBoard = placement.near ? artboards.find((r) => r.id === placement.near) : null;
     if (nearBoard) origin = { x: nearBoard.x + nearBoard.w + 80, y: nearBoard.y };
     else {
+      implicit = true;
       let maxX = Number.NEGATIVE_INFINITY;
       let minY = Number.POSITIVE_INFINITY;
       for (const el of batch.scene.childrenOf(null)) {
@@ -274,9 +282,74 @@ function buildPlacement(batch, artboards, elements, placement) {
     cursor: { ...origin },
     pinnedEl,
     pointer: placement.pointer !== false,
+    implicit,
     artboards,
     elements,
   };
+}
+
+/** Stable JSON — object keys sorted, so two specs compare by content, not by key order. */
+function stableJson(v) {
+  return JSON.stringify(v, (_k, x) =>
+    x && typeof x === 'object' && !Array.isArray(x)
+      ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : x
+  );
+}
+
+/** Is this spec exactly one of the starter templates' boards? */
+function isTemplateSpec(spec) {
+  const mine = stableJson(spec);
+  return TEMPLATES.some((t) => stableJson(t.board) === mine);
+}
+
+const FREE_GAP = 80;
+
+/**
+ * The relative extent of a whole-layout (--flow / --board) op list — the box its flowX/boardX
+ * offsets span from the placement origin. Null when no op carries an offset.
+ */
+function relativeBounds(ops) {
+  let x0 = Number.POSITIVE_INFINITY;
+  let y0 = Number.POSITIVE_INFINITY;
+  let x1 = Number.NEGATIVE_INFINITY;
+  let y1 = Number.NEGATIVE_INFINITY;
+  for (const op of ops) {
+    const x = op.boardX ?? op.flowX;
+    if (x === undefined) continue;
+    const y = op.boardY ?? op.flowY ?? 0;
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x + (Number.isFinite(op.w) ? op.w : 0));
+    y1 = Math.max(y1, y + (Number.isFinite(op.h) ? op.h : 0));
+  }
+  return Number.isFinite(x0) ? { x0, y0, x1, y1 } : null;
+}
+
+/**
+ * A whole layout placed without --near/--in/--pin must land in FREE space: never on an artboard,
+ * never on an existing top-level annotation. Starting from the default origin, slide the layout
+ * right past whatever it would cover until nothing is under it (bounded; every step clears at
+ * least one obstacle, so it ends on the far side of the busiest column).
+ */
+function freeOrigin(pl, batch, rel) {
+  const obstacles = pl.obstacleBoards.map((r) => ({ x: r.x, y: r.y, w: r.w, h: r.h }));
+  for (const el of batch.scene.childrenOf(null)) {
+    const b = batch.worldBox(el.id);
+    if (b) obstacles.push(b);
+  }
+  let { x, y } = pl.origin;
+  const hit = (o) =>
+    x + rel.x0 < o.x + o.w + FREE_GAP / 2 &&
+    o.x < x + rel.x1 + FREE_GAP / 2 &&
+    y + rel.y0 < o.y + o.h + FREE_GAP / 2 &&
+    o.y < y + rel.y1 + FREE_GAP / 2;
+  for (let i = 0; i <= obstacles.length; i += 1) {
+    const blocker = obstacles.filter(hit).sort((a, b) => b.x + b.w - (a.x + a.w))[0];
+    if (!blocker) break;
+    x = blocker.x + blocker.w + FREE_GAP - rel.x0;
+  }
+  return { x, y };
 }
 
 /** A per-op "in"/"near"/"pin" override — the same rules as the flags, for one op. */
@@ -502,6 +575,18 @@ async function prepareStickers(ops, { root, designRel, write }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+/** The canvas's artboards from its source + meta, with no browser — [] when it can't be read. */
+function canvasArtboards(designRoot, canvasRel) {
+  try {
+    const abs = resolve(designRoot, canvasRel);
+    if (!existsSync(abs)) return [];
+    const meta = abs.replace(/\.(tsx|html)$/i, '.meta.json');
+    return resolveArtboards(readFileSync(abs, 'utf8'), loadMetaLayout(meta));
+  } catch {
+    return [];
+  }
+}
+
 // Main — the write is the live server's op endpoint (_annotate-post.mjs), else a direct
 // canonical file write.
 
@@ -555,6 +640,10 @@ async function main() {
     elements = loadElements(rectsPath);
     if (!artboards.length) artboards = loadArtboards(rectsPath);
   }
+  // Geometry for FREE-SPACE placement only: the passed artboards, else the canvas's own (JSX sizes
+  // + .meta.json positions, the merge `canvas-rects` falls back to). Kept apart from `artboards`
+  // so a note's host lookup still depends on the geometry the caller actually passed.
+  const obstacleBoards = artboards.length ? artboards : canvasArtboards(designRoot, canvasRel);
 
   // Canvas hosts (`ab:` / `el:` bound ends) are looked up in the geometry the caller passed; the
   // artboards also let a new note ride with the artboard its centre lands on (contract S4 Q3).
@@ -577,6 +666,17 @@ async function main() {
     args.board == null &&
     (args.sticker != null || args.wrapSection != null || args.resolve != null);
 
+  // A whole layout lands where nothing is: slide it clear of artboards and existing notes.
+  const placeLayout = (rel) => {
+    const b = pl.implicit ? relativeBounds(rel) : null;
+    if (b) {
+      pl.obstacleBoards = obstacleBoards;
+      pl.origin = freeOrigin(pl, batch, b);
+      pl.cursor = { ...pl.origin };
+    }
+    return applyOriginOffset(rel, pl.origin);
+  };
+
   let ops;
   let sectionId = null;
   let resolvedIds = null;
@@ -584,11 +684,14 @@ async function main() {
     if (flagOnly) {
       ops = [];
     } else if (args.flow != null) {
-      ops = applyOriginOffset(flowToOps(parseJsonInput(readInput(args.flow), '--flow')), pl.origin);
+      ops = placeLayout(flowToOps(parseJsonInput(readInput(args.flow), '--flow')));
     } else if (args.board != null) {
-      ops = applyOriginOffset(
-        boardToOps(templateBoard(args.board) ?? parseJsonInput(readInput(args.board), '--board')),
-        pl.origin
+      const template = templateBoard(args.board);
+      const spec = template ?? parseJsonInput(readInput(args.board), '--board');
+      // A starter template's own spec (by id or as a file) stays colourless, so the panel and the
+      // verb expand the same board; any other column board gets a tone per column.
+      ops = placeLayout(
+        boardToOps(template || isTemplateSpec(spec) ? spec : withDefaultTones(spec))
       );
     } else {
       const payload = parseJsonInput(readInput(args.ops), '--ops');

@@ -33,6 +33,8 @@ interface Card {
 interface Group {
   title?: unknown;
   color?: unknown;
+  /** A named column tone ({@link SECTION_TONES}); an explicit `color` wins over it. */
+  tone?: unknown;
   cards?: unknown;
 }
 
@@ -155,6 +157,55 @@ function cardColor(card: unknown): string | undefined {
   return typeof c === 'string' ? c : undefined;
 }
 
+/**
+ * Column tones — the names canvas 15 draws a section in (`.an-sec--<tone>`), as the hex a section
+ * stores. `grey` is the section default, so a grey column reads like an untoned one.
+ */
+export const SECTION_TONES = Object.freeze({
+  grey: '#8b8b94',
+  yellow: '#e0b92e',
+  green: '#4caf72',
+  coral: '#e57b66',
+  sky: '#4f9fd8',
+  lilac: '#9b7fd1',
+}) as Readonly<Record<string, string>>;
+
+/** The order the default ramp walks the tones in: a progress board reads grey → yellow → green. */
+const TONE_RAMP = ['grey', 'yellow', 'green', 'sky', 'lilac', 'coral'];
+
+/** A group's section colour: its explicit hex, else its named tone, else none (the model default). */
+function groupColor(g: Group): string | undefined {
+  if (typeof g.color === 'string') return g.color;
+  if (g.tone === undefined || g.tone === null) return undefined;
+  const hex = typeof g.tone === 'string' ? SECTION_TONES[g.tone] : undefined;
+  if (!hex) {
+    throw new BoardSpecError(
+      `board: unknown tone ${JSON.stringify(g.tone)} (one of ${Object.keys(SECTION_TONES).join(', ')})`
+    );
+  }
+  return hex;
+}
+
+/**
+ * A hand-written column board that names no colour or tone anywhere gets a tone per column (the
+ * canvas draws a plan grey / yellow / green) — the verb applies it to agent-composed JSON only. A
+ * starter template is not passed through here: it carries no colours, so the panel and the verb
+ * keep expanding the very same board.
+ */
+export function withDefaultTones(spec: Record<string, unknown>): Record<string, unknown> {
+  const groups = Array.isArray(spec.groups) ? (spec.groups as Group[]) : null;
+  if (!groups || groups.length < 2 || spec.layout === 'radial' || spec.layout === 'flow')
+    return spec;
+  if (groups.some((g) => !g || typeof g !== 'object' || g.color != null || g.tone != null))
+    return spec;
+  // Three or fewer: first grey, last green, a yellow between; more walks the ramp in order.
+  const tones =
+    groups.length <= 3
+      ? groups.map((_, i) => (i === 0 ? 'grey' : i === groups.length - 1 ? 'green' : 'yellow'))
+      : groups.map((_, i) => TONE_RAMP[i % TONE_RAMP.length] as string);
+  return { ...spec, groups: groups.map((g, i) => ({ ...g, tone: tones[i] })) };
+}
+
 const cardsOf = (g: Group | null | undefined): unknown[] =>
   Array.isArray(g?.cards) ? (g?.cards as unknown[]) : [];
 
@@ -176,7 +227,7 @@ function boardColumns(groups: Group[]): BoardOp[] {
       type: 'section',
       ref: `@sec${i}`,
       text: typeof g.title === 'string' && g.title ? g.title : `Group ${i + 1}`,
-      color: typeof g.color === 'string' ? g.color : undefined,
+      color: groupColor(g),
       boardX: colX,
       boardY: 0,
       w: BOARD_COL_W,
