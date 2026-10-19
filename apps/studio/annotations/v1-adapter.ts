@@ -83,6 +83,7 @@ function shared(el: AnnotationElement): Partial<Stroke> {
   const res = el.resolved as { by?: unknown; at?: unknown } | undefined;
   if (el.type === 'sticky' && res && typeof res.by === 'string' && typeof res.at === 'string')
     out.resolved = { by: res.by, at: res.at };
+  if (el.type === 'sticky' && typeof el.at === 'string') out.at = el.at;
   if (el.type === 'section' && el.folded === true) out.folded = true;
   const src = el.source as { kind?: unknown; author?: unknown } | undefined;
   if (src && typeof src.kind === 'string')
@@ -299,7 +300,7 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
 const ARROW_STROKE_EXT: ReadonlySet<string> = new Set(['startHost', 'endHost', 'label']);
 /** S4.12 — extension fields whose stroke view is the truth, per element type (a removal there is real). */
 const STROKE_EXT_OWNED: Readonly<Record<string, ReadonlySet<string>>> = {
-  sticky: new Set(['resolved', 'source']),
+  sticky: new Set(['at', 'resolved', 'source']),
   section: new Set(['folded', 'source']),
 };
 

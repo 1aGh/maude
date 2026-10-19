@@ -2369,6 +2369,7 @@ export function AnnotationsLayer() {
           text: '',
           fontSize: DEFAULT_FONT_SIZE,
           cornerRadius: STICKY_CORNER_RADIUS,
+          at: new Date().toISOString(), // S4.13 — when it was made (the author line's "2 h ago")
           ...(collab?.myName ? { authorName: collab.myName, authorId: collab.myConnId } : null),
         });
       } else if (tool === 'section') {

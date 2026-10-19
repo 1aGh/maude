@@ -14,6 +14,7 @@ import {
   boxOf,
   ROT_FIELD,
   resizeBox,
+  isoTimeField,
   resolvedField,
   solidBoxHit,
   textStyleFields,
@@ -31,8 +32,9 @@ export const sticky: ElementDef = {
     radius: num({ min: 0, max: 200, dp: 1, def: STICKY_RADIUS }),
     ...textStyleFields('left'),
   },
-  // Format 2 (R5): who resolved it, and when — absent = open.
-  ext: { resolved: resolvedField() },
+  // Format 2 (R5): who resolved it, and when — absent = open; `at` is when it was made (local clock, ISO;
+  // absent on a sticky from before it existed: the author line then shows the name only).
+  ext: { at: isoTimeField(), resolved: resolvedField() },
   caps: {
     box: true,
     rotatable: true,
@@ -239,7 +241,15 @@ export function relativeTime(iso: string, now: number): string {
   const h = Math.floor(min / 60);
   if (h < 24) return `${h} h ago`;
   const d = Math.floor(h / 24);
+  if (d >= 8) return absoluteTime(t);
   return d === 1 ? 'yesterday' : `${d} d ago`;
+}
+
+/** CONTRACT §4 absolute form: "6 Oct, 14:05" (24-hour, local). */
+function absoluteTime(t: number): string {
+  const d = new Date(t);
+  const month = d.toLocaleString('en-GB', { month: 'short' });
+  return `${d.getDate()} ${month}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /** The author line under a sticky (cell 5): "Jonas · 2 h ago"; the time is left out when it is not known. */

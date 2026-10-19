@@ -73,6 +73,7 @@ function fmt(s: {
 function extras(s: Stroke): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (s.tool === 'sticky' && s.resolved) out.resolved = s.resolved;
+  if (s.tool === 'sticky' && s.at) out.at = s.at;
   if (s.tool === 'section' && s.folded) out.folded = true;
   if (s.source) out.source = s.source;
   return out;

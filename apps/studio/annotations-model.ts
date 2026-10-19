@@ -105,6 +105,8 @@ interface StrokeBase {
    * from the UI is a real write and a removal is real. Not serialized into the legacy SVG.
    */
   resolved?: { by: string; at: string };
+  /** S4.13 — when a sticky was made (ISO, local clock). The stroke view of the element's `at` (format-2 ext); the author line reads "Jonas · 2 h ago" from it. */
+  at?: string;
   /** S4.12 — a section folded to its title chip + count. The stroke view of the element's `folded`. */
   folded?: true;
   /** S4.12 — where an imported element came from (`figjam`, `comment`, …). Read-only in the UI. */

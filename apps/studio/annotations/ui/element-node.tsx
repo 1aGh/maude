@@ -277,7 +277,11 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const isAi = a?.kind === 'ai';
   // S4.12 — a hand-rotated sticky keeps its angle; the rest tilt a little, from the id, and lie flat while typed in.
   const rot = num(el.rot) || (edit ? 0 : tiltOf(el.id));
-  const line = authorLine({ name: authorName, ai: isAi, me: mine }, null, 0);
+  const line = authorLine(
+    { name: authorName, ai: isAi, me: mine },
+    typeof el.at === 'string' ? el.at : null,
+    Date.now()
+  );
   const origin = provenanceLine(el.source);
   const doneLine =
     resolved && typeof resolved.by === 'string'

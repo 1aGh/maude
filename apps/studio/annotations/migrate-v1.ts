@@ -223,6 +223,7 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
         locked: s.locked === true ? true : undefined,
         // S4.12 — the stroke view of Resolve / Fold / an import's origin (annotations/v1-adapter.ts).
         resolved: s.tool === 'sticky' ? s.resolved : undefined,
+        at: s.tool === 'sticky' ? s.at : undefined,
         folded: s.tool === 'section' && s.folded === true ? true : undefined,
         source: s.source,
       } as Record<string, unknown>,
