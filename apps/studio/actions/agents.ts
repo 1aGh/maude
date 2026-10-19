@@ -122,6 +122,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     server: { route: '/_api/sync/resync', method: 'POST' },
   },
+  // S11.17 — lands the canvas writes a full disk held (they also land by themselves once there is room).
+  // An agent's own writes go straight to the files; it frees space and may press Retry the same way.
+  'save.retry-held': {
+    effect: 'project',
+    agent: cli(
+      'maude design curl-local -X POST http://127.0.0.1:<port>/_api/diagnostics/disk-retry'
+    ),
+    minRole: 'edit',
+    server: { route: '/_api/diagnostics/disk-retry', method: 'POST' },
+  },
   'sync.download-all': {
     effect: 'none',
     agent: human('hub-link', 'pulls every file of a linked project onto this Mac'),

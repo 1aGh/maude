@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "a0d7e610c6a5",
+  "manifestVersion": "b7a0478a5ef8",
   "actions": [
     {
       "id": "search.open",
@@ -4783,6 +4783,22 @@
         "format": "annotations",
         "skill": "design:whiteboard",
         "how": "add the record’s `mine` to <slug>.annotations.json under a NEW id, to the right of the element; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
+      }
+    },
+    {
+      "id": "save.retry-held",
+      "label": "Retry saving",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/diagnostics/disk-retry"
+      },
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/diagnostics/disk-retry",
+        "method": "POST"
       }
     },
     {
