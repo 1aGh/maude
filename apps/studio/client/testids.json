@@ -21016,6 +21016,19 @@
     "v2": "new"
   },
   {
+    "hook": "share-join-as",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This link › New people join as — the role the Invite row pre-selects (this browser, per project; S9.20b).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "share-link-off",
     "kind": "testid",
     "pattern": false,
@@ -21111,6 +21124,19 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The hub address this project syncs to (read-only input).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-syncs-last",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Where it syncs › Last synced — the sync runtime's own lastSyncAt; absent when it has none (S9.20b).",
     "producer": {
       "file": "apps/studio/client/v2/share/share-advanced.jsx",
       "symbol": "ShareAdvanced"

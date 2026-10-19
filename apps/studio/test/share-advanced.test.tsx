@@ -9,6 +9,9 @@
 //    Move to cloud, sends the window's own POST, follows the move and opens on Invite once linked;
 //  · ⌘K Link settings… / File › Share on GitHub… open the sheet on their row (one-shot focus);
 //  · ob-settings: Plan "Free trial · N days left", Manage on <host>, the five account pages.
+//  · S9.20b: "New people join as" sets the role the Invite row pre-selects (this browser, per
+//    project; storage that throws falls back to Can edit) — the invite still sends its own role;
+//    "Last synced" is the sync runtime's `lastSyncAt`, and no line is drawn without one.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
@@ -30,10 +33,16 @@ import { AccountBlock, planWords } from '../client/v2/settings/account.jsx';
 import {
   advancedView,
   expiresAtFor,
+  JOIN_AS_FALLBACK,
+  joinAsKey,
+  lastSyncedAt,
+  readJoinAs,
   requestShareFocus,
   sheetView,
+  writeJoinAs,
 } from '../client/v2/share/share-model.js';
 import { ShareSheet } from '../client/v2/share/share-sheet.jsx';
+import { whenWords } from '../client/v2/sync-states/sync-states-model.js';
 
 const copiedText: string[] = [];
 const NOW = Date.UTC(2026, 9, 19, 12);
@@ -95,7 +104,10 @@ function stubApi(over: Record<string, unknown> = {}) {
     },
     me: () => ok(over.me ?? OWNER_ME),
     people: () => ok({ people: [{ id: 'u_me', name: 'michal', role: 'owner', email: 'm@a.cz' }] }),
-    invite: () => ok({ id: 'inv' }, 201),
+    invite: (b: unknown) => {
+      calls.push(['invite', b]);
+      return ok({ id: 'inv' }, 201);
+    },
     resend: () => ok({}),
     revoke: () => ok(null, 204),
     setRole: () => ok({ ok: true }),
@@ -124,6 +136,10 @@ function stubApi(over: Record<string, unknown> = {}) {
     githubInvite: (u: string) => {
       calls.push(['githubInvite', u]);
       return ok({ ok: true, username: u });
+    },
+    syncStatus: () => {
+      calls.push(['syncStatus']);
+      return ok(over.sync ?? { linked: true, state: 'online', lastSyncAt: null });
     },
   };
   return { api, calls };
@@ -445,5 +461,95 @@ describe('Settings › General › Account (ob-settings)', () => {
       'Trial ended · Choose a plan to keep editing'
     );
     expect(planWords(null)).toBeNull();
+  });
+});
+
+describe('S9.20b — New people join as (the Invite row default, this browser)', () => {
+  const KEY = joinAsKey({ hub: HUB, project: 'Alligators brand' }) as string;
+  afterEach(() => {
+    try {
+      localStorage.removeItem(KEY);
+    } catch {
+      /* happy-dom storage */
+    }
+  });
+
+  test('the row sets the role Invite pre-selects, is remembered per project, and the invite sends its own role', async () => {
+    const a = await mount({ posture: ROLES_V2 });
+    await openAdvanced(a.q);
+    const row = a.q('share-join-as') as HTMLSelectElement;
+    expect(row).not.toBeNull();
+    expect(row.value).toBe('member'); // nothing remembered → Can edit
+    expect((a.q('share-invite-role') as HTMLSelectElement).value).toBe('member');
+    await pick(row, 'viewer');
+    expect((a.q('share-invite-role') as HTMLSelectElement).value).toBe('viewer');
+    expect(localStorage.getItem(KEY)).toBe('viewer');
+
+    // the invite carries its explicit role (the server checks it — no hub default field exists)
+    await pick(a.q('share-invite-email'), 'lukas@example.com');
+    const form = a.q('share-invite') as HTMLFormElement;
+    const key = Object.keys(a.q('share-invite-email') as object).find((k) =>
+      k.startsWith('__reactProps')
+    ) as string;
+    await act(async () => {
+      await (form as unknown as Record<string, { onSubmit: (e: unknown) => unknown }>)[
+        key
+      ].onSubmit({ preventDefault() {} });
+    });
+    await tick();
+    const sent = a.calls.find((c) => c[0] === 'invite');
+    expect(sent?.[1]).toMatchObject({ email: 'lukas@example.com', role: 'viewer' });
+
+    act(() => root?.unmount());
+    host?.remove();
+    const b = await mount({ posture: ROLES_V2 });
+    expect((b.q('share-invite-role') as HTMLSelectElement).value).toBe('viewer');
+  });
+
+  test('only where the link rules are drawn (the owner, a hub with links)', async () => {
+    const m = await mount({ posture: ROLES_V2, me: MEMBER_ME });
+    await openAdvanced(m.q);
+    expect(m.q('share-join-as')).toBeNull();
+  });
+
+  test('storage that is missing or throws falls back to Can edit; a role an invite cannot give is ignored', () => {
+    const throwing = {
+      getItem() {
+        throw new Error('blocked');
+      },
+      setItem() {
+        throw new Error('blocked');
+      },
+    } as unknown as Storage;
+    expect(readJoinAs(KEY, throwing)).toBe(JOIN_AS_FALLBACK);
+    expect(JOIN_AS_FALLBACK).toBe('member');
+    expect(() => writeJoinAs(KEY, 'viewer', throwing)).not.toThrow();
+    const box = new Map<string, string>([[KEY, 'owner']]);
+    const mapStore = {
+      getItem: (k: string) => box.get(k) ?? null,
+      setItem: (k: string, v: string) => void box.set(k, v),
+    } as unknown as Storage;
+    expect(readJoinAs(KEY, mapStore)).toBe('member');
+    writeJoinAs(KEY, 'owner', mapStore);
+    expect(box.get(KEY)).toBe('owner'); // untouched: owner is never written
+    expect(readJoinAs(null, mapStore)).toBe('member');
+  });
+});
+
+describe('S9.20b — Last synced under Where it syncs', () => {
+  test("the sync runtime's lastSyncAt, in the CONTRACT clock", async () => {
+    const at = NOW - 2 * DAY;
+    const { q } = await mount({ posture: ROLES_V2, sync: { linked: true, lastSyncAt: at } });
+    await openAdvanced(q);
+    expect(q('share-syncs-last')?.textContent).toBe(whenWords(at, NOW));
+  });
+
+  test('no time the runtime knows → no line', async () => {
+    const { q } = await mount({ posture: ROLES_V2, sync: { linked: false } });
+    await openAdvanced(q);
+    expect(q('share-syncs-hub')).not.toBeNull();
+    expect(q('share-syncs-last')).toBeNull();
+    expect(lastSyncedAt({ linked: true, lastSyncAt: 'yesterday' })).toBeNull();
+    expect(lastSyncedAt(null)).toBeNull();
   });
 });

@@ -940,6 +940,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `share-link-who` | testid | This link › Who can open (Team only · Anyone with the link). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-link-role` | testid | This link › Role (Can view · Can comment; a team link grants nothing, so it is off there). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-link-expires` | testid | This link › Expires (Never · In 7 days · In 30 days). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-join-as` | testid | This link › New people join as — the role the Invite row pre-selects (this browser, per project). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20b) |
 | `share-link-off` | testid | Turn off the link the sheet made (`PATCH /_api/share/links/:id {off}`). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-github` | testid | Share › Advanced › Invite by GitHub username (desktop; takes over project.share-github). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-github-username` | testid | The GitHub username field. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
@@ -948,6 +949,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `share-github-error` | testid | GitHub refused the invite, in its words. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-syncs` | testid | Share › Advanced › Where it syncs. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-syncs-hub` | testid | The hub address this project syncs to (read-only input). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-syncs-last` | testid | Where it syncs › Last synced — the sync runtime's own `lastSyncAt`; absent when it has none. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20b) |
 | `share-copy-hub` | testid | Copy the hub address. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-role-matrix` | testid | The roles side by side (cloud) — columns are the roles the hub reports. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
 | `share-hub-roles` | testid | Roles on this hub (self-hosted). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |

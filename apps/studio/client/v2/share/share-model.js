@@ -29,6 +29,47 @@ export const roleWord = (role) => ROLE_WORDS[role]?.word ?? '';
 export const GRANTABLE = Object.freeze(['member', 'viewer', 'observer']);
 
 /**
+ * S9.20b (decision v2-lead-new-people-join-as-client-default) — "New people join as": the role the
+ * Invite row pre-selects, remembered per project in THIS browser. A convenience only: the hub has no
+ * default-role field, and every invite still sends its explicit role, which the server checks.
+ * Storage may be missing or throw (private window, blocked site data) — then it is Can edit.
+ */
+const JOIN_AS_PREFIX = 'maude.share.join-as:';
+export const JOIN_AS_FALLBACK = 'member';
+
+/** The storage key for one project: its hub address when linked, else its name. */
+export function joinAsKey({ hub, project } = {}) {
+  const id = (typeof hub === 'string' && hub) || (typeof project === 'string' && project) || '';
+  return id ? `${JOIN_AS_PREFIX}${id}` : null;
+}
+
+/** The remembered role, if it is one an invite may give; else Can edit. */
+export function readJoinAs(key, storage = globalThis.localStorage) {
+  if (!key) return JOIN_AS_FALLBACK;
+  try {
+    const v = storage?.getItem(key);
+    return GRANTABLE.includes(v) ? v : JOIN_AS_FALLBACK;
+  } catch {
+    return JOIN_AS_FALLBACK;
+  }
+}
+
+export function writeJoinAs(key, role, storage = globalThis.localStorage) {
+  if (!key || !GRANTABLE.includes(role)) return;
+  try {
+    storage?.setItem(key, role);
+  } catch {
+    /* storage blocked: the choice lasts while the sheet is open */
+  }
+}
+
+/** The newest sync the runtime knows (`/_sync-status` `lastSyncAt`), or null — never a guess. */
+export function lastSyncedAt(status) {
+  const t = status?.linked === false ? null : status?.lastSyncAt;
+  return typeof t === 'number' && Number.isFinite(t) && t > 0 ? t : null;
+}
+
+/**
  * The posture to draw when the hub cannot be asked: the narrowest one every hub supports (a
  * self-hosted hub's), so nothing is offered that a hub could not hold.
  */
@@ -335,5 +376,7 @@ export function shareApi(fetchImpl = (...a) => fetch(...a)) {
     moveToCloud: (name) => go('POST', '/_api/cloud/move', name ? { name } : {}),
     moveState: () => go('GET', '/_api/cloud/move'),
     githubInvite: (username) => go('POST', '/_api/github/invite', { username }),
+    // S9.20b — "Last synced": the sync runtime's own status (project class; absent = no line)
+    syncStatus: () => go('GET', '/_sync-status'),
   };
 }

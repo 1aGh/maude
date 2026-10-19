@@ -2,19 +2,26 @@
 // fold as 06 Advanced ad-share, row for row).
 //
 //   This link          Who can open · Role · Expires        ← the owner, where the hub has links
+//                      New people join as                   ← the Invite row's default (S9.20b)
 //   Other ways in      App link · This Mac only (· Web link)
 //                      Invite by GitHub username            ← the desktop (takes over project.share-github)
-//   Where it syncs     Hub <address> · "Sync details live in Menu › Diagnostics › Sync."
+//   Where it syncs     Hub <address> · Last synced <when> · "Sync details live in Menu › Diagnostics › Sync."
 //   The roles          side by side (cloud) — or the roles THIS hub holds (self-hosted)
 //
 // What is drawn comes from `advancedView` (share-model.js), i.e. from what the server reports.
 // Every change is the server's to allow: a rule change is `PATCH /_api/share/links/:id`, which
 // routes/share.ts refuses below owner before the hub hears it — and the hub refuses too.
+//
+// "New people join as" (decision v2-lead-new-people-join-as-client-default) is a convenience of
+// THIS browser: it sets the role the Invite row pre-selects, remembered per project. The hub has no
+// default-role field; every invite still sends its explicit role, which the server checks.
+// "Last synced" is the sync runtime's own `lastSyncAt` (`/_sync-status`); absent, no line is drawn.
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
+import { whenWords } from '../sync-states/sync-states-model.js';
 import { copyShareLink } from './link-dialog.js';
 import {
   errorWords,
@@ -22,6 +29,7 @@ import {
   LINK_ROLES,
   LINK_WHO,
   ROLE_MATRIX,
+  ROLE_WORDS,
   roleWord,
 } from './share-model.js';
 
@@ -205,6 +213,9 @@ export function ShareAdvanced({
   busy,
   api,
   focus,
+  joinAs,
+  lastSynced,
+  now,
 }) {
   const [open, setOpen] = useFold('share');
   useEffect(() => {
@@ -247,6 +258,16 @@ export function ShareAdvanced({
             disabled={busy}
             onChange={(v) => onRule({ expires: v })}
           />
+          {joinAs && joinAs.roles.length > 0 && (
+            <Pick
+              id="share-join-as"
+              label="New people join as"
+              value={joinAs.role}
+              options={joinAs.roles.map((r) => [r, ROLE_WORDS[r]?.word ?? roleWord(r)])}
+              disabled={busy}
+              onChange={(v) => joinAs.onChange(v)}
+            />
+          )}
           {made && (
             <button
               type="button"
@@ -293,6 +314,14 @@ export function ShareAdvanced({
             testid="share-syncs-hub"
             copyTestid="share-copy-hub"
           />
+          {Number.isFinite(lastSynced) && lastSynced > 0 && (
+            <div className="v2sh-arow">
+              <span className="v2sh-arow-k">Last synced</span>
+              <span className="v2sh-arow-v" data-testid="share-syncs-last">
+                {whenWords(lastSynced, now ?? Date.now())}
+              </span>
+            </div>
+          )}
           <p className="v2sh-hint">Sync details live in Menu › Diagnostics › Sync.</p>
         </section>
       )}

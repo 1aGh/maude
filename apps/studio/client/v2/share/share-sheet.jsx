@@ -31,11 +31,15 @@ import {
   DEFAULT_LINK_RULES,
   errorWords,
   expiresAtFor,
+  joinAsKey,
+  lastSyncedAt,
   peopleRows,
+  readJoinAs,
   roleWord,
   shareApi,
   sheetView,
   takeShareFocus,
+  writeJoinAs,
 } from './share-model.js';
 
 function RemoveDialog({ row, scopeName, onCancel, onConfirm }) {
@@ -108,11 +112,21 @@ export function ShareSheet({
   const [focus] = useState(() => takeShareFocus());
   const [postureAsk, setPostureAsk] = useState(0);
   const [moving, setMoving] = useState(null);
+  // S9.20b — "New people join as" (this browser, per project) and "Last synced" (the sync runtime)
+  const [joinAs, setJoinAs] = useState(null);
+  const [lastSynced, setLastSynced] = useState(null);
   const emailRef = useRef(null);
   const sheetRef = useModalFocus({ onClose });
 
   const view = sheetView({ posture, me, target, project, scope });
   const canvas = view.canvas;
+  const joinKey = joinAsKey({ hub: posture?.hub, project });
+  const joinRole = joinAs ?? readJoinAs(joinKey);
+  const inviteDefault = view.inviteRoles.includes(joinRole) ? joinRole : view.defaultInviteRole;
+  const pickJoinAs = (role) => {
+    setJoinAs(role);
+    writeJoinAs(joinKey, role);
+  };
 
   // `postureAsk` asks again once a Move to cloud has linked the project.
   // biome-ignore lint/correctness/useExhaustiveDependencies: postureAsk is the re-ask trigger
@@ -128,6 +142,19 @@ export function ShareSheet({
       live = false;
     };
   }, [api, postureAsk]);
+
+  // "Last synced" — read once the project is known to sync somewhere; no answer, no line.
+  const linkedHere = view.linked;
+  useEffect(() => {
+    if (!linkedHere || typeof api.syncStatus !== 'function') return undefined;
+    let live = true;
+    api.syncStatus().then((r) => {
+      if (live) setLastSynced(r?.ok ? lastSyncedAt(r.body) : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, linkedHere]);
 
   // A move in progress: follow it, and ask the posture again once the project is linked.
   const moveState = moving?.state;
@@ -372,7 +399,7 @@ export function ShareSheet({
           <InviteRow
             ref={emailRef}
             roles={view.inviteRoles}
-            defaultRole={view.defaultInviteRole}
+            defaultRole={inviteDefault}
             busy={busy}
             onInvite={invite}
           />
@@ -454,6 +481,13 @@ export function ShareSheet({
           busy={busy}
           api={api}
           focus={focus}
+          joinAs={
+            adv.rules
+              ? { role: inviteDefault, roles: view.inviteRoles, onChange: pickJoinAs }
+              : null
+          }
+          lastSynced={lastSynced}
+          now={now}
         />
 
         {confirm && (
