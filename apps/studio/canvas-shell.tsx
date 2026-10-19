@@ -2858,6 +2858,13 @@ function CanvasRouter({
           // Plan C — Edit menu (shell) bridges to the in-canvas undo stack. S2.20b — on the op log
           // the iframe keeps no stack: the key goes back to the shell's projection.
           canvasUndoKey(id === 'edit.redo');
+        } else if (
+          id === 'tool.key' &&
+          (params as { key?: unknown } | undefined)?.key === 'L' &&
+          canvasModeStore(window).get().mode === 'present'
+        ) {
+          // S3.14 (G7) - L in Present is the Pointer's, and present/pointer-dot.tsx hears this very message
+          // itself: replaying the key as well toggled the dot on and straight off again.
         } else if (replayToolKey(id, params)) {
           // V2-4.5b — a toolbar key pressed with the shell focused; the router decides.
         } else if (drawToolOfAction(id)) {
