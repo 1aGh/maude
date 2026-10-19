@@ -14,6 +14,7 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { startFirstDraft } from '../create/first-draft.js';
 import { voteStore } from '../annotations/vote-store.js';
 import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
@@ -101,6 +102,10 @@ export function createMenuHandlers(d) {
       createBlankCanvas({ toast: d.toast });
     },
     'canvas.new-brief': () => openBriefBoardComposer(d),
+    // S6.3: Home's "Ask AI for a new canvas…" — a canvas from one sentence, drafted by AI in a new chat.
+    'home.ask': (params) => {
+      if (typeof params?.prompt === 'string') startFirstDraft(params.prompt, { toast: d.toast });
+    },
     // IdentityBar owns the create dialog's state; it hears this the way it hears the native menu.
     'project.new': () => {
       if (!d.native) {

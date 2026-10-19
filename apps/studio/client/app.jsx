@@ -233,6 +233,7 @@ import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { AskSelectionHost } from './v2/ai/AskSelectionHost.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
+import { IntentHost } from './v2/create/intent-host.jsx';
 import { useOnline } from './v2/empty/use-empty-canvas.js';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
@@ -3052,6 +3053,8 @@ function ShellTree() {
           <ViewBarHost activePath={activePath} />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
           <EmptyHost />
+          {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}
+          <IntentHost />
           {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}
           <AskSelectionHost />
           {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}

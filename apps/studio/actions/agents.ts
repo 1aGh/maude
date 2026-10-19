@@ -136,6 +136,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.new-brief': TSX(
     'Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
   ),
+  // S6.3 — a canvas from one sentence: the agent writes the new .tsx itself (V2-1.1 §5.9: `file:'canvas-tsx'`).
+  'home.ask': TSX(
+    'Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)'
+  ),
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),

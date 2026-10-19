@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { $, browser, expect } from '@wdio/globals';
@@ -37,6 +37,10 @@ import {
  *  9. S6.7: a sign-in nudge with a state no attempt owns, and a malformed invite link, reach
  *     nobody (the project tab in front stays in front); a well-formed `maude://invite/<id>`
  *     fired while a project tab is in front brings Home forward, parked for Home only.
+ * 10. S6.3: an intent Home parks for a project (`open_project {intent}`) is taken ONCE by that
+ *     window: a `create-empty` intent makes one canvas in the target tab and a reload makes
+ *     no second; an unknown kind is refused before anything is parked. (The `create-canvas`
+ *     step — a sentence, a fake ACP agent — rides S6.8's fake-ACP lane.)
  *
  * Fixtures: wdio.home.conf.ts → fixtures/seed-home-index.ts.
  */
@@ -426,5 +430,39 @@ export default function C() {
     expect([id, null]).toContain(first.ok);
     expect((await tryInvoke('take_pending_invite')).ok).toBeNull();
     await capture('09-invite-link-on-home');
+  });
+  it('10 · a parked create-empty intent is taken once by the target tab; an unknown kind is refused', async () => {
+    const canvases = () =>
+      (readdirSync(join(BETA.root, '.design'), { recursive: true }) as string[]).filter(
+        (f) => /\.(tsx|jsx)$/.test(f) && !f.split('/').some((seg) => seg.startsWith('_'))
+      ).length;
+    const before = canvases();
+    await newHomeTab();
+    await onHome();
+    // A kind the shell does not know never gets parked (Rust `validate_intent`).
+    const bad = await tryInvoke('open_project', {
+      pid: BETA.pid,
+      intent: { kind: 'rm-rf', prompt: '' },
+    });
+    expect(bad.err).toBeTruthy();
+    expect(canvases()).toBe(before);
+    // create-empty: BETA is open, so its tab comes forward and makes ONE blank canvas.
+    const r = await tryInvoke('open_project', {
+      pid: BETA.pid,
+      intent: { kind: 'create-empty', prompt: '' },
+    });
+    expect(r.err).toBeUndefined();
+    await homeStaysAnd(label(BETA));
+    await onServer(label(BETA));
+    await browser.waitUntil(async () => canvases() === before + 1, {
+      timeout: 30_000,
+      timeoutMsg: `the target tab made ${canvases() - before} canvases from a create-empty intent`,
+    });
+    await capture('10-intent-create-empty');
+    // A reload finds nothing parked: no second canvas.
+    await browser.refresh();
+    await onServer(label(BETA));
+    await browser.pause(2_000);
+    expect(canvases()).toBe(before + 1);
   });
 });

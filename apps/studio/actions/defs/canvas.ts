@@ -30,6 +30,19 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     exec: 'shell',
     visible: { minRole: 'edit' },
   },
+  // S6.3 — Home's "Ask AI for a new canvas…" (↵ on Home): a canvas from one sentence, opened and drafted by AI
+  // in a new chat. The door is Home's own prompt (it has no key in a project window); in a project window the
+  // same call is `home.ask {prompt}` — a parked Home intent runs it (client/v2/create/take-intent.js). The role
+  // gate is the create's: Can comment / Can view have no door and the server refuses the POST.
+  {
+    id: 'home.ask',
+    label: 'Ask AI for a new canvas…',
+    kind: 'command',
+    icon: 'sparkle',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: { hidden: true },
+  },
   {
     id: 'canvas.reload',
     label: 'Reload canvas',
