@@ -1555,6 +1555,17 @@
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-lg);
   }
+  /* S5.18 G8 — the "Slash commands" group header (03 `ai-adv-edges`) */
+  .chat-cmd-group {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--fg-2);
+  }
+  .chat-cmd-item--more .chat-cmd-name {
+    font-family: inherit;
+    color: var(--fg-1);
+  }
   .chat-cmd-item {
     display: flex;
     align-items: baseline;
