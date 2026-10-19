@@ -1,9 +1,11 @@
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
+import type { HostRects } from './annotations/hosts.ts';
 import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
 import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
 import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
+import { createArrowRouter } from './annotations/route.ts';
 import { parseBoard, validateElements } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { BoardStore } from './annotations/ui/board.ts';
@@ -18,6 +20,14 @@ import type { EditRequest } from './annotations/ui/element-node.tsx';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
 import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
+import {
+  createDomRideSink,
+  createRideController,
+  hostBoxesAfter,
+  type RideController,
+  riderOps,
+  withMembership,
+} from './annotations/ui/ride.ts';
 import { AnnotationScene } from './annotations/ui/scene.tsx';
 import {
   aimCommitOps,
@@ -64,6 +74,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -194,6 +205,8 @@ import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
 import {
   countRender,
   getLiveViewport,
+  useArtboardsContext,
+  useDragBusRide,
   useLiveViewport,
   useViewportControllerContext,
   useWorldRefContext,
@@ -287,6 +300,30 @@ function isEditable(t: EventTarget | null): boolean {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (el.isContentEditable) return true;
   return false;
+}
+
+/** S4.10 — one `__maudeCanvasRects()` snapshot (artboards + elements, world coords), or null. */
+function canvasRectsNow(): HostRects | null {
+  try {
+    const w = window as unknown as { __maudeCanvasRects?: () => HostRects };
+    return w.__maudeCanvasRects?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** S4.10 — an artboard's visible label (the refused-straight tag names it), else its id. */
+function artboardLabel(id: string): string {
+  if (typeof document === 'undefined') return id;
+  const el = document.querySelector(`[data-dc-screen="${CSS.escape(id)}"] .dc-artboard-label`);
+  return el?.textContent?.trim() || id;
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  );
 }
 
 function deriveFile(): string | undefined {
@@ -484,6 +521,32 @@ const ANNOT_CSS = `
   position: absolute;
   inset: 0;
   z-index: 4;
+}
+/* S4.10 - ride with the artboard: the live re-route overlay (world coords, no hit area), the
+   refused-straight chip, and the outline of the artboard a selection belongs to. The settled route
+   eases in on --dur-soft (160 ms); reduced motion collapses the token, and the sink skips the fade. */
+.dc-annot-ride { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 3; }
+.dc-annot-ride-svg { position: absolute; left: 0; top: 0; width: 200000px; height: 200000px; overflow: visible; pointer-events: none; }
+.dc-annot-ride-svg g.is-settling { opacity: 0; transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
+.dc-annot-ride-svg g.is-settling.is-in { opacity: 1; }
+.dc-annot-ride-svg g.is-leaving { opacity: 0; transition: opacity var(--dur-soft, 160ms) var(--ease-out, ease-out); }
+.dc-annot-cross {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 999px;
+  color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--maude-hud-danger, #c4321b) 50%, transparent);
+}
+.dc-annot-belongs {
+  position: absolute; pointer-events: none; border-radius: 6px;
+  outline: 1.5px dashed var(--maude-hud-accent, #d63b1f); outline-offset: 0;
+}
+.dc-annot-belongs-t {
+  position: absolute; left: 0; top: -24px; white-space: nowrap;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 999px;
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, #d63b1f);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dc-annot-ride-svg g.is-settling, .dc-annot-ride-svg g.is-leaving { transition-duration: 1ms; }
 }
 .dc-annot-svg {
   position: absolute;
@@ -843,6 +906,55 @@ export function AnnotationsLayer() {
     () => projectStrokes(board.scene(), strokeCacheRef.current),
     [board, boardVersion]
   );
+  // S4.10 — ride with the artboard (contract S2-S4-artboard-motion-ids.md §1–§2). Drag frames
+  // move the members on screen and re-route bound arrows through an imperative sink (never React
+  // state per frame); the commit rider hands the bus ONE op batch in the move's undo group.
+  const rideRef = useRef<RideController | null>(null);
+  const dragBus = useDragBusRide({
+    frame: (f) => rideRef.current?.onFrame(f),
+    rider: (moved) => {
+      const els = [...board.committed.values()];
+      const layout = dragBusRef.current?.layoutRects() ?? [];
+      const needsEls = els.some(
+        (e) =>
+          e.type === 'arrow' &&
+          [e.startHost, e.endHost].some(
+            (h) =>
+              !!h &&
+              typeof (h as { ref?: unknown }).ref === 'string' &&
+              (h as { ref: string }).ref.startsWith('el:')
+          )
+      );
+      return riderOps(
+        els,
+        moved,
+        hostBoxesAfter(layout, moved, needsEls ? canvasRectsNow() : null)
+      );
+    },
+  });
+  const dragBusRef = useRef(dragBus);
+  dragBusRef.current = dragBus;
+  useEffect(() => {
+    if (!dragBus) return;
+    const ctl = createRideController({
+      elements: () => [...board.scene().byId.values()],
+      layoutRects: () => dragBus.layoutRects(),
+      elementRects: canvasRectsNow,
+      labelOf: artboardLabel,
+      router: createArrowRouter(),
+      sink: createDomRideSink(() => worldRef?.current ?? null, prefersReducedMotion),
+      schedule: (fn) => requestAnimationFrame(fn),
+    });
+    rideRef.current = ctl;
+    return () => {
+      ctl.dispose();
+      if (rideRef.current === ctl) rideRef.current = null;
+    };
+  }, [dragBus, board, worldRef]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new board version may be the committed move
+  useEffect(() => {
+    rideRef.current?.boardChanged();
+  }, [boardVersion]);
   // Images still uploading (a `blob:` href) — shown, never on the board.
   const [uploading, setUploading] = useState<Stroke[]>([]);
   // A gesture in flight (drag, resize): the strokes as the gesture shows them.
@@ -1216,7 +1328,12 @@ export function AnnotationsLayer() {
         list.some(isEphemeralHref) ? list.filter((s) => !isEphemeralHref(s)) : list;
       const committed = board.committed;
       const prevMap = strokesToElementMap(persist(prev), committed);
-      const nextMap = strokesToElementMap(persist(next), committed);
+      // S4.10 — what this commit created or dropped joins the artboard under its centre (Q3).
+      const nextMap = withMembership(
+        prevMap,
+        strokesToElementMap(persist(next), committed),
+        dragBusRef.current?.layoutRects() ?? []
+      );
       // #137 — the lock safety net: whatever tool produced this commit, a
       // locked element (as of `prevMap`) is not moved, resized, re-texted or
       // deleted. The board re-renders from the store, so a blocked change
@@ -4038,6 +4155,12 @@ export function AnnotationsLayer() {
             unknownElements={unknownElements}
           />
         ) : null}
+        {visible && !quiet ? (
+          <BelongsOutline
+            worldRef={worldRef}
+            artboard={belongsTo(selectedStrokes, board.committed)}
+          />
+        ) : null}
         {/* DDR-150 dogfood #8 — inline players for media-reference chips (HTML
           overlay in the world div; see MediaRefPlayers for why not
           foreignObject). */}
@@ -4877,6 +5000,73 @@ function SelectionHalo({
  * #137 — a lock glyph at the selection's top-right corner: says why the
  * resize handles are missing. Counter-scaled to a constant screen size.
  */
+/**
+ * S4.10 — the artboard a selection rides with: every selected element is top-level and names
+ * the same `parentArtboard`. A section's items answer through their section (section wins).
+ */
+export function belongsTo(
+  selected: readonly { id: string }[],
+  committed: ReadonlyMap<string, { parent?: string; parentArtboard?: unknown }>
+): string | null {
+  let ab: string | null = null;
+  for (const s of selected) {
+    let el = committed.get(s.id);
+    for (let i = 0; el?.parent !== undefined && i < 64; i++) el = committed.get(el.parent);
+    const p = el && typeof el.parentArtboard === 'string' ? el.parentArtboard : null;
+    if (!p || (ab !== null && ab !== p)) return null;
+    ab = p;
+  }
+  return ab;
+}
+
+/**
+ * S4.10 — membership you can see: the artboard a selection belongs to, outlined, with
+ * "On <artboard> · moves with it" (canvas 15 `an-follow`). It follows a drag through the bus
+ * imperatively (a translate per frame, no render).
+ */
+function BelongsOutline({
+  worldRef,
+  artboard,
+}: {
+  worldRef: RefObject<HTMLDivElement | null> | null;
+  artboard: string | null;
+}) {
+  const world = useArtboardsContext();
+  const rect = artboard ? (world?.rectFor(artboard) ?? null) : null;
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const idRef = useRef(artboard);
+  idRef.current = artboard;
+  useDragBusRide({
+    frame: (f) => {
+      const n = ref.current;
+      if (!n) return;
+      const m = f.moved.find((x) => x.id === idRef.current);
+      if (f.phase === 'cancel' || !m || f.alt) n.style.translate = '';
+      else if (f.phase !== 'end') n.style.translate = `${m.dx}px ${m.dy}px`;
+    },
+  });
+  // The committed layout landed: the rect itself is the new position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on a new rect
+  useLayoutEffect(() => {
+    if (ref.current) ref.current.style.translate = '';
+  }, [rect?.x, rect?.y]);
+  const target = worldRef?.current ?? null;
+  if (!artboard || !rect || !target) return null;
+  return createPortal(
+    <span
+      ref={ref}
+      className="dc-annot-belongs"
+      data-testid="annot-belongs"
+      data-artboard={artboard}
+      aria-hidden="true"
+      style={{ left: rect.x - 4, top: rect.y - 4, width: rect.w + 8, height: rect.h + 8 }}
+    >
+      <span className="dc-annot-belongs-t">On {artboardLabel(artboard)} · moves with it</span>
+    </span>,
+    target
+  );
+}
+
 function LockBadge({
   selectedStrokes,
   anchorsById,
