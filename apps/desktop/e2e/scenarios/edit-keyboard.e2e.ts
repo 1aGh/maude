@@ -170,20 +170,22 @@ describe('keyboard only (S2.21)', () => {
         ),
       { timeout: 6000, timeoutMsg: 'F6 never left the canvas' }
     );
-    // the shell's own handler, whichever panel element holds focus now
-    await browser.execute(() => {
-      document.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true })
-      );
-    });
-    await browser.waitUntil(
-      async () =>
-        browser.execute(() => {
-          const a = document.activeElement;
-          return a?.getAttribute('data-testid') === 'canvas-frame' || a?.tagName === 'IFRAME';
-        }),
-      { timeout: 8000 }
-    );
+    // the shell's own handler, whichever panel element holds focus now: the ring is panels → canvas → panels, so
+    // the canvas frame comes back within one lap (the panels on show differ with what is selected)
+    let back = false;
+    for (let lap = 0; lap < 6 && !back; lap++) {
+      await browser.execute(() => {
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true })
+        );
+      });
+      await browser.pause(150);
+      back = await browser.execute(() => {
+        const a = document.activeElement;
+        return a?.getAttribute('data-testid') === 'canvas-frame' || a?.tagName === 'IFRAME';
+      });
+    }
+    expect(back).toBe(true);
   });
 
   it('R then ↵ adds one rectangle at its default size, 100 × 100', async () => {

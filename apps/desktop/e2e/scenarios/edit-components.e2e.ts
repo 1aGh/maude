@@ -115,6 +115,28 @@ const ghost = () =>
     return g ? { snapped: g.getAttribute('data-snapped') === 'true' } : null;
   });
 
+/**
+ * A person's ⌘-click on the element with this id: down, up and click AT ITS CENTRE (the router picks its target by
+ * the pointer's position, not by where the event was fired), so the deepest object there is selected.
+ */
+const selectFrame = async (id: string) => {
+  await inFrame((doc, win, elId: string) => {
+    const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement;
+    const r = el.getBoundingClientRect();
+    const at = {
+      bubbles: true,
+      cancelable: true,
+      clientX: r.left + r.width / 2,
+      clientY: r.top + r.height / 2,
+      button: 0,
+      metaKey: true,
+    };
+    for (const t of ['pointerdown', 'pointerup', 'click'])
+      el.dispatchEvent(new (win as any).MouseEvent(t, at));
+  }, id);
+  await browser.pause(700); // the selection settles a beat after the press
+};
+
 const openPicker = async () => {
   // the tool keys register once the editing layer has mounted over the canvas, a beat after it renders:
   // press again until the picker answers (a press on an open picker would close it, so only while it is shut)
@@ -173,7 +195,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await (await $('[data-testid="component-picker-row-Button"]')).click();
     // the picker lets go of the screen and the canvas carries the ghost
     await browser.waitUntil(
-      async () => !(await $('[data-testid="tool-panel-components"]')).isExisting(),
+      async () => !(await (await $('[data-testid="tool-panel-components"]')).isExisting()),
       {
         timeout: 5000,
       }
@@ -211,11 +233,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
   it('↵ in the picker puts it in the selected frame, in the flow, without a second import', async () => {
     const report = startReport('edit-components-enter');
     // select the flex frame by its id through the editing layer's selection
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
-    });
+    await selectFrame('row');
     await openPicker();
     const search = await $('[data-testid="component-picker-search"]');
     await search.setValue('badge');
@@ -232,11 +250,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await browser.pause(800);
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await waitForCanvasRects();
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
-    });
+    await selectFrame('row');
     await openPicker();
     await (await $('[data-testid="component-picker-search"]')).setValue('chip');
     await browser.keys(['Enter']);

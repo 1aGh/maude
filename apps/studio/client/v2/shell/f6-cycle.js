@@ -43,8 +43,26 @@ export function regionOf(regions, active) {
   return regions.findIndex((r) => r === active || r.contains(active));
 }
 
-const defaultShown = (el) =>
-  el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+/** A box with some part of it inside the window — a closed panel slid off to the side has rects but is not there. */
+export function onScreen(rect, view) {
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.left < view.w &&
+    rect.left + rect.width > 0 &&
+    rect.top < view.h &&
+    rect.top + rect.height > 0
+  );
+}
+
+const defaultShown = (el) => {
+  if (el.getClientRects().length === 0 || getComputedStyle(el).visibility === 'hidden')
+    return false;
+  const win = el.ownerDocument.defaultView;
+  return win
+    ? onScreen(el.getBoundingClientRect(), { w: win.innerWidth, h: win.innerHeight })
+    : true;
+};
 const defaultRect = (el) => el.getBoundingClientRect();
 
 /**
@@ -54,8 +72,15 @@ const defaultRect = (el) => el.getBoundingClientRect();
 export function regionsIn(doc, { shown = defaultShown, rectOf = defaultRect } = {}) {
   const all = [...doc.querySelectorAll(REGION_SELECTOR)].filter((el) => shown(el));
   const top = all.filter((el) => !all.some((o) => o !== el && o.contains(el)));
+  // the canvas frame runs full-bleed beneath the side panels: it takes its place by its middle, not its edge
   return readingOrder(
-    top.map((el) => ({ el, rect: rectOf(el) })),
+    top.map((el) => {
+      const rect = rectOf(el);
+      return {
+        el,
+        rect: el.tagName === 'IFRAME' ? { ...rect, left: rect.left + (rect.width ?? 0) / 2 } : rect,
+      };
+    }),
     8
   ).map((x) => x.el);
 }
