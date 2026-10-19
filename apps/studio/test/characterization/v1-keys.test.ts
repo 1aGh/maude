@@ -98,6 +98,14 @@
 // the presenting Esc cases, tauri ⌘N's composer) and the 42 whose only change is the shell/canvas DOM hash (the
 // floating panels' content moved). They are stable across the two regenerations, so they are the measured wave A
 // behaviour; a case-by-case read of them is open (the lead's call).
+// Lead refresh 2 (V2-5 wave A gate, after S1–S5 fixes + gate kernel fix + polish 1/2): keydown/writes changed in 10
+// cases, all wave-A behaviour. (1) Esc from shell chrome (`canvas/chrome`, `canvas/select`, `timeline/chrome`) is
+// PREVENTED by the shell and forwarded to the canvas once — no widget consumed it (gate-a-kernel 1ab9c38be); the
+// text-focus Escape forward is gone. (2) ⇧⌘G in the canvas is Ungroup / Remove frame (S2): PREVENTED, one
+// `POST /_api/edit-op`. (3) ⇧P hides annotations and persists it (`POST /_api/ui-prefs`, S4.18 an-visibility). (4) ⇧⌘A (Preview, both lanes) and
+// ⌘G gained the `PATCH canvas-meta` of the camera class above. Every other change is DOM-only (the Edit focus ring,
+// order badges and aria-live line, the export sheet's new rows) or new protocol messages (`vote-state`,
+// `annotation-selection`, S4.8/S4.19).
 // Lead decision (v2-lead-v1-keys-normalise-volatile): the undo toast (message and DOM), the `artboards` message and
 // `undo-key` / `undo-mode` are timing races against the snapshot window, so a case records which of them appeared as a
 // sorted, de-duplicated `{kind,…}` presence (the boot-time `viewport-zoom` / `peers` / `mode-changed` / `hold-view` of a reloaded canvas joined them: how often each repeats on a reload is the same race) at the end of its message list — no order, no count — and the toast's
