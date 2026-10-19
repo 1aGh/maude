@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ACTIONS } from '../actions/index.ts';
 import { listElements } from '../canvas-edit.ts';
-import { type DispatchDeps, dispatchEditOp, revOf } from '../edit-ops/dispatch.ts';
+import { type DispatchDeps, dispatchEditOp, EDIT_OPS, revOf } from '../edit-ops/dispatch.ts';
 import { createWriteLog } from '../edit-ops/revert.ts';
 import { elementStamp } from '../edit-ops/stamp.ts';
 import type { EditOpResult } from '../edit-ops/types.ts';
@@ -129,6 +129,19 @@ describe('element.stamp', () => {
         expectRev: revOf(SRC),
       })
     );
+  });
+
+  test('the shipped op table has the writer, so the real route can run it', async () => {
+    expect(EDIT_OPS.some((o) => o.id === 'element.stamp')).toBe(true);
+    const h = harness({ ops: undefined });
+    ok(
+      await h.run({
+        file: FILE,
+        op: 'element.stamp',
+        targets: [{ artboard: 'desktop', element: computedOf('button') }],
+      })
+    );
+    expect(h.writes).toHaveLength(1);
   });
 
   test('the registry has the (hidden) row the dispatcher’s op id names, and annotation.point-to', () => {

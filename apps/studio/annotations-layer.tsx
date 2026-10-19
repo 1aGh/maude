@@ -4903,7 +4903,7 @@ function AnnotationsSvg({
         target
       )}
       {createPortal(
-        <div className="dc-annot-arrowui" aria-hidden={arrowUi.labelEditId ? undefined : true}>
+        <div className="dc-annot-arrowui">
           {arrowUi.aim ? <AimOverlay aim={arrowUi.aim} zoom={zoomNow} /> : null}
           {arrowUi.boundTag ? (
             <BoundTag text={arrowUi.boundTag.text} at={arrowUi.boundTag.at} zoom={zoomNow} />

@@ -147,6 +147,7 @@ export function AimOverlay({ aim, zoom }: { aim: AimState; zoom: number }) {
             key={i}
             className="dc-annot-cand"
             data-testid="annot-arrow-candidate"
+            aria-hidden="true"
             style={{
               left: b.x,
               top: b.y,
@@ -159,6 +160,7 @@ export function AimOverlay({ aim, zoom }: { aim: AimState; zoom: number }) {
       {hot ? (
         <>
           <span
+            aria-hidden="true"
             className={hot.edge ? 'dc-annot-edge' : 'dc-annot-snap'}
             data-testid={hot.edge ? 'annot-arrow-edge' : 'annot-arrow-aim-ring'}
             data-host-kind={hot.kind}
@@ -236,6 +238,7 @@ export function HostMarks({
           key={`${d.arrowId}:${d.end}`}
           className="dc-annot-open"
           data-testid="annot-dangling-mark"
+          aria-hidden="true"
           data-cause={d.cause}
           style={{
             left: d.at[0],
