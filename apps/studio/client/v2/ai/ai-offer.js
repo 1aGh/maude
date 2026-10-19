@@ -7,6 +7,11 @@
 //     "targets": [{ "ref": "el:desktop/hero-picture", "name": "The hero picture" }] }
 //   ```
 //
+// sec-a C2 (wave-A attacker): only the agent's OWN closing block counts — exactly ONE block in the answer, at a
+// line start (a `> ` quote is not one), and nothing after it but space. A block quoted mid-answer, a second
+// block, or a block whose body the person's own message (or any other `echoes` text: annotation / canvas words
+// the caller holds) already carried, makes NO offer, and stays visible as text, so an echo is seen for what it is.
+//
 // `parseOffer` lifts the block out of the answer (it is not shown as text) and validates it: `answers` and
 // `leaves` keep only ids that are in the ask's scope, a target keeps only a host ref of the right shape (at most
 // 8), `says` is cut to 240 and rendered as TEXT. A block that is not JSON, or not `v: 1`, is ignored and the
@@ -33,6 +38,8 @@ const ID = '[A-Za-z0-9_.:-]{1,128}';
 const REF_RE = new RegExp(`^(?:ab:${ID}|el:${ID}/${ID})$`);
 const ANNOTATION_ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 const BLOCK_RE = /```maude-offer[ \t]*\r?\n([\s\S]*?)\r?\n?```/g;
+/** The one block the agent may close with: at a line start, last in the answer (sec-a C2). */
+const TRAILING_RE = /(?:^|\n)```maude-offer[ \t]*\r?\n([\s\S]*?)\r?\n?```\s*$/;
 
 const plain = (v, max) =>
   typeof v === 'string'
@@ -53,21 +60,29 @@ const idList = (raw, scope) =>
     : [];
 
 /**
- * @param {string} text the assistant's final message
- * @param {{ scopeIds?: string[] }} [ctx] the annotation ids of the ask this answers
+ * @param {string} text the assistant's final message (its OWN text parts — never a tool output)
+ * @param {{ scopeIds?: string[], echoes?: string[] }} [ctx] the annotation ids of the ask this answers; `echoes`
+ *   = texts the agent was GIVEN (the person's message, annotation words) — a block found in one is an echo
  * @returns {{ text: string, offer: null | { v: 1, says: string, answers: string[], leaves: string[],
  *   targets: Array<{ ref: string, name: string }> } }}
  */
-export function parseOffer(text, { scopeIds = [] } = {}) {
+export function parseOffer(text, { scopeIds = [], echoes = [] } = {}) {
   const src = typeof text === 'string' ? text : '';
   const blocks = [...src.matchAll(BLOCK_RE)];
   if (!blocks.length) return { text: src, offer: null };
-  // the block is never shown as text, valid or not
+  // sec-a C2 — one block, the answer's own last word; anything else is read (and shown) as plain text
+  const tail = TRAILING_RE.exec(src);
+  if (blocks.length !== 1 || !tail) return { text: src, offer: null };
+  const last = tail[1];
+  const body = last.trim();
+  const echoed = (Array.isArray(echoes) ? echoes : []).some(
+    (e) => typeof e === 'string' && (e.includes('```maude-offer') || (body && e.includes(body)))
+  );
+  if (echoed) return { text: src, offer: null };
   const stripped = src
-    .replace(BLOCK_RE, '')
+    .slice(0, tail.index)
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  const last = blocks[blocks.length - 1][1];
   let raw = null;
   try {
     raw = JSON.parse(last);
@@ -136,6 +151,22 @@ export function noteAskedAnnotations(frozen) {
 
 /** The stickies / arrows the latest send was about (`null`: it was not about annotations). */
 export const askedAnnotations = () => asked;
+
+/**
+ * sec-a C2 — exactly what "Make these changes" sends, in words, shown on the card before the press: the
+ * canned text, how many stickies ride as the scope, which of them the run may resolve, and where it points
+ * (tags built from the refs — never the agent's own names).
+ */
+export function sendsLine(offer, ask) {
+  const n = Array.isArray(ask?.ids) ? ask.ids.length : 0;
+  const noun = (k) => (k === 1 ? '1 sticky' : `${k} stickies`);
+  const parts = [`Sends “${OFFER_WORDS.primary}” with ${noun(n)}`];
+  const a = offer?.answers?.length ?? 0;
+  parts.push(a ? `resolves ${a === n ? 'all of them' : noun(a)} when done` : 'resolves none');
+  const tags = (offer?.targets ?? []).map((t) => tagForRef(t.ref));
+  if (tags.length) parts.push(`about ${tags.join(', ')}`);
+  return `${parts.join(' · ')}.`;
+}
 
 /**
  * The "Make these changes" send: the person's words plus the hidden line the apply run reads
