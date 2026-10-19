@@ -190,21 +190,22 @@ interface ShellReply {
 
 const pendingCalls = new Map<string, (m: ShellReply) => void>();
 let callSeq = 0;
-let repliesInstalled = false;
+function onShellReply(e: MessageEvent): void {
+  // Only the shell (our parent) answers; a sibling frame or the canvas's own code cannot.
+  if (e.source !== window.parent) return;
+  const m = e.data as ShellReply | null;
+  if (!m || typeof m !== 'object' || typeof m.dgn !== 'string') return;
+  if (m.dgn !== 'comment-op-ack' && m.dgn !== 'comment-op-result' && m.dgn !== 'comment-people')
+    return;
+  const key = `${m.dgn === 'comment-op-ack' ? 'ack' : 'res'}:${String(m.reqId)}`;
+  pendingCalls.get(key)?.(m);
+}
 
+// One stable listener, added on every call: addEventListener drops a duplicate of the same function, and a
+// document whose listeners were cleared (a reset test DOM) gets it back — a once-flag never would.
 function installShellReplies(): void {
-  if (repliesInstalled || typeof window === 'undefined') return;
-  repliesInstalled = true;
-  window.addEventListener('message', (e: MessageEvent) => {
-    // Only the shell (our parent) answers; a sibling frame or the canvas's own code cannot.
-    if (e.source !== window.parent) return;
-    const m = e.data as ShellReply | null;
-    if (!m || typeof m !== 'object' || typeof m.dgn !== 'string') return;
-    if (m.dgn !== 'comment-op-ack' && m.dgn !== 'comment-op-result' && m.dgn !== 'comment-people')
-      return;
-    const key = `${m.dgn === 'comment-op-ack' ? 'ack' : 'res'}:${String(m.reqId)}`;
-    pendingCalls.get(key)?.(m);
-  });
+  if (typeof window === 'undefined') return;
+  window.addEventListener('message', onShellReply);
 }
 
 const hasShell = (): boolean => typeof window !== 'undefined' && window.parent !== window;
