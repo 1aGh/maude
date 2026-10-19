@@ -52,18 +52,18 @@ describe('the author line inside the paper', () => {
     expect(html).not.toContain('top:100%');
   });
   test('sans, not mono, in the extra-small size', () => {
-    const who = html.slice(html.indexOf('an-st-who') - 80, html.indexOf('You · just now'));
-    expect(who).toContain('--font-body');
-    expect(who).not.toContain('font-mono');
-    expect(who).not.toContain('ui-monospace');
+    const tag = /<span class="dc-annot-who an-st-who"[^>]*>/.exec(html)?.[0] ?? '';
+    expect(tag).toContain('--font-body');
+    expect(tag).toContain('--type-xs');
+    expect(tag).not.toContain('font-mono');
+    expect(tag).not.toContain('ui-monospace');
     expect(UI_FONT).toContain('--font-body');
   });
   test('it is a child of the paper node', () => {
-    const start = html.indexOf('dc-annot-el');
-    const who = html.indexOf('an-st-who');
-    const closing = html.indexOf('data-id', start + 10);
-    // no second element node begins between the sticky and its line
-    expect(closing === -1 || closing > who).toBe(true);
+    // one element node in the scene, and the line is inside it (after its data-id, before the scene closes)
+    expect(html.split('data-id=').length).toBe(2);
+    expect(html.indexOf('an-st-who')).toBeGreaterThan(html.indexOf('data-id='));
+    expect(html.endsWith('</span></div></div>')).toBe(true);
   });
 });
 
