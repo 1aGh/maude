@@ -617,14 +617,14 @@ describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
     ]);
   });
 
-  test('set-mode naming a tool this canvas cannot arm (S2’s Pen — Frame is armed since S2.13) lands on the mode’s rest', () => {
+  test('set-mode naming a tool this canvas cannot arm (S2’s Crop — Frame is armed since S2.13, Pen since S2.14) lands on the mode’s rest', () => {
     mount(
       <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
     setMode(canvasModeStore(window).get().modeSeq + 1, 'preview');
-    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'el-pen' });
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'crop' });
     expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']);
   });
 

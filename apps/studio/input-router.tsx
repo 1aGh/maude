@@ -123,6 +123,8 @@ export type Tool =
   | 'line'
   | 'polygon'
   | 'slice'
+  // S2.14 — Edit's Pen (P): points, drawn by editing/pen/draw.tsx
+  | 'el-pen'
   // FigJam v3 — labelled organizing container (Shift+S).
   | 'section'
   | 'eraser';
@@ -143,6 +145,7 @@ const ANNOTATION_TOOLS = new Set<Tool>([
   'line',
   'polygon',
   'slice',
+  'el-pen',
   'section',
   'eraser',
 ]);
@@ -257,6 +260,8 @@ const V1_TOOLS: ReadonlySet<string> = new Set<string>([
   'line',
   'polygon',
   'slice',
+  // S2.14 — drawn by editing/pen/draw.tsx
+  'el-pen',
   // S3.11 — `inspect` is a tool with no v1 bridge
   'inspect',
 ]);

@@ -83,6 +83,8 @@ export interface KindFacts {
   component?: boolean;
   /** drawn by the Shape tools (S2.13): carries `data-shape` */
   shape?: boolean;
+  /** drawn by the Pen (S2.14): `data-shape="path"` — a Path, not a Shape */
+  path?: boolean;
 }
 
 const SHAPE_TAGS = new Set(['rect', 'circle', 'ellipse', 'polygon', 'line', 'polyline']);
@@ -92,6 +94,7 @@ export function selectionKind(count: number, facts: KindFacts | null): Selection
   if (count > 1) return 'multi';
   if (!facts) return 'artboard';
   if (facts.component) return 'instance';
+  if (facts.path) return 'path';
   if (facts.shape) return 'shape';
   const tag = facts.tag.toLowerCase();
   if (IMAGE_TAGS.has(tag)) return 'image';

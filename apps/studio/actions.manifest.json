@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c2308323457c",
+  "manifestVersion": "4646ab1f924d",
   "actions": [
     {
       "id": "search.open",
@@ -1001,6 +1001,84 @@
       }
     },
     {
+      "id": "object.insert-path",
+      "label": "Draw a path",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add the same <svg data-shape=\"path\"> as the Pen tool writes (d in the box's own px, left / top its place in the frame) — see canvas-tsx.md § Draw a path"
+      }
+    },
+    {
+      "id": "path.edit",
+      "label": "Edit path points",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rewrite the d of the svg's <path>, then width, height, viewBox and style left / top to the new bounds so every point keeps its place — see canvas-tsx.md § Draw a path"
+      }
+    },
+    {
+      "id": "shape.combine.union",
+      "label": "Union selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"union\"> holding ONE <path d> of every outline (each wound clockwise), fillRule=\"nonzero\" — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
+      "id": "shape.combine.subtract",
+      "label": "Subtract selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"subtract\">: the bottom shape's <path mask=\"url(#id-mask)\"> first, then <defs><mask> holding a white <rect> and the other shapes in black — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
+      "id": "shape.combine.intersect",
+      "label": "Intersect selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"intersect\">: the bottom shape's <path clipPath=\"url(#id-clip-1)\"> first, then <defs> with a <clipPath> per other shape (more than one nest <g clipPath>) — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
+      "id": "shape.combine.exclude",
+      "label": "Exclude selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"exclude\"> holding ONE <path d> of every outline, fillRule=\"evenodd\" — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
       "id": "object.set-corner-radius",
       "label": "Round a corner",
       "kind": "command",
@@ -1971,6 +2049,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Add a <div data-shape=\"rectangle\"> with position: \"absolute\", left / top / width / height in px and background: \"var(--accent)\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.el-pen",
+      "label": "Pen",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add <svg data-cd-id=\"path\" data-shape=\"path\" width viewBox style={{ position: \"absolute\", left, top, overflow: \"visible\", fill: \"none\", stroke: \"var(--accent)\", strokeWidth: \"4px\", strokeLinecap: \"round\", strokeLinejoin: \"round\" }}><path d=\"M…C…\" /></svg> to the artboard or frame; the svg box is the path bounds and d is relative to it — see canvas-tsx.md § Draw a path"
       }
     },
     {

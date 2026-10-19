@@ -1722,6 +1722,27 @@ Consumers that target a hook no producer emits today. Each one is a test, spec o
 | `component-picker-error` | testid | The picker's one-line failure when the component list was refused or failed. | `client/v2/inspector/component-picker.jsx` · `ComponentPicker` | test:component-picker | new |
 | `edit-place-ghost` | testid | Canvas iframe: the dashed ghost that follows the pointer after a pick in the Component picker (its name; solid when snapped to the centre guide). | `editing/place-ghost.tsx` · `PlaceGhost` | test:edit-place-ghost | new |
 | `edit-place-guide` | testid | Canvas iframe: the guide down the artboard's centre while a picked component follows the pointer; full strength when snapped. | `editing/place-ghost.tsx` · `PlaceGhost` | test:edit-place-ghost | new |
+| `edit-pen-input` | testid | Canvas iframe: the overlay that takes the pointer while the Pen (P) is armed. | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-hints` | testid | Canvas iframe: the key hints while drawing — click, drag, ⇧ 45° steps, ↵ or esc finishes. | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-svg` | testid | Canvas iframe: the path being drawn, in screen px (points, the pulled handle, the close ring). | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-path` | testid | Canvas iframe: the outline of the path being drawn. | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-rubber` | testid | Canvas iframe: the dashed segment from the last point to the pointer (⇧ snaps it to 45°). | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-close` | testid | Canvas iframe: the ring over the first point; press it to close the path. | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-chip-close` | testid | Canvas iframe: "Click here to close", shown with the pointer over the first point. | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-chip-45` | testid | Canvas iframe: the "45°" chip beside the pointer while ⇧ is held. | `editing/pen/draw.tsx` · `PenTool` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-points` | testid | Canvas iframe: the point-editing overlay of a double-clicked Pen path (points, the selected point’s handles, the path). | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-edit-hints` | testid | Canvas iframe: the key hints while editing points — click adds, drag bends, ⌥-drag breaks a handle, double-click flips smooth and sharp, ⌫ removes, ↵ is done. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-outline` | testid | Canvas iframe: the path as the overlay holds it while a point or handle is dragged. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-was` | testid | Canvas iframe: the previous curve, dashed, while a drag is in flight. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-segments` | testid | Canvas iframe: the wide invisible stroke over the path; a press on it adds a point there. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-point-<sub>-<i>` | testid (pattern) | Canvas iframe: one anchor of the path being edited (sub-path, point). `data-on` on the selected one. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-handle-<which>` | testid (pattern) | Canvas iframe: a handle of the selected point (`in`, `out`); drag to bend, ⌥-drag to break. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `edit-pen-chip-type` | testid | Canvas iframe: "Smooth" or "Sharp" beside the selected point. | `editing/pen/points.tsx` · `PointEdit` | test:edit-pen-client | new in v2 (S2.14) |
+| `insp-row-path-ends` | testid | Stroke › Ends: Round or Flat, on a Pen path that has a stroke. | `client/v2/inspector/kinds/path.jsx` · `PathEndsBody` | test:v2-inspector-path | new in v2 (S2.14) |
+| `insp-ctl-path-ends` | testid | The Round / Flat segmented control of a Pen path’s Ends row. | `client/v2/inspector/kinds/path.jsx` · `PathEndsBody` | test:v2-inspector-path | new in v2 (S2.14) |
+| `insp-row-combine` | testid | Combine shapes: the row ("Two or more"), dimmed for one shape. | `client/v2/inspector/kinds/path.jsx` · `CombineBody` | test:v2-inspector-path | new in v2 (S2.14) |
+| `insp-combine` | testid | Combine shapes: the group of four buttons. | `client/v2/inspector/kinds/path.jsx` · `CombineBody` | test:v2-inspector-path | new in v2 (S2.14) |
+| `insp-combine-<kind>` | testid (pattern) | Combine shapes: one button — `union`, `subtract`, `intersect`, `exclude`. Disabled for one shape; a click asks the canvas for ONE `shape.combine.<kind>` edit-op. | `client/v2/inspector/kinds/path.jsx` · `CombineBody` | test:v2-inspector-path | new in v2 (S2.14) |
 
 Related producer-side gaps (not dangling, but they bite the same way):
 

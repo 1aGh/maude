@@ -145,12 +145,13 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
 });
 
 describe('visibleSlots / role, pending and read-only', () => {
-  test('an editor sees the Edit slots that exist today; Pen (its slice) stays hidden', () => {
+  test('an editor sees the Edit slots that exist today; Crop (its slice) stays hidden', () => {
     expect(ids(visibleSlots('edit', 'edit', armableDefault))).toEqual([
       'move',
       'hand',
       'frame', // S2.13: drawn by dragging
       'el-shape', // S2.13
+      'el-pen', // S2.14: click for a point, drag for a smooth one
       'el-text', // S2.12b: click to type
       'image', // today's insert Image
       'components', // S2.16: the shell's Component picker (a panel-only slot)
@@ -165,6 +166,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'hand',
       'frame',
       'el-shape',
+      'el-pen',
       'el-text',
       'image',
       'components',
@@ -213,7 +215,8 @@ describe('visibleSlots / role, pending and read-only', () => {
     expect(armTarget('inspect', armableDefault)).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'inspect')).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'move')).toBeNull();
-    expect(armTarget('el-pen', armableDefault)).toBeNull();
+    expect(armTarget('crop', armableDefault)).toBeNull();
+    expect(armTarget('el-pen', armableDefault)).toBe('el-pen'); // S2.14
   });
 });
 
@@ -222,8 +225,8 @@ describe('pending slots / no dead buttons', () => {
   // package list only shrinks when that package lands (the lead edits this list in the same commit).
   test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
     const pend = pendingSlots();
-    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area, S2.16 the Component slot; Pen and Crop remain
-    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['crop', 'el-pen'].sort());
+    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area, S2.14 the Pen, S2.16 the Component slot; only Crop remains
+    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['crop']);
     for (const p of pend) {
       expect(p.slot.pending).toBe('S2');
       expect(p.mode).toBe('edit');
@@ -452,13 +455,14 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
       'hand',
       'frame',
       'el-shape',
+      'el-pen',
       'el-text',
       'image',
       'components',
       'more',
     ]);
-    // Pen waits for its slice; Line · Ellipse · Polygon · Export area are behind More only (D2)
-    for (const dead of ['el-pen', 'component', 'line', 'ellipse', 'polygon', 'slice'])
+    // Line · Ellipse · Polygon · Export area are behind More only (D2)
+    for (const dead of ['component', 'line', 'ellipse', 'polygon', 'slice'])
       expect(q(`toolbar-slot-${dead}`)).toBeNull();
     expect(document.querySelector('[aria-label^="Export"]')).toBeNull();
     expect(document.querySelector('[aria-label^="Insert element"]')).toBeNull(); // the "+" is Frame/Text/Image now

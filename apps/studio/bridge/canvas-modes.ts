@@ -191,7 +191,8 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
       // Image is still backed by today's "+ Insert Image" until S2 builds the tool.
       slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit' }),
       slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit' }),
-      slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit', pending: 'S2' }),
+      // Pen (S2.14): click for a sharp point, drag for a smooth one; double-click a path to edit its points.
+      slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit' }),
       // Click to type (S2.12b): a tool, no longer today's momentary Insert Text.
       slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit' }),
       slot({

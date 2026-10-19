@@ -147,7 +147,8 @@ export function describeSelection(
       elements: el.children.length,
       hasText: ownText(el).length > 0,
       component: el.hasAttribute('data-dc-component'),
-      shape: el.hasAttribute('data-shape'),
+      shape: el.hasAttribute('data-shape') && el.getAttribute('data-shape') !== 'path',
+      path: el.getAttribute('data-shape') === 'path',
     }),
   };
 }

@@ -380,7 +380,17 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
+            "edit": [
+              "Select",
+              "Hand",
+              "Frame",
+              "Shape",
+              "Pen",
+              "Text",
+              "Image",
+              "Component",
+              "More"
+            ],
             "preview": [
               "Hand",
               "Sticky",
@@ -759,7 +769,17 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
+            "edit": [
+              "Select",
+              "Hand",
+              "Frame",
+              "Shape",
+              "Pen",
+              "Text",
+              "Image",
+              "Component",
+              "More"
+            ],
             "preview": [
               "Hand",
               "Sticky",
@@ -1141,7 +1161,17 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
+            "edit": [
+              "Select",
+              "Hand",
+              "Frame",
+              "Shape",
+              "Pen",
+              "Text",
+              "Image",
+              "Component",
+              "More"
+            ],
             "preview": [
               "Hand",
               "Sticky",
@@ -1402,7 +1432,17 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
+            "edit": [
+              "Select",
+              "Hand",
+              "Frame",
+              "Shape",
+              "Pen",
+              "Text",
+              "Image",
+              "Component",
+              "More"
+            ],
             "preview": [
               "Hand",
               "Sticky",

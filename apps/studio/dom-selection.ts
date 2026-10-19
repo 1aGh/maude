@@ -10,6 +10,7 @@
  *             lite comment mount.
  */
 
+import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
 import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
@@ -434,6 +435,17 @@ function styleMapsFor(el: Element | null): {
     for (const a of Array.from((el as HTMLElement).attributes)) {
       if (ATTR_SKIP.test(a.name)) continue;
       attrs[a.name] = a.value;
+    }
+    // S2.14 — a Pen path says how many points it has ("Pen · 4 points"): computed from its `d`, never stored.
+    if (el.tagName.toLowerCase() === 'svg' && el.getAttribute('data-shape') === 'path') {
+      const d = el.querySelector('path')?.getAttribute('d');
+      if (d) {
+        try {
+          attrs['data-dc-pen-points'] = String(pointCount(parsePathD(d)));
+        } catch {
+          /* arcs: no count */
+        }
+      }
     }
     // Dogfood follow-up (print artboards) — ATTR_SKIP deliberately hides the
     // engine's own `data-dc-*` plumbing from the generic "custom HTML

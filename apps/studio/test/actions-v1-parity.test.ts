@@ -209,7 +209,7 @@ describe('canvas document', () => {
       ['H', inCanvas, 'tool.hand'],
       ['F', inCanvas, 'tool.frame'],
       ['R', inCanvas, 'tool.el-shape'], // Edit's Shape (S2.13) — never Preview's R
-      ['P', inCanvas, null], // S2's Pen
+      ['P', inCanvas, 'tool.el-pen'], // Edit's Pen (S2.14) — never the Marker (M)
       ['T', inCanvas, 'tool.el-text'],
       ['I', inCanvas, 'tool.image'],
       ['⇧I', inCanvas, 'tool.components'], // S2.16's Component picker
@@ -229,7 +229,7 @@ describe('canvas document', () => {
       ['V', inPreview, 'tool.select'],
       ['F', inPreview, 'tool.frame'],
       ['I', inPreview, 'tool.image'],
-      ['P', inPreview, null],
+      ['P', inPreview, 'tool.el-pen'], // crosses to Edit's Pen (S2.14)
       ['H', inViewing, 'tool.inspect'],
       ['C', inViewing, 'tool.comment'],
       ['N', inViewing, 'tool.sticky'], // → the denial line

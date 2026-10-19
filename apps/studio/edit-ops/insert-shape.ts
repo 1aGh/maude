@@ -26,7 +26,7 @@ import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
 import { applyInsertArtboard, applySetArtboardKind } from '../canvas-edit.ts';
-import { generateElementId, usedIds, walkIdElements } from '../element-ids.ts';
+import { generateElementId, type IdElement, usedIds, walkIdElements } from '../element-ids.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
 import { lineIndent } from './siblings.ts';
@@ -131,6 +131,35 @@ function styleFor(req: ResolvedEditOp, kind: DrawnKind): { style: Style; shape: 
 const styleText = (style: Style): string =>
   `{{ ${style.map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ')} }}`;
 
+/** `child` as the last child of `parent` (a self-closing parent opens up). Shared with the Pen's path (path.ts). */
+export function appendChild(
+  source: string,
+  parent: IdElement,
+  child: string,
+  req: ResolvedEditOp
+): string {
+  const s = new MagicString(source);
+  const indent = lineIndent(source, parent.start);
+  const unit = indent.includes('\t') ? '\t' : '  ';
+  const text = source.slice(parent.start, parent.end);
+  if (text.endsWith('/>')) {
+    // a self-closing parent opens up: `<div … />` → `<div …>\n  <child />\n</div>`
+    if (!/^[a-z]/.test(parent.tag) && parent.tag !== 'DCArtboard')
+      return refuse(req, 'Draw inside a frame, not a component.');
+    s.overwrite(
+      parent.end - 2,
+      parent.end,
+      `>\n${indent}${unit}${child}\n${indent}</${parent.tag}>`
+    );
+  } else {
+    const close = source.lastIndexOf('</', parent.end);
+    const own = /^\s*$/.test(source.slice(source.lastIndexOf('\n', close - 1) + 1, close));
+    if (own) s.appendLeft(source.lastIndexOf('\n', close - 1), `\n${indent}${unit}${child}`);
+    else s.appendLeft(close, child);
+  }
+  return s.toString();
+}
+
 export const objectInsertShape: EditOp = {
   id: 'object.insert-shape',
   apply(source, req) {
@@ -155,26 +184,7 @@ export const objectInsertShape: EditOp = {
     const attrs = [`data-cd-id="${id}"`, ...(shape ? [`data-shape="${shape}"`] : [])];
     const child = `<div ${attrs.join(' ')} style=${styleText(style)} />`;
 
-    const s = new MagicString(source);
-    const indent = lineIndent(source, parent.start);
-    const unit = indent.includes('\t') ? '\t' : '  ';
-    const text = source.slice(parent.start, parent.end);
-    if (text.endsWith('/>')) {
-      // a self-closing parent opens up: `<div … />` → `<div …>\n  <child />\n</div>`
-      if (!/^[a-z]/.test(parent.tag) && parent.tag !== 'DCArtboard')
-        return refuse(req, 'Draw inside a frame, not a component.');
-      s.overwrite(
-        parent.end - 2,
-        parent.end,
-        `>\n${indent}${unit}${child}\n${indent}</${parent.tag}>`
-      );
-    } else {
-      const close = source.lastIndexOf('</', parent.end);
-      const own = /^\s*$/.test(source.slice(source.lastIndexOf('\n', close - 1) + 1, close));
-      if (own) s.appendLeft(source.lastIndexOf('\n', close - 1), `\n${indent}${unit}${child}`);
-      else s.appendLeft(close, child);
-    }
-    let out = s.toString();
+    let out = appendChild(source, parent, child, req);
     const check = parseSync('draw.tsx', out, { sourceType: 'module' });
     if (check.errors?.length)
       return refuse(req, 'That drawing would break the canvas; nothing was written.');

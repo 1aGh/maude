@@ -20946,5 +20946,299 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/edit-place-ghost.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "edit-pen-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the overlay that takes the pointer while the Pen (P) is armed.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the key hints while drawing — click, drag, ⇧ 45° steps, ↵ or esc finishes.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-svg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the path being drawn, in screen px (points, the pulled handle, the close ring).",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the outline of the path being drawn.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-rubber",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed segment from the last point to the pointer (⇧ snaps it to 45°).",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring over the first point; press it to close the path.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Click here to close\", shown with the pointer over the first point.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-45",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"45°\" chip beside the pointer while ⇧ is held.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-points",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the point-editing overlay of a double-clicked Pen path (points, the selected point’s handles, the path).",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-edit-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the key hints while editing points — click adds, drag bends, ⌥-drag breaks a handle, double-click flips smooth and sharp, ⌫ removes, ↵ is done.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-outline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the path as the overlay holds it while a point or handle is dragged.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-was",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the previous curve, dashed, while a drag is in flight.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-segments",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the wide invisible stroke over the path; a press on it adds a point there.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-point-<sub>-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one anchor of the path being edited (sub-path, point). `data-on` on the selected one.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-handle-<which>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: a handle of the selected point (`in`, `out`); drag to bend, ⌥-drag to break.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-type",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Smooth\" or \"Sharp\" beside the selected point.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-path-ends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stroke › Ends: Round or Flat, on a Pen path that has a stroke.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "PathEndsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-path-ends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Round / Flat segmented control of a Pen path’s Ends row.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "PathEndsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-combine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Combine shapes: the row (\"Two or more\"), dimmed for one shape.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-combine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Combine shapes: the group of four buttons.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-combine-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Combine shapes: one button — `union`, `subtract`, `intersect`, `exclude`. Disabled for one shape; a click asks the canvas for ONE `shape.combine.<kind>` edit-op.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
   }
 ]
