@@ -74,6 +74,12 @@ export interface Registry {
     guard?: BoardGuard
   ): ApplyResult | 'too-large' | 'refused' | null;
   /**
+   * S4.V4 G4 — the board a live room holds (canonical text), ahead of its debounced flush: a reader that
+   * must see its own `applyOpsToRoom` write reads this first. `null` when no room (or a never-populated
+   * one) is live — the file is the truth then.
+   */
+  readRoomBoard(slug: string): string | null;
+  /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
    * clears it. No-op when no room is live for the slug — a peer that joins
@@ -267,6 +273,12 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     return r;
   }
 
+  function readRoomBoard(slug: string): string | null {
+    const room = rooms.get(slug);
+    const cur = room ? readReplica(room.doc) : null;
+    return cur ? serializeBoard(cur.elements) : null;
+  }
+
   function setAgentEditing(slug: string, state: { name: string; since: number } | null): void {
     rooms.get(slug)?.setAgentEditing(state);
   }
@@ -319,6 +331,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     syncRoomFromComments,
     syncRoomFromAnnotations,
     applyOpsToRoom,
+    readRoomBoard,
     setAgentEditing,
     attachHubAwareness,
     pin,
