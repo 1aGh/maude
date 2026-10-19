@@ -14,6 +14,7 @@ import { type ApplyResult, applyOps, type Op } from '../annotations/ops.ts';
 import '../annotations/ops-merge.ts';
 import { readReplica, validActionId, writeReplica } from '../annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import type { BoardGuard } from '../annotations/vote-guard.ts';
 import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';
 import { MAX_ANNOTATIONS_BYTES } from '../sync/limits.ts';
 import { bridgeAwareness } from './awareness-bridge.ts';
@@ -63,13 +64,15 @@ export interface Registry {
    * to the room's replica — the freshest state, ahead of a debounced flush —
    * instead of to disk, where a peer's not-yet-flushed edit would be reverted.
    * `null` when no room (or a never-populated one) is live; `'too-large'` when
-   * the result would exceed the board cap (nothing written).
+   * the result would exceed the board cap (nothing written); `'refused'` when `guard` names a
+   * change (sec-a M1 — a vote / ballot change off the vote door; nothing written).
    */
   applyOpsToRoom(
     slug: string,
     ops: readonly Op[],
-    actionId?: string
-  ): ApplyResult | 'too-large' | null;
+    actionId?: string,
+    guard?: BoardGuard
+  ): ApplyResult | 'too-large' | 'refused' | null;
   /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
@@ -239,14 +242,17 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   function applyOpsToRoom(
     slug: string,
     ops: readonly Op[],
-    actionId?: string
-  ): ApplyResult | 'too-large' | null {
+    actionId?: string,
+    guard?: BoardGuard
+  ): ApplyResult | 'too-large' | 'refused' | null {
     const room = rooms.get(slug);
     // A replica that was never populated is not the board's truth — the
     // caller takes the disk path instead (DDR-223: no value ≠ empty).
     const cur = room ? readReplica(room.doc) : null;
     if (!room || cur === null) return null;
-    const r = applyOps(new Map(cur.elements.map((e) => [e.id, e])), ops);
+    const before = new Map(cur.elements.map((e) => [e.id, e]));
+    const r = applyOps(before, ops);
+    if (guard && guard(before, r.state) !== null) return 'refused';
     if (!r.touched.size) return r;
     const next = [...r.state.values()];
     if (serializeBoard(next).length > MAX_ANNOTATIONS_BYTES) return 'too-large';

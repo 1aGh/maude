@@ -30,6 +30,7 @@ import {
 import './annotations/ops-merge.ts';
 import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import { type BoardGuard, voteDoorOnly } from './annotations/vote-guard.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
 import {
@@ -618,7 +619,12 @@ export interface Api {
     actionId?: string,
     /** S2.10c — `hooks: false`: the file only (no live room, no change hook) — an accepted-mode
      *  action already carries the annotations lane (routes/edit.ts, an artboard moved to the trash) */
-    opts?: { hooks?: boolean }
+    opts?: {
+      hooks?: boolean;
+      /** sec-a M1 — refuse the WHOLE batch when the guard names a change (HTTP writers pass
+       *  `voteDoorOnly`; the in-process vote door passes none). `refused` in the result. */
+      guard?: BoardGuard;
+    }
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
@@ -1029,8 +1035,10 @@ export interface ApiHooks {
   applyAnnotationOpsLive?: (
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
-  ) => ApplyResult | 'too-large' | null;
+    actionId?: string,
+    /** sec-a M1 — checked against the ROOM's before/after; a hit writes nothing (`'refused'`). */
+    guard?: BoardGuard
+  ) => ApplyResult | 'too-large' | 'refused' | null;
   /**
    * Accepted-revisions mode (DDR-241): propose a folder operation as ONE
    * project action before touching disk. Absent, or answering `null`, means
@@ -1087,6 +1095,8 @@ export interface AnnotationOpsResult {
   error?: string;
   /** The board on disk exists but can't be read — nothing was written (HTTP 409). */
   unreadable?: boolean;
+  /** sec-a M1 — the batch's guard refused it (a vote / ballot change off the vote door; HTTP 403). */
+  refused?: string;
 }
 
 /**
@@ -2574,13 +2584,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         // (code review M5). Same one merge rule as the op path.
         const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
         const ops = diffToOps(byId(cleanBase), byId(clean));
-        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId) ?? null;
-        if (live === 'too-large') return false;
+        // sec-a M1 — a whole-board write never touches a vote or a ballot (the vote door does).
+        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId, voteDoorOnly) ?? null;
+        if (live === 'too-large' || live === 'refused') return false;
         if (live) return true;
         const current = read.text ?? serializeBoard([]);
-        next = serializeBoard([...applyAnnotationOpsPure(byId(current), ops).state.values()]);
+        const currentMap = byId(current);
+        const merged = applyAnnotationOpsPure(currentMap, ops).state;
+        if (voteDoorOnly(currentMap, merged) !== null) return false;
+        next = serializeBoard([...merged.values()]);
         if (next.length > MAX_ANNOTATIONS_BYTES) return false;
         if (next === current) return true;
+      }
+      if (cleanBase === undefined) {
+        // A replace: every vote and ballot must be exactly the stored ones (sec-a M1).
+        const byId = (t: string | null) =>
+          new Map((t ? parseBoard(t).elements : []).map((e) => [e.id, e]));
+        if (voteDoorOnly(byId(read.text), byId(next)) !== null) return false;
       }
       await writeBoardFile(file, next);
       onAnnotationsChanged?.(file, next, writeId, cleanBase);
@@ -2597,9 +2617,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     file: string,
     ops: readonly AnnotationOp[],
     actionId?: string,
-    opts?: { hooks?: boolean }
+    opts?: { hooks?: boolean; guard?: BoardGuard }
   ): Promise<AnnotationOpsResult> {
     const withHooks = opts?.hooks !== false;
+    const guard = opts?.guard;
+    const refusedResult = (id: string): AnnotationOpsResult => ({
+      ok: false,
+      changed: false,
+      rejected: [],
+      error: 'votes and ballots change only through the vote',
+      refused: id,
+    });
     return onAnnotationChain(file, async () => {
       const rejectedOf = (r: ApplyResult) =>
         r.rejected.map((x) => ({
@@ -2609,7 +2637,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }));
       // A live room is ahead of the file (its flush is debounced): the batch
       // goes to its replica, or it would revert a peer's unflushed edit (H1).
-      const live = withHooks ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null) : null;
+      const live = withHooks
+        ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId, guard) ?? null)
+        : null;
+      if (live === 'refused') return refusedResult('?');
       if (live === 'too-large') {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }
@@ -2620,7 +2651,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       const before = read.text ? parseBoard(read.text).elements : [];
       const beforeText = serializeBoard(before);
-      const r = applyAnnotationOpsPure(new Map(before.map((e) => [e.id, e])), ops);
+      const beforeMap = new Map(before.map((e) => [e.id, e]));
+      const r = applyAnnotationOpsPure(beforeMap, ops);
+      const hit = guard?.(beforeMap, r.state) ?? null;
+      if (hit !== null) return refusedResult(hit);
       const rejected = rejectedOf(r);
       if (!r.touched.size) return { ok: true, changed: false, rejected };
       const text = serializeBoard([...r.state.values()]);
