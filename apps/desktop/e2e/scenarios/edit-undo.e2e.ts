@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { Key } from '../helpers/parity';
@@ -44,6 +45,7 @@ function rectOf(text: string): Promise<{ x: number; y: number } | null> {
   }, text);
 }
 
+/** ⌘-click: a bare click selects the TOP-level object (the content wrapper); ⌘ picks the heading. */
 async function click(x: number, y: number): Promise<void> {
   await browser.execute(
     (px, py) => {
@@ -52,7 +54,7 @@ async function click(x: number, y: number): Promise<void> {
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click']) {
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0, metaKey: true })
         );
       }
     },
@@ -115,7 +117,8 @@ async function lockHeading(): Promise<void> {
 describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
   before(async () => {
     await waitForSidecar();
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await countUndoKeys();
   });
   after(() => fixtures.restore());

@@ -2,6 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForEditChrome } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -25,26 +26,36 @@ const ARTBOARD = 'smoke';
 const OVERLAY = '[data-testid="edit-pen-input"]';
 
 /** Run `fn` inside the canvas frame with its window; coordinates are frame-local. */
-function inFrame<T>(fn: string, ...args: unknown[]): Promise<T> {
-  return browser.execute(
+async function inFrame<T>(fn: string, ...args: unknown[]): Promise<T> {
+  // A throw inside `execute` reaches the spec as "A JavaScript exception occurred" and nothing else;
+  // carry the page's own message out instead so a red run says WHY.
+  const out = (await browser.execute(
     (src, a) => {
-      const iframe = document.querySelector(
-        '[data-testid="canvas-frame"]'
-      ) as HTMLIFrameElement | null;
-      const doc = iframe?.contentDocument;
-      const win = iframe?.contentWindow;
-      if (!doc || !win) return null as never;
-      // biome-ignore lint/security/noGlobalEval: test-only DOM probe inside the canvas frame
-      return new (win as unknown as { Function: FunctionConstructor }).Function(
-        'doc',
-        'win',
-        'args',
-        src
-      )(doc, win, a);
+      try {
+        const iframe = document.querySelector(
+          '[data-testid="canvas-frame"]'
+        ) as HTMLIFrameElement | null;
+        const doc = iframe?.contentDocument;
+        const win = iframe?.contentWindow;
+        if (!doc || !win) return { __inFrameError: 'no canvas frame' };
+        // biome-ignore lint/security/noGlobalEval: test-only DOM probe inside the canvas frame
+        return {
+          v: new (win as unknown as { Function: FunctionConstructor }).Function(
+            'doc',
+            'win',
+            'args',
+            src
+          )(doc, win, a),
+        };
+      } catch (e) {
+        return { __inFrameError: String(e) };
+      }
     },
     fn,
     args
-  ) as Promise<T>;
+  )) as { v?: T; __inFrameError?: string };
+  if (out.__inFrameError) throw new Error(`inFrame: ${out.__inFrameError}`);
+  return out.v as T;
 }
 
 const fire = (type: string, x: number, y: number, target: string, mods = '{}') =>
@@ -92,6 +103,7 @@ describe('edit-pen — draw a path, edit its points', () => {
     const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
+    await waitForEditChrome();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     await inFrame(`doc.querySelector('[data-testid="toolbar-slot-el-pen"]').click(); return true;`);
     await browser.waitUntil(
@@ -121,12 +133,21 @@ describe('edit-pen — draw a path, edit its points', () => {
     const src = readFileSync(SMOKE, 'utf8');
     expect(src).toMatch(/data-cd-id="path"/);
     expect(src).toMatch(/stroke: "var\(--accent\)"/);
-    expect(src).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // no colour literal came with the path: the file holds exactly the hex colours it started with
+    // (the fixture's own `color: "#111"`)
+    const hex = (t: string) => (t.match(/#[0-9a-f]{3,8}\b/gi) ?? []).length;
+    expect(hex(src)).toBe(hex(fixtures.baselineOf(SMOKE)));
     expect(pathD()).toMatch(/^M[\d. -]+C[\d. -]+/);
   });
 
   it('double-click shows the points; double-click a point flips it; ⌫ removes one', async () => {
     const before = pathD();
+    // the write of test 1 re-renders the frame a beat later; the drawn path is not in it until then
+    await browser.waitUntil(
+      async () =>
+        await inFrame<boolean>(`return !!doc.querySelector('svg[data-shape="path"] path');`),
+      { timeout: 15_000, timeoutMsg: 'the drawn path never rendered' }
+    );
     const centre = await inFrame<{ x: number; y: number }>(
       `const r = doc.querySelector('svg[data-shape="path"] path').getBoundingClientRect();
        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };`

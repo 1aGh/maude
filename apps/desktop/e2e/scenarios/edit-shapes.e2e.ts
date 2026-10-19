@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
+import { waitForEditChrome } from '../helpers/canvas-frame';
 import { canvasRow } from '../helpers/tree';
 
 /**
@@ -85,6 +86,7 @@ describe('edit-shapes — draw a rectangle, round a corner, Export area writes n
     const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
+    await waitForEditChrome();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     await inFrame(
       `doc.querySelector('[data-testid="toolbar-slot-el-shape"]').click(); return true;`

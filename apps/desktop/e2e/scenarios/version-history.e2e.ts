@@ -6,6 +6,7 @@ import type {} from '@wdio/tauri-service';
 
 import { openVersionHistory } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
+import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
@@ -25,6 +26,12 @@ const tid = (id: string) => `[data-testid="${id}"]`;
 const CANVAS_ROW = 'canvas-row-ui-smoke';
 const CANVAS_PATH = '.design/ui/Smoke.tsx';
 const NAME = 'Before the outside edit';
+// The spec edits the canvas from outside, and restoring a version rewrites it from inside.
+const FIXTURE_DIR = join(process.env.MAUDE_PROJECT_ROOT as string, '.design', 'ui');
+const fixtures = createFixtureGuard('version-history', [
+  join(FIXTURE_DIR, 'Smoke.tsx'),
+  join(FIXTURE_DIR, 'Smoke.meta.json'),
+]);
 
 /** The toast stack renders the message and, when it has one, its action button. */
 const toastText = (text: string) => `//*[contains(normalize-space(.), "${text}")]`;
@@ -44,6 +51,8 @@ describe('version-history — name, look, restore, undo', () => {
       { timeout: 30_000, timeoutMsg: `Expected ${CANVAS_PATH} to be the active canvas` }
     );
   });
+
+  after(() => fixtures.restore());
 
   it('names the current version from the Now row', async () => {
     await openVersionHistory();

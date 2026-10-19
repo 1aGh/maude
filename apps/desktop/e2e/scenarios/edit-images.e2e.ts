@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -47,19 +48,33 @@ export default function Smoke() {
 }
 `;
 
-const inFrame = <T>(fn: (doc: Document, win: Window) => T, ...args: unknown[]) =>
-  browser.execute(
+const inFrame = async <T>(
+  fn: (doc: Document, win: Window, ...rest: any[]) => T,
+  ...args: unknown[]
+): Promise<T> => {
+  // A throw inside `execute` reaches the spec as "A JavaScript exception occurred" and nothing else;
+  // carry the page's own message out instead so a red run says WHY.
+  const out = (await browser.execute(
     (src: string, a: unknown[]) => {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      return new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
-        frame.contentDocument,
-        frame.contentWindow,
-        a
-      );
+      try {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        return {
+          v: new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
+            frame.contentDocument,
+            frame.contentWindow,
+            a
+          ),
+        };
+      } catch (e) {
+        return { __inFrameError: String(e) };
+      }
     },
     fn.toString(),
     args
-  );
+  )) as { v?: T; __inFrameError?: string };
+  if (out.__inFrameError) throw new Error(`inFrame: ${out.__inFrameError}`);
+  return out.v as T;
+};
 
 const present = (testid: string) =>
   inFrame((doc, _w, id: string) => !!doc.querySelector(`[data-testid="${id}"]`), testid);
@@ -102,7 +117,8 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
