@@ -3019,7 +3019,7 @@ function ShellTree() {
           Skipped during first-run onboarding so two flows don't stack. */}
       {!firstRun && <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />}
       <NotificationHost
-        paused={!!usageNudge || !!tourSteps}
+        paused={!!tourSteps}
         hiddenGroups={exportCenter.panelOpen ? ['exports'] : []}
       />
       <WhatsNewToast wn={whatsNew} />
