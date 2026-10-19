@@ -433,6 +433,7 @@ export function usePaletteAndPanels({
         // S1.5: the other projects' groups — the desktop app's tabs only ({} in a browser tab)
         ...desktopProjectsEnv({ projectName: cfg?.cloud?.projectName || project || '' }),
         designRel: cfg.designRel,
+        projectName: cfg?.cloud?.projectName || project || '',
         canAskAI: () => isNativeApp() && !viewerMode,
         askAI: (text) => {
           openPanelExclusive('assistant');
