@@ -30,6 +30,7 @@ import {
   escOwnerOpen,
   runEscRung,
 } from '../bridge/esc-ladder.ts';
+import { commentMountEscape } from '../canvas-comment-mount.tsx';
 import { SHELL_KEY_HANDLERS } from '../client/actions/shell-key-handlers.js';
 import {
   capsFor,
@@ -307,7 +308,21 @@ function LadderRouter() {
   return <div ref={host} />;
 }
 
-const mount = () => {
+/** S3.15 — the comment mount layer's own router, as a UI canvas runs it next to the shell's: the REAL escape
+ *  callback (it used to return nothing on a UI canvas, which the router reads as "no rung ran" and posts a
+ *  second, mode-back request for the same press — the first esc after a ⌘-click left Preview). */
+function CommentMountRouter() {
+  const host = useRef<HTMLDivElement | null>(null);
+  useInputRouter({
+    hostRef: host,
+    getActiveTool: () => 'browse',
+    claimableActions: new Set(['escape']),
+    callbacks: { onEscape: () => commentMountEscape(false, () => {}) },
+  });
+  return <div ref={host} />;
+}
+
+const mount = (withCommentMount = false) => {
   const h = document.createElement('div');
   document.body.append(h);
   const r = createRoot(h);
@@ -316,6 +331,7 @@ const mount = () => {
     r.render(
       <ToolProvider governed>
         <LadderRouter />
+        {withCommentMount ? <CommentMountRouter /> : null}
       </ToolProvider>
     )
   );
@@ -382,6 +398,19 @@ describe('B · the canvas router posts back only when the press ran no rung', ()
     esc();
     expect(log).toEqual(['selection', 'back']);
     expect(back()).toEqual([{ dgn: 'mode-request', mode: 'back', cause: 'esc' }]);
+  });
+
+  test('S3.15 · with the comment mount beside the shell, a cleared inspection is still ONE step (md-esc)', () => {
+    mount(true);
+    setMode('preview', { tool: 'browse' });
+    canvas.selection = true;
+    shellPosts.length = 0;
+    esc();
+    expect(log).toEqual(['selection']);
+    expect(back()).toEqual([]); // the mount layer must not ask for the mode back on the same press
+    esc();
+    expect(log).toEqual(['selection', 'back']);
+    expect(back()).toEqual([{ dgn: 'mode-request', mode: 'back', cause: 'esc' }]); // exactly one
   });
 
   test('an annotation tool: the first esc leaves it for Hand, the second goes back', () => {
