@@ -407,6 +407,9 @@ export const menuRunner = (() => {
       }
       const def = ACTIONS_BY_ID.get(id);
       if (def?.exec === 'canvas') {
+        // sec-a C1(e) — the canvas answers "Start a vote…" with `vote-board {open}`; the shell opens
+        // the sheet only because it asked here (a person's ⌘K / menu pick), never on the canvas's own say.
+        if (id === 'annotations.start-vote') voteStore.expectSheet();
         post(runActionMessage(id));
         return true;
       }

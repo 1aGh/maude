@@ -1,13 +1,17 @@
 // client/v2/annotations/vote-bar.jsx — S4.14: the vote bar + the shell's vote lane (canvas 15, an-vote).
 //
-//   Vote 3 directions │ 0 left of your 3 │ ⏱ 1:42 │ (faces) 4 of 5 done │ End vote
+//   Vote 3 directions │ 0 left of your 3 │ ⏱ 1:42 │ (faces) 4 of 5 done │ [Clear] [Cast] │ End vote
+//
+// sec-a M2 (lead decision `v2-lead-ballots-commit-in-shell`): the dots placed on the canvas are PENDING
+// picks; only this bar's Cast button posts the ballot (a shell gesture the canvas can't make). Clear drops
+// the pending picks. The budget ("N left of your 3") counts the pending picks.
 //
 // The bar shows while the active canvas has an OPEN vote. "End vote" is an editor's (the server refuses
 // anyone else: POST /_api/votes/end needs `edit`). The faces are WHO has voted — never what.
 //
 // The lane (`useVoteLane`) is the ONE place the shell and the untrusted canvas talk about votes:
 //   vote-state {vote, mine}        s2c, to the active frame: the projection (vote-store voteStateMessage)
-//   vote-cast {artboard, remove?}  c2s, `active`: a dot on / off an artboard → POST /_api/votes/ballot
+//   vote-cast {artboard, remove?}  c2s, `active`: a dot on / off an artboard → a PENDING pick (Cast posts)
 //   vote-board {artboards, open?, focus?}  c2s, `active`: the canvas's artboards (names + world rects,
 //                                  text only) for the sheet and the result's place; `open` = "Start a vote…"
 // `VoteHost` mounts both, so app.jsx carries one element.
@@ -34,8 +38,8 @@ const initials = (name) =>
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('') || '?';
 
-export function VoteBar({ state, now, onEnd }) {
-  const m = barModel(state.vote, state.mine, now);
+export function VoteBar({ state, now, onEnd, onCast, onClear }) {
+  const m = barModel(state.vote, state.mine, now, state.pending ?? null);
   if (!m) return null;
   return (
     <div className="island an-vbar" data-testid="vote-bar" role="status" aria-live="polite">
@@ -70,6 +74,27 @@ export function VoteBar({ state, now, onEnd }) {
         ))}
         {m.done}
       </span>
+      {m.pending && (
+        <>
+          <span className="an-vbar-div" />
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            onClick={onClear}
+            data-testid="vote-bar-clear"
+          >
+            {VOTE_WORDS.clear}
+          </button>
+          <button
+            type="button"
+            className="btn btn--sm btn--primary"
+            onClick={onCast}
+            data-testid="vote-bar-cast"
+          >
+            {VOTE_WORDS.cast}
+          </button>
+        </>
+      )}
       {state.canEdit && (
         <button type="button" className="btn btn--sm" onClick={onEnd} data-testid="vote-bar-end">
           {VOTE_WORDS.end}
@@ -90,14 +115,14 @@ export function useVoteLane(iframesRef, activePath, store = voteStore) {
     const tell = (win) => {
       const s = store.get();
       try {
-        win?.postMessage(voteStateMessage(s.vote, s.mine), '*');
+        win?.postMessage(voteStateMessage(s.vote, s.pending ?? s.mine), '*');
       } catch {
         /* detached */
       }
     };
     let last = '';
     const unsub = store.subscribe((s) => {
-      const key = JSON.stringify(voteStateMessage(s.vote, s.mine));
+      const key = JSON.stringify(voteStateMessage(s.vote, s.pending ?? s.mine));
       if (key === last) return;
       last = key;
       tell(active()?.contentWindow);
@@ -115,7 +140,8 @@ export function useVoteLane(iframesRef, activePath, store = voteStore) {
         canvasOrigin: frameOrigin(frame),
         active: frame.contentWindow,
       });
-      if (m?.dgn === 'vote-cast') void store.cast(m.artboard, m.remove ? -1 : 1);
+      // sec-a M2 — a canvas dot is a pending pick; nothing is posted until the person presses Cast.
+      if (m?.dgn === 'vote-cast') store.pick(m.artboard, m.remove ? -1 : 1);
       else if (m?.dgn === 'vote-board') store.noteBoard(m);
     };
     window.addEventListener('message', onMessage);
@@ -144,12 +170,30 @@ export default function VoteHost({
   }, [caps.edit, caps.comment, store]);
   useEffect(() => {
     store.setNotify(notify ? (title) => notify({ title, kind: 'info' }) : null);
+    // sec-a C1(e) — the canvas's own "Start a vote…" row: one shell toast asks (one slot, replaced)
+    store.setOffer(
+      notify
+        ? (focus) =>
+            notify({
+              id: 'vote-offer',
+              title: 'Start a vote?',
+              kind: 'info',
+              action: { label: VOTE_WORDS.title + '…', onClick: () => store.openSheet(focus) },
+            })
+        : null
+    );
   }, [notify, store]);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => store.subscribe(() => setNow(Date.now())), [store]);
   return (
     <>
-      <VoteBar state={state} now={now} onEnd={() => void store.end()} />
+      <VoteBar
+        state={state}
+        now={now}
+        onEnd={() => void store.end()}
+        onCast={() => void store.cast()}
+        onClear={() => store.clearPending()}
+      />
       {state.sheet && (
         <VoteSheet
           key={`${state.file}:${state.sheet.focus ?? ''}`}
