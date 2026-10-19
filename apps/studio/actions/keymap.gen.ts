@@ -516,6 +516,17 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: 'R', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
   },
   {
+    id: 'tool.el-pen',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'P',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
     id: 'tool.el-text',
     exec: 'canvas',
     keys: [{ chord: 'T', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],

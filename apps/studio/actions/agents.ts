@@ -728,6 +728,28 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.set-corner-radius': TSX(
     'Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius'
   ),
+  // S2.14 — the Pen: a path is a plain <svg>; Combine composes shapes inside one <svg> (non-destructive, Q6)
+  'tool.el-pen': TSX(
+    'Add <svg data-cd-id="path" data-shape="path" width viewBox style={{ position: "absolute", left, top, overflow: "visible", fill: "none", stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}><path d="M…C…" /></svg> to the artboard or frame; the svg box is the path bounds and d is relative to it — see canvas-tsx.md § Draw a path'
+  ),
+  'object.insert-path': TSX(
+    'Add the same <svg data-shape="path"> as the Pen tool writes (d in the box\'s own px, left / top its place in the frame) — see canvas-tsx.md § Draw a path'
+  ),
+  'path.edit': TSX(
+    "Rewrite the d of the svg's <path>, then width, height, viewBox and style left / top to the new bounds so every point keeps its place — see canvas-tsx.md § Draw a path"
+  ),
+  'shape.combine.union': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="union"> holding ONE <path d> of every outline (each wound clockwise), fillRule="nonzero" — see canvas-tsx.md § Combine shapes'
+  ),
+  'shape.combine.exclude': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="exclude"> holding ONE <path d> of every outline, fillRule="evenodd" — see canvas-tsx.md § Combine shapes'
+  ),
+  'shape.combine.subtract': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="subtract">: the bottom shape\'s <path mask="url(#id-mask)"> first, then <defs><mask> holding a white <rect> and the other shapes in black — see canvas-tsx.md § Combine shapes'
+  ),
+  'shape.combine.intersect': TSX(
+    'Replace the shapes with one <svg data-shape="path" data-combine="intersect">: the bottom shape\'s <path clipPath="url(#id-clip-1)"> first, then <defs> with a <clipPath> per other shape (more than one nest <g clipPath>) — see canvas-tsx.md § Combine shapes'
+  ),
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),

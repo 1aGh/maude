@@ -403,6 +403,42 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     search: { hidden: true },
   },
+  // S2.14 (ed-pen) — the Pen's finished path and a point drag: gestures (the P tool and a double-click are how a
+  // person starts them), so not offered in ⌘K.
+  {
+    id: 'object.insert-path',
+    label: 'Draw a path',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'path.edit',
+    label: 'Edit path points',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  // S2.14 — Combine shapes (S2-slices Q6): non-destructive SVG composition, one edit-op each. The Combine row of the
+  // inspector, ⌘K and an agent run these; they need two or more shapes (the canvas says so in a line).
+  ...(
+    [
+      ['union', 'Union selection'],
+      ['subtract', 'Subtract selection'],
+      ['intersect', 'Intersect selection'],
+      ['exclude', 'Exclude selection'],
+    ] as const
+  ).map(
+    ([kind, label]): ActionDef => ({
+      id: `shape.combine.${kind}`,
+      label,
+      kind: 'command',
+      exec: 'canvas',
+      enabled: { ...EDITS, selection: ['object'] },
+    })
+  ),
   {
     id: 'object.set-corner-radius',
     label: 'Round a corner',
