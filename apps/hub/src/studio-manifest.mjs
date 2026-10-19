@@ -321,6 +321,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/share/me': REFUSED,
   '/_api/share/people': REFUSED,
   '/_api/share/invites': REFUSED,
+  '/_api/share/links': REFUSED, // S9.20 — the link rules, the same door
   // V2-3.3 — a pin is ONE person's view state in `_canvas-state/`, and a cell's is shared by
   // every member: refused rather than letting one member's pins become everyone's.
   '/_api/pins': REFUSED,

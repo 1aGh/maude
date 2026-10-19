@@ -434,8 +434,12 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `settings-tab-<id>` | testid (pattern) | A section tab on the sheet’s rail; `<id>` ∈ general, connections, advanced. Connections and Advanced exist only on the desktop. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
 | `settings-panel-<id>` | testid (pattern) | The tabpanel of one section (`<id>` as above); a section opened once stays mounted, hidden. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
 | `settings-close` | testid | The sheet’s Done button. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
-| `settings-account` | testid | General › Account group (shown when a dashboard address is known). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
-| `settings-open-dashboard` | testid | General › Account › Open the cloud dashboard. | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-account` | testid | General › Account group (shown when a dashboard address is known). | `client/v2/settings/account.jsx` · `AccountBlock` | — | stable |
+| `settings-open-dashboard` | testid | General › Account › Manage on <host> (S9.20; was "Open the cloud dashboard"). | `client/v2/settings/account.jsx` · `AccountBlock` | — | stable |
+| `settings-account-state` | testid | "Signed in to <host>" / "Not signed in". | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-account-plan` | testid | Plan: "Free trial · N days left" — only when the server reports the plan. | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-account-links` | testid | The five account pages on the web (signed in). | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-account-<key>` | testid (pattern) | One account page; `<key>` ∈ people, billing, macs, download, delete. | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
 | `settings-theme` | testid | General › Look › the Light / Dark radio group. | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
 | `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
 | `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
@@ -899,9 +903,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
 | `share-dialog` | testid | The Share sheet (`role="dialog"`) — Invite first, people and roles. *Was the share-link dialog; re-emitted S9.19 on the sheet root.* | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
-| `share-<kind>-url` | testid (pattern) | Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). *Under the sheet's › Advanced · Other ways in (S9.19).* | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
-| `share-copy-<kind>` | testid (pattern) | Copy button for that link. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
-| `share-open-app` | testid | "Open in app" link (not in the native shell). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | — | stable — re-emit |
+| `share-<kind>-url` | testid (pattern) | Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). *Under the sheet's › Advanced · Other ways in (S9.19).* | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | e2e:share-link | stable — re-emit |
+| `share-copy-<kind>` | testid (pattern) | Copy button for that link. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | e2e:share-link | stable — re-emit |
+| `share-open-app` | testid | "Open in app" link (not in the native shell). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | — | stable — re-emit |
 | `[aria-label="Close share dialog"]` | selector | Close button of the Share sheet (`share-close`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
 | `share-close` | testid | The Share sheet's close button (`aria-label="Close share dialog"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-scope` | testid | The scope segment (This canvas · Whole project). Drawn only when `/health.access.scopes` holds `canvas` (S9-slices Q13). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
@@ -928,10 +932,30 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `share-role-remove` | testid | "Remove from <scope>" — opens the Remove dialog. | `client/v2/share/role-menu.jsx` · `RoleMenu` | test:share-sheet | new in v2 (S9.19) |
 | `share-remove-dialog` | testid | The Remove dialog (`role="alertdialog"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-remove-confirm` | testid | Remove (or Take back, for a pending invitation) in that dialog. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-link-row` | testid | The link row — only when `/health.access.links` (S9.20 fills in its rules). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-link-copy` | testid | Copy link in the link row. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-other-ways` | testid | The sheet's › Advanced fold, hint "Other ways in": the web / app / this-Mac links. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-other-ways-toggle` | testid | That fold's toggle (`aria-expanded`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-row` | testid | The link row — only when `/health.access.links` (S9.20 fills in its rules). | `client/v2/share/link-row.jsx` · `LinkRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-copy` | testid | Copy link in the link row. | `client/v2/share/link-row.jsx` · `LinkRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-other-ways` | testid | The sheet's › Advanced fold, hint "Other ways in": the web / app / this-Mac links. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-sheet | new in v2 (S9.19) |
+| `share-other-ways-toggle` | testid | That fold's toggle (`aria-expanded`). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-rules` | testid | Share › Advanced › This link: who can open, role, expires — the owner, where the hub has links (Q13). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-who` | testid | This link › Who can open (Team only · Anyone with the link). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-role` | testid | This link › Role (Can view · Can comment; a team link grants nothing, so it is off there). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-expires` | testid | This link › Expires (Never · In 7 days · In 30 days). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-off` | testid | Turn off the link the sheet made (`PATCH /_api/share/links/:id {off}`). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github` | testid | Share › Advanced › Invite by GitHub username (desktop; takes over project.share-github). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-username` | testid | The GitHub username field. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-invite` | testid | Invite by GitHub username. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-done` | testid | "Invited @name." after GitHub accepted the invite. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-error` | testid | GitHub refused the invite, in its words. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-syncs` | testid | Share › Advanced › Where it syncs. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-syncs-hub` | testid | The hub address this project syncs to (read-only input). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-copy-hub` | testid | Copy the hub address. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-role-matrix` | testid | The roles side by side (cloud) — columns are the roles the hub reports. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-hub-roles` | testid | Roles on this hub (self-hosted). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-hub-roles-missing` | testid | "Can comment · Can view — Not on this hub" (self-hosted, no view-only accounts). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-move` | testid | A local project’s Share (desktop): "Move “P” to the cloud?" with Cancel / Move to cloud. | `client/v2/share/move-to-cloud.jsx` · `MoveToCloud` | test:share-advanced | new in v2 (S9.20) |
+| `share-move-confirm` | testid | Move to cloud (the window’s own `POST /_api/cloud/move`). | `client/v2/share/move-to-cloud.jsx` · `MoveToCloud` | test:share-advanced | new in v2 (S9.20) |
+| `share-move-error` | testid | Why the move did not start; the project stays local. | `client/v2/share/move-to-cloud.jsx` · `MoveToCloud` | test:share-advanced | new in v2 (S9.20) |
+| `share-moved` | testid | The move’s progress words ("Moved to the cloud — your canvases are going up now."). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-advanced | new in v2 (S9.20) |
 
 ### report-bug
 

@@ -4549,8 +4549,8 @@
     "pattern": true,
     "meaning": "Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). Under the Share sheet's › Advanced · Other ways in (S9.19).",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
     },
     "region": "share",
     "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
@@ -4562,8 +4562,8 @@
     "pattern": true,
     "meaning": "Copy button for that link.",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
     },
     "region": "share",
     "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
@@ -4575,8 +4575,8 @@
     "pattern": false,
     "meaning": "\"Open in app\" link (not in the native shell).",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
     },
     "region": "share",
     "consumers": [],
@@ -4742,14 +4742,18 @@
     "hook": "share-local-note",
     "kind": "testid",
     "pattern": false,
-    "meaning": "A local (unlinked) project: no invite, one line about the cloud.",
+    "meaning": "A local (unlinked) project: one line about the cloud — on the desktop, the Move to cloud offer’s body (S9.20).",
     "producer": {
       "file": "apps/studio/client/v2/share/share-sheet.jsx",
       "symbol": "ShareSheet"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
-    "v2": "new"
+    "consumers": [
+      "apps/studio/test/share-sheet.test.tsx",
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
+    "v2": "new",
+    "notes": "Also produced by client/v2/share/move-to-cloud.jsx · MoveToCloud (S9.20)."
   },
   {
     "hook": "share-unreachable",
@@ -4913,11 +4917,14 @@
     "pattern": false,
     "meaning": "The link row — only when `/health.access.links` (S9.20 fills in its rules).",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/link-row.jsx",
+      "symbol": "LinkRow"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/share-sheet.test.tsx",
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4926,11 +4933,14 @@
     "pattern": false,
     "meaning": "Copy link in the link row.",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/link-row.jsx",
+      "symbol": "LinkRow"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/share-sheet.test.tsx",
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4939,11 +4949,14 @@
     "pattern": false,
     "meaning": "The sheet's › Advanced fold, hint \"Other ways in\": the web / app / this-Mac links.",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/share-sheet.test.tsx",
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4952,11 +4965,14 @@
     "pattern": false,
     "meaning": "That fold's toggle (`aria-expanded`).",
     "producer": {
-      "file": "apps/studio/client/v2/share/share-sheet.jsx",
-      "symbol": "ShareSheet"
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/share-sheet.test.tsx",
+      "apps/studio/test/share-advanced.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -10824,24 +10840,24 @@
     "pattern": false,
     "meaning": "General › Account group (shown when a dashboard address is known).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/general-section.jsx",
-      "symbol": "GeneralSection"
+      "file": "apps/studio/client/v2/settings/account.jsx",
+      "symbol": "AccountBlock"
     },
     "region": "settings",
-    "consumers": [],
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
     "v2": "stable"
   },
   {
     "hook": "settings-open-dashboard",
     "kind": "testid",
     "pattern": false,
-    "meaning": "General › Account › Open the cloud dashboard.",
+    "meaning": "General › Account › Manage on <host> (S9.20; was \"Open the cloud dashboard\").",
     "producer": {
-      "file": "apps/studio/client/v2/settings/general-section.jsx",
-      "symbol": "GeneralSection"
+      "file": "apps/studio/client/v2/settings/account.jsx",
+      "symbol": "AccountBlock"
     },
     "region": "settings",
-    "consumers": [],
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
     "v2": "stable"
   },
   {
@@ -20945,6 +20961,318 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/edit-place-ghost.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-rules",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Share › Advanced › This link: who can open, role, expires — the owner, where the hub has links (Q13).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-who",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This link › Who can open (Team only · Anyone with the link).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-role",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This link › Role (Can view · Can comment; a team link grants nothing, so it is off there).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-expires",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "This link › Expires (Never · In 7 days · In 30 days).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-off",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Turn off the link the sheet made (`PATCH /_api/share/links/:id {off}`).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-github",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Share › Advanced › Invite by GitHub username (desktop; takes over project.share-github).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-github-username",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The GitHub username field.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-github-invite",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Invite by GitHub username.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-github-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Invited @name.\" after GitHub accepted the invite.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-github-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "GitHub refused the invite, in its words.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-syncs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Share › Advanced › Where it syncs.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-syncs-hub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hub address this project syncs to (read-only input).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-copy-hub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy the hub address.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-role-matrix",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The roles side by side (cloud) — columns are the roles the hub reports.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-hub-roles",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Roles on this hub (self-hosted).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-hub-roles-missing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Can comment · Can view — Not on this hub\" (self-hosted, no view-only accounts).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-advanced.jsx",
+      "symbol": "ShareAdvanced"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-move",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A local project’s Share (desktop): \"Move “P” to the cloud?\" with Cancel / Move to cloud.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
+      "symbol": "MoveToCloud"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-move-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Move to cloud (the window’s own `POST /_api/cloud/move`).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
+      "symbol": "MoveToCloud"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-move-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the move did not start; the project stays local.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/move-to-cloud.jsx",
+      "symbol": "MoveToCloud"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-moved",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The move’s progress words (\"Moved to the cloud — your canvases are going up now.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-account-state",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Signed in to <host>\" / \"Not signed in\".",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/account.jsx",
+      "symbol": "AccountBlock"
+    },
+    "region": "settings",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-account-plan",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Plan: \"Free trial · N days left\" — only when the server reports the plan.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/account.jsx",
+      "symbol": "AccountBlock"
+    },
+    "region": "settings",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-account-links",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The five account pages on the web (signed in).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/account.jsx",
+      "symbol": "AccountBlock"
+    },
+    "region": "settings",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-account-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One account page; `<key>` ∈ people, billing, macs, download, delete.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/account.jsx",
+      "symbol": "AccountBlock"
+    },
+    "region": "settings",
+    "consumers": ["apps/studio/test/share-advanced.test.tsx"],
     "v2": "new"
   }
 ]

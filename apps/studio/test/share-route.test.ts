@@ -236,6 +236,7 @@ describe('posture (`/health.access`, S9-slices Q13)', () => {
       linked: true,
       reachable: true,
       you: { invite: true },
+      hub: hubUrl, // S9.20 — Share › Advanced › Where it syncs
       capabilities: ['awareness'],
       access: {
         authority: 'control-plane',
@@ -257,6 +258,7 @@ describe('posture (`/health.access`, S9-slices Q13)', () => {
       linked: true,
       reachable: false,
       you: { invite: true },
+      hub: 'http://127.0.0.1:1',
     });
     const w = await call(specs({ hub: () => null }), 'POST', '/_api/share/invites', {
       email: 'a@b.cz',

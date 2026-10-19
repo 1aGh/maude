@@ -226,6 +226,9 @@ const PROJECT = [
   '/_api/share/invites/:id/revoke',
   '/_api/share/people/:id',
   '/_api/share/people/:id/remove',
+  // S9.20 — the link rules are project business: a canvas-only session sees no route
+  '/_api/share/links',
+  '/_api/share/links/:id',
   '/_api/cloud/move',
   // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
   '/_api/trash/clear',
