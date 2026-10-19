@@ -251,6 +251,19 @@ export function createTrashWriteStop(deps: TrashWriteStopDeps): TrashWriteStop {
   };
 }
 
+/**
+ * The stop behind an access gate (http.ts `readOnlyRefusal`): the gate answers first — a viewer is
+ * refused for the role, never told the canvas is in the trash — and a write it lets through meets
+ * the stop with its own capability (`capOf`, access/request.ts `writeCapability`).
+ */
+export function withTrashStop(
+  gate: (req: Request) => Promise<Response | null>,
+  stop: Pick<TrashWriteStop, 'refusal'>,
+  capOf: (req: Request) => string
+): (req: Request) => Promise<Response | null> {
+  return async (req) => (await gate(req)) ?? stop.refusal(req, capOf(req));
+}
+
 export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
   const changed = () => bumpTrashSeq(deps.emit);
 

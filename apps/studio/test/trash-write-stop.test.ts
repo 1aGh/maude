@@ -8,12 +8,12 @@
 //     re-proposes it under a derived id once the canvas is restored.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { targetOf } from '../access/request.ts';
-import { canvasStemOf, createTrashWriteStop } from '../routes/trash.ts';
+import { canvasStemOf, createTrashWriteStop, withTrashStop } from '../routes/trash.ts';
 import { createTransactionClient, type ProposalResult } from '../sync/transaction-client.ts';
 
 // ------------------------------------------------------------------------------------ the write stop
@@ -159,6 +159,47 @@ describe('the write stop', () => {
     expect(canvasStemOf('ui/x.meta.json')).toBe('ui/x');
     expect(canvasStemOf('ui/x.annotations.json')).toBe('ui/x');
     expect(canvasStemOf('ui/x.annotations.svg')).toBe('ui/x');
+  });
+});
+
+describe('the stop on every write route (http.ts readOnlyRefusal)', () => {
+  test('the access gate answers first; a write it lets through meets the stop', async () => {
+    const { stop } = stopFor({ trashed: ['ui/A.tsx'] });
+    const caps: string[] = [];
+    const gate = withTrashStop(
+      async (req) =>
+        new URL(req.url).searchParams.has('viewer')
+          ? new Response('read-only', { status: 403 })
+          : null,
+      stop,
+      (req) => {
+        const cap = new URL(req.url).pathname === '/_api/export' ? 'export' : 'edit';
+        caps.push(cap);
+        return cap;
+      }
+    );
+    // a viewer is refused for the role, not told the canvas is in the trash
+    expect((await gate(post('/_api/canvas-edit?viewer=1', { file: 'ui/A.tsx' })))?.status).toBe(
+      403
+    );
+    expect(caps).toEqual([]);
+    expect((await gate(post('/_api/canvas-edit', { file: 'ui/A.tsx' })))?.status).toBe(409);
+    expect(await gate(post('/_api/canvas-edit', { file: 'ui/B.tsx' }))).toBeNull();
+    expect(await gate(post('/_api/export', { file: 'ui/A.tsx' }))).toBeNull();
+  });
+
+  test('http.ts wraps its access gate in the stop, fed by the live sync runtime and the bus', () => {
+    const src = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
+    expect(
+      /const readOnlyRefusal = withTrashStop\(\s*accessRefusal,\s*trashWriteStop,/.test(src)
+    ).toBe(true);
+    expect(/async function accessRefusal\(req: Request\)/.test(src)).toBe(true);
+    const at = src.indexOf('const trashWriteStop = createTrashWriteStop({');
+    expect(at).toBeGreaterThan(0);
+    const block = src.slice(at, src.indexOf('});', at));
+    expect(block).toContain('control: () => ctx.syncControl?.current?.() ?? null');
+    expect(block).toContain('on: (e, fn) => ctx.bus.on(e, fn)');
+    expect(block).toContain('emit: (e, p) => ctx.bus.emit(e, p)');
   });
 });
 
