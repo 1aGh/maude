@@ -431,6 +431,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.select-child': NAV('<canvas>@<element>'),
   'object.select-parent': NAV('<canvas>@<element>'),
   'object.select-next': NAV('<canvas>@<element>'),
+  'object.select-prev': NAV('<canvas>@<element>'),
   'object.remove': TSX('Delete the element’s JSX (a removed DCArtboard is parked in the trash)'),
   'object.nudge': TSX('Change the element’s position props'),
   // S2.6 — the object menu. Each is one edit-op on the canvas file; an agent edits the same JSX by hand.
@@ -538,6 +539,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   // Registered, visible to no shell until S8.17 (Figma import) lands; its verb is S8's.
   'figma.make-editable': { effect: 'external', agent: cli('maude design import-figma') },
+  'tool.create-default': TSX(
+    'Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”'
+  ),
   'tool.crop': TSX('Crop a picture: see image.crop (objectPosition and transform on the <img>)'),
   'tool.components': TSX(
     'Place a component from the design system: see component.insert (write `<Name>` with `import { Name } from "@maude/ds"`)'
@@ -797,6 +801,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'mode.preview': NAV('<canvas> --mode preview'),
   // ── ui / timeline ──
   'ui.step-back': PREF('the user’s navigation history'),
+  'ui.cycle-region': PREF('where the keyboard is in the window'),
   'timeline.play': PREF('playback'),
   'timeline.step': PREF('playback'),
   'timeline.to-start': PREF('playback'),

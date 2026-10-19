@@ -88,7 +88,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '↵',
         layer: 'selection',
-        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'], notFacts: ['toolArmed'] },
       },
     ],
   },
@@ -100,10 +100,12 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'object.select-next',
     exec: 'canvas',
-    keys: [
-      { chord: 'tab', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
-      { chord: '⇧tab', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
-    ],
+    keys: [{ chord: 'tab', layer: 'selection', when: { focus: ['canvas'], mode: ['edit'] } }],
+  },
+  {
+    id: 'object.select-prev',
+    exec: 'canvas',
+    keys: [{ chord: '⇧tab', layer: 'selection', when: { focus: ['canvas'], mode: ['edit'] } }],
   },
   {
     id: 'object.remove',
@@ -690,6 +692,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'tool.create-default',
+    exec: 'canvas',
+    enabled: { minRole: 'edit' },
+    keys: [
+      {
+        chord: '↵',
+        layer: 'tools',
+        when: { focus: ['canvas'], mode: ['edit'], facts: ['toolArmed'] },
+      },
+    ],
+  },
+  {
     id: 'ui.step-back',
     exec: 'shell',
     keys: [
@@ -743,6 +757,15 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         when: { focus: ['canvas'] },
         alias: true,
       },
+    ],
+  },
+  {
+    id: 'ui.cycle-region',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [
+      { chord: 'F6', layer: 'global', inText: true },
+      { chord: '⇧F6', layer: 'global', inText: true, alias: true },
     ],
   },
   {

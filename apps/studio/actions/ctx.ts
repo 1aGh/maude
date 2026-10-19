@@ -73,6 +73,8 @@ export interface CanvasKeyState {
   mode?: Mode;
   /** V2-4 gate — the shell's "Single-key shortcuts" switch, as the bridge's `key-prefs` delivered it. */
   singleKeys?: boolean;
+  /** S2.21 — F · R · T (a create tool) is armed: ↵ adds one at its default size (`tool.create-default`). */
+  toolArmed?: boolean;
 }
 
 /** The canvas iframe's KeyCtx for a keydown it received. */
@@ -83,7 +85,7 @@ export function canvasKeyCtx(s: CanvasKeyState): KeyCtx {
     mode: s.mode ?? 'edit',
     focus: s.typing ? 'text' : 'canvas',
     selection: s.selection ?? 'none',
-    facts: new Set<Fact>(),
+    facts: new Set<Fact>(s.toolArmed ? ['toolArmed'] : []),
     ...(s.singleKeys === false ? { singleKeys: false } : {}),
   };
 }
