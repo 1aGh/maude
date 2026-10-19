@@ -1785,7 +1785,7 @@ function ShellProjectPill() {
       openRightPanel('assistant');
       // S5.18 (G4): a "needs you" toast's Open lands on the canvas that needs you, not only on its chat.
       const canvas = normalizeOpenPath(e?.detail?.canvas, cfg?.designRel || '.design');
-      if (canvas) tabs.openTab(canvas);
+      if (canvas) openTab(canvas);
     };
     const onAttachAssets = () => menuRunner.run('view.assets');
     window.addEventListener(OPEN_AI_EVENT, onOpenAi);
@@ -1794,7 +1794,7 @@ function ShellProjectPill() {
       window.removeEventListener(OPEN_AI_EVENT, onOpenAi);
       window.removeEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
     };
-  }, [openRightPanel, tabs, cfg?.designRel]);
+  }, [openRightPanel, openTab, cfg?.designRel]);
   // S1.22c: the native tab menu's "Sign in as another account…" arrives as `menu://action
   // {id:'account.switch'}` (tabs.rs TabMenuItem::SwitchAccount); it is not a palette row, so the
   // palette's menu://action listener never runs it — the menu handler does.
