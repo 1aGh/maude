@@ -371,6 +371,7 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach })
         className="chat-input chat-input--overlay"
         submitMode="enter"
         placeholder="Ask AI…"
+        aria-label="Message to AI"
         onPaste={onPaste}
         onScroll={(e) => {
           if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop;

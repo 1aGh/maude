@@ -31,6 +31,16 @@ export default function VoteSheet({ state, onStart, onClose }) {
   const off = state.mode === 'off';
   const line = off ? state.line : state.mode === 'local' ? state.line : VOTE_WORDS.hubLine;
 
+  // a11y gate W1/W3: the sheet is aria-modal, so Tab stays inside it, and closing it (Esc, Cancel, Start) gives focus
+  // back to whatever opened it. The opener is read once, before the sheet takes focus.
+  const openerRef = useRef(null);
+  useEffect(() => {
+    openerRef.current = document.activeElement;
+    return () => {
+      const o = openerRef.current;
+      if (o && o !== document.body && o.isConnected && typeof o.focus === 'function') o.focus();
+    };
+  }, []);
   useEffect(() => {
     ref.current?.querySelector('input')?.focus();
     const onKey = (e) => {
@@ -39,6 +49,25 @@ export default function VoteSheet({ state, onStart, onClose }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+  const trapTab = (e) => {
+    if (e.key !== 'Tab') return;
+    const f = [
+      ...(ref.current?.querySelectorAll(
+        'input:not([disabled]), select:not([disabled]), button:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? []),
+    ];
+    if (!f.length) return;
+    const first = f[0];
+    const last = f[f.length - 1];
+    const at = document.activeElement;
+    if (e.shiftKey && (at === first || !ref.current?.contains(at))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (at === last || !ref.current?.contains(at))) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   const ids = useMemo(() => new Set(boards.map((a) => a.id)), [boards]);
   const chosen = picked.filter((id) => ids.has(id));
@@ -71,6 +100,7 @@ export default function VoteSheet({ state, onStart, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="an-vsheet-h"
+        onKeyDown={trapTab}
         onSubmit={submit}
       >
         <h2 id="an-vsheet-h" className="an-vsheet-h">

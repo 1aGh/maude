@@ -30,6 +30,11 @@
     }
   }
 
+  /* gate-a-polish: the label column was 7rem, so "Gap to Three plans. No surprises" wrapped and truncated */
+  .st-inspect .insp-arow {
+    grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+    padding: 2px var(--space-1, 4px);
+  }
   .st-inspect-g {
     margin: var(--space-2, 8px) var(--space-1, 4px) 2px;
     font-size: var(--type-xs, 11px);

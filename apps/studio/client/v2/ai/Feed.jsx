@@ -404,20 +404,12 @@ export function AssistantMessage() {
 // running — so background subagents that outlive the main turn (the ACP adapter
 // settles at the main agent's `result` while they drain, claude-agent-acp #773)
 // keep the panel from looking idle. See RCA issue-acp-subagent-activity-invisible.
-export function StatusRow({ tools = [] }) {
-  const running = useThread((t) => t.isRunning);
-  const working = running || tools.length > 0;
-  return (
-    <div className="chat-statusrow">
-      <span
-        className={`chat-status-dot ${working ? 'chat-status-dot--working' : 'chat-status-dot--ready'}`}
-      />
-      {working ? 'Working…' : 'Ready'}
-      <span className="chat-statusrow-sep">·</span>
-      <span className="chat-statusrow-cc">Claude Code</span>
-      {/* S5.12 — the transcript view select ("Show in chat") moved to the panel's Advanced fold. */}
-    </div>
-  );
+export function StatusRow() {
+  // gate-a-polish (03 draws no such row): the v1 "Ready · Claude Code" line named Claude in the panel and kept a green dot
+  // on a failed run. The working state is the run surface's WorkingLine + the composer's Stop (RunSurface.jsx,
+  // Composer.jsx) and the canvas ring; nothing else shows "ready", so nothing is lost. Kept as an export so an
+  // importer does not break; it draws nothing.
+  return null;
 }
 
 // Live m:ss since work started — a ticking counter reads as "actively working"

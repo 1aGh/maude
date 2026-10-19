@@ -166,15 +166,29 @@ const CSS_TEXT = `
   box-sizing: border-box;
   border: 1px solid var(--maude-hud-accent);
 }
-.dc-artboard[data-ed-selected] > .dc-artboard-label,
-.dc-artboard[data-ed-selected] > .dc-artboard-label * {
+.dc-canvas .dc-artboard[data-ed-selected] > .dc-artboard-label,
+.dc-canvas .dc-artboard[data-ed-selected] > .dc-artboard-label * {
   color: var(--maude-hud-accent);
+}
+/* gate-a-polish - a selected name is the accent pill (04/14 canvases): --maude-hud-accent-fg on --maude-hud-accent
+   (6.3:1 dark, 5.4:1 light), semibold, with the size after it in tabular figures. */
+.dc-canvas .dc-artboard.dc-positioned[data-ed-selected] > .dc-artboard-label {
+  left: -2px;
+  max-width: none;
+  padding: 2px 8px;
+  background: var(--maude-hud-accent);
+  color: var(--maude-hud-accent-fg);
+  font-weight: 600;
+}
+.dc-canvas .dc-artboard.dc-positioned[data-ed-selected] > .dc-artboard-label * {
+  color: inherit;
 }
 .dc-artboard[data-ed-selected] > .dc-artboard-label::after {
   content: attr(data-ed-size);
   margin-left: 8px;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
-  opacity: 0.85;
+  opacity: 0.86;
 }
 `;
 

@@ -39,7 +39,6 @@ import {
   ChatLightbox,
   ChatMediaContext,
   ContinuationBubble,
-  StatusRow,
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
@@ -437,7 +436,6 @@ function ChatThread({
       <ChatMediaContext.Provider value={media}>
         <div className="chat-panel" style={hidden ? { display: 'none' } : undefined}>
           <DropOverlay attach={attach} />
-          <StatusRow tools={activeTools} />
           {/* DDR-184 #3 — said up front when the current mode can't edit (plan / dontAsk),
             so a user typing "change X" isn't silently ignored. Above the feed. */}
           <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} />

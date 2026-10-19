@@ -11,8 +11,9 @@
     column-gap: var(--space-2);
     min-height: 28px;
   }
+  /* a quiet row ("None", an unused fill) reads in --fg-1; the old opacity .6 took its text to 2.3-2.9:1 (a11y gate) */
   .insp-row[data-dim="true"] .insp-row-v {
-    opacity: 0.6;
+    color: var(--fg-1);
   }
   .insp-row-k {
     font-size: var(--type-xs);

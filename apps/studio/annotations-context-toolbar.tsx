@@ -189,7 +189,7 @@ const FONT_SIZE_MAX = 200;
 // near-black rounded pill that floats above the selection; swatches + icons sit
 // on dark so colour reads true. Fixed dark values (not canvas tokens) so the
 // bar looks identical on any canvas / DS.
-const CTX_SURFACE = '#26262b';
+const CTX_SURFACE = 'var(--maude-chrome-bg-2, #26262b)';
 const TOOLBAR_CSS = `
 .dc-annot-ctx {
   position: fixed;
@@ -198,13 +198,13 @@ const TOOLBAR_CSS = `
   align-items: center;
   gap: 2px;
   background: ${CTX_SURFACE};
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 8%, transparent);
   border-radius: 12px;
   padding: 5px 7px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.34), 0 2px 6px rgba(0,0,0,0.22);
-  font-family: var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
-  color: rgba(255,255,255,0.85);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 85%, transparent);
   user-select: none;
   pointer-events: auto;
 }
@@ -219,7 +219,7 @@ const TOOLBAR_CSS = `
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 16%, transparent);
   cursor: pointer;
   padding: 0;
   margin: 0;
@@ -228,11 +228,11 @@ const TOOLBAR_CSS = `
 }
 .dc-annot-ctx-sw:hover { transform: scale(1.1); }
 .dc-annot-ctx-sw[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px ${CTX_SURFACE}, 0 0 0 3px rgba(255,255,255,0.92);
+  box-shadow: 0 0 0 2px ${CTX_SURFACE}, 0 0 0 3px color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 92%, transparent);
   border-color: transparent;
 }
 .dc-annot-ctx-sw:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: 1px;
 }
 .dc-annot-ctx-fill--none {
@@ -244,13 +244,13 @@ const TOOLBAR_CSS = `
   position: absolute; inset: 4px;
   border-radius: 50%;
   background:
-    linear-gradient(135deg, transparent 44%, rgba(255,255,255,0.55) 44%, rgba(255,255,255,0.55) 56%, transparent 56%);
+    linear-gradient(135deg, transparent 44%, color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 55%, transparent) 44%, color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 55%, transparent) 56%, transparent 56%);
 }
 .dc-annot-ctx-sep {
   width: 1px;
   height: 16px;
   align-self: center;
-  background: rgba(255,255,255,0.09);
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 9%, transparent);
   margin: 0 4px;
 }
 /* Collapsed Stroke|Fill mode toggle (rect / ellipse selections). */
@@ -258,7 +258,7 @@ const TOOLBAR_CSS = `
   display: inline-flex;
   border-radius: 7px;
   overflow: hidden;
-  background: rgba(255,255,255,0.07);
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 7%, transparent);
   padding: 2px;
   gap: 2px;
 }
@@ -269,22 +269,22 @@ const TOOLBAR_CSS = `
   border-radius: 5px;
   padding: 3px 9px;
   font: inherit;
-  color: rgba(255,255,255,0.6);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 60%, transparent);
   cursor: pointer;
   font-size: 11px;
   letter-spacing: 0.02em;
   line-height: 1;
 }
 .dc-annot-ctx-mode-btn[aria-pressed="true"] {
-  background: rgba(255,255,255,0.16);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 16%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
   font-weight: 600;
 }
 .dc-annot-ctx-mode-btn:not([aria-pressed="true"]):hover {
-  color: rgba(255,255,255,0.9);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 90%, transparent);
 }
 .dc-annot-ctx-mode-btn:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: -1px;
 }
 
@@ -300,30 +300,30 @@ const TOOLBAR_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.78);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 78%, transparent);
   cursor: pointer;
   padding: 0;
   position: relative;
   transition: background-color 80ms linear, color 80ms linear;
 }
 .dc-annot-ctx-ibtn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
 }
 .dc-annot-ctx-ibtn[aria-pressed="true"] {
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
 }
 .dc-annot-ctx-ibtn:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: -2px;
 }
 /* S4.12 - a word button (Resolve, Fold, Turn into a comment, Ask AI about it) */
 .dc-annot-ctx-tbtn { width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }
-.dc-annot-ctx-ibtn--danger { color: rgba(255,255,255,0.7); }
+.dc-annot-ctx-ibtn--danger { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 70%, transparent); }
 .dc-annot-ctx-ibtn--danger:hover {
   background: color-mix(in oklab, #ff5a4d 26%, transparent);
-  color: #ffffff;
+  color: var(--maude-chrome-fg-0, #fff);
 }
 /* Phase 23 — media (image alt / link url) inline text field inside the dark
    property bar. */
@@ -333,20 +333,20 @@ const TOOLBAR_CSS = `
   gap: 6px;
   padding: 0 2px;
 }
-.dc-annot-ctx-field label { color: rgba(255,255,255,0.6); font-size: 11px; }
+.dc-annot-ctx-field label { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 60%, transparent); font-size: 11px; }
 .dc-annot-ctx-input {
   width: 220px;
   max-width: 44vw;
   padding: 4px 7px;
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent);
   border-radius: 6px;
-  background: rgba(255,255,255,0.06);
-  color: #fff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 6%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
   font: inherit;
   font-size: 12px;
 }
-.dc-annot-ctx-input::placeholder { color: rgba(255,255,255,0.4); }
-.dc-annot-ctx-input:focus-visible { outline: 2px solid #ffffff; outline-offset: -1px; }
+.dc-annot-ctx-input::placeholder { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 40%, transparent); }
+.dc-annot-ctx-input:focus-visible { outline: 2px solid var(--maude-chrome-fg-0, #fff); outline-offset: -1px; }
 /* Phase 24 — icon dropdown (arrowhead / line-type / text-align). The wrapper
    anchors the menu directly above the trigger. */
 .dc-annot-ctx-dd { position: relative; display: inline-flex; }
@@ -368,14 +368,14 @@ const TOOLBAR_CSS = `
   gap: 1px;
   padding: 4px;
   background: ${CTX_SURFACE};
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent);
   border-radius: 9px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.24);
   z-index: 9;
 }
 .dc-annot-ctx-menu button[aria-checked="true"] {
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent);
+  color: var(--maude-chrome-fg-0, #fff);
 }
 /* Font-size dropdown — wider trigger showing the current px + a vertical menu
    of named presets and a numeric input. */
@@ -398,7 +398,7 @@ const TOOLBAR_CSS = `
   font-size: 12px;
   cursor: pointer;
 }
-.dc-annot-ctx-sel:hover { background: rgba(255,255,255,0.12); }
+.dc-annot-ctx-sel:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 12%, transparent); }
 .dc-annot-ctx-sel option { color: #111; }
 .dc-annot-ctx-fs-menu {
   position: absolute;
@@ -411,7 +411,7 @@ const TOOLBAR_CSS = `
   padding: 4px;
   min-width: 132px;
   background: ${CTX_SURFACE};
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent);
   border-radius: 9px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.24);
   z-index: 9;
@@ -427,25 +427,25 @@ const TOOLBAR_CSS = `
   gap: 16px;
   font: inherit;
   font-size: 12px;
-  color: rgba(255,255,255,0.85);
+  color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 85%, transparent);
   cursor: pointer;
 }
-.dc-annot-ctx-fs-item:hover { background: rgba(255,255,255,0.1); }
-.dc-annot-ctx-fs-item[aria-checked="true"] { background: rgba(255,255,255,0.18); color: #fff; }
+.dc-annot-ctx-fs-item:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 10%, transparent); }
+.dc-annot-ctx-fs-item[aria-checked="true"] { background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent); color: var(--maude-chrome-fg-0, #fff); }
 .dc-annot-ctx-fs-px { opacity: 0.5; font-variant-numeric: tabular-nums; }
 .dc-annot-ctx-fs-input {
   margin-top: 3px;
   width: 100%;
   box-sizing: border-box;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 14%, transparent);
   border-radius: 6px;
   padding: 4px 8px;
-  color: #fff;
+  color: var(--maude-chrome-fg-0, #fff);
   font: inherit;
   font-size: 12px;
 }
-.dc-annot-ctx-fs-input:focus-visible { outline: 2px solid #fff; outline-offset: -1px; }
+.dc-annot-ctx-fs-input:focus-visible { outline: 2px solid var(--maude-chrome-fg-0, #fff); outline-offset: -1px; }
 @media (prefers-reduced-motion: reduce) {
   .dc-annot-ctx-ibtn, .dc-annot-ctx-sw { transition: none; }
 }
