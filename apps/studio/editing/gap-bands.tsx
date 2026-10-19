@@ -44,7 +44,7 @@ const MIN = 0.5;
 /** A world length for a chip: whole px when it is whole within 0.05 ("24", not "23.95"), else two decimals at most. */
 export function worldWords(n: number): string {
   const whole = Math.round(n);
-  if (Math.abs(n - whole) <= 0.05) return String(whole);
+  if (Math.abs(n - whole) <= 0.05 + 1e-9) return String(whole);
   return `${Math.round(n * 100) / 100}`;
 }
 

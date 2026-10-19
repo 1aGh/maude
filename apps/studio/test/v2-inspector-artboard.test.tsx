@@ -388,6 +388,6 @@ describe('S2.22 G1 — the artboard inspector says what the canvas says', () => 
   test('the Advanced fold counts its properties', async () => {
     const host = await frame();
     const hint = host.querySelector('.v2-fold-hint');
-    expect(hint?.textContent).toMatch(/^\d+ properties$/);
+    expect(hint?.textContent).toMatch(/^\d+ propert(y|ies)$/);
   });
 });

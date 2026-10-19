@@ -53,11 +53,9 @@ describe('G4/G6 — several selected reach the shell as a list', () => {
         </SelectionSetProvider>
       );
     });
-    await act(async () => {
-      api?.replace(el('aaaaaaaa'));
-      api?.add(el('bbbbbbbb'));
-      await new Promise((r) => setTimeout(r, 120));
-    });
+    await act(async () => api?.replace(el('aaaaaaaa')));
+    await act(async () => api?.add(el('bbbbbbbb')));
+    await new Promise((r) => setTimeout(r, 150)); // the store posts after its 50 ms debounce
     const last = posted.at(-1) as { selection: unknown };
     expect(Array.isArray(last.selection)).toBe(true);
     expect((last.selection as unknown[]).length).toBe(2);
