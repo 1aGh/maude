@@ -9,7 +9,9 @@
 //   3 people · 1 invited
 //   …people, each with their role in words…
 //   Anyone with the link · Can view   [Copy link]          ← only when the hub has links (Q13)
-//   › Advanced · Other ways in                             (web / app / this Mac links)
+//   › Advanced · This link, other ways in, where it syncs   (S9.20, share-advanced.jsx)
+//
+// A LOCAL project's Share (desktop) offers Move to cloud instead (S9.20, move-to-cloud.jsx).
 //
 // Every change ASKS the project server through `/_api/share/*` (routes/share.ts → the linked hub's
 // `/api/access/*`); the hub decides and its words are shown. What is drawn follows what the server
@@ -17,76 +19,28 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { InviteRow } from './invite-row.jsx';
 import { copyShareLink } from './link-dialog.js';
+import { LinkRow } from './link-row.jsx';
+import { MoveToCloud, movingWords } from './move-to-cloud.jsx';
 import { PeopleList } from './people-list.jsx';
-import { errorWords, peopleRows, roleWord, shareApi, sheetView } from './share-model.js';
-
-const LINK_KINDS = [
-  ['web', 'Web link'],
-  ['app', 'Open in Maude app'],
-  ['local', 'Local link (this Mac only)'],
-];
-
-function OtherWaysIn({ links, shell }) {
-  const [copied, setCopied] = useState(null);
-  const timer = useRef(null);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const copy = async (kind, value) => {
-    if (await copyShareLink(value)) {
-      setCopied(kind);
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => setCopied(null), 1500);
-    }
-  };
-  const rows = LINK_KINDS.filter(([kind]) => links?.[kind]);
-  if (!rows.length) return null;
-  return (
-    <AdvancedFold
-      panel="share"
-      hint="Other ways in"
-      testid="share-other-ways"
-      buttonTestid="share-other-ways-toggle"
-    >
-      {rows.map(([kind, label]) => (
-        <div key={kind} className="v2sh-arow">
-          <label className="v2sh-arow-k" htmlFor={`share-${kind}-url`}>
-            {label}
-          </label>
-          <div className="v2sh-arow-v">
-            <input
-              id={`share-${kind}-url`}
-              className="input v2sh-mono"
-              data-testid={`share-${kind}-url`}
-              readOnly
-              value={links[kind]}
-              onFocus={(e) => e.target.select()}
-            />
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              aria-label={`Copy ${label}`}
-              data-testid={`share-copy-${kind}`}
-              onClick={() => copy(kind, links[kind])}
-            >
-              {copied === kind ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          {kind === 'app' && links.appIsLocalOnly && (
-            <p className="v2sh-hint">Opens the folder on this Mac only.</p>
-          )}
-          {kind === 'app' && shell !== 'native' && (
-            <a className="v2sh-hint" href={links.app} data-testid="share-open-app">
-              Open in app
-            </a>
-          )}
-        </div>
-      ))}
-    </AdvancedFold>
-  );
-}
+import { ShareAdvanced } from './share-advanced.jsx';
+import {
+  advancedView,
+  DEFAULT_LINK_RULES,
+  errorWords,
+  expiresAtFor,
+  joinAsKey,
+  lastSyncedAt,
+  peopleRows,
+  readJoinAs,
+  roleWord,
+  shareApi,
+  sheetView,
+  takeShareFocus,
+  writeJoinAs,
+} from './share-model.js';
 
 function RemoveDialog({ row, scopeName, onCancel, onConfirm }) {
   const cancelRef = useRef(null);
@@ -151,12 +105,31 @@ export function ShareSheet({
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  // S9.20 — the link this sheet made (`{ id, url }`), its rules, the one-shot focus, the move
+  const [rules, setRules] = useState(DEFAULT_LINK_RULES);
+  const [made, setMade] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [focus] = useState(() => takeShareFocus());
+  const [postureAsk, setPostureAsk] = useState(0);
+  const [moving, setMoving] = useState(null);
+  // S9.20b — "New people join as" (this browser, per project) and "Last synced" (the sync runtime)
+  const [joinAs, setJoinAs] = useState(null);
+  const [lastSynced, setLastSynced] = useState(null);
   const emailRef = useRef(null);
   const sheetRef = useModalFocus({ onClose });
 
   const view = sheetView({ posture, me, target, project, scope });
   const canvas = view.canvas;
+  const joinKey = joinAsKey({ hub: posture?.hub, project });
+  const joinRole = joinAs ?? readJoinAs(joinKey);
+  const inviteDefault = view.inviteRoles.includes(joinRole) ? joinRole : view.defaultInviteRole;
+  const pickJoinAs = (role) => {
+    setJoinAs(role);
+    writeJoinAs(joinKey, role);
+  };
 
+  // `postureAsk` asks again once a Move to cloud has linked the project.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: postureAsk is the re-ask trigger
   useEffect(() => {
     let live = true;
     (async () => {
@@ -168,7 +141,41 @@ export function ShareSheet({
     return () => {
       live = false;
     };
-  }, [api]);
+  }, [api, postureAsk]);
+
+  // "Last synced" — read once the project is known to sync somewhere; no answer, no line.
+  const linkedHere = view.linked;
+  useEffect(() => {
+    if (!linkedHere || typeof api.syncStatus !== 'function') return undefined;
+    let live = true;
+    api.syncStatus().then((r) => {
+      if (live) setLastSynced(r?.ok ? lastSyncedAt(r.body) : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, linkedHere]);
+
+  // A move in progress: follow it, and ask the posture again once the project is linked.
+  const moveState = moving?.state;
+  useEffect(() => {
+    if (!moveState || moveState === 'ready' || moveState === 'failed') return undefined;
+    const t = setTimeout(async () => {
+      const r = await api.moveState();
+      const next = r.ok ? r.body : null;
+      if (!next) return;
+      setMoving(next);
+      if (next.state === 'ready' || next.state === 'uploading') setPostureAsk((n) => n + 1);
+      if (next.state === 'failed') setError(next.error || 'Moving to the cloud stopped.');
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [api, moveState]);
+
+  // A new scope is another link: the one made for the other scope is not this one's.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on the scope only
+  useEffect(() => {
+    setMade(null);
+  }, [canvas]);
 
   const loadPeople = useCallback(async () => {
     if (!view.linked || !view.reachable) return;
@@ -184,8 +191,9 @@ export function ShareSheet({
   // Share opens on Invite: the field takes focus as soon as it is drawn.
   const inviteShown = view.linked && view.canInvite;
   useEffect(() => {
-    if (inviteShown) emailRef.current?.focus({ preventScroll: true });
-  }, [inviteShown]);
+    // …unless the sheet was opened for one of its rows (⌘K Link settings…, Share on GitHub…).
+    if (inviteShown && !focus) emailRef.current?.focus({ preventScroll: true });
+  }, [inviteShown, focus]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -244,6 +252,71 @@ export function ShareSheet({
       await loadPeople();
     });
 
+  const owner = view.canInvite;
+  const flash = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  // Copy link: the owner makes the link with the rules (the server refuses anyone else); everyone
+  // else copies the location, which grants nothing.
+  const copyLink = () =>
+    run(async () => {
+      if (!owner) {
+        if (links?.web && (await copyShareLink(links.web))) flash();
+        return;
+      }
+      let url = made?.url;
+      if (!url) {
+        const r = await api.createLink({
+          role: rules.role,
+          who: rules.who,
+          expiresAt: expiresAtFor(rules.expires, now ?? Date.now()),
+          canvas,
+        });
+        if (!r.ok || typeof r.body?.id !== 'string' || typeof r.body?.url !== 'string') {
+          setError(errorWords(r.body));
+          return;
+        }
+        url = r.body.url;
+        setMade({ id: r.body.id, url });
+      }
+      if (await copyShareLink(url)) flash();
+    });
+  const changeRule = (patch) =>
+    run(async () => {
+      const next = { ...rules, ...patch };
+      setRules(next);
+      if (!made) return; // the rules wait for the link Copy link makes
+      const body = {};
+      if (patch.who !== undefined) body.who = patch.who;
+      if (patch.role !== undefined) body.role = patch.role;
+      if (patch.expires !== undefined)
+        body.expiresAt = expiresAtFor(patch.expires, now ?? Date.now());
+      const r = await api.patchLink(made.id, body);
+      if (!r.ok) {
+        setRules(rules);
+        setError(errorWords(r.body));
+        return;
+      }
+      // Turning a team link into `anyone` mints a new secret: the address changes.
+      if (typeof r.body?.url === 'string') setMade({ id: made.id, url: r.body.url });
+    });
+  const turnOff = () =>
+    run(async () => {
+      if (!made) return;
+      const r = await api.patchLink(made.id, { off: true });
+      if (!r.ok) setError(errorWords(r.body));
+      else {
+        setMade(null);
+        setNotice({
+          kind: 'sent',
+          text: 'The link is off. Anyone who opened it with it no longer can.',
+        });
+      }
+    });
+  const adv = advancedView({ view, shell, hubUrl: posture?.hub });
+  const offerMove = posture && !view.linked && shell === 'native' && !moving;
+
   const rows = peopleRows(people, { youEmail, now });
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a pointer convenience (esc and the close button close the sheet for the keyboard)
@@ -278,7 +351,15 @@ export function ShareSheet({
           </button>
         </div>
 
-        {posture && !view.linked && (
+        {offerMove && (
+          <MoveToCloud project={project} api={api} onCancel={onClose} onMoving={setMoving} />
+        )}
+        {moving && movingWords(moving.state) && (
+          <p className="v2sh-hint" role="status" data-testid="share-moved">
+            {movingWords(moving.state)}
+          </p>
+        )}
+        {posture && !view.linked && !offerMove && !moving && (
           <p className="v2sh-hint" data-testid="share-local-note">
             Local project — kept on this Mac. Invite people once it is in the cloud.
           </p>
@@ -318,7 +399,7 @@ export function ShareSheet({
           <InviteRow
             ref={emailRef}
             roles={view.inviteRoles}
-            defaultRole={view.defaultInviteRole}
+            defaultRole={inviteDefault}
             busy={busy}
             onInvite={invite}
           />
@@ -378,24 +459,36 @@ export function ShareSheet({
           />
         )}
 
-        {view.showLinkRow && links?.web && (
-          <div className="v2sh-link" data-testid="share-link-row">
-            <span className="v2sh-link-t">
-              {`Anyone in ${project || 'this project'} with the link`}
-              <span>Opens it in any browser</span>
-            </span>
-            <button
-              type="button"
-              className="btn btn--sm"
-              data-testid="share-link-copy"
-              onClick={() => copyShareLink(links.web)}
-            >
-              Copy link
-            </button>
-          </div>
+        {view.showLinkRow && (owner || links?.web) && (
+          <LinkRow
+            project={project}
+            rules={rules}
+            owner={owner}
+            made={copied ? 'copied' : made ? 'made' : null}
+            busy={busy}
+            onCopy={copyLink}
+          />
         )}
 
-        <OtherWaysIn links={links} shell={shell} />
+        <ShareAdvanced
+          adv={adv}
+          links={links}
+          shell={shell}
+          rules={rules}
+          onRule={changeRule}
+          made={made}
+          onTurnOff={turnOff}
+          busy={busy}
+          api={api}
+          focus={focus}
+          joinAs={
+            adv.rules
+              ? { role: inviteDefault, roles: view.inviteRoles, onChange: pickJoinAs }
+              : null
+          }
+          lastSynced={lastSynced}
+          now={now}
+        />
 
         {confirm && (
           <RemoveDialog

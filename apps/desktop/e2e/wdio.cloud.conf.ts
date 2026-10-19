@@ -29,6 +29,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const STUB_CODE = `mhc_${'a'.repeat(64)}`;
 
 function startStub(): Promise<{ port: number; close: () => void }> {
+  /** S9.20b — set once step 2b's Move to cloud created the project. */
+  let moved = false;
   return new Promise((resolvePort) => {
     const srv = createServer(async (req, res) => {
       const send = (status: number, body: unknown) => {
@@ -45,6 +47,23 @@ function startStub(): Promise<{ port: number; close: () => void }> {
         }
       };
       const origin = `http://127.0.0.1:${(srv.address() as { port: number }).port}`;
+      // S9.20b — Move to cloud (step 2b): POST /api/projects creates `stub-moved`, which the
+      // listing reports active from then on, so the move goes straight to open → attach.
+      if (req.url === '/api/projects' && req.method === 'POST') {
+        moved = true;
+        return send(201, { id: 'stub-moved', name: 'Moved Project', state: 'provisioning' });
+      }
+      // S9.20b — Settings › Account's plan words come from /api/home `account.plan`.
+      if (req.url === '/api/home') {
+        return send(200, {
+          account: {
+            email: 'e2e@example.com',
+            plan: { state: 'trialing', daysLeft: 12, name: 'Free trial' },
+          },
+          projects: [],
+          shared: [],
+        });
+      }
       if (req.url === '/auth/device/code') {
         return send(200, {
           device_code: 'mdc_stub',
@@ -77,6 +96,18 @@ function startStub(): Promise<{ port: number; close: () => void }> {
               stateLabel: 'Ready',
               url: origin,
             },
+            ...(moved
+              ? [
+                  {
+                    id: 'stub-moved',
+                    name: 'Moved Project',
+                    state: 'active',
+                    role: 'owner',
+                    stateLabel: 'Ready',
+                    url: origin,
+                  },
+                ]
+              : []),
           ],
         });
       }

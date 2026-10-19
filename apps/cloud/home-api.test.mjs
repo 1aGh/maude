@@ -137,7 +137,11 @@ describe('GET /api/home', () => {
     assert.equal(res.headers.get('cache-control'), 'no-store');
     assert.match(res.headers.get('content-type'), /application\/json/);
     const json = await body(res);
-    assert.deepEqual(json.account, { email: 'me@example.com' });
+    // S9.20b — the plan words ride along (no trial started yet in this seed).
+    assert.deepEqual(json.account, {
+      email: 'me@example.com',
+      plan: { state: 'none', daysLeft: 14, name: 'Free trial' },
+    });
     assert.deepEqual(
       json.projects.map((p) => [p.id, p.role, p.ownerName]),
       [
@@ -336,8 +340,9 @@ describe('GET /api/home', () => {
   });
 
   it('the signed-in browser session answers the same as the device token', async () => {
-    const viaToken = await (await asMe()).text();
+    // A sign-in starts the trial (S9.15), so the session exists before either answer is read.
     const { token } = await createSession(fx.env.DB, 'acct_me');
+    const viaToken = await (await asMe()).text();
     const viaCookie = await (await home(fx.env, { cookie: `maude_session=${token}` })).text();
     assert.equal(viaCookie, viaToken);
     // A device token that is present but dead is signed out — it does not fall
@@ -359,5 +364,47 @@ describe('GET /api/home', () => {
     assert.equal(res.status, 200);
     const { projects } = await res.json();
     assert.deepEqual(projects.map((p) => p.id).sort(), ['alligators', 'nabor-2027']);
+  });
+});
+
+// S9.20b (decision v2-lead-plan-words-via-home-route): the desktop's Settings › Account says
+// "Free trial · N days left" from `account.plan` — S9.15's trial view, cut down to the state, the
+// days left and the plan name. Nothing about billing travels: no dates, no Stripe ids, no prices.
+describe('GET /api/home account.plan', () => {
+  beforeEach(async () => {
+    fx = await seed();
+  });
+
+  const setTrial = (at) =>
+    fx.sqlite.prepare("UPDATE accounts SET trial_started_at = ? WHERE id = 'acct_me'").run(at);
+
+  it('a running trial: the state, the days left, the plan name — and nothing else', async () => {
+    setTrial(NOW - 2 * DAY);
+    const { account } = await body(await asMe());
+    assert.deepEqual(account.plan, { state: 'trialing', daysLeft: 12, name: 'Free trial' });
+    assert.deepEqual(Object.keys(account.plan).sort(), ['daysLeft', 'name', 'state']);
+  });
+
+  it('an ended trial says ended with no days left', async () => {
+    setTrial(NOW - 20 * DAY);
+    const { account } = await body(await asMe());
+    assert.deepEqual(account.plan, { state: 'ended', daysLeft: 0, name: 'Free trial' });
+  });
+
+  it('carries no billing detail and is the same through the browser session', async () => {
+    setTrial(NOW - DAY);
+    fx.sqlite
+      .prepare("UPDATE accounts SET stripe_customer_id = 'cus_secret' WHERE id = 'acct_me'")
+      .run();
+    fx.sqlite
+      .prepare("UPDATE projects SET subscription_id = 'sub_secret' WHERE id = 'alligators'")
+      .run();
+    const { token } = await createSession(fx.env.DB, 'acct_me');
+    const text = await (await asMe()).text();
+    for (const leak of ['sub_secret', 'cus_secret', 'stripe', 'startedAt', 'endsAt', 'trial_'])
+      assert.equal(text.includes(leak), false, leak);
+    assert.equal(JSON.parse(text).account.plan.state, 'trialing');
+    const viaCookie = await (await home(fx.env, { cookie: `maude_session=${token}` })).json();
+    assert.deepEqual(viaCookie.account.plan, JSON.parse(text).account.plan);
   });
 });

@@ -106,9 +106,21 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     label: 'Move to cloud…',
     kind: 'command',
     exec: 'shell',
-    // A6b-2 lead patch: S9.20 (the Share sheet's Move-to-cloud row) is not built yet, so no shell
-    // shows this action; S9.20 restores `shell: ['desktop']` when it mounts the row.
-    visible: { shell: [], notFacts: ['linkedHub'] },
+    // S9.20: the Share sheet's Move-to-cloud offer (share/move-to-cloud.jsx) is the row; the route
+    // answers only the desktop project window, so only that shell shows it.
+    visible: { shell: ['desktop'], notFacts: ['linkedHub'] },
+  },
+  {
+    // S9.20 (10 co-share-advanced): Share › Advanced › This link — who can open the link, the role
+    // it gives, when it ends. The owner's; the server refuses every other session
+    // (routes/share.ts), and the rows are drawn only where the hub has links (Q13).
+    id: 'share.link-settings',
+    label: 'Link settings…',
+    kind: 'command',
+    icon: 'link',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: { keywords: ['link', 'expires', 'anyone with the link', 'team only', 'turn off link'] },
   },
   // S9.19 (10 co-share-sheet · co-share-roles): who has access is the OWNER's to change. Each opens
   // the Share sheet, where the row lives (an invite needs an address, a role a person); the sheet

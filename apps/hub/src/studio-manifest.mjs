@@ -332,6 +332,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/share/me': REFUSED,
   '/_api/share/people': REFUSED,
   '/_api/share/invites': REFUSED,
+  '/_api/share/links': REFUSED, // S9.20 — the link rules, the same door
   // V2-3.3 — a pin is ONE person's view state in `_canvas-state/`, and a cell's is shared by
   // every member: refused rather than letting one member's pins become everyone's.
   '/_api/pins': REFUSED,
@@ -401,6 +402,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/cloud/attach': REFUSED,
   '/_api/cloud/attach/code': REFUSED,
   '/_api/cloud/move': REFUSED, // S6.0b: a cell IS the cloud — moving it there is a desktop act
+  '/_api/cloud/plan': REFUSED, // S9.20b: the device token's account plan — a cell has no device token
   '/_api/cloud/projects': REFUSED,
   '/_api/cloud/signin/poll': REFUSED,
   '/_api/cloud/signin/start': REFUSED,

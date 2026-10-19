@@ -9,6 +9,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * cloud-attach (Cloud Phase 23 C4 + Phase 17) — the CloudBar lane end to end,
@@ -32,6 +33,11 @@ import { waitForSidecar } from '../helpers/sidecar';
  *      by anyone, so "contains your folder name" was the attacker's off-switch);
  *   6. a link naming an unrelated project warns, demotes connecting to "Connect
  *      anyway", and is still refused server-side by the claimed↔actual check.
+ *   2b (S9.20b). local → cloud: a LOCAL project's Share offers Move to cloud; the window's own
+ *      click creates the cloud project, links the folder (linkedHub), and Settings › Account then
+ *      reads "Free trial · 12 days left" from the stub's /api/home. The step unlinks again
+ *      (`/_api/cloud/detach`) so step 3 still starts from a local folder.
+ *      WRITTEN, NOT YET RUN on a desktop build (S9.20b hand-back).
  *
  * V2-4.7a moved the account (sign-in, the email, the projects) from the left panel's footer into
  * Settings › Connections — the footer's CloudBar is now an invisible `cloud-host` that only answers
@@ -150,6 +156,54 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await account.waitForDisplayed({ timeout: 20_000 });
     expect(await account.getText()).toContain('e2e@example.com');
     await capture('signed in');
+  });
+
+  it('2b · local → cloud: Share › Move to cloud links the folder; Settings says the plan', async () => {
+    await closeSettings();
+    // Share needs an open canvas (share-cluster-share is aria-disabled without one).
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    const share = await $(tid('share-cluster-share'));
+    await share.waitForDisplayed({ timeout: 30_000 });
+    await share.click();
+    const confirm = await $(tid('share-move-confirm'));
+    await confirm.waitForDisplayed({ timeout: 15_000 });
+    await capture('local project — Share offers Move to cloud');
+    // A real click: the move route needs the window's own `Sec-Fetch-Site: same-origin`.
+    await confirm.click();
+    await browser.waitUntil(
+      () => {
+        const cfg = JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8'));
+        return typeof cfg.linkedHub?.url === 'string';
+      },
+      { timeout: 60_000, timeoutMsg: 'Move to cloud never wrote linkedHub' }
+    );
+    const moved = await $(tid('share-moved'));
+    await moved.waitForDisplayed({ timeout: 15_000 });
+    expect(await moved.getText()).toContain('Moved to the cloud');
+    await capture('moved to the cloud');
+    await (await $(tid('share-close'))).click();
+
+    // Settings › General › Account: the plan words are the cloud's (stub /api/home), never a sum.
+    await (await $(tid('project-pill'))).click();
+    const row = await $(tid('project-menu-row-settings.open'));
+    await row.waitForDisplayed({ timeout: 10_000 });
+    await row.click();
+    const plan = await $(tid('settings-account-plan'));
+    await plan.waitForDisplayed({ timeout: 15_000 });
+    expect(await plan.getText()).toBe('Free trial · 12 days left');
+    await capture('Settings › Account — the plan from the cloud');
+    await closeSettings();
+
+    // Back to a local folder so step 3's picker still connects from scratch.
+    const detached = await browser.execute(async () => {
+      const r = await fetch('/_api/cloud/detach', { method: 'POST' });
+      return r.status;
+    });
+    expect(detached).toBe(200);
+    await browser.waitUntil(() => !JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8')).linkedHub, {
+      timeout: 20_000,
+      timeoutMsg: 'detach left linkedHub in the fixture',
+    });
   });
 
   it('3 · the picker: member → Connect, viewer → View in the browser; Connect writes linkedHub', async () => {

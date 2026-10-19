@@ -256,7 +256,7 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
           });
           const text = res.ok ? await readCapped(res, 64 * 1024) : null;
           const h = text ? (JSON.parse(text) as Record<string, unknown>) : null;
-          if (!h) return json(200, { linked: true, reachable: false, you });
+          if (!h) return json(200, { linked: true, reachable: false, you, hub: hub.url });
           const capabilities = Array.isArray(h.capabilities)
             ? h.capabilities.filter((c): c is string => typeof c === 'string')
             : [];
@@ -264,11 +264,13 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
             linked: true,
             reachable: true,
             you,
+            // S9.20 — Share › Advanced › Where it syncs (the address config.json already names)
+            hub: hub.url,
             capabilities,
             access: h.access && typeof h.access === 'object' ? h.access : null,
           });
         } catch {
-          return json(200, { linked: true, reachable: false, you });
+          return json(200, { linked: true, reachable: false, you, hub: hub.url });
         }
       },
     },
@@ -389,5 +391,93 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
         return relay(await callHub(deps, hub, 'DELETE', `/api/access/people/${id}${q}`));
       }),
     },
+    // S9.20 (10 co-share-advanced) — the project's link and its rules. The owner's: who can open
+    // it (`team` = a location that grants nothing, `anyone` = a signed-in account holding the
+    // link), the role it gives (Can view / Can comment, never more) and when it ends. A canvas-only
+    // session hears what a route that is not here says (V2-1.16 U1): links are project business.
+    {
+      method: 'POST',
+      path: '/_api/share/links',
+      origin: 'main',
+      readOnly: 'refused',
+      handle: linkRoute(async (req, _p, hub) => {
+        const raw = await readBody(req);
+        if (!raw) return json(400, { error: 'That is not a link.', reason: 'body' });
+        const bad = linkRuleError(raw, { create: true });
+        if (bad) return bad;
+        return relay(
+          await callHub(deps, hub, 'POST', '/api/access/links', {
+            ...(typeof raw.canvas === 'string' ? { canvas: raw.canvas } : {}),
+            role: raw.role,
+            who: raw.who,
+            ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
+          })
+        );
+      }),
+    },
+    {
+      method: 'PATCH',
+      path: '/_api/share/links/:id',
+      origin: 'main',
+      readOnly: 'refused',
+      handle: linkRoute(async (req, params, hub) => {
+        const id = idOf(params);
+        if (!id) return json(404, { error: 'That link is no longer on.', reason: 'gone' });
+        const raw = await readBody(req);
+        if (!raw) return json(400, { error: 'That is not a link.', reason: 'body' });
+        const bad = linkRuleError(raw, { create: false });
+        if (bad) return bad;
+        const body: Record<string, unknown> =
+          raw.off === true
+            ? { off: true }
+            : {
+                ...(raw.role !== undefined ? { role: raw.role } : {}),
+                ...(raw.who !== undefined ? { who: raw.who } : {}),
+                ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
+              };
+        return relay(await callHub(deps, hub, 'PATCH', `/api/access/links/${id}`, body));
+      }),
+    },
   ];
+
+  /** The link routes: a canvas-only session sees no route; any other non-owner is refused. */
+  function linkRoute(
+    handle: (req: Request, params: Record<string, string>, hub: LinkedHub) => Promise<Response>
+  ) {
+    const owner = asOwner(handle);
+    return async (req: Request, params: Record<string, string>): Promise<Response> =>
+      access().canvasOnly ? missingRoute() : owner(req, params);
+  }
+}
+
+/** What the studio answers for a path it does not serve (http.ts's static fall-through). */
+export const MISSING_ROUTE_WORDS = 'Not found';
+const missingRoute = () => new Response(MISSING_ROUTE_WORDS, { status: 404 });
+
+/** The words a link's rules are refused with — checked before the hub is asked. */
+function linkRuleError(b: Record<string, unknown>, { create }: { create: boolean }) {
+  if (create || b.role !== undefined) {
+    if (b.role !== 'observer' && b.role !== 'viewer')
+      return json(422, {
+        error: 'A link can give Can view or Can comment, never more.',
+        reason: 'link-role',
+      });
+  }
+  if ((create || b.who !== undefined) && b.who !== 'team' && b.who !== 'anyone')
+    return json(400, { error: 'Who is this link for?', reason: 'who' });
+  if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas))
+    return json(400, { error: 'Not a canvas.', reason: 'canvas' });
+  if (
+    b.expiresAt !== undefined &&
+    b.expiresAt !== null &&
+    !(
+      typeof b.expiresAt === 'string' &&
+      b.expiresAt.length <= 40 &&
+      !Number.isNaN(Date.parse(b.expiresAt))
+    )
+  )
+    return json(400, { error: 'Pick a date in the future.', reason: 'expires' });
+  if (b.off !== undefined && b.off !== true)
+    return json(400, { error: 'That is not a link.', reason: 'body' });
+  return null;
 }

@@ -418,6 +418,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S6.0b routes/cloud-move.ts: creates the cloud project + links THIS folder (the attach lane);
   // the seed-up is the sync runtime's, never this route's
   '/_api/cloud/move': { class: 'local' },
+  // S9.20b routes/cloud-plan.ts: the account's plan from cloud /api/home (device token); writes nothing
+  '/_api/cloud/plan': { class: 'read' },
   '/_api/cloud/projects': { class: 'read' },
   '/_api/cloud/signin/poll': { class: 'local' },
   '/_api/cloud/signin/start': { class: 'local' },
@@ -491,6 +493,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/share/invites/:id/revoke': { class: 'local' },
   '/_api/share/people/:id': { class: 'local' },
   '/_api/share/people/:id/remove': { class: 'local' },
+  // S9.20 — the project's link and its rules (the hub's `share_links` row; nothing in the folder)
+  '/_api/share/links': { class: 'local' },
+  '/_api/share/links/:id': { class: 'local' },
   '/_api/project/migrate': {
     class: 'migration',
     via: 'the migrate engine rewrites files after the hub format flip (V2-1.12 §5.10 I7, all-or-nothing with its own snapshot); peers receive the rewritten files through the file plane / watcher import like any outside edit',

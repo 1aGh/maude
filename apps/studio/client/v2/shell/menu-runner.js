@@ -37,6 +37,7 @@ import { presenterAvailable, presenterStore } from '../present/presenter-store.j
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { runPreviewBack } from '../preview/preview-back.js';
+import { requestShareFocus } from '../share/share-model.js';
 import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
@@ -121,6 +122,13 @@ export function createMenuHandlers(d) {
     'project.share-github': () => {
       if (!d.native) {
         d.toast('Share on GitHub… is in the Maude desktop app.');
+        return;
+      }
+      // S9.20: Share › Advanced › Invite by GitHub username takes it over while a canvas is open;
+      // with none open, IdentityBar's own view still answers (nothing lost).
+      if (d.activePath) {
+        requestShareFocus('github');
+        d.onShare();
         return;
       }
       window.dispatchEvent(
@@ -337,6 +345,12 @@ export function createMenuHandlers(d) {
     'share.set-role': () => d.onShare(),
     'share.remove': () => d.onShare(),
     'share.resend': () => d.onShare(),
+    // S9.20 — Share › Advanced › This link; a local project's Share is where Move to cloud lives
+    'share.link-settings': () => {
+      requestShareFocus('link');
+      d.onShare();
+    },
+    'share.move-to-cloud': () => d.onShare(),
     'settings.open': () => d.setSettingsOpen(true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──

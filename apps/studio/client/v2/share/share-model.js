@@ -29,6 +29,47 @@ export const roleWord = (role) => ROLE_WORDS[role]?.word ?? '';
 export const GRANTABLE = Object.freeze(['member', 'viewer', 'observer']);
 
 /**
+ * S9.20b (decision v2-lead-new-people-join-as-client-default) — "New people join as": the role the
+ * Invite row pre-selects, remembered per project in THIS browser. A convenience only: the hub has no
+ * default-role field, and every invite still sends its explicit role, which the server checks.
+ * Storage may be missing or throw (private window, blocked site data) — then it is Can edit.
+ */
+const JOIN_AS_PREFIX = 'maude.share.join-as:';
+export const JOIN_AS_FALLBACK = 'member';
+
+/** The storage key for one project: its hub address when linked, else its name. */
+export function joinAsKey({ hub, project } = {}) {
+  const id = (typeof hub === 'string' && hub) || (typeof project === 'string' && project) || '';
+  return id ? `${JOIN_AS_PREFIX}${id}` : null;
+}
+
+/** The remembered role, if it is one an invite may give; else Can edit. */
+export function readJoinAs(key, storage = globalThis.localStorage) {
+  if (!key) return JOIN_AS_FALLBACK;
+  try {
+    const v = storage?.getItem(key);
+    return GRANTABLE.includes(v) ? v : JOIN_AS_FALLBACK;
+  } catch {
+    return JOIN_AS_FALLBACK;
+  }
+}
+
+export function writeJoinAs(key, role, storage = globalThis.localStorage) {
+  if (!key || !GRANTABLE.includes(role)) return;
+  try {
+    storage?.setItem(key, role);
+  } catch {
+    /* storage blocked: the choice lasts while the sheet is open */
+  }
+}
+
+/** The newest sync the runtime knows (`/_sync-status` `lastSyncAt`), or null — never a guess. */
+export function lastSyncedAt(status) {
+  const t = status?.linked === false ? null : status?.lastSyncAt;
+  return typeof t === 'number' && Number.isFinite(t) && t > 0 ? t : null;
+}
+
+/**
  * The posture to draw when the hub cannot be asked: the narrowest one every hub supports (a
  * self-hosted hub's), so nothing is offered that a hub could not hold.
  */
@@ -168,6 +209,118 @@ export function errorWords(body, fallback = 'That did not work. Try again in a m
   return fallback;
 }
 
+// ── S9.20: Share › Advanced (10 co-share-advanced) ──────────────────────────────────────────────
+
+/** Who can open the link — `team` is a location (it grants nothing), `anyone` a signed-in holder. */
+export const LINK_WHO = Object.freeze([
+  ['team', 'Team only'],
+  ['anyone', 'Anyone with the link'],
+]);
+
+/** The roles a link may give (V2-1.7 §5.6: never more than Can comment), weakest first. */
+export const LINK_ROLES = Object.freeze(['observer', 'viewer']);
+
+/** When the link ends: `[id, words, days | null]`. */
+export const LINK_EXPIRES = Object.freeze([
+  ['never', 'Never', null],
+  ['7d', 'In 7 days', 7],
+  ['30d', 'In 30 days', 30],
+]);
+
+export const DEFAULT_LINK_RULES = Object.freeze({
+  who: 'team',
+  role: 'observer',
+  expires: 'never',
+});
+
+/** `expires` id → the ISO date the hub stores (null = never). */
+export function expiresAtFor(expires, now = Date.now()) {
+  const row = LINK_EXPIRES.find(([id]) => id === expires);
+  return row?.[2] ? new Date(now + row[2] * DAY).toISOString() : null;
+}
+
+/** The link row's words: "Anyone with the link" / "Anyone in <project> with the link" + its role. */
+export function linkRowWords({ who, role, project } = {}) {
+  return {
+    title:
+      who === 'anyone'
+        ? 'Anyone with the link'
+        : `Anyone in ${project || 'this project'} with the link`,
+    sub:
+      who === 'anyone'
+        ? roleWord(LINK_ROLES.includes(role) ? role : 'observer')
+        : 'Opens it for people who already have access',
+  };
+}
+
+/**
+ * The roles side by side (co-share-advanced, middle column): `[what, roles that may]`. The columns
+ * drawn are the roles the hub reports, so Can view is not shown before the Q13 flip.
+ */
+export const ROLE_MATRIX = Object.freeze([
+  ['Look', ['owner', 'member', 'viewer', 'observer']],
+  ['Comment', ['owner', 'member', 'viewer']],
+  ['Download and export', ['owner', 'member', 'viewer']],
+  ['Draw annotations', ['owner', 'member']],
+  ['Change artboards', ['owner', 'member']],
+  ['Use AI on it', ['owner', 'member']],
+  ['Move to the trash', ['owner', 'member']],
+  ['Invite people', ['owner']],
+  ['Clear out the trash', ['owner']],
+]);
+
+/**
+ * What Share › Advanced draws — from the server's posture, never a guess:
+ *   · `rules`    This link (who / role / expires) — only where the hub has links, and only for
+ *                the owner (the server refuses anyone else: routes/share.ts);
+ *   · `github`   Invite by GitHub username — the desktop's (it needs this Mac's GitHub sign-in);
+ *   · `syncs`    Where it syncs — the linked hub's address;
+ *   · `matrix`   the roles side by side (cloud); `hubRoles` the roles THIS hub holds (self-hosted).
+ */
+export function advancedView({ view, shell, hubUrl } = {}) {
+  const linked = !!view?.linked;
+  const selfHosted = linked && view?.access?.authority === 'hub';
+  const roles = view?.access?.roles ?? [];
+  return {
+    rules: linked && view.reachable && !!view.showLinkRow && !!view.canInvite,
+    github: shell === 'native',
+    syncs: linked && typeof hubUrl === 'string' && hubUrl ? hubUrl : null,
+    matrix: linked && !selfHosted ? ROLE_ORDER.filter((r) => roles.includes(r)) : null,
+    hubRoles: selfHosted
+      ? {
+          available: ROLE_ORDER.filter((r) => r !== 'owner' && roles.includes(r)).map(roleWord),
+          missing: ['viewer', 'observer'].filter((r) => !roles.includes(r)).map(roleWord),
+        }
+      : null,
+    hint: selfHosted ? 'Other ways in, sync, roles' : 'Link rules, other ways in, where it syncs',
+  };
+}
+
+// One-shot focus for the sheet that is about to open: ⌘K "Link settings…" opens it on This link,
+// File › Share on GitHub… on the GitHub row (it takes over project.share-github). Read once.
+let pendingFocus = null;
+export function requestShareFocus(what) {
+  pendingFocus = what === 'link' || what === 'github' ? what : null;
+}
+export function takeShareFocus() {
+  const f = pendingFocus;
+  pendingFocus = null;
+  return f;
+}
+
+/** The words a Move to cloud answer is shown with (S6-S9 §5.5), or null for "it is moving". */
+export function moveWords(status, body) {
+  if (status === 200 && body?.ok) return null;
+  if (status === 401)
+    return 'Sign in to Maude Cloud first (Settings › Connections), then Move to cloud again.';
+  if (status === 409) return 'This project already syncs to another hub.';
+  if (status === 404)
+    return 'Moving to the cloud is not available on this Mac. It stays on this Mac.';
+  if (status === 0 || status === 503)
+    return 'Maude Cloud could not be reached. Your work is still on this Mac.';
+  return errorWords(body, 'Moving to the cloud did not start. Your work is still on this Mac.');
+}
+
 /** A plausible e-mail — the hub decides; this only keeps Invite off for an empty or half-typed one. */
 export const looksLikeEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s ?? '').trim());
 
@@ -215,5 +368,15 @@ export function shareApi(fetchImpl = (...a) => fetch(...a)) {
       go('PATCH', `/_api/share/people/${id(personId)}`, { role, ...withCanvas(canvas) }),
     remove: (personId, canvas) =>
       go('POST', `/_api/share/people/${id(personId)}/remove`, withCanvas(canvas)),
+    // S9.20 — the link (owner-only on the server) and the two desktop doors of Share › Advanced
+    createLink: ({ role, who, expiresAt, canvas }) =>
+      go('POST', '/_api/share/links', { role, who, expiresAt, ...withCanvas(canvas) }),
+    patchLink: (linkId, patch) => go('PATCH', `/_api/share/links/${id(linkId)}`, patch),
+    // The window's own same-origin fetch: the browser adds `Sec-Fetch-Site`, the route needs it.
+    moveToCloud: (name) => go('POST', '/_api/cloud/move', name ? { name } : {}),
+    moveState: () => go('GET', '/_api/cloud/move'),
+    githubInvite: (username) => go('POST', '/_api/github/invite', { username }),
+    // S9.20b — "Last synced": the sync runtime's own status (project class; absent = no line)
+    syncStatus: () => go('GET', '/_sync-status'),
   };
 }

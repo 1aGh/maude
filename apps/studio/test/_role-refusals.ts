@@ -178,6 +178,19 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   },
   { method: 'POST', route: '/_api/share/people/:id/remove', refused: ['view', 'comment', 'edit'] },
   { method: 'POST', route: '/_api/share/invites/:id/resend', refused: ['view', 'comment', 'edit'] },
+  // S9.20 — the project's link and its rules are the owner's too (a canvas-only session sees no route)
+  {
+    method: 'POST',
+    route: '/_api/share/links',
+    refused: ['view', 'comment', 'edit'],
+    body: { role: 'viewer', who: 'anyone' },
+  },
+  {
+    method: 'PATCH',
+    route: '/_api/share/links/:id',
+    refused: ['view', 'comment', 'edit'],
+    body: { off: true },
+  },
   // S10.3b — the design-system writes (routes/ds.ts, Q15): every one is a project edit; a token's
   // clear-out is the owner's (`writeCapability` classes /_api/ds/clear `delete`).
   ...[

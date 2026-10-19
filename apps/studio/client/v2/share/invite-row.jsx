@@ -6,7 +6,7 @@
 // this project's server can hold (`/health.access.roles` — Can view is absent until the Q13 flip).
 // Invite is the primary button (CONTRACT §6).
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 
 import { looksLikeEmail, ROLE_WORDS } from './share-model.js';
 
@@ -16,6 +16,8 @@ export const InviteRow = forwardRef(function InviteRow(
 ) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState(defaultRole);
+  // S9.20b — "New people join as" changes the default: the select follows it.
+  useEffect(() => setRole(defaultRole), [defaultRole]);
   const r = roles.includes(role) ? role : defaultRole;
   const ready = looksLikeEmail(email) && !busy;
   return (
