@@ -25,7 +25,8 @@ const META = {
   sections: [{ id: 'site', title: 'Studio site' }],
   artboards: [],
 };
-export const PORT = 4412;
+export const PORT = Number(process.env.S2_PORT || 4412);
+const CDP = Number(process.env.S2_CDP || 9334);
 const PRELUDE = `
 const openSite = async (canvas = 'ui/Site.tsx') => {
   await page.goto('http://localhost:${PORT}/?open=' + encodeURIComponent(canvas).replace(/%2F/g, '/'));
@@ -84,7 +85,7 @@ if (cmd === 'setup') {
   );
   p.on('exit', (c) => process.exit(c ?? 0));
 } else if (cmd === 'chrome') {
-  const br = await chromium.launch({ headless: true, args: ['--remote-debugging-port=9334'] });
+  const br = await chromium.launch({ headless: true, args: [`--remote-debugging-port=${CDP}`] });
   const ctxt = await br.newContext({ viewport: { width: 1600, height: 1000 } });
   await ctxt.newPage();
   console.log('chrome up');
@@ -93,7 +94,7 @@ if (cmd === 'setup') {
   const EV = b || join(HERE, '../../.ai/plans/notes/v2-evidence/S2.V2');
   process.env.S2_SCRATCH ||= dirname(a);
   mkdirSync(EV, { recursive: true });
-  const br = await chromium.connectOverCDP('http://localhost:9334');
+  const br = await chromium.connectOverCDP('http://localhost:' + CDP);
   const ctxt = br.contexts()[0];
   const page = ctxt.pages()[0];
   const frame = () =>
