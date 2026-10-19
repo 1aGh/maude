@@ -37,6 +37,14 @@ import { clampInsets, type Insets } from './occlusion.ts';
 export const DGN_V = 2;
 type Id = string;
 type Rect = { x: number; y: number; w: number; h: number };
+/** S2.19 — what the prompt may say of a selected element: locators only, never its markup (DDR-054). */
+export type AskLocator = {
+  id?: string;
+  tag?: string;
+  text?: string;
+  selector?: string;
+  index?: number;
+};
 
 // Payload shapes still private to their modules (names fixed by the contract). Opaque here; each is
 // lifted beside its builder when its listener is routed through the accept helpers (V2-2.10b).
@@ -239,6 +247,14 @@ export interface CanvasToShell {
     label?: string;
     from?: string;
   };
+  /**
+   * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
+   * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
+   * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
+   * elements moved (`null`: it is gone — the run is over).
+   */
+  'ask-selection': { refs: ElementRef[]; selection?: AskLocator[]; rect: Rect };
+  'ask-selection-rect': { rect: Rect | null };
   'insert-artboard-request': { id?: Id; label?: string; width?: number; height?: number };
 
   // ── V2-1.2 mode lane — live since V2-4.3b (set-mode / mode-changed / mode-request); the rest new ──
@@ -487,7 +503,15 @@ export interface ShellToCanvas {
   // S2.18 (V2-1.15 §5.8) — the objects live AI runs hold on this canvas (a run's `objects`): the canvas
   // draws the spark outline + tag and the click tip. A tag and a flag per object — never a prompt.
   'ai-holds': {
-    holds: Array<{ artboard: Id; element: Id; occurrence?: number; tag: string; mine: boolean }>;
+    /** `scope: true` (S2.19) — the object was ASKED about by a ⌘/ selection: the canvas draws those as one outline */
+    holds: Array<{
+      artboard: Id;
+      element: Id;
+      occurrence?: number;
+      tag: string;
+      mine: boolean;
+      scope?: boolean;
+    }>;
   };
   // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
   'undo-preview': { artboards: string[]; tag: string | null };
@@ -769,6 +793,7 @@ const aiHoldList: V = (v) =>
           ),
           tag: holdText,
           mine: bool,
+          scope: opt(bool),
         })
       )(v)
     : BAD;
@@ -825,6 +850,18 @@ const anchor = {
 };
 const tlId = { id: opt(str) };
 const elementRef = shape({ artboard: str, element: str, occurrence: opt(num) });
+/** An array no longer than `max` (refused whole past it, never trimmed). */
+const capped =
+  (max: number, f: V): V =>
+  (v) =>
+    Array.isArray(v) && v.length <= max ? f(v) : BAD;
+const askLocator = shape({
+  id: opt(shortStr(128)),
+  tag: opt(shortStr(24)),
+  text: opt(shortStr(160)),
+  selector: opt(shortStr(200)),
+  index: opt(num),
+});
 const crumb = shape({ label: str, ref: nul(elementRef) });
 const EDIT_OP_CODES = ['held-by-ai', 'locked', 'stale', 'invalid', 'forbidden'] as const;
 
@@ -1195,6 +1232,22 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/empty (S11.2)',
     parse: p({ artboardId: nul(str), rect: nul(rect), label: opt(str), from: opt(str) }),
+  },
+  'ask-selection': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/ask-bubble (S2.19)',
+    parse: p({
+      refs: capped(200, arrOf(elementRef)),
+      selection: opt(capped(12, arrOf(askLocator))),
+      rect,
+    }),
+  },
+  'ask-selection-rect': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/ai-scope-outline (S2.19)',
+    parse: p({ rect: nul(rect) }),
   },
   'insert-artboard-request': {
     gate: 'active',
