@@ -527,6 +527,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.components': TSX(
     'Place a component from the design system: see component.insert (write `<Name>` with `import { Name } from "@maude/ds"`)'
   ),
+  // S2.17 — an instance: the same result by hand is in canvas-tsx.md § Instances of a design-system component
+  'component.swap-variant': TSX(
+    'Change `variant="…"` on the component (add or delete the attribute); a variant must be one system/<ds>/components.json lists for it. To change the component, rename the tag (open and close), import the new name from "@maude/ds" once and drop the old import when nothing else uses it — only between components that hold words (Button · Chip · Badge · Card · Callout). The words and style stay. Over HTTP: POST /_api/edit-op {op: "component.swap-variant", targets: [instance], params: {variant?: string|null, component?}}'
+  ),
+  'component.reset': TSX(
+    'Set the instance’s words back to the master’s (the component name) and delete its inline style declarations that are not placement (position, left, right, top, bottom, inset, zIndex, transform, translate, rotate, margin) — delete the style attribute when none is left. variant, data-cd-id and placement stay. Over HTTP: POST /_api/edit-op {op: "component.reset", targets: [instance], params: {props?}}'
+  ),
+  'component.detach': TSX(
+    'Replace the instance with the plain markup it renders to: the same tags, className, style (token references stay var(--…)) and words, the same data-cd-id, no @maude/ds component and no data-ds-rev; delete an import nothing uses any more. A local component’s usage: copy the definition under a new name and point that one usage at the copy (see element.detach). Over HTTP: POST /_api/edit-op {op: "component.detach", targets: [instance], params: {tree}} — tree is the rendered subtree {tag, attrs, kids}'
+  ),
+  'component.go-to-main': NAV('<design-system canvas>@<component>'),
   'text.detach-style': TSX(
     'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "var(--type-xl)", …}}} — the values as the design system wrote them (tokens), not px'
   ),

@@ -134,6 +134,7 @@ const CANVAS = [
   '/_api/comp-media',
   '/_api/ds/canvas',
   '/_api/ds/components',
+  '/_api/edit-instance',
   '/_api/sync/conflicts/resolve',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
   // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).
