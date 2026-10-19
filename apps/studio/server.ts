@@ -196,9 +196,9 @@ const api = createApi(ctx, {
   // Code review H1 — the canvas op path goes to a live room's replica, not to a
   // file its debounced flush hasn't caught up with. Accepted mode keeps the
   // disk + proposeLane path: there the hub kernel merges against the base.
-  applyAnnotationOpsLive: (file, ops, actionId) => {
+  applyAnnotationOpsLive: (file, ops, actionId, guard) => {
     if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
-    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId) ?? null;
+    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId, guard) ?? null;
   },
   // feature-file-tree-drag-drop-folders (Task 3) — moveCanvas's collab guard
   // + `_active.json` retarget, bridged the same forward-declared way as the
