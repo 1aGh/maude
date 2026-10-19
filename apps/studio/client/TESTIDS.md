@@ -1673,6 +1673,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-bar` | testid | The Design system canvas's bar: system name, Light \| Dark, changes waiting. Portalled into the canvas document body. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
 | `ds-bar-mode-<mode>` | testid | The bar's Light / Dark button (`<mode>` = light \| dark); `aria-pressed` is the previewed mode. It never changes the app theme. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
 | `ds-bar-pending` | testid | The bar's "N changes waiting" line, present only while `dsPending` holds entries. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
+| `ds-bar-review` | testid | S10.8: the bar's "Review…" button, beside "N changes waiting": asks the shell for "Update N canvases" (dgn `ds-review`). | `ds/board/ds-bar.tsx` · `DsBarView` | e2e:ds-review, test:ds-frames-wiring | new |
 | `ds-review-scrim` | testid | S10.8: the dim backdrop behind the "Update N canvases" sheet. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
 | `ds-review` | testid | S10.8: the "Update N canvases" sheet (dialog); `data-view` is the swatch view, before or after. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
 | `ds-review-title` | testid | S10.8: the sheet title, "Update canvases with the new Accent?" (the verb the button repeats). | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |

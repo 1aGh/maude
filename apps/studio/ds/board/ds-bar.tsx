@@ -56,7 +56,12 @@ export function DsBarView({
             {waiting}
           </span>
           {onReview ? (
-            <button type="button" className="ds-bar-b ds-bar-review" onClick={onReview}>
+            <button
+              type="button"
+              className="ds-bar-b ds-bar-review"
+              data-testid="ds-bar-review"
+              onClick={onReview}
+            >
               Review…
             </button>
           ) : null}
@@ -72,9 +77,11 @@ export function DsBarView({
  * board pans and zooms.
  */
 export function DsBar({ onReview, portal = true }: { onReview?: () => void; portal?: boolean }) {
+  // "Review…" asks the shell for "Update N canvases" (S10.8); a caller with its own door passes `onReview`
+  const ask = onReview ?? (() => window.parent.postMessage({ dgn: 'ds-review' }, '*'));
   const model = useBoardModel();
   const mode = useBoardMode();
   if (!model) return null;
-  const bar = <DsBarView model={model} mode={mode} onMode={setBoardMode} onReview={onReview} />;
+  const bar = <DsBarView model={model} mode={mode} onMode={setBoardMode} onReview={ask} />;
   return portal && typeof document !== 'undefined' ? createPortal(bar, document.body) : bar;
 }

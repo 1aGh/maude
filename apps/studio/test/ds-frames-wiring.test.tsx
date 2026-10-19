@@ -178,6 +178,36 @@ describe('ds-pins-want → ds-pins, into the frame that asked', () => {
   });
 });
 
+describe('ds-review (S10.8) — "Review…" on the Design system canvas opens "Update N canvases"', () => {
+  test('only the ACTIVE canvas can ask; the request names that canvas', async () => {
+    const {
+      requestDsReview: _r,
+      onDsReviewRequest,
+      resetDsReviewBus,
+    } = await import('../client/v2/ds/review-bus.js');
+    resetDsReviewBus();
+    const got: unknown[] = [];
+    const off = onDsReviewRequest((r: unknown) => got.push(r));
+    const cfg = cfgOf(R2);
+    const a = frameFor(cfg, LANDING);
+    const b = frameFor(cfg, PRICING);
+    await mount({
+      cfg,
+      frames: new Map<string, any>([
+        [LANDING, a.frame],
+        [PRICING, b.frame],
+      ]),
+      activePath: LANDING,
+    });
+    say(b.win, { dgn: 'ds-review' });
+    expect(got).toEqual([]);
+    say(a.win, { dgn: 'ds-review' });
+    expect(got).toEqual([{ kind: 'review', canvas: LANDING }]);
+    off();
+    resetDsReviewBus();
+  });
+});
+
 describe('the follower swap: a head that moved lands at the next look, never under the eyes', () => {
   async function loadedPricing(presentMode = false) {
     const cfg = cfgOf(R2);

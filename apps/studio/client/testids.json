@@ -23889,5 +23889,23 @@
       "apps/studio/test/v2-ds-update-available.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "ds-bar-review",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [
+      "e2e:ds-review"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/ds-frames-wiring.test.tsx"
+    ],
+    "v2": "new"
   }
 ]
