@@ -100,6 +100,8 @@ import {
   type TextSession,
 } from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
+// S4.14 — a formal vote: your dots on the voted artboards, the counts once it has ended.
+import { VoteDots } from './annotations/ui/vote-dots.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
@@ -5244,6 +5246,7 @@ function AnnotationsSvg({
               onCancel={arrowUi.onLabelCancel}
             />
           ) : null}
+          <VoteDots zoom={zoomNow} />
         </div>,
         target
       )}
