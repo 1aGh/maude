@@ -1,0 +1,18 @@
+await prev();
+await sleep(1500);
+await page.keyboard.press('Meta+k');
+await sleep(600);
+await page.keyboard.type('Start a vote');
+await sleep(600);
+await page.keyboard.press('Enter');
+await sleep(1000);
+await page.fill('[data-testid="vote-sheet-title"]', 'Helmy');
+await page.click('[data-testid="vote-sheet-start"]');
+await sleep(2000);
+await shot('v4-started');
+const out = {};
+out.bar = await page.evaluate(() => document.querySelector('[data-testid="vote-bar"]')?.innerText);
+out.tids = await tids(/vote/);
+out.ftids = await ftids(/vote/);
+out.board = (board().elements || []).map(e => e.type + ':' + (e.id||''));
+return out;
