@@ -851,6 +851,8 @@ function ShellState({ children }) {
             // change clears them); it replaces S5.11's 6 s Done ring, which lit every action's.
             undoProjection.onAction(m.action);
             noteMadeByAi(m.action);
+            // Version history looks again (a local project has no applied revision to key a re-read on).
+            window.dispatchEvent(new CustomEvent('maude:project-action', { detail: m.action }));
           } else if (m.type === 'trash:changed') {
             // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
             window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
@@ -3017,7 +3019,7 @@ function ShellTree() {
           Skipped during first-run onboarding so two flows don't stack. */}
       {!firstRun && <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />}
       <NotificationHost
-        paused={!!usageNudge || !!tourSteps}
+        paused={!!tourSteps}
         hiddenGroups={exportCenter.panelOpen ? ['exports'] : []}
       />
       <WhatsNewToast wn={whatsNew} />
