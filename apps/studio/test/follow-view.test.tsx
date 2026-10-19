@@ -596,6 +596,8 @@ describe('a follower canvas follows the presenter', () => {
     const dots = () => mountEl.querySelectorAll('[data-testid="present-peer-pointer"]');
     send({ x: 10, y: 20 });
     expect(dots()).toHaveLength(1);
+    // the layer other people's Pointers are drawn in
+    expect(mountEl.querySelector('[data-testid="present-peer-pointers"]')).not.toBeNull();
     expect((dots()[0] as HTMLElement).style.transform).toBe('translate(10px, 20px)');
     for (const bad of [{ x: 2e6, y: 0 }, { x: '10', y: 20 }, { x: 1 }, [1, 2], 'x']) {
       send(bad);

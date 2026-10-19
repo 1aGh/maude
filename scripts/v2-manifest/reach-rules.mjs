@@ -225,6 +225,11 @@ export const HOOK_SHELLS = Object.freeze([
     ['desktop'],
     'the shell hands the window a maude:// link, opens addresses and holds the sign-in: native only (isNativeApp())',
   ],
+  [
+    /^root-missing-/,
+    ['desktop'],
+    "the moved-folder card is the desktop shell's own page (apps/desktop/src/root-missing.html), shown when a tab's folder is gone",
+  ],
   [/^embed-/, ['embed'], 'the embed shell (?embed=1)'],
   [
     /^share-open-app$/,
@@ -244,6 +249,12 @@ export const HOOK_SHELLS = Object.freeze([
  * probe state.
  *   hook → { container, test: '<repo-relative file>', name: '<test title substring>', needles?: string[] }
  */
+const proof = (test, name, needles) => ({
+  container: 'canvas-frame',
+  test,
+  name,
+  ...(needles ? { needles } : {}),
+});
 export const HOOK_PROOFS = Object.freeze({
   // a collaborator's frame / halo / drawn-gesture ghost: a second person is connected. Rendered, and followed
   // through a pan and a zoom, by the peer-selection test
@@ -282,6 +293,45 @@ export const HOOK_PROOFS = Object.freeze({
     name: 'is on the page, pending first',
     needles: ['data-photo-bgremove-status'],
   },
+  // ── Phase 5 wave A: states a headless boot cannot stage (a second person, an AI run, a trashed canvas, a page the
+  // desktop shell owns). Each is rendered, and asserted, by the named test.
+  // the moved-folder card: the shell's own page, not served by the studio the probe boots
+  'root-missing-card': proof('apps/studio/test/v2-gate-proofs.test.tsx', 'root-missing-card names the project'),
+  'root-missing-title': proof('apps/studio/test/v2-gate-proofs.test.tsx', 'root-missing-card names the project'),
+  'root-missing-place': proof('apps/studio/test/v2-gate-proofs.test.tsx', 'root-missing-card names the project'),
+  'root-missing-find': proof('apps/studio/test/v2-gate-proofs.test.tsx', 'root-missing-card names the project'),
+  'root-missing-error': proof('apps/studio/test/v2-gate-proofs.test.tsx', 'root-missing-error says why a picked folder'),
+  // the AI's rings on the artboards it is working on (the shell names them; a probe has no running chat)
+  'ai-rings': proof('apps/studio/test/v2-ai-runs-ui.test.tsx', 'a ring and its tag appear on the artboard the shell names'),
+  'ai-ring-<artboardId>': proof(
+    'apps/studio/test/v2-ai-runs-ui.test.tsx',
+    'a ring and its tag appear on the artboard the shell names',
+    ['ai-ring-']
+  ),
+  // the outlines an all-trashed canvas keeps where its artboards stood
+  'artboard-ghosts': proof('apps/studio/test/v2-all-trashed.test.tsx', 'outlines in world coordinates, no hit area'),
+  'artboard-ghost-<artboard-id>': proof(
+    'apps/studio/test/v2-all-trashed.test.tsx',
+    'outlines in world coordinates, no hit area',
+    ['artboard-ghost-']
+  ),
+  // following someone, and Bring everyone here: a second person is connected
+  'presence-follow-pill': proof('apps/studio/test/presence-canvas.test.tsx', 'following mirrors her camera; the frame and the pill say so'),
+  'presence-frame': proof('apps/studio/test/presence-canvas.test.tsx', 'following mirrors her camera; the frame and the pill say so'),
+  'presence-spotlight-pill': proof('apps/studio/test/presence-canvas.test.tsx', 'draws the glide nearest first, and the pill counts who follows me'),
+  'presence-bring-glide': proof('apps/studio/test/presence-canvas.test.tsx', 'draws the glide nearest first, and the pill counts who follows me'),
+  'presence-bring-ghost-<clientID>': proof(
+    'apps/studio/test/presence-canvas.test.tsx',
+    'draws the glide nearest first, and the pill counts who follows me',
+    ['presence-bring-ghost-']
+  ),
+  'presence-spotlight-stop': proof('apps/studio/test/presence-canvas.test.tsx', 'Stop clears the field for everyone and takes the pill away'),
+  // the Pointer (L) while presenting, and other people's Pointers
+  'present-pointer': proof('apps/studio/test/pointer-dot.test.tsx', 'the dot sits on the pointer and peers get the world point'),
+  'present-pointer-dot': proof('apps/studio/test/pointer-dot.test.tsx', 'the dot sits on the pointer and peers get the world point'),
+  'present-pointer-trail': proof('apps/studio/test/pointer-dot.test.tsx', 'the dot sits on the pointer and peers get the world point'),
+  'present-peer-pointer': proof('apps/studio/test/follow-view.test.tsx', "the presenter's Pointer: drawn when valid, dropped when malformed"),
+  'present-peer-pointers': proof('apps/studio/test/follow-view.test.tsx', "the presenter's Pointer: drawn when valid, dropped when malformed"),
   // the readiness dialog opens from the desktop menu's native item only
   'readiness-autosetup-where': {
     container: 'canvas-frame',
@@ -327,7 +377,10 @@ export const PRESENCE_ONLY = Object.freeze(new Set(['cloud-host']));
 
 /** A hook whose testids.json text is prose + a selector: the selector the page is asked about. */
 export const CSS_ALIASES = Object.freeze({
-  '.btn--danger (permission prompt)': ['.chat-perm .btn--danger'],
+  '.btn--danger (permission prompt)': [
+    '.chat-perm .btn--danger',
+    '[data-testid="chat-permission-prompt"] .btn--danger',
+  ],
   '[aria-expanded] on tree rows': ['[role="tree"] [aria-expanded]'],
   '[aria-label="Delete canvas <name>"]': ['[aria-label^="Delete canvas "]'],
   // label sets written as prose in testids.json: any one of the spellings on screen is the hook on screen

@@ -67,6 +67,9 @@ const ONLY_OPENERS = opt('--openers')?.split(',') ?? null;
 const MERGE = opt('--merge');
 const PARTIAL = Boolean(ONLY || ONLY_OPENERS) && !MERGE;
 const BUILD = args.includes('--build');
+// --no-run: boot nothing; turn the evidence given to --merge into reachability.json (the last step of a pass split
+// over several lane holds, and a way to ask "what is still open" without a browser)
+const NO_RUN = args.includes('--no-run');
 const die = (m) => {
   console.error(`probe-reach: ${m}`);
   process.exit(2);
@@ -747,8 +750,8 @@ try {
   restoreDist();
   die('playwright not installed in apps/studio — run `bun install` there first.');
 }
-const srv = await bootServer();
-const browser = await chromium.launch({ headless: true });
+const srv = NO_RUN ? null : await bootServer();
+const browser = NO_RUN ? null : await chromium.launch({ headless: true });
 let evidence = {};
 // A hold of the test lane is killed at --max, and a full pass takes longer than one hold: every opener's evidence is
 // written the moment it is in (--evidence), so a killed run loses one opener, not the pass, and the next hold
@@ -760,7 +763,7 @@ const flushEvidence = () => {
   writeFileSync(opt('--evidence'), JSON.stringify(base));
 };
 try {
-  for (const probe of PROBES.filter((p) => !ONLY || ONLY.includes(p.id))) {
+  for (const probe of PROBES.filter((p) => !NO_RUN && (!ONLY || ONLY.includes(p.id)))) {
     evidence[probe.id] = {};
     const openers = (probe.query ? OPENERS.filter((o) => o.id === 'shell') : OPENERS)
       .filter((o) => !o.probes || o.probes.includes(probe.id))
@@ -776,8 +779,8 @@ try {
     }
   }
 } finally {
-  await browser.close();
-  srv.server.kill('SIGTERM');
+  await browser?.close();
+  srv?.server.kill('SIGTERM');
   restoreDist();
   try {
     rmSync(runDir, { recursive: true, force: true });

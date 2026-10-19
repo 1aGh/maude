@@ -40,6 +40,9 @@ export const LABEL_FILES = [
 
 /** Exact entry id → target. Used where a label is ambiguous inside one component. */
 export const HAND = {
+  // S8.2 retired the export dialog's hook; its job is the Advanced › Image size row (testids.json notes)
+  'testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution':
+    'A-png-at-150-300-600-dpi',
   'button:studio/client/app.jsx#App/reload': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss~2': 'D13', // usage-tour nudge

@@ -539,6 +539,21 @@ export const STATES = {
     routes: { '/_api/asset-state*': 'assetMissing', 're:/assets/ab12cd34\\.png': 'abort' },
   },
   // the canvas shell never loads: the opening card, then (after the 15 s cap) the failure card
+  // S1.5: the desktop shell knows another project with a Pricing canvas (Rust `index_search`)
+  'other-projects': {
+    invoke: {
+      index_search: {
+        groups: [
+          {
+            pid: 'l0123456789abcdef',
+            name: 'Pricing site',
+            place: 'closed',
+            rows: [{ key: 'ui/Pricing.tsx', name: 'Pricing', group: 'canvases', meta: null }],
+          },
+        ],
+      },
+    },
+  },
   'canvas-hung': { routes: { 're:/_canvas-shell': 'hang' } },
   // no Claude Code on this Mac: the explainer and its "Set up AI editing" button
   'acp-missing': {
@@ -672,7 +687,22 @@ export const OPENERS = [
     id: 'left-canvases',
     steps: [{ click: tid('canvases-advanced') }, { expand: tid('dock-slot-left') }],
   },
-  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }, { wait: 2500 }] },
+  {
+    id: 'left-layers',
+    steps: [
+      { click: tid('panel-tab-layers') },
+      { wait: 2500 },
+      // S11.9: the tag and id after each layer's name sit behind Layers › Advanced › Show tags and ids
+      { ensureOpen: tid('layers-advanced') },
+      { click: tid('layers-show-tags'), optional: true },
+      { wait: 400 },
+    ],
+  },
+  // searching the Canvases list also lists the other groups' files (Design system, project and runtime files)
+  {
+    id: 'left-search',
+    steps: [{ fill: [tid('canvas-search'), 'colors'] }, { wait: 700 }],
+  },
   { id: 'left-assets', steps: [{ click: tid('panel-tab-assets') }] },
   // ── the canvas, with something on it ──────────────────────────────────────────────────────────
   { id: 'inspector', steps: [{ frameClick: '[data-cd-id="home-hero-title"]' }] },
@@ -831,13 +861,26 @@ export const OPENERS = [
   // right-click in the canvas: the element menu (Copy CSS, Copy style, Convert layout…), then an artboard's
   {
     id: 'canvas-menu',
-    steps: [{ frameContext: '[data-cd-id="home-hero-title"]' }],
+    steps: [
+      { frameContext: '[data-cd-id="home-hero-title"]' },
+      { frameDom: tid('canvas-menu-item-advanced'), optional: true },
+    ],
   },
   // …and on a container, where Convert layout to absolute is offered
-  { id: 'canvas-menu-container', steps: [{ frameContext: '[data-cd-id="home-hero-grid"]' }] },
+  {
+    id: 'canvas-menu-container',
+    steps: [
+      { frameContext: '[data-cd-id="home-hero-grid"]' },
+      { frameDom: tid('canvas-menu-item-advanced'), optional: true },
+    ],
+  },
   {
     id: 'canvas-menu-artboard',
-    steps: [{ frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true }],
+    steps: [
+      { frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      { frameDom: tid('canvas-menu-item-advanced'), optional: true },
+      { frameDom: tid('canvas-menu-item-theme'), optional: true },
+    ],
   },
   // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector. Since
   // S2.2 `css-panel`, `inspector-section-*` and `inspector-body-layout` sit inside the Inspector's
@@ -1046,6 +1089,35 @@ export const OPENERS = [
     id: 'palette-nothing',
     steps: [{ key: 'Meta+k' }, { fill: [tid('palette-input'), 'zzqxv'] }, { wait: 300 }],
   },
+  // nothing opened on this Mac yet: Recent says so (the shell alone opens no canvas)
+  { id: 'palette-day-one', canvas: false, steps: [{ key: 'Meta+k' }, { wait: 500 }] },
+  // close matches that are not a pure misspelling: some word is right (the status note above the list)
+  {
+    id: 'palette-close-note',
+    steps: [
+      { key: 'Meta+k' },
+      { fill: [tid('palette-input'), 'expor canvas'] },
+      { wait: 300 },
+      { fill: [tid('palette-input'), 'zoom to fitt'] },
+      { wait: 300 },
+      { fill: [tid('palette-input'), 'new canvs'] },
+      { wait: 300 },
+      { fill: [tid('palette-input'), 'togle layers'] },
+      { wait: 300 },
+    ],
+  },
+  // S1.5: ⌘K also lists the person's other projects (the desktop shell answers `index_search`)
+  {
+    id: 'palette-projects',
+    state: 'other-projects',
+    steps: [
+      { key: 'Meta+k' },
+      { fill: [tid('palette-input'), 'pricing'] },
+      { wait: 700 },
+      { fill: [tid('palette-input'), 'pricnig'] },
+      { wait: 700 },
+    ],
+  },
   {
     id: 'palette-close',
     steps: [{ key: 'Meta+k' }, { fill: [tid('palette-input'), 'exprt'] }, { wait: 300 }],
@@ -1235,7 +1307,10 @@ export const OPENERS = [
     steps: [
       { run: 'import.brand' },
       { upload: ['input[type="file"]', 'logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'] },
-      { wait: 800 },
+      { wait: 500 },
+      // S8: the sheet takes the file, then reads it on Import
+      { click: tid('brand-import') },
+      { wait: 1200 },
     ],
     probes: ['browser'],
   },
@@ -1245,14 +1320,22 @@ export const OPENERS = [
     steps: [
       { run: 'import.brand' },
       { upload: ['input[type="file"]', 'logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'] },
-      { wait: 800 },
+      { wait: 500 },
+      { click: tid('brand-import') },
+      { wait: 1200 },
     ],
     probes: ['browser'],
   },
   {
     id: 'brand-up-desktop',
     state: 'brand-extracted-desktop',
-    steps: [{ run: 'import.brand' }, { click: tid('brand-up-pick-file') }, { wait: 1000 }],
+    steps: [
+      { run: 'import.brand' },
+      { click: tid('brand-up-pick-file') },
+      { wait: 600 },
+      { click: tid('brand-import'), optional: true },
+      { wait: 1200 },
+    ],
     probes: ['desktop'],
   },
   // the desktop's native picker is not there in the probe: the panel says so
@@ -1289,7 +1372,11 @@ export const OPENERS = [
   },
   // ── the desktop's AI chat (⌘/), against the stub bridge of acp-stub.mjs ──────────────────────
   { id: 'acp-missing', state: 'acp-missing', steps: [{ key: 'Meta+Slash' }] },
-  { id: 'acp-connecting', state: 'acp-connecting', steps: [{ key: 'Meta+Slash' }] },
+  {
+    id: 'acp-connecting',
+    state: 'acp-connecting',
+    steps: [{ key: 'Meta+Slash' }, { wait: 500 }, { ensureOpen: tid('ai-advanced') }],
+  },
   { id: 'acp-plan', state: 'acp-plan', steps: [{ key: 'Meta+Slash' }] },
   // the panel as it is at rest (caps, the gauge, the rate-limit banner), its slash menu and its info popover
   {
@@ -1298,6 +1385,9 @@ export const OPENERS = [
     steps: [
       { key: 'Meta+Slash' },
       { wait: 800 },
+      // S5: model / effort / Ask before / transcript / context live in the chat's › Advanced fold
+      { ensureOpen: tid('ai-advanced') },
+      { wait: 300 },
       { click: tid('chat-foot-info-btn'), optional: true },
       { fill: ['.chat-input', '/d'] },
       { wait: 400 },
@@ -1420,8 +1510,8 @@ const WHERE = [
     /^settings-(connections|advanced|cloud-in|cloud-signin$|github-in|figma-in|team-server)/,
     LOCAL,
   ],
-  [/^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share)$/, EDITORS],
-  [/^(acp-|deeplink-|team-|settings-cloud-signin-link)/, ['desktop']],
+  [/^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share|export-print)$/, EDITORS],
+  [/^(acp-|deeplink-|team-|settings-cloud-signin-link|palette-projects)/, ['desktop']],
   // the git buttons are the desktop app's (a browser tab reads the fold, it does not press it)
   [/^history-(save|branch|add)-dialog$/, ['desktop']],
   [
@@ -1429,7 +1519,7 @@ const WHERE = [
     LOCAL,
   ],
   [
-    /^(asset-frames|ds-board|export-print|edit-more|preview-inspect|edit-link|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
+    /^(asset-frames|ds-board|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|edit-link|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
   [/^(comments-panel|comment-thread|comment-refused)$/, LOCAL],
