@@ -98,6 +98,30 @@ Over HTTP: `POST /_api/edit-op {file, op, targets, params}` with `op` one of `te
 (`role: "t-heading"`), `text.reset-style` (`props?`), `text.detach-style` (`values: {"font-size": "var(--type-xl)", …}`). One
 request is one write and one undo step.
 
+## Instances of a design-system component: the same result by hand (S2.17)
+
+An instance is a JSX element whose tag is a name the file imports from `@maude/ds` (`<Button data-cd-id="cta"
+variant="primary">Book</Button>`), or — for a component that does not forward `data-cd-id` / `style` (Logo, Icon,
+Switch …) — the `<div data-cd-id>` around it. The inspector's Component · Variant, Reset and Detach run `edit-op`s
+(`apps/studio/edit-ops/{swap-variant,reset-overrides,detach-instance}.ts`); everything they write is plain TSX.
+
+What counts as an **override** (what "N changes from <master>" counts and Reset takes back): the words, when they
+differ from the master's own (the export name, `Button`), and every inline `style` declaration that is not placement.
+Where an instance sits — `position`, `left`, `right`, `top`, `bottom`, `inset*`, `zIndex`, `transform`, `translate`,
+`rotate`, `margin` — is the frame's business, not its look. `variant` is a choice of master, not an override.
+
+| Gesture | What the file looks like afterwards |
+| --- | --- |
+| Variant Outline (`component.swap-variant {variant}`) | `variant="outline"` on the component (added when there was none). Default deletes the attribute. Only a variant the design system lists (`system/<ds>/components.json`, else the shipped defaults) is written. The words, the `style` and everything else are untouched. |
+| Component Chip (`component.swap-variant {component}`) | The tag, open and close, is renamed; `@maude/ds` imports the new name once and loses the old name when nothing else uses it. Only a component of the same shape (it holds words and forwards its props: Button · Chip · Badge · Card · Callout). A `variant` the new component does not have is deleted. |
+| Reset (`component.reset`) | The words go back to the master's (`Button`) and the non-placement `style` declarations are deleted (the `style` attribute goes when none is left); `variant`, `data-cd-id`, `data-ds-rev` and the placement declarations stay. Words or a `style` written as code (`{label}`, `style={st}`) are left alone. `params.props` names fewer (`["text", "background"]`). |
+| Detach (`component.detach`) | The element is replaced by the plain markup it rendered to: the same tags, `className`, `style` (token references stay `var(--…)`, never px) and words, the same `data-cd-id`, no `@maude/ds` component and no `data-ds-rev`. The look is identical; the element no longer follows the component. The import of a name nothing uses any more is deleted. An instance that repeats (inside a `.map()`, or in a component used in several places) is refused — detach it where it is written. For a **local** component's usage the definition is cloned under a new name (`CardDetached`) and that one usage is repointed at it. |
+
+Over HTTP: `POST /_api/edit-op {file, op, targets: [instance], params}` with `op` one of `component.swap-variant`
+(`variant: string|null`, `component`), `component.reset` (`props?`), `component.detach` (`tree`: the rendered subtree
+`{tag, attrs, kids}` — an agent writing the TSX by hand does not need it). One request is one write and one undo step.
+`GET /_api/edit-instance?file=&id=` says whether an object is an instance and what it overrides.
+
 ## Tidy up artboards: the same result by hand (S2.9)
 
 "Tidy up" on the align bar over 2+ artboards (and ⌘K `artboard.tidy`) writes only positions: `x` / `y` of each

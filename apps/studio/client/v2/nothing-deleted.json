@@ -785,9 +785,9 @@
       "home": "insp",
       "drawnAt": "ad-inspector",
       "v2": {
-        "action": null,
+        "action": "component.detach",
         "testid": ".st-scope",
-        "where": "Select an element in a shared component → Inspector header — the Local / Shared pill, and Detach on a shared instance (until S2)"
+        "where": "Select an element in a shared component → Inspector header — the Local / Shared pill, and Detach on a shared instance; an instance of a design-system component has Detach under Main component (S2.17, component.detach)"
       }
     },
     {

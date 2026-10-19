@@ -16499,6 +16499,216 @@
     "v2": "new"
   },
   {
+    "hook": "insp-sec-component",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Component block — Component and Variant rows, \"Your text and colour come along.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-component-select",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Component select (the system's own label, e.g. Tlačítko); another component asks `component.swap-variant {component}`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-variant-select",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Variant select (Default + the variants the system lists); a pick asks `component.swap-variant {variant}`. Not drawn for a component with no variants.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: \"Your text and colour come along.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-repeats",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the line for an instance in a `.map()` (\"This one repeats in the code; change it where it is written.\"); its controls are off.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ComponentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-content",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Content block — Text, Fill, \"N changes from <master>.\" with Reset.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-content-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: the words input; leaving it asks `text.set` (Escape takes it back). Disabled when the words are code.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "TextRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-changes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: \"2 changes from Tlačítko.\" with Reset — drawn only when the instance overrides something.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: Reset — asks `component.reset` (takes back the words and the non-placement style only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-follows",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: \"Follows <master>.\" — the quiet line when nothing is overridden.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Content: \"Update <master> for every canvas…\" — drawn only once S10 registers `ds.review-update` (S10-ds-review-entry.md).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "ContentBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-main",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance: the Main component block — Go to <master>, Detach and its line.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-goto",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Main component: \"Go to <master>\" — drawn only once S10 registers `ds.go-to` (S10-ds-review-entry.md).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-detach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Main component: Detach — asks `component.detach` (the canvas measures what the instance renders to).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-instance-detach-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Instance › Main component: \"Detach keeps this exact look as a plain frame. Nothing breaks; it stops following <master>.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/instance.jsx",
+      "symbol": "MainBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-instance.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "insp-style-none",
     "kind": "testid",
     "pattern": false,

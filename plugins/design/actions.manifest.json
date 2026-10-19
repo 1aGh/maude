@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8e25d90ab862",
+  "manifestVersion": "254cf8443a13",
   "actions": [
     {
       "id": "search.open",
@@ -1217,6 +1217,56 @@
       "agent": {
         "path": "cli",
         "verb": "maude design import-figma"
+      }
+    },
+    {
+      "id": "component.swap-variant",
+      "label": "Swap variant or component",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Change `variant=\"…\"` on the component (add or delete the attribute); a variant must be one system/<ds>/components.json lists for it. To change the component, rename the tag (open and close), import the new name from \"@maude/ds\" once and drop the old import when nothing else uses it — only between components that hold words (Button · Chip · Badge · Card · Callout). The words and style stay. Over HTTP: POST /_api/edit-op {op: \"component.swap-variant\", targets: [instance], params: {variant?: string|null, component?}}"
+      }
+    },
+    {
+      "id": "component.reset",
+      "label": "Reset to the main component",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the instance’s words back to the master’s (the component name) and delete its inline style declarations that are not placement (position, left, right, top, bottom, inset, zIndex, transform, translate, rotate, margin) — delete the style attribute when none is left. variant, data-cd-id and placement stay. Over HTTP: POST /_api/edit-op {op: \"component.reset\", targets: [instance], params: {props?}}"
+      }
+    },
+    {
+      "id": "component.detach",
+      "label": "Detach instance",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the instance with the plain markup it renders to: the same tags, className, style (token references stay var(--…)) and words, the same data-cd-id, no @maude/ds component and no data-ds-rev; delete an import nothing uses any more. A local component’s usage: copy the definition under a new name and point that one usage at the copy (see element.detach). Over HTTP: POST /_api/edit-op {op: \"component.detach\", targets: [instance], params: {tree}} — tree is the rendered subtree {tag, attrs, kids}"
+      }
+    },
+    {
+      "id": "component.go-to-main",
+      "label": "Go to the main component",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <design-system canvas>@<component>"
       }
     },
     {

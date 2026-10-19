@@ -5,6 +5,7 @@
 import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
 import { offImage } from '../kinds/image.jsx';
 import { offInspectorExport } from '../../export/inspector-export.jsx';
+import { offInstance } from '../kinds/instance.jsx';
 import { offMulti } from '../kinds/multi.jsx';
 import { offPath } from '../kinds/path.jsx';
 import { offShape } from '../kinds/shape.jsx';
@@ -45,4 +46,5 @@ export function unregisterSections() {
   offShape();
   offPath();
   offImage();
+  offInstance();
 }

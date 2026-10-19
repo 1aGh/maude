@@ -538,6 +538,42 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     search: { hidden: true },
   },
+  // S2.17 (ed-comp-instance) — an instance of a design-system component. Swap takes a value (a variant, a
+  // component), so its control is the inspector's Component · Variant rows and ⌘K does not offer it; Reset
+  // and Detach need no choice and are offered. Go to the main component is S10's door (`ds.go-to`): the row
+  // and ⌘K entry say nothing until that id is registered.
+  {
+    id: 'component.swap-variant',
+    label: 'Swap variant or component',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'component.reset',
+    label: 'Reset to the main component',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['reset', 'override', 'instance', 'component', 'changes', 'master'] },
+  },
+  {
+    id: 'component.detach',
+    label: 'Detach instance',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['detach', 'unlink', 'instance', 'component', 'plain', 'frame'] },
+  },
+  {
+    id: 'component.go-to-main',
+    label: 'Go to the main component',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { selection: ['object'] },
+    search: { hidden: true },
+  },
   {
     id: 'text.detach-style',
     label: 'Detach text style',
