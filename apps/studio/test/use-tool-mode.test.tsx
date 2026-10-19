@@ -36,6 +36,7 @@ describe('use-tool-mode / static', () => {
       'line',
       'polygon',
       'slice',
+      'el-pen', // S2.14 — Edit's Pen
       'crop',
       'eraser',
     ]);
@@ -59,6 +60,7 @@ describe('use-tool-mode / static', () => {
       '', // line
       '', // polygon
       '', // slice (Export area)
+      'P', // el-pen (S2.14)
       '', // crop (S2.15)
       'E',
     ]);

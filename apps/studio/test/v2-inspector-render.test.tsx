@@ -395,14 +395,16 @@ describe('the registry actions (⌘K) run on the element the frame shows', () =>
     const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
     await frame({ selected: BUTTON });
     calls.length = 0;
+    // S2.17: the frame asks /_api/edit-instance whether a single selection is an instance; that is not an edit
+    const edits = () => calls.filter((c) => !c.url.startsWith('/_api/edit-instance'));
     expect(await runInspectorAction('element.clear-link')).toBe('This object has no link.');
-    expect(calls).toEqual([]);
+    expect(edits()).toEqual([]);
     for (const r of roots.splice(0)) await act(async () => r.unmount());
     await frame({
       selected: { ...BUTTON, attrs: { 'data-cd-link': '#pricing' } },
     });
     expect(await runInspectorAction('element.clear-link')).toBe('Cleared the link.');
-    expect(calls.map((c) => [c.url, JSON.parse(c.body ?? '{}')])).toEqual([
+    expect(edits().map((c) => [c.url, JSON.parse(c.body ?? '{}')])).toEqual([
       [
         '/_api/edit-op',
         {

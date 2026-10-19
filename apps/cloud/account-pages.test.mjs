@@ -234,48 +234,47 @@ describe('every account page: a session, no-store, no script', () => {
     }
   });
 
-  test('the overview carries the plan line and the six doors (ob-settings + S9.18's E-mails)
-  ', async () => {
-  const { env, ana, sqlite } = await world();
-  sqlite
-    .prepare('UPDATE accounts SET trial_started_at = ? WHERE id = ?')
-    .run(Date.now() - 2 * DAY, ana.id);
-  const html = await (await get(env, '/account', ana.session)).text();
-  assert.match(html, /Free trial · 12 days left/);
-  for (const door of [
-    'People and invites',
-    'Billing and plan',
-    'Your Macs',
-    'E-mails',
-    'Download everything',
-    'Delete the account',
-  ]) {
-    assert.ok(html.includes(door), door);
-  }
-});
-
-test('a POST from another origin is refused, even with the right CSRF field', async () => {
-  const { env, ana } = await world();
-  const res = await post(
-    env,
-    '/account/macs',
-    ana.session,
-    { csrf: await csrfOf(ana.session), mac: 'x' },
-    { origin: 'https://studio-site.cloud.maude.sh' }
-  );
-  assert.equal(res.status, 403);
-});
-
-test('no CSRF key configured → every account POST fails closed', async () => {
-  const { env, ana } = await world();
-  env.CELL_SECRET_MASTER = undefined;
-  const res = await post(env, '/account/delete', ana.session, {
-    csrf: await csrfOf(ana.session),
-    confirm: 'ana@example.com',
+  test('the overview carries the plan line and the six doors (ob-settings + S9.18 E-mails)', async () => {
+    const { env, ana, sqlite } = await world();
+    sqlite
+      .prepare('UPDATE accounts SET trial_started_at = ? WHERE id = ?')
+      .run(Date.now() - 2 * DAY, ana.id);
+    const html = await (await get(env, '/account', ana.session)).text();
+    assert.match(html, /Free trial · 12 days left/);
+    for (const door of [
+      'People and invites',
+      'Billing and plan',
+      'Your Macs',
+      'E-mails',
+      'Download everything',
+      'Delete the account',
+    ]) {
+      assert.ok(html.includes(door), door);
+    }
   });
-  assert.equal(res.status, 403);
+
+  test('a POST from another origin is refused, even with the right CSRF field', async () => {
+    const { env, ana } = await world();
+    const res = await post(
+      env,
+      '/account/macs',
+      ana.session,
+      { csrf: await csrfOf(ana.session), mac: 'x' },
+      { origin: 'https://studio-site.cloud.maude.sh' }
+    );
+    assert.equal(res.status, 403);
+  });
+
+  test('no CSRF key configured → every account POST fails closed', async () => {
+    const { env, ana } = await world();
+    env.CELL_SECRET_MASTER = undefined;
+    const res = await post(env, '/account/delete', ana.session, {
+      csrf: await csrfOf(ana.session),
+      confirm: 'ana@example.com',
+    });
+    assert.equal(res.status, 403);
+  });
 });
-})
 
 // ------------------------------------------------------------------ people
 

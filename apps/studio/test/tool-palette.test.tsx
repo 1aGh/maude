@@ -215,7 +215,7 @@ describe('visibleSlots / role, pending and read-only', () => {
     expect(armTarget('inspect', armableDefault)).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'inspect')).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'move')).toBeNull();
-    expect(armTarget('crop', armableDefault)).toBeNull();
+    expect(armTarget('crop', armableDefault)).toBe('crop'); // S2.15
     expect(armTarget('el-pen', armableDefault)).toBe('el-pen'); // S2.14
   });
 });

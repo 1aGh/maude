@@ -267,7 +267,7 @@ describe('registry: the toolbar keys per mode (rule 13)', () => {
     expect(owners('⌘E')).toEqual([]);
     expect(owners('⇧⌘E')).toEqual(['export.open']);
     expect(owners('⇧⌘A')).toEqual(['select.all']); // v1's ⇧-alias of ⌘A (defect 1); Assistant left
-    expect(owners('⌘/')).toEqual(['ai.chat']);
+    expect(owners('⌘/')).toEqual(['ai.ask-selection', 'ai.chat']); // S2.19: ⌘/ on a selection asks
   });
 });
 

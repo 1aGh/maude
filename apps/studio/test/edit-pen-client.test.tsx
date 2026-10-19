@@ -475,11 +475,11 @@ describe('Combine — measured by the canvas, written by one op', () => {
 });
 
 describe('the toolbar and the registry', () => {
-  test('Pen is a tool, no longer pending; P arms it in Edit; only Crop stays pending', () => {
+  test('Pen is a tool, no longer pending; P arms it in Edit; nothing stays pending (Crop went live in S2.15)', () => {
     const pen = MODE_TOOLS.edit.slots.find((s) => s.label === 'Pen');
     expect(pen?.tool).toBe('el-pen');
     expect(pen?.pending).toBeUndefined();
-    expect(pendingSlots().map((p) => p.slot.label)).toEqual(['Crop']);
+    expect(pendingSlots().map((p) => p.slot.label)).toEqual([]);
     expect(toolKeyAction('edit', 'P', ALL_CAPS)).toMatchObject({ kind: 'arm', tool: 'el-pen' });
     expect(visibleSlots('edit', 'edit', () => true).map((s) => s.label)).toContain('Pen');
     expect(isPenTool('el-pen')).toBe(true);
