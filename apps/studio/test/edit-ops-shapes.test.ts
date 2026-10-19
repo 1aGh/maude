@@ -368,3 +368,31 @@ export default function Home() {
     expect(h.src()).toBe(SHARED);
   });
 });
+
+describe('G5 — a corner dot on a freshly drawn shape writes React style keys', () => {
+  test('a new radius is `borderRadius`, not a quoted kebab key', async () => {
+    const h = harness();
+    good(await h.run('object.insert-shape', [], { ...draw, kind: 'rectangle' }));
+    good(
+      await h.run('object.set-corner-radius', ['rectangle'], {
+        corner: 'all',
+        radius: { token: '--radius-md' },
+      })
+    );
+    expect(h.src()).toContain('borderRadius: "var(--radius-md)"');
+    expect(h.src()).not.toContain('"border-radius"');
+    expect(style(h.src(), 'rectangle', 'border-radius')).toBe('var(--radius-md)');
+  });
+
+  test('a file that already says "border-radius" keeps that key (no second one)', async () => {
+    const h = harness(HOME.replace('borderRadius: "8px"', '"border-radius": "8px"'));
+    good(await h.run('object.set-corner-radius', ['round'], { corner: 'all', radius: { px: 12 } }));
+    expect(h.src()).toContain('"border-radius": "12px"');
+    expect(
+      h
+        .src()
+        .match(/<div data-cd-id="round"[^>]*>/)?.[0]
+        .match(/adius/g)?.length
+    ).toBe(1);
+  });
+});
