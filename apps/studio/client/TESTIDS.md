@@ -1198,6 +1198,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-permission-decline` | testid | "Not now" on the permission card (also `.btn--danger`, drawn quiet). | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
 | `ai-permission-option` | testid | One button of a multi-way permission set (ExitPlanMode and the like); repeats. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
 | `ai-choice-question` | testid | The choice card's question line. | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
+| `ai-choice-settled` | testid | An answered question: the choice card read only, the picked row marked (03 `picked`). | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
 | `ai-problem-card` | testid | A refusal the server coded (`read-only`, `not-queued`): what happened and what is safe. `data-code` = the code. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
 | `ai-problem-title` | testid | The problem card's sentence. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
 | `ai-problem-verb` | testid | The problem card's one verb, when it has one. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |

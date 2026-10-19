@@ -32,7 +32,7 @@ import { AcpBridge, type BridgeUsage } from './bridge.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
 import { registerActivityProbe, registerRunningChatsProbe } from './running.ts';
-import { linkChatCanvas, readChatLinesAfter } from './transcript.ts';
+import { linkChatCanvas, noteChatArtboards, readChatLinesAfter } from './transcript.ts';
 
 /**
  * Browser → server frames: `{ t: 'attach', chat, seq }` (Addendum Task 8 — bind
@@ -893,6 +893,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     if (asked) {
       try {
         linkChatCanvas(ctx.paths.designRoot, safeChat, asked.canvas);
+        // S5.18 G5 — the list's "where" line: the artboards this ask named
+        noteChatArtboards(ctx.paths.designRoot, safeChat, asked.canvas, asked.artboards);
       } catch {
         /* a read-only _chat/ keeps the chat under "No canvas" — never blocks the prompt */
       }

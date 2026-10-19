@@ -8,12 +8,20 @@
 // The numbers and rows come from runs-model.js over the tab's run store (runs-store.js). Presentational beyond
 // that: the caller says where "jump" goes and what opening a chat means.
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { dispatchArtboardJump } from '../left-panel/left-panel-bus.js';
 import { Check, Spark } from './icons.jsx';
-import { canvasRows, RUN_WORD, yoursCount, yoursRows } from './runs-model.js';
+import { canvasRows, fitRunListWidth, RUN_WORD, yoursCount, yoursRows } from './runs-model.js';
 import { useAiRuns } from './runs-store.js';
 
 export const Clock = ({ size = 12 }) => (
@@ -117,12 +125,16 @@ export function RunList({
   onPick,
   onKeyDown,
   id,
+  width,
+  listRef,
 }) {
   const yours = yoursRows(view, { designRel, labels, currentChatId });
   const others = canvasRows(view, { activeCanvas, labels });
   return (
     <div
+      ref={listRef}
       className="ai-runs"
+      style={width ? { width } : undefined}
       role="menu"
       id={id}
       aria-label="Running chats"
@@ -248,5 +260,34 @@ export function RunsCount({ activeCanvas, designRel, currentChatId, onOpenChat, 
 // The labels come from the project index, which is read only while the list is open.
 function RunListOpen({ view, designRel, ...rest }) {
   const labels = useBoardLabels(designRel, view.seq);
-  return <RunList view={view} designRel={designRel} labels={labels} {...rest} />;
+  // S5.18 G1: in a narrow dock column the list narrows to what fits (it hangs from the button's right edge).
+  const listRef = useRef(null);
+  const [width, setWidth] = useState(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = listRef.current;
+      const anchor = el?.offsetParent; // the ✦ N wrapper the list hangs from
+      if (!el || !anchor) return;
+      const column = el.closest('.ai-island, .st-rpanel');
+      setWidth(
+        fitRunListWidth({
+          anchorRight: anchor.getBoundingClientRect().right,
+          boundsLeft: column ? column.getBoundingClientRect().left : 0,
+        })
+      );
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
+  return (
+    <RunList
+      view={view}
+      designRel={designRel}
+      labels={labels}
+      width={width}
+      listRef={listRef}
+      {...rest}
+    />
+  );
 }

@@ -16,7 +16,12 @@ import { choiceAnswer, choiceModel } from './needs-you.js';
 
 export { choiceModel };
 
-export default function ChoiceCard({ request, onRespond, model: given }) {
+/**
+ * `settled` (S5.18 G6, 03 `picked`): the card AFTER it was answered — the same question and rows, read only, the
+ * picked one marked. `picked` is the label the person chose (or what they typed under "Something else…").
+ * `onRespond(answer, { picked })` — the second argument names the pick so the slot can keep the card.
+ */
+export default function ChoiceCard({ request, onRespond, model: given, settled = false, picked = null }) {
   const ref = useRef(null);
   const model = useMemo(() => given ?? choiceModel(request), [given, request]);
   const [other, setOther] = useState(false); // the "Something else…" field is open
@@ -25,14 +30,58 @@ export default function ChoiceCard({ request, onRespond, model: given }) {
   useEffect(() => {
     setOther(false);
     setText('');
-    ref.current?.focus();
-  }, [request.id]);
+    if (!settled) ref.current?.focus();
+  }, [request?.id, settled]);
 
   if (!model) return null;
   const sendCustom = () => {
     if (text.trim() === '') return;
-    onRespond(choiceAnswer(model, { custom: text }));
+    onRespond(choiceAnswer(model, { custom: text }), { picked: text.trim() });
   };
+  if (settled) {
+    const hit = model.options.some((o) => o.label === picked);
+    return (
+      // biome-ignore lint/a11y/useSemanticElements: an inline card of answer rows in the chat, not a form fieldset
+      <div
+        className="ai-nc ai-nc-choice ai-nc-choice--settled"
+        role="group"
+        aria-label="AI asked a question — answered"
+        data-testid="ai-choice-settled"
+      >
+        <p className="ai-nc-t">
+          <span className="ai-nc-ic ai-nc-ic--ask" aria-hidden="true">
+            <Spark size={12} />
+          </span>
+          <span className="ai-nc-tt">{model.question}</span>
+        </p>
+        <div className="ai-nc-opts">
+          {model.options.map((o) => (
+            <span
+              key={o.value}
+              className="ai-nc-opt"
+              aria-current={o.label === picked ? 'true' : undefined}
+            >
+              <span className="ai-nc-opt-t">
+                {o.label}
+                {o.hint ? <span className="ai-nc-opt-h">{o.hint}</span> : null}
+              </span>
+            </span>
+          ))}
+          {model.otherFieldId ? (
+            <span
+              className="ai-nc-opt ai-nc-opt--other"
+              aria-current={picked && !hit ? 'true' : undefined}
+            >
+              <span className="ai-nc-opt-ic" aria-hidden="true">
+                <StIcon name="pen" size={12} />
+              </span>
+              <span className="ai-nc-opt-t">{picked && !hit ? picked : 'Something else…'}</span>
+            </span>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: an inline card of answer buttons in the chat, not a form fieldset (it would bring its own border and legend)
@@ -68,7 +117,7 @@ export default function ChoiceCard({ request, onRespond, model: given }) {
             type="button"
             className="ai-nc-opt"
             data-testid={`chat-elicit-option-${model.questionId}-${i}`}
-            onClick={() => onRespond(choiceAnswer(model, { value: o.value }))}
+            onClick={() => onRespond(choiceAnswer(model, { value: o.value }), { picked: o.label })}
           >
             <span className="ai-nc-opt-t">
               {o.label}

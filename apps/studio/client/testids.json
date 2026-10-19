@@ -18904,6 +18904,20 @@
     "v2": "new"
   },
   {
+    "hook": "ai-choice-settled",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "An answered question: the choice card read only, the picked row marked (03 `picked`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+      "symbol": "ChoiceCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-18-choice-settled.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "ai-problem-card",
     "kind": "testid",
     "pattern": false,

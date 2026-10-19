@@ -11,7 +11,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import {
+  boardsByRel,
   buildChatList,
   buildSearchList,
   queuedPromptsOf,
@@ -237,9 +239,12 @@ export function ChatList({
     };
   }, [query, fetchImpl]);
 
+  // S5.18 G5: the artboard names under each title come from the canvases index
+  const index = useCanvasIndex({ stamp: refreshKey, fetchImpl });
+  const boards = useMemo(() => boardsByRel(index), [index]);
   const browse = useMemo(
-    () => buildChatList({ groups: groups ?? [], busy, needs: needsSet, titles, expanded }),
-    [groups, busy, needsSet, titles, expanded]
+    () => buildChatList({ groups: groups ?? [], busy, needs: needsSet, titles, expanded, boards }),
+    [groups, busy, needsSet, titles, expanded, boards]
   );
   const searching = query.trim() !== '';
   const found = useMemo(

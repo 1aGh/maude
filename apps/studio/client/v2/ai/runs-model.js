@@ -371,3 +371,25 @@ export function estimateFor(view, run, now) {
     medianMs: medianTurnMs(view, holderMine.chatId),
   });
 }
+
+// ── the run list's width (03 `ai-two-artboards`) ───────────────────────────────────────────────────
+
+/** The list's natural width (runs.css `.ai-runs`). */
+export const RUN_LIST_WIDTH = 320;
+
+/**
+ * S5.18 G1 — the list hangs from the ✦ N button's right edge. In a narrow dock column (288 px) its natural
+ * width would run out past the column's left edge and be clipped; it narrows to what fits instead, never wider
+ * than `natural`, never past `boundsLeft` (the column's, else the window's, left edge) plus a margin.
+ */
+export function fitRunListWidth({
+  anchorRight,
+  boundsLeft = 0,
+  natural = RUN_LIST_WIDTH,
+  margin = 8,
+  floor = 160,
+} = {}) {
+  if (!Number.isFinite(anchorRight)) return natural;
+  const room = anchorRight - Math.max(Number.isFinite(boundsLeft) ? boundsLeft : 0, 0) - margin;
+  return Math.max(floor, Math.min(natural, Math.floor(room)));
+}

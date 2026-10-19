@@ -226,6 +226,16 @@
   .ai-nc-opt[aria-current="true"] {
     box-shadow: inset 0 0 0 1px var(--accent);
   }
+  /* S5.18 G6: an answered question — the rows are read only, the picked one keeps its ring */
+  .ai-nc-choice--settled .ai-nc-opt {
+    cursor: default;
+  }
+  .ai-nc-choice--settled .ai-nc-opt:hover {
+    background: transparent;
+  }
+  .ai-nc-choice--settled .ai-nc-opt:not([aria-current="true"]) {
+    color: var(--fg-2);
+  }
   .ai-nc-opt-t {
     display: flex;
     flex-direction: column;

@@ -170,6 +170,29 @@ export default function NeedsYouSlot({
   const activeElicitation = activePermission ? null : (pendingElicitations[0] ?? null);
   const choice = activeElicitation ? choiceModel(activeElicitation) : null;
 
+  // S5.18 G6 (03 `picked`): an answered question stays as a settled card with the picked row marked — until a
+  // new question replaces it, or the chat is asked something new (a turn that starts after the run went idle).
+  const [settled, setSettled] = useState(null); // { model, picked }
+  const respondChoice = useCallback(
+    (answer, meta) => {
+      if (choice && answer?.action === 'accept' && meta?.picked) {
+        setSettled({ model: choice, picked: meta.picked });
+      }
+      onRespondElicitation?.(answer);
+    },
+    [choice, onRespondElicitation]
+  );
+  useEffect(() => {
+    let idleSeen = false;
+    return conn.onBusy?.((busy) => {
+      if (!busy) idleSeen = true;
+      else if (idleSeen) setSettled(null);
+    });
+  }, [conn]);
+  useEffect(() => {
+    if (activeElicitation || activePermission) setSettled(null);
+  }, [activeElicitation, activePermission]);
+
   return (
     <div className="ai-nc-slot" data-testid="ai-needs-slot">
       {activePermission ? (
@@ -180,10 +203,12 @@ export default function NeedsYouSlot({
         />
       ) : activeElicitation ? (
         choice ? (
-          <ChoiceCard request={activeElicitation} model={choice} onRespond={onRespondElicitation} />
+          <ChoiceCard request={activeElicitation} model={choice} onRespond={respondChoice} />
         ) : (
           <ElicitationPrompt request={activeElicitation} onRespond={onRespondElicitation} />
         )
+      ) : settled ? (
+        <ChoiceCard settled model={settled.model} picked={settled.picked} />
       ) : turnError?.code ? (
         // A refusal the server coded (S5.6: view only, prompt not kept) says plainly what happened.
         <ProblemCard error={turnError} />
