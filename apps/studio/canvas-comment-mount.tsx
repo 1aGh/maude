@@ -39,6 +39,7 @@ import {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { acceptFromShell } from './bridge/dgn-protocol.ts';
 import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
 import { CommentsOverlay } from './comments-overlay.tsx';
 import { deriveFile, hoverTargetToSelection } from './dom-selection.ts';
@@ -619,7 +620,7 @@ function OkSignal({
 export class CanvasErrorBoundary extends Component<
   {
     attempt: number;
-    onError: () => void;
+    onError: (error: unknown) => void;
     fallback: () => ReactNode;
     children: ReactNode;
   },
@@ -629,8 +630,8 @@ export class CanvasErrorBoundary extends Component<
   static getDerivedStateFromError(): { hasError: boolean } {
     return { hasError: true };
   }
-  override componentDidCatch(): void {
-    this.props.onError();
+  override componentDidCatch(error: unknown): void {
+    this.props.onError(error);
   }
   override componentDidUpdate(prev: { attempt: number }): void {
     // A new canvas (new attempt) arrived → clear the error and try rendering it.
@@ -642,6 +643,19 @@ export class CanvasErrorBoundary extends Component<
     if (this.state.hasError) return this.props.fallback();
     return this.props.children;
   }
+}
+
+/** S6.12 — what a failed draw says to the shell: plain text, one line, clipped (it is read from a throw). */
+const RENDER_MESSAGE_MAX = 300;
+export function describeRenderFailure(error: unknown): string {
+  let raw = '';
+  try {
+    raw = error instanceof Error ? error.message : String(error ?? '');
+  } catch {
+    // a hostile `toString` must not take the boundary down with it
+  }
+  const text = raw.replace(/\s+/g, ' ').trim();
+  return (text || 'The canvas stopped while drawing.').slice(0, RENDER_MESSAGE_MAX);
 }
 
 function HmrHoldingToast({ message }: { message?: string }): ReactNode {
@@ -665,8 +679,32 @@ function CanvasHmrRuntime({
   file: string | undefined;
 }): ReactNode {
   const [{ canvas, attempt }, setCanvasState] = useState({ canvas: initialCanvas, attempt: 0 });
-  const [holding, setHoldingState] = useState<{ on: boolean; message?: string }>({ on: false });
+  // `source` says who is holding: the shell's build-error path (a compile error, which never reaches the
+  // boundary — the toast is its only signal), or a render error (the shell card says that one, S6.12).
+  const [holding, setHoldingState] = useState<{
+    on: boolean;
+    message?: string;
+    source?: 'build' | 'render';
+  }>({ on: false });
+  // S6.12 — a live AI run of this Mac draws on this canvas (the shell's `ai-runs` rings). Broken
+  // intermediates during a run are normal (DDR-077), so the toast stays while it is live.
+  const [runLive, setRunLive] = useState(false);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      if ((e.data as { dgn?: string } | null)?.dgn !== 'ai-runs') return;
+      const m = acceptFromShell(e, window);
+      if (m && m.dgn === 'ai-runs') {
+        setRunLive(Object.values(m.artboards).some((a) => a.state !== 'done'));
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
   const lastGood = useRef<ComponentType | null>(null);
+  // S6.12 — the module whose failure the shell was last told about. The boundary catches a new module twice
+  // (it retries once after resetting on the new `attempt`), and one failure is one message.
+  const reportedFor = useRef<ComponentType | null>(null);
   const canvasRef = useRef(canvas);
   canvasRef.current = canvas;
 
@@ -674,7 +712,8 @@ function CanvasHmrRuntime({
   useEffect(() => {
     const api: CanvasRuntimeApi = {
       remount: (next) => setCanvasState((s) => ({ canvas: next, attempt: s.attempt + 1 })),
-      setHolding: (on, message) => setHoldingState(on ? { on: true, message } : { on: false }),
+      setHolding: (on, message) =>
+        setHoldingState(on ? { on: true, message, source: 'build' } : { on: false }),
     };
     (window as unknown as Record<string, unknown>)[RUNTIME_KEY] = api;
     return () => {
@@ -684,6 +723,16 @@ function CanvasHmrRuntime({
 
   const handleOk = useCallback(() => {
     lastGood.current = canvasRef.current;
+    reportedFor.current = null;
+    // S6.12 — "this drew without an error": the shell clears its card and the server notes the source as the
+    // last good one (it reads and hashes the file itself — this is a claim, not a write).
+    if (file) {
+      try {
+        window.parent.postMessage({ dgn: 'render-ok', file }, '*');
+      } catch {
+        // detached
+      }
+    }
     // The new canvas rendered clean → drop any holding state.
     setHoldingState((h) => (h.on ? { on: false } : h));
     // A soft replacement keeps the iframe document, so inspect.ts does not
@@ -700,9 +749,24 @@ function CanvasHmrRuntime({
     }
   }, [attempt, file]);
 
-  const handleError = useCallback(() => {
-    setHoldingState({ on: true, message: 'render error' });
-  }, []);
+  const handleError = useCallback(
+    (error: unknown) => {
+      const message = describeRenderFailure(error);
+      setHoldingState({ on: true, message: 'render error', source: 'render' });
+      // S6.12 — once per failure; the canvas keeps holding the last good render underneath and the shell
+      // draws the card.
+      if (reportedFor.current === canvasRef.current) return;
+      reportedFor.current = canvasRef.current;
+      if (file) {
+        try {
+          window.parent.postMessage({ dgn: 'render-error', file, message }, '*');
+        } catch {
+          // detached
+        }
+      }
+    },
+    [file]
+  );
 
   const fallback = useCallback((): ReactNode => {
     const LG = lastGood.current;
@@ -716,7 +780,9 @@ function CanvasHmrRuntime({
             boundary's child), matching the clean-slate semantics of a full reload. */}
         <OkSignal key={attempt} Canvas={canvas} file={file} onOk={handleOk} />
       </CanvasErrorBoundary>
-      {holding.on ? <HmrHoldingToast message={holding.message} /> : null}
+      {holding.on && (holding.source !== 'render' || runLive) ? (
+        <HmrHoldingToast message={holding.message} />
+      ) : null}
     </>
   );
 }

@@ -197,6 +197,8 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `canvas-error-open-editor` | testid | Under Show details: Open in editor (desktop app only). | `client/v2/code/canvas-error-card.jsx` · `CanvasErrorCard` | test:v2-canvas-error-card | new in v2 (S11.7) |
 | `canvas-error-copy` | testid | Under Show details: Copy error. | `client/v2/code/canvas-error-card.jsx` · `CanvasErrorCard` | test:v2-canvas-error-card | new in v2 (S11.7) |
 | `canvas-error-last-good` | testid | Under Show details: Last good version (syntax kind). | `client/v2/code/canvas-error-card.jsx` · `CanvasErrorCard` | test:v2-canvas-error-card | new in v2 (S11.7) |
+| `render-error-host` | testid | S6.12 (C5): the layer that holds the render-error card (`CanvasErrorCard kind: 'render'`) over the canvas's dimmed last good render. `role="alert"`; absent while this Mac's own run draws on the canvas. | `client/v2/create/render-error.jsx` · `RenderErrorHost` | test:v2-render-error | new in v2 (S6.12) |
+| `render-error-thumb` | testid | S6.12: a cold open that never drew — the canvas's index cover, dimmed, behind the card. | `client/v2/create/render-error.jsx` · `ColdThumb` | test:v2-render-error | new in v2 (S6.12) |
 | `code-view` | testid | S11.7: the code view, a read-only panel over the canvas (06 ad-code). `role="dialog"`. | `client/v2/code/code-view.jsx` · `CodeView` | test:v2-code-view | new in v2 (S11.7) |
 | `code-view-path` | testid | The canvas file path in the code view's header (mono). | `client/v2/code/code-view.jsx` · `CodeView` | test:v2-code-view | new in v2 (S11.7) |
 | `code-view-readonly` | testid | The "Read only" lock chip. | `client/v2/code/code-view.jsx` · `CodeView` | test:v2-code-view | new in v2 (S11.7) |

@@ -18492,6 +18492,34 @@
     "v2": "new"
   },
   {
+    "hook": "render-error-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S6.12 (C5): the layer that holds the render-error card over the canvas's dimmed last good render. `role=\"alert\"`; absent while this Mac's own run draws on the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/render-error.jsx",
+      "symbol": "RenderErrorHost"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-render-error.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "render-error-thumb",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S6.12: a cold open that never drew — the canvas's index cover, dimmed, behind the render-error card.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/render-error.jsx",
+      "symbol": "ColdThumb"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-render-error.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "code-view",
     "kind": "testid",
     "pattern": false,
