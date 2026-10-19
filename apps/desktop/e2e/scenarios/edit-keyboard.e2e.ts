@@ -172,7 +172,9 @@ describe('keyboard only (S2.21)', () => {
     );
     // the shell's own handler, whichever panel element holds focus now
     await browser.execute(() => {
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true }));
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true })
+      );
     });
     await browser.waitUntil(
       async () =>
