@@ -103,3 +103,49 @@ export function restoreAfterLoad(selected, file) {
   const artboardId = sel.artboardId || SCREEN_SELECTOR.exec(sel.selector || '')?.[1] || null;
   return artboardId ? { kind: 'artboard', artboardId, file } : null;
 }
+
+/**
+ * S2.24 G2 — the `select-by-id` message that puts `selected` back on the canvas of `file`, or null when there is
+ * nothing to put back. A list of several is left alone: the canvas holds all of it, and one id would collapse it.
+ */
+export function restorePostOf(selected, file) {
+  if (Array.isArray(selected) && selected.length > 1) return null;
+  const back = restoreAfterLoad(selected, file);
+  if (!back) return null;
+  if (back.kind === 'artboard') return { dgn: 'select-by-id', artboardId: back.artboardId };
+  return {
+    dgn: 'select-by-id',
+    id: back.sel.id,
+    artboardId: back.sel.artboardId ?? null,
+    index: back.sel.index ?? 0,
+  };
+}
+
+/** The rungs after the first: a fresh iframe mounts its listener 100 ms .. seconds after `loaded`. */
+const RESTORE_RUNGS_MS = [450, 1200, 2500, 5000];
+
+/**
+ * S2.24 G2/G1 — put the selection back on a canvas that just reloaded or was just written to, on a retry ladder,
+ * reading the selection WHEN EACH RUNG FIRES. Deciding at `loaded` time lost the drawn rectangle: the old tree
+ * flushes its `select-set` a beat after the new tree's `loaded`, so a restore planned for the board was dropped
+ * as superseded and the canvas never drew a selection on the shape the inspector showed. Posting is idempotent
+ * (the canvas answers a repeat with the same selection and does not move the camera).
+ * @returns {() => void} cancel
+ */
+export function startSelectionRestore({
+  file,
+  lead = RESTORE_LEAD_MS,
+  getSelected,
+  post,
+  timers = { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) },
+}) {
+  const handles = [lead, ...RESTORE_RUNGS_MS].map((ms) =>
+    timers.set(() => {
+      const msg = restorePostOf(getSelected(), file);
+      if (msg) post(msg);
+    }, ms)
+  );
+  return () => {
+    for (const h of handles) timers.clear(h);
+  };
+}
