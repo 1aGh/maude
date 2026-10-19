@@ -1,8 +1,9 @@
 // shell/dock.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useViewing } from '../v2/history/history-host.jsx';
+import { spawnFoldGhost } from '../v2/shell/fold-ghost.js';
 import { rovingTabKey } from '../v2/shell/modal-focus.js';
 import { StIcon } from './icons.jsx';
 
@@ -126,6 +127,56 @@ export function DockSlot({
   const tabs = open && hasPanelTabs(ids);
   const shown = open || aiShown;
   const viewing = !!useViewing();
+
+  // S3.14 (G4, 04 md-motion) — a floating panel that stops showing FOLDS toward its corner icon instead of
+  // cutting: just before the island leaves the DOM, a picture of it shrinks into the corner (fold-ghost.js).
+  // The refs below read their props through `live`, so a layout switch never looks like a detach.
+  const live = useRef({ floating, side, hidden });
+  live.current = { floating, side, hidden };
+  const mainNode = useRef(null);
+  const foldMain = useCallback((node) => {
+    if (node) {
+      mainNode.current = node;
+      return;
+    }
+    const gone = mainNode.current;
+    mainNode.current = null;
+    const { floating: fl, side: sd, hidden: hid } = live.current;
+    if (gone?.isConnected && fl && !hid)
+      spawnFoldGhost(gone, gone.closest('.st-body'), sd === 'left' ? 'top-left' : 'top-right');
+  }, []);
+  // The islands that stay MOUNTED when they stop showing - the whole slot folded away (`hidden`: Preview folds
+  // the panels, and ⌘\), or the chat island (`hidden` attribute; its stream survives) - fold from the rect they
+  // last had: the slot is already out of layout when the commit lands, so every commit while visible keeps the
+  // rects, and the fold reads them.
+  const aiNode = useRef(null);
+  const mainBox = useRef(null);
+  const aiBox = useRef(null);
+  const aiWas = useRef(aiShown);
+  const hiddenWas = useRef(hidden);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on every commit, by design
+  useLayoutEffect(() => {
+    const main = mainNode.current;
+    const ai = aiNode.current;
+    const host = (main ?? ai)?.closest('.st-body');
+    const foldAi = () =>
+      ai &&
+      aiBox.current &&
+      spawnFoldGhost(ai, host, side === 'left' ? 'bottom-left' : 'bottom-right', aiBox.current);
+    if (hidden) {
+      if (!hiddenWas.current && floating) {
+        if (main && mainBox.current)
+          spawnFoldGhost(main, host, side === 'left' ? 'top-left' : 'top-right', mainBox.current);
+        if (aiWas.current) foldAi();
+      }
+    } else {
+      mainBox.current = main?.getBoundingClientRect?.() ?? null;
+      if (aiShown) aiBox.current = ai?.getBoundingClientRect?.() ?? null;
+      else if (aiWas.current && floating) foldAi();
+    }
+    hiddenWas.current = hidden;
+    aiWas.current = aiShown;
+  });
   return (
     <div
       className={
@@ -139,6 +190,7 @@ export function DockSlot({
     >
       {open && (
         <div
+          ref={foldMain}
           className={'st-dockslot-inner' + (floating ? ' island' : '')}
           data-testid={`dock-slot-${side}`}
           data-occludes={floating && !hidden ? side : undefined}
@@ -158,6 +210,7 @@ export function DockSlot({
       )}
       {ai && (
         <div
+          ref={aiNode}
           className={'st-dockslot-inner st-dockslot-ai' + (floating ? ' island' : '')}
           data-testid={`dock-ai-${side}`}
           data-occludes={floating && aiShown && !hidden ? side : undefined}
