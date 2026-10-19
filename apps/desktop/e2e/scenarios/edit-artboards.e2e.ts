@@ -178,6 +178,10 @@ describe('edit-artboards (part 1) — select, resize onto a preset, long page', 
     const dx = -90 * before.zoom;
     await pointer('pointerdown', before.east.x, before.east.y, 'handle-e');
     await pointer('pointermove', before.east.x + dx, before.east.y, 'window');
+    await browser.waitUntil(async () => (await hud()).bubble === 'Mobile · 390 × 320', {
+      timeout: 5000,
+      timeoutMsg: 'the bubble never named the Mobile preset',
+    });
     const during = await hud();
     expect(during.bubble).toBe('Mobile · 390 × 320');
     expect(during.litTick).toBe('ed-ab-tick-390');
@@ -193,13 +197,31 @@ describe('edit-artboards (part 1) — select, resize onto a preset, long page', 
   });
 
   it('⌘ ignores presets (the width stays where the pointer put it)', async () => {
+    // test 2's write re-renders the frame a beat later (a slow run: seconds); wait until the board is selected
+    // again at its new width, with its handles drawn, before pressing on a handle
+    await browser.waitUntil(
+      async () => {
+        const h = await hud();
+        if (!h.selected) await onLabel(ARTBOARD, ['pointerdown', 'pointerup', 'click']);
+        await browser.pause(400);
+        const again = await hud();
+        return (
+          again.selected && again.size === '390 × 320' && !!again.east && again.handles.length === 8
+        );
+      },
+      { timeout: 20_000, timeoutMsg: 'the board never came back selected at 390 × 320' }
+    );
     const before = await hud();
     if (!before.east) throw new Error('no east handle');
     await pointer('pointerdown', before.east.x, before.east.y, 'handle-e');
     await pointer('pointermove', before.east.x + 37 * before.zoom, before.east.y, 'window', {
       metaKey: true,
     });
-    expect((await hud()).bubble).toMatch(/^4\d\d × 320$/); // 427, no preset name
+    // the HUD draws a beat after the move event (React flushes it on the next frame)
+    await browser.waitUntil(async () => /^4\d\d × 320$/.test((await hud()).bubble ?? ''), {
+      timeout: 5000,
+      timeoutMsg: 'the bubble never said the free width (427, no preset name)',
+    });
     await pointer('pointerup', before.east.x + 37 * before.zoom, before.east.y, 'window', {
       metaKey: true,
     });
@@ -378,6 +400,12 @@ describe('edit-artboards (part 2) — arrange: Tidy up', () => {
   it('dragging one board shows its place beside the pointer: "X … · Y …"', async () => {
     await onLabel('four', ['pointerdown']);
     await onLabel('four', ['pointermove'], { dx: 40, dy: 8 });
+    // the guides draw once per animation frame (S2.9b), not inside the event that moved the board
+    await browser.waitUntil(
+      async () =>
+        !!(await inFrame((d) => d.querySelector('[data-testid="edit-ab-bubble"]')?.textContent)),
+      { timeout: 5000, timeoutMsg: 'the drag bubble never drew' }
+    );
     const bubble = await inFrame(
       (d) => d.querySelector('[data-testid="edit-ab-bubble"]')?.textContent ?? null
     );
