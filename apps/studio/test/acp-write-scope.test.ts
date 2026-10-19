@@ -583,3 +583,61 @@ describe('writeTargetsInsideProject — read-only grants (S5.10)', () => {
     expect(v).toMatchObject({ inside: false, reason: 'read-only-grant' });
   });
 });
+
+describe('PROTECTED_IN_PROJECT — hook-runner configs (sec-a2 C7)', () => {
+  // "Save version" commits WITHOUT --no-verify, so a hook runner's config is an
+  // in-project path that reaches execution with no further agent action: write
+  // the config (auto-approved), the person clicks Save version, the runner runs
+  // the command through a shell. None of them needs an executable bit.
+  const scope = () => pinScopeRoot(root);
+  const denied = [
+    'lefthook.yml',
+    'lefthook.yaml',
+    '.lefthook.yml',
+    '.lefthook.yaml',
+    'lefthook-local.yml',
+    'lefthook-local.yaml',
+    '.lefthook-local.yml',
+    '.lefthook-local.yaml',
+    join('.config', 'lefthook.yml'),
+    join('.config', 'lefthook.yaml'),
+    join('.husky', 'pre-commit'),
+    join('.husky', '_', 'h'),
+    '.pre-commit-config.yaml',
+    '.lintstagedrc',
+    '.lintstagedrc.json',
+    '.lintstagedrc.yaml',
+    '.lintstagedrc.yml',
+    '.lintstagedrc.js',
+    '.lintstagedrc.mjs',
+    '.lintstagedrc.cjs',
+    'lint-staged.config.js',
+    'lint-staged.config.mjs',
+    'lint-staged.config.cjs',
+    // flow evaluates its `quality` gates with `eval`.
+    join('.ai', 'workflows.config.json'),
+    // Already covered, re-asserted under the same predicate.
+    join('.git', 'hooks', 'pre-commit'),
+    'package.json',
+  ];
+  for (const p of denied) {
+    test(`${p} is denied`, () => {
+      const v = writeTargetsInsideProject(writeCall(join(root, p)), scope(), 'Write');
+      expect(v).toMatchObject({ inside: false, reason: 'in-project-denied' });
+    });
+  }
+
+  test('ordinary neighbours stay writable', () => {
+    for (const p of [
+      join('.ai', 'plans', 'x.md'),
+      join('.config', 'other.yml'),
+      join('docs', 'husky.md'),
+      join('docs', '.ai', 'workflows.config.json'),
+      'pre-commit.md',
+    ]) {
+      expect(writeTargetsInsideProject(writeCall(join(root, p)), scope(), 'Write').inside).toBe(
+        true
+      );
+    }
+  });
+});
