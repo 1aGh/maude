@@ -465,6 +465,43 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS },
     search: { hidden: true },
   },
+  // S2.15 (ed-img) — pictures. A tile dropped on a frame, ↵ on a selected artboard and Generate end in
+  // `image.place` (a gesture: the Assets tab and the drop are how a person starts it, so no ⌘K row).
+  // Crop is ⌘K-able (it enters crop mode on the selected picture); Replace… opens the picker. Make editable
+  // (the Figma paste bar) is registered with its row but visible to no shell until S8.17's Figma import lands.
+  {
+    id: 'image.place',
+    label: 'Place a picture',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'image.crop',
+    label: 'Crop',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['crop', 'fit', 'fill', 'tile', 'zoom', 'picture', 'image', 'photo'] },
+  },
+  {
+    id: 'image.replace',
+    label: 'Replace…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['replace', 'swap', 'picture', 'image', 'photo'] },
+  },
+  {
+    id: 'figma.make-editable',
+    label: 'Make editable',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: [] },
+    enabled: EDITS,
+    search: { hidden: true },
+  },
   {
     id: 'text.detach-style',
     label: 'Detach text style',

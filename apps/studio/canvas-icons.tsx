@@ -9,7 +9,13 @@
  */
 
 import type { JSX, SVGProps } from 'react';
-import { IconExportArea, IconFrame, IconLineTool, IconPolygon } from './toolbars/toolbar-icons.tsx';
+import {
+  IconCrop,
+  IconExportArea,
+  IconFrame,
+  IconLineTool,
+  IconPolygon,
+} from './toolbars/toolbar-icons.tsx';
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -528,6 +534,7 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   line: IconLineTool,
   polygon: IconPolygon,
   slice: IconExportArea,
+  crop: IconCrop,
   eraser: IconEraser,
 };
 

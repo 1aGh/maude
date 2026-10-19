@@ -197,6 +197,7 @@ export const TOOL_CURSORS: Record<Tool, string> = Object.freeze({
   line: CROSSHAIR,
   polygon: CROSSHAIR,
   slice: CROSSHAIR,
+  crop: CROSSHAIR,
   eraser: ERASER,
 });
 

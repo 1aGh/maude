@@ -485,16 +485,16 @@ describe('the toolbar and the registry', () => {
       ['Line', false],
       ['Ellipse', false],
       ['Polygon', false],
-      ['Crop', true],
+      ['Crop', false],
       ['Export area', false],
     ]);
-    // what stays pending: Pen (its slice) and Crop. Component went live in S2.16 (panel-only slot,
-    // decision v2-S2.16 tool.components).
+    // what stays pending: Pen (its slice). Component went live in S2.16 (panel-only slot,
+    // decision v2-S2.16 tool.components), Crop in S2.15.
     expect(
       pendingSlots()
         .map((p) => p.slot.label)
         .sort()
-    ).toEqual(['Crop', 'Pen']);
+    ).toEqual(['Pen']);
   });
 
   test('visible: More shows for an editor while a child is live', () => {

@@ -302,9 +302,9 @@ describe('input-router / keydown — the toolbar letters, ungoverned', () => {
     expect(key('m', { markerTip: 'highlighter' })).toEqual({ kind: 'tool', tool: 'highlighter' });
   });
 
-  test('E → the Stickers panel (no tool); I → Image (an insert), not the highlighter', () => {
+  test('E → the Stickers panel (no tool); I → the Assets tab (S2.15), not the highlighter', () => {
     expect(key('e')).toEqual({ kind: 'panel', panel: 'stickers' });
-    expect(key('i')).toEqual({ kind: 'insert', insert: 'image' });
+    expect(key('i')).toEqual({ kind: 'panel', panel: 'assets' });
   });
 
   test("T: Edit's posture arms click-to-type (el-text, S2.12); Preview's arms annotation Text", () => {

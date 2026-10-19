@@ -378,7 +378,7 @@ export function ToolPalette() {
 
     // Panel-only slot (Stickers): the SHELL draws the panel — `tool-panel-open` (V2-4.5c), anchored to this
     // button and the reported `toolbar-rect`. No tool is armed.
-    if (s.tool === null) {
+    if (s.tool === null || s.panelFirst) {
       const Icon = glyphFor(id);
       return (
         <button
@@ -386,7 +386,7 @@ export function ToolPalette() {
           type="button"
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
-          title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : 'searchable sticker picker'}`}
+          title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : s.panel === 'assets' ? 'the pictures in this project' : 'searchable sticker picker'}`}
           onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}
