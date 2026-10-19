@@ -50,7 +50,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
         <span className="insp-sec-name" title={def.explain}>
           {title}
         </span>
-        {asideNode != null ? (
+        {asideNode === '' ? null : asideNode != null ? (
           <span className="insp-sec-a">{asideNode}</span>
         ) : def.aside && def.aside !== 'unlink' ? (
           <span className="insp-sec-a">{def.aside}</span>

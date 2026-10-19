@@ -17140,6 +17140,62 @@
     "v2": "new"
   },
   {
+    "hook": "insp-font",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Font: the select — the families the design system declares, \"Inherited\" takes it off (text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "FontBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Line · letter › line height, a percentage of the text size (text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "ParagraphBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-letter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Line · letter › letter spacing in px (text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "ParagraphBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-align",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Align: Left · Center · Right · Justify (writes `text-align`; text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "ParagraphBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "insp-language-note",
     "kind": "testid",
     "pattern": false,

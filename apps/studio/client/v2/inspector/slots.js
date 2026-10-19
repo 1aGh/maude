@@ -10,7 +10,7 @@
 //     Body: SizeBody,              // ({ el, selection, kind, ctx }) => element — the section's rows
 //     add: ({ el, ctx }) => void,  // optional: the "+" in the header (only sections with an adder draw it)
 //     canAdd: ({ el, selection, kind, ctx }) => boolean,  // optional (S8.8): the "+" is drawn only when true
-//     aside: ReactNode | ({ el, ctx }) => ReactNode,   // optional: replaces the quiet word beside the title
+//     aside: ReactNode | ({ el, ctx }) => ReactNode,   // optional: replaces the quiet word beside the title ('' = none)
 //   })
 //
 // `ctx` is what the panel gives every body: { canvasFile, cfg, editable, onOptimistic, onRecordEdit,
