@@ -25,14 +25,21 @@ afterAll(() => {
 
 const roots: Root[] = [];
 const offs: Array<() => void> = [];
+let unstash: (() => void) | null = null;
 beforeEach(async () => {
   calls.length = 0;
+  // This file asserts on an empty registry; section modules another file imported first stay registered
+  // in the shared bun process, so set them aside for the test and put them back after.
+  const { stashSlots } = await import('../client/v2/inspector/slots.js');
+  unstash = stashSlots();
   const { foldStore } = await import('../client/v2/fold/use-fold.js');
   foldStore.set('inspector', false);
 });
 afterEach(async () => {
   for (const r of roots.splice(0)) await act(async () => r.unmount());
   for (const off of offs.splice(0)) off();
+  unstash?.();
+  unstash = null;
   document.body.innerHTML = '';
 });
 
@@ -47,6 +54,16 @@ async function mount(el: React.ReactElement): Promise<HTMLElement> {
 }
 const q = (host: HTMLElement, id: string) =>
   host.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+// "Nothing there" without handing the element to expect(): a failing toBeNull() prints the whole happy-dom
+// element graph (listener maps, parent chain), which came to ~850 MB of log in one rerun.
+const gone = (el: Element | null | undefined) =>
+  expect(
+    el === null
+      ? null
+      : el === undefined
+        ? 'undefined'
+        : `<${el.tagName} ${el.getAttribute('data-testid') ?? ''}>`
+  ).toBeNull();
 const click = (el: Element | null) => {
   if (!el) throw new Error('missing element');
   return act(async () => {
@@ -154,7 +171,7 @@ describe('the header', () => {
     });
     expect(q(host, 'inspector-kind')?.textContent).toBe('Web page');
     expect(q(host, 'inspector-title')?.textContent).toBe('desktop');
-    expect(q(host, 'inspector-crumbs')).toBeNull();
+    gone(q(host, 'inspector-crumbs'));
   });
 
   test('several objects are one Mixed selection', async () => {
@@ -174,7 +191,7 @@ describe('the sections other slices fill', () => {
       })
     );
     const host = await frame();
-    expect(q(host, 'insp-sec-position')).toBeNull();
+    gone(q(host, 'insp-sec-position'));
     const sec = q(host, 'insp-sec-size');
     expect(sec).not.toBeNull();
     expect(sec?.getAttribute('data-n')).toBe('2');
@@ -200,9 +217,9 @@ describe('the sections other slices fill', () => {
     );
     offs.push(registerSlot('border', { id: 'border.test', Body: () => <i data-testid="bb" /> }));
     const host = await frame();
-    expect(q(host, 'insp-sec-type')).toBeNull();
+    gone(q(host, 'insp-sec-type'));
     expect(q(host, 'insp-add-fill')).not.toBeNull();
-    expect(q(host, 'insp-add-border')).toBeNull();
+    gone(q(host, 'insp-add-border'));
     await click(q(host, 'insp-add-fill'));
     expect(added).toBe(1);
   });
@@ -212,7 +229,7 @@ describe('the sections other slices fill', () => {
     offs.push(registerSlot('size', { id: 'size.test', Body: () => <i /> }));
     const host = await frame();
     expect(q(host, 'fold-inspector-toggle')?.getAttribute('aria-expanded')).toBe('false');
-    expect(q(host, 'fold-inspector-body')).toBeNull();
+    gone(q(host, 'fold-inspector-body'));
     await click(q(host, 'fold-inspector-toggle'));
     expect(q(host, 'fold-inspector-body')).not.toBeNull();
   });
@@ -233,8 +250,8 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     expect(body?.querySelector('[data-testid="inspector-custom-css"]')).not.toBeNull();
     expect(body?.querySelector('[data-testid="inspector-html-attrs"]')).not.toBeNull();
     // rule 13: Designer is the only default — no Designer/Advanced switch, no designer regroup
-    expect(host.querySelector('[data-tour="cp-mode"]')).toBeNull();
-    expect(host.querySelector('.st-cp--designer')).toBeNull();
+    gone(host.querySelector('[data-tour="cp-mode"]'));
+    gone(host.querySelector('.st-cp--designer'));
   });
 
   test('the selector then the element text, the DOM path on hover; the facts the Inspect tab showed', async () => {
@@ -268,8 +285,8 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     });
     const body = q(host, 'fold-inspector-body');
     // the size lives in the Artboard section (v2-inspector-artboard.test.tsx), no longer in the fold
-    expect(body?.querySelector('[aria-label="artboard width"]')).toBeNull();
-    expect(body?.querySelector('[data-tour="css-panel"]')).toBeNull();
+    gone(body?.querySelector('[aria-label="artboard width"]'));
+    gone(body?.querySelector('[data-tour="css-panel"]'));
   });
 
   test('tokens bound: the property in plain words, the variable beside it and as the hover (S11.8)', async () => {
@@ -302,7 +319,7 @@ describe('the element id (V2-1.4)', () => {
         canvas: '.design/ui/Homepage.tsx',
       },
     ]);
-    expect(q(host, 'inspector-id-error')).toBeNull();
+    gone(q(host, 'inspector-id-error'));
   });
 
   test('an invalid or taken id says so in plain words and writes nothing', async () => {
@@ -382,7 +399,7 @@ describe('the registry actions (⌘K) run on the element the frame shows', () =>
     const { registerSlot } = await import('../client/v2/inspector/slots.js');
     offs.push(registerSlot('size', { id: 'size.test', Body: () => <i /> }));
     const host = await frame(); // a section exists, so Advanced starts folded
-    expect(q(host, 'fold-inspector-body')).toBeNull();
+    gone(q(host, 'fold-inspector-body'));
     await act(async () => {
       await runInspectorAction('element.set-id');
     });
@@ -465,7 +482,7 @@ describe('inside the Inspector island', () => {
     const tabs = [...host.querySelectorAll('.st-rp-tab')].map((b) => b.textContent?.trim());
     expect(tabs).not.toContain('CSS');
     expect(tabs).not.toContain('Inspect');
-    expect(host.querySelector('[data-tour="cp-mode"]')).toBeNull();
+    gone(host.querySelector('[data-tour="cp-mode"]'));
     await click(host.querySelector('[aria-label="Close inspector"]'));
     expect(closed).toBe(1);
   });
@@ -486,13 +503,13 @@ describe('inside the Inspector island', () => {
 
   test('the standalone Layers panel is untouched', async () => {
     const host = await panel({ layersOnly: true, tab: 'layers', testId: 'layers-panel' });
-    expect(q(host, 'inspector-frame')).toBeNull();
+    gone(q(host, 'inspector-frame'));
     expect(host.querySelector('[role="tree"]')).not.toBeNull();
   });
 
   test('nothing selected keeps the empty line', async () => {
     const host = await panel({ selected: null });
-    expect(q(host, 'inspector-frame')).toBeNull();
+    gone(q(host, 'inspector-frame'));
     expect(host.textContent).toContain('click an element to select it');
   });
 });

@@ -820,7 +820,12 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             // The CHROME ELEMENT is gone (a stylesheet rule naming the class
             // may legitimately remain — every rule is inlined).
             expect(html as string).not.toMatch(/<[a-z]+[^>]*class="[^"]*dc-artboard-label/);
-            expect(html as string).not.toContain('Board A · export fixture');
+            // The board's NAME may ride along as an attribute (S2.22 `data-dc-label`, which the inspector
+            // reads); what must not be there is the label as rendered text.
+            const rendered = (html as string)
+              .replace(/<style[\s\S]*?<\/style>/g, ' ')
+              .replace(/<[^>]+>/g, ' ');
+            expect(rendered).not.toContain('Board A · export fixture');
           } else {
             // pptx IS a zip — PK\x03\x04.
             expect(head4).toEqual([0x50, 0x4b, 0x03, 0x04]);

@@ -212,12 +212,15 @@ describe('G7 question card (03 ai-choice-fail, left): picks only', () => {
     expect(answers).toEqual([]); // opening the field is not an answer
     const input = v.q('chat-elicit-custom-question_0') as HTMLInputElement;
     expect(input).not.toBeNull();
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set as (
-      v: string
-    ) => void;
+    // the input's own onChange: react-dom decides at import time whether the page can hear `input` events,
+    // and an earlier file in the same bun process may have loaded it before happy-dom registered
+    const propsKey = Object.keys(input).find((k) => k.startsWith('__reactProps$')) as string;
+    const props = (input as unknown as Record<string, { onChange: (e: unknown) => void }>)[
+      propsKey
+    ];
     await v.act(async () => {
-      setter.call(input, 'Forest');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.value = 'Forest';
+      props.onChange({ target: input, currentTarget: input });
     });
     await v.act(async () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));

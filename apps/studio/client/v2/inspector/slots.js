@@ -80,3 +80,21 @@ export function subscribeSlots(fn) {
   return () => subs.delete(fn);
 }
 export const slotsVersion = () => version;
+
+/**
+ * Tests only: set every registered body aside and hand back the way to put them back. A test that asserts on an
+ * EMPTY registry ("a section with no registered body is not drawn") would otherwise depend on which other test
+ * files ran first in the same process: `bun test` shares one module registry, so any file that imported a
+ * section module earlier leaves its bodies registered.
+ * @returns {() => void} restore
+ */
+export function stashSlots() {
+  const saved = new Map([...bySection].map(([k, v]) => [k, [...v]]));
+  bySection.clear();
+  notify();
+  return () => {
+    bySection.clear();
+    for (const [k, v] of saved) bySection.set(k, v);
+    notify();
+  };
+}
