@@ -157,6 +157,10 @@ export const WS_FRAME_CLASSES = Object.freeze({
   // S1.7b — the shared Trash moved: `{ seq }` only, no path. A canvas-only session re-reads
   // `GET /_api/trash`, which lists only its canvases (routes/trash.ts, L18).
   'trash:changed': 'none',
+  // S9.21b — an access change names no canvas and carries no text (a canvas-only session hears its
+  // own ending); a request names a person and a canvas for the owner — never a canvas-only session.
+  access: 'none',
+  'access-request': 'project',
   'fs:html': 'canvas',
   'fs:css': 'canvas',
   'fs:json': 'canvas',
