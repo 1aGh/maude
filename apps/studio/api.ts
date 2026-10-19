@@ -5347,7 +5347,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     abs: string,
     run: () => Promise<{ delta: number; changed?: boolean; previous?: AttributeState }>,
     errLabel: string,
-    describe?: Parameters<typeof describeSourceOp>[2]
+    describe?: Parameters<typeof describeSourceOp>[2],
+    /** S2.25 G2: what the undo history calls this write (one line); absent = the default row */
+    label?: string
   ): Promise<EditOpResult> {
     const rel = path.relative(paths.designRoot, abs);
     ctx.bus.emit('activity:suppress', rel);
@@ -5380,7 +5382,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // This API write is complete: accepted sync need not wait for an
       // external editor's quiet window. It is still only a proposal, not an
       // acknowledgement; the normal hub validation/acceptance path owns that.
-      if (after !== before) ctx.bus.emit('source-written', { rel, content: after });
+      if (after !== before)
+        ctx.bus.emit('source-written', { rel, content: after, ...(label ? { label } : {}) });
       return { ok: true, delta: res.delta, seq, ...previous };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
@@ -5403,6 +5406,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     reset?: unknown;
     idIndex?: unknown;
     expected?: unknown;
+    /** S2.25 G2: more properties of the SAME element, written in the same request (a move is left + top) */
+    also?: unknown;
+    /** S2.25 G2: what the undo history calls this write */
+    label?: unknown;
   }): Promise<EditOpResult> {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
@@ -5410,6 +5417,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
+    const said = typeof input.label === 'string' ? input.label.trim().slice(0, 120) : '';
     // Stage H3 — optional DOM-occurrence index. Present only for a whole-instance
     // move/resize (reposition/resize-request); routes the write to the dragged
     // component instance's own `<Component/>` usage so it stays LOCAL. Absent for
@@ -5446,12 +5454,60 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           id,
           attr: `style.${camel}`,
           ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
-        }
+        },
+        said || undefined
       );
     }
     const value = typeof input.value === 'string' ? input.value : '';
     if (!value.trim()) return { ok: false, status: 400, error: 'value required' };
     if (value.length > 256) return { ok: false, status: 413, error: 'value too long' };
+    // S2.25 G2 — the other properties of the same move, validated like the first (a name, a short value)
+    const more: Array<{ camel: string; value: string }> = [];
+    if (input.also !== undefined) {
+      const list = Array.isArray(input.also) ? input.also : null;
+      if (!list || list.length > 4) return { ok: false, status: 400, error: 'invalid also' };
+      for (const item of list as Array<{ property?: unknown; value?: unknown }>) {
+        const p = typeof item?.property === 'string' ? item.property.trim() : '';
+        const v = typeof item?.value === 'string' ? item.value : '';
+        if (!/^-?[a-z][a-z-]*$/.test(p) || !v.trim() || v.length > 256) {
+          return { ok: false, status: 400, error: 'invalid also' };
+        }
+        more.push({ camel: p.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), value: v });
+      }
+    }
+    if (more.length > 0) {
+      // ONE write for the whole move: one undo step, one `source-written` (a half-moved element has no row)
+      return suppressedEdit(
+        r.abs,
+        async () => {
+          const first = await editAttribute(
+            r.abs,
+            id,
+            `style.${camel}`,
+            JSON.stringify(value),
+            idIndex,
+            pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
+          );
+          let delta = first.delta;
+          let changed = first.changed !== false;
+          for (const m of more) {
+            const next = await editAttribute(
+              r.abs,
+              id,
+              `style.${m.camel}`,
+              JSON.stringify(m.value),
+              idIndex
+            );
+            delta += next.delta;
+            if (next.changed !== false) changed = true;
+          }
+          return { delta, changed, previous: first.previous };
+        },
+        'edit failed',
+        undefined,
+        said || undefined
+      );
+    }
     // The value is always written as a JS STRING literal: JSON.stringify escapes
     // quotes/backslashes/newlines so it can never break out of the string, and
     // React accepts string values for every style prop — so `var(--accent)`,
@@ -5474,7 +5530,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         attr: `style.${camel}`,
         value: JSON.stringify(value),
         ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
-      }
+      },
+      said || undefined
     );
   }
 
