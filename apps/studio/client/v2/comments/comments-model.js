@@ -69,6 +69,27 @@ export function countsOf(commentsByFile, me) {
   return n;
 }
 
+/**
+ * Which empty state the panel is in when no thread is listed (05 · es-panels-canvas, S11.3):
+ *   'none'    there are no comments at all — "No comments on Pricing yet."
+ *   'done'    Open lists nothing because every comment is resolved — "All done." (the only confetti)
+ *   'filter'  another filter is empty while comments exist — a plain line about that filter
+ */
+export function emptyKind(active, counts) {
+  if (!counts.all) return 'none';
+  if (active === 'open' && !counts.open) return 'done';
+  return 'filter';
+}
+
+/** "Jonas" · "Jonas and Tereza" · "Jonas, Tereza and Petra" · "Jonas, Tereza and 2 others". */
+export function namesLine(names) {
+  const list = (names || []).filter((n) => typeof n === 'string' && n.trim());
+  if (list.length <= 1) return list[0] ?? '';
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  if (list.length === 3) return `${list[0]}, ${list[1]} and ${list[2]}`;
+  return `${list[0]}, ${list[1]} and ${list.length - 2} others`;
+}
+
 /** The newest moment a thread was touched: its last reply, else its creation. */
 export function lastActivity(c) {
   let best = Date.parse(c?.created ?? '') || 0;

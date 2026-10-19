@@ -22,6 +22,8 @@ import { requestViewCode } from '../code/code-bus.js';
 import { useFold } from '../fold/use-fold.js';
 import { nativeDoors } from '../shell/native-doors.js';
 import { PANEL_NONE_FOOT, PanelNoCanvases } from '../create/empty-project.jsx';
+import { AskButton, Empty } from '../empty/index.js';
+import { getPaletteEnv } from '../search/search-env.js';
 import {
   CANVASES_OP_EVENT,
   dispatchArtboardJump,
@@ -59,7 +61,6 @@ import {
   indexMeta,
   layoutRows,
   navigate,
-  nothingCalled,
   panelFootLine,
   relOf,
   rowHeight,
@@ -572,11 +573,7 @@ export function CanvasesPanel({
             />
           ))}
         </div>
-        {searching && shown === 0 ? (
-          <p className="cv-none" data-testid="canvases-nothing">
-            {nothingCalled(search)}
-          </p>
-        ) : null}
+        {searching && shown === 0 ? <SearchNone query={search.trim()} /> : null}
         {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
       {children}
@@ -1164,6 +1161,36 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
   );
 }
 
+/**
+ * A search that finds nothing (05 · es-search-panel): the kit's block, the situation word for word, and — only
+ * where the AI is on this machine (the same gate as ⌘K) — the one next step, Ask AI to find it. The foot under
+ * the list says how much was searched (`panelFootLine`).
+ */
+function SearchNone({ query }) {
+  const env = getPaletteEnv();
+  const canAsk = env.canAskAI?.() === true;
+  const vars = { q: query, count: 0 };
+  return (
+    <Empty
+      spot="none"
+      spotW={176}
+      copyId="es-search-panel.panel-search-none"
+      vars={vars}
+      testid="canvases-nothing"
+      className="es-e--inpanel"
+      foot=""
+      next={canAsk ? undefined : 'Try another word.'}
+      actions={
+        canAsk ? (
+          <AskButton onClick={() => env.askAI?.(query)}>
+            {copy('es-search-panel.panel-search-none', vars).action}
+          </AskButton>
+        ) : null
+      }
+    />
+  );
+}
+
 function PanelEmptyFolder({ row, index, style, ctx }) {
   const words = emptyFolderWords(row.folderName);
   const slug = pathTestIdSlug(row.folderPath);
@@ -1177,19 +1204,25 @@ function PanelEmptyFolder({ row, index, style, ctx }) {
       data-testid={`canvases-empty-${slug}`}
       style={{ ...style, ...pad(row.depth) }}
     >
-      <p className="cv-empty-title">{words.title}</p>
-      <p className="cv-empty-body">{words.body}</p>
-      {ctx.onNewCanvasIn ? (
-        <button
-          type="button"
-          className="cv-empty-action"
-          data-testid="canvases-empty-new"
-          onClick={() => ctx.onNewCanvasIn(row.folderPath, row.folderName)}
-        >
-          <StIcon name="plus" size={13} />
-          {words.action}
-        </button>
-      ) : null}
+      <Empty
+        align="left"
+        className="es-e--fold"
+        copyId="es-panels-canvas.folder-none"
+        vars={{ folder: row.folderName }}
+        actions={
+          ctx.onNewCanvasIn ? (
+            <button
+              type="button"
+              className="cv-empty-action"
+              data-testid="canvases-empty-new"
+              onClick={() => ctx.onNewCanvasIn(row.folderPath, row.folderName)}
+            >
+              <StIcon name="plus" size={13} />
+              {words.action}
+            </button>
+          ) : null
+        }
+      />
     </div>
   );
 }

@@ -189,6 +189,10 @@ describe('⌘K, the real palette', () => {
     expect(none?.textContent).toBe(
       'Nothing called “pricng qqqq”.Try another word, or ask AI to find it.'
     );
+    // S11.3: the kit's spot and the 05 words (es-search-k), Ask AI still the one row below
+    expect(none?.getAttribute('data-copy')).toBe('es-search-k.search-none');
+    expect(none?.querySelector('.es-spot')).not.toBeNull();
+    expect(none?.querySelector('button')).toBeNull();
     expect(rowIds(el)).toEqual(['ask-ai']);
     expect(el.querySelector('[data-testid="palette-count"]')?.textContent).toBe('0 results');
     await key(input, 'Enter');

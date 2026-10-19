@@ -18,6 +18,7 @@ import { menuPaths } from '../../../actions/menu.ts';
 import { holds, isVisible } from '../../../actions/resolve.ts';
 import { MODE_TOOLS } from '../../../bridge/canvas-modes.ts';
 import { fold, scoreRow, withinOneEdit } from '../../../index/match.ts';
+import { copy } from '../empty/empty-copy.js';
 import { keyHint } from '../shell/project-menu-model.js';
 import { rowShown, SETTINGS_ROWS } from '../settings/settings-model.js';
 import { ACTION_KEYWORDS, SETTINGS_SEARCH } from './search-keywords.js';
@@ -447,9 +448,11 @@ function closeWordFor(q, rows) {
 /** CONTRACT §4: "Nothing called “pricng”. Try another word, or ask AI to find it." (no AI → no 2nd half) */
 export function emptyCopy(query, canAskAI) {
   const q = String(query ?? '').trim();
+  // S11.3: the words are 05's (es-search-k), read from the kit's table; no AI → no second half
+  const words = copy('es-search-k.search-none', { q });
   return {
-    headline: `Nothing called “${q}”.`,
-    next: canAskAI ? 'Try another word, or ask AI to find it.' : 'Try another word.',
+    headline: words.title,
+    next: canAskAI ? words.next : 'Try another word.',
   };
 }
 

@@ -312,6 +312,24 @@ describe('people', () => {
     expect(q('share-person-role-u_j')?.textContent).toContain('Can comment');
   });
 
+  test('only you on the project: the 05 line under your own row, no button (S11.3)', async () => {
+    const { q } = await mount({ people: [PEOPLE[0]] });
+    const e = q('share-people-empty');
+    expect(e?.getAttribute('data-copy')).toBe('es-edge-panels.share-alone');
+    expect(e?.querySelector('.es-sit')?.textContent).toMatch(/^Only you on .+ so far\.$/);
+    expect(e?.querySelector('.es-next')?.textContent).toMatch(
+      /^People you invite see .+ right away and can edit, comment and download, or look only\.$/
+    );
+    expect(e?.querySelector('button')).toBeNull(); // Invite is the primary; this block adds no second door
+    expect(q('share-people')?.textContent).toContain('You'); // your own row stays above it
+    expect(q('share-people')?.textContent).toContain('1 person');
+  });
+
+  test('with someone else on it the line is gone', async () => {
+    const { q } = await mount();
+    expect(q('share-people-empty')).toBeNull();
+  });
+
   test('a pending invite: "expires in 5 days" and Resend', async () => {
     const { q, calls } = await mount();
     expect(q('share-person-inv_p')?.textContent).toContain('Invited · expires in 5 days');

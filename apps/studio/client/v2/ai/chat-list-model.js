@@ -171,7 +171,7 @@ export function footLine(n) {
 }
 
 /** The search view: hits grouped by canvas, the title and the snippet carrying their marked words. */
-export function buildSearchList(hits = [], query = '', now = Date.now()) {
+export function buildSearchList(hits = [], _query = '', now = Date.now()) {
   const by = new Map();
   for (const h of hits) {
     const key = h.canvas ?? '';
@@ -194,10 +194,8 @@ export function buildSearchList(hits = [], query = '', now = Date.now()) {
   const n = hits.length;
   return {
     groups,
-    foot:
-      n === 0
-        ? `Nothing in your chats matches "${query}".`
-        : `${n} ${n === 1 ? 'result' : 'results'}`,
+    // no hits: the panel's own empty block says so and the foot keeps counting the chats (S11.3)
+    foot: n === 0 ? '' : `${n} ${n === 1 ? 'result' : 'results'}`,
   };
 }
 

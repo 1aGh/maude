@@ -200,13 +200,99 @@ describe('the Comments panel', () => {
     expect(q('[data-testid="comment-item-c1"]')).not.toBeNull();
   });
 
-  test('empty states say what filter is empty, in plain words', () => {
-    mount({ commentsByFile: {}, filter: 'resolved' });
-    expect(q('[data-testid="comments-empty"]')?.textContent).toBe('No resolved comments.');
+  test('a canvas with no comments at all: the 05 line with the canvas named, the C key in the sentence', () => {
+    mount({ commentsByFile: {}, filter: 'open', activePath: A, onShare: () => {} });
+    const e = q('[data-testid="comments-empty"]');
+    expect(e?.getAttribute('data-copy')).toBe('es-panels-canvas.comments-none');
+    expect(e?.querySelector('.es-sit')?.textContent).toBe('No comments on Combine kampan yet.');
+    expect(e?.querySelector('.es-next')?.textContent).toContain(
+      'Press C, then click anywhere on the canvas to leave one.'
+    );
+    expect(e?.querySelector('.es-next kbd, .es-next .kbd')?.textContent).toBe('C');
+    expect(e?.querySelector('.es-spot')).not.toBeNull();
+  });
+
+  test('"Share for feedback" is the one action, and only where the host can share', () => {
+    const shared: number[] = [];
+    mount({ commentsByFile: {}, activePath: A, onShare: () => shared.push(1) });
+    const btn = all('[data-testid="comments-empty"] button');
+    expect(btn.map((b) => b.textContent)).toEqual(['Share for feedback']);
+    act(() => btn[0].click());
+    expect(shared).toEqual([1]);
     act(() => root?.unmount());
     host?.remove();
-    mount({ commentsByFile: {}, filter: 'open' });
-    expect(q('[data-testid="comments-empty"]')?.textContent).toContain('No open comments.');
+    mount({ commentsByFile: {}, activePath: A });
+    expect(all('[data-testid="comments-empty"] button')).toEqual([]);
+  });
+
+  test('all resolved: "All done." with the confetti, and only here', () => {
+    mount({ commentsByFile: { [A]: [{ ...data[A][2] }] }, filter: 'open', activePath: A });
+    const e = q('[data-testid="comments-empty"]');
+    expect(e?.getAttribute('data-copy')).toBe('es-panels-canvas.comments-done');
+    expect(e?.querySelector('.es-sit')?.textContent).toBe('All done.');
+    expect(e?.querySelector('.es-next')?.textContent).toBe(
+      'Every comment on Combine kampan is resolved. They stay under Resolved, with their replies.'
+    );
+    expect(all('[data-testid="empty-confetti"]')).toHaveLength(1);
+    expect(e?.querySelector('button')).toBeNull();
+    act(() => root?.unmount());
+    host?.remove();
+    mount({ commentsByFile: {}, activePath: A });
+    expect(all('[data-testid="empty-confetti"]')).toEqual([]);
+  });
+
+  test('a filter that is empty while others are not says which one, in plain words', () => {
+    mount({ filter: 'mine', commentsByFile: { [A]: [{ ...data[A][1], author: 'Jonas' }] } });
+    expect(q('[data-testid="comments-empty"]')?.textContent).toContain('You have not started');
+    expect(all('[data-testid="empty-confetti"]')).toEqual([]);
+  });
+
+  test('a viewer who can comment: "…Jonas and Tereza see it right away." and no Share', async () => {
+    const people = [
+      { id: 'u1', name: 'Jonas', role: 'member' },
+      { id: 'u2', name: 'Tereza', role: 'member' },
+      { id: 'me', name: 'Petra', role: 'viewer' },
+    ];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => Response.json({ people })) as unknown as typeof fetch;
+    try {
+      mount({ commentsByFile: {}, activePath: A, viewer: true, me: 'Petra', onShare: () => {} });
+      await act(async () => new Promise((r) => setTimeout(r, 20)));
+      const e = q('[data-testid="comments-empty"]');
+      expect(e?.getAttribute('data-copy')).toBe('es-viewer.viewer-comments-none');
+      expect(e?.querySelector('.es-next')?.textContent).toContain(
+        'Jonas and Tereza see it right away.'
+      );
+      expect(e?.querySelector('button')).toBeNull();
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  test('a viewer when nobody else can be named: the plain line, no half-filled sentence', async () => {
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => new Response('{}', { status: 500 })) as unknown as typeof fetch;
+    try {
+      mount({ commentsByFile: {}, activePath: A, viewer: true });
+      await act(async () => new Promise((r) => setTimeout(r, 20)));
+      expect(q('[data-testid="comments-empty"]')?.getAttribute('data-copy')).toBe(
+        'es-panels-canvas.comments-none'
+      );
+      expect(q('[data-testid="comments-empty"]')?.textContent).not.toContain('{');
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  test('the names that see a comment, said as a sentence part', async () => {
+    const { namesLine, emptyKind } = await import('../client/v2/comments/comments-model.js');
+    expect(namesLine(['Jonas'])).toBe('Jonas');
+    expect(namesLine(['Jonas', 'Tereza'])).toBe('Jonas and Tereza');
+    expect(namesLine(['Jonas', 'Tereza', 'Petra'])).toBe('Jonas, Tereza and Petra');
+    expect(namesLine(['A', 'B', 'C', 'D', 'E'])).toBe('A, B and 3 others');
+    expect(emptyKind('open', { all: 0, open: 0, mine: 0, resolved: 0 })).toBe('none');
+    expect(emptyKind('open', { all: 4, open: 0, mine: 0, resolved: 4 })).toBe('done');
+    expect(emptyKind('resolved', { all: 4, open: 4, mine: 0, resolved: 0 })).toBe('filter');
   });
 
   test('a filter the host does not know falls back to Open', () => {
