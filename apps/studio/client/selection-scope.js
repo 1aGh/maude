@@ -105,17 +105,40 @@ export function restoreAfterLoad(selected, file) {
 }
 
 /**
+ * S2.25 G1 — the key a rename is kept under: a write may give a text an authored name (`data-cd-id="jedeme-v-zelenem"`
+ * for what was the content-hash id `42612cfe`), after which the id the shell holds names nothing in the canvas.
+ */
+export const renameKey = (artboardId, id) => `${artboardId ?? ''}\u0000${id}`;
+/** The id `id` was renamed to by a write, or `id` itself. */
+const renamedId = (renames, artboardId, id) => renames?.get(renameKey(artboardId, id)) ?? id;
+
+/**
+ * S2.25 G1 — what a successful edit-op renamed: its `targets` against the `refs` it answered with ("the targets as
+ * written: same order, every element an authored id"), as `[renameKey, newId]` pairs. Only the ids that differ.
+ */
+export function renamesOf(targets, refs) {
+  const out = [];
+  if (!Array.isArray(targets) || !Array.isArray(refs)) return out;
+  targets.forEach((t, i) => {
+    const r = refs[i];
+    if (t?.element && r?.element && t.element !== r.element)
+      out.push([renameKey(t.artboard, t.element), r.element]);
+  });
+  return out;
+}
+
+/**
  * S2.24 G2 — the `select-by-id` message that puts `selected` back on the canvas of `file`, or null when there is
  * nothing to put back. A list of several is left alone: the canvas holds all of it, and one id would collapse it.
  */
-export function restorePostOf(selected, file) {
+export function restorePostOf(selected, file, renames) {
   if (Array.isArray(selected) && selected.length > 1) return null;
   const back = restoreAfterLoad(selected, file);
   if (!back) return null;
   if (back.kind === 'artboard') return { dgn: 'select-by-id', artboardId: back.artboardId };
   return {
     dgn: 'select-by-id',
-    id: back.sel.id,
+    id: renamedId(renames, back.sel.artboardId, back.sel.id),
     artboardId: back.sel.artboardId ?? null,
     index: back.sel.index ?? 0,
   };
@@ -137,11 +160,12 @@ export function startSelectionRestore({
   lead = RESTORE_LEAD_MS,
   getSelected,
   post,
+  renames,
   timers = { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) },
 }) {
   const handles = [lead, ...RESTORE_RUNGS_MS].map((ms) =>
     timers.set(() => {
-      const msg = restorePostOf(getSelected(), file);
+      const msg = restorePostOf(getSelected(), file, renames);
       if (msg) post(msg);
     }, ms)
   );

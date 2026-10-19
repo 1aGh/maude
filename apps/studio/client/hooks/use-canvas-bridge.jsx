@@ -29,6 +29,7 @@ import {
   localSelectRecord,
   RESTORE_LEAD_MS,
   shellSelectionOf,
+  renamesOf,
   startSelectionRestore,
 } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
@@ -42,6 +43,7 @@ import {
 } from '../export-lane.js';
 import { downloadCapturedBlob } from '../dialogs/export-dialog.jsx';
 import { moveLayerNode } from '../inspector/layers.jsx';
+import { moveLabel } from '../../edit-ops/op-label.ts';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
 import {
@@ -108,6 +110,8 @@ export function useCanvasBridge({
 }) {
   // S2.24 — the selection ladder (selection-scope.js `startSelectionRestore`): one at a time, the newest wins.
   const selectionRestoreRef = useRef(null);
+  // S2.25 G1 — ids a write gave to texts the shell has selected (content-hash id → authored name); read when each rung fires
+  const renamedIdsRef = useRef(new Map());
   const restoreSelectionOn = useCallback(
     (file, lead) => {
       selectionRestoreRef.current?.();
@@ -115,6 +119,7 @@ export function useCanvasBridge({
         file,
         lead,
         getSelected: () => selectedRef.current,
+        renames: renamedIdsRef.current,
         post: (msg) => {
           try {
             iframesRef.current.get(file)?.contentWindow?.postMessage(msg, '*');
@@ -434,8 +439,14 @@ export function useCanvasBridge({
                 reply(result);
                 // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
                 // what differs from it, the size): put the selection back so the canvas probes it again.
-                if (result?.ok && /^text\./.test(body.op) && body.file)
+                if (result?.ok && /^text\./.test(body.op) && body.file) {
+                  // S2.25 G1 — and a write that gives the text an authored name (`Use a style` on a text that had only a
+                  // content-hash id) leaves the id the shell holds naming nothing: follow it to the new one.
+                  const map = renamedIdsRef.current;
+                  if (map.size > 64) map.clear();
+                  for (const [k, v] of renamesOf(body.targets, result.refs)) map.set(k, v);
                   restoreSelectionOn(body.file, RESTORE_LEAD_MS);
+                }
               })
               .catch(() =>
                 reply({
@@ -1522,31 +1533,34 @@ export function useCanvasBridge({
       // fix as resizeElement; also covers the keyboard nudge (L1) which reuses this.
       applyOptimisticStyle({ id, prop: 'left', value: `${left}px` });
       applyOptimisticStyle({ id, prop: 'top', value: `${top}px` });
-      let j1ref = null;
-      const writeProp = (property, value) =>
-        fetch('/_api/edit-css', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ canvas, id, property, value: `${value}px`, idIndex: occ }),
-        }).then((r) => r.json().catch(() => ({})));
+      // S2.25 G2 — ONE request writes left and top together and says what it did ("Moved See pricing 10 px"): one
+      // write, one history row, one ⌘Z for the whole move (two calls were two writes, each an unlabelled "Edit canvas").
       editApplyChainRef.current = editApplyChainRef.current
         .catch(() => {})
-        .then(() => writeProp('left', left))
-        .then((j1) => {
-          if (!j1.ok) throw new Error(j1.error || 'left write failed');
-          j1ref = j1;
-          return writeProp('top', top);
-        })
-        .then((j2) => {
-          if (!j2.ok) throw new Error(j2.error || 'top write failed');
-          // Record BOTH properties onto the canvas undo stack — two Cmd+Z
-          // steps (top, then left), same as committing two CSS knobs by hand.
+        .then(() =>
+          fetch('/_api/edit-css', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              canvas,
+              id,
+              property: 'left',
+              value: `${left}px`,
+              also: [{ property: 'top', value: `${top}px` }],
+              label: moveLabel(id, left - beforeLeft, top - beforeTop),
+              idIndex: occ,
+            }),
+          }).then((r) => r.json().catch(() => ({})))
+        )
+        .then((j) => {
+          if (!j.ok) throw new Error(j.error || 'move write failed');
+          // The canvas undo stack (the lane without the op log) keeps a record per property.
           recordSourceEdit({
             op: 'css',
             canvas,
             id,
             key: 'left',
-            before: replacedValue(j1ref, `${beforeLeft}px`),
+            before: replacedValue(j, `${beforeLeft}px`),
             after: `${left}px`,
           });
           recordSourceEdit({
@@ -1554,7 +1568,7 @@ export function useCanvasBridge({
             canvas,
             id,
             key: 'top',
-            before: replacedValue(j2, `${beforeTop}px`),
+            before: `${beforeTop}px`,
             after: `${top}px`,
           });
         })

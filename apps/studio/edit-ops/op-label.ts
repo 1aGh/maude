@@ -108,3 +108,18 @@ export function opLabel(
   const tail = op.split('.').pop() ?? op;
   return cap(tail.replace(/-/g, ' '));
 }
+
+/**
+ * S2.25 G2 — the history line of a move that went through the CSS writer (a keyboard nudge, a drag of an
+ * out-of-flow element): "Moved See pricing 10 px"; both axes say which way ("10 px right, 4 px down").
+ * `id` is the element's authored id — a generated one reads "an object".
+ */
+export function moveLabel(id: string, dx: number, dy: number): string {
+  const name = nameOf(id) || 'an object';
+  const x = Math.round(Math.abs(dx));
+  const y = Math.round(Math.abs(dy));
+  if (x && y) {
+    return `Moved ${name} ${x} px ${dx < 0 ? 'left' : 'right'}, ${y} px ${dy < 0 ? 'up' : 'down'}`;
+  }
+  return `Moved ${name} ${x || y} px`;
+}

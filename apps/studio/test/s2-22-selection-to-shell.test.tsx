@@ -205,3 +205,25 @@ describe('S2.24 G2 — the restore reads the selection when it FIRES, not when t
     expect(posts).toEqual([]);
   });
 });
+
+describe('S2.25 G1 — a write that names the selected text moves the selection with it', () => {
+  test('restorePostOf follows a rename (artboard + old id → new id) and leaves the rest alone', () => {
+    const renames = new Map([['a1\u0000aaaaaaaa', 'jedeme-v-zelenem']]);
+    expect(restorePostOf(el('aaaaaaaa'), FILE, renames)).toEqual({
+      dgn: 'select-by-id',
+      id: 'jedeme-v-zelenem',
+      artboardId: 'a1',
+      index: 0,
+    });
+    expect(restorePostOf(el('bbbbbbbb'), FILE, renames)).toEqual({
+      dgn: 'select-by-id',
+      id: 'bbbbbbbb',
+      artboardId: 'a1',
+      index: 0,
+    });
+    expect(restorePostOf(board('laptop'), FILE, renames)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'laptop',
+    });
+  });
+});

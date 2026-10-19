@@ -211,4 +211,63 @@ describe('S2.24 G1 — a write to the selected text puts the selection back so t
     await editOp('object.lock');
     expect(restores()).toEqual([]);
   });
+
+  // S2.25 G1 — "Use a style" on a text that had only a content-hash id: the write authors a name for it
+  // (`data-cd-id="jedeme-v-zelenem"`), so the id the shell holds names nothing in the rewritten tree.
+  test('Use a style: the selection goes back by the id the write gave the text, also after the canvas reloads', async () => {
+    await mount(element('42612cfe'));
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({ ...OK, refs: [{ artboard: 'a1', element: 'jedeme-v-zelenem' }] }),
+        { status: 200 }
+      )) as unknown as typeof fetch;
+    post({
+      dgn: 'edit-op',
+      requestId: 'eo_2',
+      op: 'text.use-style',
+      params: { role: 't-title' },
+      targets: [{ artboard: 'a1', element: '42612cfe' }],
+    });
+    await act(async () => wait(60));
+    // the write reloads the canvas; its `loaded` restarts the ladder — it must not forget the new name
+    post({ dgn: 'loaded', file: FILE });
+    await act(async () => wait(RESTORE_LEAD_MS + 120));
+    expect(restores().length).toBeGreaterThan(0);
+    for (const m of restores())
+      expect(m).toEqual({
+        dgn: 'select-by-id',
+        id: 'jedeme-v-zelenem',
+        artboardId: 'a1',
+        index: 0,
+      });
+  });
+});
+
+describe('S2.25 G2 — a nudge / drag of an out-of-flow element is ONE labelled write', () => {
+  test('left and top go in one /_api/edit-css request that says what it did', async () => {
+    await mount(element('see-pricing'));
+    const bodies: Array<Record<string, unknown>> = [];
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      if (url === '/_api/edit-css') bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify({ ok: true, previous: '100' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    post({
+      dgn: 'reposition-request',
+      id: 'see-pricing',
+      left: 110,
+      top: 300,
+      beforeLeft: 100,
+      beforeTop: 300,
+    });
+    await act(async () => wait(60));
+    expect(bodies.length).toBe(1);
+    expect(bodies[0]).toMatchObject({
+      canvas: FILE,
+      id: 'see-pricing',
+      property: 'left',
+      value: '110px',
+      also: [{ property: 'top', value: '300px' }],
+      label: 'Moved See pricing 10 px',
+    });
+  });
 });
