@@ -20,6 +20,7 @@ import { drawToolOfAction } from '../editing/draw-geometry.ts';
 import { EDITING_ACTIONS } from '../editing/index.tsx';
 import { COMBINE_ACTIONS, planCombine, radiusPx, runCombine } from '../editing/pen/combine-run.ts';
 import { finishPen, NEEDS_TWO, planPen, targetOf } from '../editing/pen/draw.tsx';
+import { PEN_CSS } from '../editing/pen/overlay.tsx';
 import {
   addedAt,
   CLOSE_RADIUS,
@@ -514,5 +515,13 @@ describe('the toolbar and the registry', () => {
     expect(selectionKind(1, { tag: 'div', elements: 0, hasText: false, shape: true })).toBe(
       'shape'
     );
+  });
+});
+
+describe('the Pen input layer (G3)', () => {
+  test('PEN_CSS carries the rule that gives the input overlay its size — the shape tool’s style is not there when P is armed', () => {
+    // `pen/draw.tsx` renders `<div className="ed-draw-input">`; without its own rule the overlay measured 1600 × 0
+    // and the clicks never reached it (S2.V2 G3).
+    expect(PEN_CSS).toMatch(/\.ed-draw-input\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0/);
   });
 });
