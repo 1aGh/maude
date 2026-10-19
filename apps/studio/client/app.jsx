@@ -259,6 +259,7 @@ import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
 import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
 import { OPEN_ASSETS_EVENT } from './v2/ai/AttachMenu.jsx';
 import { TRASH_CHANGED_EVENT } from './v2/left-panel/use-trash.js';
+import { ACCESS_FRAME_EVENT } from './v2/access/access-client.js';
 import { isFollowLocation } from './v2/present/follow-location.js';
 import FollowView from './v2/present/follow-view.jsx';
 import { OrderNotesMount } from './v2/present/order-notes-mount.jsx';
@@ -857,6 +858,13 @@ function ShellState({ children }) {
           } else if (m.type === 'trash:changed') {
             // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
             window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
+          } else if (m.type === 'access' || m.type === 'access-request') {
+            // S9.21b — the hub's access notices (ws.ts: desktop shells only). The access host says them;
+            // a raised / narrowed role re-reads /_config (the server re-exchanged first), so the toolbar
+            // follows the new role.
+            if (m.type === 'access' && (m.change === 'raised' || m.change === 'narrowed'))
+              loadServerConfig();
+            window.dispatchEvent(new CustomEvent(ACCESS_FRAME_EVENT, { detail: m }));
           } else if (m.type === 'ui-open') {
             // V2-2.4b (contract V2-1.11 §5.3) — `maude design open <canvas>[#ab][@el]`: open the
             // tab, then run the same registry actions the UI runs (zoom / select / present).
@@ -1673,6 +1681,8 @@ function ShellProjectPill() {
   live.current = {
     native,
     activePath,
+    // S9.21 — Ask to edit names the open canvas designRoot-relative (the hub keys a grant that way)
+    designRel: cfg?.designRel,
     canvasName: displayName(basename(activePath || '')),
     toast: (m) => shellToast(m),
     postToActiveCanvas,

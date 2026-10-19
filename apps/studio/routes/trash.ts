@@ -92,6 +92,178 @@ const refused = (code: string | undefined, extra: Record<string, unknown> = {}) 
   });
 };
 
+// ------------------------------------------------------------------ the write stop (S9.21b)
+//
+// Decision v2-lead-trashed-while-open-stops-writes: a canvas moved to the trash while a tab has it
+// open stops taking writes AT ONCE, on every write route — otherwise that tab's next edit writes
+// the file again and brings the canvas back under the person who trashed it. What the tab had not
+// sent yet is parked with the trashed canvas (V2-1.14 G1, sync/transaction-client.ts), and Restore
+// brings both back. Sidecar lanes (`.meta.json`, `.annotations.json`) stop with their canvas.
+// Comments stop too (they live in the canvas's own doc); per-user runtime (viewport, prefs) and
+// exports do not — they change nothing of the canvas.
+
+/** The words a refused write carries (the toast the shell says). */
+export const IN_TRASH_LINE = 'This canvas is in the trash. Restore it to change it.';
+
+/** The refusal of a write to a trashed canvas — the same body on every route. */
+export function inTrashResponse(): Response {
+  return json(409, { ok: false, error: 'in-trash', reason: 'in-trash', message: IN_TRASH_LINE });
+}
+
+/** The capabilities whose writes change a canvas (access/request.ts `writeCapability`). */
+const CANVAS_WRITES: ReadonlySet<string> = new Set(['edit', 'annotate', 'comment']);
+const SIDECAR_RE = /\.(meta\.json|annotations\.json|annotations\.svg)$/i;
+const CANVAS_RE = /\.(tsx|jsx|html)$/i;
+
+/** The canvas a designRoot-relative write target belongs to (itself, or the canvas of a sidecar). */
+export function canvasStemOf(rel: string): string {
+  return rel.replace(CANVAS_RE, '').replace(SIDECAR_RE, '');
+}
+
+export interface TrashWriteStopDeps {
+  /** `ctx.syncControl.current()` — the Trash listing + the manifest's live docs. */
+  control: () =>
+    | (TrashRuntime & {
+        acceptedLinkDocs?(): Promise<
+          { entry: string; path: string | null; retired: boolean }[] | null
+        >;
+      })
+    | object
+    | null
+    | undefined;
+  /** The request's write target, designRoot-relative (access/request.ts `targetOf`). */
+  target: (req: Request) => Promise<string | null | undefined>;
+  /** ctx.bus.on — `trash:changed` invalidates the cached set at once. */
+  on?: (event: string, fn: (...a: unknown[]) => void) => unknown;
+  /** ctx.bus.emit — `trash:write-stop { stems }` after every refresh (ws.ts closes the collab lanes). */
+  emit?: (event: string, payload: unknown) => void;
+  /** How long a computed set is trusted without a `trash:changed` (default 30 s). */
+  ttlMs?: number;
+  /** How long a write waits for a refresh before the last known set answers (default 1.5 s). */
+  waitMs?: number;
+  now?: () => number;
+}
+
+export interface TrashWriteStop {
+  /** The 409 for a canvas write whose target is in the trash, else null. `cap` = the write's capability. */
+  refusal(req: Request, cap: string): Promise<Response | null>;
+  /** The stems (designRoot-relative, no extension) that take no writes right now. */
+  stopped(): ReadonlySet<string>;
+  /** Recompute now (tests, and `trash:changed`). */
+  refresh(): Promise<ReadonlySet<string>>;
+}
+
+/**
+ * The write stop. A canvas is stopped while the shared Trash lists it AND no live document holds its
+ * path (a new canvas made at the same place after the trash is not the trashed one). No shared Trash
+ * (a legacy home, unlinked) = nothing is stopped. A listing that cannot be read keeps the last answer.
+ */
+export function createTrashWriteStop(deps: TrashWriteStopDeps): TrashWriteStop {
+  const ttl = deps.ttlMs ?? 30_000;
+  const wait = deps.waitMs ?? 1500;
+  const now = deps.now ?? Date.now;
+  let stems: ReadonlySet<string> = new Set();
+  let at = Number.NEGATIVE_INFINITY;
+  let inflight: Promise<ReadonlySet<string>> | null = null;
+  /** Bumped by every `trash:changed`: a read that began before one is not the answer to it. */
+  let gen = 0;
+
+  async function compute(): Promise<ReadonlySet<string> | null> {
+    const runtime = deps.control() as
+      | (TrashRuntime & {
+          acceptedLinkDocs?(): Promise<{ path: string | null; retired: boolean }[] | null>;
+        })
+      | null
+      | undefined;
+    if (!runtime?.acceptedTrash) return new Set();
+    const listing = await runtime.acceptedTrash().catch(() => undefined);
+    if (listing === undefined) return null;
+    if (!listing) return new Set();
+    const docs = runtime.acceptedLinkDocs
+      ? await runtime.acceptedLinkDocs().catch(() => null)
+      : null;
+    const live = new Set(
+      (docs ?? []).filter((d) => !d.retired && d.path).map((d) => canvasStemOf(d.path as string))
+    );
+    const out = new Set<string>();
+    for (const c of listing.canvases) {
+      if (typeof c?.path !== 'string' || !c.path) continue;
+      const stem = canvasStemOf(c.path);
+      if (!live.has(stem)) out.add(stem);
+    }
+    return out;
+  }
+
+  function refresh(): Promise<ReadonlySet<string>> {
+    if (inflight) return inflight;
+    const began = gen;
+    inflight = (async () => {
+      try {
+        const next = await compute().catch(() => null);
+        // An unreadable listing (offline) keeps the last answer and counts as a read: writes made
+        // offline are not held up by a hub that cannot answer.
+        at = began === gen ? now() : Number.NEGATIVE_INFINITY;
+        if (next) {
+          stems = next;
+          deps.emit?.('trash:write-stop', { stems: [...next] });
+        }
+        return stems;
+      } finally {
+        inflight = null;
+      }
+    })();
+    return inflight;
+  }
+
+  deps.on?.('trash:changed', () => {
+    gen += 1;
+    at = Number.NEGATIVE_INFINITY;
+    void refresh();
+  });
+
+  return {
+    stopped: () => stems,
+    refresh,
+    async refusal(req, cap) {
+      if (!CANVAS_WRITES.has(cap)) return null;
+      if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return null;
+      // Just told the Trash changed (or never read): this write waits for the answer, briefly.
+      // Merely old: it is answered from what is known while the set refreshes behind it.
+      // (A read already under way when the Trash changed answers nothing about it — read again.)
+      if (at === Number.NEGATIVE_INFINITY) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let late = false;
+        const deadline = new Promise<void>((r) => {
+          timer = setTimeout(() => {
+            late = true;
+            r();
+          }, wait);
+        });
+        for (let i = 0; i < 3 && at === Number.NEGATIVE_INFINITY && !late; i++)
+          await Promise.race([refresh(), deadline]);
+        clearTimeout(timer);
+      } else if (now() - at > ttl) void refresh();
+      if (stems.size === 0) return null;
+      const target = await deps.target(req);
+      if (typeof target !== 'string' || !target) return null;
+      return stems.has(canvasStemOf(target)) ? inTrashResponse() : null;
+    },
+  };
+}
+
+/**
+ * The stop behind an access gate (http.ts `readOnlyRefusal`): the gate answers first — a viewer is
+ * refused for the role, never told the canvas is in the trash — and a write it lets through meets
+ * the stop with its own capability (`capOf`, access/request.ts `writeCapability`).
+ */
+export function withTrashStop(
+  gate: (req: Request) => Promise<Response | null>,
+  stop: Pick<TrashWriteStop, 'refusal'>,
+  capOf: (req: Request) => string
+): (req: Request) => Promise<Response | null> {
+  return async (req) => (await gate(req)) ?? stop.refusal(req, capOf(req));
+}
+
 export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
   const changed = () => bumpTrashSeq(deps.emit);
 

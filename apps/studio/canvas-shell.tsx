@@ -136,6 +136,7 @@ import {
 import { SpacingHandlesOverlay } from './use-spacing-handles.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
 import { useUndoSinks, useUndoStack } from './use-undo-stack.tsx';
+import { ViewOnlyGesture } from './view-only-gesture.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles — halos render as `position: fixed` siblings of the canvas. Reading
@@ -3727,6 +3728,8 @@ function CanvasRouter({
       <LayersLiveSync />
       <GroupBbox />
       {!readOnly && <EqualSpacingHandles />}
+      {/* S9.21b — a view-only drag on the design tells the shell (its tip says why nothing moved) */}
+      {readOnly && <ViewOnlyGesture />}
       <MeasureOverlay />
       <InspectOverlay />
       {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); the v1 MultiArtboardToolbar is deleted (S2.9) */}

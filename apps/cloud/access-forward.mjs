@@ -41,6 +41,10 @@ function json(body, status = 200) {
 
 const refuse = (status, reason, error) => json({ error, reason }, status);
 const NOT_ALLOWED = 'Ask the owner to change this.';
+/** S9.21 — Ask to edit, rate-limited per person per project (the hub's self-hosted twin is
+ *  `ACCESS_REQUEST_LIMIT` in apps/hub/src/invites.mjs; the same numbers, the same words). */
+export const ACCESS_REQUEST_LIMIT = Object.freeze({ max: 3, windowMs: 24 * 60 * 60 * 1000 });
+const ASKED_TOO_OFTEN = 'You asked several times today. Try again tomorrow.';
 
 /**
  * A canvas path as the access claim keys it: designRoot-relative, forward
@@ -388,6 +392,17 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
       return refuse(409, 'already-can-edit', 'You can already edit this.');
     }
     if (!access.can('request', canvas)) return refuse(403, 'not-allowed', NOT_ALLOWED);
+    // S9.21 — at most ACCESS_REQUEST_LIMIT.max asks per person per project per window, whatever
+    // the scope or the answer: each one is a toast on every owner's screen.
+    const recent = await db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM access_requests WHERE project_id = ? AND account_id = ? AND created_at > ?'
+      )
+      .bind(projectId, actor.id, now - ACCESS_REQUEST_LIMIT.windowMs)
+      .first();
+    if (Number(recent?.n ?? 0) >= ACCESS_REQUEST_LIMIT.max) {
+      return refuse(429, 'rate-limited', ASKED_TOO_OFTEN);
+    }
     const id = `req_${crypto.randomUUID()}`;
     try {
       await db

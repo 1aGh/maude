@@ -45,6 +45,7 @@ import { moveLayerNode } from '../inspector/layers.jsx';
 import { moveLabel } from '../../edit-ops/op-label.ts';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
+import { VIEW_ONLY_EVENT } from '../v2/access/access-client.js';
 import {
   acceptCommentBridge,
   handleCommentBridgeMessage,
@@ -768,7 +769,8 @@ export function useCanvasBridge({
         m.dgn === 'annotation-to-comment' ||
         m.dgn === 'annotation-toast' ||
         m.dgn === 'annotation-selection' ||
-        m.dgn === 'annotation-ask-ai'
+        m.dgn === 'annotation-ask-ai' ||
+        m.dgn === 'view-only-gesture'
       ) {
         // S4.12 — the annotation layer asks (annotations/ui/shell-asks.ts). Only the active canvas is heard,
         // and only once the dgn table's parser has cleaned the payload (sec-a M3): a raw `e.data` field
@@ -812,6 +814,9 @@ export function useCanvasBridge({
           // The chat opens; the scope chip that reads `noteAnnotationSelection` is S4.15's.
           if (isNativeApp()) openRightPanel('assistant');
           else notify({ title: 'AI chat is in the Maude desktop app.' });
+        } else if (msg.dgn === 'view-only-gesture') {
+          // S9.21b — the access host's tip; its words are the shell's (the canvas sent none).
+          window.dispatchEvent(new CustomEvent(VIEW_ONLY_EVENT));
         }
       } else if (m.dgn === 'insert-artboard-request') {
         // Stage I4 — insert a new empty artboard from a screen-size preset.

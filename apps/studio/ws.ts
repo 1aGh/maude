@@ -8,6 +8,7 @@ import { type Access, accessWiderThan } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
+import { canvasSlugFromRel } from './canvas-slug.ts';
 import type { Collab, RoomConn } from './collab/index.ts';
 import type { Context } from './context.ts';
 import { createRenderOkSignal } from './history/render-ok-signal.ts';
@@ -323,6 +324,37 @@ export function createWs(
   // S1.7b — the shared Trash changed (here, or on another Mac: sync/trash-watch.ts). `{ seq }`
   // only, never an item — the view re-reads `GET /_api/trash`, which is L18-filtered per session.
   // S9.11's frame classes: project-level, but it names nothing, so canvas-only sockets may get it.
+  // S9.21b (V2-1.7 §5.6) — the hub's access notices, deduped and rebuilt key by key in
+  // sync/access-notices.ts. Inspector (shell) sockets only — never the canvas iframe's socket.
+  // `access` carries no canvas and no text (a canvas-only session hears its own ending);
+  // `access-request` names a person and a canvas, for the owner's toast: project class.
+  // Desktop-shaped shells only (session ''): in a cell one studio serves several members over a
+  // link that is the cell's own, so a notice it heard is about nobody here (a cell's members hear
+  // the hub through their own sessions).
+  const toDesktopShell = (payload: Record<string, unknown>) => {
+    const msg = JSON.stringify(payload);
+    for (const ws of clients) {
+      if (ws.data.kind !== 'inspector' || ws.data.session !== '') continue;
+      const out = scoped(ws, payload, msg);
+      if (out !== null) send(ws, out);
+    }
+  };
+  ctx.bus.on('access:notice', (frame: { type?: unknown } & Record<string, unknown>) => {
+    if (frame?.type === 'maude.access')
+      toDesktopShell({
+        type: 'access',
+        change: frame.change,
+        ...(frame.reason ? { reason: frame.reason } : {}),
+      });
+    else if (frame?.type === 'maude.access-request')
+      toDesktopShell({
+        type: 'access-request',
+        id: frame.id,
+        from: frame.from,
+        ...(frame.canvas ? { canvas: frame.canvas } : {}),
+        at: frame.at,
+      });
+  });
   ctx.bus.on('trash:changed', (p: { seq?: unknown }) =>
     broadcast({ type: 'trash:changed', payload: { seq: typeof p?.seq === 'number' ? p.seq : 0 } })
   );
@@ -423,6 +455,20 @@ export function createWs(
   // right room to disconnect from. Multiplexed via ws.data.id.
   const collabConns = new Map<string, { roomSlug: string; conn: RoomConn }>();
 
+  // S9.21b (decision v2-lead-trashed-while-open-stops-writes) — a canvas moved to the trash while a tab
+  // has it open takes no writes: routes/trash.ts's write stop names the stopped canvases after every
+  // read of the Trash, and every collab socket on one of them turns read-only with no writable lane
+  // (comments included) until it is restored. Presence still flows.
+  let trashStopped: ReadonlySet<string> = new Set();
+  ctx.bus.on('trash:write-stop', (p: { stems?: unknown }) => {
+    const stems = Array.isArray(p?.stems) ? p.stems : [];
+    trashStopped = new Set(
+      stems
+        .filter((s): s is string => typeof s === 'string' && s !== '')
+        .map((s) => canvasSlugFromRel(`${s}.tsx`, ctx.paths.designRel))
+    );
+  });
+
   function bindCollab(
     ws: ServerWebSocket<WsData>,
     slug: string,
@@ -436,9 +482,14 @@ export function createWs(
       id: ws.data.id,
       realm,
       // S9.15c — a lanes-closed conn is read-only too (presence strip, gated path).
-      readOnly: readOnly || lanesClosed,
+      // S9.21b — read per frame, so a canvas trashed under an open socket stops at once.
+      get readOnly() {
+        return readOnly || lanesClosed || trashStopped.has(slug);
+      },
+      get lanesClosed() {
+        return lanesClosed || trashStopped.has(slug);
+      },
       ...(follow ? { follow: true } : {}),
-      ...(lanesClosed ? { lanesClosed: true } : {}),
       // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }

@@ -20,6 +20,7 @@ import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { requestViewCode, runErrorOp } from '../code/code-bus.js';
+import { createAccessHandlers } from '../access/access-client.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { runFillAsk } from '../empty/fill-ask.js';
 import { runCopyPng } from '../export/copy-png.js';
@@ -356,6 +357,8 @@ export function createMenuHandlers(d) {
       d.onShare();
     },
     'share.move-to-cloud': () => d.onShare(),
+    // S9.21 — Ask to edit (the Viewing button, ⌘K) and the owner's answer (the request block's buttons)
+    ...createAccessHandlers(d),
     'settings.open': () => d.setSettingsOpen(true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──

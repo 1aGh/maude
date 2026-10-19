@@ -429,6 +429,32 @@ describe('access requests', () => {
   });
 });
 
+describe('access requests cannot be spammed (S9.21)', () => {
+  it('three asks per person per project per day, whatever the scope or the answer; then 429', async () => {
+    const { env, sqlite } = await fixture();
+    const ask = (body) => forward(env, 'requests', { method: 'POST', actor: 'observer', body });
+    const decline = async (r) =>
+      forward(env, `requests/${(await r.json()).id}/decline`, { method: 'POST', actor: 'owner' });
+    // ask → Not now → ask again → Not now → ask about a canvas: three asks
+    await decline(await ask({}));
+    await decline(await ask({}));
+    assert.equal((await ask({ canvas: A })).status, 201);
+    const fourth = await ask({ canvas: B });
+    assert.equal(fourth.status, 429);
+    assert.equal((await fourth.json()).reason, 'rate-limited');
+    // the viewer's own allowance is untouched by the observer's
+    assert.equal(
+      (await forward(env, 'requests', { method: 'POST', actor: 'viewer', body: {} })).status,
+      201
+    );
+    // a day later the observer may ask again
+    sqlite
+      .prepare("UPDATE access_requests SET created_at = created_at - ? WHERE account_id = 'a4'")
+      .run(25 * 60 * 60 * 1000);
+    assert.equal((await ask({ canvas: B })).status, 201);
+  });
+});
+
 describe('GET people — e-mails, invitations and requests are the owner’s (L17)', () => {
   it('a non-owner sees names and roles only', async () => {
     const { env } = await fixture();

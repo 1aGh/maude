@@ -436,8 +436,17 @@ function requestRecord(row) {
 }
 
 /**
+ * S9.21 — Ask to edit cannot be spammed: a person makes at most `max` requests
+ * on this project per rolling `windowMs`, whatever their scope or answer (a
+ * declined ask asked again, or one per canvas, counts the same). Each request
+ * is a toast on every owner's screen, so the limit is the owners' quiet.
+ */
+export const ACCESS_REQUEST_LIMIT = Object.freeze({ max: 3, windowMs: 24 * 60 * 60 * 1000 });
+
+/**
  * Record one Ask to edit. `{ ok: false, reason: 'pending' }` when the person
- * already has an open request at that scope (the unique index decides).
+ * already has an open request at that scope (the unique index decides);
+ * `{ ok: false, reason: 'rate-limited' }` past `ACCESS_REQUEST_LIMIT`.
  */
 export function createAccessRequest(dataDir, { email, canvas = null }, now = Date.now()) {
   const address = String(email ?? '')
@@ -445,6 +454,12 @@ export function createAccessRequest(dataDir, { email, canvas = null }, now = Dat
     .toLowerCase();
   if (!address) throw new Error('createAccessRequest: an email is required');
   const id = `req_${randomBytes(8).toString('hex')}`;
+  const recent = db(dataDir)
+    .prepare('SELECT COUNT(*) AS n FROM access_requests WHERE email = ? AND created_at > ?')
+    .get(address, now - ACCESS_REQUEST_LIMIT.windowMs);
+  if (Number(recent?.n ?? 0) >= ACCESS_REQUEST_LIMIT.max) {
+    return { ok: false, reason: 'rate-limited' };
+  }
   try {
     db(dataDir)
       .prepare(

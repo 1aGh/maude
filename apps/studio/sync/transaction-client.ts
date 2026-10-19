@@ -11,7 +11,15 @@
 // same canvas can never overtake an earlier one.
 
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 export const PROTOCOL = 1;
@@ -114,6 +122,14 @@ const TRANSIENT_4XX = new Set([408, 425, 429]);
 /** Where a final, non-protocol refusal keeps the exact bytes (design-root
  *  relative; runtime state under `_history/`, DDR-115). */
 export const OUTBOX_RECOVERY_REL = path.join('_history', '_outbox-recovery');
+/** S9.21b — the recovery code of an edit parked with its trashed canvas (`<name>.trashed.json`). */
+export const PARKED_TRASHED = 'trashed';
+
+/** Content only — lane writes. A trash / delete / create refused for a missing dependency is not kept. */
+function isContentEntry(entry: { action?: { operations?: Array<{ op?: unknown }> } }): boolean {
+  const ops = entry.action?.operations ?? [];
+  return ops.length > 0 && ops.every((o) => o.op === 'lane.replace');
+}
 
 export interface TransactionClientOptions {
   hubUrl: string;
@@ -383,6 +399,58 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     return { protocol: PROTOCOL, status: 'rejected', code, transactionId: entry.transactionId };
   }
 
+  /**
+   * S9.21b (G1) — the edits parked with a trashed canvas go back into the chain once it is
+   * restored: every parked entry whose content names one of `docs`, re-proposed under a DERIVED
+   * transaction id at the END of the queue (the hub refuses a reused id with other bytes, and the
+   * restore came after them). `dependsOn` between parked entries follows the same derivation.
+   * The parked file goes only after its new proposal is written. Returns how many went back.
+   */
+  async function requeueParked(docs: Iterable<string>): Promise<number> {
+    const want = new Set(docs);
+    if (!want.size) return 0;
+    let names: string[] = [];
+    try {
+      names = readdirSync(recoveryDir).filter((n) => n.endsWith(`.${PARKED_TRASHED}.json`));
+    } catch {
+      return 0;
+    }
+    const parked = names
+      .map((n) => {
+        const file = path.join(recoveryDir, n);
+        try {
+          return { file, entry: JSON.parse(readFileSync(file, 'utf8')) as OutboxEntry };
+        } catch {
+          return null;
+        }
+      })
+      .filter((x): x is { file: string; entry: OutboxEntry } => x !== null)
+      .filter(({ entry }) => entry.action?.operations.some((o) => want.has(String(o.doc))))
+      .sort((a, b) => a.entry.createdAt - b.entry.createdAt);
+    if (!parked.length) return 0;
+    const derived = (tx: string) => `tx_${sha256(`${tx}:restored`).slice(0, 32)}`;
+    const moved = new Set(parked.map(({ entry }) => entry.transactionId));
+    let n = 0;
+    for (const { file, entry } of parked) {
+      if (!entry.action) continue;
+      const deps = entry.action.dependsOn?.map((d) => (moved.has(d) ? derived(d) : d));
+      const action = { ...entry.action, ...(deps ? { dependsOn: deps } : {}) };
+      const transactionId = derived(entry.transactionId);
+      if (!existsSync(entryFile({ createdAt: entry.createdAt, transactionId }))) {
+        try {
+          writeOutbox(makeEntry(action, transactionId));
+        } catch (err) {
+          log.warn(`[sync/tx] ${entry.label}: could not put it back (${(err as Error).message})`);
+          continue;
+        }
+      }
+      rmSync(file, { force: true });
+      n++;
+    }
+    if (n) void drainOutbox().catch(() => null);
+    return n;
+  }
+
   /** B2 — the project an entry was made for: recorded, or (entries from older
    *  builds) the id inside its own bytes. `null` = never bound. */
   function madeFor(entry: OutboxEntry): string | null {
@@ -459,6 +527,21 @@ export function createTransactionClient(opts: TransactionClientOptions) {
               `[sync/tx] ${entry.label}: the project now uses another file format; kept aside, not sent`
             );
             return park(file, entry, 'format');
+          }
+          // V2-1.14 G1 (decision v2-lead-trashed-while-open-stops-writes) — the canvas went to the
+          // trash before this change reached it: the kernel answers `dependency-missing`. The edit
+          // is parked WITH the trashed canvas (never deleted) and `requeueParked` re-proposes it
+          // when the canvas is restored.
+          if (
+            result.status === 'rejected' &&
+            result.code === 'dependency-missing' &&
+            isContentEntry(entry)
+          ) {
+            log.warn(
+              `[sync/tx] ${entry.label}: its canvas is in the trash; kept with it, not sent`
+            );
+            park(file, entry, PARKED_TRASHED);
+            return result; // the kernel's own answer: callers still read `dependency-missing`
           }
           return done(result);
         }
@@ -875,6 +958,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     persist,
     entryFile,
     drainOutbox,
+    requeueParked,
     holdsValue,
     /** The epoch proposals are currently made under. */
     get epoch() {

@@ -19,6 +19,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { RequestBlocks } from '../access/ask-to-edit.jsx';
+import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { InviteRow } from './invite-row.jsx';
 import { copyShareLink } from './link-dialog.js';
@@ -369,6 +371,11 @@ export function ShareSheet({
             Sharing is not available right now. Invites you send wait here and go out once this Mac
             reaches the project.
           </p>
+        )}
+
+        {/* S9.21 — Ask to edit waits at the top of the owner's Share (10 co-ask-edit). */}
+        {view.linked && view.reachable && view.showRequests && view.canInvite && (
+          <RequestBlocks now={now} onAnswered={() => void loadPeople()} onError={setError} />
         )}
 
         {view.showScope && (

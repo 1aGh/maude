@@ -107,6 +107,8 @@ const FILTERED = [
   // A6b-3 — S9.19 who has access (the hub narrows it to the session), S9.24 the conflicts THIS Mac lost, S10.3 a system is seen only through its DS canvas (routes/ds.ts: every other system answers like one that does not exist)
   '/_api/share/me',
   '/_api/share/people',
+  // S9.21 — Ask to edit names `{ canvas? }` (the gate judges it like any target); the open list is the hub's, narrowed
+  '/_api/share/requests',
   '/_api/sync/conflicts',
   '/_api/ds/state',
   '/_api/ds/revision',
@@ -238,6 +240,9 @@ const PROJECT = [
   // S9.20 — the link rules are project business: a canvas-only session sees no route
   '/_api/share/links',
   '/_api/share/links/:id',
+  // S9.21 — Let … edit / Not now: the owner's
+  '/_api/share/requests/:id/approve',
+  '/_api/share/requests/:id/decline',
   '/_api/cloud/move',
   // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
   '/_api/trash/clear',

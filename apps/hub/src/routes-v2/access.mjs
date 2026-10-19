@@ -72,6 +72,8 @@ export const ROLES_V2_CAPABILITY = 'roles-v2';
 export const INVITE_CAP_PER_DAY = 50;
 
 const NOT_ALLOWED = 'Ask the owner to change this.';
+/** S9.21 — past `ACCESS_REQUEST_LIMIT` (invites.mjs); the control plane says the same. */
+const ASKED_TOO_OFTEN = 'You asked several times today. Try again tomorrow.';
 const BODY_LIMIT = 64 * 1024;
 const PREFIX = '/api/access/';
 
@@ -475,6 +477,9 @@ async function selfHosted(ctx, svc, { rest, access, actor }) {
       return answer(ctx, refusal(403, 'not-allowed', NOT_ALLOWED));
     }
     const made = createAccessRequest(svc.dataDir, { email: actor, canvas }, svc.now());
+    if (!made.ok && made.reason === 'rate-limited') {
+      return answer(ctx, refusal(429, 'rate-limited', ASKED_TOO_OFTEN));
+    }
     if (!made.ok) {
       return answer(ctx, refusal(409, 'pending', 'You already asked. The owner has your request.'));
     }
