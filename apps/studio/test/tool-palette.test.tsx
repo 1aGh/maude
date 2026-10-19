@@ -24,6 +24,8 @@ afterAll(async () => {
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { toolState } from '../annotations/ui/tool-state.ts';
+import { STICKY_PALETTE, STROKE_PALETTE } from '../annotations-model.ts';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import {
   ALL_CAPS,
@@ -575,37 +577,139 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     expect(ctx?.mode).toBe('preview'); // annotation tools are mode-neutral
   });
 
-  test('Marker: the first click arms the default tip; the next opens the tips; a pick arms it and sticks (Q4)', () => {
+  test('Marker: the first click arms the default tip and shows its options; a pick arms that tip and sticks (Q4)', () => {
     mountBar();
     act(() => ctx?.setMode('preview'));
     expect(lastMarkerTip()).toBe('pen');
     click(q('toolbar-slot-pen'));
     expect(ctx?.tool).toBe('pen');
-    expect(q('toolbar-popover-marker-tips')).toBeNull();
-    click(q('toolbar-slot-pen'));
+    // S4.8 — the options open with the tool (they replace the dark tray that always stood above it)
     const pop = q('toolbar-popover-marker-tips');
-    expect(pop?.getAttribute('role')).toBe('menu');
+    expect(pop?.tagName).toBe('FIELDSET');
     expect(
-      [...(pop?.querySelectorAll('[role="menuitemradio"]') ?? [])].map((e) => e.textContent?.trim())
+      [...(pop?.querySelectorAll('[data-testid^="toolbar-tip-"]') ?? [])].map((e) =>
+        e.textContent?.trim()
+      )
     ).toEqual(['Marker', 'Highlighter', 'Eraser']);
     click(q('toolbar-tip-highlighter'));
     expect(ctx?.tool).toBe('highlighter');
     expect(lastMarkerTip()).toBe('highlighter');
-    expect(q('toolbar-popover-marker-tips')).toBeNull();
+    expect(q('toolbar-popover-marker-tips')).not.toBeNull(); // the Highlighter's own options are next
     // the slot stays lit for every tip, and shows the tip in use
     expect(q('toolbar-slot-pen')?.getAttribute('aria-pressed')).toBe('true');
     expect(q('toolbar-slot-pen')?.getAttribute('data-tip')).toBe('highlighter');
-    // leaving the Marker and coming back re-arms the last tip, not the first
+    // leaving the Marker closes the options; coming back re-arms the last tip, not the first
     click(q('toolbar-slot-arrow'));
+    expect(q('toolbar-popover-marker-tips')).toBeNull();
     expect(q('toolbar-slot-pen')?.getAttribute('aria-pressed')).toBe('false');
     click(q('toolbar-slot-pen'));
     expect(ctx?.tool).toBe('highlighter');
+    expect(q('toolbar-popover-marker-tips')).not.toBeNull();
+    click(q('toolbar-slot-pen')); // the armed slot is also the switch for its options
+    expect(q('toolbar-popover-marker-tips')).toBeNull();
     click(q('toolbar-slot-pen'));
     click(q('toolbar-tip-pen')); // restore for later tests
     expect(lastMarkerTip()).toBe('pen');
   });
 
-  test('Shape: kinds popover as before — arm, click again, pick', () => {
+  test('Marker options (an-marker): five inks + "+4", two thicknesses; the pick is the person\'s and sticks', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    click(q('toolbar-slot-pen'));
+    const pop = q('toolbar-popover-marker-tips') as HTMLElement;
+    const inks = () => [...pop.querySelectorAll('[aria-label="Ink"] button')];
+    expect(inks().map((e) => e.getAttribute('aria-label'))).toEqual([
+      'Ink',
+      'Red',
+      'Amber',
+      'Green',
+      'Blue',
+    ]);
+    expect(inks()[0]?.getAttribute('aria-pressed')).toBe('true'); // black first, the default
+    const more = q('toolbar-ink-more') as HTMLElement;
+    expect(more.textContent).toBe('+4');
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    click(more);
+    expect(
+      [...pop.querySelectorAll('[aria-label="More ink"] button')].map((e) =>
+        e.getAttribute('aria-label')
+      )
+    ).toEqual(['Orange', 'Purple', 'Pink', 'Grey']);
+    click(q('toolbar-ink-blue'));
+    expect(toolState().get().ink).toBe(STROKE_PALETTE[4]);
+    expect(q('toolbar-ink-blue')?.getAttribute('aria-pressed')).toBe('true');
+    // two thicknesses: Thin (the default) and Thick
+    const thick = [...pop.querySelectorAll('[aria-label="Thickness"] button')];
+    expect(thick.map((e) => e.getAttribute('aria-label'))).toEqual(['Thin', 'Thick']);
+    click(q('toolbar-thickness-thick'));
+    expect(toolState().get().thickness).toBe(6);
+    // the Highlighter swaps in its own: four hues and three nibs
+    click(q('toolbar-tip-highlighter'));
+    expect([...pop.querySelectorAll('[aria-label="Highlighter colour"] button')].length).toBe(4);
+    expect([...pop.querySelectorAll('[aria-label="Highlighter width"] button')].length).toBe(3);
+    expect(q('toolbar-ink-blue')).toBeNull();
+    // the Eraser has nothing to choose
+    click(q('toolbar-tip-eraser'));
+    expect(pop.querySelectorAll('fieldset fieldset').length).toBe(1); // the tips themselves
+    // restore for later tests
+    click(q('toolbar-tip-pen'));
+    click(q('toolbar-ink-ink'));
+    click(q('toolbar-thickness-thin'));
+    expect(toolState().get()).toMatchObject({ ink: STROKE_PALETTE[8], thickness: 3 });
+  });
+
+  test('Sticky colours (an-sticky): armed, five papers + "+5" open above it; a pick is remembered', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    expect(q('toolbar-popover-sticky-colours')).toBeNull();
+    click(q('toolbar-slot-sticky'));
+    expect(ctx?.tool).toBe('sticky');
+    const pop = q('toolbar-popover-sticky-colours') as HTMLElement;
+    expect(pop.getAttribute('aria-label')).toBe('Sticky colour');
+    const dots = () =>
+      [...pop.querySelectorAll('fieldset button[aria-label]:not([aria-expanded])')].map((e) =>
+        e.getAttribute('aria-label')
+      );
+    expect(dots()).toEqual(['Yellow', 'Coral', 'Green', 'Sky', 'Lilac']);
+    expect(q('toolbar-sticky-yellow')?.getAttribute('aria-pressed')).toBe('true');
+    const more = q('toolbar-sticky-more') as HTMLElement;
+    expect(more.textContent).toBe('+5');
+    click(more);
+    expect(dots()).toEqual([
+      'Yellow',
+      'Coral',
+      'Green',
+      'Sky',
+      'Lilac',
+      'White',
+      'Grey',
+      'Peach',
+      'Aqua',
+      'Pink',
+    ]);
+    click(q('toolbar-sticky-sky'));
+    expect(toolState().get().stickyColor).toBe(STICKY_PALETTE[7]);
+    expect(q('toolbar-sticky-sky')?.getAttribute('aria-pressed')).toBe('true');
+    expect(q('toolbar-sticky-yellow')?.getAttribute('aria-pressed')).toBe('false');
+    // placing a sticky is a press on the canvas: the colours stay while the tool is armed
+    act(() => {
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(q('toolbar-popover-sticky-colours')).not.toBeNull();
+    // the armed slot is also the switch for them; leaving the tool closes them
+    click(q('toolbar-slot-sticky'));
+    expect(q('toolbar-popover-sticky-colours')).toBeNull();
+    click(q('toolbar-slot-sticky'));
+    expect(q('toolbar-popover-sticky-colours')).not.toBeNull();
+    click(q('toolbar-slot-arrow'));
+    expect(q('toolbar-popover-sticky-colours')).toBeNull();
+    click(q('toolbar-slot-sticky')); // the next sticky is still sky
+    expect(q('toolbar-sticky-sky')?.getAttribute('aria-pressed')).toBe('true');
+    click(q('toolbar-sticky-yellow')); // restore for later tests
+    expect(toolState().get().stickyColor).toBe(STICKY_PALETTE[0]);
+  });
+
+  test("Shape: canvas 15's five kinds — arm, click again, pick", () => {
     mountBar();
     act(() => ctx?.setMode('preview'));
     click(q('toolbar-slot-shape'));
@@ -614,10 +718,23 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     click(q('toolbar-slot-shape'));
     const pop = q('toolbar-popover-shape-kinds');
     expect(pop?.getAttribute('aria-label')).toBe('Shape type');
-    expect(pop?.querySelectorAll('[role="menuitemradio"]').length).toBe(6);
-    click(pop?.querySelector('[aria-label="Circle"]') ?? null);
+    expect(
+      [...(pop?.querySelectorAll('[role="menuitemradio"]') ?? [])].map((e) =>
+        e.getAttribute('aria-label')
+      )
+    ).toEqual(['Rectangle', 'Ellipse', 'Diamond', 'Triangle', 'Triangle down']);
+    click(pop?.querySelector('[aria-label="Ellipse"]') ?? null);
     expect(ctx?.shapeKind).toBe('circle');
     expect(q('toolbar-popover-shape-kinds')).toBeNull();
+    // a square drawn from the small toolbar still lights Rectangle
+    act(() => ctx?.setShapeKind('square'));
+    click(q('toolbar-slot-shape'));
+    expect(
+      q('toolbar-popover-shape-kinds')
+        ?.querySelector('[aria-label="Rectangle"]')
+        ?.getAttribute('aria-checked')
+    ).toBe('true');
+    act(() => ctx?.setShapeKind('rounded'));
   });
 
   test('esc and an outside press close a popover; arming another tool closes it', () => {
