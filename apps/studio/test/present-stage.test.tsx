@@ -19,6 +19,8 @@ afterAll(async () => {
   if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();
 });
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
@@ -27,8 +29,13 @@ import {
   type Camera,
   createPresentStage,
   LIFT_MS,
+  liveRects,
+  PRESENT_ATTR,
+  PRESENT_HIDES,
   type PresentStage,
+  presentHidesCss,
   type StageDeps,
+  usePresentSelection,
   usePresentStage,
 } from '../present/present-stage.tsx';
 
@@ -629,5 +636,86 @@ describe('usePresentStage', () => {
     setMode('present', { kind: 'canvas' });
     expect(host.querySelector('[data-maude-present-stage]')).toBeNull();
     setMode('edit');
+  });
+
+  // ── S3.14 (G2): Present draws the work only ─────────────────────────────────────────────────────────
+
+  test('G2: the document root carries the presenting attribute for Present · Artboards AND Present · Canvas', () => {
+    const rootEl = document.documentElement;
+    setMode('edit');
+    expect(rootEl.hasAttribute(PRESENT_ATTR)).toBe(false);
+    setMode('present', { kind: 'artboards', from: 'story' });
+    expect(rootEl.hasAttribute(PRESENT_ATTR)).toBe(true);
+    setMode('edit');
+    expect(rootEl.hasAttribute(PRESENT_ATTR)).toBe(false);
+    setMode('present', { kind: 'canvas' });
+    expect(rootEl.hasAttribute(PRESENT_ATTR)).toBe(true);
+    setMode('preview');
+    expect(rootEl.hasAttribute(PRESENT_ATTR)).toBe(false);
+  });
+
+  test('G2: the chrome list hides the label bar, the breakpoint chip and the selection frame, only while presenting', () => {
+    const css = presentHidesCss();
+    for (const sel of PRESENT_HIDES) expect(css).toContain(`html[${PRESENT_ATTR}] ${sel}`);
+    for (const must of ['.dc-artboard-label', '.dc-artboard-guides', '.ed-ab-frame', '.dc-cv-halo'])
+      expect(PRESENT_HIDES.some((h) => h.includes(must))).toBe(true);
+    expect(css).toMatch(/display:\s*none\s*!important/);
+    expect(css).toMatch(/\.dc-artboard \{ box-shadow: none !important/); // the active-artboard accent ring
+    // and the engine stylesheet carries it (canvas-lib's ENGINE_CSS interpolates the same function)
+    const lib = readFileSync(join(import.meta.dir, '../canvas-lib.tsx'), 'utf8');
+    expect(lib).toContain('${presentHidesCss()}');
+  });
+
+  test('G2: the stage fits what the DOM measures now, not the height the observers have yet to report', () => {
+    const world = document.createElement('div');
+    const art = document.createElement('article');
+    art.setAttribute('data-dc-screen', 'a"b');
+    Object.defineProperty(art, 'offsetHeight', { value: 400 });
+    world.append(art);
+    const rects: ArtboardRect[] = [
+      { id: 'a"b', x: 0, y: 0, w: 400, h: 425, kind: 'digital' },
+      { id: 'gone', x: 0, y: 500, w: 400, h: 100, kind: 'digital' },
+    ];
+    const out = liveRects(rects, world);
+    expect(out[0]?.h).toBe(400);
+    expect(out[1]).toBe(rects[1]); // not in the DOM: untouched
+    expect(liveRects(rects, null)).toBe(rects);
+  });
+
+  test('G2: Present clears the selection it finds in the canvas shell and puts it back on the way out', () => {
+    const calls: string[] = [];
+    let held: unknown[] = ['a', 'b'];
+    const sel = {
+      get selected() {
+        return held;
+      },
+      clear: () => {
+        calls.push('clear');
+        held = [];
+      },
+      replace: (s: unknown[]) => {
+        calls.push(`replace:${s.join('+')}`);
+        held = s;
+      },
+    };
+    const annot = { clear: () => calls.push('annot-clear') };
+    function SelProbe() {
+      usePresentSelection(sel as never, annot);
+      return null;
+    }
+    const r2 = createRoot(document.createElement('div'));
+    act(() => r2.render(createElement(SelProbe)));
+    setMode('present', { kind: 'canvas' });
+    expect(calls).toEqual(['clear', 'annot-clear']);
+    expect(held).toEqual([]);
+    setMode('edit');
+    expect(calls).toEqual(['clear', 'annot-clear', 'replace:a+b']);
+    // nothing selected: nothing to put back
+    calls.length = 0;
+    held = [];
+    setMode('present', { kind: 'artboards', from: 'story' });
+    setMode('edit');
+    expect(calls).toEqual(['clear', 'annot-clear']);
+    act(() => r2.unmount());
   });
 });

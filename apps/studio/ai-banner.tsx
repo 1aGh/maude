@@ -183,10 +183,13 @@ export function AiBanner(): JSX.Element | null {
   }, [file]);
 
   if (!entry) return null;
+  // gate-a-polish (CONTRACT 3): the product never says "Claude" - the AI is "AI", and the app does not name itself
+  // ("Claude (Maude chat)" -> "AI"). Any other author (a person) is shown as written.
+  const who = /claude|maude/i.test(entry.author) ? 'AI' : entry.author;
   return (
     <div className="dc-ai-banner" role="status" aria-live="polite">
       <span className="dc-ai-banner__dot" aria-hidden="true" />
-      <span>{entry.author} is editing this canvas — your changes may conflict</span>
+      <span>{who} is editing this canvas — your changes may conflict</span>
     </div>
   );
 }

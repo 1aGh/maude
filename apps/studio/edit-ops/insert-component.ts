@@ -78,8 +78,8 @@ export const RECIPES: Readonly<Record<string, Recipe>> = Object.freeze({
   Icon: { forwards: false },
 });
 
-const NAME_RE = /^[A-Z][A-Za-z0-9]{0,63}$/;
-const VARIANT_RE = /^[a-z][a-z0-9-]{0,31}$/;
+export const NAME_RE = /^[A-Z][A-Za-z0-9]{0,63}$/;
+export const VARIANT_RE = /^[a-z][a-z0-9-]{0,31}$/;
 const GLYPH_RE = /^[a-z]+(?:-[a-z]+)*$/;
 const MAX_TEXT = 120;
 const LIMIT = 1_000_000;
@@ -99,7 +99,7 @@ const fail = (req: ResolvedEditOp, message: string): never => {
 };
 
 /** JSX text that survives any character: plain when it is safe, a string expression otherwise. */
-const jsxText = (s: string): string => (/[{}<>&]/.test(s) ? `{${JSON.stringify(s)}}` : s);
+export const jsxText = (s: string): string => (/[{}<>&]/.test(s) ? `{${JSON.stringify(s)}}` : s);
 
 interface Parsed {
   component: string;
@@ -171,7 +171,7 @@ function read(req: ResolvedEditOp): Parsed {
 // ── the import ────────────────────────────────────────────────────────────────────────────────
 
 /** Top-level names a canvas already binds (imports, functions, classes, variables). */
-function topLevelNames(program: AnyNode): Map<string, 'ds' | 'other'> {
+export function topLevelNames(program: AnyNode): Map<string, 'ds' | 'other'> {
   const names = new Map<string, 'ds' | 'other'>();
   const bind = (n: AnyNode, kind: 'ds' | 'other') => {
     if (n?.type === 'Identifier') names.set(n.name, kind);
@@ -205,7 +205,12 @@ function topLevelNames(program: AnyNode): Map<string, 'ds' | 'other'> {
 }
 
 /** Put `import { names } from "@maude/ds"` in the file once: merged into the one it has, else new. */
-function addImports(s: MagicString, source: string, program: AnyNode, names: string[]): void {
+export function addImports(
+  s: MagicString,
+  source: string,
+  program: AnyNode,
+  names: string[]
+): void {
   const bound = topLevelNames(program);
   const missing = names.filter((n) => bound.get(n) !== 'ds');
   if (missing.length === 0) return;

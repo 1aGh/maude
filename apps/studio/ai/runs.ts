@@ -513,6 +513,16 @@ export function createRunRegistry(opts: RegistryOptions) {
    * The synchronous half of an ask: mint (or find, by askId) the record and persist it. A chat
    * with a live run puts the new ask behind it (chat-level FIFO). Idempotent by `askId`.
    */
+  /** The scope with its elements under the canvas key (the wire carries the designRoot-relative path). */
+  function keyedScope(scope: RunScope | null | undefined): RunScope | null {
+    if (!scope) return null;
+    if (!scope.elements?.length) return scope;
+    const canvas = canvasKey(scope.canvas);
+    return { ...scope, elements: scope.elements.map((e) => ({ ...e, canvas })) };
+  }
+  const heldElements = (scope: RunScope | null | undefined): ElementRef[] =>
+    (keyedScope(scope)?.elements ?? []).slice(0, MAX_OBJECTS);
+
   function open(input: AskInput): { rec: RunRecord; fresh: boolean } {
     if (input.askId) {
       const prior = [...records.values()].find((r) => r.askId === input.askId);
@@ -536,13 +546,14 @@ export function createRunRegistry(opts: RegistryOptions) {
       device,
       label: cleanLabel(input.label),
       ...(input.prompt ? { prompt: input.prompt } : {}),
-      scope: input.scope ?? null,
+      scope: keyedScope(input.scope),
       ...(input.copyOf ? { copyOf: input.copyOf } : {}),
       state: 'waiting',
       leases: [],
       waiting: [],
       touched: {},
-      objects: [],
+      // S2.19 — a ⌘/ ask on a selection: its elements are AI's from the moment it exists (before `begin`)
+      objects: heldElements(input.scope),
       createdAt: now(),
       ...(ahead ? { behind: ahead.runId } : {}),
       ...(input.origin !== 'maude-chat' ? { hookAt: now() } : {}),

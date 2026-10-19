@@ -209,7 +209,7 @@ describe('canvas document', () => {
       ['H', inCanvas, 'tool.hand'],
       ['F', inCanvas, 'tool.frame'],
       ['R', inCanvas, 'tool.el-shape'], // Edit's Shape (S2.13) — never Preview's R
-      ['P', inCanvas, null], // S2's Pen
+      ['P', inCanvas, 'tool.el-pen'], // Edit's Pen (S2.14) — never the Marker (M)
       ['T', inCanvas, 'tool.el-text'],
       ['I', inCanvas, 'tool.image'],
       ['⇧I', inCanvas, 'tool.components'], // S2.16's Component picker
@@ -229,7 +229,7 @@ describe('canvas document', () => {
       ['V', inPreview, 'tool.select'],
       ['F', inPreview, 'tool.frame'],
       ['I', inPreview, 'tool.image'],
-      ['P', inPreview, null],
+      ['P', inPreview, 'tool.el-pen'], // crosses to Edit's Pen (S2.14)
       ['H', inViewing, 'tool.inspect'],
       ['C', inViewing, 'tool.comment'],
       ['N', inViewing, 'tool.sticky'], // → the denial line
@@ -297,12 +297,13 @@ describe('registry integrity', () => {
     for (const a of ACTIONS)
       if (a.keys?.length) expect(`${a.id} ${!!a.keys[0].alias}`).toBe(`${a.id} false`);
   });
-  test('a fromCanvas action is a shell action with a ⌘ chord the canvas resolves', () => {
+  test('a fromCanvas action is a shell action with a ⌘ chord (or F6) the canvas resolves', () => {
     for (const a of ACTIONS.filter((x) => x.fromCanvas)) {
       expect(a.exec).toBe('shell');
       const live = (a.keys ?? []).filter((b) => bindingInDocument(b, 'canvas'));
       expect(live.length).toBeGreaterThan(0);
-      for (const b of live) expect(b.chord.includes('⌘')).toBe(true);
+      // S2.21: F6 / ⇧F6 (`ui.cycle-region`) are the one bare-key forward
+      for (const b of live) expect(b.chord.includes('⌘') || /^⇧?F6$/.test(b.chord)).toBe(true);
     }
   });
   test('k() is the only chord source the defs use (no raw, un-normalised strings)', () => {

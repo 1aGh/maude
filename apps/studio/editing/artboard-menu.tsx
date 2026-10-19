@@ -2,9 +2,10 @@
 // It RE-ARRANGES the v1 `artboard-chrome` sections rather than replacing their closures (canvas-shell
 // builds them as before; every handler and every `canvas-menu-item-<id>` testid stays), in the v2 order:
 //
-//   Ask AI about this artboard ⌘/   (a menu label is static, so it says "this artboard", not its name)
+//   Ask AI about “<artboard name>” ⌘/   (`labelOf` names it per click; the static label stays "this artboard")
 //   Duplicate ⌘D · Duplicate at another width ▸ Laptop 1280 · Tablet 834 · Mobile 390 · Custom width… · Rename
 //   Add comment
+//   Start a vote…   (S4.14)
 //   Export… ⇧⌘E
 //   Advanced ▸  Fit just this artboard · Reset position · Convert layout to absolute… · Open Timeline ·
 //               Fit to view · Reset view · Align… · Distribute… · Theme ▸ · Kind ▸
@@ -15,7 +16,9 @@
 // drawn in the design but need an artboard clipboard that does not exist yet — not faked here.
 // Pure over the item structure — testable without a DOM.
 
+import { askVoteBoard } from '../annotations/ui/vote-dots.tsx';
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
+import { ASK_ARTBOARD_EVENT, askAboutWords } from './ask-bubble.tsx';
 
 /** The widths the submenu offers, in the order the design draws them (the registry's web widths). */
 export const DUPLICATE_WIDTHS: ReadonlyArray<{ id: string; label: string; width: number }> = [
@@ -23,6 +26,17 @@ export const DUPLICATE_WIDTHS: ReadonlyArray<{ id: string; label: string; width:
   { id: 'tablet', label: 'Tablet', width: 834 },
   { id: 'mobile', label: 'Mobile', width: 390 },
 ];
+
+/** The name the right-clicked artboard wears (DCArtboard stamps it as `data-dc-label`); null when unknown. */
+export function artboardNameOf(t: ContextTarget): string | null {
+  const board =
+    t.el?.closest?.('[data-dc-screen]') ??
+    (t.artboardId && typeof document !== 'undefined'
+      ? document.querySelector(`[data-dc-screen="${CSS.escape(t.artboardId)}"]`)
+      : null);
+  const name = board?.getAttribute('data-dc-label')?.replace(/\s+/g, ' ').trim();
+  return name || null;
+}
 
 export interface ArtboardMenuDeps {
   duplicate(target: ContextTarget): void;
@@ -65,11 +79,19 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
       {
         id: 'ask-ai',
         label: 'Ask AI about this artboard',
+        // 14 Editing, ed-ab-menu: Ask AI about “Desktop” (typographic quotes, the artboard's own name)
+        labelOf: (t) => {
+          const name = artboardNameOf(t);
+          return name ? askAboutWords(name) : null;
+        },
         shortcut: '⌘/',
-        // S5's composer takes the artboard; until it does the row says so instead of doing nothing.
-        disabled: true,
-        disabledHint: 'Ask AI arrives with the AI chat',
-        onSelect: () => {},
+        // S2.21 — the same bubble ⌘/ on a selection opens (ask-bubble.tsx), scoped to this artboard.
+        onSelect: (t) => {
+          if (t.artboardId)
+            window.dispatchEvent(
+              new CustomEvent(ASK_ARTBOARD_EVENT, { detail: { artboardId: t.artboardId } })
+            );
+        },
       },
     ],
     [
@@ -92,6 +114,15 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
       { id: 'rename-artboard', label: 'Rename', onSelect: deps.rename },
     ],
     reuse('add-comment'),
+    // S4.14 — "Start a vote…" with this artboard ticked: the canvas hands the shell its artboards
+    // (`vote-board {open, focus}`); the shell opens the sheet for an editor (the server refuses the rest).
+    [
+      {
+        id: 'start-vote',
+        label: 'Start a vote…',
+        onSelect: (t) => askVoteBoard(true, t.artboardId ?? null),
+      },
+    ],
     reuse('export-artboard', { label: 'Export…', shortcut: '⇧⌘E' }),
     [{ id: 'advanced', label: 'Advanced', onSelect: () => {}, submenu: advanced }],
     reuse('delete-artboard', { label: 'Move to trash' }),

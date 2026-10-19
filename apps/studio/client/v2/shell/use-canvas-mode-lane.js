@@ -27,7 +27,6 @@ import { foldsPanels } from '../../../bridge/mode-shows.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { presenterOn, presentRunStore, usePresenterState } from '../present/presenter-store.js';
 import { presentZoomStore } from '../present/present-zoom-store.js';
-import { shellToast } from '../../shell/util.js';
 import {
   capsFor,
   createModeLane,
@@ -41,6 +40,7 @@ import {
   shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
+import { ROLE_DENIAL, showRoleDenial } from './role-denial.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
 
@@ -76,16 +76,24 @@ export function togglePresentCanvas() {
 /**
  * S3.12 — esc pressed with the shell focused: take the mode's one step back (`shellEscDecision`). `typing` is a
  * text field, `overlayOpen` any menu / sheet / popover that closes itself first. Returns what it did, or null.
+ *
+ * S3.14 (G6) — the canvas owns the rungs below the terminal: a tool armed there (Sticky from N, a pen), a
+ * selection, a half-drawn mark. With the shell focused the shell cannot see them, so out of Present and a held
+ * past version it HANDS the press to the active canvas (`forward`, true when a canvas took it) and that
+ * canvas climbs its own ladder (tool → Hand, then back to Edit on the next press — 04 md-esc). Only without
+ * a canvas to hand it to does the shell take the terminal step itself.
  */
-export function shellStepBack({ canEdit, typing = false } = {}) {
+export function shellStepBack({ canEdit, typing = false, forward } = {}) {
   const snap = shellMode.get();
   const overlayOpen =
     modalOpenNow() ||
     (typeof document !== 'undefined' &&
       !!document.querySelector('[role="menu"], [data-esc-owner], .st-overlay'));
+  const presenting = presentingOf(snap);
+  if (!typing && !overlayOpen && !presenting && !snap.viewing && forward?.()) return 'forward';
   const d = shellEscDecision({
     mode: snap.mode,
-    presenting: presentingOf(snap),
+    presenting,
     viewing: !!snap.viewing,
     caps: capsFor({ canEdit: !!canEdit }),
     typing,
@@ -133,7 +141,7 @@ export function presentMediaCmd(op) {
 const modalOpenNow = () =>
   typeof document !== 'undefined' && !!document.querySelector('[role="dialog"][aria-modal="true"]');
 
-export const ROLE_DENIAL = 'You can view this canvas. Ask a project owner for edit access.';
+export { ROLE_DENIAL }; // S4.16 - defined beside the lines that name the tool (./role-denial.js)
 
 /**
  * @returns {{ mode, caps, peers, follow(clientID), select(mode), present(kind), step(to) }}
@@ -320,7 +328,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         });
         if (!d) return;
         if (d.kind === 'deny') {
-          if (d.reason === 'role') shellToast(ROLE_DENIAL);
+          if (d.reason === 'role') showRoleDenial(m);
           return;
         }
         if (d.kind === 'exit-viewing') {

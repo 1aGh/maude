@@ -39,7 +39,6 @@ import {
   ChatLightbox,
   ChatMediaContext,
   ContinuationBubble,
-  StatusRow,
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
@@ -161,6 +160,8 @@ function toThreadMessages(msgs) {
       return {
         role: 'user',
         content: [{ type: 'text', text: (m.parts || []).map((p) => p.text || '').join('') }],
+        // S5.19 — the day dividers read when the ask was sent
+        ...(Number.isFinite(m.at) ? { createdAt: new Date(m.at) } : {}),
       };
     }
     return {
@@ -435,7 +436,6 @@ function ChatThread({
       <ChatMediaContext.Provider value={media}>
         <div className="chat-panel" style={hidden ? { display: 'none' } : undefined}>
           <DropOverlay attach={attach} />
-          <StatusRow tools={activeTools} />
           {/* DDR-184 #3 — said up front when the current mode can't edit (plan / dontAsk),
             so a user typing "change X" isn't silently ignored. Above the feed. */}
           <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} />
@@ -494,6 +494,7 @@ function ChatThread({
                     selectedClips={selectedClips}
                     justShared={justShared}
                     enabled={suggestOn}
+                    lastFailed={!!turnError}
                   />
                 </ThreadPrimitive.If>
               }

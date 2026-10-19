@@ -94,6 +94,8 @@ export function createFixtureGuard(scenario: string, files: string[]): FixtureGu
   }
 
   function snapshot(): void {
+    // Idempotent while a baseline is held: the guard already snapshots when it is created (below).
+    if (baseline) return;
     // A sidecar here is the fingerprint of a run that died before restoring.
     // Its contents are the last known-good bytes — put them back first, so the
     // baseline we take below is pristine rather than the previous run's damage.
@@ -145,6 +147,11 @@ export function createFixtureGuard(scenario: string, files: string[]): FixtureGu
     }
     return content;
   }
+
+  // Baseline at creation. A spec that writes the fixture in its `before()` and only calls
+  // `restore()` in `after()` (nine wave-A edit-* specs did) otherwise restores nothing, leaves
+  // Smoke.tsx rewritten, and every later spec in the lane fails on a canvas it does not know.
+  snapshot();
 
   return { snapshot, restore, baselineOf };
 }

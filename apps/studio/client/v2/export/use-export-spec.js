@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { applyAdvanced } from './advanced/model.js';
+import { annotationsState } from './annotations-policy.js';
 import { SCOPE_IDS } from './export-copy.js';
 import { batchPart, isBatch } from './sections/batch-model.js';
 
@@ -121,7 +122,8 @@ export function buildSpec(state, ctx = {}) {
   if (state.at) spec.at = state.at;
   const options = {};
   if (RASTER.has(state.format)) options.size = { scale: effectiveScale(state, ctx.kind) };
-  if (state.annotations) options.annotations = true;
+  if (state.annotations && !annotationsState(state.format, { kinds: ctx.kinds }).off)
+    options.annotations = true;
   // S8.3 — many kinds at once: each kind's own format row; the picks, not the sheet's 1× / 2×, size it
   if (ctx.batch) {
     const part = batchPart(state.kindPicks, ctx.kinds ?? []);

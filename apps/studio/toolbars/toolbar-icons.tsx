@@ -81,6 +81,18 @@ export function IconLineTool(props: IconProps) {
   );
 }
 
+/** Pen (S2.14) — a pen nib over a curve. */
+export function IconPenTool(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3l6 8-3 4H9l-3-4z" />
+      <path d="M12 15v3.5" />
+      <circle cx="12" cy="11" r="1.1" />
+      <path d="M8 21h8" />
+    </Svg>
+  );
+}
+
 /** Polygon (More, S2.13) — a hexagon. */
 export function IconPolygon(props: IconProps) {
   return (
@@ -100,6 +112,16 @@ export function IconExportArea(props: IconProps) {
   );
 }
 
+/** Crop (More, S2.15) — the two crossing crop marks. */
+export function IconCrop(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7 3v14h14" />
+      <path d="M3 7h14v14" />
+    </Svg>
+  );
+}
+
 export const SLOT_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   frame: IconFrame,
   image: IconImage,
@@ -109,4 +131,5 @@ export const SLOT_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   line: IconLineTool,
   polygon: IconPolygon,
   slice: IconExportArea,
+  crop: IconCrop,
 };

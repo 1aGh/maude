@@ -30,6 +30,20 @@ export function copyAvailability({ webLink, online = true }) {
   return { enabled: true };
 }
 
+/** What Present ⌄ › Copy presentation link says on the right (04 md-present-menu). */
+export const COPY_PRESENTATION_LINK_FOLLOWS = 'follows you live';
+
+/**
+ * The Present ⌄ row's state (S3.14 G3): `cloud` = the project has a cloud link (a cloud tab, or a desktop
+ * project linked to a hub), `online` = the network is up. Enabled → the drawn note; otherwise the row is
+ * greyed and says why, in `copyAvailability`'s order (no cloud link outranks offline). Pure.
+ */
+export function copyRowState({ cloud, online = true }) {
+  if (!cloud) return { enabled: false, note: COPY_PRESENTATION_LINK_NOTE };
+  if (online === false) return { enabled: false, note: COPY_PRESENTATION_LINK_WAITS };
+  return { enabled: true, note: COPY_PRESENTATION_LINK_FOLLOWS };
+}
+
 /** The presentation link for a design-root-relative canvas, or null. Pure. */
 export function presentationLinkFor(rel, webLink) {
   if (typeof rel !== 'string' || !rel.endsWith('.tsx') || rel.length <= 4) return null;

@@ -83,7 +83,10 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'view.assets' },
       { id: 'view.exports' },
       { id: 'view.annotations' },
-      // S3.1 (04 md-keys "Menu › View, amended"): Present ⌥⌘↵ · Present from the start ⇧⌥⌘↵.
+      SEP,
+      // S3.14 (04 md-keys "Menu › View, amended"): Preview ⌥⌘P opens the group, then S3.1's Present ⌥⌘↵ ·
+      // Present from the start ⇧⌥⌘↵ · Present the canvas.
+      { id: 'mode.preview' },
       { id: 'present.from-selection' },
       { id: 'present.from-start' },
       { id: 'present.canvas' },

@@ -86,6 +86,7 @@ import { migrateAtBoot } from './v2/settings/prefs-migrate.js';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';
+import VoteHost from './v2/annotations/vote-bar.jsx';
 import ComponentPicker from './v2/inspector/component-picker.jsx';
 import { getPaletteEnv } from './v2/search/search-env.js';
 import {
@@ -224,11 +225,13 @@ import { useLastFinishedAt } from './v2/export/last-finished.js';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
+import ShellErrorBoundary from './v2/shell/shell-error-boundary.jsx';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
+import { AskSelectionHost } from './v2/ai/AskSelectionHost.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
 import { IntentHost } from './v2/create/intent-host.jsx';
 import { useOnline } from './v2/empty/use-empty-canvas.js';
@@ -833,6 +836,12 @@ function ShellState({ children }) {
           } else if (m.type === 'thumb-ready' && typeof m.key === 'string') {
             // S1.14 — a picture landed: Version history looks again for the rows still drawing theirs.
             window.dispatchEvent(new CustomEvent('maude:thumb-ready', { detail: { key: m.key } }));
+          } else if (m.type === 'index-changed') {
+            // S1.23 — a canvas's content moved (an artboard trashed or added): the Canvases panel re-reads
+            // the index so its artboard counts are not stale.
+            window.dispatchEvent(
+              new CustomEvent('maude:index-changed', { detail: { seq: m.seq, rels: m.rels } })
+            );
           } else if (m.type === 'ai:runs') {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
             // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.
@@ -843,6 +852,8 @@ function ShellState({ children }) {
             // change clears them); it replaces S5.11's 6 s Done ring, which lit every action's.
             undoProjection.onAction(m.action);
             noteMadeByAi(m.action);
+            // Version history looks again (a local project has no applied revision to key a re-read on).
+            window.dispatchEvent(new CustomEvent('maude:project-action', { detail: m.action }));
           } else if (m.type === 'trash:changed') {
             // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
             window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
@@ -1624,6 +1635,7 @@ function ShellProjectPill() {
       toggleRightPanel,
       toggleTimeline,
       syncStatus,
+      tabs,
       viewerMode,
       whatsNew,
       wsConnected,
@@ -1641,6 +1653,7 @@ function ShellProjectPill() {
       closeTab,
       duplicateCanvasReq,
       moveCanvasReq,
+      openTab,
       reloadActive,
       renameCanvasReq,
       showShare,
@@ -1774,7 +1787,12 @@ function ShellProjectPill() {
   // S5.13 — a "Needs you" / "Done" toast's Open lands in the AI chat (ChatPanel picks the chat itself).
   // S5.10 — the paperclip's From Assets opens the Assets panel, the same as View › Assets.
   useEffect(() => {
-    const onOpenAi = () => openRightPanel('assistant');
+    const onOpenAi = (e) => {
+      openRightPanel('assistant');
+      // S5.18 (G4): a "needs you" toast's Open lands on the canvas that needs you, not only on its chat.
+      const canvas = normalizeOpenPath(e?.detail?.canvas, cfg?.designRel || '.design');
+      if (canvas) openTab(canvas);
+    };
     const onAttachAssets = () => menuRunner.run('view.assets');
     window.addEventListener(OPEN_AI_EVENT, onOpenAi);
     window.addEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
@@ -1782,7 +1800,7 @@ function ShellProjectPill() {
       window.removeEventListener(OPEN_AI_EVENT, onOpenAi);
       window.removeEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
     };
-  }, [openRightPanel]);
+  }, [openRightPanel, openTab, cfg?.designRel]);
   // S1.22c: the native tab menu's "Sign in as another account…" arrives as `menu://action
   // {id:'account.switch'}` (tabs.rs TabMenuItem::SwitchAccount); it is not a palette row, so the
   // palette's menu://action listener never runs it — the menu handler does.
@@ -3002,7 +3020,7 @@ function ShellTree() {
           Skipped during first-run onboarding so two flows don't stack. */}
       {!firstRun && <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />}
       <NotificationHost
-        paused={!!usageNudge || !!tourSteps}
+        paused={!!tourSteps}
         hiddenGroups={exportCenter.panelOpen ? ['exports'] : []}
       />
       <WhatsNewToast wn={whatsNew} />
@@ -3037,6 +3055,8 @@ function ShellTree() {
           <EmptyHost />
           {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}
           <IntentHost />
+          {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}
+          <AskSelectionHost />
           {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}
           <SyncStatesHost />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
@@ -3247,10 +3267,21 @@ function ShellTree() {
       {stickerPickerReq && (
         <StickersGallery
           onPick={onStickerPicked}
+          onPickStamp={
+            stickerPickerReq.replace ? undefined : (id) => onStickerPicked({ pack: 'stamps', id })
+          }
           onClose={() => setStickerPickerReq(null)}
           anchor={stickerPickerReq.anchor ?? null}
         />
       )}
+      {/* S4.14 — the vote bar + the Start a vote sheet for the active canvas (Gate 0 A18) */}
+      <VoteHost
+        iframesRef={iframesRef}
+        activePath={activePath}
+        canEdit={!viewerMode}
+        role={cfg?.cloud?.role}
+        notify={notify}
+      />
       {templatesReq && (
         <TemplatesPanel
           onPick={({ id }) => postToActiveCanvas({ dgn: 'insert-template', id, follow: true })}
@@ -3378,14 +3409,30 @@ function App() {
 // V2-3.3 — so is Home (`/_config.mode === 'home'`, client/home/shell-mode.js).
 const root = createRoot(document.getElementById('root'));
 // S3.7a — a follow link (`?present=follow`, or any `audience` URL) is the follower page: never the editor.
-if (isFollowLocation(location)) root.render(<FollowView />);
-else if (isEmbedLocation(location)) root.render(<EmbedView />);
+// sec-a C3 — every root sits in the shell error boundary: one render throw shows a Reload card
+// instead of unmounting the whole window.
+if (isFollowLocation(location))
+  root.render(
+    <ShellErrorBoundary>
+      <FollowView />
+    </ShellErrorBoundary>
+  );
+else if (isEmbedLocation(location))
+  root.render(
+    <ShellErrorBoundary>
+      <EmbedView />
+    </ShellErrorBoundary>
+  );
 else {
   // S11.13 (Gate 0 D20) — the 1.x preferences move to their v2 homes once per origin, before the
   // first v2 home is read (a second boot is a no-op without a request). Bounded: a slow server
   // never holds the first paint, and a failure leaves the 1.x keys where they are.
   const migrated = migrateAtBoot().catch(() => {});
   Promise.race([migrated, new Promise((r) => setTimeout(r, 1500))]).then(() =>
-    bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />))
+    bootShellMode((mode) =>
+      root.render(
+        <ShellErrorBoundary>{mode === 'home' ? <HomeApp /> : <App />}</ShellErrorBoundary>
+      )
+    )
   );
 }

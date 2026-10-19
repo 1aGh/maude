@@ -17,6 +17,8 @@ const NONE = Object.freeze({
   searchProjects: null,
   /** (row) => void — ↵ on another project's row: the shell switches to (or opens) its tab */
   openSearchResult: () => {},
+  /** S1.23 — this project's name, for a canvas row's meta line ("Alligators brand · 2026/dresy · 12 artboards") */
+  projectName: '',
   /** { pid, name } of this tab's project — the "this tab" group's header */
   ownProject: null,
 });

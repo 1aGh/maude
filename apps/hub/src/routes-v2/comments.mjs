@@ -22,8 +22,12 @@
 //     `maude.mention` reaches only the mentioned person's own live connections,
 //     and only people who can open this canvas — an unknown handle and one
 //     without access are the same silence. AI-written comments never mention
-//     (C3). A person with no live connection goes to `onUnreached` (S9.18
-//     forwards it to the control plane for e-mail; a self-hosted hub drops it);
+//     (C3). A person with no live connection goes to `onUnreached`, and on a
+//     CLOUD cell the mention is forwarded to the control plane
+//     (`forwardMentions`, S9.18): the tokens, who was reached live, the
+//     canvas, the thread and the author's VERIFIED address — the control plane
+//     re-decides who can open the canvas from D1 and e-mails the rest once. A
+//     self-hosted hub has no forwarder and sends no e-mail;
 //   - V2-1.12 §5.4: comments are a format-gated write door — 426 for a writer
 //     whose declared format is not the project's (v2 handlers run before the
 //     server's own format gate, so this door asks itself).
@@ -41,11 +45,16 @@ import {
   peerAccess,
 } from '../access-docs.mjs';
 import { OBSERVER_REFUSAL, presentedBearer, READ_ONLY_REFUSAL } from '../access-gate.mjs';
+import { cloudIdentityEnabled } from '../cloud-identity.mjs';
 import { readLane } from '../project-transactions/lanes.mjs';
 
 export const COMMENTS_PATH = '/api/comments';
 /** The stateless message a mentioned person's connections receive. */
 export const MENTION_MESSAGE = 'maude.mention';
+/** Where a cloud cell forwards a mention nobody heard live (`apps/cloud/mentions.mjs`). */
+export const MENTIONS_FORWARD_PATH = '/internal/mentions';
+/** How much of the mentioning words travel to the control plane (it quotes ≤ 200). */
+const EXCERPT_MAX = 280;
 
 /** An op is small; a 4000-char text plus anchors and a `from` fits many times over. */
 const MAX_BODY_BYTES = 64 * 1024;
@@ -226,6 +235,67 @@ function peopleWithAccess(d, doc) {
   return [...out.values()];
 }
 
+/**
+ * The canvas a comment record belongs to, designRoot-relative (the claim's
+ * key), or null — and only ever THIS document's canvas.
+ */
+function canvasOfRecord(comment, { doc, designRel }) {
+  const file = typeof comment?.file === 'string' ? comment.file : '';
+  const prefix = `${String(designRel || '.design').replace(/^\/+|\/+$/g, '')}/`;
+  if (!file.startsWith(prefix)) return null;
+  const rel = file.slice(prefix.length);
+  return rel && docSlugOf(rel) === slugOfDoc(doc) ? rel : null;
+}
+
+/** The words of this op that carry its new mentions (an add's text, a reply's body). */
+function wordsOf(op) {
+  const words = op.op === 'reply' ? op.body : op.text;
+  return typeof words === 'string' ? words.slice(0, EXCERPT_MAX) : '';
+}
+
+/**
+ * S9.18 — the cell → control-plane forwarder, or null when this hub sends no
+ * e-mail: a self-hosted hub (no cloud identity), or a cell missing its control
+ * plane, tenant or derived secret. The forward resolves true/false and never
+ * throws; the comment has been saved whatever happens here.
+ *
+ * @param {{ env?: Record<string, string|undefined>, secret?: string, fetchImpl?: typeof fetch }} opts
+ */
+export function createMentionForwarder({ env = process.env, secret = '', fetchImpl = fetch } = {}) {
+  const base = String(env.MAUDE_CONTROL_PLANE_URL ?? '').replace(/\/+$/, '');
+  const tenant = String(env.MAUDE_TENANT_ID ?? '');
+  if (!cloudIdentityEnabled(env) || !base || !tenant || !secret) return null;
+  return async ({ tokens, reached, canvas = null, thread, author, from = '', excerpt = '' }) => {
+    // Nobody vouched for → nobody to send as. A dev token has no address.
+    if (typeof author !== 'string' || !author.includes('@')) return false;
+    try {
+      const res = await fetchImpl(`${base}${MENTIONS_FORWARD_PATH}`, {
+        method: 'POST',
+        headers: {
+          // Built here, never copied from the comment request.
+          authorization: `Bearer ${secret}`,
+          'x-maude-actor': author.toLowerCase(),
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenant,
+          canvas,
+          thread,
+          tokens,
+          reached,
+          from: String(from).slice(0, 120),
+          excerpt: String(excerpt).slice(0, EXCERPT_MAX),
+        }),
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+}
+
 /** Send `maude.mention` to each mentioned person's live connections that see `doc`. */
 function deliverMentions(d, { doc, canvas, thread, from, people }) {
   const want = new Set(people.map((p) => p.id));
@@ -249,7 +319,7 @@ function deliverMentions(d, { doc, canvas, thread, from, people }) {
   for (const p of people) {
     if (!reached.has(p.id)) d.onUnreached?.({ person: p.id, thread, canvas, doc, from });
   }
-  return reached.size;
+  return reached;
 }
 
 /**
@@ -360,7 +430,29 @@ export async function handleCommentsRoute(ctx) {
   const thread = result.comment?.id ?? op.id;
   if (actor.kind !== 'ai' && result.mentioned.length) {
     const people = resolveMentions(result.mentioned, peopleWithAccess(d, doc), { exclude: by });
-    if (people.length) deliverMentions(d, { doc, canvas, thread, from: actor.name, people });
+    const reached = people.length
+      ? deliverMentions(d, { doc, canvas, thread, from: actor.name, people })
+      : new Set();
+    // Nobody heard it live → the control plane decides who gets an e-mail
+    // (S9.18). Fire and forget: the comment is saved, and its answer must not
+    // wait on another service or say who was reached.
+    if (d.forwardMentions) {
+      try {
+        Promise.resolve(
+          d.forwardMentions({
+            tokens: result.mentioned,
+            reached: [...reached],
+            canvas: canvasOfRecord(result.comment, { doc, designRel: d.designRel }) ?? canvas,
+            thread,
+            author: match.owner ?? '',
+            from: actor.name,
+            excerpt: wordsOf(op),
+          })
+        ).catch(() => {});
+      } catch {
+        /* a broken forwarder costs the e-mail, never the comment */
+      }
+    }
   }
   // The same answer whoever the text mentioned: who was reached is not the
   // writer's to learn (an unknown handle and a no-access one look alike).

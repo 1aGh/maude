@@ -6,7 +6,7 @@
 // v1 matched `e.key === 'Escape'` with any modifier, in both documents.
 
 import type { ActionDef } from '../types.ts';
-import { IN_CANVAS, mods, SHELL_FOCI } from './_v1.ts';
+import { IN_CANVAS, kb, mods, SHELL_FOCI } from './_v1.ts';
 
 export const UI_ACTIONS: ActionDef[] = [
   {
@@ -19,5 +19,20 @@ export const UI_ACTIONS: ActionDef[] = [
       ...mods('esc', '⌥⇧⌘', 'selection', { inText: false, when: IN_CANVAS }),
     ],
     legacy: { sheet: 'Deselect · close menu' },
+  },
+  {
+    // S2.21 (14 `ed-edge-keys`) — F6 moves the keyboard between the panels and the canvas, ⇧F6 back. From inside
+    // the canvas iframe the editing layer forwards the chord (`fromCanvas`), so one key crosses the boundary
+    // both ways. The shell's handler is client/v2/shell/f6-cycle.js.
+    id: 'ui.cycle-region',
+    label: 'Move between the panels and the canvas',
+    kind: 'command',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [
+      kb('F6', 'global', { inText: true }),
+      kb('⇧F6', 'global', { inText: true, alias: true }),
+    ],
+    search: { keywords: ['focus', 'panels', 'canvas', 'keyboard', 'f6'] },
   },
 ];

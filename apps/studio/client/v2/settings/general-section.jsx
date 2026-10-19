@@ -12,6 +12,15 @@ import { AppearanceTab, LayoutTab, PrefToggleRow } from '../../panels/SettingsPa
 import { useSingleKeys } from '../shell/use-single-keys.js';
 import { Group, Row } from './parts.jsx';
 
+/** S9.18: the page on the web where the mention e-mails are switched; resolved against the dashboard's own origin. */
+function accountEmailsUrl(dashboardUrl) {
+  try {
+    return new URL('/account/emails', dashboardUrl).href;
+  } catch {
+    return dashboardUrl;
+  }
+}
+
 /** The cloud account of THIS Mac (desktop only): `{ connected, email, url }`, kept current. */
 function useCloudAccount(enabled) {
   const [acct, setAcct] = useState(null);
@@ -89,6 +98,19 @@ export default function GeneralSection({
               data-testid="settings-open-dashboard"
             >
               Open the cloud dashboard
+            </button>
+          </Row>
+          <Row
+            label="E-mails"
+            hint="Change which e-mails you get — a mention while Maude is closed, for one."
+          >
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={() => openExternal(accountEmailsUrl(dashboardUrl))}
+              data-testid="settings-open-emails"
+            >
+              Open e-mail settings
             </button>
           </Row>
         </Group>

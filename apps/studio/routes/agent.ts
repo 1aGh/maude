@@ -21,6 +21,7 @@ import {
   changedArtboards,
   changedElements,
   createAgentRuns,
+  elementsOutsideScope,
   RUN_ACTORS,
   RUN_OUTCOMES,
   type RunActor,
@@ -715,6 +716,21 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
             reason: reasonOf(
               `out-of-scope: this chat is about ${relText(sc.canvas)}${allowed ? ` › ${idsText(allowed)}` : ''} (the selection it started from) — ` +
                 `${offCanvas ? `${relText(rel)} is outside it` : `this change reaches ${outside.length ? idsText(outside) : 'code every artboard shares'}`}. ` +
+                'Change only what is in the selection, or ask the person to widen it.'
+            ),
+          });
+      }
+      // S2.19: a ⌘/ ask on a selection changes only those elements (and what is inside them)
+      if (sc?.elements?.length && after !== null) {
+        const outside = elementsOutsideScope(before, after, sc.elements);
+        if (outside.length)
+          return json(200, {
+            decision: 'deny',
+            code: 'out-of-scope',
+            artboards: [],
+            reason: reasonOf(
+              `out-of-scope: this chat is about ${sc.elements.length === 1 ? 'one element' : `${sc.elements.length} elements`} of ${relText(sc.canvas)} (the selection it started from) — ` +
+                `this change reaches ${idsText(outside.map((o) => o.element))}. ` +
                 'Change only what is in the selection, or ask the person to widen it.'
             ),
           });

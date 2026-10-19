@@ -17,6 +17,7 @@ import { focusComposer } from './panel-focus.js';
 import { ResultCard } from './Result.jsx';
 import { keepGoingRun, redoRun, stopRun, undoNote, undoRun } from './run-api.js';
 import {
+  copyDividerText,
   createAnnouncer,
   describeResult,
   followUps,
@@ -28,10 +29,49 @@ import {
   stepsSummary,
   workingText,
 } from './run-model.js';
+import { shellMode } from '../shell/use-canvas-mode-lane.js';
+import { compareStore } from '../history/compare-store.js';
+import { viewingWords } from '../history/use-versions.js';
+import { compareView, fetchRunVersions } from './run-compare.js';
+import { artboardLabel, runFile } from './runs-model.js';
+import { useBoardLabels } from './RunList.jsx';
+import { shortArtboardName } from './scope.js';
 import { RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
 import { useChatRuns } from './use-chat-runs.js';
 
 const IDLE = { runId: null, status: 'idle', note: '' };
+const PICTURE_RETRY_MS = 1500;
+const PICTURE_RETRIES = 4;
+
+/** S5.19 G4: the run's version and the one before it (versions list) once the run has ended having changed things. */
+function useRunVersions(run, designRel) {
+  const [state, setState] = useState({ runId: null, versions: null });
+  const runId = run?.runId ?? null;
+  const wants = !!run && run.state === 'ended' && run.outcome === 'done';
+  useEffect(() => {
+    if (!wants || !runId) return undefined;
+    let cancelled = false;
+    let timer = null;
+    let tries = 0;
+    const read = async () => {
+      const v = await fetchRunVersions(run, { designRel });
+      if (cancelled) return;
+      setState({ runId, versions: v });
+      // pictures still being drawn: look again a few times, then settle for Compare alone
+      if (v && compareView(v).pending && tries < PICTURE_RETRIES) {
+        tries += 1;
+        timer = setTimeout(read, PICTURE_RETRY_MS);
+      }
+    };
+    void read();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: one read per ended run
+  }, [wants, runId, designRel]);
+  return state.runId === runId ? state.versions : null;
+}
 const ANNOUNCE_MAX = 240;
 
 export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel = '.design' }) {
@@ -47,9 +87,20 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   const showWorking = live && !needsYou;
   const ended = !!run && run.state === 'ended';
   const cutShort = runCutShort(run);
-  const verbs = useMemo(() => resultVerbs(run), [run]);
+  const versions = useRunVersions(run, designRel);
+  const view = useMemo(() => compareView(versions ?? { after: null, before: null }), [versions]);
+  const verbs = useMemo(() => resultVerbs(run, { canCompare: view.canCompare }), [run, view]);
   const showResult = !live && ended && (verbs.length > 0 || cutShort);
   const elapsed = useRunClock(run?.startedAt, showWorking);
+  // S5.18 G2: a run that ran on a copy says so, with the artboard that was busy
+  const boardLabels = useBoardLabels(designRel, 0);
+  const copyLine = run?.copyOf
+    ? copyDividerText(run, {
+        name: shortArtboardName(
+          artboardLabel(boardLabels, runFile(run, designRel), run.copyOf.artboard)
+        ),
+      })
+    : null;
 
   // ── a turn just ended: the registry may have closed its run since the last frame ──
   const wasLive = useRef(live);
@@ -108,6 +159,15 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
         else mark({ status: undoing ? 'idle' : 'undone', note: undoNote(out.reason, out.line) });
         return;
       }
+      if (verb === 'Compare') {
+        // the Version history Compare: the version before this run is A, Now is B (Compare rides on Viewing)
+        const before = versions?.before;
+        if (!before || !versions?.path) return;
+        const words = viewingWords(before);
+        shellMode.view(words);
+        compareStore.start({ path: versions.path, a: words });
+        return;
+      }
       if (verb === 'Keep the copy') {
         mark({ status: 'kept' });
         return;
@@ -122,7 +182,7 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
         if (!out.ok) mark({ note: "Couldn't keep going. Try again in a moment." });
       }
     },
-    [run, designRel, cutShort, mark]
+    [run, designRel, cutShort, mark, versions]
   );
 
   const onFollowUp = useCallback((text) => {
@@ -139,6 +199,11 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   return (
     <>
       <RunLiveRegion message={message} />
+      {copyLine && (showWorking || showResult) ? (
+        <p className="ai-copy-rule" data-testid="ai-copy-divider">
+          {copyLine}
+        </p>
+      ) : null}
       {showWorking ? (
         <WorkingLine
           text={workingText(run)}
@@ -158,6 +223,7 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
             note={cur.note}
             steps={digest.steps}
             stepsLabel={digest.steps.length ? stepsSummary(digest.steps, run) : ''}
+            thumbs={view.thumbs}
             followUps={followUps(run, artboards)}
             onFollowUp={onFollowUp}
           />

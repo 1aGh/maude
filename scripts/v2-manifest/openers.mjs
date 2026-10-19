@@ -11,6 +11,14 @@
 // state by name (`state: 'linked-project'`) or for single routes (`routes: { <path>: <answer> }`).
 
 const tid = (t) => `[data-testid="${t}"]`;
+// an annotation on the canvas, by its id (the probe fixture's board, probe-reach.mjs annotationsFixture)
+const A = (id) => `.dc-annot-el[data-id="${id}"]`;
+// what the shell tells the canvas about the vote it shows (bridge/dgn-protocol.ts `vote-state`)
+const VOTE = { id: 'vt1', targets: ['ab:home-hero', 'ab:home-pricing'], perVoter: 3 };
+const voteState = (vote, mine = {}) => ({ dgn: 'vote-state', vote: { ...VOTE, ...vote }, mine });
+
+// Preview is where annotations are picked (Edit leaves them quiet and click-through)
+const PREVIEW = { click: tid('palette-mode-preview') };
 
 export { tid };
 
@@ -295,6 +303,9 @@ export const ROUTE_ANSWERS = {
   // this Mac has opened nothing yet (GET /_api/pins): ⌘K's Recent says so
   pinsNone: { pins: [], opened: {} },
   commentRefused: { __status: 403, ok: false, error: 'That did not go through.' },
+  // a sticky turned into a comment by this session (S4.7's answer: the new thread's id and its op-log action): the
+  // shell remembers the conversion, so that thread's header offers Undo (the fixture's c1 is Tereza's converted sticky)
+  stickyConverted: { ok: true, commentId: 'c1', actionId: 'act-probe-1' },
   // ── routes that never answer / fail (a slow start, a canvas that does not load) ───────────────────
   pngImage: { __png: true },
   brandImportOk: { ok: true, path: 'assets/logo.svg' },
@@ -521,6 +532,11 @@ export const STATES = {
       're:/_comments\\?file=': 'commentsFile',
       're:/_api/git-user': 'viewerIdentity',
     },
+  },
+  // …and the sticky on the board turns into a comment of this session (the stub answers the convert route)
+  'comments-converted': {
+    extends: 'comments',
+    routes: { '/_api/annotations/to-comment': 'stickyConverted' },
   },
   'comments-refused': {
     extends: 'comments',
@@ -968,12 +984,13 @@ export const OPENERS = [
   // ── drawn annotations (the fixture's Home.annotations.svg) ────────────────────────────────────
   {
     id: 'annot-select',
-    steps: [{ frameClick: '.dc-annot-el[data-id="r1"]' }, { wait: 500 }],
+    steps: [PREVIEW, { frameClick: '.dc-annot-el[data-id="r1"]' }, { wait: 500 }],
   },
   // lock it (the badge, then the toolbar offers Unlock), then edit its text
   {
     id: 'annot-lock',
     steps: [
+      PREVIEW,
       { frameClick: '.dc-annot-el[data-id="r1"]' },
       { wait: 400 },
       { frameClick: tid('annot-ctx-lock'), optional: true },
@@ -984,6 +1001,7 @@ export const OPENERS = [
   {
     id: 'annot-edit-note',
     steps: [
+      PREVIEW,
       { frameClick: '.dc-annot-el[data-id="t2"]' },
       { wait: 300 },
       { key: 'Enter' },
@@ -993,11 +1011,133 @@ export const OPENERS = [
   {
     id: 'annot-edit-enter',
     steps: [
+      PREVIEW,
       { frameClick: '.dc-annot-el[data-id="r1"]' },
       { wait: 300 },
       { key: 'Enter' },
       { wait: 600 },
     ],
+  },
+  // ── wave A's annotation surfaces (the fixture's board: stickies, a section, a sticker the AI placed, stamps,
+  // arrows with words / bound / dangling, an open vote) ─────────────────────────────────────────────
+  // an arrow selected: its small toolbar (inks, line, two-way); "+5" opens the other inks
+  {
+    id: 'annot-arrow-sel',
+    steps: [
+      PREVIEW,
+      { frameClick: A('a2') },
+      { wait: 500 },
+      { frameClick: tid('annot-arrow-ink-more'), optional: true },
+      { wait: 300 },
+    ],
+  },
+  // the field a double-click on an arrow opens
+  { id: 'annot-arrow-label-edit', steps: [PREVIEW, { frameDblclick: A('a2') }, { wait: 600 }] },
+  // an arrow whose element is gone: the open circle, then (selected) the card with Point to…
+  { id: 'annot-arrow-dangling', steps: [PREVIEW, { frameClick: A('a3') }, { wait: 600 }] },
+  // a sticky: Resolve · Turn into a comment · List · Size · the other papers
+  {
+    id: 'annot-sticky-sel',
+    steps: [
+      PREVIEW,
+      { frameClick: A('st1') },
+      { wait: 500 },
+      { frameClick: tid('annot-sticky-paper-more'), optional: true },
+      { wait: 300 },
+    ],
+  },
+  // the right-click menu over a sticky (copy … Turn into a comment, Resolve)
+  { id: 'annot-menu-sticky', steps: [PREVIEW, { frameContext: A('st1') }, { wait: 500 }] },
+  // a section by its title chip: Fold · Ask AI about it
+  {
+    id: 'annot-section-sel',
+    steps: [PREVIEW, { frameClick: `${A('sc1')} [data-section-chip]` }, { wait: 500 }],
+  },
+  // a gallery sticker: Flip · Replace… · Duplicate and the size chip
+  { id: 'annot-sticker-sel', steps: [PREVIEW, { frameClick: A('si1') }, { wait: 500 }] },
+  // two annotations (then every one): the toolbar counts them
+  {
+    id: 'annot-select-all',
+    steps: [
+      PREVIEW,
+      { frameClick: A('st1') },
+      { wait: 300 },
+      // Shift adds the sticker to the selection: two annotations, so the bar counts them
+      { frameClick: A('si1'), modifiers: ['Shift'] },
+      { wait: 600 },
+      { frameKey: 'Shift+Meta+A' },
+      { wait: 600 },
+    ],
+  },
+  // the stamps on one spot gathered; hovering opens the list
+  {
+    id: 'annot-stamps-hover',
+    steps: [
+      PREVIEW,
+      { frameHover: `${tid('annot-stamp-cluster')} button`, optional: true },
+      { wait: 500 },
+    ],
+  },
+  // what the shell tells the canvas: the vote open (the "+"), your dots, a vote that ended, the AI's offer
+  {
+    id: 'annot-vote-open',
+    steps: [
+      { frameMsg: voteState({ state: 'open' }) },
+      { wait: 1400 },
+      { frameClick: tid('vote-add-home-hero'), optional: true },
+      { wait: 300 },
+    ],
+  },
+  {
+    id: 'annot-vote-mine',
+    steps: [{ frameMsg: voteState({ state: 'open' }, { 'ab:home-hero': 2 }) }, { wait: 1400 }],
+  },
+  {
+    id: 'annot-vote-ended',
+    steps: [
+      {
+        frameMsg: voteState({
+          state: 'ended',
+          tallies: { 'ab:home-hero': 4, 'ab:home-pricing': 1 },
+        }),
+      },
+      { wait: 1400 },
+    ],
+  },
+  {
+    id: 'annot-ai-seen',
+    steps: [
+      {
+        frameMsg: {
+          dgn: 'ai-seen',
+          targets: [{ ref: 'ab:home-hero', tag: 'The hero picture' }],
+        },
+      },
+      { wait: 600 },
+    ],
+  },
+  // the Marker's two tips (Ink · Thickness / Highlighter · nibs) and the sticky's colours: a popover of each slot
+  {
+    id: 'preview-popovers-tips',
+    steps: [
+      { click: tid('palette-mode-preview') },
+      { frameClick: tid('toolbar-slot-pen') },
+      { frameClick: tid('toolbar-slot-pen') },
+      { frameClick: tid('toolbar-tip-pen'), optional: true },
+      { wait: 300 },
+      { frameClick: tid('toolbar-tip-highlighter'), optional: true },
+      { wait: 300 },
+      { frameClick: tid('toolbar-slot-sticky') },
+      { frameClick: tid('toolbar-slot-sticky') },
+      { wait: 300 },
+    ],
+  },
+  // a Can-comment person lands in Preview, where the Share cluster is compact (the faces step aside — the what-shows
+  // table); Viewing is the full form with the access word, faces and all
+  {
+    id: 'viewing-mode',
+    probes: ['cloud-viewer', 'viewer'],
+    steps: [{ click: tid('palette-mode-viewing'), optional: true }, { wait: 500 }],
   },
   // ── the canvas's own chrome and gestures ─────────────────────────────────────────────────────
   // an artboard dragged by its label: the lifted board, the snap guides (released at the end)
@@ -1020,6 +1160,7 @@ export const OPENERS = [
   {
     id: 'annot-drag',
     steps: [
+      PREVIEW,
       { frameDown: '.dc-annot-el[data-id="r1"]' },
       { mouseMove: [40, 30] },
       { wait: 300 },
@@ -1465,6 +1606,23 @@ export const OPENERS = [
       { frameClick: tid('comment-edit'), optional: true },
     ],
   },
+  // … a converted comment's thread: the ⋯ menu with "Turn back into a sticky", and (the sticky was turned into this
+  // comment in this very session) the header's Undo
+  {
+    id: 'comment-thread-converted',
+    state: 'comments-converted',
+    steps: [
+      PREVIEW,
+      { frameClick: A('st1') },
+      { wait: 500 },
+      { frameClick: tid('annot-ctx-to-comment'), optional: true },
+      { wait: 800 },
+      { frameClick: '[data-comment-pin]', optional: true },
+      { wait: 800 },
+      { frameClick: '[data-testid^="comment-menu-"]', optional: true },
+      { wait: 300 },
+    ],
+  },
   // … and Resolve refused by the door: the canvas's one-sentence notice
   {
     id: 'comment-refused',
@@ -1512,6 +1670,25 @@ export const OPENERS = [
       { post: ['/_api/ui-prefs', { minimap: false, zoom: false }] },
     ],
   },
+  // zoomed out below a quarter: the mosaic. LAST in the list: the camera is remembered per canvas, and every opener
+  // after this one starts from where it was left (the Edit openers press the Hero's title, left of the zoomed view)
+  {
+    id: 'annot-lod',
+    resetCamera: true,
+    steps: [
+      PREVIEW,
+      // ⌃ + wheel over empty canvas: the viewport's zoom gesture; the mosaic takes over below a quarter
+      { wheelZoom: 2400 },
+      { wait: 300 },
+      { wheelZoom: 2400 },
+      { wait: 600 },
+      { frameHover: `${tid('annotations-lod')} [data-lod="section"]`, optional: true },
+      { wait: 500 },
+      // back to the fit (the camera is remembered per canvas: the next opener must find the boards)
+      { key: 'Meta+0' },
+      { wait: 400 },
+    ],
+  },
 ];
 
 // Openers only the shells that draw their surface need to run (the full probe is ~100 openers × 7 shells).
@@ -1538,8 +1715,13 @@ const WHERE = [
     /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
-  [/^(comments-panel|comment-thread|comment-refused)$/, LOCAL],
+  [/^(comments-panel|comment-thread|comment-thread-converted|comment-refused)$/, LOCAL],
 ];
+// Preview eases the camera onto the board in view and the studio remembers it per canvas (`_canvas-state/<slug>.view.json`):
+// an opener that went to Preview gives the camera back, so the Edit openers after it (the Hero's title, a board's label)
+// find the boards where they stood
+for (const o of OPENERS)
+  if (JSON.stringify(o.steps).includes('palette-mode-preview')) o.resetCamera = true;
 for (const o of OPENERS) {
   const hit = WHERE.find(([re]) => re.test(o.id));
   if (hit && !o.probes) o.probes = hit[1];

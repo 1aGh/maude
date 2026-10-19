@@ -41,6 +41,113 @@ export const ANNOTATION_ACTIONS: ActionDef[] = [
     ...mods('⌫', '⇧', 'selection', { when: ANN }),
     ...mods('⌦', '⇧', 'selection', { when: ANN }),
   ]),
+  // S4.11 (an-dangling): re-aim an arrow end at another element or artboard edge. The dangling card's
+  // button and this row do the same; with a lost end selected it is that end, else the arrow's end.
+  {
+    id: 'annotation.point-to',
+    label: 'Point to…',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['arrow', 'point', 'bind', 're-aim', 'dangling'] },
+  },
+  // S4.12 (an-sticky, an-section, an-convert): the sticky and section rows. The layer answers all of them on
+  // the `run-action` lane; the sticky menu, the small toolbar and ⌘K reach the same code.
+  {
+    id: 'annotation.resolve',
+    label: 'Resolve',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['resolve', 'reopen', 'done', 'sticky', 'strike'] },
+  },
+  {
+    id: 'annotation.fan-out',
+    label: 'Fan out',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['stack', 'spread', 'sticky', 'row'] },
+  },
+  {
+    id: 'annotation.to-comment',
+    label: 'Turn into a comment',
+    kind: 'command',
+    exec: 'canvas',
+    icon: 'comment',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['comment', 'thread', 'sticky', 'convert', 'answer'] },
+  },
+  {
+    id: 'annotation.fold',
+    label: 'Fold section',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['fold', 'unfold', 'collapse', 'section', 'expand'] },
+  },
+  // ⌘/ with annotations selected asks the AI about them (the AI chat's scope chip reads
+  // `annotation-selection`). Its own scope — Preview + an annotation selection — so it never meets
+  // `ai.ask-selection` (Edit + an object selection) or `ai.chat` (the shell's foci).
+  {
+    id: 'annotation.ask-ai',
+    label: 'Ask AI about this',
+    kind: 'command',
+    exec: 'canvas',
+    icon: 'sparkle',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    keys: [kb('⌘/', 'selection', { when: ANN_PREVIEW })],
+    search: { keywords: ['ask ai', 'sticky', 'section', 'selection'] },
+  },
+];
+
+// S4.9 (C29): resolved stickies stay struck through in place; this hides them for the person who
+// asks. Per person (Q8: annotationPrefs), never in the file, so it is a view preference.
+export const VISIBILITY_ACTIONS: ActionDef[] = [
+  {
+    id: 'annotations.hide-resolved',
+    label: 'Hide resolved stickies',
+    kind: 'command',
+    exec: 'canvas',
+    visible: { minRole: 'view' },
+    search: { keywords: ['resolved', 'done', 'sticky', 'hide', 'show'] },
+  },
+  // S4.12 (the ⌘K "resolved" frame, canvas 15): clearing up is a search away.
+  {
+    id: 'annotations.trash-resolved',
+    label: 'Move resolved stickies to the trash',
+    kind: 'command',
+    exec: 'canvas',
+    icon: 'trash',
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
+    search: { keywords: ['resolved', 'trash', 'clear', 'sticky', 'done', 'delete'] },
+  },
+  // S4.14 (Gate 0 A18) — a formal vote. The canvas answers with its artboards (`vote-board {open}`) and
+  // the shell opens the sheet; the artboard's right-click row sends the same. Editors start and end.
+  {
+    id: 'annotations.start-vote',
+    label: 'Start a vote…',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
+    search: { keywords: ['vote', 'poll', 'dot', 'decide', 'ballot', 'pick'] },
+  },
+  {
+    id: 'annotations.end-vote',
+    label: 'End vote',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
+    search: { keywords: ['vote', 'end', 'finish', 'results', 'count'] },
+  },
+  {
+    id: 'annotations.select-resolved',
+    label: 'Select resolved stickies',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { facts: ['canvasOpen'] },
+    search: { keywords: ['resolved', 'select', 'sticky', 'done'] },
+  },
 ];
 
 // S4.4: one ⌘K row per whiteboard template ("Kanban template"). The shell runs it (menu-runner.js

@@ -247,8 +247,16 @@ const HOLD_TEXT_MAX = 120;
 const HOLDS_MAX = 256;
 const holdText = (v) => typeof v === 'string' && v.length > 0 && v.length <= HOLD_TEXT_MAX;
 
+/** S2.19 — the ring tag of a ⌘/ ask on `n` elements: a fixed phrase and a count, never a word of the prompt. */
+export const scopeTag = (n) => `AI is working on ${n} ${n === 1 ? 'element' : 'elements'}`;
+
+const holdKey = (o) =>
+  `${o?.artboard}\u0000${o?.element}\u0000${Number.isInteger(o?.occurrence) ? o.occurrence : ''}`;
+/** The keys of the elements a run was ASKED about (its scope's `elements`), not the ones it touched since. */
+const askedKeys = (r) => new Set((r?.scope?.elements || []).map(holdKey));
+
 /**
- * `[{artboard, element, occurrence?, tag, mine}]` — the objects running / needs-you runs hold on the open
+ * `[{artboard, element, occurrence?, tag, mine, scope?}]` — the objects running / needs-you runs hold on the open
  * canvas (a run's `objects`). The tag is the ring's fixed phrase (v2-lead-neutral-ai-ring-tags): built from
  * the state and the holder's NAME only. A run's label (its prompt), question and progress line never reach
  * the canvas — it is the untrusted side (DDR-054). One row per object; your run wins a shared object.
@@ -256,7 +264,7 @@ const holdText = (v) => typeof v === 'string' && v.length > 0 && v.length <= HOL
 export function holdsFor(view, { activeCanvas, entryOf } = {}) {
   const out = [];
   const seen = new Set();
-  const add = (o, tag, mine) => {
+  const add = (o, tag, mine, scoped = false) => {
     if (out.length >= HOLDS_MAX || !o || !onCanvas(o, activeCanvas, entryOf)) return;
     if (!holdText(o.artboard) || !holdText(o.element)) return;
     const occ =
@@ -272,13 +280,20 @@ export function holdsFor(view, { activeCanvas, entryOf } = {}) {
       ...(occ !== undefined ? { occurrence: occ } : {}),
       tag,
       mine,
+      ...(scoped ? { scope: true } : {}),
     });
   };
   const holding = (s) => s === 'running' || s === 'needs-you';
   for (const r of view?.mine || []) {
     if (!r || !holding(r.state)) continue;
+    // S2.19 — a ⌘/ ask on a selection: the asked elements are ONE outline on the canvas, tagged with how many
+    const asked = askedKeys(r);
     const tag = r.state === 'needs-you' ? TAG_NEEDS_YOU : TAG_WORKING;
-    for (const o of r.objects || []) add(o, tag, true);
+    const askedTag = r.state === 'needs-you' ? TAG_NEEDS_YOU : scopeTag(asked.size);
+    for (const o of r.objects || []) {
+      const hit = asked.has(holdKey(o));
+      add(o, hit ? askedTag : tag, true, hit);
+    }
   }
   for (const o of view?.others || []) {
     if (!o || !holding(o.state)) continue;
@@ -287,6 +302,63 @@ export function holdsFor(view, { activeCanvas, entryOf } = {}) {
     for (const x of o.objects || []) add(x, tag.slice(0, HOLD_TEXT_MAX), false);
   }
   return out;
+}
+
+// ── the spot an answered question points at (dgn `ai-holds` rows with `point`, S5.19) ──────────────────
+
+/** How long a question's spot stays marked after the answer (a click puts it away sooner, canvas side). */
+export const POINT_MS = 20000;
+
+/**
+ * `[{artboard, element, occurrence?, tag, mine, point: true}]` — 03 `ai-question`: "AI points at the spot it means
+ * with a small spark ring". The newest run of YOURS that ended `done` having changed nothing (`touched` is empty —
+ * a question) and was asked about elements marks those elements on the open canvas for `POINT_MS`. The tag is
+ * the element's NAME (its id, humanized) and nothing else: the prompt and the answer never reach the canvas
+ * (DDR-054, v2-lead-neutral-ai-ring-tags).
+ */
+export function pointsFor(view, { activeCanvas, entryOf, now = Date.now() } = {}) {
+  let best = null;
+  for (const r of view?.mine || []) {
+    if (!r || r.state !== 'ended' || r.outcome !== 'done' || !Number.isFinite(r.endedAt)) continue;
+    if (now - r.endedAt > POINT_MS || r.endedAt > now + POINT_MS) continue;
+    if (Object.keys(r.touched || {}).length) continue;
+    if (!Array.isArray(r.scope?.elements) || !r.scope.elements.length) continue;
+    if (!best || r.endedAt > best.endedAt) best = r;
+  }
+  if (!best) return [];
+  const out = [];
+  const seen = new Set();
+  for (const o of best.scope.elements) {
+    if (out.length >= HOLDS_MAX || !onCanvas(o, activeCanvas, entryOf)) continue;
+    if (!holdText(o.artboard) || !holdText(o.element)) continue;
+    const key = holdKey(o);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const occ =
+      Number.isInteger(o.occurrence) && o.occurrence >= 0 && o.occurrence < 10000
+        ? o.occurrence
+        : undefined;
+    out.push({
+      artboard: o.artboard,
+      element: o.element,
+      ...(occ !== undefined ? { occurrence: occ } : {}),
+      tag: humanize(o.element).slice(0, HOLD_TEXT_MAX),
+      mine: true,
+      point: true,
+    });
+  }
+  return out;
+}
+
+/** When the marked spot lets go (ms epoch), for the relay's timer; null = nothing marked. */
+export function pointExpiry(view, now = Date.now()) {
+  let at = null;
+  for (const r of view?.mine || []) {
+    if (r?.state !== 'ended' || r.outcome !== 'done' || !Number.isFinite(r.endedAt)) continue;
+    const end = r.endedAt + POINT_MS;
+    if (end > now && (at === null || end > at)) at = end;
+  }
+  return at;
 }
 
 // ── the waiting card ───────────────────────────────────────────────────────────────────────────────
@@ -355,4 +427,26 @@ export function estimateFor(view, run, now) {
     elapsedMs: now - (holderMine.startedAt ?? holder.since),
     medianMs: medianTurnMs(view, holderMine.chatId),
   });
+}
+
+// ── the run list's width (03 `ai-two-artboards`) ───────────────────────────────────────────────────
+
+/** The list's natural width (runs.css `.ai-runs`). */
+export const RUN_LIST_WIDTH = 320;
+
+/**
+ * S5.18 G1 — the list hangs from the ✦ N button's right edge. In a narrow dock column (288 px) its natural
+ * width would run out past the column's left edge and be clipped; it narrows to what fits instead, never wider
+ * than `natural`, never past `boundsLeft` (the column's, else the window's, left edge) plus a margin.
+ */
+export function fitRunListWidth({
+  anchorRight,
+  boundsLeft = 0,
+  natural = RUN_LIST_WIDTH,
+  margin = 8,
+  floor = 160,
+} = {}) {
+  if (!Number.isFinite(anchorRight)) return natural;
+  const room = anchorRight - Math.max(Number.isFinite(boundsLeft) ? boundsLeft : 0, 0) - margin;
+  return Math.max(floor, Math.min(natural, Math.floor(room)));
 }

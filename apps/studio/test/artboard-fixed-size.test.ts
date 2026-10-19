@@ -161,14 +161,14 @@ describe('a fixed artboard is its declared size', () => {
     expect(m.foot?.h).toBeCloseTo(20, 0);
   });
 
-  test('content does not move: the surface still starts right under the label', async () => {
+  // gate-a-polish: the name is no longer a strip inside the frame. It is drawn above it (constant 11 screen px, the
+  // 04/14 canvases), so the surface starts at the frame's top and the frame is exactly the declared size.
+  test('the name sits above the frame: the surface starts at the frame top, the frame wraps only the design', async () => {
     const m = (await measure()).fixed;
-    // The label stays inside the frame at its top (the v1 look) and the body
-    // follows it — so nothing on an existing canvas shifts; the frame only
-    // grows at the bottom by the label height.
     expect(m.label).not.toBeNull();
-    expect(m.body?.y).toBeCloseTo((m.label?.y ?? 0) + (m.label?.h ?? 0), 0);
-    expect(m.label?.y).toBeCloseTo(m.frame.y + 1, 0); // 1 px frame border
+    expect((m.label?.y ?? 0) + (m.label?.h ?? 0)).toBeLessThanOrEqual(m.frame.y + 0.5);
+    expect(m.body?.y).toBeCloseTo(m.frame.y + 1, 0); // 1 px frame border
+    expect(m.frame.h - 2).toBeCloseTo(H, 0);
   });
 
   test('hug artboards are untouched: the floor is still the frame, content still drives it', async () => {
@@ -223,7 +223,7 @@ describe('a fixed artboard is its declared size', () => {
     expect((hug?.y ?? 0) - (fixed?.y ?? 0)).toBeCloseTo(0, 0);
   });
 
-  test('screenshot --screen captures the whole design: label strip + the full declared surface', async () => {
+  test('screenshot --screen captures the whole design: the full declared surface', async () => {
     const file = join(out, 'shot.png');
     const r = Bun.spawnSync([
       'bun',
@@ -241,8 +241,9 @@ describe('a fixed artboard is its declared size', () => {
     const m = (await measure()).fixed;
     const size = pngSize(file);
     // The shot is taken at the canvas's own fit zoom, so compare SHAPE, not
-    // pixels: frame = border + label + the FULL surface + border.
-    const want = (2 + (m.label?.h ?? 0) + H) / (W + 2);
+    // pixels: frame = border + the FULL surface + border (the name is drawn above the frame).
+    const want = (2 + H) / (W + 2);
+    expect(m.frame.h).toBeGreaterThan(0);
     expect(size.h / size.w).toBeCloseTo(want, 1);
     expect(Math.abs(size.h / size.w - want)).toBeLessThan(0.02);
   }, 120_000);

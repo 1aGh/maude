@@ -51,8 +51,15 @@ export interface ContextTarget {
 export interface MenuItem {
   id: string;
   label: string;
+  /**
+   * S2.22 — the label for THIS click, when it names what was clicked (`Ask AI about “Desktop”`). Falsy
+   * falls back to the static `label`, which stays the word every list, test and screen reader can rely on.
+   */
+  labelOf?: (target: ContextTarget) => string | null | undefined;
   /** Right-aligned shortcut hint (e.g. `⌘C`, `⌫`). */
   shortcut?: string;
+  /** S2.22 — a quiet word beside the row where there is no shortcut ("same style" on Select matching). */
+  note?: string;
   destructive?: boolean;
   /**
    * A FUNCTION form is resolved per-click against `target` — same rationale as
@@ -185,32 +192,38 @@ interface InternalState {
 }
 
 const MENU_CSS = `
+/* gate-a-polish: the popover plane of the v2 kit (_kit.css .k-menu) — opaque chrome surface, radius-lg, the
+   large shadow + 0.5px edge hairline, the BODY face at 12px; mono is for Advanced and code only. Reads the
+   --maude-chrome-* family (the canvas iframe has no island tokens; the shell maps the same names). */
 .dc-context-menu {
   position: fixed;
   z-index: 7;
-  background: var(--maude-chrome-bg-0, #fff);
-  border: 1px solid var(--maude-chrome-fg-0, #1c1917);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent));
+  background: var(--maude-chrome-bg-2, #fff);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)), inset 0 0 0 0.5px var(--maude-chrome-border, rgba(0,0,0,0.08));
   padding: 4px;
   min-width: 220px;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
+  line-height: 1.42;
+  font-weight: 400;
   color: var(--maude-chrome-fg-0, rgba(20,15,10,0.92));
   user-select: none;
 }
 .dc-context-menu .dc-menu-sep {
   height: 1px;
   background: var(--maude-chrome-border, rgba(0,0,0,0.08));
-  margin: 4px -4px;
+  margin: 4px 8px;
 }
 .dc-context-menu .dc-menu-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 5px 12px;
-  border-radius: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 6px;
   cursor: pointer;
   background: transparent;
   border: 0;
@@ -237,15 +250,19 @@ const MENU_CSS = `
   opacity: 0.45;
   cursor: not-allowed;
 }
-.dc-context-menu .dc-menu-item.is-destructive:hover,
-.dc-context-menu .dc-menu-item.is-destructive:focus-visible {
-  background: #c0392b;
-  color: #fff;
+/* Destructive rows read in the error text colour (_kit.css .k-mi--danger) and keep it on hover; they
+   no longer flood red. */
+.dc-context-menu .dc-menu-item.is-destructive {
+  color: var(--maude-chrome-error, #c0392b);
+}
+.dc-context-menu .dc-menu-note {
+  color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55));
+  font-size: 11px;
 }
 .dc-context-menu .dc-menu-shortcut {
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55));
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-family: inherit;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 /* Submenu flyout (Theme ▸ …). Anchored to the right of its parent row; flips
@@ -258,10 +275,10 @@ const MENU_CSS = `
   left: calc(100% + 3px);
   min-width: 196px;
   padding: 4px;
-  background: var(--maude-chrome-bg-0, #fff);
-  border: 1px solid var(--maude-chrome-fg-0, #1c1917);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent));
+  background: var(--maude-chrome-bg-2, #fff);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)), inset 0 0 0 0.5px var(--maude-chrome-border, rgba(0,0,0,0.08));
   z-index: 8;
 }
 .dc-context-menu .dc-menu-flyout.is-flip { left: auto; right: calc(100% + 3px); }
@@ -414,6 +431,14 @@ export function ContextMenuView({
       ref={ref}
       className="dc-context-menu"
       role="menu"
+      // a11y gate W7: a menu needs a name; which one follows what was right-clicked
+      aria-label={
+        target.kind === 'artboard-chrome'
+          ? 'Artboard actions'
+          : target.kind === 'element'
+            ? 'Object actions'
+            : 'Canvas actions'
+      }
       data-esc-owner=""
       style={{ left: pos.x, top: pos.y }}
     >
@@ -474,8 +499,12 @@ function MenuItemRow({
           onClose();
         }}
       >
-        <span>{item.label}</span>
-        {item.shortcut ? <span className="dc-menu-shortcut">{item.shortcut}</span> : null}
+        <span>{item.labelOf?.(target) || item.label}</span>
+        {item.shortcut ? (
+          <span className="dc-menu-shortcut">{item.shortcut}</span>
+        ) : item.note ? (
+          <span className="dc-menu-note">{item.note}</span>
+        ) : null}
       </button>
     );
   }
@@ -528,7 +557,7 @@ function MenuItemRow({
           }
         }}
       >
-        <span>{item.label}</span>
+        <span>{item.labelOf?.(target) || item.label}</span>
         <span className="dc-menu-caret" aria-hidden="true">
           ▸
         </span>
@@ -538,6 +567,7 @@ function MenuItemRow({
           ref={flyoutRef}
           className={`dc-menu-flyout${flip ? ' is-flip' : ''}`}
           role="menu"
+          aria-label={item.labelOf?.(target) || item.label}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >

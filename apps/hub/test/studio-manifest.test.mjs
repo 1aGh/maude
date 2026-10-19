@@ -185,6 +185,30 @@ test('a viewer may read, comment and keep their own place — and nothing else',
   assert.equal(decide('POST', '/_api/git/commit', 'viewer').allow, false);
 });
 
+test('Can comment draws nothing: annotation ops, the FigJam import and the sticky doors are refused, a member’s are not', () => {
+  // S4.16 (canvas 15 an-viewer) - the same answer the local gate gives (apps/studio test/access-role-matrix.test.ts).
+  for (const path of [
+    '/_api/annotations',
+    '/_api/annotations/ops',
+    '/_api/annotations/figjam',
+    '/_api/annotations/to-comment',
+    '/_api/comments/to-sticky',
+  ]) {
+    const method = path === '/_api/annotations' ? 'PUT' : 'POST';
+    assert.equal(
+      decide(method, path, 'viewer').allow,
+      false,
+      `${path} reached a Can comment viewer`
+    );
+    assert.equal(
+      decide(method, path, 'observer').allow,
+      false,
+      `${path} reached a Can view observer`
+    );
+    assert.equal(decide(method, path, 'member').allow, true, `${path} refused a member`);
+  }
+});
+
 test('a viewer may not switch the branch everyone else is looking at', () => {
   // Cloud Phase 27 D2. Both of these were `read`, on the reasoning that
   // "looking at another branch is not changing one" — true for ONE user at ONE

@@ -21,12 +21,29 @@ export async function expandTree(): Promise<void> {
   }
 }
 
+/**
+ * The default lane drives ONE app process through every spec, so the left dock stays on whatever tab
+ * the last spec left it on (Layers, after an unlock). The Files rows only exist on the Files tab.
+ */
+export async function ensureFilesTab(): Promise<void> {
+  // esbuild keepNames needs the shell window to carry `__name` (see helpers/sidecar.ts installNameShim)
+  await browser.execute(() => {
+    const w = window as unknown as { __name?: unknown };
+    if (!w.__name) w.__name = (f: unknown) => f;
+  });
+  await browser.execute(() => {
+    const tab = document.querySelector<HTMLElement>('[data-testid="panel-tab-tree"]');
+    if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
+  });
+}
+
 /** A canvas row by its test id, revealed first. */
 export async function canvasRow(testId: string) {
   const sel = `[data-testid="${testId}"]`;
   await browser.waitUntil(
     async () => {
       if (await $(sel).isExisting()) return true;
+      await ensureFilesTab();
       await expandTree();
       return $(sel).isExisting();
     },

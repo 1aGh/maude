@@ -20,7 +20,14 @@ const labelOf = (format) =>
   String(format).toUpperCase();
 
 /** @param other the "Other…" button node, drawn after the formats */
-export function ImageSection({ state, setFormat, set, other, annotationsOff = false }) {
+export function ImageSection({
+  state,
+  setFormat,
+  set,
+  other,
+  annotationsOff = false,
+  annotationsNote,
+}) {
   const raster = RASTER.has(state.format);
   const formats = IMAGE_FORMATS.map(([id, label]) => ({
     id,
@@ -64,9 +71,9 @@ export function ImageSection({ state, setFormat, set, other, annotationsOff = fa
           />
         </Row>
       ) : null}
-      <Row k="Annotations" testid="export-row-annotations">
+      <Row k="Annotations" note={annotationsNote} testid="export-row-annotations">
         <Check
-          checked={state.annotations}
+          checked={state.annotations && !annotationsOff}
           disabled={annotationsOff}
           sub={ANNOTATIONS_SUB}
           testid="export-include-annotations"

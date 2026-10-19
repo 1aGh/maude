@@ -4,7 +4,6 @@
 import { ThreadPrimitive, useThread } from '@assistant-ui/react';
 import { StIcon } from '../../shell/icons.jsx';
 import { lastUserText } from '../../panels/acp-runtime.js';
-import { Spark, Swatches } from './icons.jsx';
 import { deriveSuggestions } from './suggest-why.js';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
@@ -16,43 +15,17 @@ export const QUICK_ACTIONS = [
   { label: '/design:screenshot', prompt: '/design:screenshot' },
 ];
 
-export const SUGGESTIONS = [
-  '/design:edit make the primary button more prominent',
-  '/design:critic',
-  '/design:new Pricing "a 3-tier pricing page"',
-];
-
 export function ChatEmpty() {
   return (
     <div className="chat-empty">
-      <span className="chat-empty-mark">
-        <Spark size={28} />
-      </span>
       <div className="chat-empty-title" data-testid="ai-hint">
         Ask for a change, a few variants, or an answer.
       </div>
       <div className="chat-empty-sub">AI works on what the chip says.</div>
-      {/* One-time contextual CTA: bootstrap a design system. Prefills the guided
-          wizard (name is required, so we never fire it blind — the composer opens
-          ready for the slug). The slash verbs sit below (S5.8: the persistent row is gone, 03 has none). */}
-      <ThreadPrimitive.Suggestion
-        prompt="/design:setup-ds "
-        send={false}
-        className="chat-empty-cta"
-      >
-        <span className="chat-empty-cta-ic">
-          <Swatches size={15} />
-        </span>
-        Create new design system
-      </ThreadPrimitive.Suggestion>
-      <QuickActions />
-      <div className="chat-sugs">
-        {SUGGESTIONS.map((s) => (
-          <ThreadPrimitive.Suggestion key={s} prompt={s} send={false} className="chat-sug">
-            {s}
-          </ThreadPrimitive.Suggestion>
-        ))}
-      </div>
+      {/* S5.17 G4 — 03 `ai-open` draws only this hint and the one suggestion strip above the field
+          (SuggestStrip). The v1 "Create new design system" CTA, the four /design:* verb buttons and the
+          three slash suggestions are gone from the EMPTY state only: every /design:* verb (setup-ds
+          included) is still one `/` away in the composer's slash menu, and QuickActions stays exported. */}
     </div>
   );
 }
@@ -111,6 +84,7 @@ export function SuggestStrip({
   selectedClips = 0,
   justShared = null,
   enabled = true,
+  lastFailed = false,
 }) {
   const lastAsk = useThread((t) => lastUserText(t.messages) || '');
   const sug = deriveSuggestions({
@@ -119,6 +93,7 @@ export function SuggestStrip({
     selectedClips,
     justShared,
     lastAsk: lastAsk ? { text: lastAsk } : null,
+    lastFailed,
   });
   if (!sug) return null;
   return (

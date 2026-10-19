@@ -78,7 +78,7 @@ function ownText(el: Element): string {
   return t.replace(/\s+/g, ' ').trim();
 }
 
-function crumbNodeOf(el: Element): CrumbNode {
+export function crumbNodeOf(el: Element): CrumbNode {
   const id = el.getAttribute('data-cd-id');
   const occ = id ? occurrenceOf(el, id) : 0;
   return {
@@ -147,7 +147,8 @@ export function describeSelection(
       elements: el.children.length,
       hasText: ownText(el).length > 0,
       component: el.hasAttribute('data-dc-component'),
-      shape: el.hasAttribute('data-shape'),
+      shape: el.hasAttribute('data-shape') && el.getAttribute('data-shape') !== 'path',
+      path: el.getAttribute('data-shape') === 'path',
     }),
   };
 }
@@ -171,7 +172,7 @@ const CSS_TEXT = `
   border-radius: 3px;
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, sans-serif);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   transform: translateY(calc(-100% - 4px));
@@ -246,6 +247,11 @@ export function EditingSelection({ readOnly = false }: { readOnly?: boolean }) {
 type HoverArg = Parameters<typeof hoverTargetToSelection>[0];
 const selectionOf = (el: Element, cdId: string | null, artboardId: string | null) =>
   hoverTargetToSelection({ el, cdId, artboardId } as HoverArg);
+
+/** S2.21 — the selection that names `el` (a stamped object), for the keyboard walk (tab-order.tsx). */
+export function selectionForElement(el: Element): Selection {
+  return selectionOf(el, el.getAttribute('data-cd-id'), artboardIdOf(el));
+}
 
 /** The first stamped object inside `sel` (↵ / `object.enter`), or null when it has none. */
 export function enterSelection(doc: Document, sel: Selection): Selection | null {

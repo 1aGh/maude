@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -43,20 +44,28 @@ function rectOf(text: string): Promise<{ x: number; y: number; id: string | null
   }, text);
 }
 
-async function click(x: number, y: number): Promise<void> {
+/** `deep`: ⌘-click — a bare Edit click selects the TOP-level object (the content wrapper), ⌘ the element under it. */
+async function click(x: number, y: number, deep = false): Promise<void> {
   await browser.execute(
-    (px, py) => {
+    (px, py, meta) => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
       const doc = frame.contentDocument as Document;
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click']) {
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+          new MouseEvent(type, {
+            bubbles: true,
+            clientX: px,
+            clientY: py,
+            button: 0,
+            metaKey: meta,
+          })
         );
       }
     },
     x,
-    y
+    y,
+    deep
   );
 }
 
@@ -94,7 +103,8 @@ describe('follow a link and back (S3.10a)', () => {
         '<h1 data-cd-id="smoke-h1" data-cd-link="ui/Cut.tsx#cut" data-testid="smoke-h1"'
       )
     );
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await rectOf(HEADING))?.id === 'smoke-h1', {
       timeout: 15000,
       timeoutMsg: 'the linked heading never appeared on the canvas',
@@ -103,21 +113,21 @@ describe('follow a link and back (S3.10a)', () => {
   after(() => fixtures.restore());
 
   it('Edit: selecting the linked heading shows the chip; nothing is written', async () => {
-    const report = startReport('modes-present-links-chip');
+    startReport('modes-present-links-chip');
     const before = source();
     const h1 = await rectOf(HEADING);
-    await click(h1!.x, h1!.y);
+    await click(h1!.x, h1!.y, true);
     await browser.waitUntil(async () => (await inFrame('edit-link-chip')) !== null, {
       timeout: 6000,
       timeoutMsg: 'the link chip never showed in Edit',
     });
     expect(await inFrame('edit-link-chip')).toContain('Go to Cut');
-    await capture(report, 'edit-chip');
+    await capture('edit-chip');
     expect(source()).toBe(before);
   });
 
   it('Preview: a click follows the link to Cut; the bar says where back goes', async () => {
-    const report = startReport('modes-present-links-follow');
+    startReport('modes-present-links-follow');
     await chord('p', { metaKey: true, altKey: true, code: 'KeyP' });
     await $('[data-testid="preview-bar"]').waitForExist({ timeout: 8000 });
     expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
@@ -131,18 +141,18 @@ describe('follow a link and back (S3.10a)', () => {
     });
     expect(await barText('preview-bar-title')).toContain('Cut');
     expect(await barText('preview-bar-back')).toContain('Smoke');
-    await capture(report, 'preview-on-cut');
+    await capture('preview-on-cut');
   });
 
   it('Back: the bar’s back button returns to Smoke and the button goes', async () => {
-    const report = startReport('modes-present-links-back');
+    startReport('modes-present-links-back');
     await $('[data-testid="preview-bar-back"]').click();
     await browser.waitUntil(async () => (await barText('preview-bar-title')).includes('Smoke'), {
       timeout: 10000,
       timeoutMsg: 'back never returned to the first canvas',
     });
     expect(await $('[data-testid="preview-bar-back"]').isExisting()).toBe(false);
-    await capture(report, 'back-on-smoke');
+    await capture('back-on-smoke');
     // leave Preview the ordinary way: esc is unchanged by links
     await chord('Escape', { code: 'Escape' });
   });

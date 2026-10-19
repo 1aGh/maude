@@ -82,6 +82,40 @@
     color: var(--fg-1);
     overflow-wrap: anywhere;
   }
+  /* S5.17b: the failure card's › Advanced (the raw message lives behind it) */
+  .ai-nc-adv {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: calc(22px + var(--space-2));
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .ai-nc-adv:hover {
+    color: var(--fg-0);
+  }
+  .ai-nc-adv:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  .ai-nc-adv-ch {
+    display: inline-grid;
+    transition: transform var(--dur-flip);
+  }
+  .ai-nc-adv[aria-expanded="true"] .ai-nc-adv-ch {
+    transform: rotate(90deg);
+  }
+  .ai-nc-raw {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
   .ai-nc-fine {
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
@@ -107,13 +141,18 @@
     white-space: nowrap;
   }
   /* Decline keeps `.btn--danger` (the desktop e2e reads it) but is drawn quiet: "Not now" is not an alarm. */
-  .ai-nc-decline {
+  /* (gate-a-polish: `.maude .btn--danger` is 0,2,0 and painted this red; the selector below is 0,3,0 so the
+     decline really is the plain button 03 draws, hover included.) */
+  .ai-nc-a .btn.ai-nc-decline {
     background: var(--bg-3);
+    border-color: transparent;
     color: var(--fg-1);
     box-shadow: inset 0 0 0 0.5px var(--border-default);
   }
-  .ai-nc-decline:hover:not(:disabled) {
+  .ai-nc-a .btn.ai-nc-decline:hover:not(:disabled) {
     background: var(--bg-4);
+    border-color: transparent;
+    color: var(--fg-0);
   }
 
   /* "Always for this canvas" gets its own line so the two verbs never wrap. */
@@ -157,16 +196,34 @@
     gap: 2px;
     padding-left: calc(22px + var(--space-1));
   }
+  /* S5.17b: a row IS the answer (03 draws picks, no Send) — a button, so arrow keys never answer by themselves. */
   .ai-nc-opt {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    width: 100%;
     min-height: 36px;
     padding: 0 var(--space-2);
+    border: 0;
     border-radius: var(--radius-sm);
+    background: transparent;
     box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: inherit;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
     transition: background var(--dur-flip);
+  }
+  .ai-nc-opt:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 1px;
+  }
+  .ai-nc-opt-ic {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    color: var(--fg-2);
   }
   .ai-nc-opt:hover {
     background: var(--bg-3);
@@ -174,9 +231,15 @@
   .ai-nc-opt[aria-current="true"] {
     box-shadow: inset 0 0 0 1px var(--accent);
   }
-  .ai-nc-opt input {
-    flex: none;
-    accent-color: var(--accent);
+  /* S5.18 G6: an answered question — the rows are read only, the picked one keeps its ring */
+  .ai-nc-choice--settled .ai-nc-opt {
+    cursor: default;
+  }
+  .ai-nc-choice--settled .ai-nc-opt:hover {
+    background: transparent;
+  }
+  .ai-nc-choice--settled .ai-nc-opt:not([aria-current="true"]) {
+    color: var(--fg-2);
   }
   .ai-nc-opt-t {
     display: flex;

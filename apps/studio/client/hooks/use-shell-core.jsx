@@ -25,6 +25,7 @@ import {
   isModuleCanvasPath,
 } from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
+import { isArtboardSelectionOf } from '../selection-scope.js';
 import { setPresentSource, shellMode, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
 import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
@@ -107,14 +108,16 @@ export function useShellCore({}) {
   // server's echo is recognised even before `selectedRef` (an effect) catches up (V2-2.8 P2).
   const lastLocalSelectRef = useRef({ at: 0, sel: null, file: null });
   const haloRestoreTimersRef = useRef([]);
-  const scheduleHaloRestore = useCallback((one) => {
+  // `lead` — the first post's delay. A canvas that just reloaded after the person's own write (a drawing, a paste)
+  // is about to select what it made; the first post waits for that, so it never lands on top of it (S2.23).
+  const scheduleHaloRestore = useCallback((one, lead = 50) => {
     if (!one?.id || !one.file) return;
     for (const t of haloRestoreTimersRef.current) clearTimeout(t);
-    haloRestoreTimersRef.current = [50, 450, 1200, 2500, 5000].map((delay) =>
+    haloRestoreTimersRef.current = [lead, 450, 1200, 2500, 5000].map((delay) =>
       setTimeout(() => {
         const cur = selectedRef.current;
         const c1 = Array.isArray(cur) ? cur[0] : cur;
-        if (!c1 || c1.id !== one.id || c1.file !== one.file) return; // superseded
+        if (!c1 || c1.id !== one.id || (c1.file && c1.file !== one.file)) return; // superseded (the canvas's own select-set names no file, S2.23)
         const frame = iframesRef.current.get(one.file);
         if (!frame?.contentWindow) return;
         try {
@@ -141,14 +144,14 @@ export function useShellCore({}) {
   // for a bare ARTBOARD selection (no data-cd-id to key off of — compares
   // by artboardId instead of id).
   const artboardResyncTimersRef = useRef([]);
-  const scheduleArtboardResync = useCallback((artboardId, file) => {
+  const scheduleArtboardResync = useCallback((artboardId, file, lead = 50) => {
     if (!artboardId || !file) return;
     for (const t of artboardResyncTimersRef.current) clearTimeout(t);
-    artboardResyncTimersRef.current = [50, 450, 1200, 2500, 5000].map((delay) =>
+    artboardResyncTimersRef.current = [lead, 450, 1200, 2500, 5000].map((delay) =>
       setTimeout(() => {
         const cur = selectedRef.current;
         const c1 = Array.isArray(cur) ? cur[0] : cur;
-        if (!c1 || c1.artboardId !== artboardId || c1.file !== file) return; // superseded
+        if (!isArtboardSelectionOf(c1, artboardId, file)) return; // superseded
         const frame = iframesRef.current.get(file);
         if (!frame?.contentWindow) return;
         try {

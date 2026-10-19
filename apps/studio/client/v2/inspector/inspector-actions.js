@@ -22,6 +22,8 @@ export const INSPECTOR_ACTION_IDS = Object.freeze([
   'inspector.copy-code',
   'inspector.edit-css-as-text',
   'element.detach',
+  // S2.17 — an instance's door to its main component (bound by kinds/instance.jsx; S10's `ds.go-to` does the going)
+  'component.go-to-main',
   // S3.11 — the Inspect panel's primary action (bound by inspect-panel.jsx)
   'inspect.copy-code',
 ]);

@@ -34,6 +34,7 @@ import {
 import { TOOL_CURSORS } from './canvas-cursors.ts';
 import type { Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { openToolPanel, panelOnArm } from './toolbars/tool-panel.ts';
 
 /** V2-4.3b — the governed path (V2-1.2 §5.4): once the shell has sent its first `set-mode`, the mode
  *  is the shell's. A gesture that would cross modes asks the shell (`mode-request`) instead of moving
@@ -143,6 +144,10 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   { id: 'line', label: 'Line', shortcut: '', cursor: TOOL_CURSORS.line },
   { id: 'polygon', label: 'Polygon', shortcut: '', cursor: TOOL_CURSORS.polygon },
   { id: 'slice', label: 'Export area', shortcut: '', cursor: TOOL_CURSORS.slice },
+  // S2.14 — Edit's Pen (editing/pen/draw.tsx)
+  { id: 'el-pen', label: 'Pen', shortcut: 'P', cursor: TOOL_CURSORS['el-pen'] },
+  // S2.15 — More › Crop: click a picture to crop it (editing/crop-mode.tsx); selects like Select
+  { id: 'crop', label: 'Crop', shortcut: '', cursor: TOOL_CURSORS.crop },
   { id: 'eraser', label: 'Eraser', shortcut: 'E', cursor: TOOL_CURSORS.eraser },
 ]);
 
@@ -305,6 +310,13 @@ export function ToolProvider({
   modeRef.current = mode;
   const toolNowRef = useRef(tool);
   toolNowRef.current = tool;
+  // S4.19 (canvas 15 `an-templates`) - arming Section, by any road, opens the Templates panel above the toolbar.
+  const armedWasRef = useRef<Tool>(tool);
+  useEffect(() => {
+    const panel = panelOnArm(armedWasRef.current, tool);
+    armedWasRef.current = tool;
+    if (panel) openToolPanel(panel);
+  }, [tool]);
   useEffect(() => {
     if (!governed || typeof window === 'undefined') return;
     const store = canvasModeStore(window);

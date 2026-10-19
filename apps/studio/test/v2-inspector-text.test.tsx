@@ -21,7 +21,12 @@ beforeAll(() => {
     if (String(url).endsWith('components.json'))
       return new Response(JSON.stringify(COMPONENTS), { status: 200 });
     if (String(url).endsWith('.css'))
-      return new Response(':root{--space-4:16px;}', { status: 200 });
+      return new Response(
+        ':root{--space-4:16px;--font-sans:"Avenir Next", sans-serif;--font-size-base:16px;}',
+        {
+          status: 200,
+        }
+      );
     if (init?.body) posts.push({ url, body: JSON.parse(init.body) });
     return new Response(JSON.stringify({ ok: true, previous: null }), { status: 200 });
   }) as unknown as typeof fetch;
@@ -291,6 +296,77 @@ describe('Case and Language', () => {
     expect((q(host, 'insp-language') as HTMLSelectElement).value).toBe('cs');
     const host2 = await frame({ textInfo: info({ lang: '' }) });
     expect((q(host2, 'insp-language') as HTMLSelectElement).value).toBe('');
+  });
+});
+
+describe('G6 — the Type section of a text: Font · Line · letter · Align', () => {
+  const reactProps = (el: Element) => {
+    const key = Object.keys(el).find((k) => k.startsWith('__reactProps$')) as string;
+    return (el as unknown as Record<string, Record<string, (e: unknown) => void>>)[key];
+  };
+  const enterNum = async (host: HTMLElement, id: string, value: string) => {
+    const input = must(q(host, id)?.querySelector('input') ?? null, id) as HTMLInputElement;
+    input.value = value;
+    await act(async () => reactProps(input).onBlur({ currentTarget: input }));
+    await settle();
+  };
+  const edited = () =>
+    Object.fromEntries(
+      posts.filter((p) => p.url === '/_api/edit-css').map((p) => [p.body.property, p.body.value])
+    );
+
+  test('the rows are there in the canvas’s order, and a text’s section does not say "text inside"', async () => {
+    const host = await frame();
+    const rows = [
+      ...(q(host, 'insp-sec-type')?.querySelectorAll('[data-testid^="insp-row-"]') ?? []),
+    ].map((e) => e.getAttribute('data-testid')?.replace('insp-row-', ''));
+    expect(rows.slice(0, 5)).toEqual(['style', 'font', 'type-size', 'line-letter', 'align']);
+    expect(q(host, 'insp-sec-type')?.querySelector('.insp-sec-a')).toBeNull();
+  });
+
+  test('a frame whose text it sets still says "text inside"', async () => {
+    const host = await frame({ tag: 'div', text: '', textInfo: null, authored: {} });
+    expect(q(host, 'insp-sec-type')?.querySelector('.insp-sec-a')?.textContent).toBe('text inside');
+  });
+
+  test('Font offers the system’s families and writes the one picked; Inherited takes it off', async () => {
+    const host = await frame();
+    const select = must(q(host, 'insp-font'), 'font select') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(['Inherited', 'Avenir Next']);
+    await pick(select, 'var(--font-sans)');
+    expect(edited()).toEqual({ 'font-family': 'var(--font-sans)' });
+  });
+
+  test('Line height is a percentage of the size; letter spacing is px; Align writes text-align', async () => {
+    const host = await frame({ authored: { 'line-height': '1.2' } });
+    expect(q(host, 'insp-num-line')?.querySelector('input')?.value).toBe('120 %');
+    await enterNum(host, 'insp-num-line', '92');
+    await enterNum(host, 'insp-num-letter', '2');
+    expect(edited()).toEqual({ 'line-height': '0.92', 'letter-spacing': '2px' });
+  });
+
+  test('Align: the current one is checked, a click on another writes it', async () => {
+    const host = await frame({ authored: { 'text-align': 'center' } });
+    const radios = [...(q(host, 'insp-ctl-align')?.querySelectorAll('[role="radio"]') ?? [])];
+    expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual([
+      'false',
+      'true',
+      'false',
+      'false',
+    ]);
+    await click(radios[2]);
+    expect(edited()).toEqual({ 'text-align': 'right' });
+  });
+
+  test('the readers: 24px over a 20px size is 120 %, 0.02em of 20px is 0.4px', async () => {
+    const { lineHeightPercent, letterSpacingPx, familyName } = await import(
+      '../client/v2/inspector/kinds/text.jsx'
+    );
+    expect(lineHeightPercent('24px', 20)).toBe(120);
+    expect(lineHeightPercent('1.2', 20)).toBe(120);
+    expect(lineHeightPercent('normal', 20)).toBeNull();
+    expect(letterSpacingPx('0.02em', 20)).toBe(0.4);
+    expect(familyName('"Avenir Next", sans-serif')).toBe('Avenir Next');
   });
 });
 

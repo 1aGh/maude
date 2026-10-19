@@ -24,6 +24,8 @@ import {
 import { BigPanelProvider, useBigPanel } from './BigChat.jsx';
 import { FOCUS_AI_EVENT, focusComposer, isComposerEscape } from './panel-focus.js';
 import { useAiRingsLane } from './ring-relay.js';
+import { useAiSeenLane } from './seen-relay.js';
+import { useAiRowSlotsLane } from './row-slots-lane.js';
 
 export function AiChatIsland({ hidden = false, resizing = false, width, children }) {
   const ref = useRef(null);
@@ -33,6 +35,8 @@ export function AiChatIsland({ hidden = false, resizing = false, width, children
   // S5.9 — a long chat gets the full height; `pinned` is the shell's docked layout.
   const big = useBigPanel(ref, hidden);
   useAiRingsLane(); // S5.11: keeps the open canvas told which artboards an AI is on
+  useAiSeenLane(); // S4.15: the canvas outlines what the AI's offer points at
+  useAiRowSlotsLane(); // S5.18: the Canvases panel's rows say "Needs you" / "AI is working"
 
   const remember = useCallback((el) => {
     const root = ref.current;

@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
-import { C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
+import { acceptFromCanvas, C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
 import { layersSlot } from '../v2/inspector/layers-slot.jsx';
-import { notifyCanvasText } from '../../notifications.tsx';
+import { notify, notifyCanvasText } from '../../notifications.tsx';
+import { isNativeApp } from '../github.js';
+import {
+  noteAnnotationSelection,
+  turnIntoComment,
+  undoConversion,
+} from '../v2/annotations/annotation-asks.js';
 import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
@@ -18,7 +24,13 @@ import {
   trashArtboardBody,
 } from '../edit-op-relay.ts';
 import { exportRegionOf } from '../export-region.ts';
-import { localSelectRecord } from '../selection-scope.js';
+import {
+  localSelectRecord,
+  RESTORE_LEAD_MS,
+  shellSelectionOf,
+  renamesOf,
+  startSelectionRestore,
+} from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
 import { runActionMessage, runForwardedKey } from '../actions/shell-key-handlers.js';
@@ -30,6 +42,7 @@ import {
 } from '../export-lane.js';
 import { downloadCapturedBlob } from '../dialogs/export-dialog.jsx';
 import { moveLayerNode } from '../inspector/layers.jsx';
+import { moveLabel } from '../../edit-ops/op-label.ts';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
 import {
@@ -94,6 +107,28 @@ export function useCanvasBridge({
   // S9.22b — the viewer's display name (left out of the mention people); optional
   gitUser = null,
 }) {
+  // S2.24 — the selection ladder (selection-scope.js `startSelectionRestore`): one at a time, the newest wins.
+  const selectionRestoreRef = useRef(null);
+  // S2.25 G1 — ids a write gave to texts the shell has selected (content-hash id → authored name); read when each rung fires
+  const renamedIdsRef = useRef(new Map());
+  const restoreSelectionOn = useCallback(
+    (file, lead) => {
+      selectionRestoreRef.current?.();
+      selectionRestoreRef.current = startSelectionRestore({
+        file,
+        lead,
+        getSelected: () => selectedRef.current,
+        renames: renamedIdsRef.current,
+        post: (msg) => {
+          try {
+            iframesRef.current.get(file)?.contentWindow?.postMessage(msg, '*');
+          } catch {}
+        },
+      });
+    },
+    [selectedRef, iframesRef]
+  );
+  useEffect(() => () => selectionRestoreRef.current?.(), []);
   // ----- Inbound messages from iframes -----
   useEffect(() => {
     // Does this comment id belong to the canvas the user is actually looking
@@ -269,7 +304,8 @@ export function useCanvasBridge({
         } else if (Array.isArray(payload)) {
           const head = payload[0] ?? null;
           if (head) wsSend({ type: 'select', selection: head });
-          setSelected(payload.length === 1 ? described(head) : head);
+          // S2.22 G4/G6 — several stay several: the inspector reads the list ("4 artboards · Mixed")
+          setSelected(shellSelectionOf(payload, described));
           // Stage C — auto-open only for a genuine SINGLE selection, never multi.
           if (payload.length === 1) maybeAutoOpenInspectorOnSelect(head);
         } else {
@@ -398,7 +434,19 @@ export function useCanvasBridge({
               body: JSON.stringify(body),
             })
               .then(readEditOpAnswer)
-              .then(reply)
+              .then((result) => {
+                reply(result);
+                // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
+                // what differs from it, the size): put the selection back so the canvas probes it again.
+                if (result?.ok && /^text\./.test(body.op) && body.file) {
+                  // S2.25 G1 — and a write that gives the text an authored name (`Use a style` on a text that had only a
+                  // content-hash id) leaves the id the shell holds naming nothing: follow it to the new one.
+                  const map = renamedIdsRef.current;
+                  if (map.size > 64) map.clear();
+                  for (const [k, v] of renamesOf(body.targets, result.refs)) map.set(k, v);
+                  restoreSelectionOn(body.file, RESTORE_LEAD_MS);
+                }
+              })
               .catch(() =>
                 reply({
                   ok: false,
@@ -715,6 +763,55 @@ export function useCanvasBridge({
           setPhotoSel({ asset, strokeId: m.id });
           openRightPanel('inspector');
           setInspectorTab('photo');
+        }
+      } else if (
+        m.dgn === 'annotation-to-comment' ||
+        m.dgn === 'annotation-toast' ||
+        m.dgn === 'annotation-selection' ||
+        m.dgn === 'annotation-ask-ai'
+      ) {
+        // S4.12 — the annotation layer asks (annotations/ui/shell-asks.ts). Only the active canvas is heard,
+        // and only once the dgn table's parser has cleaned the payload (sec-a M3): a raw `e.data` field
+        // reached notify() as a number and unmounted the shell.
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (e.source !== activeWin || !activePath) return;
+        const msg = acceptFromCanvas(e, { canvasOrigin: expectedOrigin, active: activeWin });
+        if (!msg) return;
+        const file = activePath;
+        if (msg.dgn === 'annotation-to-comment') {
+          // the shell owns this Undo: `r.undo` is the server's own conversion token (S4.7)
+          void turnIntoComment({ file, id: msg.id }).then((r) => {
+            if (!r.ok || !r.undo) {
+              notify({ title: r.line, kind: r.ok ? 'success' : 'error' });
+              return;
+            }
+            notify({
+              title: r.line,
+              kind: 'success',
+              action: {
+                label: 'Undo',
+                onClick: () =>
+                  void undoConversion(r.undo).then((u) => {
+                    if (!u.ok) notify({ title: u.line, kind: 'error' });
+                  }),
+              },
+            });
+          });
+        } else if (msg.dgn === 'annotation-toast') {
+          // sec-a M3 — canvas words are canvas notices: rate-limited, two slots, and NO shell Undo button
+          // (it would run the person's own ⌘Z on the canvas's say-so, under the canvas's text). ⌘Z still
+          // undoes the step the canvas just made — that is the person's key, not the canvas's.
+          notifyCanvasText(msg.message, msg.undo ? 'undo' : 'info');
+        } else if (msg.dgn === 'annotation-selection') {
+          noteAnnotationSelection(file, {
+            ids: msg.ids,
+            kinds: msg.kinds,
+            artboards: msg.artboards,
+          });
+        } else if (msg.dgn === 'annotation-ask-ai') {
+          // The chat opens; the scope chip that reads `noteAnnotationSelection` is S4.15's.
+          if (isNativeApp()) openRightPanel('assistant');
+          else notify({ title: 'AI chat is in the Maude desktop app.' });
         }
       } else if (m.dgn === 'insert-artboard-request') {
         // Stage I4 — insert a new empty artboard from a screen-size preset.
@@ -1097,11 +1194,13 @@ export function useCanvasBridge({
             // Retry-laddered: dgn:'loaded' fires from the inline inspector script
             // BEFORE the React canvas-shell mounts its listener, so a one-shot
             // post is lost on fresh iframes (canvas-switch restore case).
-            const sel0 = selectedRef.current;
-            const sel = Array.isArray(sel0) ? sel0[0] : sel0;
-            if (sel && sel.id && sel.file === m.file) {
-              scheduleHaloRestore(sel);
-            }
+            // S2.22 G2 — a whole artboard (no element id) is put back by its name, so a resize that
+            // reloaded the canvas leaves the board selected, with its new size in the inspector.
+            // S2.23: not at 50 ms — a write of the person's own (a drawing, a paste) has the canvas select what it
+            // made a beat after it reloads, and this restore must not land on top of that.
+            // S2.24 G2: and what it puts back is read when each rung FIRES, not now — the drawn rectangle's
+            // `select-set` arrives after this `loaded`, and a restore planned for the board dropped it.
+            restoreSelectionOn(m.file, RESTORE_LEAD_MS);
           }
         }
       } else if (m.dgn === 'export-request' && m.id && m.payload) {
@@ -1256,6 +1355,7 @@ export function useCanvasBridge({
     postToActiveCanvas,
     captureFromCanvas,
     gitUser,
+    restoreSelectionOn,
   ]);
 
   // Tell the active canvas iframe to drop any persistent selection (canvas
@@ -1429,31 +1529,34 @@ export function useCanvasBridge({
       // fix as resizeElement; also covers the keyboard nudge (L1) which reuses this.
       applyOptimisticStyle({ id, prop: 'left', value: `${left}px` });
       applyOptimisticStyle({ id, prop: 'top', value: `${top}px` });
-      let j1ref = null;
-      const writeProp = (property, value) =>
-        fetch('/_api/edit-css', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ canvas, id, property, value: `${value}px`, idIndex: occ }),
-        }).then((r) => r.json().catch(() => ({})));
+      // S2.25 G2 — ONE request writes left and top together and says what it did ("Moved See pricing 10 px"): one
+      // write, one history row, one ⌘Z for the whole move (two calls were two writes, each an unlabelled "Edit canvas").
       editApplyChainRef.current = editApplyChainRef.current
         .catch(() => {})
-        .then(() => writeProp('left', left))
-        .then((j1) => {
-          if (!j1.ok) throw new Error(j1.error || 'left write failed');
-          j1ref = j1;
-          return writeProp('top', top);
-        })
-        .then((j2) => {
-          if (!j2.ok) throw new Error(j2.error || 'top write failed');
-          // Record BOTH properties onto the canvas undo stack — two Cmd+Z
-          // steps (top, then left), same as committing two CSS knobs by hand.
+        .then(() =>
+          fetch('/_api/edit-css', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              canvas,
+              id,
+              property: 'left',
+              value: `${left}px`,
+              also: [{ property: 'top', value: `${top}px` }],
+              label: moveLabel(id, left - beforeLeft, top - beforeTop),
+              idIndex: occ,
+            }),
+          }).then((r) => r.json().catch(() => ({})))
+        )
+        .then((j) => {
+          if (!j.ok) throw new Error(j.error || 'move write failed');
+          // The canvas undo stack (the lane without the op log) keeps a record per property.
           recordSourceEdit({
             op: 'css',
             canvas,
             id,
             key: 'left',
-            before: replacedValue(j1ref, `${beforeLeft}px`),
+            before: replacedValue(j, `${beforeLeft}px`),
             after: `${left}px`,
           });
           recordSourceEdit({
@@ -1461,7 +1564,7 @@ export function useCanvasBridge({
             canvas,
             id,
             key: 'top',
-            before: replacedValue(j2, `${beforeTop}px`),
+            before: `${beforeTop}px`,
             after: `${top}px`,
           });
         })
@@ -2174,31 +2277,57 @@ export function useCanvasBridge({
         // Re-point an authored <img>/<video> src via /_api/edit-attr (+ undo).
         const canvas = activePath;
         if (!canvas || !req.id) return;
+        const viaEditAttr = () =>
+          fetch('/_api/edit-attr', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ canvas, id: req.id, attr: 'src', value: pickedPath }),
+          })
+            .then((r) => r.json().catch(() => ({})))
+            .then((j) => {
+              if (j.ok) {
+                recordSourceEdit({
+                  op: 'attr',
+                  canvas,
+                  id: req.id,
+                  key: 'src',
+                  before: replacedValue(j, req.before ?? null),
+                  after: pickedPath,
+                });
+              } else {
+                console.warn('[replace-src]', j.error || 'failed');
+              }
+            })
+            .catch(() => {});
+        // S2.15 — a picture the inspector names by ref is replaced by the `image.replace` edit-op: one write, one
+        // undo step, and a per-use photo edit of the old picture goes with it. An older studio (no such op) and a
+        // video keep the edit-attr write above.
+        const viaEditOp = () =>
+          fetch('/_api/edit-op', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              file: canvas,
+              op: 'image.replace',
+              targets: [req.ref],
+              params: { asset: pickedPath },
+            }),
+          })
+            .then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }))
+            .then(({ status, j }) => {
+              if (status === 404 || status === 405) return viaEditAttr();
+              if (j.ok) {
+                const payload = legacyRecordPayload(j, 'Replace picture');
+                if (payload) recordSourceEdit(payload);
+              } else {
+                console.warn('[replace-src]', j.message || 'failed');
+              }
+              return undefined;
+            })
+            .catch(() => {});
         editApplyChainRef.current = editApplyChainRef.current
           .catch(() => {})
-          .then(() =>
-            fetch('/_api/edit-attr', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ canvas, id: req.id, attr: 'src', value: pickedPath }),
-            })
-              .then((r) => r.json().catch(() => ({})))
-              .then((j) => {
-                if (j.ok) {
-                  recordSourceEdit({
-                    op: 'attr',
-                    canvas,
-                    id: req.id,
-                    key: 'src',
-                    before: replacedValue(j, req.before ?? null),
-                    after: pickedPath,
-                  });
-                } else {
-                  console.warn('[replace-src]', j.error || 'failed');
-                }
-              })
-              .catch(() => {})
-          );
+          .then(req.ref ? viaEditOp : viaEditAttr);
         return;
       }
       if (req.purpose === 'replace-annotation-media') {
@@ -2251,6 +2380,18 @@ export function useCanvasBridge({
   const onStickerPicked = useCallback(
     async (sticker) => {
       const req = stickerPickerReq;
+      // S4.13: a vote stamp has no picture to upload. The canvas arms it (the pick trails the pointer and
+      // stays armed), and the gallery stays open - folded to the Stamps row by the gallery itself.
+      if (sticker?.pack === 'stamps') {
+        if (req && (!req.canvas || req.canvas === activePath))
+          postToActiveCanvas({
+            dgn: 'insert-sticker',
+            path: '',
+            follow: true,
+            sticker: { pack: 'stamps', id: sticker.id },
+          });
+        return;
+      }
       setStickerPickerReq(null);
       if (!req || !sticker?.url) return;
       // G3 security (DDR-152) — same re-check as onAssetPicked: the request
@@ -2275,13 +2416,20 @@ export function useCanvasBridge({
           return;
         }
         // S4.3: name the bundled sticker the bytes came from (the gallery's pack slug + file)
-        postToActiveCanvas({
-          dgn: 'insert-sticker',
-          path: j.path,
-          ...(sticker.pack && sticker.id
-            ? { sticker: { pack: sticker.pack, id: sticker.id } }
-            : {}),
-        });
+        const ref =
+          sticker.pack && sticker.id ? { sticker: { pack: sticker.pack, id: sticker.id } } : {};
+        if (req.replace) {
+          // S4.13: Replace… swaps the picture of the selected sticker in place (same spot, same size)
+          postToActiveCanvas({
+            dgn: 'replace-annotation-media',
+            id: req.replace,
+            path: j.path,
+            ...ref,
+          });
+        } else {
+          // S4.13: the pick follows the pointer until a click, then lands at 160 px
+          postToActiveCanvas({ dgn: 'insert-sticker', path: j.path, follow: true, ...ref });
+        }
       } catch {
         console.warn('[sticker-picker] could not load or upload that sticker');
       }
@@ -2299,6 +2447,12 @@ export function useCanvasBridge({
         canvas: activePath,
         id: elSel.id,
         before: elSel.attrs?.src ?? null,
+        // S2.15 — the picture as an edit-op target; absent on an old canvas bundle (then edit-attr)
+        ref:
+          Array.isArray(elSel.refs) &&
+          (elSel.tag === 'img' || elSel.attrs?.['data-image-tile'] !== undefined)
+            ? (elSel.refs[0] ?? null)
+            : null,
       });
     },
     [activePath]

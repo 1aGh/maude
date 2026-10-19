@@ -9,7 +9,7 @@
 // them inline makes the fallback chain (`selection` → `artboard` when no
 // selection captured) explicit.
 
-import { type Dirent, realpathSync } from 'node:fs';
+import { type Dirent, readFileSync, realpathSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -513,6 +513,44 @@ export function annotationsExportPolicy(
   if (TEMPORAL.has(format) || format === 'zip' || DECK.has(format)) return 'never';
   if (format === 'pdf' && (ctx.kind === 'print' || ctx.print === true)) return 'never';
   return 'optional';
+}
+
+/** A canvas source that declares at least one `kind="print"` artboard (light scan: a false hit only costs a review copy). */
+const PRINT_ARTBOARD_RE =
+  /<DCArtboard\b[^>]*\bkind\s*=\s*(?:"print"|'print'|\{\s*["']print["']\s*\})/;
+
+function canvasHasPrintArtboard(designRoot: string, file: string): boolean {
+  try {
+    const abs = path.join(path.dirname(designRoot), file);
+    return PRINT_ARTBOARD_RE.test(readFileSync(abs, 'utf8'));
+  } catch {
+    return false; // unreadable: it is treated as plain screens, the capture reports the real fault
+  }
+}
+
+/**
+ * S4.16 (an-print) - the SERVER's half of "print files never carry annotations". The export sheet greys
+ * Include annotations for a print format (S8 reads `annotationsExportPolicy`), but a request that sets
+ * `includeAnnotations` anyway - a stale tab, a script, the options bag - still gets a file without the
+ * layer: every element target loses `annotations` when the format may not carry it. A PDF is print when
+ * the request asks for print geometry (`pdfPrint`) or the canvas has a print artboard; a PNG of the same
+ * canvas, or a PDF of screens, is a review copy and keeps what was asked. Pure beyond one source read.
+ */
+export function enforceAnnotationsPolicy(
+  targets: Target[],
+  format: string,
+  options: Record<string, unknown> | undefined,
+  designRoot: string
+): Target[] {
+  if (!targets.some((t) => t.kind === 'element' && t.annotations)) return targets;
+  const askedPrint = format === 'pdf' && options?.pdfPrint != null;
+  return targets.map((t) => {
+    if (t.kind !== 'element' || !t.annotations) return t;
+    const print = askedPrint || (format === 'pdf' && canvasHasPrintArtboard(designRoot, t.file));
+    return annotationsExportPolicy(format as ExportFormatV2, { print }) === 'never'
+      ? { ...t, annotations: false }
+      : t;
+  });
 }
 
 const attrSel = (id: string) => `[data-dc-screen="${cssAttrEscape(id)}"]`;

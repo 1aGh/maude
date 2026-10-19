@@ -2,6 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { focusCanvasFrame } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -1083,21 +1084,21 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     // before this test). Only this card edit carries "EDITED". The stack is the
     // shell's `window.__maude_undo_stacks` Map, reachable because the e2e
     // canvas is same-origin (MAUDE_CANVAS_ORIGIN_SPLIT=0).
+    // v2: undo is the project's OP LOG (S2.20 — "⌘Z from the op log"; the canvas keeps no stack of its own,
+    // edit-undo.e2e.ts asserts `maude-undo:` keys == 0), so the shell's `__maude_undo_stacks` that this wait
+    // used to read no longer exists. The edit is in the log once the file has it and the write is acknowledged.
     await browser.waitUntil(
-      () =>
-        browser.execute(() => {
-          const stacks = (
-            window as unknown as { __maude_undo_stacks?: Map<string, { past: unknown[] }> }
-          ).__maude_undo_stacks;
-          if (!stacks) return false;
-          for (const st of stacks.values()) {
-            const top = st.past[st.past.length - 1];
-            if (top && JSON.stringify(top).includes('EDITED')) return true;
-          }
-          return false;
-        }),
-      { timeout: 10_000, interval: 100, timeoutMsg: 'the card edit never reached the undo stack' }
+      async () => readFileSync(smokePath, 'utf8').includes('Second card body. EDITED'),
+      {
+        timeout: 10_000,
+        interval: 100,
+        timeoutMsg: 'the card edit never reached the file',
+      }
     );
+    await browser.pause(1500);
+    // On the op log the canvas hands `edit.undo` back to the shell (`undo-key`), and the shell runs it
+    // only while the canvas holds focus in the active window (sec-a) — where the person's ⌘Z is.
+    await focusCanvasFrame();
     await postToCanvas({ dgn: 'run-action', v: 1, id: 'edit.undo' });
     await browser.waitUntil(
       async () =>
@@ -1110,6 +1111,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await capture('var-card-undo-reverted');
 
     // Redo — re-applies to CARDS[1] only.
+    await focusCanvasFrame();
     await postToCanvas({ dgn: 'run-action', v: 1, id: 'edit.redo' });
     await browser.waitUntil(
       async () =>

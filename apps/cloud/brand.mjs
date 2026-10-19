@@ -51,7 +51,7 @@ export const TOKENS = `
   --fg-0: oklch(0.955 0.005 250);
   --fg-1: oklch(0.790 0.008 250);
   --fg-2: oklch(0.660 0.010 250);
-  --fg-3: oklch(0.500 0.010 250);
+  --fg-3: oklch(0.650 0.010 250);
   --accent:        oklch(0.680 0.180 268);
   --accent-hover:  oklch(0.730 0.170 268);
   --accent-active: oklch(0.630 0.180 268);

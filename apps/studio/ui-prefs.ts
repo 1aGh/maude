@@ -25,6 +25,10 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import {
+  checkAnnotationPrefsPatch,
+  type ShellAnnotationPrefs,
+} from './annotations/ui/tool-prefs.ts';
 import { verGt } from './client/whats-new-seen.js';
 import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
@@ -69,6 +73,12 @@ export interface UiPrefs {
   panelsHidden?: boolean;
   /** V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts. Absent = on. */
   singleKeyShortcuts?: boolean;
+  /**
+   * S4.8 (Q8): what the annotation tools remember per person — sticky colour, Marker ink / thickness /
+   * tip, Highlighter hue / nib. Named `annotationPrefs` because `annotations` is already the v1
+   * show/hide switch above. Absent = the tools' defaults.
+   */
+  annotationPrefs?: ShellAnnotationPrefs;
   /** S11.13: Settings › Advanced › "Use my own plugin copy" (`MAUDE_NO_PLUGIN_BOOTSTRAP`, read at ACP spawn). */
   ownPluginCopy?: boolean;
   /** S11.13: "AI reviews argue it out (teams)" — agent teams on at the next AI session. */
@@ -279,6 +289,11 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
       return fail('whatsNewSeen must be a version like 1.9.1');
     patch.whatsNewSeen = v;
   }
+  if ('annotationPrefs' in body) {
+    const r = checkAnnotationPrefsPatch(body.annotationPrefs);
+    if (!r.ok) return fail(r.error);
+    patch.annotationPrefs = r.value;
+  }
   if ('canvases' in body) {
     const c = body.canvases;
     if (!c || typeof c !== 'object' || Array.isArray(c)) return fail('canvases must be an object');
@@ -415,7 +430,7 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
   };
   // v2 homes are maps: a patch adds or changes keys, it never replaces the whole map (so a closed
   // fold or a second tour id cannot wipe its siblings). `version` only moves forward.
-  for (const k of ['fold', 'seen', 'canvases', 'canvasesSort'] as const) {
+  for (const k of ['fold', 'seen', 'canvases', 'canvasesSort', 'annotationPrefs'] as const) {
     if (patch[k] !== undefined) merged[k] = { ...plain(cur[k]), ...plain(patch[k]) } as never;
   }
   if (patch.pin !== undefined) {

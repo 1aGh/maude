@@ -16,16 +16,29 @@ import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
+import { AiScopeOutline } from './ai-scope-outline.tsx';
 import { AlignBar } from './align-bar.tsx';
+import { AriaLive } from './aria-live.tsx';
 import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
+import { ASK_SELECTION_ACTION, AskBubble } from './ask-bubble.tsx';
 import { CornerDots } from './corner-dots.tsx';
+import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
+import { KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
+import { ImageDrop } from './image-drop.tsx';
+import {
+  INSTANCE_ACTIONS,
+  instanceOpDeps,
+  instanceParams,
+  isInstanceAction,
+  runInstanceAction,
+} from './instance-actions.ts';
 import {
   CONSTRAIN_ACTION,
   isConstrainAction,
@@ -41,12 +54,15 @@ import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
+import { PasteBar } from './paste-bar.tsx';
+import { PEN_ACTIONS, PenLayer } from './pen/index.tsx';
 import { PinGuides } from './place-freely.tsx';
 import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
 import { StickyName } from './sticky-name.tsx';
+import { OrderBadges } from './tab-order.tsx';
 import {
   isTextAction,
   runTextAction,
@@ -76,11 +92,24 @@ export const EDITING_ACTIONS = [
   CONSTRAIN_ACTION,
   // S2.12 — text: language, case, style (use / reset / detach); `text.set` is the caret's commit
   ...TEXT_ACTIONS,
+  // S2.17 — an instance: swap its variant / component, Reset, Detach (the inspector's blocks, ⌘K)
+  ...INSTANCE_ACTIONS,
   // S2.9 — Tidy up over 2+ artboards (run by align-bar.tsx)
   TIDY_ACTION,
   // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
   ...ARTBOARD_ACTIONS,
+  // S2.14 — Combine shapes (run by pen/index.tsx)
+  ...PEN_ACTIONS,
+  // S2.15 — Crop: with params it is the op (the inspector's Fit / Zoom), without it opens crop mode (crop-mode.tsx)
+  CROP_ACTION,
+  // S2.19 — ⌘/ on a selection (run by ask-bubble.tsx, which listens for its own run-action id)
+  ASK_SELECTION_ACTION,
 ] as const;
+
+/** The reading-order badges, drawn while the keyboard is the last thing used. */
+function KeyboardBadges() {
+  return <OrderBadges active={useKeyboardModality()} />;
+}
 
 export function EditingLayer() {
   const selSet = useSelectionSet();
@@ -109,6 +138,11 @@ export function EditingLayer() {
       toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
       record: (rec) => undoRef.current?.record(rec),
     };
+    // S2.17 — and the instance actions
+    instanceOpDeps.current = {
+      toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
+      record: (rec) => undoRef.current?.record(rec),
+    };
   }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -134,6 +168,12 @@ export function EditingLayer() {
         if (!isReadOnlyCanvas()) {
           const { refs, params } = textParams(m.params);
           void runTextAction(m.id, selRef.current, refs, params, textOpDeps.current);
+        }
+      } else if (isInstanceAction(m.id)) {
+        // S2.17 — the Component / Content / Main component blocks; the one selected instance
+        if (!isReadOnlyCanvas()) {
+          const { refs, params } = instanceParams(m.params);
+          void runInstanceAction(m.id, selRef.current, refs, params, instanceOpDeps.current);
         }
       } else if (isConstrainAction(m.id)) {
         if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
@@ -228,8 +268,14 @@ export function EditingLayer() {
       {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
       <DrawTools readOnly={isReadOnlyCanvas()} />
       <CornerDots readOnly={isReadOnlyCanvas()} />
+      {/* S2.14 — the Pen (P), double-click a path to edit its points, Combine shapes */}
+      <PenLayer readOnly={isReadOnlyCanvas()} />
       {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
       <PlaceGhost readOnly={isReadOnlyCanvas()} />
+      {/* S2.15 — a tile dropped on a frame, crop mode (double-click a picture), and the bar under a Figma paste */}
+      <ImageDrop readOnly={isReadOnlyCanvas()} />
+      <CropMode readOnly={isReadOnlyCanvas()} />
+      {editChrome ? <PasteBar readOnly={isReadOnlyCanvas()} /> : null}
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
       {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}
@@ -245,6 +291,14 @@ export function EditingLayer() {
       {editChrome ? <MinimapContext /> : null}
       {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
       <HoldRings />
+      {/* S2.19 — ⌘/ on a selection: the canvas says what and where; one AI outline follows the ask */}
+      <AskBubble readOnly={isReadOnlyCanvas()} />
+      <AiScopeOutline />
+      {/* S2.21 — tab / ⇧tab in reading order, F6 out to the panels, R·T·F then ↵; the focus ring, the order
+          badges while the keyboard walks, and what VoiceOver hears */}
+      <KeyboardLayer readOnly={isReadOnlyCanvas()} />
+      <KeyboardBadges />
+      <AriaLive />
     </>
   );
 }

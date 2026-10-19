@@ -115,6 +115,8 @@ export function UndoHistory(p) {
       <p className="st-uh-t">
         Undo history<span>newest first</span>
       </p>
+      {/* 14 `ed-edge-undo`: the popover says where it was opened from (S2.24) */}
+      <p className="st-uh-from">Opened from Menu › Edit › Undo history</p>
       {p.rows.length === 0 ? (
         <p className="st-uh-empty" data-testid="undo-history-empty">
           Nothing to undo on this canvas yet.

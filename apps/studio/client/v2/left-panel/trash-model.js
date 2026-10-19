@@ -57,11 +57,27 @@ const baseName = (p) => {
   return file.replace(/\.(tsx|jsx|html)$/i, '');
 };
 
-/** The folder a canvas lives in, designRoot-relative: "ui/club-web/A.tsx" → "ui/club-web"; the top → "root". */
-export function folderOf(path) {
+/** The canvas group a project keeps its canvases in when it names none (`newCanvasDir`). */
+export const DEFAULT_GROUP_ROOTS = ['ui'];
+
+/**
+ * The folder a canvas lives in, as the Canvases panel names it — the design-root-relative path with the
+ * canvas group's own prefix dropped: "ui/legacy/A.tsx" → "legacy", "ui/2026/social/A.tsx" → "2026/social",
+ * "ui/A.tsx" → "root". `roots` are the project's canvas groups (design-root-relative); a path outside
+ * every one keeps its folder as it is.
+ */
+export function folderOf(path, roots = DEFAULT_GROUP_ROOTS) {
   const parts = String(path || '').split('/');
   parts.pop();
-  return parts.join('/') || 'root';
+  let dir = parts.join('/');
+  for (const r of roots) {
+    if (dir === r) return 'root';
+    if (r && dir.startsWith(`${r}/`)) {
+      dir = dir.slice(r.length + 1);
+      break;
+    }
+  }
+  return dir || 'root';
 }
 
 /** A row's name: the canvas name, or the artboard's label (its id when it had none). */
@@ -71,13 +87,13 @@ export function itemName(item) {
 }
 
 /** A row's second line: "root · You, just now" / "artboard of Combine-kampan · Jonas, 14:05". */
-export function itemSub(item, { people, now } = {}) {
+export function itemSub(item, { people, now, roots } = {}) {
   const by = `${whoLabel(item, people)}, ${whenLabel(item.at, now)}`;
   if (item.kind === 'artboard') {
     const from = baseName(item.path) || 'a canvas';
     return `artboard of ${from}${item.canvasTrashed ? ' (in the trash)' : ''} · ${by}`;
   }
-  return `${folderOf(item.path)} · ${by}`;
+  return `${folderOf(item.path, roots)} · ${by}`;
 }
 
 /** Today / Earlier, in the order the server sent (newest first). Empty groups are left out. */

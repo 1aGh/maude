@@ -14,7 +14,8 @@
 // untrusted canvas origin (DDR-054), and that is where canvas-lib's
 // `commitPositions` runs, so the rule is the same on every origin: every op is
 // a `patch` of an annotation that rides with an artboard the same PATCH moves —
-//   - a member (`parentArtboard` = that artboard): only `x` / `y`, shifted by
+//   - a member (`parentArtboard` = that artboard): only `x` / `y` (a marker — `pen` — its
+//     `points`, S4.10), shifted by
 //     exactly that artboard's delta (± {@link DELTA_TOLERANCE});
 //   - an arrow bound to it (`startHost` / `endHost` `ab:` / `el:` ref): only its
 //     cached free points (`start` / `end` stay free points) and the binds' `box`
@@ -179,6 +180,8 @@ export function riderRefusal(
         : [];
     for (const k of keys) {
       if (MEMBER_KEYS.has(k) && member) continue;
+      // S4.10 — a marker member has no x/y: its world `points` shift by the same delta (below).
+      if (k === 'points' && member && el.type === 'pen') continue;
       if (ARROW_CACHE_KEYS.has(k) && (arrowHosts.length > 0 || (member && el.type === 'arrow')))
         continue;
       return refuse(403, 'not-a-move', { id: op.id, field: k });
@@ -203,6 +206,22 @@ export function riderRefusal(
         agreed.set(parent as string, { dx, dy });
       } else if (!near(dx, 'x' in set ? want.dx : 0) || !near(dy, 'y' in set ? want.dy : 0)) {
         return refuse(403, 'not-a-move', { id: op.id, field: 'x' in set ? 'x' : 'y' });
+      }
+    }
+    if (member && 'points' in set) {
+      const was = Array.isArray(el.points) ? (el.points as unknown[]) : null;
+      const now = set.points;
+      const bad = () => refuse(403, 'not-a-move', { id: op.id, field: 'points' });
+      if (!was || !Array.isArray(now) || now.length !== was.length || now.length < 2) return bad();
+      if (!now.every((v) => typeof v === 'number' && Number.isFinite(v))) return bad();
+      let want = delta.get(parent as string) ?? agreed.get(parent as string) ?? null;
+      if (want === null) {
+        want = { dx: num(now[0]) - num(was[0]), dy: num(now[1]) - num(was[1]) };
+        agreed.set(parent as string, want);
+      }
+      for (let i = 0; i < now.length; i++) {
+        const d = num(now[i]) - num(was[i]);
+        if (!near(d, i % 2 === 0 ? want.dx : want.dy)) return bad();
       }
     }
   }

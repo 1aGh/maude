@@ -191,8 +191,38 @@ export function problemModel(error) {
       verb: null,
     };
   }
+  if (error.code === 'bad-scope') {
+    // S5.17 G1 — the server refused a scope outside the design root before anything ran
+    return {
+      code: 'bad-scope',
+      title:
+        message || 'That selection is not on a canvas in this project. Choose it again and resend.',
+      detail: null,
+      verb: null,
+    };
+  }
   // An uncoded error is the v1 connection-problem card (Feed.jsx ErrorCard, `chat-error-card`): it keeps its place.
   return null;
+}
+
+/**
+ * S5.17b G7 — the failure card (03 `ai-choice-fail`, right): "Couldn't finish — <what>. <what is safe>." and
+ * ONE verb. What is safe depends on the run: "Nothing changed." only when the run touched nothing; when it
+ * did, the chat's own Undo is the way back; when we cannot tell (no run frame seen), nothing is promised.
+ * `changed` is `changedSomething(run)` (run-model.js), or null/undefined when there is no run to ask.
+ * The raw message is for › Advanced, never the headline.
+ */
+export function failureModel(error, { changed } = {}) {
+  if (!error) return null;
+  const raw = typeof error.message === 'string' ? error.message.trim() : '';
+  let safe = '';
+  if (changed === true) safe = ' Undo this chat takes back what it did.';
+  else if (changed === false) safe = ' Nothing changed.';
+  return {
+    title: `Couldn't finish — the connection to Claude was interrupted.${safe}`,
+    verb: 'Try again',
+    raw: raw || null,
+  };
 }
 
 /** The question a Needs-you toast / row quotes: "replace 4 team photos?" — lower-cased verb, no trailing "?". */

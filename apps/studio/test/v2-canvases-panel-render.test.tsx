@@ -253,6 +253,17 @@ describe('pins', () => {
 });
 
 describe('sort', () => {
+  // a11y gate B1: a role=tree owns treeitems only; the Sort button is drawn over the project row from a sibling lane.
+  test('the Sort button is not inside the role=tree element', async () => {
+    const { host } = await mount();
+    const sort = q(host, 'canvases-sort');
+    expect(sort).not.toBeNull();
+    expect(
+      host.querySelector('[data-testid="canvas-list"] [data-testid="canvases-sort"]')
+    ).toBeNull();
+    expect(q(host, 'canvases-head-project')).not.toBeNull();
+  });
+
   test("the project row names the order; Name re-sorts and writes this project's entry", async () => {
     const { host } = await mount();
     expect(q(host, 'canvases-sort')?.textContent).toContain('Recent');
