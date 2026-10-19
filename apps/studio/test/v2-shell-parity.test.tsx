@@ -141,9 +141,12 @@ describe('the menu: one tree, per-shell rows derived from the registry', () => {
     for (const id of ['cloud-owner', 'cloud-member', 'cloud-viewer'])
       for (const r of ['sync.resync', 'sync.download-all'])
         expect(rows(id), `${id} ${r}`).not.toContain(r);
-    for (const id of ['desktop', 'browser', 'viewer'])
+    for (const id of ['desktop', 'browser'])
       for (const r of ['sync.resync', 'sync.download-all'])
         expect(rows(id), `${id} ${r}`).toContain(r);
+    // S11.15: a read-only session keeps Download all and loses Resync (a Can edit write; 06 ad-edge-where)
+    expect(rows('viewer')).toContain('sync.download-all');
+    expect(rows('viewer')).not.toContain('sync.resync');
     const absent = (COMMITTED.shells['cloud-member'].parts.menu.absent ?? {}) as Record<
       string,
       string
@@ -219,7 +222,16 @@ describe('the menu: one tree, per-shell rows derived from the registry', () => {
       };
       walk(
         buildProjectMenu(ctx, {
-          hidden: by.cloudRole ? ['sync.resync', 'sync.download-all'] : [],
+          // a cloud tab: no sync runtime of its own, and no process / folder to copy (S11.15)
+          hidden: by.cloudRole
+            ? [
+                'diag.address',
+                'diag.process',
+                'diag.project-folder',
+                'sync.resync',
+                'sync.download-all',
+              ]
+            : [],
         }) as never
       );
       expect(new Set(flat), id).toEqual(new Set(rows(id)));

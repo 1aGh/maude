@@ -142,11 +142,13 @@ describe('the Diagnostics submenu', () => {
     const inDiag = document.querySelector(
       '[data-testid="project-menu-sub-diagnostics"]'
     ) as HTMLElement;
-    await act(async () => (inDiag.querySelector('[data-sub="Advanced"]') as HTMLElement).click());
+    // a cloud tab runs no process of yours (the Server row says "Runs in the cloud" — S11.15) and no sync
+    // runtime of its own: nothing is left for Advanced to hold, so the row itself is not drawn
+    expect(inDiag.querySelector('[data-sub="Advanced"]')).toBeNull();
     const ids = Array.from(document.querySelectorAll('[data-action]')).map((e) =>
       e.getAttribute('data-action')
     );
-    expect(ids).toContain('diag.address');
+    expect(ids).not.toContain('diag.address');
     expect(ids).not.toContain('sync.resync');
     expect(ids).not.toContain('sync.download-all');
   });

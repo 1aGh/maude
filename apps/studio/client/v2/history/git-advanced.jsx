@@ -23,6 +23,7 @@
 //   fetchImpl   tests
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useOnline } from '../empty/use-empty-canvas.js';
 import { MENU_ACTION_EVENT } from '../shell/menu-runner.js';
 import { useBranchActions } from './branch-actions.js';
 import { COMPARE_PICTURES_WORDS as CW } from './compare-words.js';
@@ -119,12 +120,15 @@ function useVersionLog({ git, canvas, enabled }) {
 function GitBody({ canvas, version, versionRow, role, canView, git, fetchImpl }) {
   const native = !!git.native;
   const status = git.status;
+  // S11.15 — offline, Save a version still works; Publish waits for the internet.
+  const online = useOnline();
   const surface = gitSurface({
     role,
     native,
     cellManaged: git.cellManaged,
     cloudManaged: git.cloudManaged,
     repo: status?.repo,
+    online,
   });
   const full = surface.mode === 'full';
   const cloudHistory = git.historySource === 'cloud';
@@ -411,8 +415,12 @@ function GitBody({ canvas, version, versionRow, role, canView, git, fetchImpl })
                   className="btn btn--sm"
                   data-testid="git-publish"
                   data-tour="publish"
-                  disabled={!!busy}
-                  title="Sends your saved versions to the shared project so the team can get them."
+                  disabled={!!busy || surface.publishWaits}
+                  title={
+                    surface.publishWaits
+                      ? W.publishWaits
+                      : 'Sends your saved versions to the shared project so the team can get them.'
+                  }
                   onClick={() =>
                     run('publish', git.onPublish, { variant: 'success', text: W.published })
                   }

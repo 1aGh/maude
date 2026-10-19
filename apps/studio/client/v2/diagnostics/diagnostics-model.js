@@ -40,9 +40,13 @@ export function syncWord(syncStatus, { project, aiHeld = false } = {}) {
   }
 }
 
-/** Server: the studio answers (this page is served by it); the socket says whether it is live. */
-export function serverWord({ wsConnected = true, unreachable = false } = {}) {
+/**
+ * Server: the studio answers (this page is served by it); the socket says whether it is live. In a cloud tab
+ * there is no process of yours to name — the server is the cloud's (S11.15, 06 · ad-edge-where).
+ */
+export function serverWord({ wsConnected = true, unreachable = false, cloud = null } = {}) {
   if (unreachable) return { word: 'Not responding', tone: 'error' };
+  if (cloud) return { word: 'Runs in the cloud', tone: 'neutral' };
   return wsConnected ? { word: 'Running', tone: 'ok' } : { word: 'Reconnecting…', tone: 'warn' };
 }
 
@@ -64,10 +68,11 @@ export function menuStatuses({
   report,
   info,
   unreachable = false,
+  cloud = null,
 } = {}) {
   const out = {
     'diag.sync': syncWord(syncStatus, { project, aiHeld: syncStatus?.aiAction?.state === 'held' }),
-    'diag.server': serverWord({ wsConnected, unreachable }),
+    'diag.server': serverWord({ wsConnected, unreachable, cloud }),
     'diag.ai': aiWord(report),
   };
   if (info?.address) out['diag.address'] = { word: info.address, tone: 'neutral', mono: true };
@@ -90,7 +95,9 @@ export function tilde(path) {
  */
 export function hiddenMenuIds({ cloud = null, syncStatus = null } = {}) {
   const hidden = [];
-  if (cloud) hidden.push('sync.resync', 'sync.download-all');
+  // A cloud tab has no process, folder or local address of its own: the Server row says "Runs in the cloud"
+  // instead (S11.15), so the three values it would copy are not offered.
+  if (cloud) hidden.push(...VALUE_IDS, 'sync.resync', 'sync.download-all');
   else if (!syncStatus?.files) hidden.push('sync.download-all');
   if (!syncStatus) hidden.push('sync.resync');
   return hidden;

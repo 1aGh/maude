@@ -50,9 +50,10 @@ export function useDiagnosticsMenu({ syncStatus, project, wsConnected, cfg, fetc
         wsConnected,
         report,
         unreachable,
+        cloud: cfg?.cloud ?? null,
         info: info ?? { address: host, folder: '' },
       }),
-    [syncStatus, project, wsConnected, report, unreachable, info, host]
+    [syncStatus, project, wsConnected, report, unreachable, info, host, cfg?.cloud]
   );
   const hidden = useMemo(
     () => hiddenMenuIds({ cloud: cfg?.cloud ?? null, syncStatus }),

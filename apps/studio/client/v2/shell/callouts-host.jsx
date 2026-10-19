@@ -6,17 +6,19 @@
 //   · Restart now  → the desktop shell's own restart-to-update
 //   · Reload       → reload the page (re-reads the repo)
 //   · Got it       → remembered per role on this browser (`maude-cloud-role-seen:<role>`)
+//   · Try now      → the same restart as Menu › Diagnostics › Advanced › Resync now (S11.15, sync-stuck)
 // A close (×) hides one callout until its event changes: the key carries the event (a new conflict, a
 // changed rejected count), so the next one comes back. Closing the update callout is "Later" (the next
 // focus / 4 h check re-stages it); closing the repo notice clears the flag, as the strip's Dismiss did.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { restartToUpdate } from '../../github.js';
 import { FormatGateBanner } from '../../shell/banners.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { COLLAB_TOUR } from '../../tour/collab-tour.js';
 import { USAGE_TOUR } from '../../tour/usage-tour.js';
 import { openDiagnostics } from '../diagnostics/diagnostics-bus.js';
+import { requestResync } from '../diagnostics/sync-actions.js';
 import { calloutStack, roleSeenKey } from './callouts-model.js';
 import { CalloutStack } from './callouts.jsx';
 
@@ -47,6 +49,15 @@ export function ShellCallouts() {
   } = useShellStore();
   const [dismissed, setDismissed] = useState(() => new Set());
   const [busyKey, setBusyKey] = useState(null);
+  // The "wait" callout counts down to the next try; nothing else on this stack needs a clock.
+  const waiting = !!syncStatus?.files?.rateLimited;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!waiting) return undefined;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, [waiting]);
 
   // Read at render, not seeded into state: `cfg.cloud` is undefined until `/_config` lands, and a
   // state initializer would decide before there is a role (the v1 banner never appeared that way).
@@ -60,6 +71,7 @@ export function ShellCallouts() {
         roleSeen,
         tour: { usage: !!usageNudge, collab: !!collabNudge, running: !!tourSteps },
         dismissed,
+        now,
       }),
     [
       syncStatus,
@@ -70,6 +82,7 @@ export function ShellCallouts() {
       collabNudge,
       tourSteps,
       dismissed,
+      now,
     ]
   );
 
@@ -92,6 +105,10 @@ export function ShellCallouts() {
         case 'restart':
           setBusyKey(item.key);
           restartToUpdate().catch(() => setBusyKey(null));
+          break;
+        case 'try-now':
+          setBusyKey(item.key);
+          requestResync().finally(() => setBusyKey(null));
           break;
         case 'reload':
           try {

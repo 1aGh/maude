@@ -177,6 +177,7 @@ export function useTabs({
       linkedHubUrl: cloudLinkedHub?.url,
       project: cfg.cloud ? project : localProjectName,
       localUrl: location.origin,
+      readOnly: !!cfg.readOnly,
     });
   const showShare = (path = sharePath) => {
     const rel = normalizeOpenPath(path, cfg.designRel);

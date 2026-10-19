@@ -205,6 +205,9 @@ function whyRowAbsent(rowId, ctx) {
     return `${def.label} needs ${v.minRole} rights`;
   if (rowId === 'sync.resync' || rowId === 'sync.download-all')
     return 'a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)';
+  // S11.15 (06 ad-edge-where): a cloud tab runs no process of yours — its Server row says "Runs in the cloud".
+  if (rowId === 'diag.address' || rowId === 'diag.process' || rowId === 'diag.project-folder')
+    return 'a cloud tab runs no process of its own: the Server row says “Runs in the cloud”';
   return 'not offered in this shell';
 }
 
