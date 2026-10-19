@@ -36,13 +36,26 @@ export function stickerRefOf(v: unknown): StickerRef | undefined {
   return { pack: s.pack, id, ...(s.flip === true ? { flip: true } : {}) };
 }
 
-/** What the shell's `insert-sticker` / `insert-template` asks for, or null for anything else. */
+/**
+ * The two dgn types that carry a pick. Looked up (not compared with `=== '<type>'`) on purpose: the layer's
+ * message handler is the one place that checks the sender is the shell, and then hands the message here, so
+ * this module must not read as a second, unchecked handler (test/dgn-protocol-coverage.test.ts).
+ */
+const PICK_OF_DGN: ReadonlyMap<unknown, 'sticker' | 'template'> = new Map([
+  ['insert-sticker', 'sticker'],
+  ['insert-template', 'template'],
+]);
+
+/** What the shell's pick asks for (the layer has already checked who sent it), or null for anything else. */
 export function placementOf(m: unknown): Pending | null {
   const o = m as Record<string, unknown> | null;
   if (!o || typeof o !== 'object') return null;
-  if (o.dgn === 'insert-template' && typeof o.id === 'string')
-    return { kind: 'template', id: o.id, follow: o.follow === true };
-  if (o.dgn !== 'insert-sticker') return null;
+  const via = PICK_OF_DGN.get(o.dgn);
+  if (via === 'template')
+    return typeof o.id === 'string'
+      ? { kind: 'template', id: o.id, follow: o.follow === true }
+      : null;
+  if (via !== 'sticker') return null;
   const sticker = stickerRefOf(o.sticker);
   if (sticker?.pack === STAMPS_PACK) return { kind: 'stamp', stampKind: sticker.id };
   if (typeof o.path !== 'string' || !o.path) return null;

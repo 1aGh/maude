@@ -2024,7 +2024,8 @@ export function AnnotationsLayer() {
       // is.
       // S4.13 - a gallery pick / stamp / template trails the pointer until a click (`follow`), and a stamp stays
       // armed; without `follow` a sticker or template lands mid-view at once, as before. One Pending, three kinds.
-      const placement = placementOf(m);
+      const placement =
+        m.dgn === 'insert-sticker' || m.dgn === 'insert-template' ? placementOf(m) : null;
       if (placement) {
         const armed =
           placement.kind === 'stamp' || ('follow' in placement && placement.follow === true);
