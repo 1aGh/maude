@@ -299,6 +299,19 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'ai.ask-selection',
+    exec: 'canvas',
+    visible: { minRole: 'edit' },
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘/',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
     id: 'inspect.edit',
     exec: 'canvas',
     enabled: { minRole: 'edit', mode: ['preview', 'viewing'], selection: ['object'] },

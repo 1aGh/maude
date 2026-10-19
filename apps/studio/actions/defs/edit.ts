@@ -587,6 +587,25 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
+  // S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected asks AI about THEM, in place: the canvas says what is
+  // selected and where, the shell draws the bubble and hands the words to the AI chat's composer with an
+  // `elements` scope (S4-S5 contract §1). Canvas-focus + Edit mode + an object selected; ⌘/ elsewhere stays
+  // `ai.chat`'s (chrome / timeline / text foci), so the two never meet (registry uniqueness per document).
+  {
+    id: 'ai.ask-selection',
+    label: 'Ask AI about the selection',
+    kind: 'command',
+    icon: 'sparkle',
+    exec: 'canvas',
+    // The chat runs Claude Code on this Mac — the desktop app only (as `ai.chat`). That is NOT a predicate here:
+    // the canvas resolves this binding with a browser-shaped KeyCtx (ctx.ts › canvasKeyCtx), so a `shell`
+    // predicate would unbind the chord inside the app. The shell's host (AskSelectionHost) draws nothing
+    // outside the desktop app.
+    visible: EDITS,
+    enabled: { ...EDITS, selection: ['object'] },
+    keys: [kb('⌘/', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
+    search: { keywords: ['ask ai', 'selection', 'in place', 'change these'] },
+  },
   // S3.10a — where a click goes: `data-cd-link` on the element (S3-links-format). Both are `edit-op`s
   // (`edit-ops/{set,clear}-link.ts`) on POST /_api/edit-op. Clear link runs from ⌘K through the inspector's
   // frame; Set link has no human picker yet (the On click row only clears), so it has no runner — the AI path

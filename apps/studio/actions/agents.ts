@@ -362,6 +362,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'
   ),
   'artboard.ask-ai': { effect: 'none', agent: human('ai-chat') },
+  // S2.19 — ⌘/ on a selection: the person's way into the AI chat with a scope; an agent IS the chat
+  'ai.ask-selection': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   // A5 lead (S2.2b): an agent does not rename ids — the references live in lanes it never writes
   // (_comments/, the board's hosts); `maude design check` reports the old id as id-lost.
   'element.set-id': {
