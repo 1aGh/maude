@@ -15,6 +15,21 @@
 /** @type {ReadonlyArray<Readonly<{ n: number, id: string, title: string, explain: string, adder?: boolean, aside?: string }>>} */
 export const SECTIONS = Object.freeze(
   [
+    // S2.15 — a picture's own rows come first (14 Editing, ed-img). Both are drawn for the Image kind only: the frame
+    // draws a section only when a body is registered for the selected kind. Numbered after the ten drawn ones.
+    {
+      n: 11,
+      id: 'image',
+      title: 'Image',
+      explain:
+        'The picture, its size and how it fits the frame: Fill crops it to fit, Fit shows all of it, Crop moves and zooms it inside the frame, Tile repeats it.',
+    },
+    {
+      n: 12,
+      id: 'adjust',
+      title: 'Adjust',
+      explain: 'The look of the picture and its background open Photo.',
+    },
     {
       n: 1,
       id: 'position',

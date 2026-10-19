@@ -22,10 +22,12 @@ import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
 import { CornerDots } from './corner-dots.tsx';
+import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
+import { ImageDrop } from './image-drop.tsx';
 import {
   CONSTRAIN_ACTION,
   isConstrainAction,
@@ -41,6 +43,7 @@ import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
+import { PasteBar } from './paste-bar.tsx';
 import { PinGuides } from './place-freely.tsx';
 import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
@@ -80,6 +83,8 @@ export const EDITING_ACTIONS = [
   TIDY_ACTION,
   // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
   ...ARTBOARD_ACTIONS,
+  // S2.15 — Crop: with params it is the op (the inspector's Fit / Zoom), without it opens crop mode (crop-mode.tsx)
+  CROP_ACTION,
 ] as const;
 
 export function EditingLayer() {
@@ -230,6 +235,10 @@ export function EditingLayer() {
       <CornerDots readOnly={isReadOnlyCanvas()} />
       {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
       <PlaceGhost readOnly={isReadOnlyCanvas()} />
+      {/* S2.15 — a tile dropped on a frame, crop mode (double-click a picture), and the bar under a Figma paste */}
+      <ImageDrop readOnly={isReadOnlyCanvas()} />
+      <CropMode readOnly={isReadOnlyCanvas()} />
+      {editChrome ? <PasteBar readOnly={isReadOnlyCanvas()} /> : null}
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
       {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}

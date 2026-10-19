@@ -1722,6 +1722,29 @@ Consumers that target a hook no producer emits today. Each one is a test, spec o
 | `component-picker-error` | testid | The picker's one-line failure when the component list was refused or failed. | `client/v2/inspector/component-picker.jsx` · `ComponentPicker` | test:component-picker | new |
 | `edit-place-ghost` | testid | Canvas iframe: the dashed ghost that follows the pointer after a pick in the Component picker (its name; solid when snapped to the centre guide). | `editing/place-ghost.tsx` · `PlaceGhost` | test:edit-place-ghost | new |
 | `edit-place-guide` | testid | Canvas iframe: the guide down the artboard's centre while a picked component follows the pointer; full strength when snapped. | `editing/place-ghost.tsx` · `PlaceGhost` | test:edit-place-ghost | new |
+| `insp-image-file` | testid | The Image section's first row: the picture's thumb, its file name and size, and Replace…. | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-thumb` | testid | Image › the picture's small thumb (served from the project's assets). | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-name` | testid | Image › the file the picture shows (`ab12cd34.jpg`). | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-size` | testid | Image › the picture's own size, "4032 × 3024", once it has loaded. | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-replace` | testid | Image › Replace… — opens the asset picker; its pick is the `image.replace` edit-op. Disabled below Can edit. | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-source` | testid | Image › From: where a pasted picture came from ("Figma · Hero / v3", read from `data-source`). | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-ctl-image-fit` | testid | Image › Fit: Fill · Fit · Crop · Tile (a picture pasted from Figma: Fill · Fit). One choice asks the canvas for one `image.crop`. | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-zoom` | testid | Image › Zoom (percent), shown for Crop; typed or stepped it asks `image.crop` with the zoom. | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-crop-hint` | testid | Image › the line under Zoom: "Double-click the picture to move it inside the frame." | `client/v2/inspector/kinds/image.jsx` · `ImageBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-adjust` | testid | Adjust › Adjust… — opens Photo. Drawn only where the panel can open Photo. | `client/v2/inspector/kinds/image.jsx` · `AdjustBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-remove-bg` | testid | Adjust › ✦ Remove background — opens Photo (the existing editor). | `client/v2/inspector/kinds/image.jsx` · `AdjustBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `insp-image-photo-line` | testid | Adjust › the line under the two rows; "Edits apply to this use only." is said only where Photo edits one use (S8.15). | `client/v2/inspector/kinds/image.jsx` · `AdjustBody` | test:v2-inspector-image | new in v2 (S2.15) |
+| `edit-crop-mode` | testid | Canvas iframe: crop mode is open on a picture (ghost, frame, brackets, handles, tag, hint). | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-crop-ghost` | testid | Canvas iframe: the whole picture, faded, beyond the frame in crop mode; drag it to move it inside the frame. | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-crop-frame` | testid | Canvas iframe: the frame the picture is cropped to, outlined in crop mode. | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-crop-bracket-<corner>` | testid (pattern) | Canvas iframe: one of the four brackets on the frame in crop mode (`nw` `ne` `se` `sw`). | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-crop-handle-<corner>` | testid (pattern) | Canvas iframe: one of the four corner handles of the faded picture in crop mode; drag to zoom, the opposite corner stays. | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-crop-tag` | testid | Canvas iframe: the tag over the frame in crop mode ("<name> · crop"). | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-crop-hint` | testid | Canvas iframe: the line under the frame in crop mode: "↵ done · esc cancel". | `editing/crop-mode.tsx` · `CropMode` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-drop-target` | testid | Canvas iframe: the ring on the picture, frame or artboard an Assets tile would land on while it is dragged over the canvas (`data-kind`). | `editing/image-drop.tsx` · `ImageDrop` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-paste-bar` | testid | Canvas iframe: the bar after a Figma paste ("Pasted from Figma as an image of “Hero / v3”."), `data-state` placed or layers. | `editing/paste-bar.tsx` · `PasteBar` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-paste-as-picture` | testid | Canvas iframe: "Paste as picture" on the paste bar when Figma sent layers and no picture. | `editing/paste-bar.tsx` · `PasteBar` | e2e:edit-images | new in v2 (S2.15) |
+| `edit-paste-make-editable` | testid | Canvas iframe: "Make editable" on the paste bar. Not drawn until Figma import (S8.17) lands. | `editing/paste-bar.tsx` · `PasteBar` | e2e:edit-images | new in v2 (S2.15) |
 
 Related producer-side gaps (not dangling, but they bite the same way):
 
