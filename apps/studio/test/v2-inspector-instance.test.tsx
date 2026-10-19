@@ -47,9 +47,11 @@ beforeAll(() => {
   }) as unknown as typeof fetch;
 });
 
+// The slot/kind registries are process-wide and other files rely on their state: this file registers no
+// sections (the instance blocks need none) and takes back the one kind it registers.
 afterAll(async () => {
-  const { unregisterSections } = await import('../client/v2/inspector/sections/index.js');
-  unregisterSections();
+  const { offInstance } = await import('../client/v2/inspector/kinds/instance.jsx');
+  offInstance();
   globalThis.fetch = realFetch;
   GlobalRegistrator.unregister();
 });
@@ -140,7 +142,6 @@ const runs: Array<Record<string, unknown>> = [];
 async function frame(selected: unknown = BUTTON) {
   const { registerInstanceKind } = await import('../client/v2/inspector/kinds/instance.jsx');
   registerInstanceKind();
-  await import('../client/v2/inspector/sections/index.js');
   const { InspectorFrame } = await import('../client/v2/inspector/frame.jsx');
   runs.length = 0;
   return mount(
