@@ -31,7 +31,8 @@ body[data-maude-inspect="true"] .dc-cv-halo--selected .tick { display: none; }
   z-index: 7;
   pointer-events: none;
   transform: translateY(6px);
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
+  font-variant-numeric: tabular-nums;
   font-size: 10px;
   padding: 2px 5px;
   border-radius: 2px;
