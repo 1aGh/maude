@@ -116,6 +116,9 @@ export interface CanvasToShell {
   // S10.4 (V2-1.6 §5.8) — the `data-ds-rev` values (`head` | a revision id) the canvas document carries;
   // the studio answers with `ds-pins`. A value is a name, never a path.
   'ds-pins-want': { revs: string[] };
+  // S10.8 — "Review…" on the Design system canvas's bar: the person asks for "Update N canvases". The canvas
+  // only asks; the shell opens the sheet (client/v2/ds/review-host.jsx), for the canvas on screen.
+  'ds-review': Empty;
   'canvas-expired': Empty;
   // S4.9 — the annotation board of `file` changed (a local write, a peer's, an undo): the shell's
   // Preview annotation list (client/v2/annotations/annotation-list.jsx) re-reads it.
@@ -998,6 +1001,8 @@ const c2s: C2S = {
     orphan: 'no-handler',
     parse: p({ file: str, children: num }),
   },
+  // S10.8 — handled by client/v2/ds/use-ds-frames.js (opens the review for the ACTIVE canvas's system)
+  'ds-review': { gate: 'active', status: 'live', owner: 'h/use-ds-frames', parse: none },
   // S10.4 — handled by client/v2/ds/pins.js (createPinsHost.onMessage)
   'ds-pins-want': {
     gate: 'active',
