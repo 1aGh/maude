@@ -1673,6 +1673,33 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-bar` | testid | The Design system canvas's bar: system name, Light \| Dark, changes waiting. Portalled into the canvas document body. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
 | `ds-bar-mode-<mode>` | testid | The bar's Light / Dark button (`<mode>` = light \| dark); `aria-pressed` is the previewed mode. It never changes the app theme. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
 | `ds-bar-pending` | testid | The bar's "N changes waiting" line, present only while `dsPending` holds entries. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
+| `ds-review-scrim` | testid | S10.8: the dim backdrop behind the "Update N canvases" sheet. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review` | testid | S10.8: the "Update N canvases" sheet (dialog); `data-view` is the swatch view, before or after. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-title` | testid | S10.8: the sheet title, "Update canvases with the new Accent?" (the verb the button repeats). | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-swatch` | testid | S10.8: what changed, up to three lines (a colour pair as chips, anything else in words), then "and N more". | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-chip-before` | testid | S10.8: the colour a changed value had. Repeats. | `client/v2/ds/review-sheet.jsx` · `Delta` | test:v2-ds-review-sheet.test | new |
+| `ds-review-chip-after` | testid | S10.8: the colour a changed value has now. Repeats. | `client/v2/ds/review-sheet.jsx` · `Delta` | test:v2-ds-review-sheet.test | new |
+| `ds-review-value` | testid | S10.8: a changed value that is not a colour, as "before → after". Repeats. | `client/v2/ds/review-sheet.jsx` · `Delta` | test:v2-ds-review-sheet.test | new |
+| `ds-review-shown` | testid | S10.8: the value of the chosen view (Before or After), kept for tests and screen readers; hidden. Repeats. | `client/v2/ds/review-sheet.jsx` · `Delta` | test:v2-ds-review-sheet.test | new |
+| `ds-review-ok` | testid | S10.8: "Fine in Light and Dark" — shown when every changed value has both themes and no failed contrast. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-head-tick` | testid | S10.8: the head checkbox — ticks or unticks every canvas that can be ticked; `aria-checked` may be `mixed`. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-head` | testid | S10.8: "4 of 5 canvases in <project>" next to the head tick. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-seg-<view>` | testid (pattern) | S10.8: the Before / After switch over the list (`<view>`: `before`, `after`); with more than twelve canvases the list groups by folder instead and there is no switch. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-list` | testid | S10.8: the canvases to update; `data-grouped` when it is by folder. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-folder` | testid | S10.8: a folder row in the by-folder list (`data-folder`). Repeats. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-folder-tick` | testid | S10.8: a folder row's checkbox — ticks the whole folder. Repeats. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-row` | testid | S10.8: one canvas in the list (`data-path`, `data-state` follows | left-out | pinned, `data-off`, `data-locked`). Repeats. | `client/v2/ds/review-sheet.jsx` · `RowView` | test:v2-ds-review-sheet.test | new |
+| `ds-review-tick` | testid | S10.8: a canvas's checkbox; disabled for a pinned or blocked canvas. Repeats. | `client/v2/ds/review-sheet.jsx` · `RowView` | test:v2-ds-review-sheet.test | new |
+| `ds-review-note` | testid | S10.8: the quiet line under a canvas name ("14 places", "Left out — keeps the old Accent, gets an update dot", why it is pinned). Repeats. | `client/v2/ds/review-sheet.jsx` · `RowView` | test:v2-ds-review-sheet.test | new |
+| `ds-review-fine` | testid | S10.8: the fine print under the list: unticked canvases keep the old look and show an update dot; Cancel puts the swatch back. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-error` | testid | S10.8: a refusal in words, under the list; the sheet stays open. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-cancel` | testid | S10.8: Cancel — drops what waits; no canvas changes. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-review-update` | testid | S10.8: the primary button, "Update 4 canvases" — sends the ticks; one action, one ⌘Z. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-update-available` | testid | S10.8: Inspector › the "Update available" block on an instance in a canvas that was left out of an update. | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
+| `ds-update-what` | testid | S10.8: what the canvas is missing, one line ("Corners 2 → 6, by You, 10 min ago. 2026/combine was left out of that update."). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
+| `ds-update-do` | testid | S10.8: Update — gives this instance the current look (`ds.instance-update`). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
+| `ds-update-detach` | testid | S10.8: Detach — S2's `component.detach` on this instance. | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
+| `ds-update-error` | testid | S10.8: a refusal of Update in words (AI holds it, locked, viewer). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 
 ## What's New spotlights
 

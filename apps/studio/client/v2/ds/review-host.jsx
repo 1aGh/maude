@@ -1,0 +1,202 @@
+// client/v2/ds/review-host.jsx — S10.8: the shell's side of "Update N canvases".
+//
+// The sheet (review-sheet.jsx) only draws. This host fetches what it draws (the review, what waits, how many
+// places each canvas uses), does the two writes it can ask for (Update, Cancel) and says the outcome in words.
+// It is mounted once in the shell; registry actions reach it through review-bus.js. It also publishes the
+// Canvases rows' "update" word (row-dots.js) — one mount, one place the DS review lives.
+//
+// Every write is the server's to refuse (routes/ds.ts, Can edit on the whole project): a refusal comes back as a
+// code and this file turns it into the person's words (review-model.js `refusalWords`). Nothing is trusted from
+// the page: the system comes from the canvas the person has open, never from a request body.
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { canvasDsSystem } from '../../canvas-url.js';
+import { DsReviewSheet } from './review-sheet.jsx';
+import { onDsReviewRequest } from './review-bus.js';
+import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
+import { useDsRowDots } from './row-dots.js';
+import { useDsUpdateDots } from './update-dots.js';
+import { bodyOf } from './update-available.jsx';
+
+const JSON_HEADERS = { 'content-type': 'application/json' };
+const CANCELLED = 'Put back. No canvas changed.';
+const USAGE_CAP = 8; // tokens / masters whose usage is asked for: the sheet shows three lines at most
+
+async function call(fetchImpl, method, url, body) {
+  let res;
+  try {
+    res = await fetchImpl(url, {
+      method,
+      cache: 'no-store',
+      ...(body ? { headers: JSON_HEADERS, body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    return { ok: false, code: 'unreachable', body: null };
+  }
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* an unreadable answer is judged by its status */
+  }
+  const code = res.ok ? null : (json?.code ?? (res.status === 403 ? 'forbidden' : 'failed'));
+  return { ok: res.ok, code, body: json };
+}
+
+/** `{ [designRoot-relative canvas]: places }` for what changed — summed over the changed tokens and masters. */
+export async function placesOf(ds, changes, components, fetchImpl = globalThis.fetch) {
+  const asks = [
+    ...changes.slice(0, USAGE_CAP).map((c) => `css=${encodeURIComponent(c.css)}`),
+    ...components.slice(0, USAGE_CAP).map((n) => `component=${encodeURIComponent(n)}`),
+  ];
+  const answers = await Promise.all(
+    asks.map((q) => call(fetchImpl, 'GET', `/_api/ds/usage?ds=${encodeURIComponent(ds)}&${q}`))
+  );
+  const places = {};
+  for (const a of answers) {
+    if (!a.ok) continue;
+    for (const c of a.body?.canvases ?? []) {
+      if (typeof c?.rel === 'string' && Number.isFinite(c.places))
+        places[c.rel] = (places[c.rel] ?? 0) + c.places;
+    }
+  }
+  return places;
+}
+
+/**
+ * What the sheet needs, or a reason in words. `waitingFor`: the person has nothing pending to review.
+ * @returns {Promise<{ ok: true, review: any, components: string[], places: Record<string, number> } | { ok: false, message: string }>}
+ */
+export async function loadDsReview(ds, fetchImpl = globalThis.fetch) {
+  const [rev, state] = await Promise.all([
+    call(fetchImpl, 'POST', '/_api/ds/publish', { ds, dryRun: true }),
+    call(fetchImpl, 'GET', `/_api/ds/state?ds=${encodeURIComponent(ds)}`),
+  ]);
+  if (!rev.ok) return { ok: false, message: refusalWords(rev.code) };
+  const review = rev.body;
+  const changes = Array.isArray(review?.changes) ? review.changes : [];
+  const pending = state.body?.systems?.[0]?.pending;
+  const components =
+    pending?.components && typeof pending.components === 'object'
+      ? Object.keys(pending.components)
+      : [];
+  if (changes.length === 0 && components.length === 0)
+    return { ok: false, message: REVIEW_WORDS.noneWaiting };
+  return {
+    ok: true,
+    review: {
+      system: review.system ?? ds,
+      expectHead: review.expectHead ?? null,
+      changes,
+      canvases: Array.isArray(review.canvases) ? review.canvases : [],
+    },
+    components,
+    places: await placesOf(ds, changes, components, fetchImpl),
+  };
+}
+
+/** Update: the ticks go to `POST /_api/ds/publish`; one action, one ⌘Z (the server records it). */
+export async function publishReview({ ds, expectHead }, rows, fetchImpl = globalThis.fetch) {
+  const r = await call(
+    fetchImpl,
+    'POST',
+    '/_api/ds/publish',
+    publishBody({ ds, expectHead }, rows)
+  );
+  if (!r.ok) return { ok: false, message: refusalWords(r.code) };
+  const result = r.body?.result;
+  return {
+    ok: true,
+    updated: Number.isFinite(result?.updated) ? result.updated : 0,
+    leftOut: Number.isFinite(result?.leftOut) ? result.leftOut : 0,
+  };
+}
+
+/** Cancel: "puts the swatch back" — what waited is dropped, no canvas changes. */
+export async function cancelReview({ ds }, fetchImpl = globalThis.fetch) {
+  const r = await call(fetchImpl, 'POST', '/_api/ds/pending', { ds, cancel: true });
+  return r.ok
+    ? { ok: true }
+    : {
+        ok: false,
+        message: r.code === 'forbidden' ? REVIEW_WORDS.forbidden : REVIEW_WORDS.cancelFailed,
+      };
+}
+
+/** The system a request names: the canvas it came from (or the open one) decides, never the request's own `ds`. */
+export function systemOf(req, cfg, activePath) {
+  const at = typeof req?.canvas === 'string' && req.canvas ? req.canvas : activePath;
+  const entry = at ? canvasDsSystem(at, cfg) : (cfg?.designSystems?.[0] ?? null);
+  const ds = typeof req?.ds === 'string' && req.ds ? req.ds : entry?.name;
+  if (!ds || cfg?.dsConverted?.[ds] !== true) return null;
+  return ds;
+}
+
+/**
+ * @param {{ cfg: any, activePath: string | null, toast?: (m: string) => void, scope?: string,
+ *           frameFor?: () => HTMLIFrameElement | null, fetchImpl?: typeof fetch }} props
+ */
+export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fetchImpl }) {
+  useDsRowDots(cfg);
+  // a canvas left out of an update: the elements that wear what changed get a dot (drawn by the canvas shell)
+  useDsUpdateDots({
+    cfg,
+    activePath,
+    revisionBody: bodyOf,
+    frameFor: frameFor ?? (() => null),
+    fetchImpl,
+  });
+  const [sheet, setSheet] = useState(null);
+  const live = useRef({ cfg, activePath, toast, fetchImpl });
+  live.current = { cfg, activePath, toast, fetchImpl };
+  const say = (m) => live.current.toast?.(m);
+  const f = () => live.current.fetchImpl ?? globalThis.fetch;
+
+  useEffect(
+    () =>
+      onDsReviewRequest(async (req) => {
+        const { cfg: c, activePath: at } = live.current;
+        const ds = systemOf(req, c, at);
+        if (!ds) return say('This canvas follows no design system that can be updated yet.');
+        if (req.kind === 'cancel') {
+          const r = await cancelReview({ ds }, f());
+          return say(r.ok ? CANCELLED : r.message);
+        }
+        const loaded = await loadDsReview(ds, f());
+        if (!loaded.ok) return say(loaded.message);
+        setSheet({ ds, ...loaded });
+      }),
+    []
+  );
+
+  const close = useCallback(() => setSheet(null), []);
+  if (!sheet) return null;
+  return (
+    <DsReviewSheet
+      key={`${sheet.ds}:${sheet.review.expectHead}`}
+      review={sheet.review}
+      components={sheet.components}
+      places={sheet.places}
+      scope={scope}
+      onClose={close}
+      onUpdate={async (rows) => {
+        const r = await publishReview(
+          { ds: sheet.ds, expectHead: sheet.review.expectHead },
+          rows,
+          f()
+        );
+        if (!r.ok) return r;
+        say(updatedWords(r.updated, r.leftOut));
+        setSheet(null);
+        return { ok: true };
+      }}
+      onCancel={async () => {
+        const r = await cancelReview({ ds: sheet.ds }, f());
+        if (!r.ok) return r;
+        say(CANCELLED);
+        setSheet(null);
+        return { ok: true };
+      }}
+    />
+  );
+}

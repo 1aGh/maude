@@ -26,7 +26,7 @@ async function getJson(url) {
   }
 }
 
-async function bodyOf(ds, rev) {
+export async function bodyOf(ds, rev) {
   const key = `${ds}@${rev}`;
   if (bodies.has(key)) return bodies.get(key);
   const b = await getJson(`/_api/ds/revision?ds=${encodeURIComponent(ds)}&rev=${rev}`);

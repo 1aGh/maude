@@ -35,6 +35,7 @@ import {
 import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
+import { requestDsReview } from '../ds/review-bus.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { runPreviewBack } from '../preview/preview-back.js';
 import { nativeDoors } from './native-doors.js';
@@ -90,7 +91,7 @@ async function runDoor(d, id) {
  *   onTogglePresent(), onTogglePrintGuides(), onToggleTimeline(), onToggleAutoOpenInspector(),
  *   onToggleLayersMode(), onInsertArtboard(preset), onImportFigma(), onImportBrand(), onDuplicate(path),
  *   onRename(path, name), onPickMoveDestination() (opens the folder list), onSwitchAccount(),
- *   onOpenDashboard() (a cloud tab's Back to Home), onCutPaste(kind)
+ *   onOpenDashboard() (a cloud tab's Back to Home), onCutPaste(kind), onDsGoTo(params) (ds.go-to)
  */
 export function createMenuHandlers(d) {
   const h = {
@@ -258,6 +259,21 @@ export function createMenuHandlers(d) {
     },
     // S10.6 — Light | Dark on the Design system canvas: a preview of the active canvas only, nothing written.
     'ds.set-theme-preview': (p) => d.onDsThemePreview?.(p?.mode),
+    // S10.8 — "Update N canvases": the review sheet (review-host.jsx, mounted once in the shell) opens on the
+    // system the open canvas follows. The Inspector's "Update … for every canvas…" is the same sheet.
+    'ds.publish': (p) => requestDsReview({ kind: 'review', ds: p?.ds, canvas: p?.canvas }),
+    'ds.review-update': (p) =>
+      requestDsReview({
+        kind: 'push',
+        canvas: p?.canvas,
+        elementId: p?.elementId,
+        target: p?.target,
+        ds: p?.ds,
+      }),
+    // Cancel puts the swatch back: what waited is dropped, no canvas changes.
+    'ds.cancel-pending': (p) => requestDsReview({ kind: 'cancel', ds: p?.ds, canvas: p?.canvas }),
+    // S10.8 — Go to the design system / a token / a master (the shell opens the tab and selects it)
+    'ds.go-to': (p) => d.onDsGoTo?.(p),
     'view.advanced-close-all': () => {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
