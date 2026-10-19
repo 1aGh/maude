@@ -19,6 +19,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { capsFor } from '../shell/canvas-mode.js';
+import { v2Scope } from './v2-scope.js';
 import VoteSheet from './vote-sheet.jsx';
 import { barModel, VOTE_WORDS, voteStateMessage, voteStore } from './vote-store.js';
 
@@ -42,7 +43,7 @@ export function VoteBar({ state, now, onEnd, onCast, onClear }) {
   const m = barModel(state.vote, state.mine, now, state.pending ?? null);
   if (!m) return null;
   return (
-    <div className="island an-vbar" data-testid="vote-bar" role="status" aria-live="polite">
+    <div {...v2Scope('island an-vbar')} data-testid="vote-bar" role="status" aria-live="polite">
       <span className="an-vbar-t">
         <b>Vote</b>
         {m.what}
