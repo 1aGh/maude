@@ -1,4 +1,10 @@
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
+import {
+  fanOut,
+  fitSticky,
+  stackLanding,
+  stackMembers,
+} from './annotations/elements/sticky.model.ts';
 import { type HostRects, resolverFromRects } from './annotations/hosts.ts';
 import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
@@ -67,6 +73,23 @@ import {
   withMembership,
 } from './annotations/ui/ride.ts';
 import { AnnotationScene } from './annotations/ui/scene.tsx';
+import {
+  foldSummary,
+  foldVerb,
+  membersOf,
+  SECTION_TONES,
+  setFolded,
+  withoutFolded,
+} from './annotations/ui/section-fold.ts';
+import { postToShell, scopeKey, selectionScope } from './annotations/ui/shell-asks.ts';
+import {
+  NO_RESOLVED_LINE,
+  resolveVerb,
+  selectResolvedIds,
+  toggleResolved,
+  trashedLine,
+  withoutResolvedStickies,
+} from './annotations/ui/sticky-resolve.ts';
 import {
   aimCommitOps,
   draftOp,
@@ -275,7 +298,12 @@ import {
   useCanvasMediaDrop,
 } from './use-canvas-media-drop.tsx';
 import { useChromeVisibility } from './use-chrome-visibility.tsx';
-import { type AnnotationGesture, colorForName, useCollab } from './use-collab.tsx';
+import {
+  type AnnotationGesture,
+  colorForName,
+  useCollab,
+  useForeignAwareness,
+} from './use-collab.tsx';
 import { useGovernedMode } from './use-governed-mode.ts';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
@@ -575,6 +603,30 @@ function findTextStrokeAt(
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 
+/** The stickies as plain boxes in paint order (the stack / fan-out maths of sticky.model.ts). */
+function stickyBoxes(list: readonly Stroke[]) {
+  return list
+    .filter((x): x is StickyStroke => x.tool === 'sticky')
+    .map((x) => ({
+      id: x.id,
+      x: Math.min(x.x, x.x + x.w),
+      y: Math.min(x.y, x.y + x.h),
+      w: Math.abs(x.w),
+      h: Math.abs(x.h),
+    }));
+}
+
+/** S4.12 - the registry actions the layer answers on the `run-action` lane. */
+const STICKY_RUN_ACTIONS: ReadonlySet<string> = new Set([
+  'annotation.resolve',
+  'annotation.fan-out',
+  'annotation.fold',
+  'annotation.to-comment',
+  'annotation.ask-ai',
+  'annotations.trash-resolved',
+  'annotations.select-resolved',
+]);
+
 const ANNOT_CSS = `
 /* S4.9 - Edit's posture (annotations/ui/posture.ts): the ink fades, a sticky's paper is mixed with grey in
    JS (quietPaper) so its words keep their contrast, and nothing in the scene takes a pointer: a click
@@ -586,6 +638,16 @@ const ANNOT_CSS = `
   inset: 0;
   z-index: 4;
 }
+/* S4.12 - a sticky up close (canvas 15 an-sticky): the author line shows on hover and when selected; a
+   resolved one is struck through in place with a tick; a folded section keeps its title chip and count. */
+.dc-annot-who { opacity: 0; pointer-events: none; transition: opacity var(--dur-fast, 100ms) var(--ease-out, ease-out); }
+.dc-annot-el:hover > .dc-annot-who, .dc-annot-who[data-an-who="sel"] { opacity: 1; }
+.dc-annot-done {
+  position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--maude-hud-accent, #2f7d4f); color: #fff; pointer-events: none;
+}
+.dc-annot-scene[data-an-quiet] .dc-annot-who { display: none; }
+.dc-annot-fold { position: absolute; font: 600 11px/1 var(--font-ui, system-ui); white-space: nowrap; pointer-events: none; }
 /* S4.10 - ride with the artboard: the live re-route overlay (world coords, no hit area), the
    refused-straight chip, and the outline of the artboard a selection belongs to. The settled route
    eases in on --dur-soft (160 ms); reduced motion collapses the token, and the sink skips the fade. */
@@ -757,6 +819,11 @@ export interface StrokesStoreValue {
   previewStroke: (id: string, patch: Partial<Stroke>) => void;
   /** Wave H — single undo record from a preview gesture's start snapshot. */
   commitGesture: (before: readonly Stroke[], label?: string) => void;
+  /**
+   * S4.12 - run a sticky / section action by its registry id (`annotation.resolve`, `annotation.fan-out`,
+   * `annotation.fold`, `annotation.to-comment`) on the current selection. False when it does not apply.
+   */
+  runAction?: (id: string) => boolean;
   /** The host a dragged arrow endpoint would bind to (halo), or null. */
   setBindHint?: (hostId: string | null) => void;
   /** Live size label + dimension-match halos while resizing, or null. */
@@ -964,6 +1031,9 @@ export function AnnotationsLayer() {
   const publishGesture = useCallback((g: AnnotationGesture | null) => {
     collabRef.current?.publishAwareness({ annotationGesture: g });
   }, []);
+  // S4.12 - the layer's own routes into the shell (filled below, read by the message listener and the menu).
+  const runAnnotationActionRef = useRef<(id: string) => boolean>(() => false);
+  const askAiRef = useRef<() => void>(() => {});
   const [gestureState, setGestureState] = useState('idle');
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -1677,6 +1747,7 @@ export function AnnotationsLayer() {
       distributeSelection,
       previewStroke,
       commitGesture,
+      runAction: (id: string) => runAnnotationActionRef.current(id),
     };
   }, [strokes, setStrokes, commitStrokes, rememberDeletedIds]);
 
@@ -1857,6 +1928,19 @@ export function AnnotationsLayer() {
           const lost = danglingRef.current.find((d) => d.arrowId === arrow.id);
           setPointTo({ arrowId: arrow.id, end: lost?.end ?? 'end' });
         }
+        return;
+      }
+      // S4.12 - Resolve, Fan out, Fold, Turn into a comment, Ask AI about it and the ⌘K clean-up of resolved
+      // stickies ride the same lane (registry rows in actions/defs/annotation.ts).
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown }).v === 1 &&
+        typeof (m as { id?: unknown }).id === 'string' &&
+        STICKY_RUN_ACTIONS.has((m as { id: string }).id)
+      ) {
+        const rid = (m as { id: string }).id;
+        if (rid === 'annotation.ask-ai') askAiRef.current();
+        else runAnnotationActionRef.current(rid);
         return;
       }
       // V2-2.4 — Select all annotations rides the `run-action` lane (V2-1.3 §5.7).
@@ -2504,6 +2588,15 @@ export function AnnotationsLayer() {
         Math.abs(norm.w) < STICKY_MIN_SIZE || Math.abs(norm.h) < STICKY_MIN_SIZE
           ? { ...norm, w: STICKY_DEFAULT_W, h: STICKY_DEFAULT_H }
           : norm;
+      // S4.12 (an-sticky cell 3) - a drop on another sticky lands 12 px down and right, so the one under it
+      // still shows. A drag-sized card keeps its drawn corner; only a tap (the default card) stacks.
+      if (
+        final.tool === 'sticky' &&
+        (final.w === STICKY_DEFAULT_W || final.h === STICKY_DEFAULT_H)
+      ) {
+        const hit = stackLanding({ x: cur.x, y: cur.y }, stickyBoxes(strokesRef.current), cur.id);
+        if (hit) final = { ...final, x: hit.x, y: hit.y };
+      }
     } else if (cur.tool === 'section') {
       const norm = normalizeBox(cur);
       final =
@@ -2868,11 +2961,33 @@ export function AnnotationsLayer() {
     [viewedStrokes, drawing]
   );
   // S4.9 - the person filter and C29's Hide resolved stickies leave elements out of the DRAWING only.
-  const shownStrokes = useMemo(
-    () =>
-      withoutResolved(filterByAuthors(renderStrokes, authorFilter, collab?.myName), hideResolved),
-    [renderStrokes, authorFilter, hideResolved, collab?.myName]
-  );
+  // S4.12 - a folded section's members are left out of the drawing too (they stay in the file).
+  const shownStrokes = useMemo(() => {
+    const seen = withoutResolved(
+      filterByAuthors(renderStrokes, authorFilter, collab?.myName),
+      hideResolved
+    );
+    return withoutFolded(seen, (id) =>
+      new Containment(strokesToElementMap(renderStrokes, board.committed).values()).contentsOf(id)
+    );
+  }, [renderStrokes, authorFilter, hideResolved, collab?.myName, board.committed]);
+  // S4.12 - the count line on a folded section's chip: what is inside, and how many people wrote it.
+  const foldNotes = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!renderStrokes.some((s) => s.tool === 'section' && s.folded)) return m;
+    const c = new Containment(strokesToElementMap(renderStrokes, board.committed).values());
+    for (const s of renderStrokes) {
+      if (s.tool === 'section' && s.folded)
+        m.set(
+          s.id,
+          foldSummary(
+            membersOf(renderStrokes, s.id, (id) => c.contentsOf(id)),
+            collab?.myName
+          )
+        );
+    }
+    return m;
+  }, [renderStrokes, board.committed, collab?.myName]);
   // Task 22 — what is being drawn, live for peers (pen ink tail, or the box).
   const drawPublishedRef = useRef(false);
   useEffect(() => {
@@ -3250,9 +3365,27 @@ export function AnnotationsLayer() {
             if (st.altDup) annotSel.replace(preAltIds);
             return;
           }
+          // S4.12 (an-sticky cell 3) - one sticky dropped onto another lands 12 px down and right of it.
+          let landed = final;
+          const lone = st.movedIds.length === 1 ? final.find((x) => x.id === st.movedIds[0]) : null;
+          if (lone?.tool === 'sticky' && !st.altDup) {
+            const [uwx, uwy] = screenToWorld(up.clientX, up.clientY);
+            const hit = stackLanding({ x: uwx, y: uwy }, stickyBoxes(final), lone.id);
+            if (hit) {
+              const bx = Math.min(lone.x, lone.x + lone.w);
+              const by = Math.min(lone.y, lone.y + lone.h);
+              landed = recomputeBoundArrows(
+                final.map((x) =>
+                  x.id === lone.id
+                    ? ({ ...lone, x: lone.x + (hit.x - bx), y: lone.y + (hit.y - by) } as Stroke)
+                    : x
+                )
+              );
+            }
+          }
           commitStrokes(
             st.undoBase,
-            final,
+            landed,
             `${st.altDup ? 'duplicate' : 'move'} ${st.movedIds.length} stroke${
               st.movedIds.length === 1 ? '' : 's'
             }`
@@ -3573,9 +3706,24 @@ export function AnnotationsLayer() {
       // away, having typed nothing, would produce an undo entry, a
       // full-document PUT and a sync broadcast.
       if (existing.text === text && fmtEqual(existing, fmt)) return;
-      const grown = measuredH == null ? null : grownStickyBox(existing, measuredH);
+      // S4.12 (an-sticky cell 1) - five lines, then wider, smaller type only past 120 words; the editor's own
+      // measurement still decides when the card needs more height than that estimate.
+      const fit = fitSticky({ w: existing.w, h: existing.h, fontSize: existing.fontSize }, text);
+      const sized =
+        fit.w !== Math.abs(existing.w) ||
+        fit.h !== Math.abs(existing.h) ||
+        fit.fontSize !== existing.fontSize
+          ? {
+              x: Math.min(existing.x, existing.x + existing.w),
+              y: Math.min(existing.y, existing.y + existing.h),
+              w: fit.w,
+              h: fit.h,
+              fontSize: fit.fontSize,
+            }
+          : null;
+      const grown = measuredH == null ? null : grownStickyBox(sized ?? existing, measuredH);
       const next = prev.map((s) =>
-        s.id === id ? { ...existing, text, ...normFmt(fmt), ...(grown ?? {}) } : s
+        s.id === id ? { ...existing, text, ...normFmt(fmt), ...(sized ?? {}), ...(grown ?? {}) } : s
       );
       commitStrokes(prev, next, 'edit sticky');
     },
@@ -3666,6 +3814,13 @@ export function AnnotationsLayer() {
   editingTargetRef.current = editingTarget;
   const editingIdRef = useRef(editingId);
   editingIdRef.current = editingId;
+  // S4.12 - while a sticky is typed in, the peers see it edged in this person's colour (awareness only).
+  const typingStickyId = editingTarget?.kind === 'sticky' ? editingTarget.sticky.id : null;
+  useEffect(() => {
+    if (!typingStickyId) return;
+    publishGesture({ kind: 'type', ids: [typingStickyId] });
+    return () => publishGesture(null);
+  }, [typingStickyId, publishGesture]);
 
   // One edit session per opened element (Task 19). Opened from the board as
   // last delivered, so its base is what everyone agreed on at that moment.
@@ -4286,6 +4441,25 @@ export function AnnotationsLayer() {
   // group, copy/paste, delete). Capture phase on document so it claims the
   // event before the input-router's host-level contextmenu handler.
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  // S4.12 - what the menu offers a sole sticky / section (canvas 15 an-convert, an-section).
+  const soleSelected =
+    annotSel?.selectedIds.length === 1
+      ? strokesById.get(annotSel.selectedIds[0] as string)
+      : undefined;
+  const stickyMenu =
+    soleSelected?.tool === 'sticky'
+      ? {
+          resolveWord:
+            resolveVerb(strokes, [soleSelected.id]) === 'reopen'
+              ? ('Reopen' as const)
+              : ('Resolve' as const),
+          canFanOut: stackMembers(stickyBoxes(strokes), soleSelected.id).length > 1,
+        }
+      : null;
+  const sectionMenu =
+    soleSelected?.tool === 'section'
+      ? { foldWord: soleSelected.folded ? ('Unfold' as const) : ('Fold' as const) }
+      : null;
   useEffect(() => {
     if (typeof document === 'undefined') return;
     if (tool !== 'move') return;
@@ -4408,6 +4582,15 @@ export function AnnotationsLayer() {
         store.ungroupSelection(sel);
       } else if (action === 'lock' || action === 'unlock') {
         store.setLocked(sel, action === 'lock');
+      } else if (
+        action === 'resolve' ||
+        action === 'fan-out' ||
+        action === 'fold' ||
+        action === 'to-comment'
+      ) {
+        runAnnotationActionRef.current(`annotation.${action}`);
+      } else if (action === 'ask-ai') {
+        askAiRef.current();
       } else if (action === 'replace') {
         // Stage F3 — "Replace…" on an ImageStroke/MediaRefStroke. The canvas
         // REQUESTS (untrusted-origin postMessage, DDR-054); the main-origin shell
@@ -4445,6 +4628,118 @@ export function AnnotationsLayer() {
     },
     [annotSel, copySelection, pasteStrokesText, strokesById]
   );
+
+  // S4.12 - stickies and sections up close. One entry point for the menu rows, the small toolbar and the
+  // registry actions (`run-action` from ⌘K / the keyboard): resolve, fan out, fold, turn into a comment, and
+  // the ⌘K clean-up of resolved stickies. Every write is one `commitStrokes` = one undo step.
+  const runAnnotationAction = useCallback(
+    (id: string): boolean => {
+      const cur = strokesRef.current;
+      const sel = annotSel?.selectedIds ?? [];
+      const me = collab?.myName ?? 'Someone';
+      const say = (message: string, undo: boolean) => {
+        if (!postToShell({ dgn: 'annotation-toast', v: 1, message, undo }))
+          showCanvasToast(message);
+      };
+      switch (id) {
+        case 'annotation.resolve': {
+          const verb = resolveVerb(cur, sel);
+          if (!verb) return false;
+          const next = toggleResolved(cur, sel, me, new Date().toISOString());
+          commitStrokes(cur, next, verb === 'reopen' ? 'reopen sticky' : 'resolve sticky');
+          return true;
+        }
+        case 'annotation.fan-out': {
+          const placed = stickyBoxes(cur);
+          const picked = placed.filter((p) => sel.includes(p.id));
+          const ids =
+            picked.length >= 2
+              ? picked.map((p) => p.id)
+              : stackMembers(placed, picked[0]?.id ?? '');
+          const row = fanOut(placed.filter((p) => ids.includes(p.id)));
+          if (row.length === 0) return false;
+          const at = new Map(row.map((r) => [r.id, r]));
+          const next = cur.map((x) => {
+            const r = at.get(x.id);
+            return r && x.tool === 'sticky' ? ({ ...x, x: r.x, y: r.y } as Stroke) : x;
+          });
+          commitStrokes(cur, recomputeBoundArrows(next), 'fan out stickies');
+          return true;
+        }
+        case 'annotation.fold': {
+          const verb = foldVerb(cur, sel);
+          if (!verb) return false;
+          let next = cur;
+          for (const sid of sel) next = setFolded(next, sid, verb === 'fold');
+          commitStrokes(cur, next, verb === 'fold' ? 'fold section' : 'unfold section');
+          return true;
+        }
+        case 'annotation.to-comment': {
+          const only = sel.length === 1 ? cur.find((x) => x.id === sel[0]) : undefined;
+          if (!only || only.tool !== 'sticky') return false;
+          return postToShell({ dgn: 'annotation-to-comment', id: only.id });
+        }
+        case 'annotations.select-resolved': {
+          const ids = selectResolvedIds(cur);
+          if (ids.length === 0) say(NO_RESOLVED_LINE, false);
+          else annotSel?.replace(ids);
+          return true;
+        }
+        case 'annotations.trash-resolved': {
+          const ids = withoutResolvedStickies(cur).ids;
+          if (ids.length === 0) {
+            say(NO_RESOLVED_LINE, false);
+            return true;
+          }
+          // The same delete ⌫ does (arrows bound to a removed sticky keep their end), so ⌘Z restores all.
+          strokesStoreRef.current.deleteStrokes(ids);
+          annotSel?.clear();
+          say(trashedLine(ids.length), true);
+          return true;
+        }
+        default:
+          return false;
+      }
+    },
+    [annotSel, collab?.myName, commitStrokes]
+  );
+  runAnnotationActionRef.current = runAnnotationAction;
+  // ⌘/ with annotations selected asks the AI about them (registry `annotation.ask-ai`, Preview only; in Edit
+  // ⌘/ is `ai.ask-selection`'s). The shell opens the chat; the scope is the `annotation-selection` above.
+  askAiRef.current = () => {
+    if ((annotSel?.selectedIds.length ?? 0) === 0) return;
+    postToShell({ dgn: 'annotation-ask-ai', v: 1 });
+  };
+  useEffect(() => {
+    if (typeof document === 'undefined' || posture !== 'drawn') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (isEditable(e.target) || (annotSel?.selectedIds.length ?? 0) === 0) return;
+      e.preventDefault();
+      askAiRef.current();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [annotSel, posture]);
+
+  // S4.12 - the AI chat's scope: what is selected, coalesced to one message per 50 ms (S4-S5 §1).
+  const scopeSentRef = useRef('');
+  const selIdsKey = (annotSel?.selectedIds ?? []).join(',');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the selection ids + board
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const scope = selectionScope(
+        strokesRef.current,
+        annotSel?.selectedIds ?? [],
+        (sid) => board.committed.get(sid)?.parentArtboard as string | undefined
+      );
+      const key = scopeKey(scope);
+      if (key === scopeSentRef.current) return;
+      scopeSentRef.current = key;
+      postToShell({ dgn: 'annotation-selection', ...scope });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [selIdsKey, boardVersion]);
 
   // FigJam v3 — first time a multi-selection lands, surface the group /
   // duplicate affordances once (behaviour-triggered, never a tour).
@@ -4565,6 +4860,7 @@ export function AnnotationsLayer() {
             editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
             unknownElements={unknownElements}
             arrowUi={arrowUi}
+            foldNotes={foldNotes}
           />
         ) : null}
         {visible && !quiet ? (
@@ -4603,6 +4899,8 @@ export function AnnotationsLayer() {
               selectedStrokes[0]?.tool === 'image' &&
               /assets\/[0-9a-f]{8}\.[a-z0-9]+/i.test((selectedStrokes[0] as ImageStroke).href || '')
             }
+            sticky={stickyMenu}
+            section={sectionMenu}
             onAction={onMenuAction}
             onClose={() => setCtxMenu(null)}
           />
@@ -4725,8 +5023,11 @@ function AnnotationsSvg({
   gestureState,
   unknownElements,
   arrowUi,
+  foldNotes,
 }: {
   worldRef: ReturnType<typeof useWorldRefContext>;
+  /** S4.12 - folded section id -> its count line. */
+  foldNotes: ReadonlyMap<string, string>;
   strokes: readonly Stroke[];
   /** S4.11 — aiming, lost ends, labels and the artboards an elbow routes around. */
   arrowUi: ArrowUi;
@@ -4878,6 +5179,19 @@ function AnnotationsSvg({
     [lodCtl]
   );
   const target = worldRef?.current ?? null;
+  // S4.12 - the author line follows the selection; a collaborator typing in a sticky edges it in their colour.
+  const selectedIdSet = useMemo(() => new Set(selectedStrokes.map((s) => s.id)), [selectedStrokes]);
+  const collab = useCollab();
+  const peers = useForeignAwareness();
+  const typists = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of peers) {
+      const g = p.annotationGesture;
+      if (g?.kind !== 'type') continue;
+      for (const id of g.ids.slice(0, 4)) m.set(id, colorForName(p.name ?? ''));
+    }
+    return m;
+  }, [peers]);
   const labelItem = arrowUi.labelEditId
     ? items.find((it) => it.el.id === arrowUi.labelEditId && it.ends)
     : undefined;
@@ -4899,6 +5213,10 @@ function AnnotationsSvg({
           edit={edit}
           pending={pending}
           resolveAsset={resolveAssetHref}
+          selectedIds={selectedIdSet}
+          me={collab?.myName ?? null}
+          typists={typists}
+          foldNotes={foldNotes}
         />,
         target
       )}
@@ -5273,9 +5591,15 @@ function AnnotationContextMenu({
   allLocked,
   canReplace,
   canEditPhoto,
+  sticky,
+  section,
   onAction,
   onClose,
 }: {
+  /** S4.12 - the sticky rows (canvas 15 an-convert): only for a sole sticky / section. */
+  sticky?: { resolveWord: 'Resolve' | 'Reopen'; canFanOut: boolean } | null;
+  /** S4.12 - the section rows: Fold / Unfold, and the AI question. */
+  section?: { foldWord: 'Fold' | 'Unfold' } | null;
   pos: { x: number; y: number };
   selCount: number;
   canUngroup: boolean;
@@ -5328,6 +5652,7 @@ function AnnotationContextMenu({
       type="button"
       role="menuitem"
       data-action={id}
+      data-testid={`annot-menu-${id}`}
       disabled={opts?.disabled}
       className={`dc-menu-item${opts?.destructive ? ' is-destructive' : ''}`}
       onClick={() => {
@@ -5348,6 +5673,20 @@ function AnnotationContextMenu({
       aria-label="Annotation actions"
       style={{ left: at.x, top: at.y }}
     >
+      {sticky ? (
+        <>
+          {item('to-comment', 'Turn into a comment')}
+          {item('resolve', sticky.resolveWord)}
+          {sticky.canFanOut ? item('fan-out', 'Fan out') : null}
+          <div className="dc-menu-sep" aria-hidden="true" />
+        </>
+      ) : null}
+      {section ? (
+        <>
+          {item('fold', section.foldWord)}
+          <div className="dc-menu-sep" aria-hidden="true" />
+        </>
+      ) : null}
       {item('copy', 'Copy', '⌘C')}
       {item('cut', 'Cut', '⌘X', { disabled: allLocked })}
       {item('paste', 'Paste', '⌘V')}
@@ -5363,8 +5702,14 @@ function AnnotationContextMenu({
       {item('group', 'Group selection', '⌘G', { disabled: selCount < 2 })}
       {canUngroup ? item('ungroup', 'Ungroup', '⌘⇧G') : null}
       {allLocked ? item('unlock', 'Unlock', '⌘⇧L') : item('lock', 'Lock', '⌘⇧L')}
+      {sticky || section ? (
+        <>
+          <div className="dc-menu-sep" aria-hidden="true" />
+          {item('ask-ai', sticky ? 'Ask AI about this sticky' : 'Ask AI about it', '⌘/')}
+        </>
+      ) : null}
       <div className="dc-menu-sep" aria-hidden="true" />
-      {item('delete', 'Delete', '⌫', { destructive: true, disabled: allLocked })}
+      {item('delete', 'Move to trash', '⌫', { destructive: true, disabled: allLocked })}
     </div>
   );
 }

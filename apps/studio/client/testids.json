@@ -22452,5 +22452,95 @@
       "apps/studio/test/arrow-kinds.test.ts"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-resolve",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: Resolve / Reopen on the small toolbar over a sole sticky (`aria-pressed` while resolved).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-to-comment",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: Turn into a comment on the small toolbar over a sole sticky.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: Fold / Unfold on the small toolbar over a sole section (`aria-pressed` while folded).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-ask-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: ✦ Ask AI about it on the small toolbar over a sole section.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-menu-<action>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.12: a row of the annotation right-click menu. `<action>`: `copy`, `cut`, `paste`, `duplicate`, `front`, `forward`, `backward`, `back`, `group`, `ungroup`, `lock`, `unlock`, `delete` (“Move to trash”), and for a sole sticky `to-comment`, `resolve`, `fan-out`, for a sole section `fold`, and `ask-ai` for both.",
+    "producer": {
+      "file": "apps/studio/annotations-layer.tsx",
+      "symbol": "AnnotationContextMenu"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

@@ -100,6 +100,16 @@ interface StrokeBase {
    */
   locked?: true;
   /**
+   * S4.12 — a sticky someone resolved (struck through in place, kept): who, and when (ISO). Absent =
+   * open. The stroke view of the v2 element's `resolved` (format-2 ext), so Resolve / Reopen written
+   * from the UI is a real write and a removal is real. Not serialized into the legacy SVG.
+   */
+  resolved?: { by: string; at: string };
+  /** S4.12 — a section folded to its title chip + count. The stroke view of the element's `folded`. */
+  folded?: true;
+  /** S4.12 — where an imported element came from (`figjam`, `comment`, …). Read-only in the UI. */
+  source?: { kind: string; author?: string };
+  /**
    * FigJam v3 — rotation in degrees (clockwise) around the stroke's bbox
    * center. Absent / 0 = axis-aligned (back-compat). Honoured by the box-
    * shaped strokes + standalone text; pen ink and arrows ignore it (their

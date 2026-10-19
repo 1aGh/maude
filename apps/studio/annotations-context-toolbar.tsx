@@ -33,6 +33,7 @@ import {
   twoWayPatch,
 } from './annotations/ui/arrow-kinds.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
+import { SECTION_TONES } from './annotations/ui/section-fold.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
@@ -302,6 +303,8 @@ const TOOLBAR_CSS = `
   outline: 2px solid #ffffff;
   outline-offset: -2px;
 }
+/* S4.12 - a word button (Resolve, Fold, Turn into a comment, Ask AI about it) */
+.dc-annot-ctx-tbtn { width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }
 .dc-annot-ctx-ibtn--danger { color: rgba(255,255,255,0.7); }
 .dc-annot-ctx-ibtn--danger:hover {
   background: color-mix(in oklab, #ff5a4d 26%, transparent);
@@ -1193,15 +1196,33 @@ export function AnnotationContextToolbar({
   // write to `color` (the paper tint). No Stroke|Fill toggle for sticky
   // (caps.fill is already false).
   const allSticky = selectedStrokes.every((s) => s.tool === 'sticky');
+  // S4.12 - a section picks one of its six tones (canvas 15 an-section), not ink.
+  const allSection = selectedStrokes.every((s) => s.tool === 'section');
+  const soleSticky =
+    selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'sticky'
+      ? selectedStrokes[0]
+      : null;
+  const soleSection =
+    selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'section'
+      ? selectedStrokes[0]
+      : null;
   const showPalette = allSticky
     ? STICKY_PALETTE
-    : effectiveMode === 'stroke'
-      ? STROKE_PALETTE
-      : FILL_PALETTE;
+    : allSection
+      ? SECTION_TONES.map((t) => t.value)
+      : effectiveMode === 'stroke'
+        ? STROKE_PALETTE
+        : FILL_PALETTE;
   const onSwatchClick =
     !allSticky && effectiveMode === 'fill' ? (c: string) => setFill(c) : (c: string) => setColor(c);
   const activeValue = allSticky || effectiveMode === 'stroke' ? uniqColor : (uniqFill ?? null);
-  const swatchKind = allSticky ? 'Sticky color' : effectiveMode === 'stroke' ? 'Color' : 'Fill';
+  const swatchKind = allSticky
+    ? 'Sticky color'
+    : allSection
+      ? 'Section color'
+      : effectiveMode === 'stroke'
+        ? 'Color'
+        : 'Fill';
 
   return (
     <div
@@ -1459,6 +1480,54 @@ export function AnnotationContextToolbar({
             onClick={() => setDashed(!(uniqDashed === true))}
           >
             <IconDash />
+          </button>
+        </>
+      ) : null}
+      {soleSticky ? (
+        <>
+          <div className="dc-annot-ctx-sep" />
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-resolve"
+            aria-pressed={!!soleSticky.resolved}
+            title={soleSticky.resolved ? 'Reopen this sticky' : 'Resolve — strike it through'}
+            onClick={() => store.runAction?.('annotation.resolve')}
+          >
+            {soleSticky.resolved ? 'Reopen' : 'Resolve'}
+          </button>
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-to-comment"
+            title="Turn into a comment — its words become a thread, the sticky goes to the trash"
+            onClick={() => store.runAction?.('annotation.to-comment')}
+          >
+            Turn into a comment
+          </button>
+        </>
+      ) : null}
+      {soleSection ? (
+        <>
+          <div className="dc-annot-ctx-sep" />
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-fold"
+            aria-pressed={!!soleSection.folded}
+            title={soleSection.folded ? 'Unfold this section' : 'Fold this section to one line'}
+            onClick={() => store.runAction?.('annotation.fold')}
+          >
+            {soleSection.folded ? 'Unfold' : 'Fold'}
+          </button>
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-ask-ai"
+            title="Ask AI about this section (⌘/)"
+            onClick={() => store.runAction?.('annotation.ask-ai')}
+          >
+            ✦ Ask AI about it
           </button>
         </>
       ) : null}

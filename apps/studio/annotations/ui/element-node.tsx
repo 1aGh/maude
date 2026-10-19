@@ -45,6 +45,7 @@ import {
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
 import { colorForName } from '../../use-collab.tsx';
+import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
 import { quietPaper } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
@@ -81,6 +82,14 @@ export interface ElementNodeProps {
   interactive: boolean;
   /** S4.9 — Edit's posture: a sticky's paper is mixed with grey (its words keep their ink); CSS fades the rest. */
   quiet?: boolean;
+  /** S4.12 — this element is in the selection (a sticky then shows its author line). */
+  selected?: boolean;
+  /** S4.12 — the signed-in person wrote this (the author line says "You"). */
+  mine?: boolean;
+  /** S4.12 — a folded section's count line ("6 stickies · 2 people"), computed by the layer. */
+  foldNote?: string;
+  /** S4.12 — a collaborator is typing in this sticky: their cursor colour edges the paper. */
+  typist?: string | null;
   edit: EditRequest | null;
   /** Maps a stored `assets/…` path to a URL the canvas can load. */
   resolveAsset: (href: string) => string;
@@ -239,24 +248,44 @@ function EditNotice({ notice }: { notice: EditRequest['notice'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-type views
 
-function StickyView({ el, interactive, edit, quiet }: ElementNodeProps) {
+function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
   const r = num(el.radius, STICKY_CORNER_RADIUS);
   const fill = quiet ? quietPaper(str(el.fill, '#fce8a6')) : str(el.fill, '#fce8a6');
+  const resolved =
+    el.resolved && typeof el.resolved === 'object'
+      ? (el.resolved as { by?: unknown; at?: unknown })
+      : null;
+  const fmt = textFmt(el, 'left');
+  // S4.12 (C29) — a resolved sticky is struck through in place and kept; the words stay readable.
   const style = {
-    ...slotTextStyle('sticky', textFmt(el, 'left')),
+    ...slotTextStyle('sticky', resolved ? { ...fmt, strike: true } : fmt),
     color: '#2a2a28',
     padding: '14px 16px',
+    ...(resolved ? { opacity: 0.72 } : {}),
   };
   const text = str(el.text);
   const lst = list(el.list);
-  const authorName =
-    el.author && typeof el.author === 'object' ? str((el.author as { name?: unknown }).name) : '';
+  const a =
+    el.author && typeof el.author === 'object'
+      ? (el.author as { kind?: unknown; name?: unknown })
+      : null;
+  const authorName = a ? str(a.name) : '';
+  const isAi = a?.kind === 'ai';
+  // S4.12 — a hand-rotated sticky keeps its angle; the rest tilt a little, from the id, and lie flat while typed in.
+  const rot = num(el.rot) || (edit ? 0 : tiltOf(el.id));
+  const line = authorLine({ name: authorName, ai: isAi, me: mine }, null, 0);
+  const origin = provenanceLine(el.source);
+  const doneLine =
+    resolved && typeof resolved.by === 'string'
+      ? `Resolved by ${resolved.by}${typeof resolved.at === 'string' ? ` · ${relativeTime(resolved.at, Date.now())}` : ''}`
+      : null;
+  const shown = [line, origin, doneLine].filter(Boolean).join(' · ');
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)} raised={!!edit}>
+    <Node el={el} x={x} y={y} w={w} h={h} rot={rot} raised={!!edit}>
       <Geo x={x} y={y} w={w} h={h}>
         <path
           d={stickyCornerPath(x, y, w, h, r)}
@@ -267,6 +296,17 @@ function StickyView({ el, interactive, edit, quiet }: ElementNodeProps) {
           filter="url(#dc-sticky-shadow)"
           pointerEvents={hit(interactive)}
         />
+        {typist ? (
+          <path
+            d={stickyCornerPath(x, y, w, h, r)}
+            fill="none"
+            stroke={typist}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+            data-typist-edge="1"
+          />
+        ) : null}
       </Geo>
       {edit ? (
         <div
@@ -308,28 +348,48 @@ function StickyView({ el, interactive, edit, quiet }: ElementNodeProps) {
         </div>
       )}
       {edit ? <EditNotice notice={edit.notice} /> : null}
-      {authorName ? (
+      {resolved ? (
         <span
-          title={authorName}
+          className="dc-annot-done"
+          data-resolved="1"
+          title="Resolved"
+          role="img"
+          aria-label="Resolved"
+        >
+          <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+            <path
+              d="M2.5 6.4 5 8.8l4.5-5.2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      ) : null}
+      {shown && !edit ? (
+        <span
+          className="dc-annot-who"
+          title={shown}
+          data-an-who={selected ? 'sel' : undefined}
           style={{
             position: 'absolute',
+            left: 4,
             right: 4,
-            bottom: 3,
-            maxWidth: 156,
+            top: '100%',
+            marginTop: 3,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 600,
             fontFamily: TEXT_FONT,
-            color: colorForName(authorName),
-            background: 'rgba(255,255,255,0.78)',
-            padding: '1px 5px',
-            borderRadius: 8,
+            color: authorName ? colorForName(authorName) : '#555',
             lineHeight: 1.4,
           }}
         >
-          {authorName}
+          {shown}
         </span>
       ) : null}
     </Node>
@@ -792,10 +852,12 @@ function SectionChip({
   el,
   interactive,
   edit,
+  note,
 }: {
   el: AnnotationElement;
   interactive: boolean;
   edit: EditRequest | null;
+  note?: string;
 }) {
   // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
   const zoom = useLiveViewport().zoom || 1;
@@ -839,20 +901,31 @@ function SectionChip({
     );
   }
   return (
-    <div className="dc-annot-chip" data-section-chip="1" style={{ ...box, width: g.chipW }}>
+    <div
+      className="dc-annot-chip"
+      data-section-chip="1"
+      style={{ ...box, width: note ? undefined : g.chipW, whiteSpace: 'nowrap' }}
+    >
       <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
         {label}
+        {note ? (
+          <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
+            {note}
+          </span>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function SectionView({ el, interactive, edit }: ElementNodeProps) {
+function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
   const color = str(el.color, '#8a8a8a');
+  // S4.12 - folded: the members are not drawn, so the body is a faint dashed outline and the chip says what is inside.
+  const folded = el.folded === true;
   return (
     <Node el={el} x={x} y={y} w={w} h={h} raised={!!edit}>
       <Geo x={x} y={y} w={w} h={h}>
@@ -865,10 +938,11 @@ function SectionView({ el, interactive, edit }: ElementNodeProps) {
           rx={SECTION_CORNER_RADIUS}
           ry={SECTION_CORNER_RADIUS}
           fill={color}
-          fillOpacity={0.07}
+          fillOpacity={folded ? 0.03 : 0.07}
           stroke={color}
-          strokeOpacity={0.45}
+          strokeOpacity={folded ? 0.3 : 0.45}
           strokeWidth={1.5}
+          strokeDasharray={folded ? '6 5' : undefined}
           vectorEffect="non-scaling-stroke"
           pointerEvents="none"
         />
@@ -889,7 +963,12 @@ function SectionView({ el, interactive, edit }: ElementNodeProps) {
           />
         ) : null}
       </Geo>
-      <SectionChip el={el} interactive={interactive} edit={edit} />
+      <SectionChip
+        el={el}
+        interactive={interactive}
+        edit={edit}
+        note={folded ? (foldNote ?? '') : undefined}
+      />
       {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>
   );
@@ -1004,6 +1083,10 @@ export const ElementNode = memo(
     a.el === b.el &&
     a.interactive === b.interactive &&
     a.quiet === b.quiet &&
+    a.selected === b.selected &&
+    a.mine === b.mine &&
+    a.foldNote === b.foldNote &&
+    a.typist === b.typist &&
     a.edit === b.edit &&
     a.resolveAsset === b.resolveAsset &&
     sameEnds(a.ends, b.ends)

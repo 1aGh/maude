@@ -69,6 +69,15 @@ function fmt(s: {
   return out;
 }
 
+/** S4.12 — what the views need beyond the shape: resolved (strike-through), folded, and the import origin. */
+function extras(s: Stroke): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (s.tool === 'sticky' && s.resolved) out.resolved = s.resolved;
+  if (s.tool === 'section' && s.folded) out.folded = true;
+  if (s.source) out.source = s.source;
+  return out;
+}
+
 function author(s: Stroke): Record<string, unknown> {
   if (s.author === 'ai') return { author: { kind: 'ai' } };
   if (s.authorName) return { author: { kind: 'human', name: s.authorName } };
@@ -86,7 +95,7 @@ function box(x: number, y: number, w: number, h: number) {
 
 /** One stroke (and a shape's anchored label) → its world-space view record. */
 export function strokeToRenderItem(s: Stroke, label?: Label): RenderItem | null {
-  const head = { id: s.id, index: 'a0', ...author(s) };
+  const head = { id: s.id, index: 'a0', ...author(s), ...extras(s) };
   const rot = s.rotation ? { rot: s.rotation } : {};
   switch (s.tool) {
     case 'element':
