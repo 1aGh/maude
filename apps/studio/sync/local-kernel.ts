@@ -112,6 +112,8 @@ export const BASELINE_KIND = 'migration.import';
 export const BASELINE_LABEL = 'Version history starts here';
 /** How long a burst of fs events on one canvas settles before it is proposed. */
 export const OBSERVE_SETTLE_MS = 300;
+/** How long a move the studio announced holds the watcher's view of its two paths. */
+export const MOVE_HOLD_MS = 30_000;
 /** How often a read-only studio asks whether the writer has gone (C2). */
 export const LOCK_RETRY_MS = 5_000;
 
@@ -615,6 +617,13 @@ export interface LocalHome {
   aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
   observeMove(fromRel: string, toRel: string): void;
+  /**
+   * The studio is ABOUT to move a canvas (`canvas-move-begin`, sent before the file is renamed). Until
+   * `observeMove` arrives — or {@link MOVE_HOLD_MS} passes — the watcher's view of the two paths is held:
+   * the old path vanishing is not a delete (it would sit in the Trash, and restoring it would bring the old
+   * name back beside the renamed canvas) and the new path appearing is not a second document.
+   */
+  expectMove(fromRel: string, toRel: string): void;
   /** Propose every pending observation now. */
   flush(): Promise<void>;
   /** Other machines' stores in `_state/`, read-only (C1). */
@@ -961,6 +970,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const store = opened.store;
     const live: string | null = await store.docByPath(rel);
     const onDisk = existsSync(abs(rel));
+    // A move the studio announced and has not finished: observeMove lands both halves in one op.
+    if (holdLive(rel)) return null;
     if (!onDisk) {
       for (const lane of LOCAL_LANES) seen.delete(`${rel}|${lane}`);
       if (!live) return null;
@@ -1480,6 +1491,23 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   /* -------------------------------------------------------------- watcher */
 
   const pending = new Set<string>();
+  /** Paths held for a move the studio announced: path → the time the hold lapses. */
+  const moveHeld = new Map<string, number>();
+  const holdLive = (rel: string): boolean => {
+    const until = moveHeld.get(rel);
+    if (until === undefined) return false;
+    if (until > now()) return true;
+    moveHeld.delete(rel);
+    return false;
+  };
+  function expectMove(fromRel: string, toRel: string): void {
+    const from = canvasOfRel(fromRel);
+    const to = canvasOfRel(toRel);
+    if (!from || !to || !/\.tsx$/i.test(fromRel)) return;
+    const until = now() + MOVE_HOLD_MS;
+    moveHeld.set(from, until);
+    moveHeld.set(to, until);
+  }
   let timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<unknown> = Promise.resolve();
   const serial = <T>(fn: () => Promise<T>): Promise<T> => {
@@ -1520,6 +1548,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const from = canvasOfRel(fromRel);
     const to = canvasOfRel(toRel);
     if (!from || !to || !/\.tsx$/i.test(fromRel)) return;
+    moveHeld.delete(from);
+    moveHeld.delete(to);
     pending.delete(from);
     pending.delete(to);
     void serial(async () => {
@@ -1963,6 +1993,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     runtime,
     observe,
     observeMove,
+    expectMove,
     noteWritten,
     aiRuns: () => stage.runs(),
     flush: async () => {
@@ -2104,6 +2135,12 @@ export function attachLocalHome<S extends SupervisorLike>(
       p.board,
       before === undefined ? {} : { baseText: before }
     );
+  });
+  // The studio announces a move BEFORE it renames the file (api.ts moveCanvas), so the watcher cannot
+  // record the old path vanishing as a delete while the sidecars are still moving.
+  ctx.bus.on('canvas-move-begin', (change: { rel?: string; fromRel?: string } | null) => {
+    if (!isLocal() || !change?.rel || !change.fromRel) return;
+    get()?.expectMove(change.fromRel, change.rel);
   });
   ctx.bus.on(
     'canvas-list-update',

@@ -4761,6 +4761,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // Primary `.tsx` moves FIRST — abort the whole op if this fails so the
     // tree is never wrong about where the canvas lives.
     await mkdir(toDirAbs, { recursive: true });
+    // Said BEFORE the rename: the local history must not read the old path vanishing as a delete (a
+    // Trash row for a rename) while the sidecars below are still moving; `moved` follows when all is done.
+    ctx.bus.emit('canvas-move-begin', { rel: toRel, fromRel: rel });
     try {
       await rename(fileAbs, toAbs);
     } catch (err) {
