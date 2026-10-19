@@ -253,7 +253,8 @@ export interface CanvasToShell {
    * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
    * elements moved (`null`: it is gone — the run is over).
    */
-  'ask-selection': { refs: ElementRef[]; selection?: AskLocator[]; rect: Rect };
+  // S2.21: an artboard's "Ask AI about this artboard" names the artboard instead of elements (`refs` is [])
+  'ask-selection': { refs: ElementRef[]; selection?: AskLocator[]; rect: Rect; artboard?: Id };
   'ask-selection-rect': { rect: Rect | null };
   'insert-artboard-request': { id?: Id; label?: string; width?: number; height?: number };
 
@@ -1241,6 +1242,7 @@ const c2s: C2S = {
       refs: capped(200, arrOf(elementRef)),
       selection: opt(capped(12, arrOf(askLocator))),
       rect,
+      artboard: opt(str),
     }),
   },
   'ask-selection-rect': {

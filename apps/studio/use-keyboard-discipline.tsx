@@ -169,10 +169,11 @@ export function useKeyboardDiscipline(): void {
       }
 
       // Keyboard tree traversal (Task L2) — Enter = first child, Shift+Enter =
-      // parent, Tab / Shift+Tab = next / previous sibling. Mouse-free selection of
-      // the deeply-nested / overlapping elements the plan's predictability goal is
-      // about. Scoped to a single element selection + no meta modifier.
-      if (!isMeta && !e.altKey && (e.key === 'Enter' || e.key === 'Tab')) {
+      // parent. Mouse-free selection of the deeply-nested / overlapping elements the
+      // plan's predictability goal is about. Scoped to a single element selection +
+      // no meta modifier. (Tab / Shift+Tab, the siblings, are `object.select-next` /
+      // `-prev` since S2.21 — editing/focus-model.tsx walks them in reading order.)
+      if (!isMeta && !e.altKey && e.key === 'Enter') {
         const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
         if (!one?.id) return;
         const el = resolveSelectionEl(document, one) as HTMLElement | null;
@@ -182,22 +183,6 @@ export function useKeyboardDiscipline(): void {
           next = el.querySelector('[data-cd-id]'); // first descendant
         } else if (e.key === 'Enter' && e.shiftKey) {
           next = el.parentElement?.closest('[data-cd-id]') ?? null; // parent
-        } else if (e.key === 'Tab') {
-          // Next / previous stamped sibling in document order.
-          const forward = !e.shiftKey;
-          let s: Element | null = forward ? el.nextElementSibling : el.previousElementSibling;
-          while (s) {
-            if (s.hasAttribute('data-cd-id')) {
-              next = s;
-              break;
-            }
-            const inner = s.querySelector('[data-cd-id]');
-            if (inner) {
-              next = inner;
-              break;
-            }
-            s = forward ? s.nextElementSibling : s.previousElementSibling;
-          }
         }
         // Don't leave the artboard body (a parent hop past the artboard root).
         if (next?.closest('.dc-artboard-body') && next.getAttribute('data-cd-id')) {
@@ -215,9 +200,6 @@ export function useKeyboardDiscipline(): void {
               tag: next.tagName.toLowerCase(),
             },
           ]);
-        } else if (e.key === 'Tab') {
-          // Swallow Tab even with no target, so focus doesn't jump out of the canvas.
-          e.preventDefault();
         }
         return;
       }

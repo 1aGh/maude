@@ -16,6 +16,7 @@
 // Pure over the item structure — testable without a DOM.
 
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
+import { ASK_ARTBOARD_EVENT } from './ask-bubble.tsx';
 
 /** The widths the submenu offers, in the order the design draws them (the registry's web widths). */
 export const DUPLICATE_WIDTHS: ReadonlyArray<{ id: string; label: string; width: number }> = [
@@ -66,10 +67,13 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
         id: 'ask-ai',
         label: 'Ask AI about this artboard',
         shortcut: '⌘/',
-        // S5's composer takes the artboard; until it does the row says so instead of doing nothing.
-        disabled: true,
-        disabledHint: 'Ask AI arrives with the AI chat',
-        onSelect: () => {},
+        // S2.21 — the same bubble ⌘/ on a selection opens (ask-bubble.tsx), scoped to this artboard.
+        onSelect: (t) => {
+          if (t.artboardId)
+            window.dispatchEvent(
+              new CustomEvent(ASK_ARTBOARD_EVENT, { detail: { artboardId: t.artboardId } })
+            );
+        },
       },
     ],
     [

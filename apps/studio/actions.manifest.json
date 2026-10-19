@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "0bb0745029d0",
+  "manifestVersion": "f6333031813a",
   "actions": [
     {
       "id": "search.open",
@@ -615,7 +615,18 @@
     },
     {
       "id": "object.select-next",
-      "label": "Select next sibling",
+      "label": "Select next object",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.select-prev",
+      "label": "Select previous object",
       "kind": "command",
       "exec": "canvas",
       "effect": "none",
@@ -2366,6 +2377,19 @@
       }
     },
     {
+      "id": "tool.create-default",
+      "label": "Add one at its default size",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”"
+      }
+    },
+    {
       "id": "tool.highlighter",
       "label": "Highlighter",
       "kind": "tool",
@@ -2477,6 +2501,19 @@
         "path": "human",
         "because": "view-pref",
         "note": "the user’s navigation history"
+      }
+    },
+    {
+      "id": "ui.cycle-region",
+      "label": "Move between the panels and the canvas",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "where the keyboard is in the window"
       }
     },
     {

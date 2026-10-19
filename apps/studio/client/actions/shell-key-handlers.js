@@ -24,6 +24,7 @@ import { shellToast } from '../shell/util.js';
 import { runCopyPng } from '../v2/export/copy-png.js';
 import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
+import { cycleRegion } from '../v2/shell/f6-cycle.js';
 import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
@@ -132,6 +133,11 @@ export const SHELL_KEY_HANDLERS = {
       },
     });
     if (step === 'set' || step === 'forward') e.preventDefault();
+  },
+  // S2.21 — F6 / ⇧F6: the keyboard moves between the panels and the canvas (client/v2/shell/f6-cycle.js).
+  // A chord the canvas forwarded carries `shiftKey` on its event stub, so the direction survives the hop.
+  'ui.cycle-region': (_d, { event: e }) => {
+    if (cycleRegion(document, e.shiftKey ? -1 : 1)) e.preventDefault();
   },
   'search.open': (d, { event: e }) => {
     e.preventDefault();
@@ -380,8 +386,9 @@ const FORWARDED_KEYS = documentIndex(
   'shell',
   (id) => !!ACTIONS_BY_ID.get(id)?.fromCanvas && id in SHELL_KEY_HANDLERS
 );
-// A forwarded chord carries no keyboard event: the canvas already prevented the default.
-const FORWARDED_EVENT = { preventDefault() {} };
+// A forwarded chord carries no keyboard event: the canvas already prevented the default. Only the shift
+// state of the chord is kept (⇧F6 goes back).
+const forwardedEvent = (chord) => ({ preventDefault() {}, shiftKey: /^⌥?⇧/.test(chord) });
 
 /**
  * Canvas → shell: a chord pressed inside the active canvas (`{dgn:'key', v:1, chord}`). The shell
@@ -411,6 +418,6 @@ export function runForwardedKey(chord, d, index = FORWARDED_KEYS) {
     if (outcome === 'deny') (d.denied ?? shellToast)(ROLE_DENIAL);
     return true;
   }
-  SHELL_KEY_HANDLERS[r.action.id](d, { event: FORWARDED_EVENT, ctx });
+  SHELL_KEY_HANDLERS[r.action.id](d, { event: forwardedEvent(chord), ctx });
   return true;
 }

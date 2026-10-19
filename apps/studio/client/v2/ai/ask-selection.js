@@ -16,7 +16,7 @@
 // No DOM beyond the event target, no React: test/v2-ask-selection.test.ts runs it directly.
 
 import { ASK_AI_MAX } from '../search/search-env.js';
-import { elementsScope } from './scope.js';
+import { artboardScope, elementsScope } from './scope.js';
 
 export const ASK_SELECTION_EVENT = 'maude:ask-selection';
 export const ASK_SELECTION_PENDING_KEY = '__maudeAskSelectionPending';
@@ -34,7 +34,12 @@ const MARGIN = 8;
 export function sendAskSelection({ text, scope } = {}, target = globalThis) {
   const words = typeof text === 'string' ? text.trim().slice(0, ASK_TEXT_MAX) : '';
   if (!words) return false;
-  const ok = scope?.kind === 'elements' ? elementsScope(scope.refs, scope.selected) : null;
+  const ok =
+    scope?.kind === 'elements'
+      ? elementsScope(scope.refs, scope.selected)
+      : scope?.kind === 'artboards' && scope.ids?.length === 1
+        ? artboardScope(scope.ids[0])
+        : null;
   if (!ok) return false;
   const detail = { text: words, scope: ok };
   target[ASK_SELECTION_PENDING_KEY] = detail;
@@ -45,7 +50,8 @@ export function sendAskSelection({ text, scope } = {}, target = globalThis) {
 export function subscribeAskSelection(on, target = globalThis) {
   const take = (detail) => {
     target[ASK_SELECTION_PENDING_KEY] = undefined;
-    if (detail?.text && detail?.scope?.kind === 'elements') on(detail);
+    if (detail?.text && (detail?.scope?.kind === 'elements' || detail?.scope?.kind === 'artboards'))
+      on(detail);
   };
   if (target[ASK_SELECTION_PENDING_KEY]) take(target[ASK_SELECTION_PENDING_KEY]);
   const handler = (e) => take(e?.detail);

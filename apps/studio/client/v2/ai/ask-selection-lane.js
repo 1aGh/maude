@@ -17,7 +17,7 @@
 
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
-import { elementsScope } from './scope.js';
+import { artboardScope, elementsScope } from './scope.js';
 
 /** How long an `asked` bubble waits for its outline before it gives up. */
 export const GRACE_MS = 10_000;
@@ -58,10 +58,14 @@ export function createAskSelectionLane(deps) {
       const path = deps.activePath();
       if (!path) return;
       if (m.dgn === 'ask-selection') {
-        const scope = elementsScope(
-          m.refs,
-          (m.selection || []).slice(0, SELECTED_MAX).map((s) => ({ ...s, file: path }))
-        );
+        // S2.21 — an artboard's “Ask AI about this artboard” names the artboard (no elements): its whole page
+        const scope =
+          m.artboard && !m.refs.length
+            ? artboardScope(m.artboard)
+            : elementsScope(
+                m.refs,
+                (m.selection || []).slice(0, SELECTED_MAX).map((s) => ({ ...s, file: path }))
+              );
         if (!scope || !m.rect) return;
         set({ phase: 'input', path, scope, rect: m.rect, text: '', at: now(), seen: false });
       } else if (m.dgn === 'ask-selection-rect' && state.phase === 'asked') {

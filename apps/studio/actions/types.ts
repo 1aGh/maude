@@ -61,7 +61,9 @@ export type Fact =
   | 'commentFocused'
   | 'selfHostedHub'
   | 'selectFocused'
-  | 'rangeFocused';
+  | 'rangeFocused'
+  // S2.21 — a create tool (F · R · T) is armed in the canvas: ↵ adds one at its default size, not "go inside"
+  | 'toolArmed';
 
 /** Declarative predicate — serialisable into the manifest, evaluable in the shell, the iframe and
  *  (role half) the server. Every present field must hold (AND); `any` is an OR of sub-predicates. */

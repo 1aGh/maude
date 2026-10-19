@@ -23,6 +23,8 @@ import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { refsOf } from './object-ops.ts';
 
 export const ASK_SELECTION_ACTION = 'ai.ask-selection';
+/** S2.21 — the artboard menu's “Ask AI about this artboard” row announces itself here: `detail: { artboardId }`. */
+export const ASK_ARTBOARD_EVENT = 'maude:ask-artboard';
 const KEYS = canvasKeyIndex([ASK_SELECTION_ACTION]);
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -75,6 +77,16 @@ export function askPayload(selected: readonly Selection[], doc: Document) {
   return { refs, selection: locatorsOf(selected.filter((s) => s.id && s.artboardId)), rect };
 }
 
+/**
+ * S2.21 — the `ask-selection` payload for a whole artboard: no elements, the artboard's id, and where it is on
+ * screen. The shell turns it into an `artboards` scope for the same bubble; null when the artboard is not here.
+ */
+export function askArtboardPayload(artboardId: string, doc: Document) {
+  const el = doc.querySelector(`[data-dc-screen="${CSS.escape(artboardId)}"]`);
+  const rect = el?.isConnected ? unionRect([el.getBoundingClientRect()]) : null;
+  return rect ? { refs: [], artboard: artboardId, rect } : null;
+}
+
 export function AskBubble({ readOnly }: { readOnly: boolean }): null {
   const { selected } = useSelectionSet();
   const selRef = useRef(selected);
@@ -116,11 +128,25 @@ export function AskBubble({ readOnly }: { readOnly: boolean }): null {
       const m = acceptFromShell(e, window);
       if (m?.dgn === 'run-action' && m.id === ASK_SELECTION_ACTION) ask();
     };
+    const onAskArtboard = (e: Event) => {
+      if (readOnly || isReadOnlyCanvas() || isEmbedCanvas()) return;
+      const id = (e as CustomEvent<{ artboardId?: unknown }>).detail?.artboardId;
+      if (typeof id !== 'string' || window.parent === window) return;
+      const payload = askArtboardPayload(id, document);
+      if (!payload) return;
+      try {
+        window.parent.postMessage({ dgn: 'ask-selection', ...payload }, '*');
+      } catch {
+        /* detached */
+      }
+    };
     document.addEventListener('keydown', onKey);
     window.addEventListener('message', onMessage);
+    window.addEventListener(ASK_ARTBOARD_EVENT, onAskArtboard);
     return () => {
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('message', onMessage);
+      window.removeEventListener(ASK_ARTBOARD_EVENT, onAskArtboard);
     };
   }, [readOnly]);
 

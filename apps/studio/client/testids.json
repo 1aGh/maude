@@ -21921,5 +21921,61 @@
     "consumers": [],
     "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
     "v2": "new"
+  },
+  {
+    "hook": "edit-focus-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the keyboard focus ring (2.5 px + halo, token --ed-focus-ring, never the selection token) around the object tab landed on; hidden after a pointer press.",
+    "producer": {
+      "file": "apps/studio/editing/focus-model.tsx",
+      "symbol": "FocusRing"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-order-badges",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the host of the reading-order badges (1…6 on the level, 4.1…4.3 inside the focused frame) shown while the keyboard walks.",
+    "producer": {
+      "file": "apps/studio/editing/tab-order.tsx",
+      "symbol": "OrderBadges"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-order-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one reading-order badge (`data-order` = \"4\" or \"4.2\", `data-on` on the focused object).",
+    "producer": {
+      "file": "apps/studio/editing/tab-order.tsx",
+      "symbol": "OrderBadges"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-aria-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the polite live region VoiceOver reads the focused object from (\"Services, frame, 3 items, in a row — 4 of 6. Press Return to go inside.\").",
+    "producer": {
+      "file": "apps/studio/editing/aria-live.tsx",
+      "symbol": "AriaLive"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
   }
 ]

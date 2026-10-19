@@ -193,7 +193,12 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'canvas',
     // S3.11: Edit's only — in Preview and Viewing ↵ is `inspect.edit` (one binding per chord and context).
-    keys: [kb('↵', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
+    // S2.21: not while a create tool is armed — there ↵ is `tool.create-default`.
+    keys: [
+      kb('↵', 'selection', {
+        when: { ...OBJ, mode: ['edit'], selection: ['object'], notFacts: ['toolArmed'] },
+      }),
+    ],
   },
   {
     // S2.1 — one level out: the parent is selected; at the top the selection is dropped. Its key is
@@ -218,14 +223,20 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: [kb('⇧↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
   },
   {
+    // S2.21 (14 `ed-edge-keys`) — tab walks the objects of the level you are on, in reading order (the badges
+    // 1…6, then 4.1…4.3 inside); with nothing selected it takes the first. ⇧tab is `object.select-prev`.
     id: 'object.select-next',
-    label: 'Select next sibling',
+    label: 'Select next object',
     kind: 'command',
     exec: 'canvas',
-    keys: [
-      kb('tab', 'selection', { when: { ...OBJ, selection: ['object'] } }),
-      kb('⇧tab', 'selection', { when: { ...OBJ, selection: ['object'] } }),
-    ],
+    keys: [kb('tab', 'selection', { when: { ...OBJ, mode: ['edit'] } })],
+  },
+  {
+    id: 'object.select-prev',
+    label: 'Select previous object',
+    kind: 'command',
+    exec: 'canvas',
+    keys: [kb('⇧tab', 'selection', { when: { ...OBJ, mode: ['edit'] } })],
   },
   {
     id: 'object.remove',

@@ -680,7 +680,8 @@ const INSPECTOR_SCRIPT = `
   var FORWARD = ${JSON.stringify(FORWARDED_CHORDS)};
   var chordOf = ${CHORD_OF_EVENT_JS};
   document.addEventListener('keydown', function(e) {
-    if (!(e.metaKey || e.ctrlKey)) return;
+    // S2.21: a bare F-key (F6, the way out of the canvas to the panels) is forwarded too; the table decides
+    if (!(e.metaKey || e.ctrlKey) && !/^F[0-9]{1,2}$/.test(e.key || '')) return;
     var chord = chordOf(e);
     if (FORWARD.indexOf(chord) < 0) return;
     e.preventDefault();

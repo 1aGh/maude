@@ -18,6 +18,7 @@ import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { AiScopeOutline } from './ai-scope-outline.tsx';
 import { AlignBar } from './align-bar.tsx';
+import { AriaLive } from './aria-live.tsx';
 import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
@@ -27,6 +28,7 @@ import { CornerDots } from './corner-dots.tsx';
 import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
+import { KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
 import { ImageDrop } from './image-drop.tsx';
@@ -60,6 +62,7 @@ import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
 import { StickyName } from './sticky-name.tsx';
+import { OrderBadges } from './tab-order.tsx';
 import {
   isTextAction,
   runTextAction,
@@ -102,6 +105,11 @@ export const EDITING_ACTIONS = [
   // S2.19 — ⌘/ on a selection (run by ask-bubble.tsx, which listens for its own run-action id)
   ASK_SELECTION_ACTION,
 ] as const;
+
+/** The reading-order badges, drawn while the keyboard is the last thing used. */
+function KeyboardBadges() {
+  return <OrderBadges active={useKeyboardModality()} />;
+}
 
 export function EditingLayer() {
   const selSet = useSelectionSet();
@@ -286,6 +294,11 @@ export function EditingLayer() {
       {/* S2.19 — ⌘/ on a selection: the canvas says what and where; one AI outline follows the ask */}
       <AskBubble readOnly={isReadOnlyCanvas()} />
       <AiScopeOutline />
+      {/* S2.21 — tab / ⇧tab in reading order, F6 out to the panels, R·T·F then ↵; the focus ring, the order
+          badges while the keyboard walks, and what VoiceOver hears */}
+      <KeyboardLayer readOnly={isReadOnlyCanvas()} />
+      <KeyboardBadges />
+      <AriaLive />
     </>
   );
 }
