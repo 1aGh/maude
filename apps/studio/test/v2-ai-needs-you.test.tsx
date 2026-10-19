@@ -194,29 +194,23 @@ describe('ChoiceCard (03 ai-choice-fail)', () => {
     },
   };
 
-  test('pick a row, Send answers; Send is off until something is picked', async () => {
+  // S5.17b G7: 03 draws picks only — a row IS the answer, no Skip, no Send (s5-17b-fidelity.test.tsx pins it)
+  test('a row answers; there is no Send to wait for', async () => {
     const answers: unknown[] = [];
     const v = await mount(({ ChoiceCard }) => (
       <ChoiceCard request={elicitation} onRespond={(r: unknown) => answers.push(r)} />
     ));
-    const send = v.q('chat-elicit-submit') as HTMLButtonElement;
-    expect(send.disabled).toBe(true);
-    const radio = v
-      .q('chat-elicit-option-question_0-1')
-      ?.querySelector('input') as HTMLInputElement;
-    await v.act(async () => radio.click());
-    expect((v.q('chat-elicit-submit') as HTMLButtonElement).disabled).toBe(false);
-    await v.act(async () => (v.q('chat-elicit-submit') as HTMLElement).click());
+    expect(v.q('chat-elicit-submit')).toBeNull();
+    await v.act(async () => v.q('chat-elicit-option-question_0-1')?.click());
     expect(answers).toEqual([{ action: 'accept', content: { question_0: 'light' } }]);
   });
 
-  test('"Something else…" opens a field and the typed answer is the one sent', async () => {
+  test('"Something else…" opens a field and the typed answer is the one sent, on Enter', async () => {
     const answers: unknown[] = [];
     const v = await mount(({ ChoiceCard }) => (
       <ChoiceCard request={elicitation} onRespond={(r: unknown) => answers.push(r)} />
     ));
-    const otherRadio = v.q('chat-elicit-option-question_0-other')?.querySelector('input');
-    await v.act(async () => otherRadio?.click());
+    await v.act(async () => v.q('chat-elicit-option-question_0-other')?.click());
     const input = v.q('chat-elicit-custom-question_0') as HTMLInputElement;
     expect(input).not.toBeNull();
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set as (
@@ -226,7 +220,9 @@ describe('ChoiceCard (03 ai-choice-fail)', () => {
       setter.call(input, 'Forest');
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await v.act(async () => (v.q('chat-elicit-submit') as HTMLElement).click());
+    await v.act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
     expect(answers).toEqual([{ action: 'accept', content: { question_0_custom: 'Forest' } }]);
   });
 });

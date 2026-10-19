@@ -514,6 +514,10 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `chat-foot-popover` | testid | The chat info popover opened by `chat-foot-info-btn`. | `client/v2/ai/Composer.jsx` · `ChatFootInfo` | — | stable — re-emit |
 | `chat-usage-banner` | testid | Rate-limit / usage banner in the chat. | `client/v2/ai/Composer.jsx` · `RateLimitBanner` | — | stable — re-emit |
 | `chat-error-card` | testid | Error card in the chat transcript (`role="alert"`). | `client/v2/ai/Feed.jsx` · `ErrorCard` | — | stable — re-emit |
+| `chat-error-title` | testid | S5.17b: the failure card's one sentence — "Couldn't finish — <what>. Nothing changed." (or how to undo, when the run changed something). | `client/v2/ai/Feed.jsx` · `ErrorCard` | test:s5-17b-fidelity | new |
+| `chat-error-advanced` | testid | S5.17b: the failure card's › Advanced disclosure (`aria-expanded`); the raw message sits behind it. | `client/v2/ai/Feed.jsx` · `ErrorCard` | test:s5-17b-fidelity | new |
+| `chat-error-raw` | testid | S5.17b: under › Advanced, the raw error message (untrusted text, mono). | `client/v2/ai/Feed.jsx` · `ErrorCard` | test:s5-17b-fidelity | new |
+| `chat-error-retry` | testid | S5.17b: the failure card's one verb, Try again. | `client/v2/ai/Feed.jsx` · `ErrorCard` | test:s5-17b-fidelity | new |
 | `chat-qa-implement-comments` | testid | Quick action "implement comments". | `client/v2/ai/Suggest.jsx` · `QuickActions` | — | stable — re-emit |
 | `chat-cmd-menu` | testid | The slash-command popover (`role="listbox"`). | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
 | `chat-cmd-item-<name>` | testid (pattern) | One slash-command item; `<name>` = command name with non-alphanumerics → `-`. | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
@@ -537,9 +541,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `chat-elicit-prompt` | testid | The "Claude is asking you" elicitation card. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question, whats-new | stable — re-emit |
 | `chat-elicit-step` | testid | Step counter on a multi-question elicitation. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-back` | testid | Elicitation Back button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
-| `chat-elicit-submit` | testid | Elicitation Submit button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question | stable — re-emit |
+| `chat-elicit-submit` | testid | Elicitation Submit button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-next` | testid | Elicitation Next button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
-| `chat-elicit-skip` | testid | Elicitation Skip button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | stable — re-emit |
+| `chat-elicit-skip` | testid | Elicitation Skip button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-cancel` | testid | Elicitation Cancel button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-question-<id>` | testid (pattern) | One question fieldset (`<id>` = question id). | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-option-<id>-<i>` | testid (pattern) | Option `<i>` of question `<id>`; `chat-elicit-option-<id>-other` is the free-text "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question | stable — re-emit |
@@ -1155,6 +1159,8 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-adv-suggestions` | testid | Advanced › Suggestions On / Off. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
 | `ai-adv-context-pct` | testid | Advanced › Context used: the percent (used / size). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
 | `ai-adv-session` | testid | Advanced › Session: the Claude Code session id behind the chat. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-folders` | testid | S5.17b: Advanced › AI may › Folders AI may read — "1 · Combine 2026 fotky" or None (S5.10 grants). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | test:s5-17b-fidelity | new |
+| `ai-adv-folders-reset` | testid | S5.17b: Reset beside Folders AI may read — takes every granted folder's consent back (POST /_api/ai/attach/folder/revoke). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | test:s5-17b-fidelity | new |
 | `ai-adv-raw-log` | testid | Advanced › Raw log button (opens the raw tool-log island). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
 | `ai-adv-copy-transcript` | testid | Advanced › Copy transcript button. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
 | `ai-adv-open-terminal` | testid | Advanced › Open in terminal button (desktop app only). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |

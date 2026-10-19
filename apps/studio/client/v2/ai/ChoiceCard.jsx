@@ -1,13 +1,16 @@
 // client/v2/ai/ChoiceCard.jsx — S5.13 (03 `ai-choice-fail`, left): AI asks a question when it cannot guess.
-// Choices, not essays: the picks are rows (a radio each), "Something else…" opens a field, Send answers.
+// Choices, not essays: the picks are rows and a row IS the answer; "Something else…" opens a field and Enter
+// sends what was typed. 03 draws no Skip and no Send (S5.17b G7), so Esc is the way to decline — the same key
+// every other card of the panel uses.
 //
 // This card draws the common shape — ONE single-select question. Everything else (several questions, a
 // multi-select, free text, a credential-shaped ask) is the v1 form, ElicitationPrompt, whose masking and
 // wizard are security-reviewed: `choiceModel` returns null for those and the caller renders it unchanged.
-// The v1 hooks stay (`chat-elicit-prompt`, `chat-elicit-option-<id>-<i>` with its radio inside, `-other`,
-// `chat-elicit-custom-<id>`, `chat-elicit-submit`, `chat-elicit-skip`): the desktop e2e picks an option and Sends.
+// The v1 hooks stay (`chat-elicit-prompt`, `chat-elicit-option-<id>-<i>`, `-other`, `chat-elicit-custom-<id>`);
+// `chat-elicit-skip` / `chat-elicit-submit` remain on the v1 form this card falls back to.
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { StIcon } from '../../shell/icons.jsx';
 import { Spark } from './icons.jsx';
 import { choiceAnswer, choiceModel } from './needs-you.js';
 
@@ -15,25 +18,20 @@ export { choiceModel };
 
 export default function ChoiceCard({ request, onRespond, model: given }) {
   const ref = useRef(null);
-  const name = useId();
   const model = useMemo(() => given ?? choiceModel(request), [given, request]);
-  const [picked, setPicked] = useState(null); // an option value, or 'other'
+  const [other, setOther] = useState(false); // the "Something else…" field is open
   const [text, setText] = useState('');
 
   useEffect(() => {
-    setPicked(null);
+    setOther(false);
     setText('');
     ref.current?.focus();
   }, [request.id]);
 
   if (!model) return null;
-  const other = picked === 'other';
-  const canSend = other ? text.trim() !== '' : picked !== null;
-  const send = () => {
-    if (!canSend) return;
-    onRespond(
-      other ? choiceAnswer(model, { custom: text }) : choiceAnswer(model, { value: picked })
-    );
+  const sendCustom = () => {
+    if (text.trim() === '') return;
+    onRespond(choiceAnswer(model, { custom: text }));
   };
 
   return (
@@ -49,9 +47,9 @@ export default function ChoiceCard({ request, onRespond, model: given }) {
         if (e.key === 'Escape') {
           e.preventDefault();
           onRespond({ action: 'cancel' });
-        } else if (e.key === 'Enter' && e.target.tagName !== 'BUTTON' && canSend) {
+        } else if (e.key === 'Enter' && other && e.target.tagName === 'INPUT') {
           e.preventDefault();
-          send();
+          sendCustom();
         }
       }}
     >
@@ -63,69 +61,49 @@ export default function ChoiceCard({ request, onRespond, model: given }) {
           {model.question}
         </span>
       </p>
-      <div className="ai-nc-opts" role="radiogroup" aria-label="Choices">
+      <div className="ai-nc-opts">
         {model.options.map((o, i) => (
-          <label
+          <button
             key={o.value}
+            type="button"
             className="ai-nc-opt"
-            aria-current={picked === o.value ? 'true' : undefined}
             data-testid={`chat-elicit-option-${model.questionId}-${i}`}
+            onClick={() => onRespond(choiceAnswer(model, { value: o.value }))}
           >
-            <input
-              type="radio"
-              name={name}
-              checked={picked === o.value}
-              onChange={() => setPicked(o.value)}
-            />
             <span className="ai-nc-opt-t">
               {o.label}
               {o.hint ? <span className="ai-nc-opt-h">{o.hint}</span> : null}
             </span>
-          </label>
+          </button>
         ))}
         {model.otherFieldId ? (
-          <label
+          <button
+            type="button"
             className="ai-nc-opt ai-nc-opt--other"
-            aria-current={other ? 'true' : undefined}
+            aria-expanded={other}
             data-testid={`chat-elicit-option-${model.questionId}-other`}
+            onClick={() => setOther(true)}
           >
-            <input type="radio" name={name} checked={other} onChange={() => setPicked('other')} />
+            <span className="ai-nc-opt-ic" aria-hidden="true">
+              <StIcon name="pen" size={12} />
+            </span>
             <span className="ai-nc-opt-t">Something else…</span>
-          </label>
+          </button>
         ) : null}
       </div>
       {other ? (
         <input
           type="text"
           className="ai-nc-input"
-          // biome-ignore lint/a11y/noAutofocus: the field appears only when the person picks "Other", so focus follows their own click
+          // biome-ignore lint/a11y/noAutofocus: the field appears only when the person picks "Something else…", so focus follows their own click
           autoFocus
-          placeholder="Type your own answer…"
+          placeholder="Type your own answer, then press Enter"
           aria-label="Your own answer"
           value={text}
           data-testid={`chat-elicit-custom-${model.questionId}`}
           onChange={(e) => setText(e.target.value)}
         />
       ) : null}
-      <span className="ai-nc-a">
-        <button
-          type="button"
-          className="btn btn--sm"
-          data-testid="chat-elicit-skip"
-          onClick={() => onRespond({ action: 'decline' })}
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm btn--primary"
-          disabled={!canSend}
-          data-testid="chat-elicit-submit"
-          onClick={send}
-        >
-          Send
-        </button>
-      </span>
     </div>
   );
 }
