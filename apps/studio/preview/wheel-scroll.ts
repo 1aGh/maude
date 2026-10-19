@@ -61,3 +61,25 @@ export function previewWheelPassthrough(e: WheelEvent, mode: CanvasModeV2 | null
   if (!body) return false;
   return scrollsInside(t, body, e.deltaX, e.deltaY);
 }
+
+/**
+ * S3.15 (md-preview-combine) — should the host's scroll-0 clamp put `t`'s scroll back to 0? The engine's clip
+ * layers (the host, each artboard and its body) sit at scroll 0 because the camera is a transform, so a stray
+ * programmatic scroll is undone. The one release: in Preview a WEB artboard's body is a page to read — it
+ * scrolls inside itself (S3.9's `overflow-y: auto`), and clamping it straight back made that a no-op.
+ * Present moves a camera, never a native scroll; print, social and video boards are frames, not pages.
+ */
+export function clampsEngineScroll(
+  t: Element,
+  host: Element,
+  mode: CanvasModeV2 | null | undefined
+): boolean {
+  const isEngineClip =
+    t === host || t.classList.contains('dc-artboard-body') || t.classList.contains('dc-artboard');
+  if (!isEngineClip) return false;
+  if (mode === 'preview' && t.classList.contains('dc-artboard-body')) {
+    const kind = t.closest('.dc-artboard')?.getAttribute('data-dc-kind');
+    if (kind === 'web') return false;
+  }
+  return true;
+}

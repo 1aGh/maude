@@ -503,6 +503,67 @@ button.cm-chip--seek:focus-visible {
   font-size: 11px;
 }
 
+/* S4.V4 G5 — the converted thread's header Undo, its ⋯ menu ("Turn back into a sticky"), the refusal line. */
+.cm-link {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--maude-hud-accent, #d63b1f);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.cm-link:focus-visible,
+.cm-thread__menu-item:focus-visible {
+  outline: 2px solid var(--maude-hud-accent, #d63b1f);
+  outline-offset: 1px;
+}
+.cm-thread__more {
+  position: relative;
+  display: inline-flex;
+}
+.cm-btn--icon {
+  letter-spacing: 0;
+  padding: 4px 6px;
+}
+.cm-thread__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--maude-chrome-bg-1, #faf6ef);
+  border: 1px solid var(--maude-chrome-border, #3a352f);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
+}
+.cm-thread__menu-item {
+  font: 500 12px / 1.4 var(--font-ui, system-ui, sans-serif);
+  text-align: left;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--maude-chrome-fg-0, #2a2520);
+  cursor: pointer;
+}
+.cm-thread__menu-item:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 8%, transparent);
+}
+.cm-thread__menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.cm-thread__menu-note,
+.cm-thread__convert-line {
+  padding: 2px 8px 4px;
+  font-size: 11px;
+  color: var(--maude-chrome-fg-1, #6e6660);
+}
+
 .cm-msg {
   display: flex;
   align-items: flex-start;

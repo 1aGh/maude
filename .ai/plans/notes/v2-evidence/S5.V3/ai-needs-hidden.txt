@@ -1,0 +1,9 @@
+S5.V3 ai-needs-hidden (pass 3, base e80f9d3b0)
+Setup: PERM ask on Site, panel hidden (ai-chat-hide), another canvas (Smoke) open.
+  canvas row "Site" reads "Site  Needs you" (azure), folded spark carries count 1  -> PASS (was a gap in V2)  ai-needs-hidden.jpg
+  toast "AI needs you on Site — edit Site.tsx?" + Open exists (data-testid notice-ai-needs-<chat>-<req>)  -> PASS
+  (the pane was in the background, so sonner had data-paused=true / visibility hidden; the toast node is there and clickable)
+GAP: toast Open opens the chat panel but the canvas stays on Smoke.
+  console: "Uncaught TypeError: oe.openTab is not a function" (also on a manual window.dispatchEvent(new CustomEvent('maude:open-ai',{detail:{canvas:'ui/Site.tsx'}})))
+  cause: apps/studio/client/app.jsx:1788 `tabs.openTab(canvas)` — `tabs` there is the tab ARRAY (use-tabs); the function is the destructured `openTab` (app.jsx:1542).
+  fix: `if (canvas) openTab(canvas)` and put openTab in the effect deps (line 1797). Size S. (app.jsx is the lead's shared file.)

@@ -24,6 +24,7 @@ import { shellToast, totalCounts } from '../shell/util.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 import { installFocusRescue } from '../v2/shell/modal-focus.js';
+import { useAnnotationPrefsLane } from '../v2/shell/use-annotation-prefs.js';
 import { singleKeysStore, useSingleKeysLane } from '../v2/shell/use-single-keys.js';
 
 /** The shell resolves over the actions it has a handler for (the canvas runs its own). */
@@ -86,6 +87,8 @@ export function useActionKeys(deps) {
   const { commentsByFile, iframesRef } = deps;
   // The canvas resolves its own keys: it hears the switch over the bridge (`key-prefs`).
   useSingleKeysLane(iframesRef);
+  // S4.8: the annotation tools' colours, inks and tip are the person's own — the canvas asks, the shell remembers.
+  useAnnotationPrefsLane(iframesRef, deps.activePath);
   const registerIframe = useCallback(
     (path, el) => {
       if (el) iframesRef.current.set(path, el);

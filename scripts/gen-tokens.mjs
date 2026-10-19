@@ -99,6 +99,9 @@ const HUD_TEMPLATE = `
   --maude-chrome-dot:       {dark:canvas-dot};
   --maude-chrome-shadow:    rgba(0, 0, 0, 0.46);
   --maude-chrome-font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* gate-a-polish: the menu / label chrome speaks the body face (mono only in Advanced + code, README) */
+  --maude-chrome-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --maude-chrome-error:     {dark:status-error-text};
 }
 :root[data-maude-theme="light"] {
   --maude-hud-accent:        {light:accent};
@@ -115,6 +118,7 @@ const HUD_TEMPLATE = `
   --maude-chrome-border: {light:border-subtle};
   --maude-chrome-dot:    {light:canvas-dot};
   --maude-chrome-shadow: color-mix(in oklab, {light:fg-0} 14%, transparent);
+  --maude-chrome-error:  {light:status-error-text};
 }
 `;
 

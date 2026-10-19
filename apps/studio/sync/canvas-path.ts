@@ -69,7 +69,12 @@ export const MAX_CANVAS_PATH_DEPTH = 8;
 // matches immediately before a trailing newline, so `/^[a-z]+$/.test('ui\n')`
 // is true. Rule 1's control-character check catches that today, but these
 // regexes are documented as the charset boundary and must hold on their own.
-const COMPONENT = /^[A-Za-z0-9_-][A-Za-z0-9 _-]*(?![\s\S])/;
+//
+// EXPORTED (S1.23c, lead decision `v2-lead-canvas-names-sync-safe`): this is also the allowlist for a
+// canvas or folder NAME (`canvas-create.ts`), so a name the studio accepts is by construction a name
+// every receiver accepts. The client's mirror (`client/v2/canvases/rename-model.js`) is pinned to this
+// regex's `.source` by `test/canvas-names-sync-safe.test.ts`.
+export const COMPONENT = /^[A-Za-z0-9_-][A-Za-z0-9 _-]*(?![\s\S])/;
 
 /** The final component: the same charset plus exactly one `.tsx` suffix. */
 const FINAL_COMPONENT = /^[A-Za-z0-9_-][A-Za-z0-9 _-]*\.tsx(?![\s\S])/;

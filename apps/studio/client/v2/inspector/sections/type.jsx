@@ -29,6 +29,40 @@ const WEIGHTS = [
 ];
 const typeLabel = (token) => systemName(token, 'type');
 
+function ColourRow({ colour, colors, editable, set }) {
+  return (
+    <Row k="Colour" name="type-colour">
+      <ColorControl
+        name="type-colour"
+        label="Text colour"
+        value={colour.mixed ? null : colour.value}
+        mixed={colour.mixed ? colour.values : null}
+        colors={colors}
+        allowNone
+        noneLabel="Inherited"
+        disabled={!editable}
+        onChange={(c) => set({ color: c })}
+      />
+    </Row>
+  );
+}
+
+/** A text's Colour sits after its paragraph rows (Font · Size · Line · Align first, as 14 Editing draws it). */
+function TextColourBody({ el, ctx }) {
+  const { cssAll, editable, write } = useCssWrite(el, ctx);
+  const fam = useDsFamilies(ctx);
+  const tokens = useMemo(() => ({ space: fam.type }), [fam.type]);
+  const colour = reduceMixed(cssAll.map((c) => typeFromCss(c, tokens).color));
+  return (
+    <ColourRow
+      colour={colour}
+      colors={fam.color}
+      editable={editable}
+      set={(patch) => editable && write(typeToCss(patch))}
+    />
+  );
+}
+
 export function TypeBody({ el, selection, kind, ctx }) {
   const { cssAll, editable, write } = useCssWrite(targetOf({ el, selection, kind }), ctx);
   const fam = useDsFamilies(ctx);
@@ -84,19 +118,9 @@ export function TypeBody({ el, selection, kind, ctx }) {
           >{`from ${roleName(info.role)}`}</span>
         ) : null}
       </Row>
-      <Row k="Colour" name="type-colour">
-        <ColorControl
-          name="type-colour"
-          label="Text colour"
-          value={colour.mixed ? null : colour.value}
-          mixed={colour.mixed ? colour.values : null}
-          colors={fam.color}
-          allowNone
-          noneLabel="Inherited"
-          disabled={!editable}
-          onChange={(c) => set({ color: c })}
-        />
-      </Row>
+      {kind === 'text' ? null : (
+        <ColourRow colour={colour} colors={fam.color} editable={editable} set={set} />
+      )}
       {!editable ? (
         <Quiet testid="insp-type-locked">
           This object has no id yet. Edit element id… gives it one.
@@ -109,10 +133,16 @@ export function TypeBody({ el, selection, kind, ctx }) {
 /** Text, or a container whose text inherits (a button, a frame, an instance). Several objects: only all-text. */
 export const TYPE_KINDS = ['text', 'button', 'frame', 'instance', 'multi'];
 
-export const offType = registerSlot('type', {
-  id: 'type.words',
-  order: 10,
-  kinds: TYPE_KINDS,
-  when: ({ selection, kind }) => kind !== 'multi' || isAllText(selection),
-  Body: TypeBody,
-});
+const offTypeSlots = [
+  registerSlot('type', {
+    id: 'type.words',
+    order: 10,
+    kinds: TYPE_KINDS,
+    when: ({ selection, kind }) => kind !== 'multi' || isAllText(selection),
+    Body: TypeBody,
+  }),
+  registerSlot('type', { id: 'type.colour', order: 16, kinds: ['text'], Body: TextColourBody }),
+];
+export const offType = () => {
+  for (const off of offTypeSlots) off();
+};

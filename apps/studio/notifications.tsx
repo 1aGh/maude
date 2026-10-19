@@ -40,7 +40,17 @@ const subscribe = (listener: () => void) => {
 };
 const snapshot = () => entries;
 
-export function notify(notice: Notice): string {
+/** sec-a M3 — a title is always text: a number / object from an untrusted caller must not reach
+ *  `.trim()` in a render and unmount the shell. */
+const asText = (v: unknown): string =>
+  typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v);
+
+export function notify(input: Notice): string {
+  const notice: Notice = {
+    ...input,
+    title: asText(input.title),
+    ...(input.description !== undefined ? { description: asText(input.description) } : {}),
+  };
   const id = notice.id ?? `notice-${++sequence}`;
   const existing = entries.findIndex((entry) => entry.id === id);
   if (existing < 0) entries = [...entries, { ...notice, id }];
@@ -54,7 +64,7 @@ let canvasWindowStart = -Infinity;
 let canvasWindowCount = 0;
 /** Untrusted canvas traffic gets two reusable slots, leaving room for shell notices.
  * Limit publications as well as retention; editing can emit dozens per second. */
-export function notifyCanvasText(title: string, kind: NoticeKind = 'info'): string | null {
+export function notifyCanvasText(title: unknown, kind: NoticeKind = 'info'): string | null {
   const now = Date.now();
   if (now < canvasWindowStart || now - canvasWindowStart >= 1000) {
     canvasWindowStart = now;
@@ -69,7 +79,7 @@ export function notifyCanvasText(title: string, kind: NoticeKind = 'info'): stri
   const id = previousUndo?.id ?? `canvas-notice-${canvasSlot++ % 2}`;
   return notify({
     id,
-    title: title.slice(0, 4000),
+    title: asText(title).slice(0, 4000),
     kind,
     group: 'canvas',
     timerKey: `${++sequence}`,
@@ -102,8 +112,8 @@ export function noticeDuration(entry: Notice): number {
 }
 
 /** Keep full diagnostics in their owning panel, including for screen readers. */
-export function summarizeNoticeText(text: string): string {
-  const compact = text.trim().replace(/\s+/g, ' ');
+export function summarizeNoticeText(text: unknown): string {
+  const compact = asText(text).trim().replace(/\s+/g, ' ');
   return compact.length > 280 ? `${compact.slice(0, 279)}…` : compact;
 }
 

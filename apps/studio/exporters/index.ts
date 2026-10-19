@@ -15,7 +15,13 @@ import * as jpg from './jpg.ts';
 import * as pdf from './pdf.ts';
 import * as png from './png.ts';
 import * as pptx from './pptx.ts';
-import { type ResolveScopeArgs, resolveScope, type Scope, type Target } from './scope.ts';
+import {
+  enforceAnnotationsPolicy,
+  type ResolveScopeArgs,
+  resolveScope,
+  type Scope,
+  type Target,
+} from './scope.ts';
 import * as svg from './svg.ts';
 // DDR-148 — temporal formats (capture-spine encode). Named exports mp4/webm/gif.
 import { gif, mp4, webm } from './video.ts';
@@ -142,12 +148,21 @@ export async function runExport(args: {
   resolve: Omit<ResolveScopeArgs, 'scope'>;
   ctx: ExportContext;
   hooks?: ExportHooks;
+  /** Test seam: run this adapter instead of the format's own. */
+  adapter?: Adapter;
 }): Promise<ExportResult> {
   // Thread the options bag into the resolver so submit-time selection /
   // active-artboard hints (DDR — selection-passthrough) win over the persisted
   // `_active.json`. Additive — existing `resolve` callers stay valid.
-  const targets = await resolveScope({ ...args.resolve, scope: args.scope, options: args.options });
-  const adapter = getAdapter(args.format);
+  // S4.16 - a format that may not carry the annotation layer (print PDF, video, decks) never gets it,
+  // whatever the request's `includeAnnotations` said (exporters/scope.ts `enforceAnnotationsPolicy`).
+  const targets = enforceAnnotationsPolicy(
+    await resolveScope({ ...args.resolve, scope: args.scope, options: args.options }),
+    args.format,
+    args.options,
+    args.resolve.designRoot
+  );
+  const adapter = args.adapter ?? getAdapter(args.format);
   if (!adapter) {
     throw new Error(`unknown format: ${args.format}`);
   }

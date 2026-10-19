@@ -41,6 +41,25 @@
     margin: var(--space-1) var(--space-2);
     background: var(--border-default);
   }
+  /* S5.18 G2 (03 `ai-copy`) — "Ran on a copy — Post 1:1 was busy": a quiet rule across the feed */
+  .ai-copy-rule,
+  .ai-day-rule {
+    margin: var(--space-3) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .ai-copy-rule::before,
+  .ai-copy-rule::after,
+  .ai-day-rule::before,
+  .ai-day-rule::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--border-subtle);
+  }
   .ai-run {
     appearance: none;
     display: flex;

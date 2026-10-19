@@ -68,3 +68,27 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
   prefer a `--radius-*` token. Remove the `border-*-radius` longhands.
 - **Export area** writes nothing; export the rectangle with `maude design export`.
 - Full recipe: `apps/studio/schema/canvas-tsx.md` ("Draw a frame or a shape").
+
+## Paths and Combine shapes (S2.14)
+
+- **P (the Pen)** writes a `<svg data-cd-id="path" data-shape="path">` as the last child of the artboard or frame:
+  `position: "absolute"`, `left` / `top` in px, `overflow: "visible"`, `fill: "none"`, `stroke: "var(--accent)"`,
+  `strokeWidth: "4px"`, round caps and joins, and one `<path d="M…C…L…Z" />`. The box is the path's drawn bounds and `d`
+  is relative to it. Smooth points are mirrored `C` handles; sharp points have none. Colours are tokens.
+- **Editing points** rewrites `d` and then `width` / `height` / `viewBox` / `left` / `top` so every other point keeps its place.
+- **Combine** (union · subtract · intersect · exclude) replaces two or more sibling shapes with ONE `<svg data-shape="path"
+  data-combine="…">`: union = one `<path>` of all outlines (`fillRule="nonzero"`), exclude = `fillRule="evenodd"`, subtract =
+  the bottom shape masked by the others (`<mask>`), intersect = clipped by them (`<clipPath>`).
+- Full recipe: `apps/studio/schema/canvas-tsx.md` ("Draw a path", "Combine shapes").
+
+## Images, crop and Tile (S2.15)
+
+- **A picture** is `<img src="assets/<sha8>.<ext>" alt="…">` with an `objectFit`. A tile dropped on a frame fills it
+  (`width: "100%"; height: "100%"; objectFit: "cover"`); dropped on a picture (or a frame holding one) it only swaps `src`.
+  The `src` is always a flat `assets/` name — import the file first; never a URL.
+- **Fit** is `objectFit`: Fill `cover`, Fit `contain`. **Crop** is `cover` + `objectPosition: "X% Y%"` + `data-image-fit="crop"`,
+  and a zoom is `transform: "scale(Z)"` about `transformOrigin: "X% Y%"` with `overflow: "hidden"` on the frame. **Tile** is a
+  `<div role="img" data-image-tile="assets/…">` with `backgroundRepeat: "repeat"`.
+- Replace… changes `src` only and removes `data-photo-edit` (a per-use photo edit belongs to the old picture).
+- A pasted Figma frame is Figma’s exact picture (`data-source="figma"`), not layers — never claim its text stays editable.
+- Full recipe: `apps/studio/schema/canvas-tsx.md` ("Place, replace and crop an image").

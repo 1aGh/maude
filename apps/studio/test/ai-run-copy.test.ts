@@ -189,7 +189,7 @@ describe('POST /_api/ai/runs/:id/copy', () => {
     expect(calls).toEqual([
       'accepted .design/ui/C.tsx',
       // the chat run's stage IS the run: the tracker joins it, the registry ends it
-      `begin ${w.runId} Claude: c2 ${JSON.stringify({ runId: w.runId, chatId: 'c2' })}`,
+      `begin ${w.runId} c2 ${JSON.stringify({ runId: w.runId, chatId: 'c2' })}`,
       `claim ${w.runId} .design/ui/C.tsx ${hashBytes(written)}`,
     ]);
     // the line moved up: when the holder finishes, the third ask gets P (not the copied ask)

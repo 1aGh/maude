@@ -21,7 +21,7 @@ import {
 } from '../../bridge/canvas-modes.ts';
 import { k } from '../keys.ts';
 import type { ActionDef, ActionId, Focus, HelpGroup, KeyBinding, Mode } from '../types.ts';
-import { IN_CANVAS, mods } from './_v1.ts';
+import { IN_CANVAS, kb, mods } from './_v1.ts';
 
 /** A slot's action id: v1's ids for v1's tools, `tool.<id>` for the rest, `tool.<panel>` for a
  *  panel-only slot (Stickers). */
@@ -118,6 +118,18 @@ export const TOOL_ACTIONS: ActionDef[] = [
     keys: mods('Space', '⌥⇧⌘', 'tools', { hold: true, when: IN_CANVAS }),
   },
   // The Marker's tips (C14): the Marker slot (M) arms the last one used; no key of their own.
+  {
+    // S2.21 (14 `ed-edge-keys`) — R / T / F then ↵ adds one at its default size, with no pointer. The armed tool
+    // decides what: a frame or a rectangle (100 × 100, like a click), or a text. Only while a create tool is
+    // armed (`toolArmed`), so it never meets `object.enter`'s ↵.
+    id: 'tool.create-default',
+    label: 'Add one at its default size',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit' },
+    keys: [kb('↵', 'tools', { when: { focus: ['canvas'], mode: ['edit'], facts: ['toolArmed'] } })],
+    search: { hidden: true },
+  },
   keyless('tool.highlighter', 'Highlighter'),
   keyless('tool.eraser', 'Eraser', 'Eraser'),
   // Preview's Shape kinds are a popover; `tool.section` is the Section slot (S). Tools ▸ Rect /
@@ -129,4 +141,6 @@ export const TOOL_ACTIONS: ActionDef[] = [
   keyless('tool.line', 'Line'),
   keyless('tool.polygon', 'Polygon'),
   keyless('tool.slice', 'Export area'),
+  // S2.15 — More › Crop: arm it, then click a picture (editing/crop-mode.tsx)
+  keyless('tool.crop', 'Crop'),
 ];

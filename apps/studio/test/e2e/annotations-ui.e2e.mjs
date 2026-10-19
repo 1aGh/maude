@@ -725,6 +725,102 @@ describe('R11 — a pasted board payload is foreign input (security review A3)',
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// S4.8 — the Preview toolbar's popovers and the keys that open them (written, not run in the lane).
+// A standalone canvas has no shell above it, so the keys apply locally (V2-1.2 §5.4 "standalone");
+// the governed Edit → Preview crossing and "remembered across reloads" are covered by
+// tool-palette.test.tsx / annotation-tool-prefs.test.ts (the shell lane), and by the desktop e2e.
+
+const STICKY_SKY = '#bcd2f0'; // STICKY_PALETTE[7]
+const hasId = (id) => c.frame.evaluate((i) => !!document.querySelector(`[data-testid="${i}"]`), id);
+
+describe('S4.8 — N opens Sticky with its colours; the next click places one in that colour', () => {
+  test('N arms Sticky and the colours open above it: five up front, "+5" for the rest', async () => {
+    await reset();
+    await c.page.keyboard.press('n');
+    await sleep(300);
+    assert.ok(await hasId('toolbar-popover-sticky-colours'), 'the colours open with the tool');
+    const front = await c.frame
+      .locator(
+        '[data-testid="toolbar-popover-sticky-colours"] button[aria-label]:not([aria-expanded])'
+      )
+      .count();
+    assert.equal(front, 5);
+    assert.equal(await c.frame.locator('[data-testid="toolbar-sticky-more"]').textContent(), '+5');
+    assert.equal(
+      await c.frame.locator('[data-dc-banner], .dc-mode-banner').count(),
+      0,
+      'no banner'
+    );
+  });
+
+  test('a picked colour is the colour of the next sticky placed', async () => {
+    await c.frame.locator('[data-testid="toolbar-sticky-sky"]').click();
+    const before = readBoard(server.root);
+    const target = await c.pageBox('sec');
+    await c.page.mouse.click(target.x + target.width - 40, target.y + target.height - 40);
+    const b = await waitForBoard(server.root, (bd) =>
+      [...bd.values()].some((e) => e.type === 'sticky' && !before?.has(e.id))
+    );
+    const note = [...b.values()].find((e) => e.type === 'sticky' && !before?.has(e.id));
+    assert.equal(note.fill, STICKY_SKY);
+    await c.page.keyboard.press('Meta+z');
+  });
+});
+
+describe('S4.8 — esc runs the ladder: tool, then Hand', () => {
+  test('esc puts Sticky down for Hand and closes its colours', async () => {
+    await reset();
+    await c.page.keyboard.press('n');
+    await sleep(200);
+    assert.ok(await hasId('toolbar-popover-sticky-colours'));
+    await c.page.keyboard.press('Escape');
+    await sleep(250);
+    assert.equal(await hasId('toolbar-popover-sticky-colours'), false);
+    assert.equal(
+      await c.frame.locator('[data-testid="toolbar-slot-browse"]').getAttribute('aria-pressed'),
+      'true',
+      'Hand is the resting tool'
+    );
+  });
+});
+
+describe('S4.8 — M opens the Marker with its inks; the Eraser never takes a sticky', () => {
+  test('M shows the tips, five inks with "+4", and two thicknesses', async () => {
+    await reset();
+    await c.page.keyboard.press('m');
+    await sleep(250);
+    assert.ok(await hasId('toolbar-popover-marker-tips'));
+    assert.equal(await c.frame.locator('[aria-label="Ink"] button').count(), 5);
+    assert.equal(await c.frame.locator('[data-testid="toolbar-ink-more"]').textContent(), '+4');
+    assert.equal(await c.frame.locator('[aria-label="Thickness"] button').count(), 2);
+  });
+
+  test('the Eraser rubs out a Marker stroke and leaves the sticky under it', async () => {
+    await reset();
+    const [x, y] = await c.center('note');
+    const before = readBoard(server.root);
+    await c.page.keyboard.press('m');
+    await sleep(200);
+    await c.drag([x - 30, y + 10], [x + 30, y + 10]);
+    const drawn = await waitForBoard(server.root, (bd) =>
+      [...bd.values()].some((e) => e.type === 'pen' && !before?.has(e.id))
+    );
+    await c.frame.locator('[data-testid="toolbar-tip-eraser"]').click();
+    await c.drag([x - 30, y + 10], [x + 30, y + 10]);
+    const after = await waitForBoard(
+      server.root,
+      (bd) => ![...bd.values()].some((e) => e.type === 'pen' && !before?.has(e.id))
+    );
+    assert.ok(
+      [...drawn.values()].some((e) => e.type === 'pen'),
+      'a stroke was drawn'
+    );
+    assert.ok(after.get('note'), 'the sticky is still on the board');
+    await c.page.keyboard.press('Escape');
+  });
+});
+
 test('no page errors during the run', () => {
   assert.deepEqual(c.errors, []);
 });

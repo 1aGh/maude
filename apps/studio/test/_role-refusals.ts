@@ -42,6 +42,26 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view'],
     body: { op: 'add', file: '.design/ui/a.tsx', text: 'x' },
   },
+  // S4.14 — formal votes (routes/votes.ts): a ballot needs `vote` (Can view refused, Can comment may);
+  // starting and ending one need `edit` (`annotations.start-vote` / `annotations.end-vote`).
+  {
+    method: 'POST',
+    route: '/_api/votes/ballot',
+    refused: ['view'],
+    body: { file: '.design/ui/a.tsx', id: 'vote-aaaaaaaaaa', picks: {} },
+  },
+  {
+    method: 'POST',
+    route: '/_api/votes/start',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', targets: ['ab:a'] },
+  },
+  {
+    method: 'POST',
+    route: '/_api/votes/end',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', id: 'vote-aaaaaaaaaa' },
+  },
   // export — every download and export
   { method: 'POST', route: '/_api/export', refused: ['view'] },
   { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },
@@ -54,6 +74,34 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // annotate — stickies, marker, arrows (D5: Can comment may not annotate)
   { method: 'POST', route: '/_api/annotations/ops', refused: ['view', 'comment'] },
   { method: 'PUT', route: '/_api/annotations', refused: ['view', 'comment'] },
+  // S4.13 — Turn into a comment writes the comment and removes the sticky: an edit (Q6, hub `annotate`)
+  {
+    method: 'POST',
+    route: '/_api/annotations/to-comment',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', id: 'st-1' },
+  },
+  // sec-a L7 — the other direction (comment → sticky) and the conversion's undo token are board writes
+  // too (access/request.ts ANNOTATE_WRITES): refused below `edit`, before the body is read
+  {
+    method: 'POST',
+    route: '/_api/comments/to-sticky',
+    refused: ['view', 'comment'],
+    body: { commentId: 'c_1' },
+  },
+  {
+    method: 'POST',
+    route: '/_api/annotations/convert-undo',
+    refused: ['view', 'comment'],
+    body: { token: 'tok-1' },
+  },
+  // S4.16 - a FigJam board arrives as annotations: an edit (hub `annotate`), refused before the body is read
+  {
+    method: 'POST',
+    route: '/_api/annotations/figjam',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', url: 'https://www.figma.com/board/Em6NOwaOFTYV7NlQT4NK8l/x' },
+  },
   // edit — the versioned layout lane, canvas writes, the AI chat (D2)
   {
     method: 'PATCH',

@@ -734,6 +734,8 @@ export function InspectorPanel({
             onRecordEdit={onRecordEdit}
             onRunAction={onRunAction}
             onReplaceMedia={onReplaceMedia}
+            // S2.15 — Adjust… / Remove background hand off to the Photo tab (only for a photo the panel can edit)
+            onOpenPhoto={photoTarget && !photoOnly ? () => setTab('photo') : undefined}
             onUndoRedo={onUndoRedo}
             onRenameElementId={async (req) => {
               const r = await onRenameElementId(req);

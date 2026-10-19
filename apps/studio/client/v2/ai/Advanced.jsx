@@ -5,8 +5,13 @@
 // ONE quiet row at the panel's foot (the shared <AdvancedFold>, open or closed remembered per Mac). Nothing is
 // removed, only hidden, and ⌘K finds each row by name ("model", "raw log", "terminal" — advanced-handlers.js).
 //
-// Rows that need a substrate this build does not have (folders AI may read — S5.10's consent store; "Always
-// allowed" — Claude Code's own rules) are not drawn: a row that does nothing is worse than no row.
+// Rows that need a substrate this build does not have are not drawn: a row that does nothing is worse than no
+// row. S5.17b: "Folders AI may read" IS drawn — S5.10's consent store backs it (GET /_api/ai/attach/folders,
+// Reset = POST …/folder/revoke). Not drawn, with no capability behind them: the "AI may" switches (Change
+// canvases · Use Assets and footage · Search the web — the allowed tools are fixed in acp/bridge.ts), "Write
+// outside this project" (always asks, nothing to set), "Always allowed on this canvas · Reset" (Claude Code's
+// own session rule, no Maude store to reset) and Images, video and voice (the Generate dialog's per-use choices;
+// nothing persists a default). Each lands as a row the day its setting exists.
 //
 // The suggest-only banner (`SuggestOnlyBanner`) is the other half of 03 `ai-adv-edges`: a mode where AI
 // changes nothing is said up front, with ONE verb to undo it.
@@ -21,6 +26,7 @@ import {
   AI_FOLD_PANEL,
   contextMeter,
   currentModeNote,
+  foldersLine,
   limitMeter,
   MODE_GROUP_LABEL,
   modeBanner,
@@ -131,6 +137,7 @@ export function ChatAdvanced({
   const [termNote, setTermNote] = useState('');
   const [copied, setCopied] = useState(false);
   const [want, setWant] = useState(null);
+  const [folders, setFolders] = useState(null); // null = not read yet; else the granted folders (S5.10)
 
   const parsed = caps?.parsedOptions ?? { model: null, effort: null, fast: null, others: [] };
   const modes = caps?.modes ?? null;
@@ -162,6 +169,34 @@ export function ChatAdvanced({
       live = false;
     };
   }, [open, active, chatId, fetchImpl]);
+
+  const readFolders = useCallback(async () => {
+    try {
+      const r = await fetchImpl('/_api/ai/attach/folders');
+      const b = r.ok ? await r.json() : null;
+      setFolders(Array.isArray(b?.folders) ? b.folders : []);
+    } catch {
+      setFolders([]);
+    }
+  }, [fetchImpl]);
+  useEffect(() => {
+    if (open && active) readFolders();
+  }, [open, active, readFolders]);
+  // Reset: the consent is taken back, for every chat (the route detaches it everywhere); the list is read again.
+  const resetFolders = useCallback(async () => {
+    for (const f of folders ?? []) {
+      try {
+        await fetchImpl('/_api/ai/attach/folder/revoke', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ root: f.root }),
+        });
+      } catch {
+        /* the list below says what is still granted */
+      }
+    }
+    await readFolders();
+  }, [folders, fetchImpl, readFolders]);
 
   const doTerminal = useCallback(async () => {
     setTermNote('');
@@ -316,6 +351,24 @@ export function ChatAdvanced({
               <option value="off">Off</option>
             </select>
           </Row>
+
+          <p className="ai-adv-sub">AI may</p>
+          <div className="ai-adv-row" data-adv-row="folders">
+            <span className="ai-adv-k">Folders AI may read</span>
+            <span className="ai-adv-val" data-testid="ai-adv-folders">
+              {folders?.length ? foldersLine(folders) : 'None'}
+            </span>
+            {folders?.length ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                data-testid="ai-adv-folders-reset"
+                onClick={resetFolders}
+              >
+                Reset
+              </button>
+            ) : null}
+          </div>
 
           {parsed.others?.some((o) => flattenSelectOptions(o.options).length) ? (
             <>

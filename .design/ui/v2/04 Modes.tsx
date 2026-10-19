@@ -1038,7 +1038,7 @@ export default function Modes() {
                     <Menu width={290} style={{ position: "relative", left: "auto", top: "auto" }} items={[
                       { label: "Hide panels", keys: "⌘\\" }, { label: "Comments", keys: "⇧⌘M" }, { label: "Assets" }, { label: "Annotations", keys: "⇧P" }, "sep",
                       { label: "Preview", keys: "⌥⌘P" }, { label: "Present", keys: "⌥⌘↵" }, { label: "Present from the start", keys: "⇧⌥⌘↵" }, { label: "Present the canvas", note: "in CONTRACT §1" }, "sep",
-                      { label: "Zoom in", keys: "⌘+" }, { label: "Zoom out", keys: "⌘−" }, { label: "Zoom to fit", keys: "⌘0" }, { label: "Actual size", keys: "⌘1" }, "sep",
+                      { label: "Zoom in", keys: "⌘+" }, { label: "Zoom out", keys: "⌘−" }, { label: "Zoom to fit", keys: "⌘0" }, { label: "Actual size", keys: "⇧0" }, "sep",
                       { label: "Advanced", sub: true },
                     ]} />
                   </div>

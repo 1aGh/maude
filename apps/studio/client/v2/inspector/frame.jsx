@@ -21,7 +21,7 @@ import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
 import { useInstanceSelection } from './kinds/instance.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
-import { SECTIONS } from './sections.js';
+import { sectionsFor } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
 import { HoldLine, useHoldView, viewModeOf } from './view-mode.jsx';
 
@@ -50,7 +50,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
         <span className="insp-sec-name" title={def.explain}>
           {title}
         </span>
-        {asideNode != null ? (
+        {asideNode === '' ? null : asideNode != null ? (
           <span className="insp-sec-a">{asideNode}</span>
         ) : def.aside && def.aside !== 'unlink' ? (
           <span className="insp-sec-a">{def.aside}</span>
@@ -84,6 +84,8 @@ export function InspectorFrame({
   onRecordEdit,
   onRunAction,
   onReplaceMedia,
+  onOpenPhoto,
+  photoPerUse,
   onUndoRedo,
   onRenameElementId,
   onResizeArtboard,
@@ -171,6 +173,9 @@ export function InspectorFrame({
     onRunAction,
     onUndoRedo,
     onReplaceMedia,
+    // S2.15 — Adjust… / Remove background hand off to Photo; drawn only when the panel can open it (kinds/image.jsx)
+    onOpenPhoto,
+    photoPerUse,
     artboard,
   };
   const edit = { onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo };
@@ -210,7 +215,7 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        {SECTIONS.map((def) => {
+        {sectionsFor(kind.id).map((def) => {
           const entries = slotsFor(def.id, kind.id, selected, ctx);
           if (!entries.length) return null;
           return (

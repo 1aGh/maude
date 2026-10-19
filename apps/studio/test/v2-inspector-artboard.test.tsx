@@ -360,3 +360,34 @@ describe('Theme under Advanced (A-artboard-theme)', () => {
     expect((q(host, 'insp-ab-theme') as HTMLSelectElement).value).toBe('follow');
   });
 });
+
+// S2.22 G1 — what the verifier found against 14 Editing, ed-ab-select.
+describe('S2.22 G1 — the artboard inspector says what the canvas says', () => {
+  test('the title is the artboard name ("Desktop"), not its id', async () => {
+    const host = await frame({ attrs: { ...DESKTOP.attrs, 'data-dc-label': 'Desktop' } });
+    expect(q(host, 'inspector-title')?.textContent).toBe('Desktop');
+  });
+
+  test('the title falls back to the id when the payload carries no name', async () => {
+    const host = await frame();
+    expect(q(host, 'inspector-title')?.textContent).toBe('desktop');
+  });
+
+  test('Fill comes before Layout (Artboard, Fill, Layout, Export)', async () => {
+    const host = await frame();
+    const order = ['insp-sec-size', 'insp-sec-fill', 'insp-sec-layout', 'insp-sec-export'].map(
+      (id) => must(q(host, id), id)
+    );
+    for (let i = 1; i < order.length; i++)
+      expect(
+        order[i - 1].compareDocumentPosition(order[i]) & 4,
+        `${i - 1} precedes ${i}`
+      ).toBeTruthy();
+  });
+
+  test('the Advanced fold counts its properties', async () => {
+    const host = await frame();
+    const hint = host.querySelector('.v2-fold-hint');
+    expect(hint?.textContent).toMatch(/^\d+ propert(y|ies)$/);
+  });
+});

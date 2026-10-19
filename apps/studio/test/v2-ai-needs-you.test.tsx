@@ -194,39 +194,38 @@ describe('ChoiceCard (03 ai-choice-fail)', () => {
     },
   };
 
-  test('pick a row, Send answers; Send is off until something is picked', async () => {
+  // S5.17b G7: 03 draws picks only — a row IS the answer, no Skip, no Send (s5-17b-fidelity.test.tsx pins it)
+  test('a row answers; there is no Send to wait for', async () => {
     const answers: unknown[] = [];
     const v = await mount(({ ChoiceCard }) => (
       <ChoiceCard request={elicitation} onRespond={(r: unknown) => answers.push(r)} />
     ));
-    const send = v.q('chat-elicit-submit') as HTMLButtonElement;
-    expect(send.disabled).toBe(true);
-    const radio = v
-      .q('chat-elicit-option-question_0-1')
-      ?.querySelector('input') as HTMLInputElement;
-    await v.act(async () => radio.click());
-    expect((v.q('chat-elicit-submit') as HTMLButtonElement).disabled).toBe(false);
-    await v.act(async () => (v.q('chat-elicit-submit') as HTMLElement).click());
+    expect(v.q('chat-elicit-submit')).toBeNull();
+    await v.act(async () => v.q('chat-elicit-option-question_0-1')?.click());
     expect(answers).toEqual([{ action: 'accept', content: { question_0: 'light' } }]);
   });
 
-  test('"Something else…" opens a field and the typed answer is the one sent', async () => {
+  test('"Something else…" opens a field and the typed answer is the one sent, on Enter', async () => {
     const answers: unknown[] = [];
     const v = await mount(({ ChoiceCard }) => (
       <ChoiceCard request={elicitation} onRespond={(r: unknown) => answers.push(r)} />
     ));
-    const otherRadio = v.q('chat-elicit-option-question_0-other')?.querySelector('input');
-    await v.act(async () => otherRadio?.click());
+    await v.act(async () => v.q('chat-elicit-option-question_0-other')?.click());
     const input = v.q('chat-elicit-custom-question_0') as HTMLInputElement;
     expect(input).not.toBeNull();
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set as (
-      v: string
-    ) => void;
+    // the input's own onChange: react-dom decides at import time whether the page can hear `input` events,
+    // and an earlier file in the same bun process may have loaded it before happy-dom registered
+    const propsKey = Object.keys(input).find((k) => k.startsWith('__reactProps$')) as string;
+    const props = (input as unknown as Record<string, { onChange: (e: unknown) => void }>)[
+      propsKey
+    ];
     await v.act(async () => {
-      setter.call(input, 'Forest');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.value = 'Forest';
+      props.onChange({ target: input, currentTarget: input });
     });
-    await v.act(async () => (v.q('chat-elicit-submit') as HTMLElement).click());
+    await v.act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
     expect(answers).toEqual([{ action: 'accept', content: { question_0_custom: 'Forest' } }]);
   });
 });
@@ -624,7 +623,7 @@ describe('the folded spark (03 ai-needs-hidden, ai-panel-closed)', () => {
     expect(v.q('ai-fold-needs')?.textContent).toBe('2');
     expect(v.host.querySelector('.st-corner-dot')).toBeNull();
     expect(v.q('panel-icon-assistant')?.getAttribute('aria-label')).toBe(
-      'Open Assistant — AI needs you'
+      'Ask AI ⌘/ — AI needs you'
     );
     await v.act(async () => v.store.setLocalNeedsYou('c1', 0));
     expect(v.q('ai-fold-needs')).toBeNull();

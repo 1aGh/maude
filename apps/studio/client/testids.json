@@ -1047,13 +1047,52 @@
     "hook": "comment-from-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Thread header line for a converted sticky: \"From Jonas’s sticky · turned into a comment by You\" (S4-S9-votes-comments §3.4; Undo and \"Turn back into a sticky\" wait for the S4.7 routes).",
+    "meaning": "Thread header line for a converted sticky: \"From Jonas’s sticky · turned into a comment by You · Undo\" (S4-S9-votes-comments §3.4).",
     "producer": {
       "file": "apps/studio/comments-overlay.tsx",
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
     "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-from-undo-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The header line’s Undo on a converted thread: only for the person who converted it, while this app session holds the conversion and nobody else has replied (S4-S9-votes-comments §3.4; S4.V4 G5).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/convert-back-thread.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-menu-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The ⋯ button on a converted thread’s header (editors). Opens the thread menu (S4.V4 G5).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/convert-back-thread.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-menu-to-sticky-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Turn back into a sticky\" in a converted thread’s ⋯ menu; disabled with \"<Name> replied — resolve the thread instead.\" when someone else replied (S4-S9-votes-comments §3.4; S4.V4 G5).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/convert-back-thread.test.tsx"],
     "v2": "new"
   },
   {
@@ -1326,6 +1365,62 @@
     "v2": "stable"
   },
   {
+    "hook": "chat-error-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: the failure card's one sentence — \"Couldn't finish — <what>. Nothing changed.\" (or how to undo, when the run changed something).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "chat-error-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: the failure card's › Advanced disclosure (`aria-expanded`); the raw message sits behind it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "chat-error-raw",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: under › Advanced, the raw error message (untrusted text, mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "chat-error-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: the failure card's one verb, Try again.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "chat-qa-implement-comments",
     "kind": "testid",
     "pattern": false,
@@ -1556,14 +1651,8 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
-        "symbol": "ChoiceCard"
-      }
-    ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
+    "consumers": [],
     "v2": "stable"
   },
   {
@@ -1588,12 +1677,6 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
-        "symbol": "ChoiceCard"
-      }
-    ],
     "region": "chat/ACP",
     "consumers": [],
     "v2": "stable"
@@ -5265,6 +5348,19 @@
     "v2": "new"
   },
   {
+    "hook": "mode-present-copy-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Copy presentation link — follows you live (editors only, under a rule after Order and notes…): copies the hub's presentation link; greyed with its reason (in a cloud project · waits for a connection) otherwise (`aria-disabled`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/s3-14-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "present-controls",
     "kind": "testid",
     "pattern": false,
@@ -6004,6 +6100,34 @@
     "region": "other",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: Advanced › AI may › Folders AI may read — \"1 · Combine 2026 fotky\" or None (S5.10 grants).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-adv-folders-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: Reset beside Folders AI may read — takes every granted folder's consent back (POST /_api/ai/attach/folder/revoke).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "ai-adv-raw-log",
@@ -8339,7 +8463,7 @@
     "hook": "toolbar-popover-<which>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\"), `marker-tips` or `more` (Line · Ellipse · Polygon · Export area).",
+    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\"), `marker-tips` (the Marker's tip, inks and thicknesses; the Highlighter's hues and nibs), `sticky-colours` (aria-label \"Sticky colour\") or `more` (Line · Ellipse · Polygon · Export area). Sticky's and the Marker's open with the tool.",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -8356,6 +8480,45 @@
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-<group>-<colour>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One colour dot in a toolbar popover (`role=\"radio\"`, `aria-checked`, `aria-label` = its name). `<group>`: `sticky` (Yellow · Coral · Green · Sky · Lilac, then White · Grey · Peach · Aqua · Pink), `ink` (Ink · Red · Amber · Green · Blue, then Orange · Purple · Pink · Grey), `highlighter` (Yellow · Green · Pink · Blue). `toolbar-<group>-more` is the \"+5\" / \"+4\" that shows the rest (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "SwatchRow"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-thickness-<size>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Marker thickness in its popover: `thin` (3 px, the default) or `thick` (6 px). `role=\"radio\"`, `aria-checked`.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "MarkerOptions"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-highlighter-width-<size>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Highlighter nib in its popover: `thin` (10 px), `medium` (18 px, the default) or `thick` (28 px). `role=\"radio\"`, `aria-checked`.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "MarkerOptions"
     },
     "region": "canvas iframe chrome",
     "consumers": ["apps/studio/test/tool-palette.test.tsx"],
@@ -9009,17 +9172,11 @@
     "hook": ".dc-annot-chrome / .dc-annot-input / .dc-annot-marquee",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Annotation chrome layer, pointer input layer, and marquee.",
+    "meaning": "Annotation pointer input layer and marquee. (`.dc-annot-chrome`, the dark swatch tray above the toolbar, is retired.)",
     "producer": {
       "file": "apps/studio/annotations-layer.tsx",
-      "symbol": "AnnotationsChrome"
+      "symbol": "AnnotationsInput"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/annotations-layer.tsx",
-        "symbol": "AnnotationsInput"
-      }
-    ],
     "region": "canvas iframe chrome",
     "consumers": [
       ".ai/scenarios/canvas-format-tsx/canvas-annotations-figjam/spec.md",
@@ -9028,7 +9185,8 @@
       "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts",
       "apps/studio/test/e2e/annotations-ui.e2e.mjs"
     ],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "S4.8: `.dc-annot-chrome` is gone. Sticky colours, Marker inks and thicknesses, Highlighter hues and nibs are popovers of their toolbar slot (`toolbar-sticky-<colour>`, `toolbar-ink-<ink>`, `toolbar-thickness-<size>`, `toolbar-highlighter-<colour>`, `toolbar-highlighter-width-<size>`); the draw-time Fill row moved to the small toolbar above a selection."
   },
   {
     "hook": ".dc-annot-el / .dc-annot-text / [data-id] / [data-type] / [data-tool]",
@@ -9180,10 +9338,6 @@
       {
         "file": "apps/studio/annotations-context-toolbar.tsx",
         "symbol": "IconDropdown"
-      },
-      {
-        "file": "apps/studio/annotations-layer.tsx",
-        "symbol": "AnnotationsChrome"
       }
     ],
     "region": "canvas iframe chrome",
@@ -9991,6 +10145,19 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "\"Add files...\" in the Assets tab head (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-from-mac",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"From this Mac...\" row under the photos in the Assets tab: the same picker and upload as Add files (hidden for a viewer).",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
       "symbol": "AssetsPanel"
@@ -10843,6 +11010,19 @@
     "region": "settings",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "settings-open-emails",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "new"
   },
   {
     "hook": "settings-theme",
@@ -12474,6 +12654,19 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-rename-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The key line under the rename field, \"↵ rename · esc keep “<name>”\"; gone while a refusal speaks.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/inline-rename.jsx",
+      "symbol": "InlineRename"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "canvas-move-sheet",
     "kind": "testid",
     "pattern": false,
@@ -12915,6 +13108,146 @@
       "symbol": "HoldRings"
     },
     "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ONE spark-dashed outline around the elements a ⌘/ ask names, with the neutral tag (\"AI is working on 3 elements\"). Only the selection, never the page.",
+    "producer": {
+      "file": "apps/studio/editing/ai-scope-outline.tsx",
+      "symbol": "AiScopeOutline"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-scope-skeleton",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one skeleton line per asked element, where the change will land.",
+    "producer": {
+      "file": "apps/studio/editing/ai-scope-outline.tsx",
+      "symbol": "AiScopeOutline"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-point",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the small spark ring AI points at the element a question was about with (03 ai-question); the tag is the element's name only. Gone on a click.",
+    "producer": {
+      "file": "apps/studio/editing/ai-point-ring.tsx",
+      "symbol": "AiPointRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-bubble",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble under the selection after ⌘/: scope chip, field, send. The words are the person's; the canvas never sees them.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble's scope chip, \"◆ 3 elements\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble's field (\"Ask AI…\"); ↵ sends, esc closes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble's send button (azure, white spark).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-asked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bubble once sent: what was asked, ⌘/, and the one-step hint, while the AI works.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What was asked, in the asked bubble (one line, cut with an ellipsis).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ask-selection-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"One step — ⌘Z undoes all of it · the rest of the page stays yours\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AskSelectionHost.jsx",
+      "symbol": "AskSelectionHost"
+    },
+    "region": "shell",
     "consumers": [],
     "sourceConsumers": [],
     "v2": "new"
@@ -13596,6 +13929,58 @@
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/opacity-row.jsx",
       "symbol": "OpacityRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-x",
+    "kind": "testid",
+    "meaning": "Position › X · Y › \"Mixed\" beside X: the selected objects sit at different X; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiPosition"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-y",
+    "kind": "testid",
+    "meaning": "Position › X · Y › \"Mixed\" beside Y: the selected objects sit at different Y; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiPosition"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-rotation",
+    "kind": "testid",
+    "meaning": "Position › Rotation › \"Mixed\": the selected objects are turned differently; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiPosition"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-width",
+    "kind": "testid",
+    "meaning": "Size › Width › \"Mixed\": the selected objects differ in width; typing a number makes all of them Fixed at it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiSize"
     },
     "region": "inspector",
     "consumers": [],
@@ -15722,6 +16107,12 @@
       "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
       "symbol": "LockedToolbar"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/annotations-context-toolbar.tsx",
+        "symbol": "AnnotationContextToolbar"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
@@ -15736,6 +16127,12 @@
       "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
       "symbol": "LockedDragTip"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/annotations/ui/locked.tsx",
+        "symbol": "LockedDragTip"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
@@ -16814,6 +17211,62 @@
     "producer": {
       "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
       "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-font",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Font: the select — the families the design system declares, \"Inherited\" takes it off (text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "FontBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Line · letter › line height, a percentage of the text size (text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "ParagraphBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-letter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Line · letter › letter spacing in px (text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "ParagraphBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-align",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Align: Left · Center · Right · Justify (writes `text-align`; text only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "ParagraphBody"
     },
     "region": "inspector",
     "consumers": [],
@@ -18526,6 +18979,34 @@
     "region": "other",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-copy-divider",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Ran on a copy — <artboard> was busy\": the rule above a run that ran on a copy (03 `ai-copy`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunSurface.jsx",
+      "symbol": "RunSurface"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-18-copy.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-choice-settled",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "An answered question: the choice card read only, the picked row marked (03 `picked`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+      "symbol": "ChoiceCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-18-choice-settled.test.tsx"],
     "v2": "new"
   },
   {
@@ -21155,6 +21636,1804 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/edit-place-ghost.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the overlay that takes the pointer while the Pen (P) is armed.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the key hints while drawing — click, drag, ⇧ 45° steps, ↵ or esc finishes.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-svg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the path being drawn, in screen px (points, the pulled handle, the close ring).",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the outline of the path being drawn.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-rubber",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed segment from the last point to the pointer (⇧ snaps it to 45°).",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring over the first point; press it to close the path.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Click here to close\", shown with the pointer over the first point.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-45",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"45°\" chip beside the pointer while ⇧ is held.",
+    "producer": {
+      "file": "apps/studio/editing/pen/draw.tsx",
+      "symbol": "PenTool"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-points",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the point-editing overlay of a double-clicked Pen path (points, the selected point’s handles, the path).",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-edit-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the key hints while editing points — click adds, drag bends, ⌥-drag breaks a handle, double-click flips smooth and sharp, ⌫ removes, ↵ is done.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-outline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the path as the overlay holds it while a point or handle is dragged.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-was",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the previous curve, dashed, while a drag is in flight.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-segments",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the wide invisible stroke over the path; a press on it adds a point there.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-point-<sub>-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one anchor of the path being edited (sub-path, point). `data-on` on the selected one.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-handle-<which>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: a handle of the selected point (`in`, `out`); drag to bend, ⌥-drag to break.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pen-chip-type",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Smooth\" or \"Sharp\" beside the selected point.",
+    "producer": {
+      "file": "apps/studio/editing/pen/points.tsx",
+      "symbol": "PointEdit"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-pen-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-path-ends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stroke › Ends: Round or Flat, on a Pen path that has a stroke.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "PathEndsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-path-ends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Round / Flat segmented control of a Pen path’s Ends row.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "PathEndsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-combine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Combine shapes: the row (\"Two or more\"), dimmed for one shape.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-combine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Combine shapes: the group of four buttons.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
+      "symbol": "CombineBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Image section's first row: the picture's thumb, its file name and size, and Replace….",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-thumb",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the picture's small thumb (served from the project's assets).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the file the picture shows (`ab12cd34.jpg`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the picture's own size, \"4032 × 3024\", once it has loaded.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Replace… — opens the asset picker; its pick is the `image.replace` edit-op. Disabled below Can edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-source",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › From: where a pasted picture came from (\"Figma · Hero / v3\", read from `data-source`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-image-fit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Fit: Fill · Fit · Crop · Tile (a picture pasted from Figma: Fill · Fit). One choice asks the canvas for one `image.crop`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-zoom",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Zoom (percent), shown for Crop; typed or stepped it asks `image.crop` with the zoom.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-crop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the line under Zoom: \"Double-click the picture to move it inside the frame.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-adjust",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › Adjust… — opens Photo. Drawn only where the panel can open Photo.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-remove-bg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › ✦ Remove background — opens Photo (the existing editor).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-photo-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › the line under the two rows; \"Edits apply to this use only.\" is said only where Photo edits one use (S8.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-mode",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: crop mode is open on a picture (ghost, frame, brackets, handles, tag, hint).",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the whole picture, faded, beyond the frame in crop mode; drag it to move it inside the frame.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the frame the picture is cropped to, outlined in crop mode.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-bracket-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the four brackets on the frame in crop mode (`nw` `ne` `se` `sw`).",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-handle-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the four corner handles of the faded picture in crop mode; drag to zoom, the opposite corner stays.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the tag over the frame in crop mode (\"<name> · crop\").",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line under the frame in crop mode: \"↵ done · esc cancel\".",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-drop-target",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring on the picture, frame or artboard an Assets tile would land on while it is dragged over the canvas (`data-kind`).",
+    "producer": {
+      "file": "apps/studio/editing/image-drop.tsx",
+      "symbol": "ImageDrop"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the bar after a Figma paste (\"Pasted from Figma as an image of “Hero / v3”.\"), `data-state` placed or layers.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-as-picture",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Paste as picture\" on the paste bar when Figma sent layers and no picture.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-make-editable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Make editable\" on the paste bar. Not drawn until Figma import (S8.17) lands.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-focus-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the keyboard focus ring (2.5 px + halo, token --ed-focus-ring, never the selection token) around the object tab landed on; hidden after a pointer press.",
+    "producer": {
+      "file": "apps/studio/editing/focus-model.tsx",
+      "symbol": "FocusRing"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-order-badges",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the host of the reading-order badges (1…6 on the level, 4.1…4.3 inside the focused frame) shown while the keyboard walks.",
+    "producer": {
+      "file": "apps/studio/editing/tab-order.tsx",
+      "symbol": "OrderBadges"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-order-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one reading-order badge (`data-order` = \"4\" or \"4.2\", `data-on` on the focused object).",
+    "producer": {
+      "file": "apps/studio/editing/tab-order.tsx",
+      "symbol": "OrderBadges"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-aria-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the polite live region VoiceOver reads the focused object from (\"Services, frame, 3 items, in a row — 4 of 6. Press Return to go inside.\").",
+    "producer": {
+      "file": "apps/studio/editing/aria-live.tsx",
+      "symbol": "AriaLive"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-edit-keyboard.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Annotation context toolbar: the count of a multi-selection (\"5 annotations\"), shown after Select all annotations.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-mode-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ride",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.10: the live re-route overlay drawn while an artboard is dragged (bound arrows; one g[data-ride-arrow] each).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ride.ts",
+      "symbol": "createDomRideSink"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/e2e/annotations-follow.e2e.mjs"],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-reroute-live.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-cross-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.10: the refused-straight chip on a re-routed arrow (\"the straight line would cross Mobile\").",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ride.ts",
+      "symbol": "createDomRideSink"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/e2e/annotations-follow.e2e.mjs"],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-reroute-live.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-belongs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.10: the outline of the artboard a selection belongs to, with \"On <artboard> · moves with it\".",
+    "producer": {
+      "file": "apps/studio/annotations-layer.tsx",
+      "symbol": "BelongsOutline"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/e2e/annotations-follow.e2e.mjs"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotations-lod",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The zoomed-out mosaic of the annotation layer (below 25 %): stickies as colour blocks.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/lod.tsx",
+      "symbol": "LodMosaic"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotations-lod-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A section's sticky count on the mosaic (\"Nápady 84\"). Repeats.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/lod.tsx",
+      "symbol": "LodMosaic"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotations-lod-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hover card on a mosaic section (\"Nápady · 84 stickies\", \"Click to zoom to it\"); absent until hover.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/lod.tsx",
+      "symbol": "LodMosaic"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-candidate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: a dashed outline of something an armed Arrow could point at, near the pointer. Repeats.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-aim-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the ring on the element under an arrow end being dropped (an-arrow-bind).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-aim-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the ring’s tag, “Button · See the work” (the kind word, then what it says).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-edge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the edge light — over an artboard’s edge the whole artboard lights up.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-bound-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: “Bound to the artboard” — shown for a moment when the element could not be named (the file was busy, Q12).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "BoundTag"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-dangling-mark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the open circle at an arrow end whose host the canvas cannot find (derived, never stored). `data-cause` is `element` or `artboard`. Repeats.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-dangling-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: “Pointed at “Book a call” — moved to the trash”, shown for the selected arrow with a lost end.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-point-to",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the Point to… button on the dangling card; the next click on an element or an artboard edge re-aims the end.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-rewritten",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the ring on an element AI rewrote with its new words and “· rewritten by AI” (the arrow stays bound).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the words written on an arrow, on the middle of the line as drawn (route included).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/element-node.tsx",
+      "symbol": "ArrowView"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-elbow-rest.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-label-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the field a double-click on an arrow opens; Enter or leaving saves, Esc cancels.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "ArrowLabelEditor"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-kind-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.11: Straight · Curved · Elbow on the arrow toolbar (`aria-pressed` on the arrow’s line). `<kind>`: `straight`, `curved`, `elbow`.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-two-way",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the two-way toggle on the arrow toolbar (a head on both ends).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-ink-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.11: one ink on the arrow toolbar. `<name>`: `ink`, `red`, `green`, `blue` up front; `orange`, `amber`, `purple`, `pink`, `grey` behind “+5”.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ArrowInks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-ink-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the “+5” button that opens the remaining inks.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ArrowInks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-resolve",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: Resolve / Reopen on the small toolbar over a sole sticky (`aria-pressed` while resolved).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-to-comment",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: Turn into a comment on the small toolbar over a sole sticky.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticky-paper-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.19: \"+5\" on the small toolbar over a sticky - opens the other five papers in place.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/s4-19-fidelity.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticky-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.19: the Small / Medium / Large / Extra large / Huge size select on the small toolbar over a sticky.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/s4-19-fidelity.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticky-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.19: List on the small toolbar over a sticky - bullets, then numbers, then off.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/s4-19-fidelity.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: Fold / Unfold on the small toolbar over a sole section (`aria-pressed` while folded).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-ask-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.12: ✦ Ask AI about it on the small toolbar over a sole section.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-menu-<action>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.12: a row of the annotation right-click menu. `<action>`: `copy`, `cut`, `paste`, `duplicate`, `front`, `forward`, `backward`, `back`, `group`, `ungroup`, `lock`, `unlock`, `delete` (“Move to trash”), and for a sole sticky `to-comment`, `resolve`, `fan-out`, for a sole section `fold`, and `ask-ai` for both.",
+    "producer": {
+      "file": "apps/studio/annotations-layer.tsx",
+      "symbol": "AnnotationContextMenu"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-sticky.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-convert-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-placing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the ghost that trails the pointer after a gallery / stamp / template pick (`data-placing`: `sticker`, `stamp`, `template`); gone once the pick is spent or Esc lets go.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/placement.tsx",
+      "symbol": "PlacementGhost"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticker-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the “160 × 160” chip under a selected gallery sticker.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/placement.tsx",
+      "symbol": "StickerSizeChip"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-cluster",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the stamps on one spot gathered (`data-spot`, `data-count` = one per person per kind).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampClusters"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-face",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: one stamp: the glyph on its paper tone with the maker’s face on the corner (`data-kind`).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampFaceView"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the number on a cluster of more than two stamps.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampClusters"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the hover card of a cluster, “5 stamps on Směr B”.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampCard"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-card-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: one row of the hover card: the stamp, who, and its name.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampCard"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Replace… on the small toolbar over a sole gallery sticker (opens the gallery in replace mode).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-flip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Flip on the small toolbar over a sole gallery sticker (`aria-pressed` while mirrored).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-duplicate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Duplicate on the small toolbar over a sole gallery sticker (the `annotation.duplicate` action).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "stamps-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.13: one stamp in the row the Stickers gallery folds to after a stamp (`yes`, `no`, `star`, `heart`, `ask`, `plus`; `data-on` on the armed one).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
+      "symbol": "StampRow"
+    },
+    "region": "other",
+    "sourceConsumers": [
+      "apps/studio/test/stickers-recent-stamps.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "stamps-row-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the chevron on the folded Stamps row that opens the whole gallery again.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
+      "symbol": "StampRow"
+    },
+    "region": "other",
+    "sourceConsumers": [
+      "apps/studio/test/stickers-recent-stamps.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "stamps-row-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Done on the folded Stamps row (closes the gallery).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
+      "symbol": "StampRow"
+    },
+    "region": "other",
+    "sourceConsumers": [
+      "apps/studio/test/stickers-recent-stamps.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Start a vote sheet (S4.14, canvas 15 an-vote): the artboards to vote on, title, votes each, time, the secrecy line, Cancel · Start vote.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-target-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard row of the Start a vote sheet (a checkbox).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's optional title field (the result section is \"Vote · <title> · 1 Oct\").",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-per-voter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's \"Votes each\" field (1–10, default 3).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-duration",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's \"Time\" select (1, 2, 5, 10 min; default 2 min).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's secrecy line: local \"Anyone who can open this project's files can see the votes.\", hub \"Nobody sees the others' votes until the end.\", or the older-team-server line (Start vote disabled).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-start",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's Start vote button (POST /_api/votes/start, edit).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The vote bar while the active canvas has an open vote: \"Vote <what> · N left of your 3 · 1:42 · 4 of 5 done · End vote\".",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-left",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's \"N left of your M\" (your own dots only).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's countdown (m:ss).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's faces + \"4 of 5 done\": WHO has voted, never what.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-end",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's End vote button (editors only; POST /_api/votes/end).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's Clear button: drops the dots moved on the canvas but not cast yet (shows only with pending picks; sec-a M2).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-vote-cast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-cast",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's Cast button: the ONLY thing that posts your ballot (POST /_api/votes/ballot); canvas dots are pending until it is pressed (sec-a M2, decision v2-lead-ballots-commit-in-shell).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-vote-cast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shell-error-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The shell error boundary's card: one render throw shows \"This window stopped drawing.\" instead of a blank window (sec-a C3).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/shell-error-boundary.jsx",
+      "symbol": "ShellErrorBoundary"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-canvas-toast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shell-error-reload",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The error card's Reload button (reloads the window).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/shell-error-boundary.jsx",
+      "symbol": "ShellErrorBoundary"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-canvas-toast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-dots",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The canvas-side vote chips host (world space; only while a vote is shown).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-dots-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Your dots on one voted artboard (\"yours\") while the vote is open; a dot click takes it back.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-add-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The \"+\" on a voted artboard: one more dot (disabled when none are left).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-count-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A voted artboard's count once the vote has ended (the winner ringed: `dc-vcount--win`).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI offer card: it read the stickies and offers one change (15 `an-ai-read`). Nothing has changed yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-offer.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-says",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The plan in one line, as the agent wrote it, rendered as text.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-offer.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-leaves",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line that names how many stickies the offer leaves alone.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-offer.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-make",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offer card's one button, \"Make these changes\": sends the follow-up with the same stickies as the scope.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-offer.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-sends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offer card's line saying exactly what \"Make these changes\" sends: the canned words, how many stickies ride, how many it resolves, the refs it points at (sec-a C2).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-ai-offer.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-skip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offer card's \"Not now\": folds the card, sends nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-offer.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-seen",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas side: the layer that holds the AI offer's outlines (aria-hidden, no pointer events).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ai-seen.tsx",
+      "symbol": "AiSeenRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-seen-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas side: one dashed spark outline + tag round what the AI's offer means (\"The hero picture\").",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ai-seen.tsx",
+      "symbol": "AiSeenRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ai-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas side: the small spark badge on a status sticker the AI placed (\"Placed by AI\").",
+    "producer": {
+      "file": "apps/studio/annotations/ui/element-node.tsx",
+      "symbol": "ImageView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-ai-render.test.tsx"
+    ],
     "v2": "new"
   }
 ]

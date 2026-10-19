@@ -118,6 +118,12 @@ const CANVAS = [
   '/_api/ai/runs/:id/copy',
   '/_api/annotations/to-comment',
   '/_api/annotations/convert-undo',
+  '/_api/annotations/figjam', // S4.16 - one canvas (`file`)
+  // S4.14 — votes: each names one canvas (`file`); the vote door scopes by it (routes/votes.ts `scope`)
+  '/_api/votes',
+  '/_api/votes/start',
+  '/_api/votes/ballot',
+  '/_api/votes/end',
   '/_api/comments/to-sticky',
   '/_api/comments/op',
   '/_api/links',

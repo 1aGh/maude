@@ -335,6 +335,47 @@ fn written() -> std::sync::MutexGuard<'static, Written> {
     WRITTEN.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+// ── The remembered folder of a project the registry does not hold ───────────
+
+/// The folders picked in this run for a project the app-state registry does not hold. The
+/// `MAUDE_PROJECT_ROOT` launch folder and the welcome project are deliberately never
+/// registered (lib.rs boot windows), so `set_export_folder` refuses their pid — and the pick
+/// was forgotten at once: `saveTo: 'remembered'` asked again and again. The pick is kept for
+/// the rest of this run instead (G2). Registered projects keep it in app-state, as before.
+#[derive(Debug, Default)]
+pub struct SessionFolders {
+    by_project: BTreeMap<String, PathBuf>,
+}
+
+impl SessionFolders {
+    pub const fn new() -> Self {
+        SessionFolders { by_project: BTreeMap::new() }
+    }
+
+    /// The remembered folder: the registry's, else this run's pick.
+    pub fn recall(&self, pid: &str, persisted: Option<String>) -> Option<PathBuf> {
+        persisted.map(PathBuf::from).or_else(|| self.by_project.get(pid).cloned())
+    }
+
+    /// A pick: `persisted` is what the registry answered to `set_export_folder`.
+    pub fn keep(&mut self, pid: &str, dir: PathBuf, persisted: Result<(), String>) {
+        match persisted {
+            Ok(()) => {
+                self.by_project.remove(pid);
+            }
+            Err(_) => {
+                self.by_project.insert(pid.to_string(), dir);
+            }
+        }
+    }
+}
+
+static SESSION_FOLDERS: Mutex<SessionFolders> = Mutex::new(SessionFolders::new());
+
+fn session_folders() -> std::sync::MutexGuard<'static, SessionFolders> {
+    SESSION_FOLDERS.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 // ── Copy as PNG ──────────────────────────────────────────────────────────────
 
 /// `bytes` when they are one whole PNG under the cap: the signature, IHDR first, IEND last.
@@ -400,8 +441,9 @@ pub async fn save_export(
     let info_file = sidecar::shell_info_file(&app, &caller.root);
     let url = export_download_url(info_file.as_deref(), &job_id)?;
     let name = clean_file_name(&filename);
-    let remembered =
-        app_state::export_folder_of(&app, &caller.pid).and_then(|d| usable_dir(Path::new(&d)));
+    let remembered = session_folders()
+        .recall(&caller.pid, app_state::export_folder_of(&app, &caller.pid))
+        .and_then(|d| usable_dir(&d));
     let straight_in = match mode {
         SaveTo::Ask => None,
         SaveTo::Remembered => remembered.clone(),
@@ -416,7 +458,8 @@ pub async fn save_export(
             stream_download_to_file(&url, &dest).await?;
             // The folder the person picked is the project's from now on (on this Mac).
             if let Some(dir) = dest.parent().and_then(usable_dir) {
-                let _ = app_state::set_export_folder(&app, &caller.pid, &dir);
+                let persisted = app_state::set_export_folder(&app, &caller.pid, &dir);
+                session_folders().keep(&caller.pid, dir, persisted);
             }
             dest
         }
@@ -586,6 +629,35 @@ mod tests {
     }
 
     // ── names, folders ──
+
+    #[test]
+    fn a_pick_for_a_project_the_registry_does_not_hold_is_remembered_for_the_run() {
+        // The boot project (MAUDE_PROJECT_ROOT / welcome) is never registered: the registry refuses it.
+        let mut st = app_state::AppState::default();
+        let refused = app_state::set_export_folder_in(&mut st, "lboot", Path::new("/d/social"));
+        assert!(refused.is_err());
+        let mut s = SessionFolders::new();
+        assert_eq!(s.recall("lboot", None), None);
+        s.keep("lboot", PathBuf::from("/d/social"), refused);
+        assert_eq!(s.recall("lboot", None), Some(PathBuf::from("/d/social")));
+        // another project does not inherit it
+        assert_eq!(s.recall("lother", None), None);
+        // a later pick replaces it
+        s.keep("lboot", PathBuf::from("/d/print"), Err("no".into()));
+        assert_eq!(s.recall("lboot", None), Some(PathBuf::from("/d/print")));
+    }
+
+    #[test]
+    fn a_registered_project_keeps_its_folder_in_app_state_not_in_the_run() {
+        let mut s = SessionFolders::new();
+        // the registry took it: nothing is held here, and the registry's word wins
+        s.keep("lreg", PathBuf::from("/d/a"), Ok(()));
+        assert_eq!(s.recall("lreg", None), None);
+        assert_eq!(s.recall("lreg", Some("/d/b".into())), Some(PathBuf::from("/d/b")));
+        // a stale run pick never outranks the registry
+        s.keep("lreg", PathBuf::from("/d/old"), Err("no".into()));
+        assert_eq!(s.recall("lreg", Some("/d/b".into())), Some(PathBuf::from("/d/b")));
+    }
 
     #[test]
     fn a_file_name_never_leaves_its_folder_and_is_never_empty() {

@@ -186,6 +186,32 @@ removed, and 0 on all four removes the declaration. A radius that lands on a `--
 token; anything else (⌘ held) is `px`. While the four are equal a drag rounds all four; when they differ, or with ⌥,
 only that corner changes and the other three keep what they had.
 
+## Place, replace and crop an image: the same result by hand (S2.15)
+
+A tile dropped on a frame (or placed with ↵), Replace…, and Fill · Fit · Crop · Tile are three edit-ops
+(`image.place`, `image.replace`, `image.crop`; `edit-ops/image-fit.ts`, `edit-ops/crop.ts`). A picture is a plain
+`<img src="assets/<sha8>.<ext>">` — the `src` is always `assets/<flat name>` (import the file first with the asset import;
+no `..`, no scheme). Edits are attributes of this one `<img>`, never of the asset ("edits apply to this use only").
+
+| Gesture | What the file looks like afterwards |
+| --- | --- |
+| Drop a tile on an empty frame (`mode: "fill"`) | A new last child `<img data-cd-id="img" src="assets/ab12cd34.jpg" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />` — cropped to fit. |
+| Drop on a frame that holds one picture, or on a picture | Only that `src` changes; the box, the fit and the crop stay. A `data-photo-edit` / `data-photo-asset` on it is removed (a per-use edit belongs to the old picture). |
+| Place on an artboard, `mode: "fill"` | The same `<img>`, first child, `position: "absolute"; left: "0"; top: "0"; width: "100%"; height: "100%"; objectFit: "cover"` — behind the content. |
+| `mode: "loose"` (↵ on a selected artboard) | A last child `<img … style={{ display: "block", width: "<natural>px", maxWidth: "100%", height: "auto" }} />` — in the flow, never wider than its container. |
+| `mode: "fill-in-order"` / `"grid"` | In order: the n-th `<img>` inside the target takes the n-th asset, extra assets are placed loose. Grid: one `<div style={{ display: "grid", gridTemplateColumns: "repeat(ceil(√n), 1fr)", gap: "var(--space-2)" }}>` with a square `aspectRatio: "1 / 1"; objectFit: "cover"` `<img>` each. |
+| Figma paste | The same `<img>` plus the inert `data-source="figma"` and `data-source-name="Hero / v3"` (the frame’s name, when Figma said it). It is Figma’s exact picture, not layers. |
+| Replace… | `src` (a tile: `data-image-tile` and `backgroundImage`) only. |
+| Fit ▸ Fill | `objectFit: "cover"`; `objectPosition`, `transform`, `transformOrigin` and `data-image-fit` removed. |
+| Fit ▸ Fit | `objectFit: "contain"`, the rest removed as above. |
+| Fit ▸ Crop (double-click, drag, ↵) | `objectFit: "cover"`, `objectPosition: "X% Y%"` (the point of the picture that stays put), `data-image-fit="crop"`; and past 100 % `transform: "scale(Z)"` with `transformOrigin: "X% Y%"` and `overflow: "hidden"` on the frame that holds the picture so the zoom is clipped. Zoom 1–8, X and Y 0–100. |
+| Fit ▸ Tile | The `<img>` becomes `<div role="img" aria-label="<alt>" data-image-tile="assets/…" data-image-fit="tile" style={{ …box, backgroundImage: "url(\"assets/…\")", backgroundRepeat: "repeat", backgroundSize: "auto" }} />` (an empty alt gives `aria-hidden="true"` instead of the label). Any other Fit turns it back into an `<img>`. |
+
+A source or a style the file computes (`src={photo}`, `style={fit}`) is refused. Over HTTP the same results:
+`POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset | assets, mode, artboard?, natural?: {w, h}, alt?, from?: {name}}}`,
+`{op: "image.replace", targets: [picture], params: {asset}}`,
+`{op: "image.crop", targets: [picture], params: {fit?, zoom?, x?, y?}}`.
+
 ## Remove an artboard: the same result by hand (S2.10b)
 
 ⌫ on a selected artboard and the artboard menu's "Move to trash" (the op `artboard.trash`,
@@ -209,3 +235,45 @@ Both props are literal values on `<DCArtboard>`. Maude 1.x ignores them and stil
 
 Write a custom size with `customPrintProp([w, h])`, or hand-write the same shape. Both props follow DDR-181:
 artboard intent lives in the JSX.
+
+## Draw a path; combine shapes: the same result by hand (S2.14)
+
+P (the Pen) draws a path point by point; one finished path is one write (`object.insert-path`), and each later
+point or handle drag is one write (`path.edit`). Everything is plain TSX; a v1 peer reads it as any `<svg>`.
+
+```tsx
+<svg data-cd-id="path" data-shape="path" width="280" height="110.77" viewBox="0 0 280 110.77"
+     style={{ position: "absolute", left: "100px", top: "89.23px", overflow: "visible", fill: "none",
+              stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
+  <path d="M0 110.77L100 10.77C160 -29.23 220 50.77 280 110.77" />
+</svg>
+```
+
+- The svg box is the path's **drawn bounds** (curve extremes, not control points); `left` / `top` are px from the
+  container's padding edge, and `d` is relative to the box. Moving a point so the bounds change means rewriting
+  `d`, `width`, `height`, `viewBox`, `left` and `top` together so every other point keeps its place (`path.edit`).
+- `d` is absolute `M L C Z`, two decimals. A **sharp** point has no handles (or two that do not mirror each other);
+  a **smooth** point has `C` handles on one line through the anchor, on opposite sides. The type is derived from
+  the numbers, never stored. A closed path ends in `Z`.
+- Stroke colour is a token (`var(--accent)`), width and Ends (`strokeLinecap: "round"` or `"butt"`) are on the `<svg>`
+  and inherited by the `<path>`; the inspector's Stroke section writes them there.
+- Arcs (`A`) are not point-editable: a path that uses them is edited in the code.
+
+### Combine shapes (`shape.combine.union|subtract|intersect|exclude`)
+
+Two or more sibling shapes (rectangle, ellipse, polygon — a `<div data-shape>` — or Pen paths) become **one** `<svg
+data-shape="path" data-combine="<kind>">` placed where the bottom shape was; the operands are removed in the same
+write. There is no boolean-geometry dependency: the renderer composes, and it exports identically as SVG.
+
+| Kind | What the svg holds |
+| --- | --- |
+| union | ONE `<path d="…subpaths…" fillRule="nonzero" />`, every outline wound clockwise so overlaps merge |
+| exclude | the same `<path>` with `fillRule="evenodd"` (overlaps become holes) |
+| subtract | the bottom shape `<path d mask="url(#<id>-mask)" />` **first**, then `<defs><mask id="<id>-mask" maskUnits="userSpaceOnUse" x y width height><rect … fill="white" />` and every other shape `<path d fill="black" /></mask></defs>` |
+| intersect | the bottom shape `<path d clipPath="url(#<id>-clip-1)" />` first (one more shape: wrap it in `<g clipPath="url(#<id>-clip-2)">`), then `<defs>` with one `<clipPath id="<id>-clip-N"><path d /></clipPath>` per other shape |
+
+The svg's `fill` is the bottom shape's token (never a hex). `white` / `black` in a mask are luminance, not design
+colours. A rounded rectangle is four cubics (`KAPPA` 0.5523), an ellipse four smooth anchors, a polygon its
+`clipPath` points. Refused: a line, a frame, a rotated shape (reset the rotation first), shapes from different frames.
+Flatten (a computed outline) is not in v2.0.
+

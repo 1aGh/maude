@@ -26,7 +26,7 @@ import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
 import { applyInsertArtboard, applySetArtboardKind } from '../canvas-edit.ts';
-import { generateElementId, usedIds, walkIdElements } from '../element-ids.ts';
+import { generateElementId, type IdElement, usedIds, walkIdElements } from '../element-ids.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
 import { lineIndent } from './siblings.ts';
@@ -131,6 +131,43 @@ function styleFor(req: ResolvedEditOp, kind: DrawnKind): { style: Style; shape: 
 const styleText = (style: Style): string =>
   `{{ ${style.map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ')} }}`;
 
+/** `child` as the last child of `parent` (a self-closing parent opens up). Shared with the Pen's path (path.ts). */
+export function appendChild(
+  source: string,
+  parent: IdElement,
+  child: string,
+  req: ResolvedEditOp
+): string {
+  const s = new MagicString(source);
+  const indent = lineIndent(source, parent.start);
+  const unit = indent.includes('\t') ? '\t' : '  ';
+  const text = source.slice(parent.start, parent.end);
+  if (text.endsWith('/>')) {
+    // a self-closing parent opens up: `<div … />` → `<div …>\n  <child />\n</div>`
+    if (!/^[a-z]/.test(parent.tag) && parent.tag !== 'DCArtboard')
+      return refuse(req, 'Draw inside a frame, not a component.');
+    s.overwrite(
+      parent.end - 2,
+      parent.end,
+      `>\n${indent}${unit}${child}\n${indent}</${parent.tag}>`
+    );
+  } else {
+    const close = source.lastIndexOf('</', parent.end);
+    const own = /^\s*$/.test(source.slice(source.lastIndexOf('\n', close - 1) + 1, close));
+    if (own) s.appendLeft(source.lastIndexOf('\n', close - 1), `\n${indent}${unit}${child}`);
+    else s.appendLeft(close, child);
+  }
+  return s.toString();
+}
+
+/**
+ * S2.22 — a frame that lives outside this artboard's own JSX is a component several artboards share: a drawing in
+ * it would appear in every one of them. The edit-op addresses source, not one instance, so it does not guess; it
+ * says what happened, that nothing was written, and the one verb (CONTRACT §4).
+ */
+export const SHARED_FRAME_LINE =
+  'That frame is shared by several artboards, so a drawing would appear in all of them. Nothing was drawn. Detach it to draw on this artboard only.';
+
 export const objectInsertShape: EditOp = {
   id: 'object.insert-shape',
   apply(source, req) {
@@ -148,33 +185,14 @@ export const objectInsertShape: EditOp = {
       ? walk.elements.find((e) => e.id === parentRef.element)
       : walk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === artboard);
     if (!parent) return refuse(req, 'That frame is not on this canvas.');
-    if (parent.artboard !== artboard) return refuse(req, 'That frame is not on this artboard.');
+    if (parent.artboard !== artboard) return refuse(req, SHARED_FRAME_LINE);
 
     const { style, shape } = styleFor(req, kind as DrawnKind);
     const id = generateElementId({ tag: 'div', dcElement: kind }, usedIds(walk.elements));
     const attrs = [`data-cd-id="${id}"`, ...(shape ? [`data-shape="${shape}"`] : [])];
     const child = `<div ${attrs.join(' ')} style=${styleText(style)} />`;
 
-    const s = new MagicString(source);
-    const indent = lineIndent(source, parent.start);
-    const unit = indent.includes('\t') ? '\t' : '  ';
-    const text = source.slice(parent.start, parent.end);
-    if (text.endsWith('/>')) {
-      // a self-closing parent opens up: `<div … />` → `<div …>\n  <child />\n</div>`
-      if (!/^[a-z]/.test(parent.tag) && parent.tag !== 'DCArtboard')
-        return refuse(req, 'Draw inside a frame, not a component.');
-      s.overwrite(
-        parent.end - 2,
-        parent.end,
-        `>\n${indent}${unit}${child}\n${indent}</${parent.tag}>`
-      );
-    } else {
-      const close = source.lastIndexOf('</', parent.end);
-      const own = /^\s*$/.test(source.slice(source.lastIndexOf('\n', close - 1) + 1, close));
-      if (own) s.appendLeft(source.lastIndexOf('\n', close - 1), `\n${indent}${unit}${child}`);
-      else s.appendLeft(close, child);
-    }
-    let out = s.toString();
+    let out = appendChild(source, parent, child, req);
     const check = parseSync('draw.tsx', out, { sourceType: 'module' });
     if (check.errors?.length)
       return refuse(req, 'That drawing would break the canvas; nothing was written.');

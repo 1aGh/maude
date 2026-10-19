@@ -146,7 +146,9 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
   );
   const worldBox = new Map<string, Box>();
   for (const s of kept) {
-    const bb = strokeBBox(s);
+    // S4.13 - a folded section is drawn and grabbed as one line, but the FILE keeps its full size (and its
+    // members stay inside it), so the element geometry reads the unfolded box.
+    const bb = strokeBBox(s.tool === 'section' && s.folded ? { ...s, folded: undefined } : s);
     if (bb) worldBox.set(s.id, normBox(bb.x, bb.y, bb.w, bb.h));
   }
   for (const { t, at } of extraText) worldBox.set(t.id, at);
@@ -221,6 +223,11 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
         groups: s.groupIds,
         author: author(s),
         locked: s.locked === true ? true : undefined,
+        // S4.12 — the stroke view of Resolve / Fold / an import's origin (annotations/v1-adapter.ts).
+        resolved: s.tool === 'sticky' ? s.resolved : undefined,
+        at: s.tool === 'sticky' ? s.at : undefined,
+        folded: s.tool === 'section' && s.folded === true ? true : undefined,
+        source: s.source,
       } as Record<string, unknown>,
     };
   };
@@ -298,6 +305,10 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
           endHead: s.endHead,
           dashed: s.dashed,
           line: s.lineType,
+          // S4.11 — format-2 extension fields the stroke view carries (annotations/v1-adapter.ts).
+          startHost: s.startHost,
+          endHost: s.endHost,
+          label: s.label,
         });
         break;
       case 'text':
@@ -326,7 +337,15 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
         });
         break;
       case 'image':
-        raw.push({ ...base, type: 'image', ...rel(b as Box, o), rot, href: s.href, alt: s.alt });
+        raw.push({
+          ...base,
+          type: 'image',
+          ...rel(b as Box, o),
+          rot,
+          href: s.href,
+          alt: s.alt,
+          sticker: s.sticker,
+        });
         break;
       case 'link':
         raw.push({

@@ -132,9 +132,9 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'canvas',
     // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
     visible: { minRole: 'comment' },
-    // v1 use-keyboard-discipline matches `e.key === 'a'` with any ⇧ — so ⇧⌘A selects every element
-    // too (V2-1.3 defect 1).
-    keys: mods('⌘A', '⇧', 'selection', { when: OBJ }),
+    // v1 matched `e.key === 'a'` with any ⇧, so ⇧⌘A also selected every element (V2-1.3 defect 1).
+    // S4.9: ⇧⌘A is Select all annotations now (its binding died with the old one, rule 13).
+    keys: [kb('⌘A', 'selection', { when: OBJ })],
   },
   {
     // Menu only in v1 (posts `selection-clear` to the canvas); the "Esc" its rows show is
@@ -148,7 +148,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     legacy: { menu: 'Deselect all' },
   },
   {
-    // Menu only in v1: no key handler implements the ⇧⌘A its rows show (V2-1.3 defect 1).
+    // Menu only in v1: no key handler implemented the ⇧⌘A its rows show (V2-1.3 defect 1). S4.9: bound —
+    // in Edit the canvas asks the shell for Preview first (annotations are Preview's to change).
     id: 'select.all-annotations',
     label: 'Select all annotations',
     kind: 'command',
@@ -156,6 +157,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     // V2-4 gate (roles): annotations are selected to change them, and `annotate` is Can edit's
     // (V2-1.7 §5.2). No key, so absent rather than greyed.
     visible: EDITS,
+    keys: [kb('⇧⌘A', 'global', { inText: false, when: IN_CANVAS })],
     legacy: { menu: 'Select all annotations' },
   },
   {
@@ -193,7 +195,12 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'canvas',
     // S3.11: Edit's only — in Preview and Viewing ↵ is `inspect.edit` (one binding per chord and context).
-    keys: [kb('↵', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
+    // S2.21: not while a create tool is armed — there ↵ is `tool.create-default`.
+    keys: [
+      kb('↵', 'selection', {
+        when: { ...OBJ, mode: ['edit'], selection: ['object'], notFacts: ['toolArmed'] },
+      }),
+    ],
   },
   {
     // S2.1 — one level out: the parent is selected; at the top the selection is dropped. Its key is
@@ -218,14 +225,20 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: [kb('⇧↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
   },
   {
+    // S2.21 (14 `ed-edge-keys`) — tab walks the objects of the level you are on, in reading order (the badges
+    // 1…6, then 4.1…4.3 inside); with nothing selected it takes the first. ⇧tab is `object.select-prev`.
     id: 'object.select-next',
-    label: 'Select next sibling',
+    label: 'Select next object',
     kind: 'command',
     exec: 'canvas',
-    keys: [
-      kb('tab', 'selection', { when: { ...OBJ, selection: ['object'] } }),
-      kb('⇧tab', 'selection', { when: { ...OBJ, selection: ['object'] } }),
-    ],
+    keys: [kb('tab', 'selection', { when: { ...OBJ, mode: ['edit'] } })],
+  },
+  {
+    id: 'object.select-prev',
+    label: 'Select previous object',
+    kind: 'command',
+    exec: 'canvas',
+    keys: [kb('⇧tab', 'selection', { when: { ...OBJ, mode: ['edit'] } })],
   },
   {
     id: 'object.remove',
@@ -403,6 +416,42 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     search: { hidden: true },
   },
+  // S2.14 (ed-pen) — the Pen's finished path and a point drag: gestures (the P tool and a double-click are how a
+  // person starts them), so not offered in ⌘K.
+  {
+    id: 'object.insert-path',
+    label: 'Draw a path',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'path.edit',
+    label: 'Edit path points',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  // S2.14 — Combine shapes (S2-slices Q6): non-destructive SVG composition, one edit-op each. The Combine row of the
+  // inspector, ⌘K and an agent run these; they need two or more shapes (the canvas says so in a line).
+  ...(
+    [
+      ['union', 'Union selection'],
+      ['subtract', 'Subtract selection'],
+      ['intersect', 'Intersect selection'],
+      ['exclude', 'Exclude selection'],
+    ] as const
+  ).map(
+    ([kind, label]): ActionDef => ({
+      id: `shape.combine.${kind}`,
+      label,
+      kind: 'command',
+      exec: 'canvas',
+      enabled: { ...EDITS, selection: ['object'] },
+    })
+  ),
   {
     id: 'object.set-corner-radius',
     label: 'Round a corner',
@@ -463,6 +512,43 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'canvas',
     enabled: { ...EDITS },
+    search: { hidden: true },
+  },
+  // S2.15 (ed-img) — pictures. A tile dropped on a frame, ↵ on a selected artboard and Generate end in
+  // `image.place` (a gesture: the Assets tab and the drop are how a person starts it, so no ⌘K row).
+  // Crop is ⌘K-able (it enters crop mode on the selected picture); Replace… opens the picker. Make editable
+  // (the Figma paste bar) is registered with its row but visible to no shell until S8.17's Figma import lands.
+  {
+    id: 'image.place',
+    label: 'Place a picture',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'image.crop',
+    label: 'Crop',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['crop', 'fit', 'fill', 'tile', 'zoom', 'picture', 'image', 'photo'] },
+  },
+  {
+    id: 'image.replace',
+    label: 'Replace…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['replace', 'swap', 'picture', 'image', 'photo'] },
+  },
+  {
+    id: 'figma.make-editable',
+    label: 'Make editable',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: [] },
+    enabled: EDITS,
     search: { hidden: true },
   },
   // S2.17 (ed-comp-instance) — an instance of a design-system component. Swap takes a value (a variant, a
@@ -532,6 +618,16 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
+  },
+  // S4.11 — naming an element so an arrow can point at it (Q12). No menu, no key, no ⌘K row: the canvas asks
+  // for it when an arrow is dropped on an element with no authored id; it runs as the edit-op of this id.
+  {
+    id: 'element.stamp',
+    label: 'Name element',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
   },
   // S2.8 — artboards. Both take a size, so neither is a ⌘K row: their homes are the eight handles on a
   // selected artboard (`artboard.resize` is the edit-op id they run, S2-edit-ops.md) and the artboard
@@ -622,6 +718,25 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
+  },
+  // S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected asks AI about THEM, in place: the canvas says what is
+  // selected and where, the shell draws the bubble and hands the words to the AI chat's composer with an
+  // `elements` scope (S4-S5 contract §1). Canvas-focus + Edit mode + an object selected; ⌘/ elsewhere stays
+  // `ai.chat`'s (chrome / timeline / text foci), so the two never meet (registry uniqueness per document).
+  {
+    id: 'ai.ask-selection',
+    label: 'Ask AI about the selection',
+    kind: 'command',
+    icon: 'sparkle',
+    exec: 'canvas',
+    // The chat runs Claude Code on this Mac — the desktop app only (as `ai.chat`). That is NOT a predicate here:
+    // the canvas resolves this binding with a browser-shaped KeyCtx (ctx.ts › canvasKeyCtx), so a `shell`
+    // predicate would unbind the chord inside the app. The shell's host (AskSelectionHost) draws nothing
+    // outside the desktop app.
+    visible: EDITS,
+    enabled: { ...EDITS, selection: ['object'] },
+    keys: [kb('⌘/', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
+    search: { keywords: ['ask ai', 'selection', 'in place', 'change these'] },
   },
   // S3.10a — where a click goes: `data-cd-link` on the element (S3-links-format). Both are `edit-op`s
   // (`edit-ops/{set,clear}-link.ts`) on POST /_api/edit-op. Clear link runs from ⌘K through the inspector's

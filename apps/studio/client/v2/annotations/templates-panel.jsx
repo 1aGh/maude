@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { TEMPLATES } from '../../../annotations/templates.ts';
+import { v2Scope } from './v2-scope.js';
 
 /** The columns of the tile grid (canvas 15 `.an-tpl-g`). */
 export const TEMPLATE_COLUMNS = 4;
@@ -135,11 +136,11 @@ export default function TemplatesPanel({
       }}
     >
       <div
-        className={
+        {...v2Scope(
           anchor
             ? 'st-dialog st-sticker-picker tp st-sticker-picker--anchored'
             : 'st-dialog st-sticker-picker tp'
-        }
+        )}
         data-testid="tool-panel-templates"
         data-placement={anchor?.placement}
         style={anchor ? anchoredStyle(anchor) : undefined}

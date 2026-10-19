@@ -22,6 +22,7 @@ import {
   dayGroups,
   groupLabel,
   mergeFresh,
+  PROJECT_ACTION_EVENT,
   restoreLine,
   viewingWords,
   wantsPictures,
@@ -191,6 +192,27 @@ describe('the rows', () => {
     expect(q('[data-testid="vh-now-status"]')?.textContent).toBe('Uniformy-2027 · Saved');
     expect(q('[data-testid="vh-name"]')?.textContent).toBe('Name this version…');
     expect(calls[0]?.url).toContain('/_api/project/versions?path=.design%2Fui%2FUniformy-2027.tsx');
+  });
+
+  test('G9: an accepted action elsewhere (an outside edit) makes the list look again, however late', async () => {
+    await mount(<VersionHistoryPanel {...base} />);
+    const reads = () => calls.filter((c) => c.url.startsWith('/_api/project/versions')).length;
+    const before = reads();
+    answers.rows = [
+      { ...(ROWS[0] as object), id: 'a_outside', ref: 'r99', title: 'Changed outside Maude' },
+      ...ROWS,
+    ] as typeof ROWS;
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(PROJECT_ACTION_EVENT, {
+          detail: { kind: 'outside', canvases: ['ui/x.tsx'] },
+        })
+      );
+      await new Promise((r) => setTimeout(r, 450));
+    });
+    await flush();
+    expect(reads()).toBe(before + 1);
+    expect(q('[data-testid="vh-row-r99"]')).not.toBeNull();
   });
 
   test('before the first change: the Now row and "Versions appear here as you work."', async () => {

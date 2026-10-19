@@ -1,0 +1,21 @@
+await edit();
+await sleep(2000);
+const out = {};
+const all = () => frame().evaluate(() => [...document.querySelectorAll('[data-dc-screen="home"]')].map((e) => { const r = e.getBoundingClientRect(); return [e.tagName, Math.round(r.left), Math.round(r.top), e.className.toString().slice(0, 40)]; }));
+const metaPos = () => { const m = JSON.parse(fs.readFileSync('/private/tmp/claude-501/sc/proj/.design/ui/Site.meta.json', 'utf8')); const a = m.layout.artboards.find((x) => x.id === 'home'); return [Math.round(a.x), Math.round(a.y)]; };
+out.start = { meta: metaPos(), dom: await all() };
+const lab = await frect('[data-dc-screen="home"] .dc-artboard-label');
+const sx = lab.x + 20, sy = lab.y + lab.h / 2;
+await page.mouse.move(sx, sy);
+await page.mouse.down();
+for (let i = 1; i <= 12; i++) { await page.mouse.move(sx + i * 6, sy + i * 8); await sleep(30); }
+await page.mouse.up();
+await sleep(1500);
+out.after = { meta: metaPos(), dom: await all() };
+await shot('f5-after');
+await page.focus('body').catch(() => {});
+await page.keyboard.press('Meta+z');
+await sleep(3000);
+out.undo1 = { meta: metaPos(), dom: await all() };
+await shot('f5-undo');
+return out;

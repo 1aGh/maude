@@ -34,11 +34,16 @@ const FORMATS: Array<{
   scope?: string;
   magic?: number[];
   magicText?: { at: number; is: string };
+  /** The whole artifact is one text document (HTML): its first bytes must match. */
+  textStarts?: RegExp;
 }> = [
   { id: 'png', label: 'PNG', canvas: 'export', magic: [0x89, 0x50, 0x4e, 0x47] },
   { id: 'svg', label: 'SVG', canvas: 'export' },
   { id: 'pdf', label: 'PDF', canvas: 'export', magic: [0x25, 0x50, 0x44, 0x46] },
-  { id: 'html', label: 'HTML', canvas: 'export', magic: [0x50, 0x4b, 0x03, 0x04] },
+  // G3: "Web page (HTML) — Opens in any browser" (09 Export · the format menu): a page is ONE .html file, not a
+  // ZIP. The Project ZIP is the only archive the sheet offers; spec-run.ts unpacks the adapter's zip per
+  // artboard (`splitResult`) so a single page lands as `<name>.html`.
+  { id: 'html', label: 'HTML', canvas: 'export', textStarts: /^<!doctype html/i },
   {
     id: 'pptx',
     label: 'PPTX',
@@ -213,6 +218,11 @@ describe('export-formats (native-desktop)', () => {
 
       expect(probe.size).toBeGreaterThan(500);
       if (format.magic) expect(probe.head).toEqual(format.magic);
+      if (format.textStarts) {
+        expect(probe.text.trimStart().slice(0, 40)).toMatch(format.textStarts);
+        // self-contained: nothing points back at the dev-server (the same bar the SVG holds)
+        expect(probe.text.match(/src="https?:\/\/[^"]+"/g) ?? []).toEqual([]);
+      }
       if (format.magicText) {
         const { at, is } = format.magicText;
         const got = String.fromCharCode(...probe.head8.slice(at, at + is.length));

@@ -26,7 +26,18 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-
+import {
+  HIGHLIGHTER_SWATCHES,
+  HIGHLIGHTER_WIDTH_NAMES,
+  INK_FRONT,
+  INK_MORE,
+  resolveInk,
+  STICKY_FRONT,
+  STICKY_MORE,
+  type Swatch,
+} from './annotations/ui/tool-prefs.ts';
+import { toolState, useCanvasChromeTheme, useToolState } from './annotations/ui/tool-state.ts';
+import { resolveDefaultInk } from './annotations-model.ts';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import {
   ALL_CAPS,
@@ -41,10 +52,16 @@ import {
   type ToolSlot,
   visibleSlots,
 } from './bridge/canvas-modes.ts';
-import { IconChevronDown, SHAPE_KIND_ICONS, TOOL_ICONS } from './canvas-icons.tsx';
+import {
+  IconChevronDown,
+  IconLineThick,
+  IconLineThin,
+  SHAPE_KIND_ICONS,
+  TOOL_ICONS,
+} from './canvas-icons.tsx';
 import { TOOLBAR_INSERT_EVENT, type Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
-import { isMarkerTip, lastMarkerTip, rememberMarkerTip } from './toolbars/marker-tip.ts';
+import { isMarkerTip, lastMarkerTip } from './toolbars/marker-tip.ts';
 import { openToolPanel } from './toolbars/tool-panel.ts';
 import { ensureToolbarStyles } from './toolbars/toolbar-css.ts';
 import { SLOT_ICONS } from './toolbars/toolbar-icons.tsx';
@@ -52,15 +69,21 @@ import { createRectPoster, wholeRect } from './toolbars/toolbar-rect.ts';
 import { useChromeVisibility } from './use-chrome-visibility.tsx';
 import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
 
-// Phase 24 — the Shape tool's primitive picker (popover order matches FigJam).
+const STROKE_THIN = 3;
+const STROKE_THICK = 6;
+
+// S4.8 — the Shape tool's popover offers canvas 15's five kinds (an-today cell 2): rectangle, ellipse,
+// diamond, triangle, triangle down. `rounded` is the Rectangle the popover draws; `square` stays one
+// click away on the small toolbar above a selected shape (annotations-context-toolbar.tsx).
 const SHAPE_KINDS: ReadonlyArray<{ kind: ShapeKind; label: string }> = [
-  { kind: 'square', label: 'Square' },
-  { kind: 'rounded', label: 'Rounded square' },
-  { kind: 'circle', label: 'Circle' },
+  { kind: 'rounded', label: 'Rectangle' },
+  { kind: 'circle', label: 'Ellipse' },
   { kind: 'diamond', label: 'Diamond' },
   { kind: 'triangle', label: 'Triangle' },
   { kind: 'triangle-down', label: 'Triangle down' },
 ];
+const kindIsOn = (kind: ShapeKind, current: ShapeKind): boolean =>
+  kind === current || (kind === 'rounded' && current === 'square');
 
 const TIP_LABELS: Readonly<Record<string, string>> = {
   pen: 'Marker',
@@ -171,7 +194,191 @@ const glyphFor = (id: string | null, fallback?: string) => {
   return TOOL_ICONS[key] ?? SLOT_ICONS[key] ?? (fallback ? TOOL_ICONS[fallback] : undefined);
 };
 
-type Popover = 'shape-kinds' | 'marker-tips' | 'more' | null;
+type Popover = 'shape-kinds' | 'marker-tips' | 'sticky-colours' | 'more' | null;
+
+/** The colour popovers belong to their tool: they open when it is armed and stay while it is (an-enter). */
+const TOOL_POPOVERS: ReadonlySet<Popover> = new Set<Popover>(['marker-tips', 'sticky-colours']);
+
+/** A row of colour dots (a radio group) with the "+N" that opens the rest. */
+function SwatchRow(props: {
+  label: string;
+  group: string;
+  front: readonly Swatch[];
+  more: readonly Swatch[];
+  value: string;
+  paint?: (hex: string) => string;
+  onPick: (hex: string) => void;
+}) {
+  const [all, setAll] = useState(false);
+  const row = (label: string, list: readonly Swatch[]) => (
+    <fieldset className="dc-tp-swatches" aria-label={label}>
+      {list.map((sw) => (
+        <button
+          key={sw.hex}
+          type="button"
+          className="dc-tp-swatch"
+          data-testid={`toolbar-${props.group}-${sw.name.toLowerCase()}`}
+          aria-pressed={props.value === sw.hex}
+          aria-label={sw.name}
+          title={sw.name}
+          style={{ background: props.paint ? props.paint(sw.hex) : sw.hex }}
+          onClick={() => props.onPick(sw.hex)}
+        />
+      ))}
+    </fieldset>
+  );
+  return (
+    <>
+      <div className="dc-tp-row">
+        {row(props.label, props.front)}
+        {props.more.length > 0 ? (
+          <button
+            type="button"
+            className="dc-tp-more"
+            data-testid={`toolbar-${props.group}-more`}
+            aria-expanded={all}
+            aria-label={`${all ? 'Fewer' : 'More'} colours`}
+            title={all ? 'Fewer colours' : 'All colours'}
+            onClick={() => setAll((a) => !a)}
+          >
+            +{props.more.length}
+          </button>
+        ) : null}
+      </div>
+      {all ? (
+        <div className="dc-tp-row">{row(`More ${props.label.toLowerCase()}`, props.more)}</div>
+      ) : null}
+    </>
+  );
+}
+
+/** Sticky (N): five papers, "+5" for the rest. The pick is remembered per person. */
+function StickyColours() {
+  const { stickyColor } = useToolState();
+  return (
+    <fieldset
+      className="dc-tp-opts-popover"
+      data-testid="toolbar-popover-sticky-colours"
+      aria-label="Sticky colour"
+    >
+      <SwatchRow
+        label="Sticky colour"
+        group="sticky"
+        front={STICKY_FRONT}
+        more={STICKY_MORE}
+        value={stickyColor}
+        onPick={(hex) => toolState().set({ stickyColor: hex })}
+      />
+    </fieldset>
+  );
+}
+
+/** Marker (M): the tip, then — for the Marker — five inks, "+4" and two thicknesses; for the Highlighter, four hues and three nibs. */
+function MarkerOptions(props: {
+  tips: readonly ToolId[];
+  current: ToolId;
+  theme: 'light' | 'dark';
+  onTip: (t: ToolId) => void;
+}) {
+  const ts = useToolState();
+  const themedInk = resolveDefaultInk(props.theme);
+  return (
+    <fieldset
+      className="dc-tp-opts-popover"
+      data-testid="toolbar-popover-marker-tips"
+      aria-label="Marker"
+    >
+      <fieldset className="dc-tp-seg-row" aria-label="Marker tip">
+        {props.tips.map((t) => {
+          const TipIcon = TOOL_ICONS[t];
+          return (
+            <button
+              key={t}
+              type="button"
+              className="dc-tp-seg"
+              data-testid={`toolbar-tip-${t}`}
+              aria-pressed={props.current === t}
+              onClick={() => props.onTip(t)}
+            >
+              {TipIcon ? <TipIcon /> : null}
+              <span className="dc-tp-label">{TIP_LABELS[t] ?? t}</span>
+            </button>
+          );
+        })}
+      </fieldset>
+      {props.current === 'pen' ? (
+        <>
+          <SwatchRow
+            label="Ink"
+            group="ink"
+            front={INK_FRONT}
+            more={INK_MORE}
+            value={ts.ink}
+            paint={(hex) => resolveInk(hex, themedInk)}
+            onPick={(hex) => toolState().set({ ink: hex })}
+          />
+          <fieldset className="dc-tp-row" aria-label="Thickness">
+            {(
+              [
+                [STROKE_THIN, 'Thin', IconLineThin],
+                [STROKE_THICK, 'Thick', IconLineThick],
+              ] as const
+            ).map(([w, name, Glyph]) => (
+              <button
+                key={w}
+                type="button"
+                className="dc-tp-seg"
+                data-testid={`toolbar-thickness-${name.toLowerCase()}`}
+                aria-pressed={ts.thickness === w}
+                aria-label={name}
+                title={name}
+                onClick={() => toolState().set({ thickness: w })}
+              >
+                <Glyph />
+              </button>
+            ))}
+          </fieldset>
+        </>
+      ) : null}
+      {props.current === 'highlighter' ? (
+        <>
+          <SwatchRow
+            label="Highlighter colour"
+            group="highlighter"
+            front={HIGHLIGHTER_SWATCHES}
+            more={[]}
+            value={ts.highlighterColor}
+            onPick={(hex) => toolState().set({ highlighterColor: hex })}
+          />
+          <fieldset className="dc-tp-row" aria-label="Highlighter width">
+            {Object.entries(HIGHLIGHTER_WIDTH_NAMES).map(([w, name]) => {
+              const width = Number(w);
+              const dot = Math.round(6 + (width / 28) * 8);
+              return (
+                <button
+                  key={w}
+                  type="button"
+                  className="dc-tp-seg"
+                  data-testid={`toolbar-highlighter-width-${name.toLowerCase()}`}
+                  aria-pressed={ts.highlighterWidth === width}
+                  aria-label={name}
+                  title={name}
+                  onClick={() => toolState().set({ highlighterWidth: width })}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="dc-tp-nib"
+                    style={{ width: dot, height: dot }}
+                  />
+                </button>
+              );
+            })}
+          </fieldset>
+        </>
+      ) : null}
+    </fieldset>
+  );
+}
 
 export function ToolPalette() {
   ensureToolbarStyles();
@@ -186,6 +393,7 @@ export function ToolPalette() {
     setShapeKind,
   } = useToolMode();
   const chrome = useChromeVisibility();
+  const theme = useCanvasChromeTheme();
   const governed = useGoverned();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState<Popover>(null);
@@ -261,8 +469,10 @@ export function ToolPalette() {
   );
 
   useEffect(() => setMounted(true), []);
-  // The Marker remembers its last tip for the session (Q4); V2-4.5b's M key arms the same one.
-  useEffect(() => rememberMarkerTip(tool), [tool]);
+  // The Marker remembers its last tip (Q4) — per person, across reloads (S4.8); the M key arms the same one.
+  useEffect(() => {
+    if (isMarkerTip(tool)) toolState().set({ tip: tool });
+  }, [tool]);
   // V2-4.5b — Edit's F / I keys (and a Text click on empty canvas) do what their momentary slot does (input-router resolves them).
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -273,18 +483,22 @@ export function ToolPalette() {
     document.addEventListener(TOOLBAR_INSERT_EVENT, onInsert);
     return () => document.removeEventListener(TOOLBAR_INSERT_EVENT, onInsert);
   }, []);
-  // A popover belongs to its tool and its mode.
+  // A popover belongs to its tool and its mode. Sticky's colours and the Marker's options open with
+  // the tool (an-enter: "colours open above it") and stay while it is armed; the others open on a click.
   // biome-ignore lint/correctness/useExhaustiveDependencies: closing on a mode change is the point
   useEffect(() => {
-    setOpen((o) =>
-      (o === 'shape-kinds' && tool !== 'shape') || (o === 'marker-tips' && !isMarkerTip(tool))
-        ? null
-        : o
-    );
+    setOpen((o) => {
+      if (tool === 'sticky') return 'sticky-colours';
+      if (isMarkerTip(tool)) return 'marker-tips';
+      if (TOOL_POPOVERS.has(o)) return null;
+      return o === 'shape-kinds' && tool !== 'shape' ? null : o;
+    });
   }, [tool, barMode]);
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
+      // placing a sticky or drawing a stroke is a press outside the toolbar: the tool's own options stay
+      if (TOOL_POPOVERS.has(open)) return;
       if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -378,7 +592,7 @@ export function ToolPalette() {
 
     // Panel-only slot (Stickers): the SHELL draws the panel — `tool-panel-open` (V2-4.5c), anchored to this
     // button and the reported `toolbar-rect`. No tool is armed.
-    if (s.tool === null) {
+    if (s.tool === null || s.panelFirst) {
       const Icon = glyphFor(id);
       return (
         <button
@@ -386,7 +600,7 @@ export function ToolPalette() {
           type="button"
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
-          title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : 'searchable sticker picker'}`}
+          title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : s.panel === 'assets' ? 'the pictures in this project' : 'searchable sticker picker'}`}
           onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}
@@ -398,6 +612,7 @@ export function ToolPalette() {
     if (!target) return null;
     const isTips = !!s.tips;
     const isShape = s.popover === 'shape-kinds';
+    const isColours = s.popover === 'sticky-colours';
     const tip = isTips ? (isMarkerTip(tool) ? tool : lastMarkerTip()) : null;
     const current: ToolId = isTips ? ((tip as ToolId) ?? target) : target;
     const lit = isTips
@@ -405,7 +620,13 @@ export function ToolPalette() {
       : tool === target || (s.lights ?? []).includes(tool as ToolId);
     const lockable = STICKY_LOCKABLE.has(current);
     const isSticky = lockable && sticky.locked && sticky.tool === current;
-    const popover: Popover = isShape ? 'shape-kinds' : isTips ? 'marker-tips' : null;
+    const popover: Popover = isShape
+      ? 'shape-kinds'
+      : isTips
+        ? 'marker-tips'
+        : isColours
+          ? 'sticky-colours'
+          : null;
     const Icon = isShape
       ? (SHAPE_KIND_ICONS[shapeKind] ?? TOOL_ICONS.shape)
       : glyphFor(isTips ? current : id);
@@ -414,7 +635,9 @@ export function ToolPalette() {
       ? `${s.label}${keyHint} — ${shapeKind}, click again for shape types`
       : isTips
         ? `${s.label}${keyHint} — ${TIP_LABELS[current] ?? current}, click again for tips`
-        : `${s.label}${keyHint}${isSticky ? ' — locked' : stickyHint}`;
+        : isColours
+          ? `${s.label}${keyHint} — click again for colours${isSticky ? ', locked' : ''}`
+          : `${s.label}${keyHint}${isSticky ? ' — locked' : stickyHint}`;
     return (
       <span key={id} className="dc-tp-slot">
         <button
@@ -433,6 +656,8 @@ export function ToolPalette() {
               else setTool(lastMarkerTip());
             } else if (isShape && lit) {
               setOpen((o) => (o === 'shape-kinds' ? null : 'shape-kinds'));
+            } else if (isColours && lit) {
+              setOpen((o) => (o === 'sticky-colours' ? null : 'sticky-colours'));
             } else {
               setTool(target as Tool);
             }
@@ -463,7 +688,7 @@ export function ToolPalette() {
                   key={kind}
                   type="button"
                   role="menuitemradio"
-                  aria-checked={shapeKind === kind}
+                  aria-checked={kindIsOn(kind, shapeKind)}
                   aria-label={kindLabel}
                   title={kindLabel}
                   onClick={() => {
@@ -479,34 +704,17 @@ export function ToolPalette() {
           </div>
         ) : null}
         {isTips && open === 'marker-tips' ? (
-          <div
-            className="dc-tp-list-popover"
-            data-testid="toolbar-popover-marker-tips"
-            role="menu"
-            aria-label="Marker tip"
-          >
-            {(s.tips as readonly ToolId[]).map((t) => {
-              const TipIcon = TOOL_ICONS[t];
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  role="menuitemradio"
-                  data-testid={`toolbar-tip-${t}`}
-                  aria-checked={current === t}
-                  onClick={() => {
-                    rememberMarkerTip(t);
-                    setTool(t as Tool);
-                    setOpen(null);
-                  }}
-                >
-                  {TipIcon ? <TipIcon /> : null}
-                  <span className="dc-tp-label">{TIP_LABELS[t] ?? t}</span>
-                </button>
-              );
-            })}
-          </div>
+          <MarkerOptions
+            tips={s.tips as readonly ToolId[]}
+            current={current}
+            theme={theme}
+            onTip={(t) => {
+              if (isMarkerTip(t)) toolState().set({ tip: t });
+              setTool(t as Tool);
+            }}
+          />
         ) : null}
+        {isColours && open === 'sticky-colours' ? <StickyColours /> : null}
       </span>
     );
   };

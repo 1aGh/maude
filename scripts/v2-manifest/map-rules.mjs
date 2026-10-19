@@ -50,6 +50,24 @@ export const HAND = {
   'button:studio/client/app.jsx#App/start': 'D13',
   'button:studio/client/app.jsx#App/start~2': 'D13',
   'button:studio/client/app.jsx#App/exit-presentation-mode': 'action:present.canvas',
+  // S4.8 — the swatch tray (AnnotationsChrome) is gone: its colours, inks, thicknesses and nibs are
+  // popovers of their toolbar slot; the draw-time Fill row is the small toolbar's Fill (an-today 2)
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/sticky-color-c':
+    'testid:toolbar-<group>-<colour>',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/color-c':
+    'testid:toolbar-<group>-<colour>',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/highlighter-color-c':
+    'testid:toolbar-<group>-<colour>',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/highlighter-width-w':
+    'testid:toolbar-highlighter-width-<size>',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/thin-stroke':
+    'testid:toolbar-thickness-<size>',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/thick-stroke':
+    'testid:toolbar-thickness-<size>',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/fill-c':
+    'testid:.dc-annot-ctx (+ -sw, -fs-trigger, -fs-item, -fs-px)',
+  'button:studio/annotations-layer.tsx#AnnotationsChrome/no-fill':
+    'testid:.dc-annot-ctx (+ -sw, -fs-trigger, -fs-item, -fs-px)',
   // the shell prompt dialog is the timeline's text prompt (use-photo-and-timeline shellPromptState)
   'button:studio/client/app.jsx#App/cancel': 'D15',
   'button:studio/client/app.jsx#App/shell-prompt-ok': 'D15',

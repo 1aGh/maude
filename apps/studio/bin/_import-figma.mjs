@@ -642,7 +642,16 @@ export async function importBoard({
  * Nothing upstream is echoed back: the result carries counts and the section id, and the ops stay
  * in memory (D10 — this verb's stdout is model input).
  */
-export async function importBoardInto({
+/**
+ * S4.16 - the PLAN half of `importBoardInto`: fetch the board, map it, mint the ops and prove the board would
+ * take them (the registry, the size cap) - and stop there. Nothing is written to the board, so the studio's
+ * `POST /_api/annotations/figjam` can apply the same ops as ONE transaction through its own writer (hub
+ * action, undo and all), while the verb below writes them itself. (Fetched pictures are the one thing the
+ * plan lands on disk: `assets/<sha8>.png`, content-addressed, so a plan that is never applied leaves only
+ * assets, never a half-written board.) `existing` is the board as the caller reads it now (the studio's
+ * live copy); absent, the file on disk.
+ */
+export async function planBoardInto({
   url,
   root,
   designRootRel = '.design',
@@ -651,6 +660,7 @@ export async function importBoardInto({
   dryRun = false,
   confirmLarge = false,
   local = null,
+  existing: given = null,
 }) {
   const designRoot = resolve(root, designRootRel);
   const canvasRel = canvasRelFromArg(into, root, designRootRel);
@@ -717,11 +727,14 @@ export async function importBoardInto({
     // A picture that never resolved would persist an empty frame — drop it, it is reported.
     const usable = strokes.filter((s) => s.tool !== 'image' || Boolean(s.href));
 
-    const boardFile = readBoardFile(designRoot, slug);
-    if (boardFile.tooLarge || boardFile.unreadable) {
-      throw new ImportFigmaError(6, `${slug}.annotations.json is not a board we can write to`);
+    let existing = given;
+    if (!existing) {
+      const boardFile = readBoardFile(designRoot, slug);
+      if (boardFile.tooLarge || boardFile.unreadable) {
+        throw new ImportFigmaError(6, `${slug}.annotations.json is not a board we can write to`);
+      }
+      existing = boardFile.elements;
     }
-    const existing = boardFile.elements;
     const { ops, section, count, dropped } = strokesIntoOps([...usable, ...pins], {
       existing,
       at: at ?? defaultOrigin(designRoot, canvasRel, existing),
@@ -744,42 +757,63 @@ export async function importBoardInto({
       );
     }
 
-    let via = 'file';
-    let res = null;
-    try {
-      res = await postOps(
-        designRoot,
-        `${designRootRel}/${canvasRel}`,
-        ops,
-        `figjam-import-${section}`
-      );
-    } catch (err) {
-      if (err instanceof PostOpsError) throw new ImportFigmaError(6, err.message);
-      throw err;
-    }
-    if (res) {
-      via = 'server';
-      const rejected = Array.isArray(res.rejected) ? res.rejected : [];
-      if (rejected.length) {
-        throw new ImportFigmaError(6, `the server refused ${rejected.length} imported item(s)`);
-      }
-    } else {
-      writeBoardFileAtomic(designRoot, slug, text);
-    }
     return {
       canvas: canvasRel,
       section,
       items: count,
+      ops,
+      text,
       comments: pins.length,
       widgets,
       report,
       pendingImages,
       origin,
-      via,
+      via: null,
+      slug,
+      designRoot,
+      designRootRel,
     };
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
+}
+
+/**
+ * Phase 2 (S4.5, C23) - import a FigJam board INTO an existing canvas, from the command line: plan it
+ * (`planBoardInto`), then write the ops through a live dev-server when one is up, else straight to the board.
+ */
+export async function importBoardInto(args) {
+  const plan = await planBoardInto(args);
+  if (args.dryRun) return plan;
+  const { ops, section, text, canvas, slug, designRoot, designRootRel } = plan;
+  let via = 'file';
+  let res = null;
+  try {
+    res = await postOps(designRoot, `${designRootRel}/${canvas}`, ops, `figjam-import-${section}`);
+  } catch (err) {
+    if (err instanceof PostOpsError) throw new ImportFigmaError(6, err.message);
+    throw err;
+  }
+  if (res) {
+    via = 'server';
+    const rejected = Array.isArray(res.rejected) ? res.rejected : [];
+    if (rejected.length) {
+      throw new ImportFigmaError(6, `the server refused ${rejected.length} imported item(s)`);
+    }
+  } else {
+    writeBoardFileAtomic(designRoot, slug, text);
+  }
+  return {
+    canvas: plan.canvas,
+    section: plan.section,
+    items: plan.items,
+    comments: plan.comments,
+    widgets: plan.widgets,
+    report: plan.report,
+    pendingImages: plan.pendingImages,
+    origin: plan.origin,
+    via,
+  };
 }
 
 /**

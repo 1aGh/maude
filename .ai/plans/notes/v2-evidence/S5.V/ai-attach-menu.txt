@@ -1,0 +1,6 @@
+S5.V ai-attach-menu — paperclip menu, live (scratch project, panel opened, ⌘/ then click [data-testid=ai-attach-clip]).
+DOM text of [data-testid=ai-attach-menu], in order:
+  Attach files… | Choose a folder… | From Assets | Paste a screenshot ⌘V | (sep) | Or drag files here (disabled)
+03/ai-attach-menu draws exactly: Attach files… · Choose a folder… · From Assets · Paste a screenshot ⌘V · sep · Or drag files here (disabled). MATCH.
+testids present: ai-attach-menu-files / -folder / -assets / -screenshot / -drag.
+Not probed here (native pickers / consent needs the desktop lane): the folder consent card (column 3) and chip rendering (column 2).

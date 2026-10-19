@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -45,19 +46,33 @@ export default function Smoke() {
 }
 `;
 
-const inFrame = <T>(fn: (doc: Document, win: Window) => T, ...args: unknown[]) =>
-  browser.execute(
+const inFrame = async <T>(
+  fn: (doc: Document, win: Window, ...rest: any[]) => T,
+  ...args: unknown[]
+): Promise<T> => {
+  // A throw inside `execute` reaches the spec as "A JavaScript exception occurred" and nothing else;
+  // carry the page's own message out instead so a red run says WHY.
+  const out = (await browser.execute(
     (src: string, a: unknown[]) => {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      return new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
-        frame.contentDocument,
-        frame.contentWindow,
-        a
-      );
+      try {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        return {
+          v: new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
+            frame.contentDocument,
+            frame.contentWindow,
+            a
+          ),
+        };
+      } catch (e) {
+        return { __inFrameError: String(e) };
+      }
     },
     fn.toString(),
     args
-  );
+  )) as { v?: T; __inFrameError?: string };
+  if (out.__inFrameError) throw new Error(`inFrame: ${out.__inFrameError}`);
+  return out.v as T;
+};
 
 const press = (key: string, shift = false) =>
   inFrame(
@@ -100,13 +115,53 @@ const ghost = () =>
     return g ? { snapped: g.getAttribute('data-snapped') === 'true' } : null;
   });
 
+/**
+ * A person's ⌘-click on the element with this id: down, up and click AT ITS CENTRE (the router picks its target by
+ * the pointer's position, not by where the event was fired), so the deepest object there is selected.
+ */
+const selectFrame = async (id: string) => {
+  await inFrame((doc, win, elId: string) => {
+    const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement;
+    const r = el.getBoundingClientRect();
+    const at = {
+      bubbles: true,
+      cancelable: true,
+      clientX: r.left + r.width / 2,
+      clientY: r.top + r.height / 2,
+      button: 0,
+      metaKey: true,
+    };
+    for (const t of ['pointerdown', 'pointerup', 'click'])
+      el.dispatchEvent(new (win as any).MouseEvent(t, at));
+  }, id);
+  await browser.pause(700); // the selection settles a beat after the press
+};
+
 const openPicker = async () => {
-  await press('I', true);
+  // the tool keys register once the editing layer has mounted over the canvas, a beat after it renders:
+  // press again until the picker answers (a press on an open picker would close it, so only while it is shut)
   await browser.waitUntil(
-    async () => (await $('[data-testid="tool-panel-components"]')).isExisting(),
-    {
-      timeout: 5000,
-    }
+    async () => {
+      if (await $('[data-testid="tool-panel-components"]').isExisting()) return true;
+      // the shell opens a tool panel only for a FOCUSED canvas (tool-panels gate, testids.json tool-panel-<panel>)
+      await browser.execute(() => {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        frame.focus();
+        frame.contentWindow?.focus();
+      });
+      await press('I', true);
+      await browser.pause(700);
+      if (await $('[data-testid="tool-panel-components"]').isExisting()) return true;
+      // the toolbar's own Components slot, in the frame — what a person without the key presses
+      await inFrame((doc) => {
+        (
+          doc.querySelector('[data-testid="toolbar-slot-components"]') as HTMLElement | null
+        )?.click();
+      });
+      await browser.pause(700);
+      return $('[data-testid="tool-panel-components"]').isExisting();
+    },
+    { timeout: 15000, timeoutMsg: '⇧I never opened the Component picker' }
   );
 };
 
@@ -115,7 +170,8 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
@@ -139,7 +195,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await (await $('[data-testid="component-picker-row-Button"]')).click();
     // the picker lets go of the screen and the canvas carries the ghost
     await browser.waitUntil(
-      async () => !(await $('[data-testid="tool-panel-components"]')).isExisting(),
+      async () => !(await (await $('[data-testid="tool-panel-components"]')).isExisting()),
       {
         timeout: 5000,
       }
@@ -177,11 +233,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
   it('↵ in the picker puts it in the selected frame, in the flow, without a second import', async () => {
     const report = startReport('edit-components-enter');
     // select the flex frame by its id through the editing layer's selection
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
-    });
+    await selectFrame('row');
     await openPicker();
     const search = await $('[data-testid="component-picker-search"]');
     await search.setValue('badge');
@@ -196,12 +248,9 @@ describe('the Component picker and placing from it (S2.16)', () => {
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, `${JSON.stringify({ dsRev: 'a'.repeat(64) })}\n`);
     await browser.pause(800);
-    await (await canvasRow('smoke')).click();
-    await inFrame((doc) => {
-      (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
-        new MouseEvent('click', { bubbles: true })
-      );
-    });
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
+    await selectFrame('row');
     await openPicker();
     await (await $('[data-testid="component-picker-search"]')).setValue('chip');
     await browser.keys(['Enter']);
@@ -238,7 +287,8 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
     writeFileSync(CANVAS, INSTANCE);
     writeFileSync(META, '{}\n');
     await browser.pause(800);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });

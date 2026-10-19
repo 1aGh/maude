@@ -138,7 +138,13 @@ registerKind({
   order: 30,
   match: (s) => {
     const el = singleOf(s);
-    return !!el && ((el.tag || '').toLowerCase() === 'img' || !!el.photoAsset);
+    // a tile (S2.15) is a picture too: `<div role="img" data-image-tile="assets/…">`
+    return (
+      !!el &&
+      ((el.tag || '').toLowerCase() === 'img' ||
+        !!el.photoAsset ||
+        el.attrs?.['data-image-tile'] !== undefined)
+    );
   },
 });
 registerKind({

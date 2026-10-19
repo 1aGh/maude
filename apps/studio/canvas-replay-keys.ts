@@ -16,6 +16,9 @@ export const REPLAY_KEYS: Readonly<Record<string, KeyboardEventInit>> = Object.f
   // S3.11 — the Inspect panel's Edit button (shell): the canvas replays ↵ so inspect-overlay's key handler is
   // the one implementation (it checks the mode, the role and that something is inspected).
   'inspect.edit': { key: 'Enter', code: 'Enter' },
+  // S3.14 (G6) — esc pressed with the shell focused: the canvas climbs ITS ladder (the armed tool, the
+  // selection, a stroke — bridge/esc-ladder.ts) and only then asks the shell to step the mode back.
+  'ui.step-back': { key: 'Escape', code: 'Escape' },
 });
 
 /** A toolbar key (V2-4.5b, `tool.<id>` from MODE_TOOLS): one letter, optionally ⇧. */

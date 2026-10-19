@@ -5,8 +5,8 @@
 // and the iframe document has no use for it). The island tokens are the shell's; the iframe document
 // does not define them, so each falls back to the `--maude-chrome-*` family this document does.
 //
-// Geometry is v1's on purpose: bottom 16 px, 32 px buttons in 4 px padding. The annotation tray
-// (`.dc-annot-chrome`, annotations-layer.tsx) stacks above at bottom 64 px.
+// Geometry is v1's on purpose: bottom 16 px, 32 px buttons in 4 px padding. The colours, inks and
+// thicknesses are popovers of their slot (S4.8; the dark swatch tray above the toolbar is retired).
 //
 // Motion (ToolbarMorph, M6): Edit ↔ Preview swaps the slot group inside a fixed-position island, so the
 // only animated properties are `opacity` and `transform` (compositor-only), over `--dur-panel` (220 ms).
@@ -113,7 +113,8 @@ export const TOOLBAR_CSS = `
   pointer-events: none;
 }
 .dc-tp-shape-popover,
-.dc-tp-list-popover {
+.dc-tp-list-popover,
+.dc-tp-opts-popover {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
@@ -134,6 +135,39 @@ export const TOOLBAR_CSS = `
   background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 14%, transparent);
   color: var(--maude-hud-accent, #d63b1f);
 }
+/* S4.8 — the colour popovers: Sticky's papers, the Marker's tip + inks + thicknesses, the Highlighter's hues + nibs. */
+.dc-tp-opts-popover fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.dc-tp-opts-popover { flex-direction: column; gap: 6px; padding: 8px; white-space: nowrap; }
+.dc-tp-opts-popover .dc-tp-row,
+.dc-tp-opts-popover .dc-tp-seg-row,
+.dc-tp-opts-popover .dc-tp-swatches { display: flex; align-items: center; gap: 4px; }
+.dc-tp-opts-popover .dc-tp-row { gap: 8px; }
+.dc-tp-opts-popover button.dc-tp-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--maude-chrome-border, rgba(0,0,0,0.16));
+}
+.dc-tp-opts-popover button[aria-pressed="true"]::after { content: none; }
+.dc-tp-opts-popover button.dc-tp-swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--maude-chrome-bg-0, #ffffff), 0 0 0 4px var(--maude-hud-accent, #d63b1f);
+}
+.dc-tp-opts-popover button.dc-tp-more,
+.dc-tp-opts-popover button.dc-tp-seg {
+  width: auto;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  gap: 6px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12px;
+}
+.dc-tp-opts-popover button.dc-tp-seg[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 14%, transparent);
+  color: var(--maude-hud-accent, #d63b1f);
+}
+.dc-tp-opts-popover .dc-tp-nib { border-radius: 50%; background: currentColor; display: inline-block; }
 /* Marker tips / More: a vertical labeled list (the glyphs alone do not name a tip). */
 .dc-tp-list-popover { flex-direction: column; min-width: 140px; }
 .dc-tp-list-popover button {

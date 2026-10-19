@@ -1,0 +1,23 @@
+S1.V2 — wave-A verifier pass 2, package S1, canvas 11 Projects and Navigation. Base feat/maude-v2 7039a65d9.
+Rig: scripts/v2-verify (s1-fixture.mjs, agent-browser-js.sh), 93-canvas "Alligators brand" project, agent-browser 1440x900, browser lane.
+
+VERIFIED
+  pn-organise  Sort menu fully on screen (right-aligned under "Recent"), words "Sort by / Recently opened / Name / Kind web · social · print · video / Folders on top" (pn-organise.png)
+  pn-history   Viewing bar clear of the top-right cluster (ends x~977, cluster starts x~1019); baseline row picture is a real 123x160 JPEG (ready, /_api/thumb/<key>); trash row has none by design (rows.ts kind==='trash'); Moved-to-trash / starts-here rows, Compare + Restore this version (pn-history-viewing.png, pn-history.png, pn-history-thumb.jpg)
+  pn-compare   stage inset between the docked panels; A/B marks, "1 change between A and B — 1 on Leták · přední", "Artboard “Leták · přední” added", Stop comparing / Restore this version (pn-compare.png)
+  pn-trash     artboard row named by label ("Leták · přední", "artboard of Combine-letak…"), canvas sub "legacy · You, just now", header "3 canvases · 1 artboard", Move to trash menu words, toast “Test2” moved to the trash. + Undo. Rows have no pictures (known default, wave B) (pn-trash-view.png, pn-trash-toast.png)
+  pn-k-close   "Nothing called “unifromy 2027”. Showing close matches for Uniformy.", canvas meta "Alligators brand · 2026/dresy · 12 artboards", artboard meta "artboard in Uniformy-2027 · print", "13 close matches"; canvas rows still show the file glyph, not a cover picture: search-model.js:340 falls back to the icon until the thumb renderer has a cover (same wave-B picture dependency as trash) (pn-k-close-1.png, pn-k-close-2.png)
+
+NOT VERIFIED
+  pn-move   rename to "Combine — test barev" works (file renamed on disk, hint line "↵ rename · esc keep “ahoj2”" drawn, pn-move-rename0.png/pn-move-typed.png/pn-move-rename.png); Move to… picker + move works (pn-move-menu.png).
+            G1: renaming the ROOT canvas ahoj2 (just opened) left "ahoj2" in the Trash (Trash 1, /_api/trash entry path ui/ahoj2.tsx; the page also went blank until reload). Not reproduced on a foldered canvas (Combine-test -> Combine-test-renamed) nor on Move to…. Restore of that row would resurrect the old name beside the renamed canvas. Suspect: rename of a root canvas emits a delete action the trash derivation (history/trash.ts deriveTrash) lists. S/M.
+  pn-switch-ai  browser lane: group "Finding a canvas" now = "Search every project ⌘K", "Search, too ⇧⌘K", "Version history ⌥⌘H" (pn-switch-ai.png). Canvas has "Search every project ⌘K", "Open project… ⌘O", "Version history ⌥⌘H" and no "Search, too" row. "Open project… ⌘O" is desktop-only (keymap.gen.ts:980) and "Tabs and windows" is desktop-only -> U (desktop lane). The extra "Search, too ⇧⌘K" row is help-model.js:68 (HELP_WORDS also) — lead decides whether canvas or build is right.
+
+DEFERRED (wave B / other packages): pn-ds (S10), pn-home, pn-home-search (S6).
+UNREACHABLE HERE (desktop lane at the gate): pn-tab-b, pn-tab-b20, pn-tab-menu, pn-windows, pn-accounts, pn-relaunch, pn-k-across, pn-deeplink. The only debug build (apps/desktop/src-tauri/target/debug, 2026-10-18 06:38) predates S9.17 Rust (14:57) and S1.22; rebuilding is a gate step.
+
+NITS (no ledger effect)
+  history: the 72x54 row picture crops a portrait artboard with object-fit: cover (centre), so header strips are cut off.
+  history: the "Now" row wraps to a taller block once a version is selected.
+  trash: artboard sub is elided at "artboard of Combine-letak…" before author/time on a long canvas name.
+  compare: the B pane shows the first artboard and a sliver of the second (not fit-to-pane).

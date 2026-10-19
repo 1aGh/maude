@@ -333,3 +333,66 @@ describe('object.set-corner-radius — goldens per corner', () => {
     expect(h.src()).toBe(HOME);
   });
 });
+
+// S2.22 G8 — a frame that several artboards share cannot take one drawing for one artboard: the op addresses source,
+// not an instance, so it refuses in CONTRACT words (what happened · what is safe · one verb) and writes nothing.
+describe('drawing onto a component shared by several artboards', () => {
+  const SHARED = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+function Card() {
+  return <div data-cd-id="card" style={{ width: "300px", height: "300px" }} />;
+}
+export default function Home() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="desktop" label="Desktop" width={1440} height={900}><Card /></DCArtboard>
+      <DCArtboard id="mobile" label="Mobile" width={390} height={800}><Card /></DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+  const draw = { artboard: 'mobile', rect: { x: 10, y: 10, w: 100, h: 100 } };
+
+  test('a shape: refused in the contract words, nothing written', async () => {
+    const h = harness(SHARED);
+    const r = await h.run(
+      'object.insert-shape',
+      ['card'],
+      { ...draw, kind: 'rectangle' },
+      'mobile'
+    );
+    expect(r.ok).toBe(false);
+    expect((r as { message: string }).message).toBe(
+      'That frame is shared by several artboards, so a drawing would appear in all of them. Nothing was drawn. Detach it to draw on this artboard only.'
+    );
+    expect(h.snapshots).toHaveLength(0);
+    expect(h.src()).toBe(SHARED);
+  });
+});
+
+describe('G5 — a corner dot on a freshly drawn shape writes React style keys', () => {
+  test('a new radius is `borderRadius`, not a quoted kebab key', async () => {
+    const h = harness();
+    good(await h.run('object.insert-shape', [], { ...draw, kind: 'rectangle' }));
+    good(
+      await h.run('object.set-corner-radius', ['rectangle'], {
+        corner: 'all',
+        radius: { token: '--radius-md' },
+      })
+    );
+    expect(h.src()).toContain('borderRadius: "var(--radius-md)"');
+    expect(h.src()).not.toContain('"border-radius"');
+    expect(style(h.src(), 'rectangle', 'border-radius')).toBe('var(--radius-md)');
+  });
+
+  test('a file that already says "border-radius" keeps that key (no second one)', async () => {
+    const h = harness(HOME.replace('borderRadius: "8px"', '"border-radius": "8px"'));
+    good(await h.run('object.set-corner-radius', ['round'], { corner: 'all', radius: { px: 12 } }));
+    expect(h.src()).toContain('"border-radius": "12px"');
+    expect(
+      h
+        .src()
+        .match(/<div data-cd-id="round"[^>]*>/)?.[0]
+        .match(/adius/g)?.length
+    ).toBe(1);
+  });
+});

@@ -121,12 +121,12 @@ export function CornerIcons({
         testid="panel-icon-assistant"
         label={
           foldState({ needs: needsYou, busy: assistant.busy }).kind === 'needs'
-            ? 'Open Assistant — AI needs you'
+            ? 'Ask AI ⌘/ — AI needs you'
             : hidden
               ? 'Show panels'
-              : 'Open Assistant'
+              : 'Ask AI ⌘/'
         }
-        title={hidden ? 'Show panels (⌘\\)' : 'Assistant'}
+        title={hidden ? 'Show panels (⌘\\)' : 'Ask AI ⌘/'}
         working={assistant.busy}
         needs={needsYou}
         onClick={() => {

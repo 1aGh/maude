@@ -1,0 +1,41 @@
+S2.V2 wave-A verifier pass 2 — live studio, scratch project (scripts/v2-verify/s2-rig.mjs), MAUDE_CANVAS_ORIGIN_SPLIT=0, Playwright over CDP.
+Base 936f0de7c (S2.22 fixes). Fixture: ui/Site.tsx, 4 web artboards, Desktop's Services row is literal JSX, the rest share <Home/>.
+Known defaults (not gaps): artboard/element Copy+Paste absent; Export shows 1x; no DS tokens in the fixture (Space chips, Style names are plain numbers).
+
+VERIFIED
+ed-ab-select   Inspector "Desktop · Web page", Preset Desktop·1440, Fill before Layout, selection survives a reload. (Export row 1x = known default.)
+ed-ab-arrange  Drag Tablet: bubble "X 2880 · Y 0", two "80" gap chips, top guide; equal-gap landing beats the grid (S2.22 fix holds).
+ed-ab-tidy     Marquee -> bar "4 artboards · Tidy up", inspector "4 artboards · Fixed size · Changes go to all 4.", Tidy -> one even row on the lowest line.
+               (minor: the bar sits under the selection, so it is off-screen when the group fills the window; canvas draws it above.)
+ed-ab-menu     Ask AI about "Desktop" ⌘/ · Duplicate ⌘D · Duplicate at another width ▸ (Laptop 1280 / Tablet 834 / Mobile 390 / Custom width…) · Rename · Add comment · Export… ⇧⌘E · Advanced ▸ · Move to trash.
+               (Copy/Paste = known default; Add comment + Advanced are extras; menu font is mono where the canvas is sans.)
+ed-obj-order   Object menu: Ask AI about "Book a call" ⌘/ · Duplicate · Copy/Paste properties · Select matching "same style" · Frame selection / Remove frame · order ×4 · Lock · Hide · Advanced ▸ · Remove.
+               (Cut/Copy/Paste = known default.)
+ed-edge-keys   Tab walk + aria-live "header, frame, 2 items, in a row — 1 of 6. Press Return to go inside." (names are tag names here; the fixture has no names).
+ed-lay-reorder Lift, slot badge "3", tag "… moves to 3 of 3", gap chips 24 / 8, drop writes the new order to the file.
+ed-lay-free    A free-placed element shows Constraints (Left/Right/Left & Right/Center/Scale × Top/Bottom/…); the pinned-corner behaviour on Duplicate-at-width was not exercised.
+ed-text-edit   dblclick the headline -> contenteditable plaintext-only, typing + ↵ writes the file. (Čeština ties not exercised: no lang in the fixture.)
+ed-img         dblclick an image -> crop mode: brackets, 4 handles, tag "<asset> · crop", hint "↵ done · esc cancel"; Image inspector pic.png · Replace… · Fit Fill/Fit/Crop/Tile.
+ed-comp-pick   ⇧I -> "Search components", Brand (Logo: Mark/Wordmark/Lockup, Icon), Components list, "Open Design system". (No Patterns group: the maude kit has none.)
+ed-comp-instance  Place Button -> instance selected; Component swap, Variant, "Your text and colour come along.", Reset, "Detach … keeps this exact look as a plain frame. Nothing breaks; it stops following Button."
+ed-inspector   Section order Position > Size > Layout > Fill > Corners > Border > Effects > Type (text inside) > Interaction (Preview line) > Export > Advanced.
+ed-edge-huge   6000 px page: sticky name "Desktop 1440 × 5975", minimap with sections + "You're looking at 1242–2583 of 5975." (the name sits behind the project pill at the left).
+
+GAPS (not verified)
+G1 ed-ab-resize   mid-drag exact (ghost, ruler, bubble "Laptop · 1280 × 1544", hint) and the file is written, but after release the artboard keeps its id only:
+                  no handles/tag, inspector = stub ("desktop · Fixed size", W 0 / H 0) for ≥ 3 s until a re-click. The S2.22 "resize keeps selection" fix restores the id, not the geometry.  S
+G2 ed-obj-multi   "2 objects · Mixed" + "Changes go to all 2." + align bar reach the inspector now, but the Position (X · Y Mixed, Rotation) and Size (Width Mixed · Fixed) sections the canvas draws are absent.  S
+G8 ed-shape       R + drag on the Desktop artboard writes <div data-cd-id="rectangle" … position:absolute> but the selection after the draw is the artboard's root div
+                  (tag "div · 1440 × 1343", Frame inspector), not the new rectangle; no Rectangle tag, no corner dots.  Repro: openSite, R, drag (560,170)->(680,197) at 1600×1000, wait 2.5 s.  S–M
+G3 ed-pen         P + clicks draw nothing: the overlay `edit-pen-input` is 1600 × 0 px. pen/draw.tsx:275 uses class `ed-draw-input`, whose rule (position:absolute; inset:0) lives only in draw-tools.tsx:128 (shape tool's <style>), not in PEN_CSS.  S
+G4 ed-edge-undo   after drawing a rectangle ⌘Z / Ctrl+Z does nothing and Undo history (⌘K › "Undo history…") says "Nothing to undo on this canvas yet." Suspect draw-tools.tsx:408 `ctx.current.undo?.record` (undo undefined) or the undo lane gate.  M
+G5 ed-edge-paste  Figma paste: layers-only branch exact ("Nothing pasted — Figma sent layers, not a picture." + "Paste as picture"); a picture paste imports ("From Figma · Hero / v3") but the line
+                  "Pasted from Figma as an image of "Hero / v3". [Make editable]" never shows (bar null at 2.5 s). Suspect paste-bar.tsx:239-243 (closes when selection key != placed ref).  S
+G6 ed-text-style  Type section has Style / Size·weight / Colour / Resizing / Case / Language, but not Font, Line·letter, Align; the section reads "Type text inside" even for a text element.  S
+   (Style dot / Reset / Detach need a DS text style: U.)
+
+UNREACHABLE
+U1 ed-lay-auto    bands + gap/pad chips + Layout inspector (Direction, Gap, Spacing, Padding H/V, Align, Advanced › Convert children to absolute position) all present, but the Space token ruler / "Space 24" chips need a DS with Space tokens (fixture has none). Lane: scratch project with a system.
+U2 ed-edge-ai    AI lease tip / hold ring needs a live AI run (S5 mock agent + native chat).
+U3 ed-edge-ask   ⌘/ on a selection has no visible effect in the browser lane (chat is native-only); needs the native panel + mock agent.
+U4 ed-edge-tereza  a second collaborator (hub session) — lead default U.

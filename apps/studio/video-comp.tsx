@@ -162,6 +162,100 @@ function registry(): Map<string, CompEntry> {
 // deterministic frame 0 / render-shim frame regardless of this mirror).
 const liveTimelineFrame = new Map<string, number>();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// S4.16 — the read-only playhead (annotations pin a note to a moment; S7 draws the marks)
+//
+// `usePlayhead(artboardId)` answers "where is the clip on this artboard, in seconds" and nothing else: it
+// has no setter, so a reader (the annotation layer, the timeline) can never move the transport. The
+// writers stay the Player's own `frameupdate` and the Timeline's `timeline-seek`, both below.
+
+/** Where a clip stands: seconds, plus the clip's length. */
+export interface Playhead {
+  t: number;
+  duration: number;
+}
+
+/**
+ * Window-level, like the seek registry: the annotation layer (canvas shell bundle) and the VideoComp (the
+ * canvas's own bundle) can be two instances of this module, so the mirror and its listeners must not live
+ * in module scope or the layer would never hear the clip move.
+ */
+interface PlayheadHub {
+  frames: Map<string, number>;
+  listeners: Set<() => void>;
+  memo: Map<string, Playhead | null>;
+}
+const HUB_KEY = Symbol.for('maude.playhead.v1');
+const localHub: PlayheadHub = { frames: new Map(), listeners: new Set(), memo: new Map() };
+function hub(): PlayheadHub {
+  const w = seekWindow() as unknown as Record<symbol, PlayheadHub | undefined> | null;
+  if (!w) return localHub;
+  let h = w[HUB_KEY];
+  if (!h) {
+    h = { frames: new Map(), listeners: new Set(), memo: new Map() };
+    w[HUB_KEY] = h;
+  }
+  return h;
+}
+
+function emitPlayhead(compId?: string, frame?: number): void {
+  const h = hub();
+  if (compId !== undefined && frame !== undefined) h.frames.set(compId, frame);
+  for (const fn of [...h.listeners]) {
+    try {
+      fn();
+    } catch {
+      /* a listener failing must not stop the transport */
+    }
+  }
+}
+
+/** The clip mounted on `artboardId`: its playhead in seconds, or null when no comp is registered there. */
+export function playheadOf(artboardId: string | null | undefined): Playhead | null {
+  if (!artboardId) return null;
+  let entry: CompEntry | undefined;
+  for (const e of registry().values()) {
+    if (e.artboardId === artboardId) {
+      entry = e;
+      break;
+    }
+  }
+  if (!entry || !(entry.fps > 0)) {
+    hub().memo.set(artboardId, null);
+    return null;
+  }
+  const frame =
+    hub().frames.get(entry.id) ??
+    liveTimelineFrame.get(entry.id) ??
+    (() => {
+      try {
+        return entry.ref.current?.getCurrentFrame() ?? 0;
+      } catch {
+        return 0;
+      }
+    })();
+  const t = Math.round((frame / entry.fps) * 1000) / 1000;
+  const duration = Math.round((entry.durationInFrames / entry.fps) * 1000) / 1000;
+  const prev = hub().memo.get(artboardId);
+  if (prev && prev.t === t && prev.duration === duration) return prev;
+  const next = { t, duration };
+  hub().memo.set(artboardId, next);
+  return next;
+}
+
+/** React: re-renders when the clip on `artboardId` moves. `null` for an artboard with no clip. */
+export function usePlayhead(artboardId: string | null | undefined): Playhead | null {
+  return useSyncExternalStore(
+    (fn) => {
+      const { listeners } = hub();
+      listeners.add(fn);
+      return () => void listeners.delete(fn);
+    },
+    () => playheadOf(artboardId),
+    () => null
+  );
+}
+
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
@@ -484,11 +578,13 @@ export function VideoComp({
       inputProps: inputProps ?? {},
     };
     registry().set(compId, entry);
+    emitPlayhead();
     // Announce comps to the shell so the Timeline panel can auto-suggest.
     postToShell({ dgn: 'timeline-comps', comps: seekWindow()?.__maude_comps__?.() ?? [] });
     return () => {
       const cur = registry().get(compId);
       if (cur === entry) registry().delete(compId);
+      emitPlayhead();
       postToShell({ dgn: 'timeline-comps', comps: seekWindow()?.__maude_comps__?.() ?? [] });
     };
   }, [compId, fps, durationInFrames, width, height, component, inputProps]);
@@ -522,6 +618,7 @@ export function VideoComp({
           p.pause();
           p.seekTo(f);
           liveTimelineFrame.set(compId, f);
+          emitPlayhead(compId, f);
         } else if (m.dgn === 'timeline-play') {
           p.play();
         } else if (m.dgn === 'timeline-pause') {
@@ -551,6 +648,7 @@ export function VideoComp({
       try {
         const f = p.getCurrentFrame();
         liveTimelineFrame.set(compId, f);
+        emitPlayhead(compId, f);
         postToShell({ dgn: 'timeline-frame', id: compId, frame: f });
       } catch {
         /* ignore */

@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'bun:test';
 
-import { computeSnap, type Rect, type SnapOptions } from '../use-snap-guides.tsx';
+import { computeSnap, equalGapLandings, type Rect, type SnapOptions } from '../use-snap-guides.tsx';
 
 const DEFAULTS: SnapOptions = { gridSize: 40, tolerance: 8, disabled: false };
 
@@ -267,5 +267,46 @@ describe('computeSnap / intent presets (T7 Design Decision 4)', () => {
       guideLines: [{ axis: 'x', pos: 500, from: 0, to: 1000 }],
     });
     expect(r.x).toBe(500);
+  });
+});
+
+// S2.22 (ed-ab-arrange) — the equal-gap landing beats the grid; a tie goes to the sibling edge, not the grid.
+describe('computeSnap / equal gaps (S2.22)', () => {
+  // three 1000-wide boards with gaps of 94: the next one belongs at x 3794
+  const row = [rect(512, 0, 1000, 1000), rect(1606, 0, 1000, 1000), rect(2700, 0, 1000, 1000)];
+  const OPTS: SnapOptions = { gridSize: 40, tolerance: 8, disabled: false };
+
+  test('the landings: one gap past the last, one before the first', () => {
+    expect(equalGapLandings(rect(3797, 0, 1000, 1000), row, 'x')).toEqual([3794, -582]);
+  });
+
+  test('3794 wins over the grid line 3800 when both are within tolerance', () => {
+    const r = computeSnap(rect(3797, 0, 1000, 1000), row, OPTS);
+    expect(r.x).toBe(3794);
+  });
+
+  test('it wins even where the grid is the nearer one', () => {
+    const r = computeSnap(rect(3799, 0, 1000, 1000), row, OPTS);
+    expect(r.x).toBe(3794);
+  });
+
+  test('out of reach it does nothing, and the grid keeps its say', () => {
+    expect(computeSnap(rect(3836, 0, 1000, 1000), row, OPTS).x).toBe(3840);
+  });
+
+  test('one board is not a rhythm; a board in another row does not count', () => {
+    expect(equalGapLandings(rect(3797, 0, 1000, 1000), [row[0] as Rect], 'x')).toEqual([]);
+    expect(equalGapLandings(rect(3797, 5000, 1000, 1000), row, 'x')).toEqual([]);
+  });
+
+  test('a rhythm landing draws no guide line of its own (the chips are its picture)', () => {
+    const r = computeSnap(rect(3797, 0, 1000, 1000), row, OPTS);
+    expect(r.guides.find((g) => g.axis === 'x')).toBeUndefined();
+  });
+
+  test('a tie between the grid and a board edge goes to the board edge (its guide is the one drawn)', () => {
+    // top 0: the grid line AND the siblings' tops are both a delta of 0 away
+    const r = computeSnap(rect(3797, 0, 1000, 1000), [row[0] as Rect], OPTS);
+    expect(r.guides.find((g) => g.axis === 'y')?.kind).toBe('sibling');
   });
 });

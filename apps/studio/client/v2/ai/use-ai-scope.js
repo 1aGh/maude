@@ -6,9 +6,45 @@
 // canvas or the panel changes — then the chip follows the selection again ("⌘/ always attaches what is
 // selected now").
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { buildChatContext } from '../../panels/chat-context.js';
-import { autoScope, resolveScope, scopeForPrompt, selectedArtboardIds } from './scope.js';
+import {
+  annotationScopeOf,
+  annotationSelectionVersion,
+  subscribeAnnotationSelection,
+} from '../annotations/annotation-asks.js';
+import {
+  annotationsScope,
+  autoScope,
+  resolveScope,
+  scopeForPrompt,
+  selectedArtboardIds,
+  selectionKey,
+} from './scope.js';
+
+/**
+ * S5.17 G2 — the artboards a `.meta.json` names, `{ id, label }[]`. Real sidecars carry them in
+ * `sections[].artboards` (the canvas's own sections) or, older ones, at the top level `artboards`; the
+ * label is the name a person knows ("Pricing"), the id only when the sidecar has none. Pure.
+ */
+export function artboardsFromMeta(meta) {
+  const fromSections = Array.isArray(meta?.sections)
+    ? meta.sections.flatMap((s) => (Array.isArray(s?.artboards) ? s.artboards : []))
+    : [];
+  const boards = fromSections.length
+    ? fromSections
+    : Array.isArray(meta?.artboards)
+      ? meta.artboards
+      : [];
+  const seen = new Set();
+  const out = [];
+  for (const a of boards) {
+    if (!a || typeof a.id !== 'string' || !a.id || seen.has(a.id)) continue;
+    seen.add(a.id);
+    out.push({ id: a.id, label: typeof a.label === 'string' && a.label.trim() ? a.label : a.id });
+  }
+  return out;
+}
 
 /** The canvas's artboards `{ id, label }[]`, from its `.meta.json` sidecar. Re-read when the selection names one it lacks. */
 export function useCanvasArtboards(canvas, wantedIds = []) {
@@ -27,15 +63,7 @@ export function useCanvasArtboards(canvas, wantedIds = []) {
       .then((r) => r.json())
       .then((meta) => {
         if (off) return;
-        const boards = Array.isArray(meta?.artboards) ? meta.artboards : [];
-        setList(
-          boards
-            .filter((a) => a && typeof a.id === 'string' && a.id)
-            .map((a) => ({
-              id: a.id,
-              label: typeof a.label === 'string' && a.label.trim() ? a.label : a.id,
-            }))
-        );
+        setList(artboardsFromMeta(meta));
       })
       .catch(() => {});
     return () => {
@@ -69,16 +97,31 @@ export function useAiScope({ activeCanvas, selected, panelHidden = false, viewAr
     [selected, activeCanvas]
   );
   const artboards = useCanvasArtboards(activeCanvas, selectedIds);
+  // S4.15 — stickies / arrows selected in Preview (`annotation-selection`): the chip follows them while they
+  // are selected. Annotation and element selections are exclusive (Preview vs Edit), so whichever is non-empty.
+  const annVersion = useSyncExternalStore(
+    subscribeAnnotationSelection,
+    annotationSelectionVersion,
+    annotationSelectionVersion
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: annVersion is the store's snapshot id
+  const annScope = useMemo(
+    () => annotationsScope(activeCanvas ? (annotationScopeOf(activeCanvas) ?? {}) : {}),
+    [activeCanvas, annVersion]
+  );
   const auto = useMemo(
-    () => autoScope({ selected, canvas: activeCanvas }),
-    [selected, activeCanvas]
+    () => annScope ?? autoScope({ selected, canvas: activeCanvas }),
+    [annScope, selected, activeCanvas]
   );
   const scope = resolveScope(choice, auto);
 
-  // The selection, the canvas or the panel changed → follow the selection again.
+  // The selection, the canvas or the panel changed → follow the selection again. The SELECTION is compared by
+  // what it is, not by array identity: the same selection announced again must not undo the person's pick (G11).
+  const selKey = `${selectionKey(selected)}\u0003${annScope ? annScope.ids.join(',') : ''}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the reset runs on the selection's content (selKey) and the canvas, not on a re-announced array
   useEffect(() => {
     setChoice(null);
-  }, [activeCanvas, selected]);
+  }, [activeCanvas, selKey]);
   useEffect(() => {
     if (!panelHidden) setChoice(null);
   }, [panelHidden]);
@@ -87,11 +130,18 @@ export function useAiScope({ activeCanvas, selected, panelHidden = false, viewAr
     if (scope.kind === 'none') return null;
     return buildChatContext({
       canvas: activeCanvas,
-      // A scope the person picked replaces the selection: its element locators do not ride.
-      selected: choice ? null : selected,
+      // A scope the person picked replaces the selection: its element locators do not ride — except a ⌘/ ask on
+      // a selection (S2.19), whose scope carries the locators of exactly the elements it names.
+      selected: choice
+        ? choice.kind === 'elements'
+          ? choice.selected
+          : null
+        : annScope
+          ? null // the stickies ride as ids in the scope line; no element locators
+          : selected,
       scope: scopeForPrompt(scope, artboards),
     });
-  }, [activeCanvas, selected, choice, scope, artboards]);
+  }, [activeCanvas, selected, choice, scope, artboards, annScope]);
 
   // What the adapter freezes at send.
   const contextRef = useRef(null);

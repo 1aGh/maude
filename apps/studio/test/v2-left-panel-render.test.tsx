@@ -330,5 +330,30 @@ describe('Assets tab', () => {
     const { AssetsPanel } = await import('../client/v2/left-panel/assets-panel.jsx');
     const { host } = await mount(<AssetsPanel designRel=".design" readOnly />);
     expect(q(host, 'assets-add')).toBeNull();
+    expect(q(host, 'assets-from-mac')).toBeNull();
+  });
+
+  test('S3.15 · 04 md-edit-image: "From this Mac…" under the photos opens the existing file picker', async () => {
+    installFetch({ '/_api/assets': ASSETS });
+    const { AssetsPanel } = await import('../client/v2/left-panel/assets-panel.jsx');
+    const { host } = await mount(<AssetsPanel designRel=".design" />);
+    const row = q(host, 'assets-from-mac');
+    expect(row?.textContent).toBe('From this Mac…');
+    // the same path as the head's "Add files…": a hidden <input type=file> for images, video and sound
+    const clicked: HTMLInputElement[] = [];
+    const proto = HTMLInputElement.prototype as unknown as { click: () => void };
+    const real = proto.click;
+    proto.click = function (this: HTMLInputElement) {
+      clicked.push(this);
+    };
+    try {
+      await click(row);
+    } finally {
+      proto.click = real;
+    }
+    expect(clicked.length).toBe(1);
+    expect(clicked[0]?.type).toBe('file');
+    expect(clicked[0]?.accept).toBe('image/*,video/*,audio/*');
+    clicked[0]?.remove();
   });
 });

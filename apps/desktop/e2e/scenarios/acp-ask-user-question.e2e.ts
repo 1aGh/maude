@@ -68,14 +68,11 @@ describe('acp-ask-user-question (native-desktop)', () => {
     expect(options.length).toBeGreaterThan(0);
   });
 
-  it('2 · picking an option and Submit resolves the turn', async () => {
-    const firstOption = await $('[data-testid^="chat-elicit-option-"] input');
+  it('2 · picking an option resolves the turn', async () => {
+    // S5.17b: 03 draws picks only — a row IS the answer (no Send button on the simple card)
+    const firstOption = await $('[data-testid^="chat-elicit-option-"]');
     await firstOption.waitForDisplayed({ timeout: 10_000 });
     await firstOption.click();
-
-    const submit = await $(tid('chat-elicit-submit'));
-    await submit.waitForEnabled({ timeout: 5_000 });
-    await submit.click();
     await capture('02-submitted');
 
     // The card must disappear once the response is sent — mutually exclusive
@@ -83,7 +80,7 @@ describe('acp-ask-user-question (native-desktop)', () => {
     const prompt = await $(tid('chat-elicit-prompt'));
     await browser.waitUntil(async () => !(await prompt.isDisplayed().catch(() => false)), {
       timeout: 15_000,
-      timeoutMsg: 'the elicitation card never cleared after Submit',
+      timeoutMsg: 'the elicitation card never cleared after the pick',
     });
 
     // The composer must still be usable — the turn resolved, not hung.

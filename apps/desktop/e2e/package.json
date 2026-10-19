@@ -14,6 +14,7 @@
     "e2e:tabs": "wdio run ./wdio.tabs.conf.ts",
     "e2e:tabs-identity": "wdio run ./wdio.tabs-identity.conf.ts",
     "e2e:cell-tab": "wdio run ./wdio.cell-tab.conf.ts",
+    "e2e:ai-quit": "wdio run ./wdio.ai-quit.conf.ts",
     "e2e:relaunch": "wdio run ./wdio.relaunch.conf.ts",
     "e2e:home": "wdio run ./wdio.home.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",

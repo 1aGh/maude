@@ -4,6 +4,9 @@
 //
 //   'verify' — you own this address, so Google may link to your account
 //   'reset'  — you own this address, so you may choose a new password
+//   'unsub'  — stop mention e-mails to this account (S9.18). It does that and
+//              NOTHING else: it is not a session (sessions are their own
+//              table, keyed by an `mcs_` value), not a verify, not a reset.
 //
 // The PURPOSE IS BOUND INTO THE ROW and re-checked on consumption. Without
 // that, a verification link (24h, sits in an inbox) would also be a password
@@ -15,7 +18,9 @@
 //   - single use, enforced by a conditional UPDATE whose `changes` count is the
 //     verdict — two simultaneous clicks cannot both win;
 //   - minting supersedes this account's earlier live links of the SAME purpose,
-//     so "send me another one" means the previous one stops working.
+//     so "send me another one" means the previous one stops working — except
+//     'unsub', where every mention e-mail carries its own link and an older
+//     e-mail's "stop these" must keep working after a newer one arrives.
 
 import { randomToken, sha256Hex } from './accounts.mjs';
 
@@ -30,9 +35,15 @@ import { randomToken, sha256Hex } from './accounts.mjs';
 export const TOKEN_TTL_MS = {
   verify: 24 * 3600_000,
   reset: 3600_000,
+  // An unsubscribe link can only turn e-mail OFF, and people act on old mail:
+  // it lives as long as an inbox is plausibly read.
+  unsub: 60 * 24 * 3600_000,
 };
 
-const PREFIX = { verify: 'mev', reset: 'mer' };
+const PREFIX = { verify: 'mev', reset: 'mer', unsub: 'meu' };
+
+/** Purposes whose newer link kills the older ones ("send me another one"). */
+const SUPERSEDES = { verify: true, reset: true, unsub: false };
 
 /** The purposes this module will act on. Anything else is a programming error. */
 function assertPurpose(purpose) {
@@ -49,12 +60,14 @@ export async function mintEmailToken(db, { accountId, purpose }, { now = Date.no
   assertPurpose(purpose);
   // Supersede first. If minting failed halfway, the safe residue is "no live
   // link" rather than "two live links, one of them unaccounted for".
-  await db
-    .prepare(
-      'UPDATE email_tokens SET used_at = ? WHERE account_id = ? AND purpose = ? AND used_at IS NULL'
-    )
-    .bind(now, accountId, purpose)
-    .run();
+  if (SUPERSEDES[purpose]) {
+    await db
+      .prepare(
+        'UPDATE email_tokens SET used_at = ? WHERE account_id = ? AND purpose = ? AND used_at IS NULL'
+      )
+      .bind(now, accountId, purpose)
+      .run();
+  }
 
   const token = randomToken(PREFIX[purpose]);
   const expiresAt = now + TOKEN_TTL_MS[purpose];

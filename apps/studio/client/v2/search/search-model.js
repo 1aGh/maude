@@ -273,21 +273,52 @@ export function canvasMeta(rel, folder) {
   return ['Design system', m[1], ...sub].join(' · ');
 }
 
+/** The canvas group a project keeps its canvases in when it names none — a folder line never says it. */
+const GROUP_ROOTS = ['ui'];
+const THUMB_KEY = /^[0-9a-f]{64}$/;
+
+/** "ui/2026/dresy" → "2026/dresy"; a canvas straight in the group → "" (11 · pn-k-close shows the folder, not the path). */
+function folderWithoutGroup(folder) {
+  const f = String(folder ?? '').trim();
+  for (const g of GROUP_ROOTS) {
+    if (f === g) return '';
+    if (f.startsWith(`${g}/`)) return f.slice(g.length + 1);
+  }
+  return f;
+}
+
+/**
+ * A canvas row's meta line: "<project> · 2026/dresy · 12 artboards" (11 · pn-k-close). Any part the answer does
+ * not have is left out; a design-system specimen keeps its own line (`canvasMeta`).
+ */
+function canvasRowMeta(rel, folder, { project = '', boards = null } = {}) {
+  if (/^system\//.test(rel)) return canvasMeta(rel, folder);
+  const count =
+    Number.isInteger(boards) && boards > 0
+      ? `${boards} ${boards === 1 ? 'artboard' : 'artboards'}`
+      : '';
+  return [String(project || '').trim(), folderWithoutGroup(folder), count]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /**
  * The canvases / artboards `/_api/index?q=` answered → result rows.
  * `query` (what was asked) lets the row mark its meta line too — "artboard in LetakA6 · print" lights
  * LetakA6 when the person typed it — and tell a row that matched only through typos (`weak`) from one
  * that has a word right. Without it the server's own name marks stand.
  */
-export function remoteRows(result, { designRel = '.design', query = '' } = {}) {
+export function remoteRows(result, { designRel = '.design', query = '', project = '' } = {}) {
   const qWords = fold(sanitizeQuery(query)).split(/\s+/).filter(Boolean);
   const out = [];
   for (const r of result?.rows ?? []) {
     const rel = r.key.split('#')[0];
     const board = r.group === 'artboards' ? r.key.split('#')[1] : null;
     const canvas = rel.replace(/^.*\//, '').replace(/\.tsx$/, '');
-    // "artboard in LetakA6 · print" / "ui/2026/combine"
-    const meta = board ? `artboard in ${canvas}` : canvasMeta(rel, r.meta);
+    // "artboard in LetakA6 · print" / "Alligators brand · 2026/combine · 12 artboards"
+    const meta = board
+      ? `artboard in ${canvas}${r.kind === 'print' ? ' · print' : ''}`
+      : canvasRowMeta(rel, r.meta, { project, boards: r.boards });
     // Re-score the strings the row SHOWS (the index matched on more: the folder, the kind).
     const shown = qWords.length ? scoreRow({ key: r.key, name: r.name, meta }, qWords) : null;
     out.push({
@@ -305,6 +336,8 @@ export function remoteRows(result, { designRel = '.design', query = '' } = {}) {
       where: '',
       advanced: false,
       icon: board ? 'frame' : 'file',
+      // a canvas shows its cover picture when one is rendered (the icon stays for a canvas without one)
+      thumb: !board && THUMB_KEY.test(r.cover ?? '') ? `/_api/thumb/${r.cover}` : null,
       disabled: false,
       keywords: [],
     });

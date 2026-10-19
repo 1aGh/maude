@@ -39,6 +39,13 @@ export function finiteParam(req: ResolvedEditOp, key: string): number {
   return v as number;
 }
 
+/** `border-radius` → `borderRadius`; custom properties (`--x`) and vendor prefixes (`-webkit-x`) stay as they are. */
+export function reactStyleKey(prop: string): string {
+  return /^[a-z]+(-[a-z0-9]+)+$/.test(prop)
+    ? prop.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+    : prop;
+}
+
 /**
  * Write a CSS patch ({ prop: value | null }) onto one target's inline style: a string sets, null
  * takes out. A style the file computes (`style={styles.card}`) is refused — "the same result by
@@ -73,7 +80,9 @@ export function writeStyle(
         req.file,
         out,
         target.element,
-        `style.${prop}`,
+        // a key the style does not carry yet is written the React way (`borderRadius`), never as a quoted
+        // `"border-radius"`; a key it already carries (either spelling) is overwritten where it stands
+        `style.${state.kind === 'absent' ? reactStyleKey(prop) : prop}`,
         JSON.stringify(value),
         target.occurrence
       ).source;

@@ -60,6 +60,7 @@ import {
   type WorldPoint,
   worldToClient,
 } from './comment-anchor.ts';
+import { fromHeadline, fromWho } from './comments/from-line.ts';
 import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
@@ -155,7 +156,13 @@ export interface OverlayComment {
   mm?: { x: number; y: number };
   authorKind?: 'ai';
   /** A converted sticky (S4-S9-votes-comments §3.1). */
-  from?: { kind: string; id: string; author: string; convertedBy: string; at: string };
+  from?: {
+    kind: string;
+    id: string;
+    author: string;
+    convertedBy: string;
+    at: string;
+  };
   // html_excerpt unused at overlay layer; kept off the type to keep the
   // surface tight.
 }
@@ -183,21 +190,22 @@ interface ShellReply {
 
 const pendingCalls = new Map<string, (m: ShellReply) => void>();
 let callSeq = 0;
-let repliesInstalled = false;
+function onShellReply(e: MessageEvent): void {
+  // Only the shell (our parent) answers; a sibling frame or the canvas's own code cannot.
+  if (e.source !== window.parent) return;
+  const m = e.data as ShellReply | null;
+  if (!m || typeof m !== 'object' || typeof m.dgn !== 'string') return;
+  if (m.dgn !== 'comment-op-ack' && m.dgn !== 'comment-op-result' && m.dgn !== 'comment-people')
+    return;
+  const key = `${m.dgn === 'comment-op-ack' ? 'ack' : 'res'}:${String(m.reqId)}`;
+  pendingCalls.get(key)?.(m);
+}
 
+// One stable listener, added on every call: addEventListener drops a duplicate of the same function, and a
+// document whose listeners were cleared (a reset test DOM) gets it back — a once-flag never would.
 function installShellReplies(): void {
-  if (repliesInstalled || typeof window === 'undefined') return;
-  repliesInstalled = true;
-  window.addEventListener('message', (e: MessageEvent) => {
-    // Only the shell (our parent) answers; a sibling frame or the canvas's own code cannot.
-    if (e.source !== window.parent) return;
-    const m = e.data as ShellReply | null;
-    if (!m || typeof m !== 'object' || typeof m.dgn !== 'string') return;
-    if (m.dgn !== 'comment-op-ack' && m.dgn !== 'comment-op-result' && m.dgn !== 'comment-people')
-      return;
-    const key = `${m.dgn === 'comment-op-ack' ? 'ack' : 'res'}:${String(m.reqId)}`;
-    pendingCalls.get(key)?.(m);
-  });
+  if (typeof window === 'undefined') return;
+  window.addEventListener('message', onShellReply);
 }
 
 const hasShell = (): boolean => typeof window !== 'undefined' && window.parent !== window;
@@ -962,6 +970,7 @@ export function CommentsOverlay(): React.ReactNode {
               !!(me ?? collab?.myName) &&
               (focused.author ?? '').trim() === (me ?? collab?.myName ?? '').trim()
             }
+            me={(me ?? collab?.myName) || undefined}
           />
         );
       })()}
@@ -1511,6 +1520,7 @@ export function CommentThread({
   onDelete,
   onReply,
   mine = false,
+  me,
 }: {
   comment: OverlayComment;
   sequence: number;
@@ -1520,6 +1530,8 @@ export function CommentThread({
   onReply: (body: string) => Promise<boolean>;
   /** The person looking wrote this comment — they may edit its text. */
   mine?: boolean;
+  /** The person looking (S4.V4 G5: did they convert this sticky? did someone else reply?). */
+  me?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1620,6 +1632,45 @@ export function CommentThread({
     ? artboardLabelOf(comment.artboard)
     : selectorChip || 'On the canvas';
 
+  // S4.V4 G5 (S4-S9-votes-comments §3.4) — a converted sticky's thread: the header's Undo (the converter,
+  // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
+  // into a sticky" (any editor). Both refuse while someone else has replied; the server judges either way.
+  const from = comment.from;
+  const meName = (me ?? '').trim();
+  const byYou = from ? (meName ? (from.convertedBy ?? '').trim() === meName : mine) : false;
+  const foreignReply = from
+    ? (comment.thread ?? []).find(
+        (r) => (r.author ?? '').trim() !== (meName || (from.convertedBy ?? '').trim())
+      )
+    : undefined;
+  const repliedLine = foreignReply
+    ? `${firstName(foreignReply.author ?? '') || 'Someone'} replied — resolve the thread instead.`
+    : null;
+  const canTurnBack = !!from && !isReadOnlyCanvas();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [convertLine, setConvertLine] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState(false);
+  useEffect(() => {
+    if (!from || !byYou) {
+      setUndoable(false);
+      return;
+    }
+    let live = true;
+    void shellCommentOp({ op: 'convert-undoable', commentId: comment.id }).then((r) => {
+      if (live) setUndoable(!!r?.ok);
+    });
+    return () => {
+      live = false;
+    };
+  }, [comment.id, from, byYou]);
+  const runConvert = async (op: 'to-sticky' | 'convert-undo') => {
+    setMenuOpen(false);
+    setConvertLine(null);
+    const r = await shellCommentOp({ op, commentId: comment.id });
+    if (r?.ok) onClose();
+    else setConvertLine(r?.error || 'That did not go through.');
+  };
+
   return (
     <div
       ref={dialogRef}
@@ -1691,6 +1742,38 @@ export function CommentThread({
                     Delete comment
                   </button>
                 ) : null}
+                {canTurnBack ? (
+                  <span className="cm-thread__more">
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--icon"
+                      aria-label="More"
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      data-testid={`comment-menu-${comment.id}`}
+                      onClick={() => setMenuOpen((v) => !v)}
+                    >
+                      ⋯
+                    </button>
+                    {menuOpen ? (
+                      <span className="cm-thread__menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="cm-thread__menu-item"
+                          data-testid={`comment-menu-to-sticky-${comment.id}`}
+                          disabled={!!repliedLine}
+                          onClick={() => void runConvert('to-sticky')}
+                        >
+                          Turn back into a sticky
+                        </button>
+                        {repliedLine ? (
+                          <span className="cm-thread__menu-note">{repliedLine}</span>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
               </span>
             ) : null}
             <button
@@ -1723,8 +1806,26 @@ export function CommentThread({
         ) : null}
         {comment.from ? (
           <div className="cm-thread__from" data-testid={`comment-from-${comment.id}`}>
-            From {firstName(comment.from.author)}’s sticky · turned into a comment by{' '}
-            {mine ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
+            {fromHeadline(comment.from)} · turned into a comment by{' '}
+            {byYou ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
+            {byYou && undoable && !repliedLine ? (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  className="cm-link"
+                  data-testid={`comment-from-undo-${comment.id}`}
+                  onClick={() => void runConvert('convert-undo')}
+                >
+                  Undo
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+        {convertLine ? (
+          <div className="cm-thread__convert-line" role="alert">
+            {convertLine}
           </div>
         ) : null}
       </div>
@@ -1732,13 +1833,13 @@ export function CommentThread({
       {draft === null ? (
         <div className="cm-msg cm-msg--root">
           <Avatar
-            name={comment.from ? comment.from.author : comment.author}
-            ai={comment.authorKind === 'ai'}
+            name={comment.from ? fromWho(comment.from).name : comment.author}
+            ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
           />
           <div className="cm-msg__main">
             <div className="cm-msg__head">
               <span className="cm-thread__author">
-                {(comment.from ? comment.from.author : comment.author)?.trim() || 'unknown'}
+                {(comment.from ? fromWho(comment.from).name : comment.author?.trim()) || 'unknown'}
               </span>
               <span className="cm-thread__time">{formatRelativeTime(comment.created)}</span>
             </div>

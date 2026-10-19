@@ -37,6 +37,9 @@ export interface ChatSummary {
   trashedAt?: number;
   /** S5.7 — only search lists archived chats; the plain list never does. */
   archived?: boolean;
+  /** S5.18 (G5) — the artboards its latest scoped ask named (ids on `canvas`); the list's "where" line.
+   *  Absent = the whole canvas, or no scoped ask yet. */
+  artboards?: string[];
 }
 
 /**
@@ -63,6 +66,8 @@ export interface ChatMessagePart {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   parts: ChatMessagePart[];
+  /** S5.19 — when the ask was sent (ms, the transcript line's `ts`): the feed's day dividers. User turns only. */
+  at?: number;
 }
 
 function chatDir(designRoot: string): string {
@@ -101,6 +106,48 @@ export function readChatMeta(designRoot: string, chatId: string): ChatMeta {
   }
 }
 
+/**
+ * S5.17 G5 — a chat belongs to the canvas it first asked about (design-relative, the run scope's
+ * form): the chat list groups it there. The first scoped ask links it; a later ask on another canvas
+ * keeps the first link. No-op when the chat is already linked or the path is not a plain relative one.
+ */
+export function linkChatCanvas(designRoot: string, chatId: string, canvas: string): void {
+  if (!plainCanvasKey(canvas) || plainCanvasKey(readRawChatMeta(designRoot, chatId).canvas)) return;
+  writeChatMeta(designRoot, chatId, { canvas });
+}
+
+/** Artboard ids as stored/shown: plain ids only, deduped, a handful (the list shows two names and "+N"). */
+function plainArtboardIds(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: string[] = [];
+  for (const id of v) {
+    if (typeof id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(id) || out.includes(id))
+      continue;
+    out.push(id);
+    if (out.length >= 8) break;
+  }
+  return out.length ? out : undefined;
+}
+
+/**
+ * S5.18 (G5) — what a chat last asked about, for the chat list's "where" line: the artboards of its latest scoped
+ * ask on its linked canvas. A whole-canvas ask (or a different canvas) clears it — the row then says nothing
+ * rather than something stale. Per Mac (`_chat/`, DDR-115); never blocks the prompt.
+ */
+export function noteChatArtboards(
+  designRoot: string,
+  chatId: string,
+  canvas: string,
+  artboards: string[] | '*'
+): void {
+  const linked = plainCanvasKey(readRawChatMeta(designRoot, chatId).canvas);
+  const ids = artboards === '*' ? undefined : plainArtboardIds(artboards);
+  const had = plainArtboardIds(readRawChatMeta(designRoot, chatId).artboards);
+  const next = linked === canvas ? ids : undefined;
+  if (JSON.stringify(next ?? null) === JSON.stringify(had ?? null)) return;
+  writeChatMeta(designRoot, chatId, { artboards: next ?? null });
+}
+
 /** The sidecar exactly as stored (any keys), or `{}` when missing/corrupt. */
 function readRawChatMeta(designRoot: string, chatId: string): Record<string, unknown> {
   try {
@@ -131,6 +178,8 @@ export function writeChatMeta(
     trashedAt?: number | null;
     /** S5.7 — the canvas link (`null` clears it). Only a plain relative path is stored. */
     canvas?: string | null;
+    /** S5.18 (G5) — the artboards of its latest scoped ask (`null` clears). */
+    artboards?: string[] | null;
   }
 ): ChatMeta {
   const dir = chatDir(designRoot);
@@ -154,6 +203,11 @@ export function writeChatMeta(
     const c = plainCanvasKey(patch.canvas);
     if (c) next.canvas = c;
     else delete next.canvas;
+  }
+  if ('artboards' in patch) {
+    const a = plainArtboardIds(patch.artboards);
+    if (a) next.artboards = a;
+    else delete next.artboards;
   }
   writeFileSync(metaPath(designRoot, chatId), JSON.stringify(next));
   return readChatMeta(designRoot, chatId);
@@ -273,11 +327,25 @@ function deriveTitle(lines: Array<Record<string, unknown>>): string {
 function readListMeta(
   designRoot: string,
   chatId: string
-): { title?: string; archived: boolean; canvas?: string; trashedAt?: number } {
+): {
+  title?: string;
+  archived: boolean;
+  canvas?: string;
+  trashedAt?: number;
+  artboards?: string[];
+} {
   const raw = readRawChatMeta(designRoot, chatId);
-  const out: { title?: string; archived: boolean; canvas?: string; trashedAt?: number } = {
+  const out: {
+    title?: string;
+    archived: boolean;
+    canvas?: string;
+    trashedAt?: number;
+    artboards?: string[];
+  } = {
     archived: raw.archived === true,
   };
+  const boards = plainArtboardIds(raw.artboards);
+  if (boards) out.artboards = boards;
   if (typeof raw.title === 'string' && raw.title.trim()) out.title = raw.title.trim().slice(0, 200);
   const canvas = plainCanvasKey(raw.canvas);
   if (canvas) out.canvas = canvas;
@@ -308,8 +376,9 @@ function scanChats(designRoot: string): ChatSummary[] {
       /* skip unreadable */
     }
     if (size === 0) continue;
-    const extra: Pick<ChatSummary, 'canvas' | 'trashedAt' | 'archived'> = {};
+    const extra: Pick<ChatSummary, 'canvas' | 'trashedAt' | 'archived' | 'artboards'> = {};
     if (meta.canvas) extra.canvas = meta.canvas;
+    if (meta.artboards) extra.artboards = meta.artboards;
     if (meta.trashedAt !== undefined) extra.trashedAt = meta.trashedAt;
     if (meta.archived) extra.archived = true;
     // #119: this used to `readLines(file)` — the WHOLE transcript — for every
@@ -479,7 +548,9 @@ export function stripContextBlock(text: string): string {
     const tail = out.slice(i + 1);
     // Only strip when the remainder is EXACTLY the context block (all lines are
     // bracket lines) — a user merely quoting `[maude-context …]` mid-text stays.
-    if (/^\[maude-context [^\n]*\](\n\[selected:[^\n]*\])*\s*$/.test(tail)) {
+    // S5.17 G3: the scope line (`[maude-scope whole-canvas]`, `… artboards="…"`, `… elements="…"`)
+    // rides between the head line and the selection lines since S5.6 — part of the same block.
+    if (/^\[maude-context [^\n]*\](\n\[(?:maude-scope|selected:)[^\n]*\])*\s*$/.test(tail)) {
       out = out.slice(0, i).replace(/\s+$/, '');
     }
   }
@@ -531,6 +602,7 @@ export function readChatMessages(designRoot: string, chatId: string): ChatMessag
       messages.push({
         role: 'user',
         parts: [{ type: 'text', text: stripContextBlock(line.text) }],
+        ...(typeof line.ts === 'number' && Number.isFinite(line.ts) ? { at: line.ts } : {}),
       });
       continue;
     }

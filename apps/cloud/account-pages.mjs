@@ -64,11 +64,12 @@ const ACCOUNT_EXPORT_WINDOW_MS = 10 * 60_000;
 /** Where a deleted account's address goes: unique, unroutable, not an address anyone holds. */
 export const DELETED_EMAIL_DOMAIN = 'deleted.invalid';
 
-/** The five doors, in the canvas's order (ob-settings). */
+/** The doors, in the canvas's order (ob-settings); E-mails is S9.18's (the mention e-mail switch). */
 export const ACCOUNT_SECTIONS = Object.freeze([
   { key: 'people', href: '/account/people', label: 'People and invites' },
   { key: 'billing', href: '/account/billing', label: 'Billing and plan' },
   { key: 'macs', href: '/account/macs', label: 'Your Macs' },
+  { key: 'emails', href: '/account/emails', label: 'E-mails' },
   { key: 'download', href: '/account/download', label: 'Download everything' },
   { key: 'delete', href: '/account/delete', label: 'Delete the account' },
 ]);
