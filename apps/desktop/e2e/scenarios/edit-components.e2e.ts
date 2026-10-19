@@ -46,19 +46,33 @@ export default function Smoke() {
 }
 `;
 
-const inFrame = <T>(fn: (doc: Document, win: Window) => T, ...args: unknown[]) =>
-  browser.execute(
+const inFrame = async <T>(
+  fn: (doc: Document, win: Window, ...rest: any[]) => T,
+  ...args: unknown[]
+): Promise<T> => {
+  // A throw inside `execute` reaches the spec as "A JavaScript exception occurred" and nothing else;
+  // carry the page's own message out instead so a red run says WHY.
+  const out = (await browser.execute(
     (src: string, a: unknown[]) => {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      return new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
-        frame.contentDocument,
-        frame.contentWindow,
-        a
-      );
+      try {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        return {
+          v: new Function('doc', 'win', 'args', `return (${src})(doc, win, ...args)`)(
+            frame.contentDocument,
+            frame.contentWindow,
+            a
+          ),
+        };
+      } catch (e) {
+        return { __inFrameError: String(e) };
+      }
     },
     fn.toString(),
     args
-  );
+  )) as { v?: T; __inFrameError?: string };
+  if (out.__inFrameError) throw new Error(`inFrame: ${out.__inFrameError}`);
+  return out.v as T;
+};
 
 const press = (key: string, shift = false) =>
   inFrame(

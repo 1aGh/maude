@@ -2,10 +2,10 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForEditChrome } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
-import { waitForEditChrome } from '../helpers/canvas-frame';
 import { canvasRow } from '../helpers/tree';
 
 /**
@@ -159,6 +159,19 @@ describe('edit-artboards (part 1) — select, resize onto a preset, long page', 
   });
 
   it('drags the east edge: the ruler lights the nearest preset, the bubble names it, release writes the JSX width', async () => {
+    // test 2's write re-rendered the frame and the new DOM starts with nothing selected: pick the board
+    // by its name again, as a person would, until the handles are back
+    await browser.waitUntil(
+      async () => {
+        const h = await hud();
+        if (h.east) return true;
+        // a second click on a selected board's name would toggle it off: pick it only when it is not
+        if (!h.selected) await onLabel(ARTBOARD, ['pointerdown', 'pointerup', 'click']);
+        await browser.pause(400);
+        return !!(await hud()).east;
+      },
+      { timeout: 15_000, timeoutMsg: 'no east handle' }
+    );
     const before = await hud();
     if (!before.east) throw new Error('no east handle');
     // 480 → 390 is the Mobile stop of the ruler: travel 90 world px = 90 × zoom screen px
@@ -262,11 +275,15 @@ function onLabel(id: string, types: string[], mods: Record<string, number | bool
         `[data-dc-screen="${bid}"] .dc-artboard-label`
       ) as HTMLElement;
       // the router picks its target by the pointer's POSITION, not by where the event was fired
+      const { dx = 0, dy = 0, ...rest } = m as Record<string, number | boolean>;
       const r = label.getBoundingClientRect();
-      const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+      const at = {
+        clientX: r.left + r.width / 2 + (dx as number),
+        clientY: r.top + r.height / 2 + (dy as number),
+      };
       for (const t of ts)
         label.dispatchEvent(
-          new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0, ...at, ...m })
+          new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0, ...at, ...rest })
         );
     },
     id,
@@ -359,8 +376,8 @@ describe('edit-artboards (part 2) — arrange: Tidy up', () => {
   });
 
   it('dragging one board shows its place beside the pointer: "X … · Y …"', async () => {
-    await onLabel('four', ['pointerdown'], { clientX: 0 });
-    await onLabel('four', ['pointermove'], { clientX: 40, clientY: 8 });
+    await onLabel('four', ['pointerdown']);
+    await onLabel('four', ['pointermove'], { dx: 40, dy: 8 });
     const bubble = await inFrame(
       (d) => d.querySelector('[data-testid="edit-ab-bubble"]')?.textContent ?? null
     );
@@ -438,8 +455,8 @@ describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place',
         new win.MouseEvent('contextmenu', {
           bubbles: true,
           cancelable: true,
-          clientX: 80,
-          clientY: 120,
+          clientX: label.getBoundingClientRect().left + label.getBoundingClientRect().width / 2,
+          clientY: label.getBoundingClientRect().top + label.getBoundingClientRect().height / 2,
         })
       );
       return true;
