@@ -128,9 +128,9 @@ describe('metaWithCopy — the place', () => {
         o.y + o.h <= copy.y;
       expect(apart).toBe(true);
     }
-    // 03: "lands right beside the original" — as close as is clear (below P here: the right is taken)
-    expect(me?.x).toBe(0);
-    expect(me?.y).toBeGreaterThan(260);
+    // 03: "lands right beside the original" (S5.19: the neighbour on the right moves over, the copy does not go below)
+    expect(me?.x).toBe(340);
+    expect(me?.y).toBe(0);
   });
 
   test('no explicit positions: nothing is written for the place (the default grid already seats it beside)', () => {
@@ -231,8 +231,8 @@ describe('the route writes the sidecar entries through the layout-write door', (
     expect(next.sections[0].artboards[1].label).toBe('Post 1:1 · copy');
     const at = next.layout.artboards.find((a) => a.id === copyId);
     expect(at).toBeDefined();
-    // clear of S at (340, 0): the right of P is taken, so the copy goes below P
-    expect(at?.x).toBe(0);
-    expect(at?.y).toBeGreaterThan(260);
+    // S5.19: beside P at (340, 0); S moved over to make room
+    expect(at?.x).toBe(340);
+    expect(at?.y).toBe(0);
   });
 });
