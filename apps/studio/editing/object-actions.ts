@@ -43,7 +43,7 @@ export function refOfElement(el: Element): ElementRef | null {
   return occ ? { artboard, element: id, occurrence: occ } : { artboard, element: id };
 }
 
-const selectionOf = (el: Element): Selection =>
+export const selectionOf = (el: Element): Selection =>
   hoverTargetToSelection({
     el,
     cdId: el.getAttribute('data-cd-id'),

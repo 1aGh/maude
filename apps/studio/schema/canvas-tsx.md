@@ -185,3 +185,45 @@ Both props are literal values on `<DCArtboard>`. Maude 1.x ignores them and stil
 
 Write a custom size with `customPrintProp([w, h])`, or hand-write the same shape. Both props follow DDR-181:
 artboard intent lives in the JSX.
+
+## Draw a path; combine shapes: the same result by hand (S2.14)
+
+P (the Pen) draws a path point by point; one finished path is one write (`object.insert-path`), and each later
+point or handle drag is one write (`path.edit`). Everything is plain TSX; a v1 peer reads it as any `<svg>`.
+
+```tsx
+<svg data-cd-id="path" data-shape="path" width="280" height="110.77" viewBox="0 0 280 110.77"
+     style={{ position: "absolute", left: "100px", top: "89.23px", overflow: "visible", fill: "none",
+              stroke: "var(--accent)", strokeWidth: "4px", strokeLinecap: "round", strokeLinejoin: "round" }}>
+  <path d="M0 110.77L100 10.77C160 -29.23 220 50.77 280 110.77" />
+</svg>
+```
+
+- The svg box is the path's **drawn bounds** (curve extremes, not control points); `left` / `top` are px from the
+  container's padding edge, and `d` is relative to the box. Moving a point so the bounds change means rewriting
+  `d`, `width`, `height`, `viewBox`, `left` and `top` together so every other point keeps its place (`path.edit`).
+- `d` is absolute `M L C Z`, two decimals. A **sharp** point has no handles (or two that do not mirror each other);
+  a **smooth** point has `C` handles on one line through the anchor, on opposite sides. The type is derived from
+  the numbers, never stored. A closed path ends in `Z`.
+- Stroke colour is a token (`var(--accent)`), width and Ends (`strokeLinecap: "round"` or `"butt"`) are on the `<svg>`
+  and inherited by the `<path>`; the inspector's Stroke section writes them there.
+- Arcs (`A`) are not point-editable: a path that uses them is edited in the code.
+
+### Combine shapes (`shape.combine.union|subtract|intersect|exclude`)
+
+Two or more sibling shapes (rectangle, ellipse, polygon — a `<div data-shape>` — or Pen paths) become **one** `<svg
+data-shape="path" data-combine="<kind>">` placed where the bottom shape was; the operands are removed in the same
+write. There is no boolean-geometry dependency: the renderer composes, and it exports identically as SVG.
+
+| Kind | What the svg holds |
+| --- | --- |
+| union | ONE `<path d="…subpaths…" fillRule="nonzero" />`, every outline wound clockwise so overlaps merge |
+| exclude | the same `<path>` with `fillRule="evenodd"` (overlaps become holes) |
+| subtract | the bottom shape `<path d mask="url(#<id>-mask)" />` **first**, then `<defs><mask id="<id>-mask" maskUnits="userSpaceOnUse" x y width height><rect … fill="white" />` and every other shape `<path d fill="black" /></mask></defs>` |
+| intersect | the bottom shape `<path d clipPath="url(#<id>-clip-1)" />` first (one more shape: wrap it in `<g clipPath="url(#<id>-clip-2)">`), then `<defs>` with one `<clipPath id="<id>-clip-N"><path d /></clipPath>` per other shape |
+
+The svg's `fill` is the bottom shape's token (never a hex). `white` / `black` in a mask are luminance, not design
+colours. A rounded rectangle is four cubics (`KAPPA` 0.5523), an ellipse four smooth anchors, a polygon its
+`clipPath` points. Refused: a line, a frame, a rotated shape (reset the rotation first), shapes from different frames.
+Flatten (a computed outline) is not in v2.0.
+

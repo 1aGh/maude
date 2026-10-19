@@ -41,6 +41,7 @@ import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
+import { PEN_ACTIONS, PenLayer } from './pen/index.tsx';
 import { PinGuides } from './place-freely.tsx';
 import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
@@ -80,6 +81,8 @@ export const EDITING_ACTIONS = [
   TIDY_ACTION,
   // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
   ...ARTBOARD_ACTIONS,
+  // S2.14 — Combine shapes (run by pen/index.tsx)
+  ...PEN_ACTIONS,
 ] as const;
 
 export function EditingLayer() {
@@ -228,6 +231,8 @@ export function EditingLayer() {
       {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
       <DrawTools readOnly={isReadOnlyCanvas()} />
       <CornerDots readOnly={isReadOnlyCanvas()} />
+      {/* S2.14 — the Pen (P), double-click a path to edit its points, Combine shapes */}
+      <PenLayer readOnly={isReadOnlyCanvas()} />
       {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
       <PlaceGhost readOnly={isReadOnlyCanvas()} />
       {/* S2.20 — an Undo history row lights what it would undo */}

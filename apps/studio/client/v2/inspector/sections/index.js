@@ -5,6 +5,7 @@
 import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
 import { offInspectorExport } from '../../export/inspector-export.jsx';
 import { offMulti } from '../kinds/multi.jsx';
+import { offPath } from '../kinds/path.jsx';
 import { offShape } from '../kinds/shape.jsx';
 import { offTextBody, offTextStyle } from '../kinds/text.jsx';
 import { offArtboardSections } from '../kinds/artboard.jsx';
@@ -41,4 +42,5 @@ export function unregisterSections() {
   offConvert();
   offArtboardSections();
   offShape();
+  offPath();
 }

@@ -32,6 +32,8 @@ import { refuse } from './constraints.ts';
 import { dSpan } from './path.ts';
 import {
   type Box,
+  COMBINE_KINDS,
+  type CombineKind,
   clockwise,
   ellipseSub,
   type PathModel,
@@ -46,8 +48,7 @@ import {
 import { siblingModel } from './siblings.ts';
 import type { EditOp, ResolvedEditOp } from './types.ts';
 
-export const COMBINE_KINDS = ['union', 'subtract', 'intersect', 'exclude'] as const;
-export type CombineKind = (typeof COMBINE_KINDS)[number];
+export { COMBINE_KINDS, type CombineKind };
 
 /** Area outside every shape a mask must still cover, so a stroke at the edge is not cut. */
 const PAD = 200;

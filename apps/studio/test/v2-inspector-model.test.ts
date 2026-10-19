@@ -39,8 +39,8 @@ import {
 const STUDIO = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
 
-describe('the ten sections (14 Editing, ed-inspector)', () => {
-  test('in the drawn order, numbered 1 to 10, with the drawn titles', () => {
+describe('the sections (14 Editing, ed-inspector)', () => {
+  test('in the drawn order, numbered 1 to 10 (+ S2.14 Combine shapes), with the drawn titles', () => {
     expect(SECTIONS.map((s) => [s.n, s.id, s.title])).toEqual([
       [1, 'position', 'Position'],
       [2, 'size', 'Size'],
@@ -50,10 +50,11 @@ describe('the ten sections (14 Editing, ed-inspector)', () => {
       [6, 'border', 'Border'],
       [7, 'effects', 'Effects'],
       [8, 'type', 'Type'],
+      [11, 'combine', 'Combine shapes'], // S2.14
       [9, 'interaction', 'Interaction'],
       [10, 'export', 'Export'],
     ]);
-    expect(SECTION_IDS).toHaveLength(10);
+    expect(SECTION_IDS).toHaveLength(11);
   });
 
   test('every section carries its one-line explainer, in CONTRACT words (no "island", no "screen")', () => {

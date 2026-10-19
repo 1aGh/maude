@@ -197,6 +197,8 @@ export const TOOL_CURSORS: Record<Tool, string> = Object.freeze({
   line: CROSSHAIR,
   polygon: CROSSHAIR,
   slice: CROSSHAIR,
+  // S2.14 — the Pen draws from a crosshair too
+  'el-pen': CROSSHAIR,
   eraser: ERASER,
 });
 

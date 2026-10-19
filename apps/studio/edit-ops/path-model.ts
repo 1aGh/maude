@@ -75,8 +75,8 @@ export function parsePathD(d: string): PathModel {
   let sub: SubPath | null = null;
   let cur: Pt = pt(0, 0);
   let start: Pt = pt(0, 0);
-  let lastCtl: Pt | null = null; // previous cubic's second control (for S) / quad's control (for T)
-  let lastKind: 'c' | 'q' | null = null;
+  let lastCtl = null as Pt | null; // previous cubic's second control (for S) / quad's control (for T)
+  let lastKind = null as 'c' | 'q' | null;
   let i = 0;
   let cmd = '';
 
@@ -665,3 +665,7 @@ export function reverseSub(s: SubPath): SubPath {
 
 /** Clockwise, whatever it was. */
 export const clockwise = (s: SubPath): SubPath => (signedArea(s) < 0 ? reverseSub(s) : s);
+
+/** The four ways to combine shapes (S2-slices Q6). Here, not in combine.ts, so the canvas can import it without the writer. */
+export const COMBINE_KINDS = ['union', 'subtract', 'intersect', 'exclude'] as const;
+export type CombineKind = (typeof COMBINE_KINDS)[number];

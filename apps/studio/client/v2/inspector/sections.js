@@ -75,6 +75,14 @@ export const SECTIONS = Object.freeze(
       explain: 'For the text inside. The style first; size and weight override it, with a dot.',
     },
     {
+      // S2.14 (ed-pen): "Two or more" — greyed for one shape, live for several. Drawn only for shapes and paths.
+      n: 11,
+      id: 'combine',
+      title: 'Combine shapes',
+      explain:
+        'Union, Subtract, Intersect or Exclude two or more shapes into one path. The shapes stay editable points; it exports as plain SVG.',
+    },
+    {
       n: 9,
       id: 'interaction',
       title: 'Interaction',

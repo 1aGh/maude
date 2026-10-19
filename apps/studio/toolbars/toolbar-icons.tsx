@@ -81,6 +81,18 @@ export function IconLineTool(props: IconProps) {
   );
 }
 
+/** Pen (S2.14) — a pen nib over a curve. */
+export function IconPenTool(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3l6 8-3 4H9l-3-4z" />
+      <path d="M12 15v3.5" />
+      <circle cx="12" cy="11" r="1.1" />
+      <path d="M8 21h8" />
+    </Svg>
+  );
+}
+
 /** Polygon (More, S2.13) — a hexagon. */
 export function IconPolygon(props: IconProps) {
   return (
