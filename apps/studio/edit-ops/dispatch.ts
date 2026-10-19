@@ -31,6 +31,7 @@ import { componentInsert } from './insert-component.ts';
 import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { hasLayoutChange } from './layout-patch.ts';
 import { objectLock } from './lock.ts';
+import { opLabel } from './op-label.ts';
 import { objectInsertPath, pathEdit } from './path.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
@@ -143,7 +144,7 @@ export interface DispatchDeps {
   resolve(file: string): string | null;
   read(rel: string): string | null;
   /** one write: announce the base, write the bytes, snapshot `before` */
-  write(rel: string, before: string, after: string, label: string): Promise<void>;
+  write(rel: string, before: string, after: string, label: string, rowLine?: string): Promise<void>;
   /** V2-1.15 §4 #13 — a live AI run holds this element (S5.4's `heldByAi`) */
   heldByAi(rel: string, element: string): AiHoldHit | null;
   /** S2.10 — an op's positions into the layout lane (`meta.layout.artboards[]`); absent = not written */
@@ -342,6 +343,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     const gate = await renameGate(rel, out.renamed, deps);
     if (gate) return gate;
   }
+  // S2.24 G3 — what the history row says: the op's own words when it has them, else the table's (op-label.ts)
+  const rowLine = out.action?.label ?? opLabel(req.op, req.params, req.targets);
   // S2.10b — an op that writes source + layout, on an op-log home: ONE action (one ⌘Z, one history row).
   if (deps.land && out.source !== current && hasLayoutChange(out.layout)) {
     const landed = await deps.land({
@@ -349,7 +352,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       before: current,
       after: out.source,
       ...(out.layout ? { layout: out.layout } : {}),
-      ...(out.action ? { action: out.action } : {}),
+      action: out.action ?? { kind: 'edit', label: rowLine },
       reason: `pre-${req.op}`,
     });
     if (landed) {
@@ -381,7 +384,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     out.created,
     `pre-${req.op}`,
     deps,
-    out.renamed
+    out.renamed,
+    rowLine
   );
   if (res.ok && out.detail && Object.keys(out.detail).length) res.detail = out.detail;
   return res;
@@ -428,7 +432,8 @@ async function commit(
   created: ElementRef[] | undefined,
   label: string,
   deps: DispatchDeps,
-  renamed?: IdRename
+  renamed?: IdRename,
+  rowLine?: string
 ): Promise<EditOpResult> {
   if (after === before)
     return {
@@ -438,7 +443,7 @@ async function commit(
       rev: revOf(after),
       refs,
     };
-  await deps.write(rel, before, after, label);
+  await deps.write(rel, before, after, label, rowLine);
   let moved: { comments: number; board: number } | undefined;
   if (renamed && deps.references) {
     try {

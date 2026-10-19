@@ -22,6 +22,7 @@
     font-weight: var(--w-semibold, 600);
   }
   .st-uh-t span,
+  .st-uh-from,
   .st-uh-empty,
   .st-uh-foot {
     font-size: var(--type-xs, 12px);
@@ -32,6 +33,10 @@
   .st-uh-foot {
     margin: 0;
     padding: var(--space-1, 4px) var(--space-2, 8px);
+  }
+  .st-uh-from {
+    margin: 0;
+    padding: 0 var(--space-2, 8px) var(--space-1, 4px);
   }
   .st-uh-r {
     min-height: 42px;
