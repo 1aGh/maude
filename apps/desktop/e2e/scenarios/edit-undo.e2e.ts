@@ -54,7 +54,13 @@ async function click(x: number, y: number): Promise<void> {
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click']) {
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0, metaKey: true })
+          new MouseEvent(type, {
+            bubbles: true,
+            clientX: px,
+            clientY: py,
+            button: 0,
+            metaKey: true,
+          })
         );
       }
     },

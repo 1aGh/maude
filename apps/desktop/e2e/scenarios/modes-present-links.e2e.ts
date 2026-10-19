@@ -44,20 +44,28 @@ function rectOf(text: string): Promise<{ x: number; y: number; id: string | null
   }, text);
 }
 
-async function click(x: number, y: number): Promise<void> {
+/** `deep`: ⌘-click — a bare Edit click selects the TOP-level object (the content wrapper), ⌘ the element under it. */
+async function click(x: number, y: number, deep = false): Promise<void> {
   await browser.execute(
-    (px, py) => {
+    (px, py, meta) => {
       const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
       const doc = frame.contentDocument as Document;
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click']) {
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+          new MouseEvent(type, {
+            bubbles: true,
+            clientX: px,
+            clientY: py,
+            button: 0,
+            metaKey: meta,
+          })
         );
       }
     },
     x,
-    y
+    y,
+    deep
   );
 }
 
@@ -108,7 +116,7 @@ describe('follow a link and back (S3.10a)', () => {
     startReport('modes-present-links-chip');
     const before = source();
     const h1 = await rectOf(HEADING);
-    await click(h1!.x, h1!.y);
+    await click(h1!.x, h1!.y, true);
     await browser.waitUntil(async () => (await inFrame('edit-link-chip')) !== null, {
       timeout: 6000,
       timeoutMsg: 'the link chip never showed in Edit',

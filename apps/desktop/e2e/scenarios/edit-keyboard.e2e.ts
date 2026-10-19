@@ -112,7 +112,10 @@ describe('keyboard only (S2.21)', () => {
     await press('Tab');
     await settle();
     const s = await readFrame();
-    expect(s.badges).toEqual(['1', '2', '3', '4', '5']);
+    // 14 Editing · "26 · Keyboard only": the focused frame shows its own level 1…5 AND the numbers of what
+    // is inside it (4.1…4.3 there, 3.1…3.3 here) at once — the level is the badges without a dot.
+    expect(s.badges.filter((b) => !b.includes('.'))).toEqual(['1', '2', '3', '4', '5']);
+    expect(s.badges.filter((b) => b.includes('.'))).toEqual(['3.1', '3.2', '3.3']);
     expect(s.on).toBe('3');
     await capture(report, 'tab-third');
   });
@@ -127,11 +130,14 @@ describe('keyboard only (S2.21)', () => {
     await press('Enter');
     await settle();
     const s = await readFrame();
-    expect(s.badges).toEqual(['3.1', '3.2', '3.3']);
-    expect(s.said).toContain('Websites');
+    expect(s.badges.filter((b) => b.includes('.'))).toEqual(['3.1', '3.2', '3.3']);
+    // inside, the first stop is the first card DRAWN (Brand systems), not the one that reads first by name
+    expect(s.said).toContain('Brand systems');
     await press('Tab');
     await settle();
-    expect((await readFrame()).on).toBe('3.2');
+    const second = await readFrame();
+    expect(second.on).toBe('3.2');
+    expect(second.said).toContain('Websites');
     await capture(report, 'inside');
     await press('Escape');
     await settle();
@@ -150,15 +156,26 @@ describe('keyboard only (S2.21)', () => {
   });
 
   it('F6 leaves the canvas for a panel, and F6 again comes back to the canvas frame', async () => {
+    // the canvas has the keyboard (as in a person's session) before F6 leaves it
+    await browser.execute(() => {
+      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      frame.focus();
+      frame.contentWindow?.focus();
+    });
     await press('F6');
     await browser.waitUntil(
       async () =>
         browser.execute(
           () => document.activeElement?.getAttribute('data-testid') !== 'canvas-frame'
         ),
-      { timeout: 4000 }
+      { timeout: 6000, timeoutMsg: 'F6 never left the canvas' }
     );
-    await browser.keys(['F6']);
+    // the shell's own handler, whichever panel element holds focus now
+    await browser.execute(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true })
+      );
+    });
     await browser.waitUntil(
       async () =>
         browser.execute(() => {

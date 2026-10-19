@@ -94,29 +94,44 @@ async function click(x: number, y: number, shift = false): Promise<void> {
 
 /** Press on `from`, move to `to` (optionally with ⇧), release — pointer events on the window. */
 async function drag(from: Pt, to: Pt, shift = false): Promise<void> {
-  await browser.execute(
+  const err = await browser.execute(
     (a, b, sh) => {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      const win = frame.contentWindow as Window;
-      const doc = frame.contentDocument as Document;
-      const init = (p: { x: number; y: number }): PointerEventInit => ({
-        bubbles: true,
-        cancelable: true,
-        clientX: p.x,
-        clientY: p.y,
-        pointerId: 1,
-        button: 0,
-        shiftKey: sh,
-      });
-      (doc.elementFromPoint(a.x, a.y) ?? doc.body).dispatchEvent(
-        new PointerEvent('pointerdown', init(a))
-      );
-      win.dispatchEvent(new PointerEvent('pointermove', init(b)));
-      win.dispatchEvent(new PointerEvent('pointerup', init(b)));
+      try {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        const win = frame.contentWindow as Window;
+        const doc = frame.contentDocument as Document;
+        // no named inner function here: tsx's keepNames wraps it in `__name(...)`, which the page does not have
+        const base = { bubbles: true, cancelable: true, pointerId: 1, button: 0, shiftKey: sh };
+        (doc.elementFromPoint(a.x, a.y) ?? doc.body).dispatchEvent(
+          new PointerEvent('pointerdown', { ...base, clientX: a.x, clientY: a.y })
+        );
+        win.dispatchEvent(new PointerEvent('pointermove', { ...base, clientX: b.x, clientY: b.y }));
+        win.dispatchEvent(new PointerEvent('pointerup', { ...base, clientX: b.x, clientY: b.y }));
+        return null;
+      } catch (e) {
+        return String(e);
+      }
     },
     from,
     to,
     shift
+  );
+  if (err) throw new Error(`drag: ${err}`);
+}
+
+/** (Re)select the three objects: Align left's write re-renders the frame and the new DOM selects nothing. */
+async function selectThree(): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      if ((await textIn('edit-align-count')) === '3 objects') return true;
+      for (const [i, t] of ['Titulek', 'Podtitulek', 'ZAPIŠ SE'].entries()) {
+        const p = await rectOf(t);
+        if (p) await click(p.x, p.y, i > 0);
+      }
+      await browser.pause(300);
+      return (await textIn('edit-align-count')) === '3 objects';
+    },
+    { timeout: 15000, timeoutMsg: 'the three objects never came back selected' }
   );
 }
 
@@ -153,14 +168,16 @@ describe('multi-select, align and rotate (S2.7)', () => {
     expect(source()).toMatch(/data-cd-id="mx-sub" style=\{\{[^}]*left: "24px"/);
     // top is never touched by a left align
     expect(source()).toMatch(/data-cd-id="mx-sub" style=\{\{[^}]*top: "100px"/);
-    await browser.waitUntil(async () => (await textIn('edit-align-chip')) !== null, {
+    // the chip is shown for a moment after the align: look for it, don't read it twice
+    await browser.waitUntil(async () => /^X \d+$/.test((await textIn('edit-align-chip')) ?? ''), {
       timeout: 4000,
+      timeoutMsg: 'no "X <n>" chip after Align left',
     });
-    expect(await textIn('edit-align-chip')).toMatch(/^X \d+$/);
     await capture(report, 'guide');
   });
 
   it('Distribute vertically spaces the middle object evenly', async () => {
+    await selectThree();
     const b = await chromeAt('edit-distribute-v');
     await click(b!.x, b!.y);
     // tops 24 / 100 / 180 with heights 40 / 28 / 44: gaps become equal, so Podtitulek leaves 100
@@ -176,6 +193,7 @@ describe('multi-select, align and rotate (S2.7)', () => {
 
   it('the rotate handle turns one object; ⇧ snaps to 15°', async () => {
     const report = startReport('edit-multi-rotate');
+    await browser.waitUntil(async () => (await rectOf('ZAPIŠ SE')) !== null, { timeout: 15000 });
     const p = await rectOf('ZAPIŠ SE');
     await click(p!.x, p!.y);
     await browser.waitUntil(async () => (await chromeAt('edit-rotate-handle')) !== null, {

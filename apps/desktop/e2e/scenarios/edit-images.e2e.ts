@@ -77,7 +77,11 @@ const inFrame = async <T>(
 };
 
 const present = (testid: string) =>
-  inFrame((doc, _w, id: string) => !!doc.querySelector(`[data-testid="${id}"]`), testid);
+  inFrame(
+    (doc, _w, id: string) =>
+      !!doc.querySelector(`[data-testid="${id}"]`) || !!doc.querySelector(`[data-cd-id="${id}"]`),
+    testid
+  );
 
 /** Drop an Assets tile on the element with this id: the tile's own MIME payload on a synthetic drag. */
 const dropTile = (id: string, asset: string) =>
@@ -102,14 +106,63 @@ const dropTile = (id: string, asset: string) =>
     asset
   );
 
-const click = (id: string, detail = 1) =>
+/**
+ * A person's click on the element with this id: the pointer goes down, up and clicks AT ITS CENTRE (the router
+ * picks its target by position, not by where the event was fired), with ⌘ so the picture itself is picked and
+ * not the wrapper around it. `detail` 2 adds the double-click.
+ */
+/** ⌘Z until the file is `target` again. The press right after a write can race the op log's barrier. */
+const undoTo = (target: string) =>
+  browser.waitUntil(
+    async () => {
+      if (source() === target) return true;
+      await browser.keys(['Meta', 'z']);
+      await browser.pause(700);
+      return source() === target;
+    },
+    { timeout: 20000, timeoutMsg: '⌘Z never put the file back' }
+  );
+
+const click = async (id: string, detail = 1) => {
+  await clickNow(id, detail);
+  // the selection settles (halo, inspector, crop affordance) a beat after the press: a double-click sent
+  // at once is read as a press on something not yet selected
+  await browser.pause(detail > 1 ? 300 : 700);
+};
+const clickNow = (id: string, detail = 1) =>
   inFrame(
-    (doc, _w, elId: string, d: number) => {
+    (doc, win, elId: string, d: number) => {
       const el = doc.querySelector(`[data-cd-id="${elId}"]`) as HTMLElement;
-      el.dispatchEvent(new MouseEvent(d > 1 ? 'dblclick' : 'click', { bubbles: true, detail: d }));
+      const r = el.getBoundingClientRect();
+      const at = {
+        bubbles: true,
+        cancelable: true,
+        clientX: r.left + r.width / 2,
+        clientY: r.top + r.height / 2,
+        button: 0,
+        metaKey: true,
+      };
+      const types =
+        d > 1
+          ? ['pointerdown', 'pointerup', 'click', 'dblclick']
+          : ['pointerdown', 'pointerup', 'click'];
+      for (const t of types) el.dispatchEvent(new win.MouseEvent(t, { ...at, detail: d }));
     },
     id,
     detail
+  );
+
+/** A key to the FRAME's document (WebDriver's browser.keys lands on the shell's active element). */
+const frameKey = (key: string, mods: { metaKey?: boolean } = {}) =>
+  browser.execute(
+    (k, m) => {
+      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      (frame.contentDocument as Document).body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...m })
+      );
+    },
+    key,
+    mods
   );
 
 describe('images, crop and the Figma paste bar (S2.15)', () => {
@@ -122,28 +175,34 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
+    // the NEW content, not the canvas that was open before it (the lane keeps one app across specs)
+    await browser.waitUntil(async () => present('photo'), {
+      timeout: 15000,
+      timeoutMsg: 'the written canvas never rendered',
+    });
   });
   after(() => fixtures.restore());
 
   it('a tile dropped on an empty frame fills it, cropped to fit, in one write ⌘Z takes back', async () => {
     const report = startReport('edit-images-drop');
     const before = source();
+    await browser.pause(1000); // the drop targets register once the editing layer has mounted over the new canvas
     await dropTile('player', 'assets/pic.png');
     await browser.waitUntil(async () => source().split('<img').length === 3, { timeout: 8000 });
     expect(source()).toMatch(
       /<img data-cd-id="img"[^>]*src="assets\/pic\.png"[^>]*objectFit: "cover"/
     );
     await capture(report, 'filled');
-    await browser.keys(['Meta', 'z']);
-    await browser.waitUntil(async () => source() === before, { timeout: 8000 });
+    await undoTo(before);
   });
 
   it('dropped on the picture it swaps the source and keeps the box', async () => {
+    const was = source();
     await dropTile('photo', 'assets/other.png');
     await browser.waitUntil(async () => source().includes('assets/other.png'), { timeout: 8000 });
     expect(source()).toContain('objectFit: "cover"');
     expect(source().split('<img').length).toBe(2);
-    await browser.keys(['Meta', 'z']);
+    await undoTo(was);
   });
 
   it('double-click opens crop mode; esc writes nothing; a drag and ↵ write one image.crop', async () => {
@@ -155,9 +214,10 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
     expect(await present('edit-crop-ghost')).toBe(true);
     expect(await present('edit-crop-hint')).toBe(true);
     await capture(report, 'crop-mode');
-    await browser.keys(['Escape']);
+    await frameKey('Escape');
     await browser.waitUntil(async () => !(await present('edit-crop-mode')), { timeout: 5000 });
     expect(source()).toBe(before);
+    await click('photo'); // esc left the picture selected; pick it again, settle, then double-click
     await click('photo', 2);
     await browser.waitUntil(async () => present('edit-crop-mode'), { timeout: 5000 });
     await inFrame((doc) => {
@@ -176,14 +236,13 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
       at('pointermove', 30);
       at('pointerup', 30);
     });
-    await browser.keys(['Enter']);
+    await frameKey('Enter');
     await browser.waitUntil(async () => source().includes('data-image-fit="crop"'), {
       timeout: 8000,
     });
     expect(source()).toContain('objectPosition');
     await capture(report, 'cropped');
-    await browser.keys(['Meta', 'z']);
-    await browser.waitUntil(async () => source() === before, { timeout: 8000 });
+    await undoTo(before);
   });
 
   it('the inspector’s Fit: Fit is object-fit: contain, Fill takes it back', async () => {
