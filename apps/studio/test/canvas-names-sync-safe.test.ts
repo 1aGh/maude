@@ -43,7 +43,7 @@ describe('names stay inside the sync path charset', () => {
     SUGGESTED,
     'a_b-c',
     '-dash',
-    '_under',
+    // '_under' left with sec-a L3: a leading _ is the runtime-state mark (test/sec-a-names.test.ts)
     '2026 social 3',
     'A22B',
     'x'.repeat(60),

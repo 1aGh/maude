@@ -1460,9 +1460,12 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   const strokes = new Set<Promise<unknown>>();
   const lastStroke = new Map<string, string>();
   function proposeStroke(slug: string, text: string, baseText: string | undefined): void {
-    // A room's projection repeats the board the PUT just proposed: the same bytes are one stroke.
-    if (lastStroke.get(slug) === text) return;
-    lastStroke.set(slug, text);
+    // A room's projection repeats the board the PUT just proposed: the same bytes ON THE SAME BASE are
+    // one stroke. sec-a L1: the base is part of the key — the same bytes over a base the last stroke
+    // didn't name (an outside write in between) go on to proposeLanesNow, which keeps its outside row.
+    const key = `${baseText ?? '\u0000none'}\u0000${text}`;
+    if (lastStroke.get(slug) === key) return;
+    lastStroke.set(slug, key);
     const run: Promise<unknown> = readyP
       .then(() =>
         serial(async () => {

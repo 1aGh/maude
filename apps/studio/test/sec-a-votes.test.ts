@@ -220,7 +220,7 @@ describe('C1 — the vote door reads and writes only what is true', () => {
         { tsx: '', annotations: serializeBoard(a) },
         { tsx: '', annotations: serializeBoard(b) },
         { lanes: [annotationsLane] }
-      ).map((c) => c.words);
+      ).changes.map((c) => c.words);
     expect(run([vote], [vote, ballot({ 'ab:a': 2 })])).toEqual(['Ballot cast']);
     const changed = run([vote, ballot({ 'ab:a': 2 })], [vote, ballot({ 'ab:c': 3 })]);
     expect(changed).toEqual(['Ballot changed']);
