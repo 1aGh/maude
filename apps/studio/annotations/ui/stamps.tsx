@@ -202,6 +202,8 @@ export function StampCard({
         background: 'var(--bg-2, #fff)',
         color: 'var(--fg-0, #1f1f1f)',
         boxShadow: '0 8px 24px rgba(0,0,0,.22), inset 0 0 0 .5px rgba(0,0,0,.12)',
+        // S4.V4 stamps-2 - name the face: the card sits in the canvas, where nothing sets one (browser serif).
+        fontFamily: 'var(--font-body, system-ui, -apple-system, sans-serif)',
         fontSize: 13,
         pointerEvents: 'none',
         zIndex: 5,
