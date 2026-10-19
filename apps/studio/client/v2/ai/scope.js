@@ -90,6 +90,14 @@ export function elementsScope(refs, selected = []) {
   };
 }
 
+/**
+ * S2.21 — the scope of an artboard's “Ask AI about this artboard”: that artboard, whole. A plain id or nothing.
+ * @returns {{ kind: 'artboards', ids: string[] } | null}
+ */
+export function artboardScope(id) {
+  return typeof id === 'string' && ID_RE.test(id) ? { kind: 'artboards', ids: [id] } : null;
+}
+
 const labelOf = (id, artboards) => {
   const a = (artboards || []).find((x) => x.id === id);
   return a?.label ?? id;
