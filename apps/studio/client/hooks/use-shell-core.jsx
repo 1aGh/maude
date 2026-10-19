@@ -115,7 +115,7 @@ export function useShellCore({}) {
       setTimeout(() => {
         const cur = selectedRef.current;
         const c1 = Array.isArray(cur) ? cur[0] : cur;
-        if (!c1 || c1.id !== one.id || c1.file !== one.file) return; // superseded
+        if (!c1 || c1.id !== one.id || (c1.file && c1.file !== one.file)) return; // superseded (the canvas's own select-set names no file, S2.23)
         const frame = iframesRef.current.get(one.file);
         if (!frame?.contentWindow) return;
         try {
