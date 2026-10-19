@@ -8352,7 +8352,7 @@
     "hook": "toolbar-popover-<which>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\"), `marker-tips` or `more` (Line · Ellipse · Polygon · Export area).",
+    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\"), `marker-tips` (the Marker's tip, inks and thicknesses; the Highlighter's hues and nibs), `sticky-colours` (aria-label \"Sticky colour\") or `more` (Line · Ellipse · Polygon · Export area). Sticky's and the Marker's open with the tool.",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -8369,6 +8369,45 @@
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-<group>-<colour>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One colour dot in a toolbar popover (`role=\"radio\"`, `aria-checked`, `aria-label` = its name). `<group>`: `sticky` (Yellow · Coral · Green · Sky · Lilac, then White · Grey · Peach · Aqua · Pink), `ink` (Ink · Red · Amber · Green · Blue, then Orange · Purple · Pink · Grey), `highlighter` (Yellow · Green · Pink · Blue). `toolbar-<group>-more` is the \"+5\" / \"+4\" that shows the rest (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "SwatchRow"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-thickness-<size>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Marker thickness in its popover: `thin` (3 px, the default) or `thick` (6 px). `role=\"radio\"`, `aria-checked`.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "MarkerOptions"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-highlighter-width-<size>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Highlighter nib in its popover: `thin` (10 px), `medium` (18 px, the default) or `thick` (28 px). `role=\"radio\"`, `aria-checked`.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "MarkerOptions"
     },
     "region": "canvas iframe chrome",
     "consumers": ["apps/studio/test/tool-palette.test.tsx"],
@@ -9022,17 +9061,11 @@
     "hook": ".dc-annot-chrome / .dc-annot-input / .dc-annot-marquee",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Annotation chrome layer, pointer input layer, and marquee.",
+    "meaning": "Annotation pointer input layer and marquee. (`.dc-annot-chrome`, the dark swatch tray above the toolbar, is retired.)",
     "producer": {
       "file": "apps/studio/annotations-layer.tsx",
-      "symbol": "AnnotationsChrome"
+      "symbol": "AnnotationsInput"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/annotations-layer.tsx",
-        "symbol": "AnnotationsInput"
-      }
-    ],
     "region": "canvas iframe chrome",
     "consumers": [
       ".ai/scenarios/canvas-format-tsx/canvas-annotations-figjam/spec.md",
@@ -9041,7 +9074,8 @@
       "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts",
       "apps/studio/test/e2e/annotations-ui.e2e.mjs"
     ],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "S4.8: `.dc-annot-chrome` is gone. Sticky colours, Marker inks and thicknesses, Highlighter hues and nibs are popovers of their toolbar slot (`toolbar-sticky-<colour>`, `toolbar-ink-<ink>`, `toolbar-thickness-<size>`, `toolbar-highlighter-<colour>`, `toolbar-highlighter-width-<size>`); the draw-time Fill row moved to the small toolbar above a selection."
   },
   {
     "hook": ".dc-annot-el / .dc-annot-text / [data-id] / [data-type] / [data-tool]",
@@ -9193,10 +9227,6 @@
       {
         "file": "apps/studio/annotations-context-toolbar.tsx",
         "symbol": "IconDropdown"
-      },
-      {
-        "file": "apps/studio/annotations-layer.tsx",
-        "symbol": "AnnotationsChrome"
       }
     ],
     "region": "canvas iframe chrome",

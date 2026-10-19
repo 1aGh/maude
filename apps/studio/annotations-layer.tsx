@@ -70,6 +70,12 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { resolveInk } from './annotations/ui/tool-prefs.ts';
+import {
+  eraseTargetIndex,
+  useCanvasChromeTheme,
+  useToolState,
+} from './annotations/ui/tool-state.ts';
 import {
   type AlignEdge,
   alignStrokes,
@@ -100,20 +106,14 @@ import {
   applyDrawModifiers,
   clampLinkTitle,
   DEFAULT_FONT_SIZE,
-  DEFAULT_HIGHLIGHTER_COLOR,
-  DEFAULT_HIGHLIGHTER_WIDTH,
   DEFAULT_SECTION_COLOR,
-  DEFAULT_STICKY_COLOR,
   type DrawMods,
   defaultFillFor,
   type EditorFmt,
   type EllipseStroke,
-  FILL_PALETTE,
   fmtEqual,
   grownStickyBox,
   HALO_PAD_PX,
-  HIGHLIGHTER_PALETTE,
-  HIGHLIGHTER_WIDTHS,
   IMAGE_MAX_DROP_SIDE,
   IMAGE_MIN_SIZE,
   type ImageStroke,
@@ -160,9 +160,6 @@ import {
   STICKY_DEFAULT_H,
   STICKY_DEFAULT_W,
   STICKY_MIN_SIZE,
-  STICKY_PALETTE,
-  STROKE_PALETTE,
-  STROKE_WIDTH_THICK,
   STROKE_WIDTH_THIN,
   type StickyStroke,
   type Stroke,
@@ -177,7 +174,6 @@ import {
   TEXT_LINE_HEIGHT,
   type TextAlign,
   type TextStroke,
-  type Thickness,
   textDecoCss,
   textLineDy,
   translateOne,
@@ -192,7 +188,6 @@ import {
 import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
-import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
 import {
   countRender,
   getLiveViewport,
@@ -268,34 +263,6 @@ type EditingTarget =
   | { kind: 'section'; section: SectionStroke }
   | { kind: 'pending'; x: number; y: number }
   | null;
-
-/**
- * The canvas-shell CHROME theme — `data-maude-theme` on `<html>`, default
- * 'dark'. This (NOT the DS `data-theme`, which is deliberately separate and
- * themes only artboard palettes — canvas-shell.tsx) is what flips the canvas
- * BACKGROUND the annotation ink sits on, so the theme-aware default ink follows
- * it. Re-resolves on `data-maude-theme` mutation (the dark/light toggle posts it
- * into the iframe after mount, so we re-read once on mount too).
- */
-function readChromeTheme(): 'light' | 'dark' {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.dataset.maudeTheme === 'light' ? 'light' : 'dark';
-}
-function useCanvasChromeTheme(): 'light' | 'dark' {
-  const [theme, setTheme] = useState<'light' | 'dark'>(readChromeTheme);
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const sync = () => setTheme(readChromeTheme());
-    sync(); // catch a value stamped between the initializer and this effect
-    const obs = new MutationObserver(sync);
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-maude-theme'],
-    });
-    return () => obs.disconnect();
-  }, []);
-  return theme;
-}
 
 // Phase 24 — moved to canvas-arrowheads.ts (single source for shaft + heads).
 // Re-exported so the existing test import (`from './annotations/annotations-layer.tsx'`)
@@ -504,116 +471,6 @@ function findTextStrokeAt(
 // Styles
 
 const ANNOT_CSS = `
-.dc-annot-chrome {
-  /* Stacks directly above the centered tool toolbar (which is bottom:16px,
-     32px tall → top edge ~ bottom:48px). 8 px gap → chrome at bottom:60px.
-     Phase 21 — dark "marker tray" matching the FigJam selection bar. */
-  position: absolute;
-  left: 50%;
-  bottom: 64px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: #26262b;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 5px 8px;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  color: rgba(255,255,255,0.85);
-  z-index: 6;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.34), 0 2px 6px rgba(0,0,0,0.22);
-  user-select: none;
-}
-.dc-annot-chrome .dc-annot-swatches { display: flex; align-items: center; gap: 1px; }
-.dc-annot-chrome .dc-annot-sw {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
-  cursor: pointer;
-  padding: 0;
-  appearance: none;
-  transition: transform 80ms ease;
-}
-.dc-annot-chrome .dc-annot-sw:hover { transform: scale(1.1); }
-.dc-annot-chrome .dc-annot-sw[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px #26262b, 0 0 0 3px rgba(255,255,255,0.92);
-  border-color: transparent;
-}
-.dc-annot-chrome .dc-annot-sw:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 1px;
-}
-.dc-annot-chrome .dc-annot-sep {
-  width: 1px;
-  height: 16px;
-  align-self: center;
-  background: rgba(255,255,255,0.09);
-  margin: 0 4px;
-}
-.dc-annot-chrome .dc-annot-fill {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
-  cursor: pointer;
-  padding: 0;
-  appearance: none;
-  position: relative;
-  transition: transform 80ms ease;
-}
-.dc-annot-chrome .dc-annot-fill:hover { transform: scale(1.1); }
-.dc-annot-chrome .dc-annot-fill:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 1px;
-}
-.dc-annot-chrome .dc-annot-fill--none {
-  background: #3a3a40;
-}
-.dc-annot-chrome .dc-annot-fill--none::after {
-  content: "";
-  position: absolute; inset: 4px;
-  border-radius: 50%;
-  background:
-    linear-gradient(135deg, transparent 44%, rgba(255,255,255,0.55) 44%, rgba(255,255,255,0.55) 56%, transparent 56%);
-}
-.dc-annot-chrome .dc-annot-fill[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px #26262b, 0 0 0 3px rgba(255,255,255,0.92);
-  border-color: transparent;
-}
-/* Phase 21 — icon buttons (light glyph on dark, white-tint active). */
-.dc-annot-chrome .dc-annot-ibtn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-radius: 7px;
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,0.78);
-  cursor: pointer;
-  padding: 0;
-  transition: background-color 80ms linear, color 80ms linear;
-}
-.dc-annot-chrome .dc-annot-ibtn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #ffffff;
-}
-.dc-annot-chrome .dc-annot-ibtn[aria-pressed="true"] {
-  background: rgba(255,255,255,0.18);
-  color: #ffffff;
-}
-.dc-annot-chrome .dc-annot-ibtn:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: -2px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dc-annot-chrome .dc-annot-ibtn, .dc-annot-chrome .dc-annot-sw, .dc-annot-chrome .dc-annot-fill { transition: none; }
-}
 .dc-annot-input {
   position: absolute;
   inset: 0;
@@ -765,7 +622,7 @@ export function useStrokesStore(): StrokesStoreValue | null {
 // the main tool palette, the in-canvas draw chrome, the minimap, and the
 // right-click menu. Clicks on these route to their own handlers.
 const CHROME_SELECTOR =
-  '.dc-annot-conn-dot, .dc-annot-ctx, .dc-tool-palette, .dc-annot-chrome, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
+  '.dc-annot-conn-dot, .dc-annot-ctx, .dc-tool-palette, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
 
 const HINTS_KEY = 'maude-annot-hints-v1';
 
@@ -987,42 +844,17 @@ export function AnnotationsLayer() {
     [preview, uploading, boardStrokes]
   );
   const [drawing, setDrawing] = useState<Stroke | null>(null);
-  // Theme-aware live default ink (items 3/5/6). Initialized from the current
-  // theme; tracked-untouched until the user picks a swatch, after which it
-  // sticks (colorTouchedRef). The themed-default effect lives below.
-  const [color, setColorState] = useState<string>(() => resolveDefaultInk(theme));
-  const colorTouchedRef = useRef(false);
-  const setColor = useCallback((c: string) => {
-    colorTouchedRef.current = true;
-    setColorState(c);
-  }, []);
-  // While the user hasn't picked an ink swatch yet, follow the theme — so a
-  // dark canvas arms a light-reading default and a light canvas a dark one.
-  useEffect(() => {
-    if (!colorTouchedRef.current) setColorState(resolveDefaultInk(theme));
-  }, [theme]);
-  // Shape default fill (item 2). A freshly-armed Shape tool gets a fill (not
-  // outline-only); the index-paired tint of the active ink. Untouched until the
-  // user picks a fill swatch (incl. "No fill"), after which it sticks.
-  const [fill, setFillState] = useState<string | null>(null);
-  const fillTouchedRef = useRef(false);
-  const setFill = useCallback((f: string | null) => {
-    fillTouchedRef.current = true;
-    setFillState(f);
-  }, []);
-  // While the Shape tool is armed and the fill is untouched, follow the ink
-  // (and theme) so a square/circle/diamond lands with a paired-tint wash. Once
-  // the user picks a fill swatch (or "No fill"), this stops.
-  useEffect(() => {
-    if (tool === 'shape' && !fillTouchedRef.current) setFillState(defaultFillFor(color, theme));
-  }, [tool, color, theme]);
-  const [thickness, setThickness] = useState<Thickness>(STROKE_WIDTH_THIN);
-  // Phase 21 — draw-time paper tint for the sticky tool (recolor-after via the
-  // context toolbar). Separate from `color` (ink for pen/rect/text/arrow).
-  const [stickyColor, setStickyColor] = useState<string>(DEFAULT_STICKY_COLOR);
-  // Annotation polish (item 8) — draw-time highlighter marker hue + nib width.
-  const [highlighterColor, setHighlighterColor] = useState<string>(DEFAULT_HIGHLIGHTER_COLOR);
-  const [highlighterWidth, setHighlighterWidth] = useState<number>(DEFAULT_HIGHLIGHTER_WIDTH);
+  // S4.8 — colour, ink, thickness, Marker tip and the Highlighter's hue / nib are the tool state
+  // (annotations/ui/tool-state.ts): the toolbar's popovers set them, and they are the person's own,
+  // remembered across reloads. The default ink (the palette's black) renders themed so it reads on
+  // a dark canvas; every other ink is the hex picked.
+  const toolSnap = useToolState();
+  const { thickness, stickyColor, highlighterColor, highlighterWidth } = toolSnap;
+  const color = resolveInk(toolSnap.ink, resolveDefaultInk(theme));
+  // Shape default fill (item 2). A freshly-armed Shape gets a fill (not outline-only): the
+  // index-paired tint of the active ink. Fill and stroke are picked apart afterwards, on the small
+  // toolbar above the selection (annotations-context-toolbar.tsx) — the draw-time tray is retired.
+  const fill: string | null = tool === 'shape' ? defaultFillFor(color, theme) : null;
   // Phase 21 — a standalone-text caret waiting for its first keystroke. No
   // stroke exists yet (mirrors anchored text: the stroke is born on commit,
   // so an abandoned empty caret leaves nothing behind / no undo record).
@@ -1177,7 +1009,7 @@ export function AnnotationsLayer() {
   const isErase = tool === 'eraser';
   const isActive = isDraw || isErase;
   // T20 / Phase 24 — every shape primitive carries stroke weight (FigJam ships
-  // thickness on all of them). The annotation toolbar reads supportsThickness
+  // thickness on all of them). The Marker popover owns the thickness; supportsThickness
   // to decide whether to render the Thin / Thick chips.
   const supportsThickness = tool === 'pen' || tool === 'arrow' || tool === 'shape';
   const supportsFill = tool === 'shape';
@@ -1995,18 +1827,15 @@ export function AnnotationsLayer() {
       const tol = 8 / zoom;
       const prev = strokesRef.current;
       const locked = lockedStrokeIds(prev); // #137 — the eraser passes over a locked element
-      for (let i = prev.length - 1; i >= 0; i--) {
-        const candidate = prev[i];
-        if (candidate && !locked.has(candidate.id) && strokeHitTest(candidate, wx, wy, tol)) {
-          const removedId = candidate.id;
-          const next = prev
-            .slice(0, i)
-            .concat(prev.slice(i + 1))
-            .filter((s) => !(s.tool === 'text' && s.anchorId === removedId));
-          commitStrokes(prev, next, 'erase 1 stroke');
-          return;
-        }
-      }
+      // S4.8 — it rubs out Marker strokes only: never a sticky, a shape, a section or text.
+      const i = eraseTargetIndex(prev, locked, wx, wy, tol);
+      if (i < 0) return;
+      const removedId = (prev[i] as Stroke).id;
+      const next = prev
+        .slice(0, i)
+        .concat(prev.slice(i + 1))
+        .filter((s) => !(s.tool === 'text' && s.anchorId === removedId));
+      commitStrokes(prev, next, 'erase 1 stroke');
     },
     [vp, commitStrokes]
   );
@@ -2682,7 +2511,7 @@ export function AnnotationsLayer() {
           canvasEl &&
           (!focused ||
             !canvasEl.contains(focused) ||
-            focused.closest?.('.dc-annot-ctx, .dc-context-menu, .dc-annot-chrome'))
+            focused.closest?.('.dc-annot-ctx, .dc-context-menu, .dc-tool-palette'))
         ) {
           canvasEl.focus({ preventScroll: true });
         }
@@ -4151,26 +3980,6 @@ export function AnnotationsLayer() {
           />
         ) : null}
         {visible && tool === 'move' ? <AnnotationResizeOverlay store={strokesStore} /> : null}
-        {isActive ? (
-          <AnnotationsChrome
-            tool={tool}
-            theme={theme}
-            color={color}
-            setColor={setColor}
-            stickyColor={stickyColor}
-            setStickyColor={setStickyColor}
-            highlighterColor={highlighterColor}
-            setHighlighterColor={setHighlighterColor}
-            highlighterWidth={highlighterWidth}
-            setHighlighterWidth={setHighlighterWidth}
-            supportsFill={supportsFill}
-            fill={fill}
-            setFill={setFill}
-            supportsThickness={supportsThickness}
-            thickness={thickness}
-            setThickness={setThickness}
-          />
-        ) : null}
       </StrokesStoreContext.Provider>
     </AnnotationPipelineContext.Provider>
   );
@@ -5186,197 +4995,4 @@ function renderArrowPrimitive(p: SvgPrimitive, key: number): JSX.Element {
     case 'circle':
       return <circle key={key} cx={p.cx} cy={p.cy} r={p.r} fill={p.fill} />;
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Chrome — color swatches + (optional fill picker) + (optional thickness chip)
-// + presentation toggle + help button.
-
-function AnnotationsChrome({
-  tool,
-  theme,
-  color,
-  setColor,
-  stickyColor,
-  setStickyColor,
-  highlighterColor,
-  setHighlighterColor,
-  highlighterWidth,
-  setHighlighterWidth,
-  supportsFill,
-  fill,
-  setFill,
-  supportsThickness,
-  thickness,
-  setThickness,
-}: {
-  tool: Tool;
-  /** Canvas theme — the ink swatch (slot 8) renders the themed default so the
-   *  active default reads true on dark canvases. */
-  theme: string;
-  color: string;
-  setColor: (c: string) => void;
-  stickyColor: string;
-  setStickyColor: (c: string) => void;
-  highlighterColor: string;
-  setHighlighterColor: (c: string) => void;
-  highlighterWidth: number;
-  setHighlighterWidth: (w: number) => void;
-  supportsFill: boolean;
-  fill: string | null;
-  setFill: (f: string | null) => void;
-  supportsThickness: boolean;
-  thickness: Thickness;
-  setThickness: (t: Thickness) => void;
-}) {
-  // Sticky tool picks a paper tint (its own palette); every other draw tool
-  // picks ink from the stroke PALETTE.
-  if (tool === 'sticky') {
-    return (
-      <div className="dc-annot-chrome" role="toolbar" aria-label="Sticky note tools">
-        <div className="dc-annot-swatches" role="radiogroup" aria-label="Sticky color">
-          {STICKY_PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="dc-annot-sw"
-              aria-pressed={c === stickyColor}
-              aria-label={`Sticky color ${c}`}
-              title={`Sticky color ${c}`}
-              style={{ background: c }}
-              onClick={() => setStickyColor(c)}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-  // Highlighter picks a translucent marker hue (item 8) — its own palette,
-  // mirroring sticky. Each swatch previews on a dark chip via its alpha.
-  if (tool === 'highlighter') {
-    return (
-      <div className="dc-annot-chrome" role="toolbar" aria-label="Highlighter tools">
-        <div className="dc-annot-swatches" role="radiogroup" aria-label="Highlighter color">
-          {HIGHLIGHTER_PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="dc-annot-sw"
-              aria-pressed={c === highlighterColor}
-              aria-label={`Highlighter color ${c}`}
-              title={`Highlighter color ${c}`}
-              style={{ background: c }}
-              onClick={() => setHighlighterColor(c)}
-            />
-          ))}
-        </div>
-        <div className="dc-annot-sep" />
-        {/* Nib width — three filled dots of increasing size (item 8). */}
-        <div className="dc-annot-swatches" role="radiogroup" aria-label="Highlighter width">
-          {HIGHLIGHTER_WIDTHS.map((w) => {
-            const dot = Math.round(6 + (w / 28) * 8); // 8–14 px preview dot
-            return (
-              <button
-                key={w}
-                type="button"
-                className="dc-annot-ibtn"
-                aria-pressed={w === highlighterWidth}
-                aria-label={`Highlighter width ${w}`}
-                title={`Width ${w}px`}
-                onClick={() => setHighlighterWidth(w)}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: dot,
-                    height: dot,
-                    borderRadius: '50%',
-                    background: 'currentColor',
-                    display: 'inline-block',
-                  }}
-                />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="dc-annot-chrome" role="toolbar" aria-label="Annotation tools">
-      <div className="dc-annot-swatches" role="radiogroup" aria-label="Stroke color">
-        {STROKE_PALETTE.map((base, i) => {
-          // The last slot is the default ink — render it themed so the active
-          // default reads true on dark canvases (white-ish ink) without
-          // touching the other hues. Key by the immutable base hex so a theme
-          // flip recolours the swatch in place rather than remounting.
-          const c = i === STROKE_PALETTE.length - 1 ? resolveDefaultInk(theme) : base;
-          return (
-            <button
-              key={base}
-              type="button"
-              className="dc-annot-sw"
-              aria-pressed={c === color}
-              aria-label={`Color ${c}`}
-              title={`Color ${c}`}
-              style={{ background: c }}
-              onClick={() => setColor(c)}
-            />
-          );
-        })}
-      </div>
-      {supportsFill ? (
-        <>
-          <div className="dc-annot-sep" />
-          <div className="dc-annot-swatches" role="radiogroup" aria-label="Fill color">
-            <button
-              type="button"
-              className="dc-annot-fill dc-annot-fill--none"
-              aria-pressed={fill == null}
-              aria-label="No fill"
-              title="No fill"
-              onClick={() => setFill(null)}
-            />
-            {FILL_PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className="dc-annot-fill"
-                aria-pressed={c === fill}
-                aria-label={`Fill ${c}`}
-                title={`Fill ${c}`}
-                style={{ background: c }}
-                onClick={() => setFill(c)}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-      {supportsThickness ? (
-        <>
-          <div className="dc-annot-sep" />
-          <button
-            type="button"
-            className="dc-annot-ibtn"
-            aria-label="Thin stroke"
-            aria-pressed={thickness === STROKE_WIDTH_THIN}
-            title="Thin (3px)"
-            onClick={() => setThickness(STROKE_WIDTH_THIN)}
-          >
-            <IconLineThin />
-          </button>
-          <button
-            type="button"
-            className="dc-annot-ibtn"
-            aria-label="Thick stroke"
-            aria-pressed={thickness === STROKE_WIDTH_THICK}
-            title="Thick (6px)"
-            onClick={() => setThickness(STROKE_WIDTH_THICK)}
-          >
-            <IconLineThick />
-          </button>
-        </>
-      ) : null}
-    </div>
-  );
 }

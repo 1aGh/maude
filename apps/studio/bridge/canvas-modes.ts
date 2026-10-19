@@ -139,8 +139,8 @@ export function roleOfCaps(caps: Readonly<ModeCaps>): Role {
   return caps.comment ? 'comment' : 'view';
 }
 
-/** In-iframe popovers (pure tool options). `sticky-colours` is served by the annotation tray that
- *  already stacks above the toolbar (`AnnotationsChrome` owns the colour state). */
+/** In-iframe popovers (pure tool options). `sticky-colours` and `marker-tips` (tip · inks · thicknesses)
+ *  hold the person's draw-time choices (annotations/ui/tool-state.ts; the swatch tray is retired, S4.8). */
 export type SlotPopover = 'shape-kinds' | 'sticky-colours' | 'marker-tips' | 'more';
 /** Shell-rendered panels a slot opens (V2-4.5b: `tool-panel-open`). */
 export type SlotPanel = 'stickers' | 'components' | 'templates' | 'assets';

@@ -37,6 +37,15 @@ import { clampInsets, type Insets } from './occlusion.ts';
 export const DGN_V = 2;
 type Id = string;
 type Rect = { x: number; y: number; w: number; h: number };
+/** S4.8 — what the annotation tools remember per person (annotations/ui/tool-prefs.ts is the palette gate). */
+export type AnnotationPrefsPayload = {
+  stickyColor?: string;
+  ink?: string;
+  thickness?: 3 | 6;
+  tip?: 'pen' | 'highlighter' | 'eraser';
+  highlighterColor?: string;
+  highlighterWidth?: number;
+};
 /** S2.19 — what the prompt may say of a selected element: locators only, never its markup (DDR-054). */
 export type AskLocator = {
   id?: string;
@@ -279,6 +288,10 @@ export interface CanvasToShell {
     /** S4.3: the id of the sticker being replaced (Replace… on a selected sticker opens the gallery in replace mode) */
     replace?: Id;
   };
+  // S4.8 — a change to what the annotation tools remember per person (sticky colour, Marker ink / thickness /
+  // tip, Highlighter hue / nib): the shell writes prefs.json and tells every canvas (`annotation-prefs`).
+  // Only fields that are members of their palette survive `parse` + the receivers' sanitiser.
+  'annotation-prefs-set': { prefs: AnnotationPrefsPayload };
   'viewport-zoom': { zoom: number };
   // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
   'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
@@ -497,6 +510,9 @@ export interface ShellToCanvas {
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S4.8 (Q8) — the person's annotation-tool memory, seeded on `loaded` / `canvas-rendered` and re-sent on
+  // each change made in another canvas. State, not an event.
+  'annotation-prefs': { prefs: AnnotationPrefsPayload };
   // S2.18 (V2-1.15 §5.12) — what the canvas can't see for this person's `holding`: an inspector field has
   // focus (`field`), the app has focus (`app`), an inspector edit just landed (`gesture`). State, sent on
   // every change to the active canvas.
@@ -687,6 +703,17 @@ const intIn =
 /** The `data-cd-id` grammar the writers accept (api.ts CD_ID_RE): word characters and dashes, 1–64. */
 const cdId: V = (v) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : BAD);
 const rect = shape({ x: num, y: num, w: num, h: num });
+/** A palette colour as the tools store it: `#rrggbb` or `#rrggbbaa` (the receivers check palette membership). */
+const hexColour: V = (v) =>
+  typeof v === 'string' && /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(v) ? v : BAD;
+const annotationPrefs = shape({
+  stickyColor: opt(hexColour),
+  ink: opt(hexColour),
+  thickness: opt(lit(3, 6)),
+  tip: opt(lit('pen', 'highlighter', 'eraser')),
+  highlighterColor: opt(hexColour),
+  highlighterWidth: opt(intIn(1, 64)),
+});
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
@@ -1299,6 +1326,12 @@ const c2s: C2S = {
   },
   // S3.2b — Present: the canvas posts its zoom for the pill (present/present-zoom.ts). S3.9 — canvas-lib's
   // ViewportZoomReporter posts it too; the shell's ZoomOnly readout (Preview) listens.
+  'annotation-prefs-set': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/tool-state (S4.8); shell v2/shell/use-annotation-prefs (S4.8)',
+    parse: p({ prefs: annotationPrefs }),
+  },
   'viewport-zoom': {
     gate: 'active',
     status: 'live',
@@ -1809,6 +1842,12 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
+  },
+  'annotation-prefs': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'annotations/ui/tool-state (S4.8)',
+    parse: p({ prefs: annotationPrefs }),
   },
   'hold-intent': {
     gate: 'parent',
