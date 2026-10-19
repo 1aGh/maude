@@ -41,7 +41,9 @@ import {
 } from './canvas-url.js';
 import { applyEditRequest } from './apply-edit-request.ts';
 import { createIndexLoader } from './index-loader.ts';
-import { applyUiOpen } from './ui-open.js';
+import { applyUiOpen, OPEN_LADDER_MS } from './ui-open.js';
+import { dsGoToPlan, dsGoToPosts } from './v2/ds/go-to.js';
+import { DsReviewHost } from './v2/ds/review-host.jsx';
 import {
   BROWSER_CAPTURE_FORMATS,
   BROWSER_SERVABLE_FORMATS,
@@ -1760,6 +1762,20 @@ function ShellProjectPill() {
         mode,
         cfg?.canvasOrigin || window.location.origin
       ),
+    // S10.8 — `ds.go-to`: open the Design system canvas, focus its artboard, select the token / master. The
+    // canvas mounts its listener late, so the messages ride the `ui-open` ladder — only while it is still the
+    // canvas on screen.
+    onDsGoTo: (params) => {
+      const plan = dsGoToPlan(params, cfg, activePath);
+      if (!plan) return shellToast('There is no design system to go to.');
+      openTab(plan.file);
+      const posts = dsGoToPosts(plan);
+      for (const ms of OPEN_LADDER_MS)
+        setTimeout(() => {
+          if (live.current.activePath !== plan.file) return;
+          for (const m of posts) live.current.postToActiveCanvas(m);
+        }, ms);
+    },
     // V2-4.8a: a cloud tab's "Back to Home" — the v1 menubar's "← Dashboard" link, same tab.
     onOpenDashboard: () => {
       const url = cfg?.cloud?.dashboardUrl;
@@ -3050,6 +3066,14 @@ function ShellTree() {
           <ShellInspectPanel />
           {/* S1.14 — "Viewing “…” · 5 Oct, 18:40 · Jonas · esc back to now" while the mode store holds a past version. */}
           <ViewBarHost activePath={activePath} />
+          {/* S10.8 — "Update N canvases" (the design-system review) and the Canvases rows' update word. */}
+          <DsReviewHost
+            cfg={cfg}
+            activePath={activePath}
+            toast={shellToast}
+            scope={project}
+            frameFor={() => (activePath ? iframesRef.current.get(activePath) : null)}
+          />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
           <EmptyHost />
           {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}

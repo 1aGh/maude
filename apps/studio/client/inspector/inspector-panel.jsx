@@ -75,6 +75,8 @@ export function InspectorPanel({
   onToggleHide,
   // feature-4 detach-component — clone-definition detach for a shared instance.
   onDetachInstance,
+  // S10.8 — the shell runs a registry action for the Inspector (`ds.review-update`, `ds.go-to`)
+  onShellAction,
   canvasFile,
   onSelectLayer,
   onHoverLayer,
@@ -756,6 +758,7 @@ export function InspectorPanel({
             // S11.8 — › Advanced › Used in: "Shared · 4 places" + Detach
             editScope={editScope}
             onDetachInstance={onDetachInstance}
+            onShellAction={onShellAction}
             // S2.1 — a crumb selects that level (ref null = the artboard) through the Layers path
             onSelectCrumb={(ref) =>
               onSelectLayer?.({ id: ref?.element, index: ref?.occurrence ?? 0 })
