@@ -87,7 +87,8 @@ describe('placeBeside — beside the original even when a neighbour is on the ri
       copyId: 'P-copy-abc123',
       label: 'Post 1:1 · copy',
     });
-    const placed = (next?.layout as { artboards: Array<{ id: string; x: number; y: number }> })
+    if (!next) throw new Error('no sidecar change');
+    const placed = (next.layout as { artboards: Array<{ id: string; x: number; y: number }> })
       .artboards;
     expect(placed.find((e) => e.id === 'P-copy-abc123')).toMatchObject({ x: 340, y: 0 });
     expect(placed.find((e) => e.id === 'S')).toMatchObject({ x: 680, y: 0 });
@@ -95,9 +96,9 @@ describe('placeBeside — beside the original even when a neighbour is on the ri
     for (const a of rs)
       for (const b of rs)
         if (a.id < b.id)
-          expect(
-            a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y
-          ).toBe(true);
+          expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y).toBe(
+            true
+          );
   });
 });
 

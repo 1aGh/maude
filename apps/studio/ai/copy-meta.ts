@@ -121,9 +121,9 @@ export function placeBeside(
   const box = { ...me, ...at };
   if (!others.some((o) => overlaps(box, o, 8))) return { at, shifts: [] };
   const dx = me.w + gap;
-  const band = { ...me, x: orig.x, y: orig.y };
   const movers = others.filter(
-    (o) => o.id !== orig.id && o.x >= orig.x + orig.w - 1 && overlaps(o, band)
+    (o) =>
+      o.id !== orig.id && o.x >= orig.x + orig.w - 1 && o.y < orig.y + me.h && orig.y < o.y + o.h
   );
   const moved = new Map(movers.map((o) => [o.id, { ...o, x: o.x + dx }]));
   const after = others.map((o) => moved.get(o.id) ?? o);
