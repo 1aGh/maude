@@ -919,6 +919,29 @@ function scopeCss(css, value, opts = {}) {
         presentAt = at;
         releaseHeldUpdate();
       }
+      // meta-echo:begin
+      // S4.19 — is this meta event the echo of OUR OWN layout PATCH? Only inside the 2 s window, and only when
+      // the file still says what canvas-lib mirrored into `window.__canvas_meta__` when it wrote (same ids,
+      // same x/y). An undo, a peer's drag or an agent's edit lands in the window too and must apply.
+      function metaIsOwnEcho(sinceSelfMs, fresh, mirror) {
+        if (!(sinceSelfMs >= 0 && sinceSelfMs < 2000)) return false;
+        var pick = function (m) {
+          var a = m && m.layout && Array.isArray(m.layout.artboards) ? m.layout.artboards : [];
+          var out = {};
+          for (var i = 0; i < a.length; i++) if (a[i] && typeof a[i].id === 'string') out[a[i].id] = a[i];
+          return out;
+        };
+        var f = pick(fresh), m = pick(mirror);
+        var fk = Object.keys(f), mk = Object.keys(m);
+        if (fk.length !== mk.length) return false;
+        for (var k = 0; k < fk.length; k++) {
+          var x = f[fk[k]], y = m[fk[k]];
+          if (!y || Math.abs(x.x - y.x) >= 0.5 || Math.abs(x.y - y.y) >= 0.5) return false;
+        }
+        return true;
+      }
+      // meta-echo:end
+
       function routeModuleUpdate(msg) {
         if (!(msg.mode === 'hard' || !msg.file || (canvasRel && msg.file === canvasRel))) return;
         if (presentHolding) {
@@ -1065,9 +1088,12 @@ function scopeCss(css, value, opts = {}) {
               const metaBase = msg.file.replace(/\.meta\.json$/i, '');
               const myBase = canvasRel.replace(/\.(tsx|html)$/i, '');
               if (metaBase !== myBase) return;
-              // Echo guard — when WE just PATCHed the meta, skip the round-trip.
-              const lastSelf = (window).__maude_last_meta_self_write_at || 0;
-              if (Date.now() - lastSelf < 2000) return;
+              // Echo guard — when WE just PATCHed the meta, skip the round-trip. S4.19 (an-follow): the
+              // window alone swallowed a foreign write too — a ⌘Z within 2 s of a drag restored the file
+              // and the live artboard stayed at the drop spot. So inside the window the fresh file is
+              // still read and compared with the layout canvas-lib mirrored into the snapshot when it
+              // wrote; only a file that says what we wrote is an echo.
+              var sinceSelf = Date.now() - ((window).__maude_last_meta_self_write_at || 0);
               // Re-fetch + broadcast to the canvas via window event. canvas-lib
               // listens for `maude:meta-refreshed` and re-applies layout +
               // viewport in-place (no full reload — preserves tool / undo state).
@@ -1078,6 +1104,7 @@ function scopeCss(css, value, opts = {}) {
                 .then((r) => (r.ok ? r.json() : null))
                 .then((j) => {
                   if (!j || typeof j !== 'object') return;
+                  if (metaIsOwnEcho(sinceSelf, j, window.__canvas_meta__)) return;
                   window.__canvas_meta__ = j;
                   document.dispatchEvent(new CustomEvent('maude:meta-refreshed', { detail: j }));
                 })

@@ -11,8 +11,13 @@ import {
   filterTranscriptParts,
   transcriptForcesExpand,
 } from '../../panels/transcript-view.js';
+import { stripOffer } from './ai-offer.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
+import { OfferSlot } from './OfferCard.jsx';
+import { dayDividerFor } from './run-model.js';
+import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
+import { failureModel } from './needs-you.js';
 
 // ── message-part renderers ──
 // Assistant text: markdown, plus a thumbnail strip for any designRoot image
@@ -276,7 +281,35 @@ function UserBubble({ text }) {
   );
 }
 
+/** S5.19 G4 (03 `ai-long`): "Yesterday, 18:20" above the first ask of a new day. Silent when no time is known. */
+function DayDivider() {
+  const id = useMessage((m) => m.id);
+  // a string selector: re-rendered only when the asks or their times change
+  const key = useThread((t) =>
+    JSON.stringify(
+      t.messages
+        .filter((m) => m.role === 'user')
+        .map((m) => [m.id, m.createdAt instanceof Date ? m.createdAt.getTime() : null])
+    )
+  );
+  const text = useMemo(() => dayDividerFor(JSON.parse(key), id), [key, id]);
+  return text ? (
+    <p className="ai-day-rule" data-testid="ai-day-divider">
+      {text}
+    </p>
+  ) : null;
+}
+
 export function UserMessage() {
+  return (
+    <>
+      <DayDivider />
+      <UserMessageBody />
+    </>
+  );
+}
+
+function UserMessageBody() {
   return (
     <div className="chat-msg chat-msg--user">
       <MessagePrimitive.Parts components={{ Text: UserBubble }} />
@@ -323,7 +356,7 @@ export function AssistantMessage() {
             verbose={forceExpand}
           />
         ) : g.part?.type === 'text' ? (
-          <ChatText key={`t-${i}`} text={g.part.text} />
+          <ChatText key={`t-${i}`} text={stripOffer(g.part.text)} />
         ) : g.part?.type === 'reasoning' ? (
           <ChatReasoning key={`r-${i}`} text={g.part.text} />
         ) : g.part?.type === 'tool-call' ? (
@@ -337,6 +370,8 @@ export function AssistantMessage() {
           />
         ) : null
       )}
+      {/* S4.15 (15 `an-ai-read`): the AI's offer to change what the stickies ask for — one button. */}
+      <OfferSlot parts={rawParts} status={status} />
       {/* S5.8 (03 `ai-question`): an answer that touched nothing says so. Off for a running turn and for any
           tool that can write — see answer-note.js. */}
       {canvasUnchanged(rawParts, status === 'complete') && !alreadySaysUnchanged(rawParts) ? (
@@ -369,20 +404,12 @@ export function AssistantMessage() {
 // running — so background subagents that outlive the main turn (the ACP adapter
 // settles at the main agent's `result` while they drain, claude-agent-acp #773)
 // keep the panel from looking idle. See RCA issue-acp-subagent-activity-invisible.
-export function StatusRow({ tools = [] }) {
-  const running = useThread((t) => t.isRunning);
-  const working = running || tools.length > 0;
-  return (
-    <div className="chat-statusrow">
-      <span
-        className={`chat-status-dot ${working ? 'chat-status-dot--working' : 'chat-status-dot--ready'}`}
-      />
-      {working ? 'Working…' : 'Ready'}
-      <span className="chat-statusrow-sep">·</span>
-      <span className="chat-statusrow-cc">Claude Code</span>
-      {/* S5.12 — the transcript view select ("Show in chat") moved to the panel's Advanced fold. */}
-    </div>
-  );
+export function StatusRow() {
+  // gate-a-polish (03 draws no such row): the v1 "Ready · Claude Code" line named Claude in the panel and kept a green dot
+  // on a failed run. The working state is the run surface's WorkingLine + the composer's Stop (RunSurface.jsx,
+  // Composer.jsx) and the canvas ring; nothing else shows "ready", so nothing is lost. Kept as an export so an
+  // importer does not break; it draws nothing.
+  return null;
 }
 
 // Live m:ss since work started — a ticking counter reads as "actively working"
@@ -478,37 +505,56 @@ export function ContinuationBubble({ parts: rawParts, viewMode }) {
 // disambiguate by magnitude (a seconds-epoch never reaches 10^11 until the
 // year 2286) rather than guessing wrong silently.
 
-// Connection-problem error card (Task C3) — a transient bridge/socket failure
-// mid-turn, distinct from the hard NotConnected state (claude not installed/
-// signed in): that one gates the WHOLE panel before any chat exists; this one
-// is per-chat and recoverable with a retry. Rendered below the feed, like
-// ActivityBar/ContinuationBubble — chrome, not a per-message assistant-ui error.
-export function ErrorCard({ error, onRetry }) {
-  const [expanded, setExpanded] = useState(false);
-  if (!error) return null;
+// The failure card (03 `ai-choice-fail`, right; S5.17b G7) — a transient bridge/socket failure, recoverable
+// with a retry, distinct from the hard NotConnected state (claude not installed/signed in). It says what
+// happened, what is safe and the ONE verb that fixes it (CONTRACT §4); the raw message sits under › Advanced.
+// `changed` is whether the chat's run touched anything (run-model `changedSomething`): "Nothing changed" is
+// said only when it is false. Rendered below the feed — chrome, not a per-message assistant-ui error.
+export function ErrorCard({ error, onRetry, changed = null }) {
+  const [open, setOpen] = useState(false);
+  const failure = failureModel(error, { changed });
+  if (!failure) return null;
   return (
-    <div className="chat-error-card" role="alert" data-testid="chat-error-card">
-      <div className="chat-error-hd">
-        <span className="chat-error-ic" aria-hidden="true">
-          ⚠
+    <div className="ai-nc ai-nc-prob" role="alert" data-testid="chat-error-card">
+      <p className="ai-nc-t">
+        <span className="ai-nc-ic ai-nc-ic--prob" aria-hidden="true">
+          <StIcon name="problem" size={14} />
         </span>
-        <b>Connection problem</b>
-      </div>
-      {expanded ? (
-        <p className="chat-error-detail">{error.message}</p>
-      ) : (
-        <p className="chat-error-detail chat-error-detail--muted">
-          Something interrupted the connection to Claude.
-        </p>
-      )}
-      <div className="chat-error-actions">
-        <button type="button" className="btn btn--sm" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? 'Hide details' : 'View details'}
+        <span className="ai-nc-tt" data-testid="chat-error-title">
+          {failure.title}
+        </span>
+      </p>
+      {failure.raw ? (
+        <>
+          <button
+            type="button"
+            className="ai-nc-adv"
+            aria-expanded={open}
+            data-testid="chat-error-advanced"
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span className="ai-nc-adv-ch" aria-hidden="true">
+              <StIcon name="chevron-right" size={12} />
+            </span>
+            Advanced
+          </button>
+          {open ? (
+            <p className="ai-nc-d ai-nc-raw" data-testid="chat-error-raw">
+              {failure.raw}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      <span className="ai-nc-a">
+        <button
+          type="button"
+          className="btn btn--sm btn--primary"
+          data-testid="chat-error-retry"
+          onClick={onRetry}
+        >
+          {failure.verb}
         </button>
-        <button type="button" className="btn btn--primary btn--sm" onClick={onRetry}>
-          Try again
-        </button>
-      </div>
+      </span>
     </div>
   );
 }

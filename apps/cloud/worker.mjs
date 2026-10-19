@@ -47,6 +47,7 @@ import { handleHandoff } from './handoff.mjs';
 import { handleHomeApi } from './home-api.mjs';
 import { handleInviteRoutes } from './invites.mjs';
 import { handleLinkRoutes, sweepExpiredLinks } from './links.mjs';
+import { handleMentionRoutes } from './mentions.mjs';
 import { applySchema } from './migrate.mjs';
 import { statsDatapoints } from './operator.mjs';
 import { handleOperatorRoutes } from './operator-routes.mjs';
@@ -283,6 +284,11 @@ export default {
         props: { route: normalizeRoute(url.pathname) },
       });
     }
+
+    // Mention e-mails (Maude v2 S9.18): the cell's `/internal/mentions`
+    // forward, the per-account switch, and the unsubscribe link.
+    const mentionSurface = await handleMentionRoutes(request, env, { account });
+    if (mentionSurface) return mentionSurface;
 
     // Identity surface (pages, signup/login, Google, grant mint) — Phase 13.
     const auth = await handleAuth(request, env, { ctx, account });

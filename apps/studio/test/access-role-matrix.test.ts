@@ -144,6 +144,25 @@ const ROWS: Row[] = [
     viewer: 'refused',
     editor: true,
   },
+  // S4.16 - Can comment: the op batches and the whole-board write above, the sticky <-> comment doors and the
+  // FigJam import all answer 403 (hidden is not refused). The refusal comes before the body is read.
+  {
+    family: 'annotations (S4.16)',
+    method: 'POST',
+    path: '/_api/annotations/figjam',
+    body: {
+      file: '.design/ui/fixture.html',
+      url: 'https://www.figma.com/board/Em6NOwaOFTYV7NlQT4NK8l/x',
+    },
+    viewer: 'refused',
+  },
+  {
+    family: 'annotations (S4.16)',
+    method: 'POST',
+    path: '/_api/annotations/to-comment',
+    body: { file: '.design/ui/fixture.html', id: 'st-1' },
+    viewer: 'refused',
+  },
   // ── assets ──
   { family: 'assets', method: 'POST', path: '/_api/asset', viewer: 'refused', editor: true },
   {

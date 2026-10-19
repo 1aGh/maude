@@ -383,6 +383,37 @@ describe('canvas-list-watch / API-announced changes move the baseline', () => {
     }
   });
 
+  // S1.23c (verifier pass 2, G1): the API renames the file, then moves the sidecars, and only then says
+  // `moved`. A snapshot in between used to announce `removed` for the old path (the client closed the open
+  // tab — a blank page) and `added` for the new one. The API now says `canvas-move-begin` first.
+  test('a snapshot between the rename and `moved` announces neither removed nor added', async () => {
+    const { root, designRoot } = sandbox();
+    writeFileSync(join(designRoot, 'ui', 'Smoke.tsx'), TSX);
+    const ctx = mkCtx(designRoot);
+    const w = createCanvasListWatch(ctx, { debounceMs: 10 });
+    await w.ready;
+    const got = collect(ctx);
+    try {
+      ctx.bus.emit('canvas-move-begin', { rel: 'ui/Renamed.tsx', fromRel: 'ui/Smoke.tsx' });
+      renameSync(join(designRoot, 'ui', 'Smoke.tsx'), join(designRoot, 'ui', 'Renamed.tsx'));
+      await w.refresh(); // the debounce ran out while the sidecars were still moving
+      expect(got).toEqual([]);
+      const moved = {
+        action: 'moved',
+        rel: 'ui/Renamed.tsx',
+        slug: 'ui-renamed',
+        fromRel: 'ui/Smoke.tsx',
+        fromSlug: 'ui-smoke',
+      };
+      ctx.bus.emit('canvas-list-update', moved);
+      await w.refresh();
+      expect(got).toEqual([moved]);
+    } finally {
+      w.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('a canvas the API announced as added, deleted outside before the watcher looks, emits removed', async () => {
     const { root, designRoot } = sandbox();
     const ctx = mkCtx(designRoot);

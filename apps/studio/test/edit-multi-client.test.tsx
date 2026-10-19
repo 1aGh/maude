@@ -10,7 +10,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import type { EditOpResult } from '../edit-ops/types.ts';
-import { AlignBar, AlignBarView } from '../editing/align-bar.tsx';
+import { AlignBar, AlignBarView, barPlacement } from '../editing/align-bar.tsx';
 import {
   ARRANGE_ACTIONS,
   alignGuide,
@@ -402,5 +402,32 @@ describe('ContextualToolbar is retired (D7)', () => {
     const layer = fs.readFileSync(new URL('../editing/index.tsx', import.meta.url), 'utf8');
     expect(layer).toContain('<AlignBar');
     expect(layer).toContain('<RotateHandle');
+  });
+});
+
+describe('where the multi bar sits (S2.23, ed-ab-tidy)', () => {
+  const win = { w: 1600, h: 1000 };
+  const bar = { w: 320, h: 40 };
+
+  test('above the selection, centred on it', () => {
+    const p = barPlacement({ l: 400, t: 300, r: 800, b: 600 }, bar, win);
+    expect(p).toEqual({ left: 440, top: 246 });
+  });
+
+  test('a group that fills the window keeps the bar on screen — under the chrome at the top, not off the bottom', () => {
+    const p = barPlacement({ l: -200, t: -150, r: 1900, b: 1300 }, bar, win);
+    expect(p.top).toBe(60);
+    expect(p.left).toBeGreaterThanOrEqual(8);
+    expect(p.left + bar.w).toBeLessThanOrEqual(win.w - 8);
+  });
+
+  test('near the top edge it flips below when there is room there', () => {
+    const p = barPlacement({ l: 400, t: 70, r: 800, b: 200 }, bar, win);
+    expect(p.top).toBe(214);
+  });
+
+  test('it never leaves the window sideways', () => {
+    expect(barPlacement({ l: -300, t: 300, r: -100, b: 400 }, bar, win).left).toBe(8);
+    expect(barPlacement({ l: 1700, t: 300, r: 1900, b: 400 }, bar, win).left).toBe(1600 - 320 - 8);
   });
 });

@@ -15,7 +15,7 @@
 
 import { useEffect } from 'react';
 import { getMadeByAiStore, madeByAiRings } from './made-by-ai.js';
-import { doneRings, holdsFor, mergeRings, ringsFor } from './runs-model.js';
+import { doneRings, holdsFor, mergeRings, pointExpiry, pointsFor, ringsFor } from './runs-model.js';
 import { getRunsStore } from './runs-store.js';
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
@@ -52,7 +52,10 @@ export function createRingsLane({
         /* detached */
       }
     }
-    const holds = holdsFor(view, { activeCanvas: file });
+    const holds = [
+      ...holdsFor(view, { activeCanvas: file }),
+      ...pointsFor(view, { activeCanvas: file }),
+    ];
     const holdsJson = JSON.stringify(holds);
     const holdsBefore = spokenHolds.get(target);
     if (!force && holdsBefore === holdsJson) return;
@@ -69,7 +72,15 @@ export function createRingsLane({
     for (const f of frames()) tell(f);
   };
 
-  const unsub = store.subscribe(tellAll);
+  // S5.19 — the spot a question marked lets go on its own: tell the frames again when it expires
+  let expiryTimer = null;
+  function onTick() {
+    tellAll();
+    const at = pointExpiry(store.getSnapshot().view);
+    clearTimeout(expiryTimer);
+    expiryTimer = at === null ? null : setTimeout(onTick, Math.max(0, at - Date.now()) + 50);
+  }
+  const unsub = store.subscribe(onTick);
   const unsubMade = madeByAi?.subscribe(tellAll);
   const onMessage = (e) => {
     const dgn = e.data?.dgn;
@@ -82,8 +93,9 @@ export function createRingsLane({
     }
   };
   win?.addEventListener?.('message', onMessage);
-  tellAll();
+  onTick();
   return () => {
+    clearTimeout(expiryTimer);
     unsub();
     unsubMade?.();
     win?.removeEventListener?.('message', onMessage);

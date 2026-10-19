@@ -127,6 +127,19 @@ export function AccountBlock({
           {`Manage on ${host}`}
         </button>
       </Row>
+      <Row
+        label="E-mails"
+        hint="Change which e-mails you get — a mention while Maude is closed, for one."
+      >
+        <button
+          type="button"
+          className="btn btn--sm"
+          onClick={() => open(`${origin}/account/emails`)}
+          data-testid="settings-open-emails"
+        >
+          Open e-mail settings
+        </button>
+      </Row>
       {signedIn && (
         <ul className="v2s-acct-links" data-testid="settings-account-links">
           {ACCOUNT_LINKS.map(([key, path, label]) => (

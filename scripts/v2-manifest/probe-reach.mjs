@@ -82,6 +82,9 @@ const nd = JSON.parse(readFileSync(join(STUDIO, 'client/v2/nothing-deleted.json'
 const hooks = JSON.parse(readFileSync(join(STUDIO, 'client/testids.json'), 'utf8'));
 const hooksByName = new Map(hooks.map((h) => [h.hook, h]));
 const { ACTIONS_BY_ID } = await import(join(STUDIO, 'actions/index.ts'));
+const { migrateSvg } = await import(join(STUDIO, 'annotations/migrate-v1.ts'));
+const { canonical, serializeBoard } = await import(join(STUDIO, 'annotations/schema.ts'));
+const { keyBetween } = await import(join(STUDIO, 'annotations/fractional-index.ts'));
 const { isVisible } = await import(join(STUDIO, 'actions/resolve.ts'));
 const { SETTINGS_ROWS } = await import(join(STUDIO, 'client/v2/settings/settings-model.js'));
 const { MODE_TOOLS } = await import(join(STUDIO, 'bridge/canvas-modes.ts'));
@@ -207,6 +210,111 @@ ${boards
   );
 }
 `;
+// ── the annotations board the probe draws on Home ─────────────────────────────────────────────
+function annotationsFixture() {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">' +
+    '<rect data-id="r1" data-tool="rect" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#fff4d6" x="500" y="260" width="160" height="90"/>' +
+    '<text data-id="t1" data-tool="text" data-anchor-id="r1" data-font-size="14" fill="#1a1a1a" text-anchor="middle" dominant-baseline="middle">needs work</text>' +
+    '<g data-id="mr1" data-tool="mediaref" data-src="assets/ab12cd34.mp4" data-media-kind="video" data-title="b-roll.mp4"><rect x="500" y="20" width="240" height="120" rx="8" ry="8" fill="#ffffff" stroke="#d4d4d8" stroke-width="1"/><text x="548" y="80" font-size="13" fill="#18181b" dominant-baseline="hanging">b-roll.mp4</text></g>' +
+    '<text data-id="t2" data-tool="text" x="520" y="400" data-font-size="14" fill="#1a1a1a">Standalone note</text>' +
+    '<g data-id="a1" data-tool="arrow" stroke="#1a8f3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="420" y1="300" x2="500" y2="300"/><polyline points="485.6,306.9 500,300 485.6,293.1" fill="#1a8f3e"/></g>' +
+    '</svg>';
+  const base = migrateSvg(svg).elements;
+  const human = (name) => ({ kind: 'human', name });
+  const extra = [
+    {
+      id: 'st1',
+      type: 'sticky',
+      index: 'a5',
+      x: 700,
+      y: 260,
+      w: 150,
+      h: 120,
+      text: 'Make the hero bolder',
+      fill: '#fff3a0',
+      at: '2026-10-19T08:00:00Z',
+      author: human('Ana'),
+      // rides with the Hero artboard: selecting it outlines that board ("On Hero · moves with it")
+      parentArtboard: 'home-hero',
+    },
+    { id: 'sc1', type: 'section', index: 'a6', x: 880, y: 330, w: 400, h: 150, label: 'Ideas' },
+    {
+      id: 'st2',
+      type: 'sticky',
+      parent: 'sc1',
+      index: 'a0',
+      x: 20,
+      y: 30,
+      w: 140,
+      h: 110,
+      text: 'Shorter headline',
+      fill: '#ffd9d0',
+    },
+    {
+      id: 'si1',
+      type: 'image',
+      index: 'a7',
+      x: 1160,
+      y: 60,
+      w: 96,
+      h: 96,
+      href: '',
+      alt: 'Done',
+      sticker: { pack: 'project-status', id: 'done' },
+      author: { kind: 'ai' },
+    },
+    ...[
+      ['stp1', 'plus-one', 'Ana'],
+      ['stp2', 'heart', 'Jonas'],
+      ['stp3', 'check', 'Mia'],
+    ].map(([id, kind, who], i) => ({
+      id,
+      type: 'stamp',
+      index: `a${8 + i}`,
+      x: 640 + i * 4,
+      y: 250,
+      w: 28,
+      h: 28,
+      kind,
+      target: 'r1',
+      author: human(who),
+    })),
+    {
+      id: 'a2',
+      type: 'arrow',
+      index: 'a9',
+      start: { x: 900, y: 420 },
+      end: { x: 860, y: 520 },
+      color: '#1a8f3e',
+      label: 'Goes here',
+    },
+    {
+      id: 'a3',
+      type: 'arrow',
+      index: 'aa',
+      start: { x: 900, y: 460 },
+      end: { x: 960, y: 520 },
+      endHost: { ref: 'el:home-hero/gone-button', label: 'Book a call' },
+    },
+    {
+      id: 'vt1',
+      type: 'vote',
+      index: 'ab',
+      targets: ['ab:home-hero', 'ab:home-pricing'],
+      title: 'Which direction',
+      state: 'open',
+      startedBy: 'Ana',
+      startedAt: '2026-10-19T08:00:00Z',
+    },
+  ];
+  // one z-order for the top level (keyBetween appends); a section's child keeps its own
+  let prev = null;
+  const all = [...base, ...extra];
+  for (const e of all) if (!e.parent) e.index = prev = keyBetween(prev, null);
+  return serializeBoard(all.map((e) => canonical(e)));
+}
+
 function makeFixture(project) {
   const put = (rel, content) => {
     mkdirSync(dirname(join(project, rel)), { recursive: true });
@@ -267,17 +375,11 @@ function makeFixture(project) {
     '.design/ui/Home.meta.json',
     `${JSON.stringify({ artboards: [{ id: 'home-hero' }, { id: 'home-pricing' }] }, null, 2)}\n`
   );
-  // drawn annotations (the .annotations.svg sidecar is versioned): a note card, a label anchored to it, an arrow
-  put(
-    '.design/ui-home.annotations.svg',
-    '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">' +
-      '<rect data-id="r1" data-tool="rect" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#fff4d6" x="500" y="260" width="160" height="90"/>' +
-      '<text data-id="t1" data-tool="text" data-anchor-id="r1" data-font-size="14" fill="#1a1a1a" text-anchor="middle" dominant-baseline="middle">needs work</text>' +
-      '<g data-id="mr1" data-tool="mediaref" data-src="assets/ab12cd34.mp4" data-media-kind="video" data-title="b-roll.mp4"><rect x="500" y="20" width="240" height="120" rx="8" ry="8" fill="#ffffff" stroke="#d4d4d8" stroke-width="1"/><text x="548" y="80" font-size="13" fill="#18181b" dominant-baseline="hanging">b-roll.mp4</text></g>' +
-      '<text data-id="t2" data-tool="text" x="520" y="400" data-font-size="14" fill="#1a1a1a">Standalone note</text>' +
-      '<g data-id="a1" data-tool="arrow" stroke="#1a8f3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="420" y1="300" x2="500" y2="300"/><polyline points="485.6,306.9 500,300 485.6,293.1" fill="#1a8f3e"/></g>' +
-      '</svg>'
-  );
+  // drawn annotations: the board (`.annotations.json`, DDR-242) — the v1 note card / label / arrow / media card the
+  // old openers press (migrated from the legacy SVG so their ids stay), plus what wave A added: stickies (one in a
+  // section), a gallery sticker the AI placed, stamps from three people, an arrow with words on it, an arrow bound to
+  // an artboard, an arrow whose element is gone (the dangling card) and a vote that is open
+  put('.design/ui-home.annotations.json', annotationsFixture());
   // the canvas a freshly created project opens to (scaffold-design.ts) — its welcome artboard
   const scaffolded = join(runDir, 'scaffold');
   mkdirSync(scaffolded, { recursive: true });
@@ -628,6 +730,39 @@ async function runOpener(browser, srv, probe, opener) {
         gesture = { x: gesture.x + dx, y: gesture.y + dy };
       } else if (step.mouseUp) {
         await page.mouse.up();
+      } else if (step.frameHover) {
+        // the pointer rests on an element in the canvas (a hover card, a stamp cluster's list)
+        const target = page.frameLocator(tid('canvas-frame')).locator(step.frameHover).first();
+        if (step.optional) {
+          await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
+          if (!(await target.isVisible().catch(() => false))) continue;
+        }
+        await target.hover({ timeout: 8000 });
+      } else if (step.wheelZoom) {
+        // ⌃ + wheel over empty canvas below the boards (the viewport's own zoom gesture); + = out, − = in
+        const box = await page.locator(tid('canvas-frame')).boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height - 130);
+        await page.keyboard.down('Control');
+        for (let i = 0; i < 12; i++) {
+          await page.mouse.wheel(0, step.wheelZoom / 12);
+          await sleep(60);
+        }
+        await page.keyboard.up('Control');
+      } else if (step.frameKey) {
+        // a key pressed with the canvas window focused (the shell's own key handlers never see it)
+        await page.evaluate(() =>
+          document.querySelector('[data-testid="canvas-frame"]')?.contentWindow?.focus()
+        );
+        await page.keyboard.press(step.frameKey);
+      } else if (step.frameMsg) {
+        // what the shell tells the canvas it is showing (`vote-state`, `ai-seen`…): posted from the shell page to
+        // the canvas window, so the canvas gate sees its real parent as the source. The messages carry no
+        // privilege the shell's own relays do not.
+        await page.evaluate((msg) => {
+          const f = document.querySelector('[data-testid="canvas-frame"]');
+          f?.contentWindow?.postMessage(msg, '*');
+        }, step.frameMsg);
+        await sleep(250);
       } else if (step.frameDblclick) {
         const target = page.frameLocator(tid('canvas-frame')).locator(step.frameDblclick).first();
         if (step.optional) {
@@ -719,6 +854,11 @@ async function runOpener(browser, srv, probe, opener) {
       await sleep(400);
       await collect();
     }
+    // PROBE_SHOT=<dir>: a screenshot of every opener once its steps are done (what the person would see)
+    if (process.env.PROBE_SHOT) {
+      mkdirSync(process.env.PROBE_SHOT, { recursive: true });
+      await page.screenshot({ path: join(process.env.PROBE_SHOT, `${probe.id}-${opener.id}.png`) });
+    }
     // PROBE_EVAL='<js expression>': print what it returns in the main frame once the steps are done (debugging)
     if (process.env.PROBE_EVAL)
       console.log(
@@ -733,13 +873,30 @@ async function runOpener(browser, srv, probe, opener) {
       }
   } catch (err) {
     ev.ok = false;
+    if (process.env.PROBE_SHOT)
+      await ctx
+        .pages()[0]
+        ?.screenshot({ path: join(process.env.PROBE_SHOT, `${probe.id}-${opener.id}-FAILED.png`) })
+        .catch(() => {});
     if (process.env.PROBE_DEBUG)
       console.log(`  [error ${opener.id}] ${String(err?.message ?? err).slice(0, 900)}`);
+    // the failing call's own words: what it waited for and what covered it (Playwright's call log)
     ev.err = String(err?.message ?? err)
-      .split('\n')[0]
-      .slice(0, 160);
+      .split('\n')
+      .filter((l) => l.trim())
+      .slice(0, 24)
+      .join(' | ')
+      .slice(0, 2600);
   } finally {
     await ctx.close();
+    // an opener that moved the camera (it is remembered per canvas, per person: `_canvas-state/<slug>.view.json`)
+    // gives it back, so the next opener finds the boards where every other opener expects them
+    if (opener.resetCamera) {
+      const dir = join(runDir, 'project/.design/_canvas-state');
+      if (existsSync(dir))
+        for (const f of readdirSync(dir).filter((n) => n.endsWith('.view.json')))
+          rmSync(join(dir, f), { force: true });
+    }
   }
   return { ...ev, testids: [...ev.testids], tours: [...ev.tours], css: [...ev.css] };
 }
@@ -753,6 +910,19 @@ try {
   die('playwright not installed in apps/studio — run `bun install` there first.');
 }
 const srv = NO_RUN ? null : await bootServer();
+// --serve: boot the fixture project, print its address and wait (a person or an agent opens it in a browser to see
+// what an opener would press) — minutes, not a probe pass; Ctrl-C / SIGTERM ends it
+if (args.includes('--serve') && srv) {
+  console.log(`SERVE ${srv.url}`);
+  await new Promise((done) => {
+    process.on('SIGTERM', done);
+    process.on('SIGINT', done);
+    setTimeout(done, 25 * 60_000);
+  });
+  srv.server.kill('SIGTERM');
+  restoreDist();
+  process.exit(0);
+}
 const browser = NO_RUN ? null : await chromium.launch({ headless: true });
 let evidence = {};
 // A hold of the test lane is killed at --max, and a full pass takes longer than one hold: every opener's evidence is

@@ -42,6 +42,41 @@ export function canvasName(canvas) {
   return base.replace(/\.(tsx|jsx|html)$/i, '');
 }
 
+/** `post-1-1` → "Post 1 1": the last resort when the index has not listed the artboard. */
+const humanizeId = (id) => {
+  const t = String(id ?? '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Artboard';
+};
+
+/** The canvases index (`GET /_api/index` snapshot) as `Map<canvas rel, [{ id, label }]>` — the artboard names. */
+export function boardsByRel(snapshot) {
+  const out = new Map();
+  for (const c of Array.isArray(snapshot?.canvases) ? snapshot.canvases : []) {
+    if (!c || typeof c.rel !== 'string') continue;
+    out.set(
+      c.rel,
+      (Array.isArray(c.artboards) ? c.artboards : [])
+        .filter((a) => a && typeof a.id === 'string')
+        .map((a) => ({ id: a.id, label: a.label || a.id }))
+    );
+  }
+  return out;
+}
+
+/**
+ * S5.18 G5 — the artboard half of a chat row's second line (03 `ai-chat-list`: "A4 · plakát", "Helma z boku"):
+ * the names of the artboards its latest ask named — two, then "+N". Empty when it asked about the whole canvas.
+ */
+export function artboardWhere(ids, boards) {
+  const names = [...new Set(Array.isArray(ids) ? ids : [])].map(
+    (id) => boards?.find?.((b) => b.id === id)?.label || humanizeId(id)
+  );
+  if (names.length > 2) return `${names[0]}, ${names[1]} +${names.length - 2}`;
+  return names.join(', ');
+}
+
 /** `text` split on `ranges` ([start, end) pairs) → `[{ text, mark }]`. Ranges are clamped, sorted, merged. */
 export function markParts(text, ranges) {
   const s = String(text ?? '');
@@ -66,6 +101,12 @@ export function markParts(text, ranges) {
   return out.length ? out : [{ text: s, mark: false }];
 }
 
+/** A running chat's place: "Combine-kampan › Post 1:1" when it named artboards, else the canvas alone. */
+function runningWhere(c, boards) {
+  const at = artboardWhere(c.artboards, boards.get(c.canvas ?? ''));
+  return at ? `${canvasName(c.canvas)} › ${at}` : canvasName(c.canvas);
+}
+
 /**
  * The browse view. `groups` is `GET /_api/acp/chats?group=canvas` (`[{ canvas, chats }]`); `busy` is
  * `{ chatId: true }` for YOUR chats with a turn in flight; `needs` is the set that waits on you (S5.13
@@ -78,6 +119,7 @@ export function buildChatList({
   titles = {},
   expanded = new Set(),
   now = Date.now(),
+  boards = new Map(),
 } = {}) {
   const known = new Map();
   for (const g of groups)
@@ -89,7 +131,7 @@ export function buildChatList({
     return {
       id,
       title: c?.title ?? titles[id] ?? 'New chat',
-      where: c ? canvasName(c.canvas) : '',
+      where: c ? runningWhere(c, boards) : '',
       when: needs.has(id) ? '' : 'now',
       state: state(id),
     };
@@ -115,6 +157,7 @@ export function buildChatList({
         title: c.title,
         when: whenLabel(c.updated, now),
         state: 'idle',
+        where: artboardWhere(c.artboards, boards.get(g.canvas ?? '')),
       })),
     });
   }

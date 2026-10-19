@@ -138,6 +138,15 @@ export const STUDIO_ROUTES = Object.freeze({
   // an annotation write (the comment half needs `comment`, which `annotate` implies).
   '/_api/annotations/to-comment': { safe: null, unsafe: 'annotate' },
   '/_api/comments/to-sticky': { safe: null, unsafe: 'annotate' },
+  // S4.14 — the studio's vote door (routes/votes.ts). A cell has no hub path for it yet, and board
+  // ballots there would sync to every member (A18): refused in a cell, fail closed. The cell's own
+  // votes are the hub's `/api/projects/:p/v1/votes*` (S9.13).
+  '/_api/votes': REFUSED,
+  '/_api/votes/start': REFUSED,
+  '/_api/votes/ballot': REFUSED,
+  '/_api/votes/end': REFUSED,
+  // S4.16 - a FigJam board arrives as a section of annotations: an annotation write.
+  '/_api/annotations/figjam': { safe: null, unsafe: 'annotate' },
   // The no-op-log undo token — a cell is always in accepted mode and never issues one.
   '/_api/annotations/convert-undo': REFUSED,
   // A photo edit is a validated JSON sidecar next to the asset
@@ -278,6 +287,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // S2.16 — routes/edit.ts: what the Component picker lists. A read of the system, but it exists to ADD to a
   // canvas, so the studio refuses everything below Can edit (a hidden row is never the only gate).
   '/_api/ds/components': { safe: 'edit', unsafe: null },
+  // S2.17 — routes/edit.ts: what an object is (an instance of a component?), read from the TSX. Anyone who sees the canvas.
+  '/_api/edit-instance': { safe: 'read', unsafe: null },
   // S10.3 — a converted design system's reviews (apps/studio/routes/ds.ts). The studio judges
   // each session's vouched claim itself (Q15): pending needs edit on the DS canvas, the other
   // writes edit on the whole project, clearing a token out of the trash the owner (`delete`).

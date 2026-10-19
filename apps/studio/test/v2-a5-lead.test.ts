@@ -41,7 +41,12 @@ describe('A5 shell wiring (app.jsx)', () => {
   test('S5.13 / S5.10 — Open on a toast opens the AI chat; From Assets opens Assets', async () => {
     const app = await read('client/app.jsx');
     expect(app).toMatch(
-      /addEventListener\(OPEN_AI_EVENT, [\s\S]{0,80}openRightPanel\('assistant'\)|const onOpenAi = \(\) => openRightPanel\('assistant'\);[\s\S]{0,120}addEventListener\(OPEN_AI_EVENT, onOpenAi\)/
+      /addEventListener\(OPEN_AI_EVENT, [\s\S]{0,80}openRightPanel\('assistant'\)|const onOpenAi = \(e?\) => (?:\{\s*)?openRightPanel\('assistant'\);[\s\S]{0,500}addEventListener\(OPEN_AI_EVENT, onOpenAi\)/
+    );
+    // S5.18 G4 / S5.V3 G1: Open also switches to the canvas that needs you — through openTab (not the tabs
+    // array), and the effect depends on it so the handler never holds a stale one (s5-v3-open-ai-canvas.test.ts)
+    expect(app).toMatch(
+      /if \(canvas\) openTab\(canvas\);[\s\S]{0,400}\[openRightPanel, openTab, cfg\?\.designRel\]/
     );
     expect(app).toMatch(
       /const onAttachAssets = \(\) => menuRunner\.run\('view\.assets'\);[\s\S]{0,120}addEventListener\(OPEN_ASSETS_EVENT, onAttachAssets\)/

@@ -192,6 +192,40 @@ describe('incremental updates', () => {
   });
 });
 
+describe('search rows carry what ⌘K draws (S1.23 G6)', () => {
+  test('a canvas row has its artboard count and cover; an artboard row has its kind', () => {
+    put('ui/club/Letak.tsx', canvas('<DCArtboard id="a1" kind="print" /><DCArtboard id="a2" />'));
+    const svc = createIndexService({
+      root,
+      designRel: '.design',
+      context: ctx,
+      project: () => ({
+        name: 't',
+        label: null,
+        formatVersion: 1,
+        linkedHub: null,
+        managed: false,
+      }),
+      persist: false,
+    });
+    const rows = svc.search('letak').rows;
+    const canvasRow = rows.find((r) => r.group === 'canvases');
+    expect(canvasRow).toMatchObject({ key: 'ui/club/Letak.tsx', boards: 2, cover: null });
+    svc.setCover('ui/club/Letak.tsx', {
+      key: 'b'.repeat(64),
+      w: 10,
+      h: 10,
+      ofSrc: svc.canvas('ui/club/Letak.tsx')?.srcHash as string,
+    });
+    expect(svc.search('letak').rows.find((r) => r.group === 'canvases')?.cover).toBe(
+      'b'.repeat(64)
+    );
+    const print = svc.search('letak').rows.find((r) => r.key === 'ui/club/Letak.tsx#a1');
+    expect(print?.kind).toBe('print');
+    svc.stop();
+  });
+});
+
 describe('crash safety', () => {
   test('a snapshot written before an edit made while no server ran reads as stale', () => {
     put('ui/a.tsx', canvas('<DCArtboard id="a1" />'));

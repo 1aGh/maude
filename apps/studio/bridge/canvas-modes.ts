@@ -139,8 +139,8 @@ export function roleOfCaps(caps: Readonly<ModeCaps>): Role {
   return caps.comment ? 'comment' : 'view';
 }
 
-/** In-iframe popovers (pure tool options). `sticky-colours` is served by the annotation tray that
- *  already stacks above the toolbar (`AnnotationsChrome` owns the colour state). */
+/** In-iframe popovers (pure tool options). `sticky-colours` and `marker-tips` (tip · inks · thicknesses)
+ *  hold the person's draw-time choices (annotations/ui/tool-state.ts; the swatch tray is retired, S4.8). */
 export type SlotPopover = 'shape-kinds' | 'sticky-colours' | 'marker-tips' | 'more';
 /** Shell-rendered panels a slot opens (V2-4.5b: `tool-panel-open`). */
 export type SlotPanel = 'stickers' | 'components' | 'templates' | 'assets';
@@ -163,6 +163,11 @@ export interface ToolSlot {
   readonly tips?: readonly ToolId[];
   /** A momentary slot backed by today's insert action instead of an armed tool. */
   readonly insert?: InsertKind;
+  /**
+   * The key and the button open `panel` and arm nothing, yet the slot keeps its tool id as its registry id
+   * (S2.15: I shows the Assets tab; `tool.image` stays the action that is bound to it).
+   */
+  readonly panelFirst?: boolean;
   /** Tools (besides `tool`) that light the slot. */
   readonly lights?: readonly ToolId[];
   /** Built by this work package — not rendered until it lands. */
@@ -188,10 +193,12 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
       slot({ key: 'V', label: 'Select', tool: 'move', minRole: 'edit' }),
       slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'edit' }),
       // Frame and Shape are drawn by dragging (S2.13): a frame inside an artboard, an artboard on empty canvas.
-      // Image is still backed by today's "+ Insert Image" until S2 builds the tool.
+      // Image (S2.15): I opens the Assets tab; a tile dropped on a frame, or ↵ on a selected artboard, places it
+      // (`image.place`). It arms nothing, and no longer adds one at a default size.
       slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit' }),
       slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit' }),
-      slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit', pending: 'S2' }),
+      // Pen (S2.14): click for a sharp point, drag for a smooth one; double-click a path to edit its points.
+      slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit' }),
       // Click to type (S2.12b): a tool, no longer today's momentary Insert Text.
       slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit' }),
       slot({
@@ -199,8 +206,8 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
         label: 'Image',
         tool: 'image',
         minRole: 'edit',
-        insert: 'image',
         panel: 'assets',
+        panelFirst: true,
       }),
       // Component arms no tool: the shell's picker (⇧I, S2.16) hands a pick back as `place-component`
       slot({ key: '⇧I', label: 'Component', tool: null, minRole: 'edit', panel: 'components' }),
@@ -214,7 +221,8 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
           slot({ key: '', label: 'Line', tool: 'line', minRole: 'edit' }),
           slot({ key: '', label: 'Ellipse', tool: 'ellipse', minRole: 'edit' }),
           slot({ key: '', label: 'Polygon', tool: 'polygon', minRole: 'edit' }),
-          slot({ key: '', label: 'Crop', tool: 'crop', minRole: 'edit', pending: 'S2' }),
+          // Crop (S2.15): arm it, then click a picture (or select one first) — crop mode, ↵ done · esc cancel
+          slot({ key: '', label: 'Crop', tool: 'crop', minRole: 'edit' }),
           // Export area (S2.13): drag a rectangle, the Export sheet opens with it. Writes nothing to the file.
           slot({ key: '', label: 'Export area', tool: 'slice', minRole: 'edit' }),
         ]),
@@ -320,7 +328,7 @@ export function visibleSlots(
     if (s.pending || ROLE_RANK[role] < ROLE_RANK[s.minRole]) return false;
     if (s.more) return s.more.some(live);
     if (s.insert) return true; // backed by today's insert action
-    if (s.tool === null) return s.panel !== undefined; // a panel-only slot (Stickers)
+    if (s.tool === null || s.panelFirst) return s.panel !== undefined; // a panel-only slot (Stickers, Image)
     return armTarget(s.tool, armable) !== null;
   };
   return bar.slots.filter(live);
@@ -387,15 +395,17 @@ export function toolKeyAction(
   if (!hit || hit.slot.pending) return null;
   const { slot } = hit;
   // A momentary slot arms nothing (S2 makes Frame / Text / Image tools); the Marker arms its tip.
-  const tool = slot.insert
-    ? null
-    : slot.tips && markerTip && slot.tips.includes(markerTip)
-      ? markerTip
-      : slot.tool;
+  const panelOnly = !!slot.panel && (slot.tool === null || !!slot.panelFirst);
+  const tool =
+    slot.insert || slot.panelFirst
+      ? null
+      : slot.tips && markerTip && slot.tips.includes(markerTip)
+        ? markerTip
+        : slot.tool;
   const role = roleOfCaps(caps);
   if (ROLE_RANK[role] < ROLE_RANK[slot.minRole] || (hit.mode === 'edit' && !caps.edit)) {
     if (tool) return { kind: 'deny', mode: hit.mode, tool };
-    return slot.tool === null && slot.panel
+    return panelOnly && slot.panel
       ? { kind: 'deny', mode: hit.mode, panel: slot.panel }
       : { kind: 'deny', mode: hit.mode };
   }
@@ -405,7 +415,7 @@ export function toolKeyAction(
       mode: hit.mode,
     };
     if (tool) out.tool = tool;
-    if (slot.tool === null && slot.panel) out.panel = slot.panel;
+    if (panelOnly && slot.panel) out.panel = slot.panel;
     return out;
   }
   if (slot.insert) return { kind: 'insert', insert: slot.insert };

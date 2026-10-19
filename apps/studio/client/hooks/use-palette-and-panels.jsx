@@ -33,6 +33,7 @@ import {
 } from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { annotationLayersFor } from '../v2/annotations/annotation-list.jsx';
+import { placeTargetOf } from '../v2/assets/place-asset.js';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import { VersionHistoryHost } from '../v2/history/history-host.jsx';
 import { setHistoryOpener } from '../v2/history/object-filter.js';
@@ -432,6 +433,7 @@ export function usePaletteAndPanels({
         // S1.5: the other projects' groups — the desktop app's tabs only ({} in a browser tab)
         ...desktopProjectsEnv({ projectName: cfg?.cloud?.projectName || project || '' }),
         designRel: cfg.designRel,
+        projectName: cfg?.cloud?.projectName || project || '',
         canAskAI: () => isNativeApp() && !viewerMode,
         askAI: (text) => {
           openPanelExclusive('assistant');
@@ -602,6 +604,9 @@ export function usePaletteAndPanels({
         <AssetsPanel
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
           readOnly={viewerMode}
+          // S2.15 — ↵ on a picture tile places it on the selected artboard / frame
+          placeTarget={placeTargetOf(selected, activePath)}
+          onRecord={recordSourceEdit}
         />
       );
     // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9792bc346daf",
+  "manifestVersion": "36986d479760",
   "actions": [
     {
       "id": "search.open",
@@ -615,7 +615,18 @@
     },
     {
       "id": "object.select-next",
-      "label": "Select next sibling",
+      "label": "Select next object",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.select-prev",
+      "label": "Select previous object",
       "kind": "command",
       "exec": "canvas",
       "effect": "none",
@@ -1001,6 +1012,84 @@
       }
     },
     {
+      "id": "object.insert-path",
+      "label": "Draw a path",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add the same <svg data-shape=\"path\"> as the Pen tool writes (d in the box's own px, left / top its place in the frame) — see canvas-tsx.md § Draw a path"
+      }
+    },
+    {
+      "id": "path.edit",
+      "label": "Edit path points",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rewrite the d of the svg's <path>, then width, height, viewBox and style left / top to the new bounds so every point keeps its place — see canvas-tsx.md § Draw a path"
+      }
+    },
+    {
+      "id": "shape.combine.union",
+      "label": "Union selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"union\"> holding ONE <path d> of every outline (each wound clockwise), fillRule=\"nonzero\" — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
+      "id": "shape.combine.subtract",
+      "label": "Subtract selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"subtract\">: the bottom shape's <path mask=\"url(#id-mask)\"> first, then <defs><mask> holding a white <rect> and the other shapes in black — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
+      "id": "shape.combine.intersect",
+      "label": "Intersect selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"intersect\">: the bottom shape's <path clipPath=\"url(#id-clip-1)\"> first, then <defs> with a <clipPath> per other shape (more than one nest <g clipPath>) — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
+      "id": "shape.combine.exclude",
+      "label": "Exclude selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the shapes with one <svg data-shape=\"path\" data-combine=\"exclude\"> holding ONE <path d> of every outline, fillRule=\"evenodd\" — see canvas-tsx.md § Combine shapes"
+      }
+    },
+    {
       "id": "object.set-corner-radius",
       "label": "Round a corner",
       "kind": "command",
@@ -1092,6 +1181,106 @@
       }
     },
     {
+      "id": "image.place",
+      "label": "Place a picture",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> as the last child of the frame (import the file first with the asset import; src is always a flat assets/ name). On a frame or picture that already holds one picture, change only its src. On an artboard use position: \"absolute\", left: \"0\", top: \"0\" and put it first. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset | assets, mode: \"fill\" | \"loose\" | \"fill-in-order\" | \"grid\", artboard?, natural?: {w, h}, alt?}}"
+      }
+    },
+    {
+      "id": "image.crop",
+      "label": "Crop",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Fill is objectFit: \"cover\"; Fit is objectFit: \"contain\"; Crop is \"cover\" + objectPosition: \"X% Y%\" + data-image-fit=\"crop\", and past 100 % transform: \"scale(Z)\" with transformOrigin: \"X% Y%\" and overflow: \"hidden\" on the frame; Tile is a <div role=\"img\" data-image-tile=\"assets/…\" style={{ backgroundImage: \"url(\\\"assets/…\\\")\", backgroundRepeat: \"repeat\" }}>. Over HTTP: POST /_api/edit-op {op: \"image.crop\", targets: [picture], params: {fit?, zoom?, x?, y?}}"
+      }
+    },
+    {
+      "id": "image.replace",
+      "label": "Replace…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Change the <img>’s src to the new assets/<sha8>.<ext> and remove its data-photo-edit (a per-use edit belongs to the old picture); keep the box, the fit and the alt. Over HTTP: POST /_api/edit-op {op: \"image.replace\", targets: [picture], params: {asset}}"
+      }
+    },
+    {
+      "id": "figma.make-editable",
+      "label": "Make editable",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design import-figma"
+      }
+    },
+    {
+      "id": "component.swap-variant",
+      "label": "Swap variant or component",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Change `variant=\"…\"` on the component (add or delete the attribute); a variant must be one system/<ds>/components.json lists for it. To change the component, rename the tag (open and close), import the new name from \"@maude/ds\" once and drop the old import when nothing else uses it — only between components that hold words (Button · Chip · Badge · Card · Callout). The words and style stay. Over HTTP: POST /_api/edit-op {op: \"component.swap-variant\", targets: [instance], params: {variant?: string|null, component?}}"
+      }
+    },
+    {
+      "id": "component.reset",
+      "label": "Reset to the main component",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the instance’s words back to the master’s (the component name) and delete its inline style declarations that are not placement (position, left, right, top, bottom, inset, zIndex, transform, translate, rotate, margin) — delete the style attribute when none is left. variant, data-cd-id and placement stay. Over HTTP: POST /_api/edit-op {op: \"component.reset\", targets: [instance], params: {props?}}"
+      }
+    },
+    {
+      "id": "component.detach",
+      "label": "Detach instance",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the instance with the plain markup it renders to: the same tags, className, style (token references stay var(--…)) and words, the same data-cd-id, no @maude/ds component and no data-ds-rev; delete an import nothing uses any more. A local component’s usage: copy the definition under a new name and point that one usage at the copy (see element.detach). Over HTTP: POST /_api/edit-op {op: \"component.detach\", targets: [instance], params: {tree}} — tree is the rendered subtree {tag, attrs, kids}"
+      }
+    },
+    {
+      "id": "component.go-to-main",
+      "label": "Go to the main component",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <design-system canvas>@<component>"
+      }
+    },
+    {
       "id": "text.detach-style",
       "label": "Detach text style",
       "kind": "command",
@@ -1140,6 +1329,25 @@
         "path": "human",
         "because": "keys",
         "note": "ask the person to use Element id; an agent never rewrites the comments file"
+      }
+    },
+    {
+      "id": "element.stamp",
+      "label": "Name element",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give the element a readable data-cd-id (kebab-case, unique on the canvas) so an arrow can point at it"
       }
     },
     {
@@ -1256,6 +1464,18 @@
         "path": "human",
         "because": "ai-chat"
       }
+    },
+    {
+      "id": "ai.ask-selection",
+      "label": "Ask AI about the selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
     },
     {
       "id": "element.set-link",
@@ -1974,6 +2194,19 @@
       }
     },
     {
+      "id": "tool.el-pen",
+      "label": "Pen",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add <svg data-cd-id=\"path\" data-shape=\"path\" width viewBox style={{ position: \"absolute\", left, top, overflow: \"visible\", fill: \"none\", stroke: \"var(--accent)\", strokeWidth: \"4px\", strokeLinecap: \"round\", strokeLinejoin: \"round\" }}><path d=\"M…C…\" /></svg> to the artboard or frame; the svg box is the path bounds and d is relative to it — see canvas-tsx.md § Draw a path"
+      }
+    },
+    {
       "id": "tool.el-text",
       "label": "Text",
       "kind": "tool",
@@ -2163,6 +2396,19 @@
       }
     },
     {
+      "id": "tool.create-default",
+      "label": "Add one at its default size",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”"
+      }
+    },
+    {
       "id": "tool.highlighter",
       "label": "Highlighter",
       "kind": "tool",
@@ -2252,6 +2498,19 @@
       }
     },
     {
+      "id": "tool.crop",
+      "label": "Crop",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Crop a picture: see image.crop (objectPosition and transform on the <img>)"
+      }
+    },
+    {
       "id": "ui.step-back",
       "label": "Step back",
       "kind": "command",
@@ -2261,6 +2520,19 @@
         "path": "human",
         "because": "view-pref",
         "note": "the user’s navigation history"
+      }
+    },
+    {
+      "id": "ui.cycle-region",
+      "label": "Move between the panels and the canvas",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "where the keyboard is in the window"
       }
     },
     {
@@ -3460,6 +3732,88 @@
       }
     },
     {
+      "id": "annotation.point-to",
+      "label": "Point to…",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the arrow’s startHost / endHost to the new ab:<artboard> or el:<artboard>/<id> ref (with the name it is shown under) and move its start / end cache to where the host is"
+      }
+    },
+    {
+      "id": "annotation.resolve",
+      "label": "Resolve",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the sticky’s resolved to { by, at } (the person’s name, an ISO UTC time); remove it to reopen"
+      }
+    },
+    {
+      "id": "annotation.fan-out",
+      "label": "Fan out",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the stacked stickies’ x / y so they sit in a row"
+      }
+    },
+    {
+      "id": "annotation.to-comment",
+      "label": "Turn into a comment",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/annotations/to-comment",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "comments",
+        "skill": "design:whiteboard",
+        "how": "Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the board file"
+      }
+    },
+    {
+      "id": "annotation.fold",
+      "label": "Fold section",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the section’s folded to true; remove it to unfold"
+      }
+    },
+    {
+      "id": "annotation.ask-ai",
+      "label": "Ask AI about this",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design read-annotations"
+      }
+    },
+    {
       "id": "annotation.template-kanban",
       "label": "Kanban template",
       "kind": "command",
@@ -3545,6 +3899,76 @@
       "agent": {
         "path": "cli",
         "verb": "maude design annotate <canvas> --board blank"
+      }
+    },
+    {
+      "id": "annotations.hide-resolved",
+      "label": "Hide resolved stickies",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "per-person view preference (C29); never written to the board"
+      }
+    },
+    {
+      "id": "annotations.trash-resolved",
+      "label": "Move resolved stickies to the trash",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Remove the stickies whose resolved is set from the board file"
+      }
+    },
+    {
+      "id": "annotations.start-vote",
+      "label": "Start a vote…",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/votes/start",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "vote",
+        "note": "the result section is on the board when it ends: `maude design read-annotations`"
+      }
+    },
+    {
+      "id": "annotations.end-vote",
+      "label": "End vote",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/votes/end",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "vote",
+        "note": "the counts and the result section: `maude design read-annotations`"
+      }
+    },
+    {
+      "id": "annotations.select-resolved",
+      "label": "Select resolved stickies",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design read-annotations"
       }
     },
     {

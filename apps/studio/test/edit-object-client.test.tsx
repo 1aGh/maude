@@ -264,6 +264,7 @@ describe('object menu', () => {
     expect(
       s.map((sec) => live(sec, t).map((i) => `${i.label}${i.shortcut ? ` ${i.shortcut}` : ''}`))
     ).toEqual([
+      ['Ask AI about this ⌘/'], // S2.22 — its label names the object per click (labelOf)
       ['Duplicate ⌘D', 'Copy properties ⌥⌘C', 'Paste properties ⌥⌘V', 'Select matching'],
       ['Frame selection ⌥⌘G', 'Remove frame ⇧⌘G'],
       ['Bring to front ⌘]', 'Bring forward ]', 'Send backward [', 'Send to back ⌘['],

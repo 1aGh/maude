@@ -20,7 +20,6 @@
 import { useEffect, useRef } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
-import { shellToast } from '../../shell/util.js';
 import {
   anchorWithinToolbar,
   createPanelGate,
@@ -30,7 +29,7 @@ import {
   placePanel,
   toShellRect,
 } from './tool-panels.js';
-import { ROLE_DENIAL } from './use-canvas-mode-lane.js';
+import { showRoleDenial } from './role-denial.js';
 
 /**
  * @param deps.canvasOrigin () => string — the canvas origin messages must come from
@@ -45,7 +44,7 @@ import { ROLE_DENIAL } from './use-canvas-mode-lane.js';
  * @param deps.hasFocus (canvas) => boolean — the canvas iframe is the shell's `document.activeElement`
  * @param deps.now () => number — ms clock (the 500 ms quiet period)
  * @param deps.canEdit () => boolean — the panels add to the design; a non-editor gets `deps.deny()`
- * @param deps.deny () => void
+ * @param deps.deny (panel) => void
  */
 export function createToolPanelLane(deps) {
   const rects = createToolbarRects();
@@ -72,7 +71,7 @@ export function createToolPanelLane(deps) {
     // Stickers / Assets add to the design: an editor's (V2-4.5b, Q2). A viewing role's E reaches here as
     // a request; the shell owns the role and says the one denial line.
     if (deps.canEdit && !deps.canEdit()) {
-      deps.deny?.();
+      deps.deny?.(m.panel);
       return;
     }
     const host = PANEL_HOSTS[m.panel];
@@ -133,7 +132,7 @@ export function useToolPanels({
       frameOf: (p) => live.current.iframesRef.current?.get(p),
       viewport: () => ({ w: window.innerWidth, h: window.innerHeight }),
       canEdit: () => live.current.canEdit !== false,
-      deny: () => shellToast(ROLE_DENIAL),
+      deny: (panel) => showRoleDenial({ panel }),
       openStickers: (req) => live.current.openStickers(req),
       openTemplates: (req) => live.current.openTemplates?.(req),
       openComponents: (req) => live.current.openComponents?.(req),

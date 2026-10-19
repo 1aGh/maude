@@ -111,3 +111,9 @@ describe('the colour is the guide colour, never the selection azure', () => {
     expect(src).not.toMatch(/--maude-hud-accent|--accent\b/);
   });
 });
+
+describe('S2.22 — the lifted board wears the canvas shadow token', () => {
+  test('--shadow-lg first; the chrome shadow only as the fallback', () => {
+    expect(GUIDES_CSS).toMatch(/\.dc-dragging\s*\{\s*box-shadow:\s*var\(--shadow-lg,/);
+  });
+});

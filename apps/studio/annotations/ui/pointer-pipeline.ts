@@ -56,6 +56,12 @@ export class PointerPipeline {
   private active: { gesture: Gesture; pointerId: number } | null = null;
   private listeners: Array<[string, EventListener]> = [];
   private doc: Document | null = null;
+  /**
+   * True while something other than a stage owns the next press (a gallery pick, stamp or template
+   * trailing the pointer - placement.tsx). No stage then claims it, so a click on an annotation places
+   * the pick instead of selecting that annotation and leaving the ghost armed (S4.V4 G4).
+   */
+  holdOff: (() => boolean) | null = null;
   /** Last claim, for tooling and tests. */
   lastClaim: PipelineTrace | null = null;
   onState: ((state: string) => void) | null = null;
@@ -114,6 +120,10 @@ export class PointerPipeline {
   private down(e: PointerEvent): void {
     // A second pointer (or a lost release) ends whatever was running.
     if (this.active) this.end(e);
+    if (this.holdOff?.()) {
+      this.lastClaim = null;
+      return;
+    }
     for (const stage of this.stages) {
       const claim = stage.down(e);
       if (!claim) continue;

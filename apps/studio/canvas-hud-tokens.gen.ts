@@ -25,6 +25,9 @@ export const HUD_TOKENS_CSS = `
   --maude-chrome-dot:       oklch(0.340 0.012 255);
   --maude-chrome-shadow:    rgba(0, 0, 0, 0.46);
   --maude-chrome-font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* gate-a-polish: the menu / label chrome speaks the body face (mono only in Advanced + code, README) */
+  --maude-chrome-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --maude-chrome-error:     oklch(0.660 0.190 25);
 }
 :root[data-maude-theme="light"] {
   --maude-hud-accent:        oklch(0.520 0.195 268);
@@ -41,5 +44,6 @@ export const HUD_TOKENS_CSS = `
   --maude-chrome-border: oklch(0.922 0.005 255);
   --maude-chrome-dot:    oklch(0.860 0.008 255);
   --maude-chrome-shadow: color-mix(in oklab, oklch(0.225 0.015 260) 14%, transparent);
+  --maude-chrome-error:  oklch(0.560 0.200 25);
 }
 `;

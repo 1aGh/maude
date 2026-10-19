@@ -93,3 +93,30 @@ describe('whole-artboard selection — Height never counts the label strip', () 
     expect(sized(false, 1376, 24).worldH).toBe(1376);
   });
 });
+
+// S2.22 G1 — the inspector's W × H is the artboard's DECLARED size (the design surface, what the name tag
+// and the resize handles already say), not the outer frame with its border and label strip.
+describe('whole-artboard selection — W × H is the declared design surface', () => {
+  function withBody(fixed: boolean, frame: [number, number], body: [number, number]) {
+    document.body.innerHTML = `<article class="dc-artboard" data-dc-screen="ab-1" data-dc-kind="web"${fixed ? ' data-dc-fixed="true"' : ''}><button class="dc-artboard-label sku">Desktop</button><div class="dc-artboard-body">x</div></article>`;
+    const el = document.querySelector('[data-dc-screen]') as HTMLElement;
+    const bodyEl = el.querySelector('.dc-artboard-body') as HTMLElement;
+    Object.defineProperty(el, 'offsetWidth', { value: frame[0] });
+    Object.defineProperty(el, 'offsetHeight', { value: frame[1] });
+    Object.defineProperty(bodyEl, 'offsetWidth', { value: body[0] });
+    Object.defineProperty(bodyEl, 'offsetHeight', { value: body[1] });
+    return hoverTargetToSelection({ el, cdId: null, artboardId: 'ab-1' });
+  }
+
+  test('a hug web board declared 1440 reads 1440 × 1543, not its 1447 × 1580 frame', () => {
+    const sel = withBody(false, [1447, 1580], [1440, 1543]);
+    expect(sel.worldW).toBe(1440);
+    expect(sel.worldH).toBe(1543);
+  });
+
+  test('a fixed board reads its body too', () => {
+    const sel = withBody(true, [1082, 1376], [1080, 1350]);
+    expect(sel.worldW).toBe(1080);
+    expect(sel.worldH).toBe(1350);
+  });
+});

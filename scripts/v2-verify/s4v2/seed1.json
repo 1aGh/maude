@@ -1,0 +1,7 @@
+{"ops":[
+{"op":"create","type":"sticky","ref":"@a","x":700,"y":420,"text":"Make the hero louder","color":"#ffd966"},
+{"op":"create","type":"sticky","ref":"@b","x":1400,"y":930,"w":150,"h":110,"text":"Loose note between boards","color":"#a6e3a1"},
+{"op":"create","type":"sticky","ref":"@c","x":2600,"y":300,"text":"Mobile CTA too small","color":"#f4b6c2"},
+{"op":"connect","from":"@a","to":"el:home/book-a-call","label":"this one"},
+{"op":"connect","from":"@c","to":"el:mobile/m-book"}
+]}

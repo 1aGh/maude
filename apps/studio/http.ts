@@ -2,7 +2,9 @@ import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
 import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
 import { serializeBoard } from './annotations/schema.ts';
+import { VOTE_DOOR_REFUSAL, voteDoorOnly } from './annotations/vote-guard.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
+import { artboardLabels } from './edit-ops/duplicate-at-width.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // HTTP layer for Bun.serve.
 //
@@ -53,6 +55,7 @@ import {
 } from './access/request.ts';
 import { type Access, sees as accessSees } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
+import { createConnectedFact } from './acp/connected-fact.ts';
 import {
   cancelSignin,
   getClaudeAuthStatus,
@@ -203,6 +206,7 @@ import {
   announceAction,
   assetStateDepsFor,
   canvasPathsOfIndex,
+  voteHomeResolver as createVoteHomeResolver,
   type ExportRouteDeps,
   gateSpecV2,
   heldByAiRefusal,
@@ -230,6 +234,7 @@ import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { hubHealth } from './sync/journal-client.ts';
 import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
@@ -1673,11 +1678,18 @@ export function createHttp(
   const outboxSenders: Parameters<typeof createOutbox>[0]['senders'] = {};
   // ONE source of gate facts for the chat (queue or send now) and the drain (release).
   // `online` has no server-side source yet (the shell's reachability) — it stays open, as before.
+  // S5.18 (G10): `ai-connected` is the SIGNED-IN answer (the one `/_api/acp/status` gives the panel), not "claude is
+  // installed" — a signed-out Mac keeps the prompt. A status probe that finds it connected wakes the drain.
+  const aiConnectedFact = createConnectedFact({
+    probe: probeAcpAvailabilityAuthed,
+    sync: () => probeAcpAvailability().available,
+    onOpen: () => void outbox.drain.wake().catch(() => null),
+  });
   const outboxGates = (): GateFacts => ({
     online: true,
     hubReachable: true,
     signedIn: true,
-    aiConnected: probeAcpAvailability().available,
+    aiConnected: aiConnectedFact.read(),
     aiReady: true,
     allowanceResetsAt: currentAllowanceResetsAt(),
   });
@@ -1718,7 +1730,12 @@ export function createHttp(
         emit: (e, p) => ctx.bus.emit(e, p),
       }),
     });
-  const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
+  const askQueue = createAskQueue({
+    outbox,
+    gates: outboxGates,
+    runs: () => runs,
+    ready: () => aiConnectedFact.pending(),
+  });
   outboxSenders['ai.prompt'] = askQueue.sender;
   // S9.19 — the Share sheet's door to the linked hub (routes/share.ts). The hub is the one this
   // project is linked to AND that this Mac holds a credential for (a committed config alone names no
@@ -1813,6 +1830,42 @@ export function createHttp(
       },
       emit: (e, p) => ctx.bus.emit(e, p),
     },
+    // S4.14 — `/_api/votes*` (routes/votes.ts): board ballots locally, a proxy to a `votes-v1` hub when
+    // linked, off in a cell / on an older hub. The voter is this machine's person, never the body.
+    votes: {
+      designRel: ctx.paths.designRel,
+      home: createVoteHomeResolver({
+        linked: () => {
+          const url = ctx.cfg.linkedHub?.url;
+          return url ? { hubUrl: url, token: () => getHubRecord(url)?.token ?? null } : null;
+        },
+        workspace: () => isWorkspaceMode(),
+        health: (hubUrl) => hubHealth({ hubUrl }),
+      }),
+      person: async () => ((await api.gitCurrentUser()) || 'You').slice(0, 64),
+      // S4.V4 G4 — a live room's board, ahead of its flush: start → GET must see the vote it just wrote
+      readBoard: (file) => api.readBoardLive(file),
+      applyOps: (file, ops) => api.applyAnnotationOps(file, ops),
+      // sec-a C1(c) — the result names come from the canvas source, never the canvas's vote-board
+      labels: (canvas) => {
+        if (!canvas || canvas.startsWith('/') || canvas.split('/').some((s) => s === '..' || !s))
+          return {};
+        try {
+          const src = readFileSync(join(ctx.paths.designRoot, ...canvas.split('/')), 'utf8');
+          const out: Record<string, string> = {};
+          for (const [id, label] of artboardLabels(src)) out[`ab:${id}`] = label;
+          return out;
+        } catch {
+          return {};
+        }
+      },
+      scope: (req, file) => {
+        const see = seerFor(req);
+        if (!see) return null;
+        const rel = toDesignRel(file, ctx.paths.designRel);
+        return rel === null || !see(rel) ? notInScopeResponse() : null;
+      },
+    },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
     // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
     // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local
@@ -1864,6 +1917,9 @@ export function createHttp(
       designRel: ctx.paths.designRel,
       // S1.13 — Go back reads `_state/render-ok.json` under the design root
       designRoot: ctx.paths.designRoot,
+      // S1.14 — row pictures from the project's picture service; `thumbs` is created further down,
+      // so it is read lazily (S1.V G4: without it every versions row drew an empty box)
+      thumb: (req) => thumbs.thumb(req),
       cache: (() => {
         let cache: AttributionCache | null = null;
         return () => {
@@ -1900,6 +1956,8 @@ export function createHttp(
     annotations: {
       api,
       control: () => ctx.syncControl?.current?.() ?? null,
+      // S4.16 - POST /_api/annotations/figjam plans the import under the project (the S4.5 engine)
+      figjam: { root: ctx.paths.repoRoot, designRel: ctx.paths.designRel },
       person: async (req) => {
         const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
         return { name: vouched || (await api.gitCurrentUser()) || 'You' };
@@ -1926,6 +1984,8 @@ export function createHttp(
       endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
       // S5.11b — Run on a copy: the accepted source + the waiting run's stage
       control: () => ctx.syncControl?.current?.() ?? null,
+      // S5.18 (G2) — the copy's name + place go into the canvas sidecar through the layout-write door
+      meta: { write: (file, text, base, o) => api.writeCanvasMetaText(file, text, base, o) },
     },
     agent: {
       repoRoot: ctx.paths.repoRoot,
@@ -2376,7 +2436,9 @@ export function createHttp(
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      return Response.json(await probeAcpAvailabilityAuthed(), {
+      const availability = await probeAcpAvailabilityAuthed();
+      aiConnectedFact.note(availability.available); // S5.18: the panel's answer is the queue's answer
+      return Response.json(availability, {
         headers: { 'Cache-Control': 'no-store' },
       });
     },
@@ -7241,7 +7303,17 @@ export function createHttp(
       return new Response('too many ops in one batch', { status: 413 });
     }
     const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
-    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
+    // sec-a M1 — no HTTP caller (canvas or main origin) writes a vote or a ballot: those land
+    // only through the vote door (routes/votes.ts → api.applyAnnotationOps in-process).
+    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined, {
+      guard: voteDoorOnly,
+    });
+    if (r.refused) {
+      return Response.json(
+        { ok: false, changed: false, rejected: [], error: VOTE_DOOR_REFUSAL },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
     return Response.json(r, {
       status: r.ok ? 200 : r.unreadable ? 409 : 413,
       headers: { 'Cache-Control': 'no-store' },

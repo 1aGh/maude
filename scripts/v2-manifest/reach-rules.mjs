@@ -91,6 +91,7 @@ export const ACTION_SURFACE = Object.freeze({
   'tool.arrow': 'toolbar-slot-arrow',
   'tool.browse': 'toolbar-slot-browse',
   'tool.section': 'toolbar-slot-section',
+  'tool.el-pen': 'toolbar-slot-el-pen', // Edit's Pen (P): the vector pen
   'search.open': '[aria-label="Command palette"]',
   'canvases.search': 'canvas-search',
   'view.layers': 'panel-tab-layers',
@@ -424,6 +425,51 @@ export const HOOK_PROOFS = Object.freeze({
     'apps/studio/test/v2-gate-proofs.test.tsx',
     'annotation text and sticky editors carry the labels the node is read by',
     ['Edit sticky note text', 'aria-label="Edit text"']
+  ),
+  // ── gate A reach: annotation states that exist for one gesture or one moment (an arrow end being dropped, a bind
+  // the file refused, an artboard dragged with arrows riding it, a pick trailing the pointer, an AI rewrite). A
+  // probe would have to fake the race; the named render tests draw each one and say what it reads.
+  'annot-arrow-aim-ring': proof(
+    'apps/studio/test/annotations-arrow-bind-ui.test.tsx',
+    'the ring names what it is on; the edge draws the whole artboard'
+  ),
+  'annot-arrow-aim-tag': proof(
+    'apps/studio/test/annotations-arrow-bind-ui.test.tsx',
+    'the ring names what it is on; the edge draws the whole artboard'
+  ),
+  'annot-arrow-candidate': proof(
+    'apps/studio/test/annotations-arrow-bind-ui.test.tsx',
+    'the ring names what it is on; the edge draws the whole artboard'
+  ),
+  'annot-arrow-edge': proof(
+    'apps/studio/test/annotations-arrow-bind-ui.test.tsx',
+    'the ring names what it is on; the edge draws the whole artboard'
+  ),
+  'annot-arrow-bound-tag': proof(
+    'apps/studio/test/annotations-arrow-bind-ui.test.tsx',
+    '"Bound to the artboard" is announced politely'
+  ),
+  'annot-arrow-rewritten': proof(
+    'apps/studio/test/annotations-arrow-bind-ui.test.tsx',
+    'AI rewrote the element: the ring names the new words'
+  ),
+  // the Highlighter's three nibs: the Marker options swap to them when the Highlighter tip is the one in use
+  'toolbar-highlighter-width-<size>': proof(
+    'apps/studio/test/tool-palette.test.tsx',
+    'Marker options (an-marker)',
+    ['Highlighter width']
+  ),
+  'annot-placing': proof(
+    'apps/studio/test/annotations-sticker-drop.test.tsx',
+    'nothing is drawn until the pointer is in; then a sticker at the size it will land'
+  ),
+  'annot-ride': proof(
+    'apps/studio/test/s4-18-ride-above.test.tsx',
+    'a riding sticky and the re-route overlay sit above the dragged artboard'
+  ),
+  'annot-cross-tag': proof(
+    'apps/studio/test/annotations-reroute-live.test.tsx',
+    'a translate composes with the rotation; clear restores every node'
   ),
   // the readiness dialog opens from the desktop menu's native item only
   'readiness-autosetup-where': {

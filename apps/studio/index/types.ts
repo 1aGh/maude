@@ -80,6 +80,12 @@ export interface SearchRow {
   close: boolean;
   /** [start, end) ranges into `name` */
   marks: Array<[number, number]>;
+  /** S1.23 — a canvas row: how many artboards it has (⌘K's "… · 12 artboards"). */
+  boards?: number;
+  /** S1.23 — a canvas row: its cover picture's key (`/_api/thumb/<key>`), null until one is rendered. */
+  cover?: string | null;
+  /** S1.23 — an artboard row: its kind (`print` …) — ⌘K says "artboard in X · print". */
+  kind?: string | null;
 }
 
 export interface SearchResult {

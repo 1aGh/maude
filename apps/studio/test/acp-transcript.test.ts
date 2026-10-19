@@ -73,6 +73,7 @@ describe('readChatMessages — raw → clean turns', () => {
     expect(msgs[0]).toEqual({
       role: 'user',
       parts: [{ type: 'text', text: 'make the button red' }],
+      at: 1, // S5.19: when the ask was sent (the line's ts) — the feed's day dividers
     });
     expect(msgs[1].role).toBe('assistant');
     // text parts merged across the tool call boundary order-preserving

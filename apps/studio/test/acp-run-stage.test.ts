@@ -85,7 +85,7 @@ describe('acp / a registry run is one stage, ended by the registry', () => {
     editTurn(t, 'export default () => <p>x</p>;\n');
     t.endTurn('failed');
     expect(calls).toEqual([
-      ['begin', 'acp:c1', 'Claude: restyle the footer', { runId: 'r_abc', chatId: 'c1' }],
+      ['begin', 'acp:c1', 'restyle the footer', { runId: 'r_abc', chatId: 'c1' }],
       ['claim', 'r_abc', '.design/ui/k.tsx', hashBytes('export default () => <p>x</p>;\n')],
     ]);
   });

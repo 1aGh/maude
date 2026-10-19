@@ -234,7 +234,7 @@ describe('every account page: a session, no-store, no script', () => {
     }
   });
 
-  test('the overview carries the plan line and the five doors (ob-settings)', async () => {
+  test('the overview carries the plan line and the six doors (ob-settings + S9.18 E-mails)', async () => {
     const { env, ana, sqlite } = await world();
     sqlite
       .prepare('UPDATE accounts SET trial_started_at = ? WHERE id = ?')
@@ -245,6 +245,7 @@ describe('every account page: a session, no-store, no script', () => {
       'People and invites',
       'Billing and plan',
       'Your Macs',
+      'E-mails',
       'Download everything',
       'Delete the account',
     ]) {

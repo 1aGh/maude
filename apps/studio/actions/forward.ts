@@ -33,7 +33,7 @@ export function canvasForwards(actions: readonly ActionDef[] = ACTIONS): Record<
  * ⌥, ⇧ kept on letters, a letter / digit / ASCII symbol from `e.key`, else the physical key from
  * `e.code` (a letter, a digit, or the Backslash key — ⌘\ is forwarded since V2-4.1, and a layout
  * that needs ⌥ for it reports a non-ASCII `e.key`), and ↵ with its ⇧ (S3.1: ⌥⌘↵ / ⇧⌥⌘↵ present
- * from the canvas). `actions-forward.test.ts` proves it agrees with chordFromEvent on every forwarded
+ * from the canvas), and an F-key with its ⇧ (S2.21: F6 / ⇧F6 leave the canvas for the panels). `actions-forward.test.ts` proves it agrees with chordFromEvent on every forwarded
  * chord. No backslashes on purpose: the string is interpolated into a template literal.
  */
 export const CHORD_OF_EVENT_JS = `function (e) {
@@ -44,5 +44,5 @@ export const CHORD_OF_EVENT_JS = `function (e) {
       else if (e.code === 'Backslash') k = String.fromCharCode(92);
     }
     if (/^[a-z]$/.test(k)) k = k.toUpperCase();
-    return (e.altKey ? '⌥' : '') + (e.shiftKey && (/^[A-Z]$/.test(k) || k === '↵') ? '⇧' : '') + (e.metaKey || e.ctrlKey ? '⌘' : '') + k;
+    return (e.altKey ? '⌥' : '') + (e.shiftKey && (/^[A-Z]$/.test(k) || k === '↵' || /^F[0-9]{1,2}$/.test(k)) ? '⇧' : '') + (e.metaKey || e.ctrlKey ? '⌘' : '') + k;
   }`;

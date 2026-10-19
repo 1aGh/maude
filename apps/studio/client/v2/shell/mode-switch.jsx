@@ -114,6 +114,16 @@ const PRESENT_ROWS = [
     label: 'Order and notes…',
     edit: true,
   },
+  // S3.14 (G3, 04 md-present-menu): under a rule of its own, an editor's row — the link a cloud viewer follows.
+  // The row's state (enabled / greyed + why) is the host's: `copyLink` prop.
+  { sep: 'link', edit: true },
+  {
+    kind: 'copy-link',
+    testid: 'mode-present-copy-link',
+    label: 'Copy presentation link',
+    edit: true,
+    needs: 'copyLink',
+  },
 ];
 
 /** S3.6b — below the canvas rows, only where another display exists (04 md-present-menu). */
@@ -128,8 +138,10 @@ const PRESENTER_ROW = {
  * (S3.6b) only where another display exists — in the tools group, before Order and notes…; for a
  * non-editor (no tools group) under its own rule.
  */
-function presentRows(caps, presenterView) {
-  const rows = PRESENT_ROWS.filter((row) => !row.edit || caps?.edit);
+function presentRows(caps, presenterView, copyLink) {
+  const rows = PRESENT_ROWS.filter(
+    (row) => (!row.edit || caps?.edit) && (row.needs !== 'copyLink' || copyLink)
+  ).filter((row, i, all) => !(row.sep === 'link' && !all.some((r) => r.kind === 'copy-link')));
   if (!presenterView) return rows;
   const at = rows.findIndex((r) => r.kind === 'order-notes');
   if (at >= 0) rows.splice(at, 0, PRESENTER_ROW);
@@ -148,6 +160,8 @@ function presentRows(caps, presenterView) {
  * @param presenterView S3.6b — `{ name, on }` when the desktop app has another display (the row is a check
  *        with that display's name); null = no row at all (hidden, never greyed)
  * @param onPresenterView () => void — the row toggles presenter view
+ * @param copyLink S3.14 — `{ enabled, note }` (copy-link.js `copyRowState`): Copy presentation link, an editor's
+ *        row; greyed with the reason when not enabled. null = no row (the host decides)
  */
 export function ModeSwitch({
   mode,
@@ -159,6 +173,7 @@ export function ModeSwitch({
   canPresent = true,
   presenterView = null,
   onPresenterView,
+  copyLink = null,
 }) {
   const run = (kind) => {
     if (onPresent) onPresent(kind);
@@ -255,7 +270,7 @@ export function ModeSwitch({
           aria-label="Present"
           data-testid="mode-present-list"
         >
-          {presentRows(caps, presenterView).map((row, i) =>
+          {presentRows(caps, presenterView, copyLink).map((row, i) =>
             row.sep ? (
               <hr key={`sep-${row.sep}`} className="st-pm-sep" />
             ) : row.kind === 'presenter' ? (
@@ -276,6 +291,25 @@ export function ModeSwitch({
                   </span>
                   <span className="st-pm-lab">{row.label}</span>
                   <span className="st-mode-menu-note">{presenterView?.name ?? ''}</span>
+                </button>
+              </div>
+            ) : row.kind === 'copy-link' ? (
+              <div key={row.kind} role="none" className="st-pm-li">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="st-pm-row"
+                  data-testid={row.testid}
+                  aria-disabled={copyLink?.enabled ? undefined : 'true'}
+                  onClick={() => {
+                    if (!copyLink?.enabled) return;
+                    setMenu(false);
+                    run(row.kind);
+                  }}
+                >
+                  <span className="st-pm-ic" aria-hidden="true" />
+                  <span className="st-pm-lab">{row.label}</span>
+                  <span className="st-mode-menu-note">{copyLink?.note ?? ''}</span>
                 </button>
               </div>
             ) : row.group ? (

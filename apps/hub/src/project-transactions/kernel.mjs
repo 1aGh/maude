@@ -737,6 +737,39 @@ export function createKernel({
     return out;
   }
 
+  /**
+   * gate-a-fix4a — the targets' own undo / redo chain: an undo or redo by the
+   * same actor whose `undoes` names a target, or a link of that chain (the redo
+   * names the undo it re-applies). Returns `(ids) => Set` of the ids in it; the
+   * action rows load once per undo, batched like the targets.
+   */
+  function ownHistoryOf(targets) {
+    const family = new Set(targets.map((t) => t.actionId));
+    const actor = targets[0]?.actor;
+    const rows = new Map();
+    return async (ids) => {
+      const want = [...new Set(ids)].filter((id) => typeof id === 'string' && !rows.has(id));
+      for (let i = 0; i < want.length; i += MAX_UNDO_TARGETS) {
+        const chunk = want.slice(i, i + MAX_UNDO_TARGETS);
+        const got = await loadActions(chunk);
+        for (let j = 0; j < chunk.length; j++) rows.set(chunk[j], got[j] ?? null);
+      }
+      for (let grew = true; grew; ) {
+        grew = false;
+        for (const [id, a] of rows) {
+          if (family.has(id) || !a || a.actor !== actor) continue;
+          if (a.kind !== 'undo' && a.kind !== 'redo') continue;
+          const of = Array.isArray(a.undoes) ? a.undoes : [a.undoes];
+          if (of.some((x) => family.has(x))) {
+            family.add(id);
+            grew = true;
+          }
+        }
+      }
+      return new Set(ids.filter((id) => family.has(id)));
+    };
+  }
+
   /** `(entry, lane)` — the unit a lane revert works on. */
   const laneKey = (e) => `${e.entry ?? e.doc}\u0000${e.lane}`;
 
@@ -746,7 +779,7 @@ export function createKernel({
    * lane except the targets' own (`targetIds`). Returns `{ applied }` or
    * `{ skipped }`.
    */
-  async function revertLane(work, first, targetIds, many) {
+  async function revertLane(work, first, targetIds, many, ownHistory) {
     // The entry may have moved since; follow it to its live document — first in
     // this proposal's own state (a document this undo just revived is live here
     // and not yet in the store), then in the store.
@@ -767,10 +800,15 @@ export function createKernel({
       // effect on this entry's lane, in order: a peer who touched what we
       // revert — even if they later wrote the same value back (ABA) — makes
       // that step a conflict instead of letting equal text hide their work.
-      // The targets' own later effects are what is being undone: skipped.
-      const chain = (await store.effectsAfter(first.entry, first.lane, first.rev)).filter(
+      // The targets' own later effects are what is being undone: skipped. So is
+      // their own undo / redo chain (⌘Z → ⇧⌘Z → ⌘Z names the same target again):
+      // it is the targets' history, not later work, and rebasing through it
+      // cancels out to "no change" — an undo-conflict on your own edit.
+      const later = (await store.effectsAfter(first.entry, first.lane, first.rev)).filter(
         (x) => x.op !== 'move' && !targetIds.has(x.actionId)
       );
+      const own = await ownHistory(later.map((x) => x.actionId));
+      const chain = later.filter((x) => !own.has(x.actionId));
       let x = before;
       for (const step of chain) {
         const m = mergeLane(
@@ -834,6 +872,7 @@ export function createKernel({
     }
     if (targets.length === 0) throw new Reject('undo-conflict', { skipped: skippedCleared });
     const targetIds = new Set(targets.map((t) => t.actionId));
+    const ownHistory = ownHistoryOf(targets);
     // The oldest target effect on each (entry, lane): where its revert starts.
     // Within one action, the effect whose after is a sibling's before precedes it.
     const firstOn = new Map();
@@ -941,7 +980,7 @@ export function createKernel({
       if (reverted.has(k)) continue;
       reverted.add(k);
       if (e.entry && deletedHere.has(e.entry)) continue;
-      const r = await revertLane(work, firstOn.get(k) ?? e, targetIds, many);
+      const r = await revertLane(work, firstOn.get(k) ?? e, targetIds, many, ownHistory);
       if (r.skipped) skipped.push(r.skipped);
       else if (r.applied) applied++;
     }

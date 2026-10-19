@@ -1,0 +1,3 @@
+S5.V3 G11 live: Pricing artboard selected (chip "Pricing"), chip menu -> "Whole canvas" (chip data-scope=whole), send "Tidy it".
+GET /_api/ai/runs -> mine[0].scope = {"canvas":"ui/Site.tsx","artboards":"*"}, leases on landing + pricing + settings.
+PASS (pass 2 sent artboards [landing]).

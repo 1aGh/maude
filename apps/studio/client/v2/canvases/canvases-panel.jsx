@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { placeMenu } from '../../tree-row-menu.jsx';
 import { pathTestIdSlug, shellToast } from '../../shell/util.js';
 import { useArrivingRows } from '../empty/arriving.jsx';
 import { copy } from '../empty/empty-copy.js';
@@ -71,6 +72,8 @@ import { useCanvasesSort } from './use-canvases-sort.js';
 import { ancestorDirs, useRowOps } from './use-move.js';
 import { usePins } from './use-pins.js';
 
+// The Sort menu is 260 wide in 11 · pn-organise (`.cv-menu` width below).
+const SORT_MENU_WIDTH = 260;
 const INDENT_BASE = 8;
 const INDENT_STEP = 16;
 const pad = (depth) => ({ paddingLeft: `${INDENT_BASE + depth * INDENT_STEP}px` });
@@ -305,16 +308,33 @@ export function CanvasesPanel({
   // ── the Sort menu ── mouse or keyboard: the checked choice takes the focus, ↑ ↓ Home End walk, ↵ / Space
   // choose, esc closes and gives the focus back to the Sort button, Tab leaves.
   const panelRef = useRef(null);
-  const [sortMenu, setSortMenu] = useState(null); // { top, right } | null
+  const [sortMenu, setSortMenu] = useState(null); // { anchor: {left,right,top,bottom} } | null
+  const [sortPlaced, setSortPlaced] = useState(null); // { left, top, maxHeight } | null
   const sortButton = () => panelRef.current?.querySelector('[data-testid="canvases-sort"]');
   const openSortMenuFrom = (btn) => {
     const a = btn?.getBoundingClientRect();
-    const p = panelRef.current?.getBoundingClientRect();
     setSortMenu({
-      top: p && a ? a.bottom - p.top + 4 : 28,
-      right: p && a ? Math.max(0, p.right - a.right) : 8,
+      anchor: a
+        ? { left: a.left, right: a.right, top: a.top, bottom: a.bottom }
+        : { left: 8, right: 8, top: 0, bottom: 24 },
     });
   };
+  // 11 · pn-organise draws the menu 260 wide OUTSIDE the panel, never clipped: it is placed in the window
+  // (fixed), at the button's left edge, and pulled back inside the window's edges (`placeMenu`).
+  useLayoutEffect(() => {
+    if (!sortMenu) {
+      setSortPlaced(null);
+      return;
+    }
+    const el = panelRef.current?.querySelector('[data-sort-menu]');
+    setSortPlaced(
+      placeMenu(
+        sortMenu.anchor,
+        { width: SORT_MENU_WIDTH, height: el?.scrollHeight || 0 },
+        { width: window.innerWidth, height: window.innerHeight }
+      )
+    );
+  }, [sortMenu]);
   const openSortMenu = (e) => {
     if (sortMenu) {
       setSortMenu(null);
@@ -494,6 +514,29 @@ export function CanvasesPanel({
     jump: jumpFootArgs,
     foots: slots.foots,
   });
+  // a11y gate B1: the Sort button is a control, not a treeitem, so it cannot live inside the role=tree element. The
+  // head row (name + count) stays a row of the list; the button is drawn over its right end from a sibling lane
+  // that follows the list's scroll.
+  const headIndex = searching ? -1 : rows.findIndex((r) => r.key === 'head:project');
+  const headTop = headIndex >= 0 ? layout.tops[headIndex] - scrollTop : 0;
+  const headH = headIndex >= 0 ? rowHeight(rows[headIndex]) : 0;
+  const sortLane =
+    headIndex >= 0 && headTop > -headH ? (
+      <div className="cv-sort-lane" style={{ top: headTop + (headH - 20) / 2 }}>
+        <button
+          type="button"
+          className={`cv-sort${sortOpen ? ' is-open' : ''}`}
+          data-testid="canvases-sort"
+          aria-haspopup="menu"
+          aria-expanded={sortOpen}
+          aria-label={`Sort canvases — ${SORT_LABELS[sort.by]}`}
+          onClick={openSortMenu}
+        >
+          {SORT_ASIDE[sort.by]}
+          <StIcon name="chevron-down" size={11} />
+        </button>
+      </div>
+    ) : null;
   const slice = [];
   for (let i = range.start; i < range.end; i++) slice.push(i);
   if (focusIndex >= 0 && (focusIndex < range.start || focusIndex >= range.end))
@@ -501,6 +544,7 @@ export function CanvasesPanel({
 
   return (
     <div className="cv-panel" ref={panelRef}>
+      {sortLane}
       {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}
       <div
         ref={treeRef}
@@ -551,7 +595,17 @@ export function CanvasesPanel({
           aria-label="Sort canvases"
           data-sort-menu
           data-testid="canvases-sort-menu"
-          style={{ top: sortMenu.top, right: sortMenu.right }}
+          style={
+            sortPlaced
+              ? {
+                  position: 'fixed',
+                  left: sortPlaced.left,
+                  top: sortPlaced.top,
+                  maxHeight: sortPlaced.maxHeight,
+                  overflowY: 'auto',
+                }
+              : { position: 'fixed', left: sortMenu.anchor.left, top: sortMenu.anchor.bottom + 4 }
+          }
           onKeyDown={onSortKeyDown}
         >
           <p className="cv-menu-group">Sort by</p>
@@ -675,20 +729,6 @@ function PanelHead({ row, style, ctx }) {
         <span className="cv-drop-tag" data-testid="canvases-drop-tag">
           Move here
         </span>
-      ) : null}
-      {isProject && !ctx.searching ? (
-        <button
-          type="button"
-          className={`cv-sort${ctx.sortOpen ? ' is-open' : ''}`}
-          data-testid="canvases-sort"
-          aria-haspopup="menu"
-          aria-expanded={ctx.sortOpen}
-          aria-label={`Sort canvases — ${SORT_LABELS[ctx.sort.by]}`}
-          onClick={ctx.openSortMenu}
-        >
-          {SORT_ASIDE[ctx.sort.by]}
-          <StIcon name="chevron-down" size={11} />
-        </button>
       ) : null}
     </div>
   );

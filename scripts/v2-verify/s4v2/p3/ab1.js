@@ -1,0 +1,26 @@
+await prev(0.9, 40, 40);
+await sleep(1000);
+const out = {};
+out.z = await zlabel();
+await page.keyboard.press('a');
+await sleep(500);
+// the Book a call button: world approx (3.78+48, 32.31+...) -> find via rects
+const rects = JSON.parse(fs.readFileSync('/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/s4v3/rects.json', 'utf8'));
+const b = rects.elements.find(e => e.cdId === 'book-a-call');
+out.b = b ? [b.x, b.y, b.w, b.h] : null;
+const t = S(b.x + b.w / 2, b.y + b.h / 2);
+const s0 = S(b.x + 400, b.y + 300);
+await page.mouse.move(s0.x, s0.y);
+await page.mouse.down();
+await page.mouse.move((s0.x + t.x) / 2, (s0.y + t.y) / 2, { steps: 6 });
+await page.mouse.move(t.x, t.y, { steps: 6 });
+await sleep(600);
+out.live = await ftids(/arrow-aim|arrow-cand|arrow-bound|annot-point/);
+out.aimTag = await frame().evaluate(() => document.querySelector('[data-testid="annot-arrow-aim-tag"]')?.innerText);
+await shot('ab1-aim');
+await page.mouse.up();
+await sleep(1000);
+out.after = await ftids(/arrow-bound|annot-arrow/);
+out.boundTag = await frame().evaluate(() => document.querySelector('[data-testid="annot-arrow-bound-tag"]')?.innerText);
+await shot('ab1-bound');
+return out;

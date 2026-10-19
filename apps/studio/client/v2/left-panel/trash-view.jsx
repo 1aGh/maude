@@ -29,13 +29,15 @@ export { CLEAR_OUT_KEEPS_DAYS } from '../canvases/kept-on-this-mac.jsx';
 
 /**
  * `trash` is useTrash()'s state. `projectName` is the team's name for a shared project (the confirm says
- * "for everyone on …"); `people` maps an actor id to a name when the server sent no `who`.
+ * "for everyone on …"); `people` maps an actor id to a name when the server sent no `who`; `roots` are the
+ * project's canvas groups (design-root-relative) — a row names its folder without them ("legacy", not "ui/legacy").
  */
 export function TrashView({
   trash,
   readOnly = false,
   projectName = '',
   people,
+  roots,
   onBack,
   onChanged,
   now,
@@ -126,7 +128,7 @@ export function TrashView({
                             {itemName(it)}
                           </span>
                           <span className="lp-sub" data-testid="canvases-trash-sub">
-                            {itemSub(it, { people, now })}
+                            {itemSub(it, { people, now, roots })}
                           </span>
                         </span>
                         {!readOnly ? (

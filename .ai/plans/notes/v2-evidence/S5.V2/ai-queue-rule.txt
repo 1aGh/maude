@@ -1,0 +1,6 @@
+S5.V2 ai-queue-rule — measured on the S5-rig (GET /_api/ai/runs) with the real pre-edit hook.
+
+Rule 1 different artboards run side by side: Pricing + Landing chats both "running", each with its own ring + "AI is working" tag (ai-two-artboards.jpg).
+Rule 2 same artboard waits: second Landing ask -> state "waiting", waiting[{artboard:"landing",position:1,heldBy:<first run>}]; card "Waiting for “<ask>” to finish on Landing." (ai-same-artboard.jpg).
+Rule 3 whole-canvas ask does not wait: with Landing held by a running chat, an ask with scope {artboards:"*"} started at once and ended "done" while Landing stayed held.
+Rule 4 run on a copy skips the line: "Run on a copy" -> artboard "Landing · copy" (landing-copy-<hash>) beside the original, the ask runs on it at once (ai-copy.jpg).

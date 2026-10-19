@@ -1,7 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 import { $, browser, expect } from '@wdio/globals';
 
@@ -120,30 +117,38 @@ describe('brand-import', () => {
 
   it('3 · with a logo, the failed site keeps the logo’s colours; the result has roles and a preview', async () => {
     await openSheet();
-    // The hidden file input is the browser lane's picker; WebDriver sets a file on it directly.
-    const dir = mkdtempSync(join(tmpdir(), 'brand-e2e-'));
-    const logoPath = join(dir, 'studio-brno-logo.svg');
-    writeFileSync(logoPath, LOGO_SVG);
-    await browser.execute(() => {
+    // The hidden file input is the browser lane's picker. The embedded WKWebView driver cannot send a file to
+    // an <input type=file> (`element/value` throws), so hand the page the same File a picker would: a
+    // DataTransfer, assigned to `input.files`, then the `change` a pick fires.
+    await browser.execute((svg: string) => {
       const input = document.querySelector(
         '[data-testid="brand-sheet"] input[type="file"]'
       ) as HTMLInputElement;
-      input.hidden = false;
-    });
-    await (await $(`${tid('brand-sheet')} input[type="file"]`)).setValue(logoPath);
+      const dt = new DataTransfer();
+      dt.items.add(new File([svg], 'studio-brno-logo.svg', { type: 'image/svg+xml' }));
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, LOGO_SVG);
     await typeWebsite(`https://127.0.0.1:${port}/`);
     await (await $(tid('brand-import'))).click();
 
     const failed = await $(tid('brand-site-failed'));
     await failed.waitForDisplayed({ timeout: 30_000 });
     expect(await failed.getText()).toContain("The logo's colours are kept.");
-    expect(await (await $(tid('brand-read-logo'))).getAttribute('data-state')).toBe('read');
+    // the logo is read alongside the site: it says "reading" until its colours are in
+    await browser.waitUntil(
+      async () => (await (await $(tid('brand-read-logo'))).getAttribute('data-state')) === 'read',
+      { timeout: 15_000, timeoutMsg: 'the logo was never read' }
+    );
     await capture('04-site-failed-logo-kept');
 
     await (await $(tid('brand-continue-logo'))).click();
     await (await $(tid('brand-up-result'))).waitForDisplayed({ timeout: 10_000 });
-    expect(await (await $(tid('brand-colour-0'))).getAttribute('data-role')).toBe('accent');
-    expect(await (await $(tid('brand-colour-0'))).getText()).toContain('Coral');
+    // the result lists the colours with their roles (the logo's paper-white background comes first);
+    // the accent is the coral circle, wherever it sits in the list
+    const accent = await $('[data-testid^="brand-colour-"][data-role="accent"]');
+    await accent.waitForExist({ timeout: 5_000 });
+    expect(await accent.getText()).toContain('Coral');
     expect(await $(tid('brand-lettering-shapes')).isDisplayed()).toBe(true);
     expect(await $(tid('brand-preview')).isDisplayed()).toBe(true);
     await capture('05-result-roles-preview');

@@ -25,6 +25,9 @@
  *   - sticky / polygon / image / link — see the per-tool serializers below.
  */
 
+import { SECTION_FOLDED_H } from './annotations/constants.ts';
+import { fitSticky } from './annotations/elements/sticky.model.ts';
+import type { CanvasHostBind } from './annotations/hosts.ts';
 import { defOf } from './annotations/registry.ts';
 import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
 import {
@@ -98,6 +101,22 @@ interface StrokeBase {
    * `data-locked`.
    */
   locked?: true;
+  /**
+   * S4.12 — a sticky someone resolved (struck through in place, kept): who, and when (ISO). Absent =
+   * open. The stroke view of the v2 element's `resolved` (format-2 ext), so Resolve / Reopen written
+   * from the UI is a real write and a removal is real. Not serialized into the legacy SVG.
+   */
+  resolved?: { by: string; at: string };
+  /** S4.13 — when a sticky was made (ISO, local clock). The stroke view of the element's `at` (format-2 ext); the author line reads "Jonas · 2 h ago" from it. */
+  at?: string;
+  /** S4.12 — a section folded to its title chip + count. The stroke view of the element's `folded`. */
+  folded?: true;
+  /** S4.12 — where an imported element came from (`figjam`, `comment`, …). Read-only in the UI. */
+  source?: { kind: string; author?: string };
+  /** S4.20 — the artboard a note rides with (Q3 membership). Read-only here: the commit path stamps it, the stroke view only carries it to the scene ("Not printed" over a print artboard). */
+  parentArtboard?: string;
+  /** S4.20 — a note pinned to a moment of a video. Read-only here (the layer pins on place); carried so the scene can draw the chip and the fade. */
+  timeRange?: { artboard: string; start: number; end: number };
   /**
    * FigJam v3 — rotation in degrees (clockwise) around the stroke's bbox
    * center. Absent / 0 = axis-aligned (back-compat). Honoured by the box-
@@ -187,6 +206,11 @@ export interface ArrowStroke extends StrokeBase {
   startBind?: ArrowBind;
   /** FigJam v3 — magnetic binding of the (x2,y2) end to a host stroke. */
   endBind?: ArrowBind;
+  /** S4.11 — the start / end bound to an artboard or a canvas element (annotations/hosts.ts). */
+  startHost?: CanvasHostBind;
+  endHost?: CanvasHostBind;
+  /** S4.11 — the words written on the line (double-click an arrow). */
+  label?: string;
 }
 export interface TextStroke extends StrokeBase {
   tool: 'text';
@@ -230,6 +254,8 @@ export interface StickyStroke extends StrokeBase {
   fontSize: number;
   /** Corner radius; defaults to STICKY_CORNER_RADIUS (8 = soft). */
   cornerRadius?: number;
+  /** S4.20 — the stored sticky has no `fill` (read-only view hint): `color` is the default paper, not a choice, so an AI sticky wears the neutral paper. */
+  unfilled?: true;
   /** Phase 24 — bold body weight. Absent / false = normal. */
   bold?: boolean;
   /** Phase 24 — strikethrough body. Absent / false = none. */
@@ -266,6 +292,12 @@ export interface ImageStroke extends StrokeBase {
    * in-canvas `aria-label` is pruned; the alt's audience is the export. Absent ⇒ ''.
    */
   alt?: string;
+  /**
+   * S4.13 — set when the picture came from the Stickers gallery: which bundled sticker (`pack` slug + catalogue
+   * `id`) and whether it is mirrored. The stroke view of the image element's `sticker` (format-2 ext), so
+   * Replace… and Flip are real writes. Absent = a pasted / dropped picture.
+   */
+  sticker?: { pack: string; id: string; flip?: boolean };
 }
 /**
  * Phase 23 — pasted / dropped URL rendered as a client-only preview chip. NO
@@ -604,6 +636,40 @@ export function grownStickyBox(
     h: next,
   };
 }
+/**
+ * The sticky a body edit commits, or null when there is nothing to write. `baseText` is the text the
+ * edit session OPENED with: the idle-typing draft (600 ms) has usually already put the final words on
+ * the board, so comparing against the stored text alone would call the commit an identity edit and
+ * skip the fit (S4.V4 G1 - a sticky that never grew). Growth rides along with a real edit and is not
+ * itself a reason to write: opening an already-overflowing note and clicking away writes nothing.
+ * S4.12 (an-sticky cell 1) - five lines, then wider, smaller type only past 120 words; the editor's
+ * own measurement still decides when the card needs more height than that estimate.
+ */
+export function stickyEditNext(
+  existing: StickyStroke,
+  text: string,
+  fmt: EditorFmt | undefined,
+  measuredH: number | undefined,
+  baseText: string = existing.text
+): StickyStroke | null {
+  if (baseText === text && existing.text === text && fmtEqual(existing, fmt)) return null;
+  const fit = fitSticky({ w: existing.w, h: existing.h, fontSize: existing.fontSize }, text);
+  const sized =
+    fit.w !== Math.abs(existing.w) ||
+    fit.h !== Math.abs(existing.h) ||
+    fit.fontSize !== existing.fontSize
+      ? {
+          x: Math.min(existing.x, existing.x + existing.w),
+          y: Math.min(existing.y, existing.y + existing.h),
+          w: fit.w,
+          h: fit.h,
+          fontSize: fit.fontSize,
+        }
+      : null;
+  const grown = measuredH == null ? null : grownStickyBox(sized ?? existing, measuredH);
+  return { ...existing, text, ...normFmt(fmt), ...(sized ?? {}), ...(grown ?? {}) };
+}
+
 // Phase 24 — a bare tap with the Shape tool drops a default-sized shape at the
 // tap point (FigJam parity: click commits, drag sizes). Square aspect.
 export const SHAPE_DEFAULT_SIZE = 120;
@@ -1872,6 +1938,11 @@ export function strokeCenter(s: Stroke): [number, number] | null {
   return [bb.x + bb.w / 2, bb.y + bb.h / 2];
 }
 
+/** S4.13 — where a section's grabbable body ends: its full bottom, or the header strip while folded. */
+function foldedBottom(s: SectionStroke, yMin: number): number {
+  return s.folded ? yMin + SECTION_FOLDED_H : Number.POSITIVE_INFINITY;
+}
+
 export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): boolean {
   // FigJam v3 — rotated strokes hit-test in their LOCAL frame: inverse-rotate
   // the probe around the pivot, then run the axis-aligned math unchanged.
@@ -1905,7 +1976,8 @@ export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): b
     const xMin = Math.min(s.x, s.x + s.w);
     const xMax = Math.max(s.x, s.x + s.w);
     const yMin = Math.min(s.y, s.y + s.h);
-    const yMax = Math.max(s.y, s.y + s.h);
+    // S4.13 — a folded section is one line: nothing is grabbable below its header strip.
+    const yMax = Math.min(Math.max(s.y, s.y + s.h), foldedBottom(s, yMin));
     // Label chip above the top-left corner.
     const chipW = Math.max(56, s.label.length * SECTION_LABEL_FONT * 0.62 + 18);
     if (wx >= xMin && wx <= xMin + chipW && wy >= yMin - SECTION_LABEL_H - 6 && wy <= yMin) {
@@ -2174,12 +2246,15 @@ export function strokeBBox(
     s.tool === 'section'
   ) {
     // Phase 23 — image + link + mediaref are rect-shaped cards, same bbox as a
-    // sticky; FigJam v3 sections share it too.
+    // sticky; FigJam v3 sections share it too (a folded one is its header strip, S4.13).
     return {
       x: Math.min(s.x, s.x + s.w),
       y: Math.min(s.y, s.y + s.h),
       w: Math.abs(s.w),
-      h: Math.abs(s.h),
+      h:
+        s.tool === 'section' && s.folded
+          ? Math.min(Math.abs(s.h), SECTION_FOLDED_H)
+          : Math.abs(s.h),
     };
   }
   // text — anchored inherits its host's bbox; standalone (Phase 21) gets a
