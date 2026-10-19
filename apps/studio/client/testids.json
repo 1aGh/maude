@@ -18904,6 +18904,20 @@
     "v2": "new"
   },
   {
+    "hook": "ai-copy-divider",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Ran on a copy — <artboard> was busy\": the rule above a run that ran on a copy (03 `ai-copy`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunSurface.jsx",
+      "symbol": "RunSurface"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-18-copy.test.ts"],
+    "v2": "new"
+  },
+  {
     "hook": "ai-choice-settled",
     "kind": "testid",
     "pattern": false,

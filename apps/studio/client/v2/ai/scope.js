@@ -53,7 +53,9 @@ export function selectionKey(selected) {
   return first(selected)
     .filter((el) => el && typeof el === 'object')
     .map((el) =>
-      [el.file, el.artboardId, el.id, el.selector, el.index, el.stale === true ? 's' : ''].join('\u0001')
+      [el.file, el.artboardId, el.id, el.selector, el.index, el.stale === true ? 's' : ''].join(
+        '\u0001'
+      )
     )
     .join('\u0002');
 }

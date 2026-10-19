@@ -6,7 +6,12 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 type Hook = { current: ReturnType<typeof import('../client/v2/ai/use-ai-scope.js').useAiScope> };
 
-const SEL = (artboardId: string) => ({ file: 'ui/Site.tsx', artboardId, selector: 'div', index: 0 });
+const SEL = (artboardId: string) => ({
+  file: 'ui/Site.tsx',
+  artboardId,
+  selector: 'div',
+  index: 0,
+});
 
 describe('G11 — the chip choice wins over the selection', () => {
   beforeAll(() => {

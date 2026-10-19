@@ -21,7 +21,13 @@ export { choiceModel };
  * picked one marked. `picked` is the label the person chose (or what they typed under "Something else…").
  * `onRespond(answer, { picked })` — the second argument names the pick so the slot can keep the card.
  */
-export default function ChoiceCard({ request, onRespond, model: given, settled = false, picked = null }) {
+export default function ChoiceCard({
+  request,
+  onRespond,
+  model: given,
+  settled = false,
+  picked = null,
+}) {
   const ref = useRef(null);
   const model = useMemo(() => given ?? choiceModel(request), [given, request]);
   const [other, setOther] = useState(false); // the "Something else…" field is open

@@ -8,15 +8,7 @@
 // The numbers and rows come from runs-model.js over the tab's run store (runs-store.js). Presentational beyond
 // that: the caller says where "jump" goes and what opening a chat means.
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { dispatchArtboardJump } from '../left-panel/left-panel-bus.js';

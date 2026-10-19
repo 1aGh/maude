@@ -1,15 +1,15 @@
 // S5.18 G4 (03 `ai-needs-hidden`) — the Canvases panel's row says "Needs you" while a run on that canvas waits for a
 // person, and "AI is working" otherwise. Red first: nothing called `setRowSlots('ai', …)`, so no row ever did.
 import { afterEach, describe, expect, test } from 'bun:test';
+import { OPEN_AI_EVENT, openAiChat } from '../client/v2/ai/needs-you-toast.js';
+import { createRowSlotsLane, rowSlotsFor } from '../client/v2/ai/row-slots-lane.js';
+import { normalizeRuns } from '../client/v2/ai/runs-model.js';
 import {
   getRowSlots,
   registerRowSlot,
   resetRowSlots,
   resolveSlot,
 } from '../client/v2/canvases/row-slots.js';
-import { createRowSlotsLane, rowSlotsFor } from '../client/v2/ai/row-slots-lane.js';
-import { normalizeRuns } from '../client/v2/ai/runs-model.js';
-import { openAiChat, OPEN_AI_EVENT } from '../client/v2/ai/needs-you-toast.js';
 
 const run = (over: Record<string, unknown>) => ({
   runId: `r_${Math.random().toString(36).slice(2, 8)}`,
@@ -39,7 +39,9 @@ describe('rowSlotsFor', () => {
   });
 
   test('Needs you wins whichever run comes first', () => {
-    const m = rowSlotsFor(normalizeRuns({ mine: [run({ state: 'needs-you' }), run({ state: 'running' })] }));
+    const m = rowSlotsFor(
+      normalizeRuns({ mine: [run({ state: 'needs-you' }), run({ state: 'running' })] })
+    );
     expect(m.get('ui/Site.tsx')?.meta?.word).toBe('Needs you');
   });
 

@@ -17,6 +17,7 @@ import { focusComposer } from './panel-focus.js';
 import { ResultCard } from './Result.jsx';
 import { keepGoingRun, redoRun, stopRun, undoNote, undoRun } from './run-api.js';
 import {
+  copyDividerText,
   createAnnouncer,
   describeResult,
   followUps,
@@ -28,6 +29,9 @@ import {
   stepsSummary,
   workingText,
 } from './run-model.js';
+import { artboardLabel, runFile } from './runs-model.js';
+import { useBoardLabels } from './RunList.jsx';
+import { shortArtboardName } from './scope.js';
 import { RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
 import { useChatRuns } from './use-chat-runs.js';
 
@@ -50,6 +54,15 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   const verbs = useMemo(() => resultVerbs(run), [run]);
   const showResult = !live && ended && (verbs.length > 0 || cutShort);
   const elapsed = useRunClock(run?.startedAt, showWorking);
+  // S5.18 G2: a run that ran on a copy says so, with the artboard that was busy
+  const boardLabels = useBoardLabels(designRel, 0);
+  const copyLine = run?.copyOf
+    ? copyDividerText(run, {
+        name: shortArtboardName(
+          artboardLabel(boardLabels, runFile(run, designRel), run.copyOf.artboard)
+        ),
+      })
+    : null;
 
   // ── a turn just ended: the registry may have closed its run since the last frame ──
   const wasLive = useRef(live);
@@ -139,6 +152,11 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   return (
     <>
       <RunLiveRegion message={message} />
+      {copyLine && (showWorking || showResult) ? (
+        <p className="ai-copy-rule" data-testid="ai-copy-divider">
+          {copyLine}
+        </p>
+      ) : null}
       {showWorking ? (
         <WorkingLine
           text={workingText(run)}

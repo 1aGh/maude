@@ -119,7 +119,8 @@ function plainArtboardIds(v: unknown): string[] | undefined {
   if (!Array.isArray(v)) return undefined;
   const out: string[] = [];
   for (const id of v) {
-    if (typeof id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(id) || out.includes(id)) continue;
+    if (typeof id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(id) || out.includes(id))
+      continue;
     out.push(id);
     if (out.length >= 8) break;
   }
@@ -324,7 +325,13 @@ function deriveTitle(lines: Array<Record<string, unknown>>): string {
 function readListMeta(
   designRoot: string,
   chatId: string
-): { title?: string; archived: boolean; canvas?: string; trashedAt?: number; artboards?: string[] } {
+): {
+  title?: string;
+  archived: boolean;
+  canvas?: string;
+  trashedAt?: number;
+  artboards?: string[];
+} {
   const raw = readRawChatMeta(designRoot, chatId);
   const out: {
     title?: string;

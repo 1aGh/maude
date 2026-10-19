@@ -5,17 +5,8 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  linkChatCanvas,
-  listChats,
-  noteChatArtboards,
-  writeChatMeta,
-} from '../acp/transcript.ts';
-import {
-  artboardWhere,
-  boardsByRel,
-  buildChatList,
-} from '../client/v2/ai/chat-list-model.js';
+import { linkChatCanvas, listChats, noteChatArtboards, writeChatMeta } from '../acp/transcript.ts';
+import { artboardWhere, boardsByRel, buildChatList } from '../client/v2/ai/chat-list-model.js';
 import { fitRunListWidth } from '../client/v2/ai/runs-model.js';
 
 const dirs: string[] = [];
@@ -43,7 +34,9 @@ describe('G5 — the where line under an idle chat row', () => {
 
   test('boardsByRel reads the canvases index', () => {
     const m = boardsByRel({
-      canvases: [{ rel: 'ui/Kampan.tsx', artboards: [{ id: 'post', label: 'Post 1:1' }, { nope: 1 }] }],
+      canvases: [
+        { rel: 'ui/Kampan.tsx', artboards: [{ id: 'post', label: 'Post 1:1' }, { nope: 1 }] },
+      ],
     });
     expect(m.get('ui/Kampan.tsx')).toEqual([{ id: 'post', label: 'Post 1:1' }]);
   });
@@ -75,7 +68,10 @@ describe('G5 — the server remembers what a chat last asked about', () => {
     const root = mkdtempSync(join(tmpdir(), 'maude-s518-chat-'));
     dirs.push(root);
     mkdirSync(join(root, '_chat'), { recursive: true });
-    writeFileSync(join(root, '_chat', 'c1.jsonl'), `${JSON.stringify({ role: 'user', text: 'hi' })}\n`);
+    writeFileSync(
+      join(root, '_chat', 'c1.jsonl'),
+      `${JSON.stringify({ role: 'user', text: 'hi' })}\n`
+    );
     return root;
   }
 

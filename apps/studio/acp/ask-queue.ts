@@ -188,7 +188,12 @@ export function createAskQueue(deps: AskQueueDeps) {
     } catch {
       return null;
     }
-    return p ? p.then(() => undefined, () => undefined) : null;
+    return p
+      ? p.then(
+          () => undefined,
+          () => undefined
+        )
+      : null;
   }
 
   return { closed, chatHasQueued, maybeQueue, sender, ready };
