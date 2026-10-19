@@ -349,6 +349,7 @@ describe('the registry carries the inspector actions (rule 14: each with its AI 
       'inspector.copy-code',
       'inspector.edit-css-as-text',
       'element.detach',
+      'component.go-to-main', // S2.17
       'inspect.copy-code', // S3.11
     ]);
     for (const id of INSPECTOR_ACTION_IDS) {

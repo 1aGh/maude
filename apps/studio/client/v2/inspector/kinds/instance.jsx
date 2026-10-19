@@ -23,6 +23,7 @@ import { Select } from '../../../inspector-controls.jsx';
 import { StIcon } from '../../../shell/icons.jsx';
 import { registerBlock } from '../blocks.js';
 import { useCssWrite } from '../css-write.js';
+import { bindInspectorActions } from '../inspector-actions.js';
 import { ColorControl } from '../sections/color-control.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
 import { useDsFamilies } from '../token-chip.jsx';
@@ -278,6 +279,20 @@ function ContentBody({ el, ctx }) {
 
 function MainBody({ el, ctx }) {
   const info = infoOf(el);
+  const component = info?.component;
+  const onShellAction = ctx?.onShellAction;
+  // ⌘K "Go to the main component" runs on the instance this block shows; S10's `ds.go-to` does the going
+  useEffect(() => {
+    if (!component) return undefined;
+    return bindInspectorActions({
+      'component.go-to-main': () => {
+        if (!ACTIONS_BY_ID.has('ds.go-to') || !onShellAction)
+          return 'The main component opens with the Design system view; not yet.';
+        onShellAction('ds.go-to', { component });
+        return null;
+      },
+    });
+  }, [component, onShellAction]);
   if (!info) return null;
   const editable = ctx?.editable !== false && !!ctx?.onRunAction && !info.repeats;
   const canGo = ACTIONS_BY_ID.has('ds.go-to');
