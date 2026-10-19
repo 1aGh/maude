@@ -50,6 +50,7 @@ import {
   localGate,
   notInScopeResponse,
   SESSION_WRITES,
+  targetOf,
   toDesignRel,
   writeCapability,
 } from './access/request.ts';
@@ -206,6 +207,7 @@ import {
   announceAction,
   assetStateDepsFor,
   canvasPathsOfIndex,
+  createTrashWriteStop,
   voteHomeResolver as createVoteHomeResolver,
   type ExportRouteDeps,
   gateSpecV2,
@@ -217,6 +219,7 @@ import {
   shareAskToEditSender,
   shareInviteSender,
   trashAccess,
+  withTrashStop,
 } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
@@ -7134,7 +7137,31 @@ export function createHttp(
     return access.grants.length > 0 ? visibility.closureOf(access) : null;
   }
 
-  async function readOnlyRefusal(req: Request): Promise<Response | null> {
+  // S9.21b — a canvas trashed while a tab has it open takes no writes (routes/trash.ts): a write the
+  // access gate lets through but that names a canvas the shared Trash holds gets 409 in-trash.
+  const trashWriteStop = createTrashWriteStop({
+    control: () => ctx.syncControl?.current?.() ?? null,
+    target: (req) => {
+      let pathname = '';
+      try {
+        pathname = new URL(req.url).pathname;
+      } catch {
+        return Promise.resolve(null);
+      }
+      return laneRoutes.targetFor(req, pathname) ?? targetOf(req, designRel);
+    },
+    on: (e, fn) => ctx.bus.on(e, fn),
+    emit: (e, p) => ctx.bus.emit(e, p),
+  });
+  const readOnlyRefusal = withTrashStop(accessRefusal, trashWriteStop, (req) => {
+    try {
+      return writeCapability(new URL(req.url).pathname, tableSession);
+    } catch {
+      return 'edit';
+    }
+  });
+
+  async function accessRefusal(req: Request): Promise<Response | null> {
     const access = accessOf(req);
     const g = gateInput(access);
     // S9.11 (V2-1.16 L15) — a file of the design root (the static lane, its `/assets/`

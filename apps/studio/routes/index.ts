@@ -66,6 +66,8 @@ export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 export { announceAction, runStageHooks } from './project-undo.ts';
 // S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
 export { type ShareRouteDeps, shareAskToEditSender, shareInviteSender } from './share.ts';
+// S9.21b — the trashed-while-open write stop, behind http.ts's access gate.
+export { createTrashWriteStop, withTrashStop } from './trash.ts';
 // S4.14 — where a project's votes live (local / hub / off), resolved per request by http.ts.
 export { createVoteHomeResolver as voteHomeResolver } from './votes.ts';
 
