@@ -34,6 +34,9 @@ const NONE = [
   '/_api/ui-prefs',
   '/_api/timeline-media',
   '/_api/whats-new',
+  // S11.17 — the crash line's last-work time and the full-disk hold's counts: no canvas in either
+  '/_api/diagnostics/last-work',
+  '/_api/diagnostics/disk',
   // A6b-2 — S11.13 Settings › Advanced reads: a number, plugin versions
   '/_api/kg/summary',
   '/_api/settings/about',
@@ -262,6 +265,7 @@ const PROJECT = [
   '/_api/shell-shot',
   '/_api/sync/offline',
   '/_api/sync/resync',
+  '/_api/diagnostics/disk-retry',
   '/_api/sync/cancel-assets',
   '/_api/fs-move',
   '/_api/fs-mkdir',

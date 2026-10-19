@@ -442,6 +442,10 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/cancel-assets': { class: 'local' },
   '/_api/sync/ownership': { class: 'local' },
   '/_api/sync/resync': { class: 'local', rows: 'X16' },
+  // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
+  '/_api/diagnostics/disk-retry': { class: 'local' },
+  '/_api/diagnostics/disk': { class: 'read' },
+  '/_api/diagnostics/last-work': { class: 'read' },
   '/_api/sync/offline': { class: 'local', rows: 'T19 (pull the whole file plane now)' },
   '/_api/sync/settings': { class: 'local' },
   '/_api/sync/trash': { class: 'local', rows: 'X15 (restore re-enters through cold start)' },

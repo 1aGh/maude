@@ -231,6 +231,7 @@ const ROWS: Row[] = [
   },
   // ── sync ──
   { family: 'sync', method: 'POST', path: '/_api/sync/resync', viewer: 'refused' },
+  { family: 'sync', method: 'POST', path: '/_api/diagnostics/disk-retry', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/settings', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/ownership', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/cancel-assets', viewer: 'refused' },
