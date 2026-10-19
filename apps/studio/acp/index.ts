@@ -14,7 +14,13 @@ import type {
 import type { ServerWebSocket } from 'bun';
 import { isCanvasFile } from '../activity.ts';
 import { readOnlyRootsFor } from '../ai/attach-grants.ts';
-import { ASK_ID_RE, isLive, type RunRecord, type RunScope } from '../ai/run-lifecycle.ts';
+import {
+  ASK_ID_RE,
+  type ElementRef,
+  isLive,
+  type RunRecord,
+  type RunScope,
+} from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
@@ -137,17 +143,56 @@ const MAX_SCOPE_ARTBOARDS = 64;
  */
 export function parseRunScope(raw: unknown): RunScope | null {
   if (!raw || typeof raw !== 'object') return null;
-  const o = raw as { canvas?: unknown; artboards?: unknown };
+  const o = raw as { canvas?: unknown; artboards?: unknown; elements?: unknown };
   if (typeof o.canvas !== 'string' || !o.canvas || o.canvas.length > 512) return null;
   if (o.canvas.includes('\0') || o.canvas.includes('\\') || o.canvas.startsWith('/')) return null;
   const parts = o.canvas.split('/');
   if (parts.some((p) => p === '' || p === '.' || p === '..')) return null;
   if (!isCanvasFile(o.canvas)) return null;
-  if (o.artboards === '*') return { canvas: o.canvas, artboards: '*' };
+  if (o.artboards === '*')
+    return o.elements === undefined ? { canvas: o.canvas, artboards: '*' } : null;
   if (!Array.isArray(o.artboards) || o.artboards.length === 0) return null;
   if (o.artboards.length > MAX_SCOPE_ARTBOARDS) return null;
   if (!o.artboards.every((a) => typeof a === 'string' && ARTBOARD_ID_RE.test(a))) return null;
-  return { canvas: o.canvas, artboards: [...new Set(o.artboards as string[])] };
+  const artboards = [...new Set(o.artboards as string[])];
+  if (o.elements === undefined) return { canvas: o.canvas, artboards };
+  // S2.19 — a ⌘/ ask on a selection names its elements; they sit on artboards the ask leases
+  const elements = parseScopeElements(o.elements, o.canvas, artboards);
+  return elements ? { canvas: o.canvas, artboards, elements } : null;
+}
+
+/** S2.19 — the most elements one ask names (the registry's per-run cap). */
+export const MAX_SCOPE_ELEMENTS = 200;
+
+function parseScopeElements(
+  raw: unknown,
+  canvas: string,
+  artboards: string[]
+): ElementRef[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_SCOPE_ELEMENTS) return null;
+  const out: ElementRef[] = [];
+  const seen = new Set<string>();
+  for (const e of raw as Array<{ artboard?: unknown; element?: unknown; occurrence?: unknown }>) {
+    if (!e || typeof e !== 'object') return null;
+    if (typeof e.artboard !== 'string' || !artboards.includes(e.artboard)) return null;
+    if (typeof e.element !== 'string' || !ARTBOARD_ID_RE.test(e.element)) return null;
+    const occ = e.occurrence;
+    if (
+      occ !== undefined &&
+      !(typeof occ === 'number' && Number.isInteger(occ) && occ >= 0 && occ < 10000)
+    )
+      return null;
+    const key = `${e.artboard}\u0000${e.element}\u0000${occ ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      canvas,
+      artboard: e.artboard,
+      element: e.element,
+      ...(occ !== undefined ? { occurrence: occ } : {}),
+    });
+  }
+  return out;
 }
 
 // RC5 (rca/issue-canvas-hmr-optimistic-update-consistency) — the ACP chat agent
