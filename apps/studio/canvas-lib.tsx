@@ -114,7 +114,7 @@ import {
 import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
 import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
-import { usePresentStage } from './present/present-stage.tsx';
+import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
 import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
 import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
@@ -470,6 +470,9 @@ const ENGINE_CSS = `
   will-change: transform;
 }
 .dc-canvas .dc-artboard.dc-positioned { position: absolute; }
+/* S3.14 - Present draws the work only (04 md-present-*): the editor chrome list is present/present-stage.tsx
+   PRESENT_HIDES, keyed on the root attribute the stage sets while any Present is on. */
+${presentHidesCss()}
 .dc-canvas .dc-artboard-label {
   flex-shrink: 0;
   background: var(--bg-2, #e8e3d8);

@@ -109,6 +109,7 @@ import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
+import { usePresentSelection } from './present/present-stage.tsx';
 import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
@@ -2599,6 +2600,7 @@ function CanvasRouter({
   const { tool, setTool, resetTool, clearSticky } = useToolMode();
   const selSet = useSelectionSet();
   const annotSel = useAnnotationSelection();
+  usePresentSelection(selSet, annotSel); // S3.14 - no halo for the audience; back as left on the way out
   const ctxMenu = useContextMenu();
   const undoStack = useUndoStack();
   const undoSinks = useUndoSinks();

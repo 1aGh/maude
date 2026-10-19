@@ -5265,6 +5265,19 @@
     "v2": "new"
   },
   {
+    "hook": "mode-present-copy-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Copy presentation link — follows you live (editors only, under a rule after Order and notes…): copies the hub's presentation link; greyed with its reason (in a cloud project · waits for a connection) otherwise (`aria-disabled`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/s3-14-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "present-controls",
     "kind": "testid",
     "pattern": false,
