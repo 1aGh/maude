@@ -36,6 +36,7 @@ import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { LaneChange, LanesOutcome } from '../api.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { listPickerComponents, systemForPicker } from '../ds/component-list.ts';
+import { instanceInfoFor, pickerItems } from '../ds/instance-info.ts';
 import { CLIP_EDIT_VERBS } from '../edit-ops/clip/index.ts';
 import {
   dispatchEditOp,
@@ -364,6 +365,16 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     }
   };
 
+  /** S2.17 — the variants the canvas's design system gives a component: the server's reading, per request. */
+  const variantsOf = (rel: string) => {
+    let items: ReturnType<typeof pickerItems> | null = null;
+    return (component: string): readonly string[] | null => {
+      items ??= pickerItems(deps.designRoot, systemForPicker(deps.designRoot, abs(rel)));
+      const it = items.get(component);
+      return it ? it.variants.map((v) => v.key) : null;
+    };
+  };
+
   const run = (body: unknown) => {
     const file = (body as { file?: unknown } | null)?.file;
     const key =
@@ -402,7 +413,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
             after
           ) ?? null,
         log,
-        ctx: (rel) => ({ dsRev: dsRevOf(rel) }),
+        ctx: (rel) => ({ dsRev: dsRevOf(rel), variantsOf: variantsOf(rel) }),
         ...(deps.references ? { references: deps.references } : {}),
         ...(deps.ops ? { ops: deps.ops } : {}),
       })
@@ -489,6 +500,51 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
             systemForPicker(deps.designRoot, rel ? abs(rel) : null)
           )
         );
+      },
+    },
+    {
+      // S2.17 — what the inspector's Instance blocks show: is this object an instance of a design-system
+      // component, which one, its variants, what it overrides. Read from the TSX and the canvas's own
+      // system. Anyone who can see the canvas may ask (it is what the canvas already draws); the ops it
+      // leads to are minRole edit and judged by the dispatcher.
+      method: 'GET',
+      path: '/_api/edit-instance',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: (req) => {
+        const q = new URL(req.url).searchParams;
+        const file = q.get('file');
+        const id = q.get('id');
+        const rel = file ? resolveCanvasRel(deps.designRoot, deps.designRel, file) : null;
+        if (!rel || !id || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id))
+          return json(400, { ok: false, code: 'invalid', message: 'Select an object first.' });
+        const access = deps.access?.(req);
+        if (!access?.can('read', rel))
+          return json(403, {
+            ok: false,
+            code: 'forbidden',
+            message: 'You can’t see this canvas.',
+          });
+        let source: string;
+        try {
+          source = readFileSync(abs(rel), 'utf8');
+        } catch {
+          return json(404, { ok: false, code: 'invalid', message: 'That canvas is not here.' });
+        }
+        try {
+          return json(
+            200,
+            instanceInfoFor(
+              source,
+              rel,
+              id,
+              deps.designRoot,
+              systemForPicker(deps.designRoot, abs(rel))
+            )
+          );
+        } catch {
+          return json(200, { ok: true, instance: null }); // a canvas that does not parse has no instances
+        }
       },
     },
   ];

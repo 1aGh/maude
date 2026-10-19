@@ -21,6 +21,8 @@ export const INSTANCE_OPS = {
   'component.swap-variant': { op: 'component.swap-variant', label: 'Swap variant' },
   'component.reset': { op: 'component.reset', label: 'Reset to the main component' },
   'component.detach': { op: 'component.detach', label: 'Detach instance' },
+  // the Content › Text row types the instance's words: the same edit-op the caret commits
+  'text.set': { op: 'text.set', label: 'Edit text' },
 } as const satisfies Record<string, { op: string; label: string }>;
 export type InstanceAction = keyof typeof INSTANCE_OPS;
 export const INSTANCE_ACTIONS = Object.keys(INSTANCE_OPS) as InstanceAction[];
@@ -54,6 +56,7 @@ export function instanceParams(params: unknown): {
   if (Object.hasOwn(p, 'variant') && (p.variant === null || typeof p.variant === 'string'))
     out.variant = p.variant;
   if (typeof p.component === 'string') out.component = p.component;
+  if (typeof p.text === 'string' && p.text.length <= 2000) out.text = p.text;
   if (Array.isArray(p.props)) out.props = p.props.filter((x) => typeof x === 'string');
   return { refs: refs && refs.length > 0 && refs.length <= 200 ? refs : undefined, params: out };
 }
