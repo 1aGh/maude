@@ -5,7 +5,7 @@
 // Page: the chat is native-only. After load set window.__TAURI__ = {core:{invoke:async()=>null},event:{listen:async()=>()=>{},emit:async()=>{}},window:{}},
 //   click [data-testid=panel-icon-right], then dispatch keydown {key:'/', metaKey:true} on window.
 // Prompt words pick the behaviour: EDIT:<Artboard> SLOWn (edits Site.tsx + runs the real post-edit hook), ASK (elicitation), PERM (permission), FAIL, LONG, HOLDn, SLOWn.
-// The absolute paths below are this session's scratch paths; edit them for a new run.
+// Env: S5V_PROJ (scratch project root), S5V_WT (this worktree, for cli/bin/maude.mjs), VERIFY_PRE=1 (also run the pre-edit hook half).
 import { Readable, Writable } from 'node:stream';
 import * as acp from '/Users/iagh/git/personal/maude/apps/studio/node_modules/@agentclientprotocol/sdk/dist/acp.js';
 const stream = acp.ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin));
@@ -15,14 +15,16 @@ const MODEL = [
   { value: 'sonnet', name: 'Sonnet' },
   { value: 'opus', name: 'Opus' },
 ];
+let modeNow = 'default';
+let modelNow = 'sonnet';
 const cfg = () => [
-  { id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'sonnet', options: MODEL },
+  { id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: modelNow, options: MODEL },
   {
     id: 'mode',
     name: 'Mode',
     category: 'mode',
     type: 'select',
-    currentValue: 'default',
+    currentValue: modeNow,
     options: [
       { value: 'default', name: 'Manual' },
       { value: 'plan', name: 'Plan Mode' },
@@ -51,27 +53,50 @@ acp
     configOptions: cfg(),
   }))
   .onRequest('session/load', () => ({}))
+  // S5.V2: the mode / model pickers (ai-adv-edges) round-trip — the first mock had no handler, so a pick reverted.
+  .onRequest('session/set_mode', async (ctx) => {
+    modeNow = ctx.params.modeId;
+    await note(ctx, { sessionUpdate: 'current_mode_update', currentModeId: modeNow });
+    return {};
+  })
+  .onRequest('session/set_config_option', async (ctx) => {
+    if (ctx.params.configId === 'mode') modeNow = ctx.params.value;
+    else if (ctx.params.configId === 'model') modelNow = ctx.params.value;
+    return { configOptions: cfg() };
+  })
   .onRequest('session/prompt', async (ctx) => {
     const text = (ctx.params.prompt || []).map((p) => p.text || '').join(' ');
     const sec = (re, d) => {
       const m = text.match(re);
       return m ? Number(m[1]) * 1000 : d;
     };
+    if (modeNow === 'plan') {
+      await say(ctx, 'Suggestion for the Pricing artboard: a calmer headline and tighter spacing. Nothing changed.');
+      return { stopReason: 'end_turn' };
+    }
     if (/EDIT/.test(text)) {
       const fs = await import('node:fs');
-      const P = '/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/s5v/proj/.design/ui/Site.tsx';
-      const art = (text.match(/EDIT:(\w+)/) || [])[1] || 'Pricing';
+      const P = `${process.env.S5V_PROJ}/.design/ui/Site.tsx`;
+      // EDITID:<artboard-id> targets one artboard by its id; EDITCOPY targets the newest "-copy-" artboard (Run on a copy)
+      const byId = (text.match(/EDITID:([\w-]+)/) || [])[1] || (/EDITCOPY/.test(text) ? [...fs.readFileSync(P, 'utf8').matchAll(/id="([\w-]+-copy-[\w]+)"/g)].pop()?.[1] : undefined);
+      const art = byId || (text.match(/EDIT:(\w+)/) || [])[1] || 'Pricing';
       const { spawnSync } = await import('node:child_process');
       const hook = (ev, extra) =>
-        spawnSync('node', ['/Users/iagh/git/personal/maude/.claude/worktrees/agent-a66b2a4b954a8f150/cli/bin/maude.mjs', 'design', 'hook', ev], {
-          input: JSON.stringify({ session_id: ctx.params.sessionId, cwd: '/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/s5v/proj', tool_name: 'Edit', tool_use_id: `toolu_${Date.now()}`, ...extra }),
+        spawnSync('node', [`${process.env.S5V_WT}/cli/bin/maude.mjs`, 'design', 'hook', ev], {
+          input: JSON.stringify({ session_id: ctx.params.sessionId, cwd: process.env.S5V_PROJ, tool_name: 'Edit', tool_use_id: `toolu_${Date.now()}`, ...extra }),
           env: { ...process.env, MAUDE_AGENT_ACTOR: 'maude-chat' },
           encoding: 'utf8',
         });
       const tuid = `toolu_${Math.random().toString(36).slice(2, 10)}`;
       let src = fs.readFileSync(P, 'utf8');
-      const oldS = `<h1>${art}${/✦/.test(src.match(new RegExp(`<h1>${art}[^<]*</h1>`))?.[0] || '') ? ' ✦' : ''}</h1>`;
-      const newS = `<h1>${art} ✦</h1>`;
+      let oldS = `<h1>${art}${/✦/.test(src.match(new RegExp(`<h1>${art}[^<]*</h1>`))?.[0] || '') ? ' ✦' : ''}</h1>`;
+      let newS = `<h1>${art} ✦</h1>`;
+      if (byId) {
+        const at = src.indexOf(`id="${byId}"`);
+        const m = at >= 0 ? src.slice(at).match(/^[\s\S]*?<h1>([^<]*?)( ✦)?<\/h1>/) : null;
+        // old_string runs from the artboard's id to its h1, so it is unique to that artboard (a copy repeats the h1)
+        if (m) { oldS = m[0]; newS = m[0].replace(/<h1>[^<]*<\/h1>$/, `<h1>${m[1]} ✦</h1>`); }
+      }
       const input = { tool_use_id: tuid, tool_input: { file_path: P, old_string: oldS, new_string: newS } };
       // NOTE: pre-edit is denied for every scoped chat (G1: scope.canvas is repo-relative); record only the snapshot half
       const pre = process.env.VERIFY_PRE === '1' ? hook('pre-edit', { hook_event_name: 'PreToolUse', ...input }) : { stdout: '' };
@@ -104,7 +129,8 @@ acp
           toolCallId: 'tc1',
           title: 'Replace the Pricing artboard',
           kind: 'edit',
-          rawInput: { path: 'Smoke.tsx' },
+          rawInput: { file_path: `${process.env.S5V_PROJ}/.design/ui/Site.tsx` },
+          locations: [{ path: `${process.env.S5V_PROJ}/.design/ui/Site.tsx` }],
         },
         options: [
           { optionId: 'a', name: 'Allow once', kind: 'allow_once' },
@@ -144,7 +170,7 @@ acp
     if (/LONG/.test(text)) {
       for (let i = 1; i <= 40; i++) {
         await say(ctx, `Paragraph ${i}. This is a long reply line to fill the chat feed so it scrolls.\n\n`);
-        await sleep(30);
+        await sleep(/SLOW/.test(text) ? 600 : 30); // LONG SLOW streams slowly enough to scroll up mid-reply (Jump to latest)
       }
       return { stopReason: 'end_turn' };
     }
