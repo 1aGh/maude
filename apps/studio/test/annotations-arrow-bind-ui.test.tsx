@@ -326,7 +326,7 @@ describe('the ring, the tag and the cards', () => {
       arrowId: 'arw',
       end: 'end' as const,
       name: 'Book a call',
-      lead: 'Pointed at “Book a call” — it was replaced or removed',
+      lead: 'Pointed at “Book a call” — moved to the trash',
       cause: 'element' as const,
       at: [670, 744] as [number, number],
     };
@@ -343,7 +343,7 @@ describe('the ring, the tag and the cards', () => {
 
     const sel = await mount(<HostMarks {...props} selectedId="arw" />);
     const card = sel.querySelector('[data-testid="annot-dangling-card"]');
-    expect(card?.textContent).toContain('Pointed at “Book a call” — it was replaced or removed');
+    expect(card?.textContent).toContain('Pointed at “Book a call” — moved to the trash');
     await act(async () => {
       (sel.querySelector('[data-testid="annot-point-to"]') as HTMLElement).click();
     });

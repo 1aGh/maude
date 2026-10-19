@@ -15,6 +15,7 @@ import { Spark } from './icons.jsx';
 import { askedAnnotations, OFFER_WORDS, parseOffer, seenTargetsFor } from './ai-offer.js';
 import { sendAskSelection } from './ask-selection.js';
 import { annotationsScope } from './scope.js';
+import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { getSeenStore } from './seen-relay.js';
 
 /** Message ids whose card was answered or put away — it stays folded after a re-mount. */
@@ -47,6 +48,27 @@ export function offerOf(parts, ask = askedAnnotations()) {
   return parseOffer(textOf(parts), { scopeIds: ask?.ids ?? [] }).offer;
 }
 
+/**
+ * "Make these changes": send the canned follow-up with the same stickies as the scope, and (contract
+ * S4-S5 §6.2) take the shell to Edit as the run starts: the apply run's changes are Edit's, and the layer goes
+ * quiet there. A send that did not go out changes nothing; the lane's `effectiveMode` clamps a role that
+ * cannot edit.
+ */
+export function acceptOffer({ offer, ask, send = sendAskSelection, mode = shellMode }) {
+  const sent = send({
+    text: OFFER_WORDS.primary,
+    scope: annotationsScope({
+      file: ask?.file,
+      ids: ask?.ids,
+      artboards: ask?.artboards,
+      kinds: ask?.kinds,
+      answers: offer.answers,
+    }),
+  });
+  if (sent) mode.select('edit');
+  return !!sent;
+}
+
 export function OfferSlot({ parts, status }) {
   const id = useMessage((m) => m.id);
   const latestId = useThread((t) => t.messages[t.messages.length - 1]?.id);
@@ -72,17 +94,7 @@ export function OfferSlot({ parts, status }) {
 
   if (!visible) return null;
   const make = () => {
-    const sent = sendAskSelection({
-      text: OFFER_WORDS.primary,
-      scope: annotationsScope({
-        file: ask?.file,
-        ids: ask?.ids,
-        artboards: ask?.artboards,
-        kinds: ask?.kinds,
-        answers: offer.answers,
-      }),
-    });
-    if (sent) fold(id);
+    if (acceptOffer({ offer, ask })) fold(id);
   };
   const leaves = leavesLine(offer.leaves.length);
   return (
