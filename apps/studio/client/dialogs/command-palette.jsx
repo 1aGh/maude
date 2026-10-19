@@ -9,6 +9,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Kbd, STICONS, StIcon } from '../shell/icons.jsx';
+import { Spot } from '../v2/empty/index.js';
 import { getPaletteEnv } from '../v2/search/search-env.js';
 import { useModalFocus } from '../v2/shell/modal-focus.js';
 import { REMOTE_DEBOUNCE_MS, searchIndex } from '../v2/search/search-remote.js';
@@ -301,12 +302,16 @@ export function CommandPalette({ open, onClose, actions }) {
     const copy = emptyCopy(q, canAskAI);
     body = (
       <div
-        className="st-pal-none"
+        className="st-pal-none st-pal-none--spot"
         data-testid="palette-empty"
+        data-copy="es-search-k.search-none"
         role={items.length > 0 ? 'presentation' : 'status'}
       >
-        <strong className="st-pal-sit">{copy.headline}</strong>
-        <span className="st-pal-next">{copy.next}</span>
+        <Spot name="none" w={150} />
+        <span className="st-pal-txt">
+          <strong className="st-pal-sit">{copy.headline}</strong>
+          <span className="st-pal-next">{copy.next}</span>
+        </span>
       </div>
     );
   } else {
@@ -353,9 +358,17 @@ export function CommandPalette({ open, onClose, actions }) {
     ));
     body = copy ? (
       <>
-        <div className="st-pal-none" data-testid="palette-did-you-mean-note" role="presentation">
-          <strong className="st-pal-sit">{copy.headline}</strong>
-          <span className="st-pal-next">{copy.next}</span>
+        <div
+          className="st-pal-none st-pal-none--spot"
+          data-testid="palette-did-you-mean-note"
+          data-copy="es-search-k.search-none"
+          role="presentation"
+        >
+          <Spot name="none" w={150} />
+          <span className="st-pal-txt">
+            <strong className="st-pal-sit">{copy.headline}</strong>
+            <span className="st-pal-next">{copy.next}</span>
+          </span>
         </div>
         {groupsBody}
       </>

@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
+import { AskButton, copy, Empty } from '../empty/index.js';
+import { sendToAskAI } from '../search/search-env.js';
 import {
   boardsByRel,
   buildChatList,
@@ -189,6 +191,7 @@ export function ChatList({
   onCopyTranscript,
   onArchive,
   onTrashed,
+  onStartChat,
   fetchImpl = fetch,
 }) {
   const [groups, setGroups] = useState(null); // null = loading
@@ -251,6 +254,16 @@ export function ChatList({
     () => (searching && hits ? buildSearchList(hits, query.trim()) : null),
     [searching, hits, query]
   );
+
+  // "Start a chat about it" (05 · es-edge-panels): a new chat with the search words in its composer. The host
+  // owns chats (`onStartChat`); without one the words go to the composer the person is back in.
+  const startChat = (text) => {
+    if (onStartChat) onStartChat(text);
+    else {
+      sendToAskAI(text);
+      onBack?.();
+    }
+  };
 
   const closeMenu = useCallback(
     (refocus) => {
@@ -404,7 +417,28 @@ export function ChatList({
     if (groups === null) return <p className="ai-cl-empty">Reading your chats…</p>;
     if (searching) {
       if (!found) return <p className="ai-cl-empty">Searching…</p>;
-      if (found.groups.length === 0) return null;
+      if (found.groups.length === 0) {
+        // 05 · es-edge-panels: what was searched, and one way on — a new chat about it
+        const vars = {
+          q: query.trim(),
+          count: browse.total,
+          project: projectName || 'this project',
+        };
+        return (
+          <Empty
+            glyph="spark"
+            copyId="es-edge-panels.chat-search-none"
+            vars={vars}
+            testid="ai-chat-search-none"
+            foot=""
+            chips={
+              <AskButton onClick={() => startChat(vars.q)}>
+                {copy('es-edge-panels.chat-search-none', vars).action}
+              </AskButton>
+            }
+          />
+        );
+      }
       return found.groups.map((g) => (
         <section key={g.canvas ?? ''} className="ai-cl-grp" aria-label={g.name}>
           <p className="ai-cl-canvas">{g.name}</p>
@@ -450,7 +484,12 @@ export function ChatList({
     );
   })();
 
-  const foot = searching ? (found?.foot ?? '') : browse.foot;
+  // no hits: the foot still counts the chats that were searched (05 · es-edge-panels)
+  const foot = searching
+    ? found?.groups.length === 0
+      ? browse.foot
+      : (found?.foot ?? '')
+    : browse.foot;
 
   return (
     <div className="ai-cl" data-testid="ai-chat-list">

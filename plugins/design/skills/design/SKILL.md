@@ -50,3 +50,13 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When looking at an earlier version of a canvas, going back to it, naming a version, or working with the Trash | [Versions and the Trash](./_guide-versions-and-trash.md) |
 | When changing objects the way the person does (frames, order, lock, hide) | [Editing in Maude v2](./_guide-editing-v2.md) |
 | For `/design:present`: order, skipped artboards, speaker notes | [Per-canvas metadata sidecar](./_guide-17-per-canvas-metadata-sidecar.md) |
+
+## A first draft from Home
+
+When the person's first message in a new chat is a sentence for a canvas that has no artboards yet (Home's "Ask AI for a new canvas…", or the empty project's prompt), the canvas file already exists: the server named it from the sentence and the person is looking at it. Draft it in this order, so the draft arrives piece by piece and never as a blank wait:
+
+1. **Add every artboard empty first, with its kind and size.** One `DCArtboard` per screen or sheet, each with its `kind` and real dimensions (a poster is A4, a landing page is Desktop, Tablet and Mobile), written in one edit. The person sees the whole shape in the first second.
+2. **Fill big before small.** Background and colour, then the large shapes and pictures, back to front, one artboard at a time. Never start with details.
+3. **Words last.** Headlines, body copy and labels go in after the shapes, so the text lands where the layout already is.
+
+Keep every `data-cd-id`, work inside the open canvas only, use the design system's tokens, and stop when the sentence is answered: one run, one draft. The person can take the whole draft back with ⌘Z (Undo this chat).

@@ -163,7 +163,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `canvas-jump-toggle-<slug>` | testid (pattern) | The disclosure twisty on a canvas row of the Canvases panel (`aria-expanded`): opens the canvas's artboards underneath (the jump list). Right arrow also opens it, left arrow closes it. A canvas with no artboards written out and not dynamic has none. | `client/v2/canvases/jump-list.jsx` · `JumpToggle` | — | new |
 | `jump-artboard-<slug>-<artboardId>` | testid (pattern) | One artboard in a canvas's jump list (`data-kind` web|digital|print|video; `aria-current` on the one in view). Click or Enter jumps there: opens the canvas if needed, then glides + flashes (`reveal-artboard`), or frames it with today's jump until the bridge has the message. While searching, the artboards that matched. | `client/v2/canvases/jump-list.jsx` · `JumpBoardRow` | — | new |
 | `jump-dynamic-<slug>` | testid (pattern) | The line under a dynamic canvas's artboards: "Its artboards are made when it runs." | `client/v2/canvases/jump-list.jsx` · `JumpNoteRow` | — | new |
-| `canvases-nothing` | testid | The "Nothing called …" line when the panel search finds nothing. | `client/v2/canvases/canvases-panel.jsx` · `CanvasesPanel` | — | new |
+| `canvases-nothing` | testid | The "Nothing called …" block when the panel search finds nothing (the kit's block, spot + words; Ask AI only where AI is on). `data-copy` is es-search-panel.panel-search-none. | `client/v2/canvases/canvases-panel.jsx` · `CanvasesPanel` | — | new |
 | `canvases-other-files` | testid | While searching: the other groups' hits (Design system, project and runtime files) under the canvases list. | `client/tree/tree.jsx` · `Sidebar` | — | new |
 | `assets-panel` | testid | The Assets tab body (the left panel's third tab). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-search` | testid | The Assets tab's search field (names). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
@@ -197,6 +197,8 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `canvas-error-open-editor` | testid | Under Show details: Open in editor (desktop app only). | `client/v2/code/canvas-error-card.jsx` · `CanvasErrorCard` | test:v2-canvas-error-card | new in v2 (S11.7) |
 | `canvas-error-copy` | testid | Under Show details: Copy error. | `client/v2/code/canvas-error-card.jsx` · `CanvasErrorCard` | test:v2-canvas-error-card | new in v2 (S11.7) |
 | `canvas-error-last-good` | testid | Under Show details: Last good version (syntax kind). | `client/v2/code/canvas-error-card.jsx` · `CanvasErrorCard` | test:v2-canvas-error-card | new in v2 (S11.7) |
+| `render-error-host` | testid | S6.12 (C5): the layer that holds the render-error card (`CanvasErrorCard kind: 'render'`) over the canvas's dimmed last good render. `role="alert"`; absent while this Mac's own run draws on the canvas. | `client/v2/create/render-error.jsx` · `RenderErrorHost` | test:v2-render-error | new in v2 (S6.12) |
+| `render-error-thumb` | testid | S6.12: a cold open that never drew — the canvas's index cover, dimmed, behind the card. | `client/v2/create/render-error.jsx` · `ColdThumb` | test:v2-render-error | new in v2 (S6.12) |
 | `code-view` | testid | S11.7: the code view, a read-only panel over the canvas (06 ad-code). `role="dialog"`. | `client/v2/code/code-view.jsx` · `CodeView` | test:v2-code-view | new in v2 (S11.7) |
 | `code-view-path` | testid | The canvas file path in the code view's header (mono). | `client/v2/code/code-view.jsx` · `CodeView` | test:v2-code-view | new in v2 (S11.7) |
 | `code-view-readonly` | testid | The "Read only" lock chip. | `client/v2/code/code-view.jsx` · `CodeView` | test:v2-code-view | new in v2 (S11.7) |
@@ -230,7 +232,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `palette-project-square` | testid | The project's square (initial + Home's tone for its pid) on a ⌘K project group header (S1.5, desktop only). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-project-label` | testid | On another project's row in "Did you mean" (one flat list): its square, name and where it is ("in another tab" / "not open — opens a tab") — ↵ switches project (S15-A2, desktop only). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-ask-ai` | testid | The wrapper of the last row, Ask AI (desktop only; ⌘↵ runs it). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
-| `palette-empty` | testid | The “Nothing called …” empty state. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-empty` | testid | The ⌘K no-hits block: the spot beside "Nothing called …". `data-copy` is es-search-k.search-none. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-did-you-mean-note` | testid | The “Nothing called …” line above the “Did you mean” group, when every hit is a typo and no word of the query was right. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-recent-empty` | testid | The “Nothing opened yet.” line under Recent when nothing was opened on this Mac (Start here follows). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-close-note` | testid | The “Showing close matches for …” note when every hit is a typo match. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
@@ -380,7 +382,8 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `comments-panel-close` | testid | The × in the Comments panel header (present when the host passes `onClose`). | `client/v2/comments/comments-panel.jsx` · `CommentsPanel` | test:v2-comments-panel-render | new in v2 (S9.22) |
 | `comment-filter-mine` | testid | Comments panel filter: Mine — threads you started, in every status (the verb `comments list --mine`). | `client/v2/comments/comments-panel.jsx` · `CommentsPanel` | test:v2-comments-panel-render | new in v2 (S9.22) |
 | `comment-group-<slug>` | testid (pattern) | One canvas group in the Comments panel (`<slug>` = the canvas file name, kebab-cased); its header opens the canvas. | `client/v2/comments/comments-panel.jsx` · `CommentsPanel` | test:v2-comments-panel-render | new in v2 (S9.22) |
-| `comments-empty` | testid | The Comments panel empty state; names the empty filter ("No open comments."). | `client/v2/comments/comments-panel.jsx` · `CommentsPanel` | test:v2-comments-panel-render | new in v2 (S9.22) |
+| `comments-empty` | testid | The Comments panel empty state (the kit's block): "No comments on {canvas} yet." / "All done." (the only confetti) / a plain line for an empty Mine or Resolved. `data-copy` names the 05 line. | `client/v2/comments/comments-panel.jsx` · `CommentsPanel` | test:v2-comments-panel-render | new in v2 (S9.22) |
+| `comments-share` | testid | Comments, no comments yet: "Share for feedback" — opens the Share sheet; absent where the host cannot share (a viewer). | `client/v2/comments/comments-panel.jsx` · `CommentsPanel` | — | new in v2 (S11.3) |
 | `comment-resolve-<id>` | testid (pattern) | Resolve a thread: the Comments panel row button, and the Resolve button in the in-canvas thread header (`<id>` = comment id). | `client/v2/comments/comments-panel.jsx` · `CommentsPanel`<br>`comments-overlay.tsx` · `CommentThread` | test:v2-comments-panel-render | new in v2 (S9.22) |
 | `comment-reopen-<id>` | testid (pattern) | Reopen a resolved thread: the Comments panel row (`aria-label="Reopen"`, kept) and the in-canvas thread header. | `client/v2/comments/comments-panel.jsx` · `CommentsPanel`<br>`comments-overlay.tsx` · `CommentThread` | test:v2-comments-panel-render | new in v2 (S9.22) |
 | `comment-delete-<id>` | testid (pattern) | Delete comment — on YOUR OWN threads only (CONTRACT §6, D8): the Comments panel row and the in-canvas thread header. The server refuses anyone else’s (`not-yours`). | `client/v2/comments/comments-panel.jsx` · `CommentsPanel`<br>`comments-overlay.tsx` · `CommentThread` | test:v2-comments-panel-render | new in v2 (S9.22) |
@@ -439,9 +442,13 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `settings-tab-<id>` | testid (pattern) | A section tab on the sheet’s rail; `<id>` ∈ general, connections, advanced. Connections and Advanced exist only on the desktop. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
 | `settings-panel-<id>` | testid (pattern) | The tabpanel of one section (`<id>` as above); a section opened once stays mounted, hidden. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
 | `settings-close` | testid | The sheet’s Done button. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
-| `settings-account` | testid | General › Account group (shown when a dashboard address is known). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
-| `settings-open-dashboard` | testid | General › Account › Open the cloud dashboard. | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
-| `settings-open-emails` | testid | General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard. | `client/v2/settings/general-section.jsx` · `GeneralSection` | test:v2-settings | new in v2 (S9.18) |
+| `settings-account` | testid | General › Account group (shown when a dashboard address is known). | `client/v2/settings/account.jsx` · `AccountBlock` | — | stable |
+| `settings-open-dashboard` | testid | General › Account › Manage on <host> (S9.20; was "Open the cloud dashboard"). | `client/v2/settings/account.jsx` · `AccountBlock` | — | stable |
+| `settings-account-state` | testid | "Signed in to <host>" / "Not signed in". | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-account-plan` | testid | Plan: "Free trial · N days left" — only when the server reports the plan. | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-account-links` | testid | The five account pages on the web (signed in). | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-account-<key>` | testid (pattern) | One account page; `<key>` ∈ people, billing, macs, download, delete. | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
+| `settings-open-emails` | testid | General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard. | `client/v2/settings/account.jsx` · `AccountBlock` | test:v2-settings | new in v2 (S9.18) |
 | `settings-theme` | testid | General › Look › the Light / Dark radio group. | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
 | `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
 | `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
@@ -690,7 +697,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `vh-undo-chat` | testid | Held AI row (your AI, its chat known) › "Undo this chat": every change of that chat as ONE new version; disabled on an old team server. Absent for Can view and Can comment. | `client/v2/ai/ChatUndo.jsx` · `ChatUndoButton` | — | new |
 | `vh-undo-chat-line` | testid | Beside a disabled "Undo this chat": "Undo this chat needs the team server to be updated". | `client/v2/ai/ChatUndo.jsx` · `ChatUndoButton` | — | new |
 | `vh-more` | testid | "Show older versions" at the foot of the list. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
-| `vh-empty` | testid | The empty state: "Versions appear here as you work." (or the filter's own line). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-empty` | testid | Version history before the first change (the kit's block, no button) or an empty filter. `data-copy` is es-panels-canvas.vh-before-first for the first. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-loading` | testid | Skeleton rows while the first page loads. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-failed` | testid | "Couldn't load versions" (`role=alert`) with Retry versions. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-retry` | testid | Retry versions: pressed by hand, never automatic. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
@@ -909,9 +916,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
 | `share-dialog` | testid | The Share sheet (`role="dialog"`) — Invite first, people and roles. *Was the share-link dialog; re-emitted S9.19 on the sheet root.* | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
-| `share-<kind>-url` | testid (pattern) | Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). *Under the sheet's › Advanced · Other ways in (S9.19).* | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
-| `share-copy-<kind>` | testid (pattern) | Copy button for that link. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
-| `share-open-app` | testid | "Open in app" link (not in the native shell). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | — | stable — re-emit |
+| `share-<kind>-url` | testid (pattern) | Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). *Under the sheet's › Advanced · Other ways in (S9.19).* | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | e2e:share-link | stable — re-emit |
+| `share-copy-<kind>` | testid (pattern) | Copy button for that link. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | e2e:share-link | stable — re-emit |
+| `share-open-app` | testid | "Open in app" link (not in the native shell). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | — | stable — re-emit |
 | `[aria-label="Close share dialog"]` | selector | Close button of the Share sheet (`share-close`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
 | `share-close` | testid | The Share sheet's close button (`aria-label="Close share dialog"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-scope` | testid | The scope segment (This canvas · Whole project). Drawn only when `/health.access.scopes` holds `canvas` (S9-slices Q13). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
@@ -928,7 +935,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `share-local-note` | testid | A local (unlinked) project: no invite, one line about the cloud. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-unreachable` | testid | The hub cannot be asked right now; invites wait. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-people` | testid | The people list with its count line ("3 people · 1 invited"). | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
-| `share-people-empty` | testid | The people list when nobody else has access. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
+| `share-people-empty` | testid | Under your own row in the Share sheet when nobody else is on the project: "Only you on {project} so far." (no button). `data-copy` is es-edge-panels.share-alone. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
 | `share-person-<id>` | testid (pattern) | One person or pending invitation (`data-state="invited"`); `<id>` = the hub's id, non `[A-Za-z0-9_-]` → `-`. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
 | `share-person-role-<id>` | testid (pattern) | That row's role in words — a button with the role menu for a person who may change it, a quiet label otherwise. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
 | `share-person-resend-<id>` | testid (pattern) | Resend on a pending invitation. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
@@ -938,10 +945,32 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `share-role-remove` | testid | "Remove from <scope>" — opens the Remove dialog. | `client/v2/share/role-menu.jsx` · `RoleMenu` | test:share-sheet | new in v2 (S9.19) |
 | `share-remove-dialog` | testid | The Remove dialog (`role="alertdialog"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-remove-confirm` | testid | Remove (or Take back, for a pending invitation) in that dialog. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-link-row` | testid | The link row — only when `/health.access.links` (S9.20 fills in its rules). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-link-copy` | testid | Copy link in the link row. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-other-ways` | testid | The sheet's › Advanced fold, hint "Other ways in": the web / app / this-Mac links. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
-| `share-other-ways-toggle` | testid | That fold's toggle (`aria-expanded`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-row` | testid | The link row — only when `/health.access.links` (S9.20 fills in its rules). | `client/v2/share/link-row.jsx` · `LinkRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-copy` | testid | Copy link in the link row. | `client/v2/share/link-row.jsx` · `LinkRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-other-ways` | testid | The sheet's › Advanced fold, hint "Other ways in": the web / app / this-Mac links. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-sheet | new in v2 (S9.19) |
+| `share-other-ways-toggle` | testid | That fold's toggle (`aria-expanded`). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-rules` | testid | Share › Advanced › This link: who can open, role, expires — the owner, where the hub has links (Q13). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-who` | testid | This link › Who can open (Team only · Anyone with the link). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-role` | testid | This link › Role (Can view · Can comment; a team link grants nothing, so it is off there). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-link-expires` | testid | This link › Expires (Never · In 7 days · In 30 days). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-join-as` | testid | This link › New people join as — the role the Invite row pre-selects (this browser, per project). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20b) |
+| `share-link-off` | testid | Turn off the link the sheet made (`PATCH /_api/share/links/:id {off}`). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github` | testid | Share › Advanced › Invite by GitHub username (desktop; takes over project.share-github). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-username` | testid | The GitHub username field. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-invite` | testid | Invite by GitHub username. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-done` | testid | "Invited @name." after GitHub accepted the invite. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-github-error` | testid | GitHub refused the invite, in its words. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-syncs` | testid | Share › Advanced › Where it syncs. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-syncs-hub` | testid | The hub address this project syncs to (read-only input). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-syncs-last` | testid | Where it syncs › Last synced — the sync runtime's own `lastSyncAt`; absent when it has none. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20b) |
+| `share-copy-hub` | testid | Copy the hub address. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-role-matrix` | testid | The roles side by side (cloud) — columns are the roles the hub reports. | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-hub-roles` | testid | Roles on this hub (self-hosted). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-hub-roles-missing` | testid | "Can comment · Can view — Not on this hub" (self-hosted, no view-only accounts). | `client/v2/share/share-advanced.jsx` · `ShareAdvanced` | test:share-advanced | new in v2 (S9.20) |
+| `share-move` | testid | A local project’s Share (desktop): "Move “P” to the cloud?" with Cancel / Move to cloud. | `client/v2/share/move-to-cloud.jsx` · `MoveToCloud` | test:share-advanced | new in v2 (S9.20) |
+| `share-move-confirm` | testid | Move to cloud (the window’s own `POST /_api/cloud/move`). | `client/v2/share/move-to-cloud.jsx` · `MoveToCloud` | test:share-advanced | new in v2 (S9.20) |
+| `share-move-error` | testid | Why the move did not start; the project stays local. | `client/v2/share/move-to-cloud.jsx` · `MoveToCloud` | test:share-advanced | new in v2 (S9.20) |
+| `share-moved` | testid | The move’s progress words ("Moved to the cloud — your canvases are going up now."). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-advanced | new in v2 (S9.20) |
 
 ### report-bug
 
@@ -1171,6 +1200,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-chat-list` | testid | The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-list-back` | testid | "‹ Chats": back from the chat list to the chat. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-list-search` | testid | The chat list's search field (words inside chats, not just titles). | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-search-none` | testid | The chat list, search with no hits: "No chat mentions …" with the number of chats searched and "Start a chat about it". | `client/v2/ai/ChatList.jsx` · `ChatList` | — | new in v2 (S11.3) |
 | `ai-chat-row-<id>` | testid | A chat row in the chat list. `<id>` = the chat id. `data-state` = working | needs | idle. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-trash-dialog` | testid | The "Move … to the trash?" dialog; names a queued prompt that will not send. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-trash-confirm` | testid | The dialog's "Move to trash" button (absent while the chat is still working). | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |

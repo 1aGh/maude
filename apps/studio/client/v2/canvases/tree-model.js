@@ -10,6 +10,7 @@
 // last touched — is the project index (`/_api/index`, V2-1.17), joined on the designRoot-relative path.
 // A canvas the index has not seen yet is still a row; it just has no badges.
 
+import { copy } from '../empty/empty-copy.js';
 import { DYNAMIC_NOTE, hasJumpList, jumpFoot, jumpIsOpen, normaliseKind } from './jump-model.js';
 import { searchCanvases } from './panel-search.js';
 import { DEFAULT_SORT, fold, normaliseSort, sortItems } from './sort.js';
@@ -498,8 +499,16 @@ export function panelFootLine({ total, shown, searching, jump = null, foots = nu
   // S1.3 — while a canvas's artboards are listed, the foot counts them (11 · pn-jump)
   if (jump) return { text: jumpFoot(jump.boards, { dynamic: jump.dynamic }), source: 'jump' };
   if (foots?.access) return { ...foots.access, source: 'access' };
+  // S11.3 — a search that found nothing says how much it searched (05 · es-search-panel)
+  if (searching && shown === 0) return { text: searchedFoot(total), source: 'search-none' };
   const n = searching ? plural(shown, 'result', 'results') : plural(total, 'canvas', 'canvases');
   return { text: `${n} · ⌘K searches every project`, source: 'default' };
+}
+
+/** "Searched 93 canvases and their artboards" (05 · es-search-panel); one canvas reads in the singular. */
+export function searchedFoot(total) {
+  if (total === 1) return 'Searched 1 canvas and its artboards';
+  return copy('es-search-panel.panel-search-none', { q: '', count: total }).foot;
 }
 
 /** The words under the list: "93 canvases · ⌘K searches every project" / "3 results · …". */

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "a0d7e610c6a5",
+  "manifestVersion": "d6ab84a8b936",
   "actions": [
     {
       "id": "search.open",
@@ -109,6 +109,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
+      }
+    },
+    {
+      "id": "home.ask",
+      "label": "Ask AI for a new canvas…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)"
       }
     },
     {
@@ -3029,7 +3042,12 @@
       "label": "Copy link",
       "kind": "command",
       "exec": "shell",
-      "effect": "none",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/links",
+        "method": "POST"
+      },
       "agent": {
         "path": "human",
         "because": "links"
@@ -3045,6 +3063,22 @@
         "path": "human",
         "because": "billing",
         "note": "moves the project to the person’s billed Maude Cloud account"
+      }
+    },
+    {
+      "id": "share.link-settings",
+      "label": "Link settings…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/links/:id",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "human",
+        "because": "links"
       }
     },
     {

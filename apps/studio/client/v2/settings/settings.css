@@ -340,4 +340,24 @@
     ) {
     font-family: var(--font-body);
   }
+
+  /* S9.20 — Settings › General › Account: the five account pages on the web (02 ob-settings) */
+  .v2s-acct-links {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .v2s-acct-link {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
 }

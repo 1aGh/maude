@@ -10,6 +10,7 @@
 // The lane, end to end (every hop verified live against production):
 //   sign-in   POST /auth/device/code → human approves on /activate → poll
 //   projects  GET /api/projects (Bearer personal token)
+//   plan      GET /api/home -> `account.plan` (Bearer personal token; S9.20b)
 //   attach    POST /projects/open → project token → the CELL exchanges it at
 //             POST /auth/login {token} (a POST body, never a URL) → a hub
 //             user token → saveHubCredential() + linkedHub in config.json —
@@ -160,6 +161,38 @@ async function cloudFetch(
   }
 }
 
+/**
+ * S9.20b (decision v2-lead-plan-words-via-home-route) — what Settings › Account needs to say
+ * "Free trial · N days left": the cloud's own trial view, never one this Mac computes. Only the
+ * state, the days left and the plan name survive; anything else the control plane sends is
+ * dropped here, so no billing detail can reach the page.
+ */
+export interface CloudPlan {
+  state: 'none' | 'trialing' | 'ended';
+  daysLeft: number | null;
+  name: string | null;
+}
+
+const PLAN_STATES = new Set(['none', 'trialing', 'ended']);
+
+/** The control plane's `account.plan`, clamped to `CloudPlan` — or null when it is not one. */
+export function cleanPlan(raw: unknown): CloudPlan | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { state, daysLeft, name } = raw as Record<string, unknown>;
+  if (typeof state !== 'string' || !PLAN_STATES.has(state)) return null;
+  const days =
+    typeof daysLeft === 'number' && Number.isInteger(daysLeft) && daysLeft >= 0 && daysLeft <= 366
+      ? daysLeft
+      : null;
+  const words = typeof name === 'string' && name.trim() && name.length <= 40 ? name.trim() : null;
+  return { state: state as CloudPlan['state'], daysLeft: days, name: words };
+}
+
+/** How long one plan read is reused. The days change once a day; Settings opens often. */
+const PLAN_TTL_MS = 5 * 60_000;
+/** A status read waits at most this long for the plan; past it the line is simply not drawn. */
+const PLAN_TIMEOUT_MS = 4_000;
+
 interface Ctx {
   paths: { repoRoot: string; designRoot: string };
   /**
@@ -200,6 +233,8 @@ interface Ctx {
 
 export function createCloudEndpoints(ctx: Ctx) {
   const cfgFile = () => ctx.cloudConfigPath ?? cloudConfigPath();
+  /** The last plan read, for THIS token only (a new sign-in never sees the old account's plan). */
+  let planRead: { token: string; at: number; plan: CloudPlan | null } | null = null;
   return {
     /**
      * Signed in? Who? And WHICH folder is asking? Cheap — reads two files,
@@ -224,6 +259,50 @@ export function createCloudEndpoints(ctx: Ctx) {
           linkedHub: readLinkedHub(),
         },
       };
+    },
+
+    /**
+     * S9.20b — `status()` plus the account's plan (`null` when signed out, or when the control
+     * plane did not answer in time). `/_api/cloud/status` answers with this.
+     */
+    async statusWithPlan(): Promise<CloudEndpointResult> {
+      const base = this.status();
+      const connected = (base.json as { connected?: boolean }).connected === true;
+      const read = connected ? await this.plan() : null;
+      const plan = read?.status === 200 ? ((read.json as { plan?: unknown }).plan ?? null) : null;
+      return { status: base.status, json: { ...(base.json as object), plan } };
+    },
+
+    /**
+     * S9.20b — `GET /_api/cloud/plan`: the account's plan, read from `GET /api/home` with the
+     * device token. A 401 here is a plain read failure, never a sign-out: the Settings sheet
+     * reading a plan at the wrong second must not delete a working credential (the F6 rule the
+     * History read follows too).
+     */
+    async plan(): Promise<CloudEndpointResult> {
+      const file = readCloudFile(cfgFile());
+      if (!file)
+        return {
+          status: 401,
+          json: { ok: false, reason: 'signed-out', error: 'Sign in to Maude Cloud first.' },
+        };
+      if (planRead && planRead.token === file.token && Date.now() - planRead.at < PLAN_TTL_MS)
+        return { status: 200, json: { ok: true, plan: planRead.plan } };
+      const r = await cloudFetch(
+        '/api/home',
+        { headers: { authorization: `Bearer ${file.token}` } },
+        { timeoutMs: PLAN_TIMEOUT_MS }
+      );
+      if (r.status === 401)
+        return {
+          status: 401,
+          json: { ok: false, reason: 'signed-out', error: 'Sign in to Maude Cloud again.' },
+        };
+      if (r.status !== 200)
+        return { status: 502, json: { ok: false, error: 'Maude Cloud could not be reached.' } };
+      const plan = cleanPlan((r.body.account as { plan?: unknown } | undefined)?.plan);
+      planRead = { token: file.token, at: Date.now(), plan };
+      return { status: 200, json: { ok: true, plan } };
     },
 
     /** Start the device flow: hand the client the human-facing half. */

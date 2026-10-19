@@ -14,6 +14,7 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { startFirstDraft } from '../create/first-draft.js';
 import { voteStore } from '../annotations/vote-store.js';
 import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
@@ -37,6 +38,7 @@ import { presenterAvailable, presenterStore } from '../present/presenter-store.j
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { runPreviewBack } from '../preview/preview-back.js';
+import { requestShareFocus } from '../share/share-model.js';
 import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
@@ -100,6 +102,10 @@ export function createMenuHandlers(d) {
       createBlankCanvas({ toast: d.toast });
     },
     'canvas.new-brief': () => openBriefBoardComposer(d),
+    // S6.3: Home's "Ask AI for a new canvas…" — a canvas from one sentence, drafted by AI in a new chat.
+    'home.ask': (params) => {
+      if (typeof params?.prompt === 'string') startFirstDraft(params.prompt, { toast: d.toast });
+    },
     // IdentityBar owns the create dialog's state; it hears this the way it hears the native menu.
     'project.new': () => {
       if (!d.native) {
@@ -121,6 +127,13 @@ export function createMenuHandlers(d) {
     'project.share-github': () => {
       if (!d.native) {
         d.toast('Share on GitHub… is in the Maude desktop app.');
+        return;
+      }
+      // S9.20: Share › Advanced › Invite by GitHub username takes it over while a canvas is open;
+      // with none open, IdentityBar's own view still answers (nothing lost).
+      if (d.activePath) {
+        requestShareFocus('github');
+        d.onShare();
         return;
       }
       window.dispatchEvent(
@@ -337,6 +350,12 @@ export function createMenuHandlers(d) {
     'share.set-role': () => d.onShare(),
     'share.remove': () => d.onShare(),
     'share.resend': () => d.onShare(),
+    // S9.20 — Share › Advanced › This link; a local project's Share is where Move to cloud lives
+    'share.link-settings': () => {
+      requestShareFocus('link');
+      d.onShare();
+    },
+    'share.move-to-cloud': () => d.onShare(),
     'settings.open': () => d.setSettingsOpen(true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──

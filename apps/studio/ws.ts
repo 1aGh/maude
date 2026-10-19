@@ -10,6 +10,7 @@ import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
 import type { Collab, RoomConn } from './collab/index.ts';
 import type { Context } from './context.ts';
+import { createRenderOkSignal } from './history/render-ok-signal.ts';
 import { createContainerWriteBridge, createHmrBroadcaster } from './hmr-broadcast.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { startCellFileEvents } from './sync/cell-file-events.ts';
@@ -203,6 +204,11 @@ export function createWs(
   scope?: WsVisibility
 ): Ws {
   const clients = new Set<ServerWebSocket<WsData>>();
+  // S6.12 — the canvas said it drew fine (relayed by the shell): the server decides what that is worth.
+  const noteRenderOk = createRenderOkSignal({
+    designRoot: ctx.paths.designRoot,
+    designRel: ctx.paths.designRel,
+  });
   // S9.12b (U6) — every socket that carries a stamped access, whichever set it joins below.
   const stamped = new Set<ServerWebSocket<WsData>>();
 
@@ -595,7 +601,17 @@ export function createWs(
         // Feeds the desktop park (`sync/park.ts`): presence keeps the cloud
         // link up and wakes a parked one. Carries nothing; acts on nothing.
         else if (msg.type === 'presence') ctx.bus.emit('ui:active');
-        else if (msg.type === 'comments-add' && msg.payload) {
+        // S6.12 (C5) — "this canvas drew without an error": the source it hashes is read from disk here, so
+        // a frame can only name a canvas, never a hash. Not for a read-only or paused session (it writes
+        // `_state/render-ok.json`), nor for a canvas the socket does not see.
+        else if (msg.type === 'render-ok' && typeof msg.file === 'string') {
+          if (
+            !readOnlySocket &&
+            !lanesClosedSocket &&
+            (!scope || scope.visibleTo(ws, { file: msg.file }))
+          )
+            noteRenderOk(msg.file);
+        } else if (msg.type === 'comments-add' && msg.payload) {
           // In a cell the author is the vouched member, never a claim in the
           // frame and never the cell's own git identity (the machine).
           const vouched = ws.data.kind === 'inspector' ? ws.data.user : '';

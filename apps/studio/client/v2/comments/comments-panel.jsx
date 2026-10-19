@@ -10,14 +10,18 @@
 // comment-delete-<id>, comment-where-<id>, comment-from-<id> (S4-S9 §3.4).
 
 import { useEffect, useState } from 'react';
-import { Kbd, StIcon, initialsOf } from '../../shell/icons.jsx';
+import { StIcon, initialsOf } from '../../shell/icons.jsx';
 import { basename, displayName } from '../../shell/util.js';
+import { Confetti, copy, Empty } from '../empty/index.js';
+import { fetchMentionPeople } from './comment-client.js';
 import {
   FILTERS,
   FILTER_LABELS,
   asFilter,
   countsOf,
+  emptyKind,
   groupThreads,
+  namesLine,
   onLabel,
   repliesWord,
 } from './comments-model.js';
@@ -29,12 +33,85 @@ export const groupSlug = (file) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'canvas';
 
-const EMPTY = Object.freeze({
-  open: 'No open comments.',
+/** A filter that is empty while other comments exist (05 has no drawing for these two; plain words). */
+const FILTER_EMPTY = Object.freeze({
   mine: 'You have not started a comment.',
   resolved: 'No resolved comments.',
-  all: 'No comments yet.',
 });
+
+/**
+ * The other people on the project, by name — only asked for a viewer who can comment and only while the
+ * panel is empty, so the empty line can say who sees a comment right away. Never an address (mentionRows).
+ * `null` until the answer is in; an unanswered or failed read is `[]` (the plain line is used instead).
+ */
+function useOthers(wanted, me) {
+  const [names, setNames] = useState([]);
+  useEffect(() => {
+    if (!wanted || typeof fetch === 'undefined') return undefined;
+    let alive = true;
+    void fetchMentionPeople('', me).then((rows) => {
+      if (alive) setNames(rows ? rows.map((r) => r.name) : []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [wanted, me]);
+  return names;
+}
+
+/** No thread is listed (05 · es-panels-canvas, es-viewer). `kind` is `emptyKind`. */
+function EmptyComments({ kind, active, canvas, names, onShare }) {
+  if (kind === 'done') {
+    return (
+      <div className="cmp-party">
+        <Confetti id="cmp-confetti-done" shift={[60, 100]} />
+        <Empty
+          spot="done"
+          spotW={168}
+          land
+          copyId="es-panels-canvas.comments-done"
+          vars={{ canvas }}
+          testid="comments-empty"
+        />
+      </div>
+    );
+  }
+  if (kind === 'none') {
+    const viewer = names.length > 0;
+    const id = viewer ? 'es-viewer.viewer-comments-none' : 'es-panels-canvas.comments-none';
+    const vars = { canvas, names: namesLine(names) };
+    return (
+      <Empty
+        spot="comment"
+        spotW={168}
+        copyId={id}
+        vars={vars}
+        testid="comments-empty"
+        actions={
+          !viewer && onShare ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              data-testid="comments-share"
+              onClick={onShare}
+            >
+              <StIcon name="share" size={14} />
+              {copy(id, vars).action}
+            </button>
+          ) : null
+        }
+      />
+    );
+  }
+  return (
+    <Empty
+      glyph="comment"
+      testid="comments-empty"
+      title={FILTER_EMPTY[active] ?? FILTER_EMPTY.resolved}
+      next={active === 'resolved' ? undefined : 'Press [[C]], then click where it belongs.'}
+    />
+  );
+}
 
 let meOnce = null;
 /** The viewer's display name — the same identity a new comment is signed with. Asked once per page. */
@@ -117,6 +194,8 @@ export function CommentsPanel({
   onReopen,
   onDelete,
   onClose,
+  onShare,
+  viewer = false,
   me: meProp,
   artboardLabel,
   now,
@@ -128,6 +207,8 @@ export function CommentsPanel({
   const counts = countsOf(commentsByFile, me);
   const groups = groupThreads(commentsByFile, active, { me, activePath, now });
   const canvasLabel = (file) => displayName(basename(file));
+  const kind = emptyKind(active, counts);
+  const others = useOthers(viewer && groups.length === 0 && kind === 'none', me);
 
   return (
     <aside
@@ -168,14 +249,13 @@ export function CommentsPanel({
       </div>
       <div className="cmp-body">
         {groups.length === 0 ? (
-          <div className="cmp-empty" data-testid="comments-empty">
-            <p>{EMPTY[active]}</p>
-            {active !== 'resolved' ? (
-              <p>
-                Press <Kbd>C</Kbd>, then click where it belongs.
-              </p>
-            ) : null}
-          </div>
+          <EmptyComments
+            kind={kind}
+            active={active}
+            canvas={activePath ? canvasLabel(activePath) : 'this canvas'}
+            names={others}
+            onShare={onShare}
+          />
         ) : (
           groups.map((g) => (
             <section

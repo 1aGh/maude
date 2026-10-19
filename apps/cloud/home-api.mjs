@@ -19,10 +19,17 @@
 // A Bearer that is present but dead is signed out — it never falls through to
 // a cookie on the same request. Roles go out as stored; there is no `roles`
 // advertisement here (the Q13 flip, ROLES_V2_ADVERTISED, is the hub's).
+//
+// `account.plan` (S9.20b, decision v2-lead-plan-words-via-home-route): the
+// desktop's Settings › Account says "Free trial · N days left" from here, so the
+// app never computes trial days itself. It is S9.15's `trialView` cut down to the
+// state, the days left and the plan name — no dates, no customer or
+// subscription id, no price — and nothing on this path calls Stripe.
 
 import { maxRole } from '../studio/access/roles.ts';
 import { GRANT_ROLES } from '../studio/access/scope.ts';
 import { decideClaim, validCanvasPath } from './access-forward.mjs';
+import { trialView } from './billing.mjs';
 import { personalTokenAccount } from './device-auth.mjs';
 
 function json(body, status = 200) {
@@ -37,6 +44,12 @@ function json(body, status = 200) {
 }
 
 const signedOut = () => json({ reason: 'signed-out', error: 'Sign in from the app first.' }, 401);
+
+/** The plan words' facts for one account — S9.15's trial view, nothing else (pure). */
+export function accountPlan(account, { now = Date.now() } = {}) {
+  const t = trialView(account, { now });
+  return { state: t.state, daysLeft: t.daysLeft, name: 'Free trial' };
+}
 
 /** `ui/web/Mapa-arealu.tsx` → `Mapa-arealu`. The control plane holds no canvas meta. */
 export function canvasName(path) {
@@ -123,6 +136,20 @@ async function readRows(db, accountId) {
     memberships: memberships?.results ?? [],
     grants: grants?.results ?? [],
   };
+}
+
+/** The caller's own `trial_started_at` (null on a pre-v19 D1, which has no trial yet). */
+async function trialStartedAt(db, caller) {
+  if (caller.trial_started_at !== undefined) return caller.trial_started_at ?? null;
+  try {
+    const row = await db
+      .prepare('SELECT trial_started_at FROM accounts WHERE id = ?')
+      .bind(caller.id)
+      .first();
+    return row?.trial_started_at ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -218,7 +245,11 @@ export function homeFor({ account, owned, memberships, grants, cellZone, now = D
       (a.projectId < b.projectId ? -1 : a.projectId > b.projectId ? 1 : 0) ||
       (a.canvas?.path ?? '').localeCompare(b.canvas?.path ?? '')
   );
-  return { account: { email: account.email }, projects, shared };
+  return {
+    account: { email: account.email, plan: accountPlan(account, { now }) },
+    projects,
+    shared,
+  };
 }
 
 /** Route GET /api/home. Returns a Response, or null when the path is not ours. */
@@ -235,7 +266,9 @@ export async function handleHomeApi(request, env, { account = null, now = Date.n
   const rows = await readRows(env.DB, caller.id);
   return json(
     homeFor({
-      account: caller,
+      // The session's account row carries no trial column; read it for the caller, so the
+      // device token and the browser session answer the same plan.
+      account: { ...caller, trial_started_at: await trialStartedAt(env.DB, caller) },
       ...rows,
       cellZone: env.CELL_ZONE ?? 'cloud.maude.sh',
       now,

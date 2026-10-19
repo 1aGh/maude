@@ -34,6 +34,7 @@ import { JumpToLatest, PinButtonHost } from '../v2/ai/BigChat.jsx';
 import { ChatList } from '../v2/ai/ChatList.jsx';
 import { DropOverlay } from '../v2/ai/DropOverlay.jsx';
 import { Composer } from '../v2/ai/Composer.jsx';
+import { sendToAskAI } from '../v2/search/search-env.js';
 import {
   AssistantMessage,
   ChatLightbox,
@@ -960,6 +961,12 @@ export default function ChatPanel({
               setMenuOpen(false);
             }}
             onBack={() => setMenuOpen(false)}
+            // S11.3 (05 · es-edge-panels): "Start a chat about it" — a new chat with the search words in its composer
+            onStartChat={(text) => {
+              newChat();
+              setMenuOpen(false);
+              sendToAskAI(text);
+            }}
             onRename={renameChat}
             onCopyTranscript={copyTranscript}
             onArchive={archiveChat}

@@ -4,12 +4,23 @@
 //   • ⌘/ opens the panel and puts focus in the field (and, with the panel already open, the
 //     `maude:focus-ai` event does the same);
 //   • esc in the field gives focus back to whatever had it before the panel took it;
-//   • the landmark: "AI chat panel" (CONTRACT §3 — not "Assistant").
+//   • the landmark: "AI chat panel" (CONTRACT §3 — not "Assistant");
+//   • S6.3: `maude:ai-send` — a sentence from outside (Home's first draft) goes into a new chat and is sent
+//     through the composer, so the connect gate and offline queueing apply as for any message (ai-send.js).
 //
 // The header, the chat list and the chats are the children (ChatPanel is the host that owns the chat state).
 
 import { useCallback, useEffect, useRef } from 'react';
 import { restoreFocus } from '../shell/modal-focus.js';
+import { shellToast } from '../../shell/util.js';
+import {
+  AI_SEND_EVENT,
+  AI_SEND_FAILED,
+  AI_SEND_PENDING_KEY,
+  parseAiSend,
+  queueAiSend,
+  takePendingAiSend,
+} from './ai-send.js';
 import { BigPanelProvider, useBigPanel } from './BigChat.jsx';
 import { FOCUS_AI_EVENT, focusComposer, isComposerEscape } from './panel-focus.js';
 import { useAiRingsLane } from './ring-relay.js';
@@ -52,6 +63,24 @@ export function AiChatIsland({ hidden = false, resizing = false, width, children
     window.addEventListener(FOCUS_AI_EVENT, on);
     return () => window.removeEventListener(FOCUS_AI_EVENT, on);
   }, [hidden, remember]);
+
+  // S6.3 — a first draft: the sentence goes into a fresh chat and is sent. When it cannot be (no chat, no
+  // canvas in front) the canvas is still there and the sentence waits in the field, so the person presses send.
+  useEffect(() => {
+    const run = (d) => {
+      if (!d) return;
+      queueAiSend(ref.current, d).then((r) => {
+        if (!r.ok) shellToast(AI_SEND_FAILED);
+      });
+    };
+    run(takePendingAiSend());
+    const on = (e) => {
+      window[AI_SEND_PENDING_KEY] = undefined;
+      run(parseAiSend(e?.detail));
+    };
+    window.addEventListener(AI_SEND_EVENT, on);
+    return () => window.removeEventListener(AI_SEND_EVENT, on);
+  }, []);
 
   return (
     <aside

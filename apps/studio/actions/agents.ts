@@ -136,6 +136,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.new-brief': TSX(
     'Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
   ),
+  // S6.3 — a canvas from one sentence: the agent writes the new .tsx itself (V2-1.1 §5.9: `file:'canvas-tsx'`).
+  'home.ask': TSX(
+    'Write a new canvas .tsx under newCanvasDir: add every artboard empty with kind and size first, then fill big before small, words last (SKILL.md § A first draft from Home)'
+  ),
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
@@ -854,7 +858,20 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: cli('maude design exports retry <id> [--item <id,…>]'),
   },
   'share.open': { effect: 'shared', agent: human('links') },
-  'share.copy-link': { effect: 'none', agent: human('links') },
+  // S9.20: where the hub has links, the owner's Copy link makes the project's link (POST); everyone
+  // else copies the location, which grants nothing. Making a link is the owner's, refused there.
+  'share.copy-link': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/links', method: 'POST' },
+    agent: human('links'),
+  },
+  'share.link-settings': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/links/:id', method: 'PATCH' },
+    agent: human('links'),
+  },
   // S6.0c: uploads the whole project to the person's billed cloud account — the window only; the
   // studio refuses a POST without its Sec-Fetch-Site and the design hook denies one (human-only).
   'share.move-to-cloud': {

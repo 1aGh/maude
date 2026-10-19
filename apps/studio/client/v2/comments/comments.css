@@ -207,12 +207,17 @@
     background: var(--bg-3);
     color: var(--fg-0);
   }
-  .cmp-empty {
-    padding: var(--space-4) var(--space-2);
-    font-size: var(--type-sm);
-    color: var(--fg-2);
+  /* S11.3 — "All done." sits on the confetti tile; the block stays above it. The kit places the tile. */
+  .cmp-party {
+    position: relative;
+    isolation: isolate;
+    padding: var(--space-4) 0;
   }
-  .cmp-empty p {
-    margin: 0 0 var(--space-2);
+  .cmp-party > .es-e {
+    position: relative;
+    z-index: 1;
+  }
+  .cmp-body > .es-e {
+    padding: var(--space-4) var(--space-2);
   }
 }
