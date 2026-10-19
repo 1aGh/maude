@@ -871,7 +871,7 @@ export default function ShareAndCollaboration() {
         </DCArtboard>
 
         <DCArtboard id="co-trashed" label="15 · Moved to the trash while you had it open" width={W} height={H} fixed>
-          <Stage note={<Note n={15} title="Nothing closes under you.">Editors can move a canvas to the trash; only an owner clears it out. Keep looking — changes stay with it. Restore puts it back for everyone.</Note>}>
+          <Stage note={<Note n={15} title="Nothing closes under you.">Editors can move a canvas to the trash; only an owner clears it out. Keep looking — editing stops, and your unsent changes stay with it. Restore puts both back for everyone.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Artboard label="Post · Combine v číslech" kind="digital" x={330} y={140} w={300} h={300}><GatorMock variant="numbers" /></Artboard>
@@ -881,7 +881,7 @@ export default function ShareAndCollaboration() {
               <ProjectPill project="Alligators brand" canvas="Combine-cisla" />
               <div className="island co-banner">
                 <span className="co-banner-ic"><Icon name="trash" size={16} /></span>
-                <span className="co-banner-t">Tereza moved Combine-cisla to the trash · 2 min ago<span>You can keep looking. Anything you change now stays with it.</span></span>
+                <span className="co-banner-t">Tereza moved Combine-cisla to the trash · 2 min ago<span>You can keep looking. Your unsent changes stay with it.</span></span>
                 <span className="btn btn--sm btn--primary">Restore</span>
               </div>
               <CanvasesPanel project="Alligators brand" count={92} selected="Combine-cisla" folders={[
