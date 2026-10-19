@@ -105,7 +105,10 @@ export type FigjamPlan = (a: {
 
 /** The S4.5 engine, loaded on first use (it brings the Figma client and the asset fetcher with it). */
 const enginePlan: FigjamPlan = async (a) => {
-  const { planBoardInto } = await import('../bin/_import-figma.mjs');
+  // The verb is plain JS (its option defaults read as `null` to the checker): the typed seam is here.
+  const { planBoardInto } = (await import('../bin/_import-figma.mjs')) as unknown as {
+    planBoardInto(o: Record<string, unknown>): Promise<FigjamPlanResult>;
+  };
   const p = await planBoardInto({
     url: a.url,
     root: a.root,
