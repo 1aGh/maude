@@ -112,6 +112,10 @@ interface StrokeBase {
   folded?: true;
   /** S4.12 — where an imported element came from (`figjam`, `comment`, …). Read-only in the UI. */
   source?: { kind: string; author?: string };
+  /** S4.20 — the artboard a note rides with (Q3 membership). Read-only here: the commit path stamps it, the stroke view only carries it to the scene ("Not printed" over a print artboard). */
+  parentArtboard?: string;
+  /** S4.20 — a note pinned to a moment of a video. Read-only here (the layer pins on place); carried so the scene can draw the chip and the fade. */
+  timeRange?: { artboard: string; start: number; end: number };
   /**
    * FigJam v3 — rotation in degrees (clockwise) around the stroke's bbox
    * center. Absent / 0 = axis-aligned (back-compat). Honoured by the box-
@@ -249,6 +253,8 @@ export interface StickyStroke extends StrokeBase {
   fontSize: number;
   /** Corner radius; defaults to STICKY_CORNER_RADIUS (8 = soft). */
   cornerRadius?: number;
+  /** S4.20 — the stored sticky has no `fill` (read-only view hint): `color` is the default paper, not a choice, so an AI sticky wears the neutral paper. */
+  unfilled?: true;
   /** Phase 24 — bold body weight. Absent / false = normal. */
   bold?: boolean;
   /** Phase 24 — strikethrough body. Absent / false = none. */

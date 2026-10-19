@@ -48,7 +48,14 @@ import { colorForName } from '../../use-collab.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
-import { AI_PAPER, AI_SPARK, isAiAuthored, resolvedByAi, SparkGlyph } from './ai-marks.tsx';
+import {
+  AI_SPARK,
+  isAiAuthored,
+  resolvedByAi,
+  SparkGlyph,
+  sectionTone,
+  stickyPaper,
+} from './ai-marks.tsx';
 import { quietPaper } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
 import { labelPoint } from './rest-route.ts';
@@ -264,7 +271,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const r = num(el.radius, STICKY_CORNER_RADIUS);
   // S4.15 - an AI sticky is neutral paper with a spark edge, never a swatch (ai-marks.tsx)
   const aiMade = isAiAuthored(el);
-  const paper = aiMade ? AI_PAPER : str(el.fill, '#fce8a6');
+  const paper = stickyPaper(el); // the stored fill always renders; neutral paper is only an AI sticky's default
   const fill = quiet ? quietPaper(paper) : paper;
   const resolved =
     el.resolved && typeof el.resolved === 'object'
@@ -964,7 +971,7 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
-  const color = str(el.color, '#8a8a8a');
+  const color = sectionTone(el);
   // S4.12 - folded: the members are not drawn, so the body is a faint dashed outline and the chip says what is inside.
   const folded = el.folded === true;
   // S4.13 - and a folded section is ONE LINE on the board: the strip under its chip, not the full outline.

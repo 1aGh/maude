@@ -16,6 +16,24 @@ export const AI_PAPER = '#fbf8f4';
 /** `resolved.by` when the agent resolved a sticky (ai-write.ts `AI_RESOLVER`). */
 export const AI_BY = 'AI';
 
+/** The human default paper for a sticky with no stored fill (annotations/constants.ts DEFAULT_STICKY_FILL). */
+const DEFAULT_PAPER = '#fce8a6';
+
+/**
+ * A sticky's paper (lead decision `v2-lead-explicit-fill-beats-ai-neutral-paper`): the stored `fill` ALWAYS
+ * renders; the neutral AI paper is only the default for an AI sticky that has none. (`annotate --board`
+ * cards carry their colour, and the spark edge — not a swatch — is what says who wrote it.)
+ */
+export function stickyPaper(el: AnnotationElement): string {
+  if (typeof el.fill === 'string' && el.fill) return el.fill;
+  return isAiAuthored(el) ? AI_PAPER : DEFAULT_PAPER;
+}
+
+/** A section's tone: its stored `color` always renders, whoever wrote it (no AI override). */
+export function sectionTone(el: AnnotationElement, fallback = '#8a8a8a'): string {
+  return typeof el.color === 'string' && el.color ? el.color : fallback;
+}
+
 export function isAiAuthored(el: AnnotationElement): boolean {
   const a = el.author;
   return !!a && typeof a === 'object' && (a as { kind?: unknown }).kind === 'ai';

@@ -28,6 +28,7 @@ import type { Op as AnnotationOp } from '../annotations/ops.ts';
 import { parseBoard } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import type { Comment, ConvertSnapshot, LaneChange, LanesOutcome, LanesProposer } from '../api.ts';
+import { AI_FROM_AUTHOR } from '../comments/from-line.ts';
 import {
   applyCommentOp,
   type CommentRecord,
@@ -353,7 +354,7 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
           const y = num(el.y) ?? 0;
           const w = num(el.w) ?? 0;
           const h = num(el.h) ?? 0;
-          const author = (el.author ?? {}) as { name?: unknown; id?: unknown };
+          const author = (el.author ?? {}) as { kind?: unknown; name?: unknown; id?: unknown };
           const parentArtboard =
             typeof el.parentArtboard === 'string' && ARTBOARD_RE.test(el.parentArtboard)
               ? el.parentArtboard
@@ -379,7 +380,13 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
               from: {
                 kind: 'sticky',
                 id,
-                author: typeof author.name === 'string' ? author.name.slice(0, 120) : '',
+                // An AI sticky has no person's name: say so, so the thread reads "From AI's sticky" (S4.20)
+                author:
+                  author.kind === 'ai'
+                    ? AI_FROM_AUTHOR
+                    : typeof author.name === 'string'
+                      ? author.name.slice(0, 120)
+                      : '',
                 ...(typeof author.id === 'string' ? { authorId: author.id } : {}),
                 at,
                 spot: { x, y, ...(parentArtboard ? { artboard: parentArtboard } : {}) },
@@ -474,7 +481,9 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             .filter((k): k is string => typeof k === 'string')
             .sort()
             .at(-1);
-          const authorName = typeof from.author === 'string' ? from.author.slice(0, 64) : '';
+          const byAi = from.author === AI_FROM_AUTHOR;
+          const authorName =
+            !byAi && typeof from.author === 'string' ? from.author.slice(0, 64) : '';
           const sticky: AnnotationElement = {
             id: stickyId,
             type: 'sticky',
@@ -485,17 +494,19 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             h: sh,
             ...(fill ? { fill } : {}),
             text: c.text,
-            ...(authorName
-              ? {
-                  author: {
-                    kind: 'human',
-                    name: authorName,
-                    ...(typeof from.authorId === 'string' && from.authorId.length <= 64
-                      ? { id: from.authorId }
-                      : {}),
-                  },
-                }
-              : {}),
+            ...(byAi
+              ? { author: { kind: 'ai' } }
+              : authorName
+                ? {
+                    author: {
+                      kind: 'human',
+                      name: authorName,
+                      ...(typeof from.authorId === 'string' && from.authorId.length <= 64
+                        ? { id: from.authorId }
+                        : {}),
+                    },
+                  }
+                : {}),
             ...(typeof spot.artboard === 'string' && ARTBOARD_RE.test(spot.artboard)
               ? { parentArtboard: spot.artboard }
               : {}),

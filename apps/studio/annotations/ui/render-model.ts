@@ -76,6 +76,8 @@ function extras(s: Stroke): Record<string, unknown> {
   if (s.tool === 'sticky' && s.at) out.at = s.at;
   if (s.tool === 'section' && s.folded) out.folded = true;
   if (s.source) out.source = s.source;
+  if (s.tool === 'sticky' && s.parentArtboard) out.parentArtboard = s.parentArtboard;
+  if (s.tool === 'sticky' && s.timeRange) out.timeRange = s.timeRange;
   return out;
 }
 
@@ -108,7 +110,8 @@ export function strokeToRenderItem(s: Stroke, label?: Label): RenderItem | null 
           type: 'sticky',
           ...box(s.x, s.y, s.w, s.h),
           ...rot,
-          fill: s.color,
+          // S4.20 — a stored fill always renders; no stored fill leaves the paper to the view (AI = neutral)
+          ...(s.unfilled ? {} : { fill: s.color }),
           text: s.text,
           fontSize: s.fontSize,
           radius: s.cornerRadius,

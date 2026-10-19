@@ -1,12 +1,29 @@
 /* client/v2/annotations/vote.css — S4.14: the vote bar and the Start a vote sheet (canvas 15 `.an-vbar`, an-vote).
-   Tokens only; motion collapses under reduced motion via the token set. */
+   Tokens only; motion collapses under reduced motion via the token set.
+
+   S4.20 — MATERIAL. `VoteHost` mounts beside the shell, not inside `.st-body--float`, so the `.island` rule
+   (floating-panels.css, keyed on that ancestor) never reached these two and they drew bare (mono face, no
+   paper, no radius). They carry the island material themselves, from the same tokens, with the island's
+   own values as fallbacks outside the floating body. */
+
+.an-vbar,
+.an-vsheet {
+  font-family: var(--font-body, system-ui, sans-serif);
+  background: var(--island-bg, var(--bg-1));
+  border-radius: var(--island-radius, 14px);
+  box-shadow:
+    var(--island-shadow, 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26)),
+    inset 0 0 0 0.5px var(--island-edge, oklch(1 0 0 / 0.09));
+}
 
 .an-vbar {
   position: fixed;
   left: 50%;
-  top: calc(var(--space-4) + 44px);
+  /* Canvas 15 an-vote: on the top row with the project pill and the share cluster (16px in, shifted left of
+     centre to clear the cluster), so it never sits on the artboards' top-edge "+" dots. */
+  top: var(--space-4);
   z-index: 40;
-  translate: -50% 0;
+  translate: -58% 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);

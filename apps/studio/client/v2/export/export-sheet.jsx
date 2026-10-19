@@ -40,6 +40,7 @@ import {
 } from './export-copy.js';
 import { AdvancedSection } from './advanced/advanced.jsx';
 import { AccessLine, exportAccess } from './access-line.jsx';
+import { annotationsState } from './annotations-policy.js';
 import { OtherFormats } from './other-formats.jsx';
 import { laneBlocked, replayBody, runExport } from './run-export.js';
 import { ScopeBar } from './scope-bar.jsx';
@@ -318,7 +319,8 @@ export function ExportSheet({
       setOpen={setOtherOpen}
     />
   );
-  const annotationsOff = false;
+  // S4.20 (an-print) — a print file never carries the layer: the box is disabled, with the line saying why
+  const annot = annotationsState(state.format, { kinds: specKinds });
   const Section =
     section === 'batch' ? BatchSection : section === 'web' ? WebSection : ImageSection;
 
@@ -396,7 +398,8 @@ export function ExportSheet({
                 }}
                 other={other}
                 onHandoff={handoff}
-                annotationsOff={annotationsOff}
+                annotationsOff={annot.off}
+                annotationsNote={annot.note}
                 est={est}
               />
             </div>
