@@ -20,7 +20,8 @@ describe('the sticker gallery headings (canvas 15: body face, xs, semibold, fg-2
   test('.sg-ph is --font-body, --type-xs, semibold, --fg-2', () => {
     expect(ph).toContain('font-family: var(--font-body)');
     expect(ph).toContain('font-size: var(--type-xs)');
-    expect(ph).toContain('font-weight: var(--w-semibold)');
+    // the v2 weight alias is mounted later (Phase 4); the 600 fallback keeps the heading semibold until then
+    expect(ph).toContain('font-weight: var(--w-semibold, 600)');
     expect(ph).toContain('color: var(--fg-2)');
   });
   test('the pack name keeps the heading colour, the count is tabular', () => {

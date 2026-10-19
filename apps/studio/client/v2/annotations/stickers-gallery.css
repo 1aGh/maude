@@ -82,11 +82,11 @@
     margin: 0;
     font-family: var(--font-body);
     font-size: var(--type-xs);
-    font-weight: var(--w-semibold);
+    font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
   .sg-ph strong {
-    font-weight: var(--w-semibold);
+    font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
   .sg-ph span {

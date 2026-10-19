@@ -13,7 +13,8 @@ import type { CSSProperties } from 'react';
 
 export const TEXT_FONT = 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)';
 /** gate-a-polish2 — chrome text on the layer (a sticky's author line): the body face, never the mono of a note's words. */
-export const UI_FONT = 'var(--font-body, system-ui, -apple-system, "Segoe UI", sans-serif)';
+export const UI_FONT =
+  'var(--maude-chrome-font-body, var(--font-body, system-ui, -apple-system, "Segoe UI", sans-serif))';
 /** S4.18 (an-sticky) — a sticky's words are set in the rounded face (canvas 15; CONTRACT `--font-rounded`). */
 export const STICKY_FONT =
   'var(--font-rounded, ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif)';
