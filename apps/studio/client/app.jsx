@@ -230,6 +230,7 @@ import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
+import { IntentHost } from './v2/create/intent-host.jsx';
 import { useOnline } from './v2/empty/use-empty-canvas.js';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
@@ -3034,6 +3035,8 @@ function ShellTree() {
           <ViewBarHost activePath={activePath} />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
           <EmptyHost />
+          {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}
+          <IntentHost />
           {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}
           <SyncStatesHost />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
