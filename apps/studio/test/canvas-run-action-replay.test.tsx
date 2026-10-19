@@ -96,3 +96,60 @@ test('run-action select.all / copy-properties / paste-properties replay the chor
     host.remove();
   }
 });
+
+// S3.14 (G7) - L in Present is the Pointer's. present/pointer-dot.tsx hears the shell's `tool.key` itself, so the
+// canvas must NOT also replay the key: both toggled, the dot went on and straight off again (seen live, S3.13).
+test('run-action tool.key L while presenting is not replayed (the Pointer already heard it); other keys still are', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const canvasRef = createRef<HTMLDivElement>();
+  const post = spyOn(window.parent, 'postMessage').mockImplementation(() => {});
+  const pressed: string[] = [];
+  const onKey = (e: KeyboardEvent) => pressed.push(e.key);
+  document.addEventListener('keydown', onKey);
+  const send = async (data: unknown) => {
+    await act(async () => {
+      window.dispatchEvent(new MessageEvent('message', { source: window.parent, data }));
+      await settle();
+    });
+  };
+  const setMode = (seq: number, mode: string, present: unknown = null) =>
+    send({
+      dgn: 'set-mode',
+      v: 2,
+      seq,
+      mode,
+      present,
+      caps: { edit: true, annotate: true, comment: true },
+    });
+  try {
+    await act(async () => {
+      root.render(
+        <ToolProvider initial="move">
+          <UndoStackProvider>
+            <div ref={canvasRef}>
+              <CanvasShell hostRef={canvasRef}>
+                <div data-dc-screen="main" />
+              </CanvasShell>
+            </div>
+          </UndoStackProvider>
+        </ToolProvider>
+      );
+    });
+    await setMode(100, 'preview');
+    await send({ dgn: 'run-action', v: 1, id: 'tool.key', params: { key: 'L' } });
+    expect(pressed).toEqual(['l']); // not presenting: replayed as ever
+    pressed.length = 0;
+    await setMode(101, 'present', { kind: 'canvas' });
+    await send({ dgn: 'run-action', v: 1, id: 'tool.key', params: { key: 'L' } });
+    expect(pressed).toEqual([]); // presenting: the Pointer's own listener has it
+    await send({ dgn: 'run-action', v: 1, id: 'tool.key', params: { key: 'N' } });
+    expect(pressed).toEqual(['n']);
+  } finally {
+    document.removeEventListener('keydown', onKey);
+    await act(async () => root.unmount());
+    post.mockRestore();
+    host.remove();
+  }
+});
