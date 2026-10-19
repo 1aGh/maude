@@ -611,6 +611,14 @@ export interface Api {
   readBoard(
     file: string
   ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
+  /**
+   * S4.V4 G4 — `readBoard`, but a live collab room's board wins over the file its debounced flush has
+   * not caught up with: read-your-writes for a door that reads right after `applyAnnotationOps` (the vote
+   * door: start → GET, start → ballot).
+   */
+  readBoardLive(
+    file: string
+  ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
   /** Whole-board write (board text or legacy SVG, canonicalized). */
   saveAnnotations(file: string, text: string, writeId?: string, base?: string): Promise<boolean>;
   /** The canvas write path: an op batch under the DDR-242 merge rule. */
@@ -1033,6 +1041,8 @@ export interface ApiHooks {
    * board (code review H1). `null` = no live room / accepted mode — the batch
    * goes to disk. The room's persistence projects the result to the file.
    */
+  /** S4.V4 G4 — the live room's board text (`null` = no live room / accepted mode: read the file). */
+  readAnnotationsLive?: (file: string) => string | null;
   applyAnnotationOpsLive?: (
     file: string,
     ops: readonly AnnotationOp[],
@@ -2550,6 +2560,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         : { ok: true, text };
     }
     return { ok: true, text: null };
+  }
+
+  async function readBoardLive(file: string): Promise<BoardRead> {
+    let live: string | null = null;
+    try {
+      live = hooks.readAnnotationsLive?.(file) ?? null;
+    } catch {
+      live = null;
+    }
+    if (live !== null) {
+      const text = canonicalAnnotations(live);
+      if (text !== null) return { ok: true, text };
+    }
+    return readBoard(file);
   }
 
   /** Canonical board text, or null when the canvas has no annotations (or they can't be read). */
@@ -7784,6 +7808,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     writeCanvasMetaText,
     loadAnnotations,
     readBoard,
+    readBoardLive,
     saveAnnotations,
     applyAnnotationOps,
     projectAnnotations,

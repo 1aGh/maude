@@ -13,7 +13,7 @@
 // Self-contained: its own `message` listener and the canvas's own rect manifest (`__maudeCanvasRects`),
 // so the layer mounts it with one element.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { acceptFromShell } from '../../bridge/dgn-protocol.ts';
 
 export interface VoteView {
@@ -170,10 +170,47 @@ const VOTE_CSS = `
 .dc-vcount--win { background: var(--maude-hud-accent, #d63b1f); color: var(--maude-hud-accent-fg, #fff); }
 `;
 
+/** The chip events the canvas's own gestures must never see (S4.V4 G3). */
+const CHIP_EVENTS = ['pointerdown', 'mousedown', 'click', 'dblclick'] as const;
+
+/**
+ * S4.V4 G3 — the chips live in the layer's world portal, INSIDE `.dc-world`, where the input router claims
+ * every bare click in Move (`preventDefault` + `stopImmediatePropagation` in its capture phase, and it
+ * never yields to a class name there — issue-90) and Preview's Hand pans from a pointerdown off the design
+ * (pointer capture retargets the click to the canvas host). Either way the "+" never heard its click. So
+ * the chips take their own events at `window`, capture phase — ahead of both — and only for a button
+ * inside THIS chip layer (an identity check, not a class match a canvas element could copy).
+ */
+export function useChipEvents(rootRef: { current: HTMLElement | null }): void {
+  useEffect(() => {
+    const onEvent = (e: Event) => {
+      const root = rootRef.current;
+      const t = e.target as Element | null;
+      const btn =
+        root && t?.closest
+          ? (t.closest('button[data-vote-act]') as HTMLButtonElement | null)
+          : null;
+      if (!btn || !root?.contains(btn)) return;
+      e.stopPropagation();
+      if (e.type !== 'click') return;
+      e.preventDefault();
+      if (btn.disabled) return;
+      const artboard = btn.getAttribute('data-vote-ab') ?? '';
+      castDot(artboard, btn.getAttribute('data-vote-act') === 'remove');
+    };
+    for (const t of CHIP_EVENTS) window.addEventListener(t, onEvent, true);
+    return () => {
+      for (const t of CHIP_EVENTS) window.removeEventListener(t, onEvent, true);
+    };
+  }, [rootRef]);
+}
+
 /** World-space chips, inside the layer's world portal (`zoom` keeps them a constant screen size). */
 export function VoteDots({ zoom }: { zoom: number }) {
   const { vote, mine } = useVoteState();
   const [rects, setRects] = useState<Rect[]>([]);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useChipEvents(rootRef);
   useEffect(() => {
     if (!vote) return;
     setRects(artboardRects());
@@ -183,7 +220,7 @@ export function VoteDots({ zoom }: { zoom: number }) {
   if (!vote) return null;
   const z = zoom > 0 ? zoom : 1;
   return (
-    <div className="dc-annot-votes" data-testid="vote-dots">
+    <div className="dc-annot-votes" data-testid="vote-dots" ref={rootRef}>
       <style>{VOTE_CSS}</style>
       {rects.map((r) => {
         const target = `ab:${r.id}`;
@@ -222,10 +259,8 @@ export function VoteDots({ zoom }: { zoom: number }) {
                 type="button"
                 className="dc-vdot"
                 aria-label="Take this vote back"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  castDot(r.id, true);
-                }}
+                data-vote-act="remove"
+                data-vote-ab={r.id}
               />
             ))}
             {chip.dots > 0 && <span className="dc-vdots-n">yours</span>}
@@ -235,10 +270,8 @@ export function VoteDots({ zoom }: { zoom: number }) {
               disabled={!chip.canAdd}
               aria-label={`Vote for ${labelOf(r.id)}`}
               data-testid={`vote-add-${r.id}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                castDot(r.id);
-              }}
+              data-vote-act="add"
+              data-vote-ab={r.id}
             >
               +
             </button>

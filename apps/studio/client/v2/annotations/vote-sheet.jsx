@@ -13,6 +13,7 @@
 // refuses a start from anyone else (POST /_api/votes/start needs `edit`). Tokens only (vote.css).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { v2Scope } from './v2-scope.js';
 import { DEFAULT_DURATION, DEFAULT_PER_VOTER, DURATIONS, VOTE_WORDS } from './vote-store.js';
 
 const minutes = (s) => (s % 60 === 0 ? `${s / 60} min` : `${s} s`);
@@ -96,7 +97,7 @@ export default function VoteSheet({ state, onStart, onClose }) {
     >
       <form
         ref={ref}
-        className="island an-vsheet"
+        {...v2Scope('island an-vsheet')}
         role="dialog"
         aria-modal="true"
         aria-labelledby="an-vsheet-h"

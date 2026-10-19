@@ -1047,13 +1047,52 @@
     "hook": "comment-from-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Thread header line for a converted sticky: \"From Jonas’s sticky · turned into a comment by You\" (S4-S9-votes-comments §3.4; Undo and \"Turn back into a sticky\" wait for the S4.7 routes).",
+    "meaning": "Thread header line for a converted sticky: \"From Jonas’s sticky · turned into a comment by You · Undo\" (S4-S9-votes-comments §3.4).",
     "producer": {
       "file": "apps/studio/comments-overlay.tsx",
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
     "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-from-undo-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The header line’s Undo on a converted thread: only for the person who converted it, while this app session holds the conversion and nobody else has replied (S4-S9-votes-comments §3.4; S4.V4 G5).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/convert-back-thread.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-menu-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The ⋯ button on a converted thread’s header (editors). Opens the thread menu (S4.V4 G5).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/convert-back-thread.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-menu-to-sticky-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Turn back into a sticky\" in a converted thread’s ⋯ menu; disabled with \"<Name> replied — resolve the thread instead.\" when someone else replied (S4-S9-votes-comments §3.4; S4.V4 G5).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/convert-back-thread.test.tsx"],
     "v2": "new"
   },
   {
