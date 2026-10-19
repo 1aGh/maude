@@ -15,7 +15,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { orderPacks, resolveRecent, searchStickers } from './sticker-search.js';
+import { annotationPrefsStore } from '../shell/use-annotation-prefs.js';
 import { loadRecent, rememberSticker } from './recent-stickers.js';
+import StampRow from './stamp-row.jsx';
 import { StampGlyph, STAMPS } from './stamps-glyphs.jsx';
 
 /** Stickers shown per pack before the "+N" cell (canvas 15 `PACKS[].show`). */
@@ -48,6 +50,12 @@ function anchoredStyle(a) {
   if (a.top != null) st.top = a.top;
   if (a.bottom != null) st.bottom = a.bottom;
   return st;
+}
+
+/** The folded row keeps the gallery's spot but not its width. */
+function rowStyle(a) {
+  const { width: _w, maxHeight: _h, ...pos } = anchoredStyle(a);
+  return pos;
 }
 
 function Cell({ sticker, label, onPick }) {
@@ -84,15 +92,25 @@ function StampButton({ stamp, onPickStamp }) {
 
 /**
  * @param onPick (sticker) => void — `{file, keywords, url, pack, id}`
- * @param onPickStamp (stampId) => void — S4.13 places it; with no handler the row is shown but inert
+ * @param onPickStamp (stampId) => void — the canvas arms it (S4.13); with no handler the row is shown but inert.
+ *        After one stamp the gallery folds to the Stamps row (stamp-row.jsx) so voting is one click per spot.
+ * @param prefs the per-person annotation prefs store (the Recent list lives in it; tests pass their own)
  * @param anchor a `placePanel` placement pinning the gallery above/below the toolbar; null = centred
  */
-export default function StickersGallery({ onPick, onPickStamp, onClose, anchor = null }) {
+export default function StickersGallery({
+  onPick,
+  onPickStamp,
+  onClose,
+  anchor = null,
+  prefs = annotationPrefsStore,
+}) {
   const [packs, setPacks] = useState(null); // null = loading
   const [query, setQuery] = useState('');
   const [chip, setChip] = useState(null);
   const [open, setOpen] = useState(() => new Set()); // packs expanded past the "+N" cell
-  const [recentRefs, setRecentRefs] = useState(() => loadRecent());
+  const [recentRefs, setRecentRefs] = useState(() => loadRecent(prefs));
+  // S4.13: the armed stamp once one was picked: the gallery is then the one-row island.
+  const [stampArmed, setStampArmed] = useState(null);
 
   // typing starts at once (E opened the island on purpose); a ref instead of `autoFocus`
   const searchRef = useRef(null);
@@ -132,13 +150,30 @@ export default function StickersGallery({ onPick, onPickStamp, onClose, anchor =
   );
 
   const pick = (sticker) => {
-    setRecentRefs(rememberSticker({ pack: sticker.pack, id: sticker.id }));
+    setRecentRefs(rememberSticker({ pack: sticker.pack, id: sticker.id }, prefs));
     onPick(sticker);
   };
   const setQ = (v) => {
     setQuery(v);
     setChip(null);
   };
+
+  const armStamp = (id) => {
+    setStampArmed(id);
+    onPickStamp?.(id);
+  };
+  if (stampArmed && onPickStamp) {
+    return (
+      <StampRow
+        active={stampArmed}
+        onPickStamp={armStamp}
+        onExpand={() => setStampArmed(null)}
+        onClose={onClose}
+        style={anchor ? rowStyle(anchor) : undefined}
+        placement={anchor?.placement}
+      />
+    );
+  }
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a click-outside surface; Escape (window listener) and the Close button are the keyboard routes
@@ -204,7 +239,7 @@ export default function StickersGallery({ onPick, onPickStamp, onClose, anchor =
                 onChip={setChip}
                 onWord={setQ}
                 onPick={pick}
-                onPickStamp={onPickStamp}
+                onPickStamp={onPickStamp ? armStamp : undefined}
               />
             ) : (
               <BrowseView
@@ -213,7 +248,7 @@ export default function StickersGallery({ onPick, onPickStamp, onClose, anchor =
                 open={open}
                 onOpen={(slug) => setOpen((s) => new Set(s).add(slug))}
                 onPick={pick}
-                onPickStamp={onPickStamp}
+                onPickStamp={onPickStamp ? armStamp : undefined}
               />
             )}
           </div>

@@ -60,6 +60,18 @@ describe("the shell's pick, in the messages S4.3 / S4.4 declared", () => {
       })
     ).toEqual({ kind: 'sticker', path: 'assets/ab12cd34.png', sticker: REF, follow: true });
   });
+  test('the gallery names a sticker by its file; the board keeps the dot-free stem', () => {
+    const p = placementOf({
+      dgn: 'insert-sticker',
+      path: 'assets/ab12cd34.png',
+      follow: true,
+      sticker: { pack: 'project-status', id: 'group-46.png' },
+    });
+    expect(p).toMatchObject({
+      kind: 'sticker',
+      sticker: { pack: 'project-status', id: 'group-46' },
+    });
+  });
   test('without follow it is the old mid-view drop; a pasted picture has no sticker identity', () => {
     expect(placementOf({ dgn: 'insert-sticker', path: 'assets/x.png' })).toEqual({
       kind: 'sticker',

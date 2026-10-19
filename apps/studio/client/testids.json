@@ -22650,5 +22650,230 @@
       "apps/studio/test/annotations-convert-ui.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "annot-placing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the ghost that trails the pointer after a gallery / stamp / template pick (`data-placing`: `sticker`, `stamp`, `template`); gone once the pick is spent or Esc lets go.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/placement.tsx",
+      "symbol": "PlacementGhost"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-sticker-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the “160 × 160” chip under a selected gallery sticker.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/placement.tsx",
+      "symbol": "StickerSizeChip"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-cluster",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the stamps on one spot gathered (`data-spot`, `data-count` = one per person per kind).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampClusters"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-face",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: one stamp: the glyph on its paper tone with the maker’s face on the corner (`data-kind`).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampFaceView"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the number on a cluster of more than two stamps.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampClusters"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the hover card of a cluster, “5 stamps on Směr B”.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampCard"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-stamp-card-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: one row of the hover card: the stamp, who, and its name.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/stamps.tsx",
+      "symbol": "StampCard"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Replace… on the small toolbar over a sole gallery sticker (opens the gallery in replace mode).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-flip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Flip on the small toolbar over a sole gallery sticker (`aria-pressed` while mirrored).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ctx-duplicate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Duplicate on the small toolbar over a sole gallery sticker (the `annotation.duplicate` action).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-stickers.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-sticker-drop.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "stamps-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.13: one stamp in the row the Stickers gallery folds to after a stamp (`yes`, `no`, `star`, `heart`, `ask`, `plus`; `data-on` on the armed one).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
+      "symbol": "StampRow"
+    },
+    "region": "other",
+    "sourceConsumers": [
+      "apps/studio/test/stickers-recent-stamps.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "stamps-row-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: the chevron on the folded Stamps row that opens the whole gallery again.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
+      "symbol": "StampRow"
+    },
+    "region": "other",
+    "sourceConsumers": [
+      "apps/studio/test/stickers-recent-stamps.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "stamps-row-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.13: Done on the folded Stamps row (closes the gallery).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stamp-row.jsx",
+      "symbol": "StampRow"
+    },
+    "region": "other",
+    "sourceConsumers": [
+      "apps/studio/test/stickers-recent-stamps.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

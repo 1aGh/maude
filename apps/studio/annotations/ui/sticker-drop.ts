@@ -30,8 +30,10 @@ const WORD = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 export function stickerRefOf(v: unknown): StickerRef | undefined {
   const s = v as { pack?: unknown; id?: unknown; flip?: unknown } | null | undefined;
   if (!s || typeof s.pack !== 'string' || typeof s.id !== 'string') return undefined;
-  if (!WORD.test(s.pack) || !WORD.test(s.id)) return undefined;
-  return { pack: s.pack, id: s.id, ...(s.flip === true ? { flip: true } : {}) };
+  // the gallery names a sticker by its file ("group-46.png"); the board's `sticker.id` is the dot-free stem
+  const id = s.id.replace(/\.[A-Za-z0-9]{2,5}$/, '');
+  if (!WORD.test(s.pack) || !WORD.test(id)) return undefined;
+  return { pack: s.pack, id, ...(s.flip === true ? { flip: true } : {}) };
 }
 
 /** What the shell's `insert-sticker` / `insert-template` asks for, or null for anything else. */

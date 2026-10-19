@@ -51,7 +51,10 @@ describe('`at` is a format-2 extension field of a sticky', () => {
     expect(schema).toContain('"at"');
   });
   test('a bad time is dropped by the typed reader, a good one kept', () => {
-    const board = serializeBoard([sticky({ at: AT }), { ...sticky({ at: 'yesterday' }), id: 's2' }]);
+    const board = serializeBoard([
+      sticky({ at: AT }),
+      { ...sticky({ at: 'yesterday' }), id: 's2' },
+    ]);
     const back = parseBoard(board).elements;
     expect(back.find((e) => e.id === 's1')?.at).toBe(AT);
     expect(back.find((e) => e.id === 's2')?.at).toBeUndefined();

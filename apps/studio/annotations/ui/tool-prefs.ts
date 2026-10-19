@@ -44,6 +44,42 @@ export interface AnnotationPrefs {
   highlighterWidth?: number;
 }
 
+/** A sticker the person placed lately: the gallery's `pack` slug and the catalogue `id`. */
+export interface RecentSticker {
+  pack: string;
+  id: string;
+}
+/** How many Recent keeps (canvas 15 an-stk-search: "the last stickers you placed"). */
+export const RECENT_STICKERS_MAX = 12;
+/** Pack slugs are words; a sticker's id here is its FILE name (`group-46.png`) - the gallery resolves Recent by it. */
+const PACK_WORD = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const FILE_WORD = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+/**
+ * S4.13 (Q8): what the SHELL remembers per person on top of the canvas's tool memory — the Recent stickers.
+ * The canvas never reads or writes it (its `annotation-prefs` parse drops it), so it is not in
+ * `ANNOTATION_PREF_KEYS`; prefs.json `annotationPrefs` and the local mirror carry it.
+ */
+export interface ShellAnnotationPrefs extends AnnotationPrefs {
+  recentStickers?: RecentSticker[];
+}
+export const SHELL_PREF_KEYS = ['recentStickers'] as const;
+
+/** A list of `{pack, id}` words, newest first, de-duplicated and capped; undefined when it is not a list. */
+export function sanitizeRecents(v: unknown): RecentSticker[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: RecentSticker[] = [];
+  for (const r of v) {
+    const o = r as { pack?: unknown; id?: unknown } | null;
+    if (!o || typeof o.pack !== 'string' || typeof o.id !== 'string') continue;
+    if (!PACK_WORD.test(o.pack) || !FILE_WORD.test(o.id)) continue;
+    if (out.some((x) => x.pack === o.pack && x.id === o.id)) continue;
+    out.push({ pack: o.pack, id: o.id });
+    if (out.length >= RECENT_STICKERS_MAX) break;
+  }
+  return out;
+}
+
 export const ANNOTATION_PREF_KEYS = [
   'stickyColor',
   'ink',
@@ -160,18 +196,36 @@ export function sanitizeAnnotationPrefs(raw: unknown): AnnotationPrefs {
   return out as AnnotationPrefs;
 }
 
+/** The canvas's fields plus the shell's (`recentStickers`); anything else is dropped. */
+export function sanitizeShellPrefs(raw: unknown): ShellAnnotationPrefs {
+  const out: ShellAnnotationPrefs = sanitizeAnnotationPrefs(raw);
+  const o =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const recents = Object.hasOwn(o, 'recentStickers')
+    ? sanitizeRecents(o.recentStickers)
+    : undefined;
+  if (recents) out.recentStickers = recents;
+  return out;
+}
+
 /**
  * The body check for `/_api/ui-prefs`: unlike the sanitiser it REJECTS a bad field (a rejected patch
  * resets nothing), and an unknown key is an error too.
  */
 export function checkAnnotationPrefsPatch(
   v: unknown
-): { ok: true; value: AnnotationPrefs } | { ok: false; error: string } {
+): { ok: true; value: ShellAnnotationPrefs } | { ok: false; error: string } {
   if (!v || typeof v !== 'object' || Array.isArray(v))
     return { ok: false, error: 'annotationPrefs must be an object' };
   const o = v as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(o)) {
+    if (k === 'recentStickers') {
+      const recents = sanitizeRecents(o[k]);
+      if (!recents) return { ok: false, error: 'annotationPrefs.recentStickers is not a list' };
+      out[k] = recents;
+      continue;
+    }
     if (!(ANNOTATION_PREF_KEYS as readonly string[]).includes(k))
       return { ok: false, error: 'annotationPrefs has an unknown key' };
     const clean = sanitizeField(k as keyof AnnotationPrefs, o[k]);
@@ -179,7 +233,7 @@ export function checkAnnotationPrefsPatch(
       return { ok: false, error: `annotationPrefs.${k} is not a valid value` };
     out[k] = clean;
   }
-  return { ok: true, value: out as AnnotationPrefs };
+  return { ok: true, value: out as ShellAnnotationPrefs };
 }
 
 /** The ink a stroke is drawn with: the default ink follows the canvas theme (`resolveDefaultInk`). */
