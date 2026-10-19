@@ -145,7 +145,7 @@ const GUIDE_FG = 'var(--guide-fg, oklch(1 0 0))';
 
 export const GUIDES_CSS = `
 .dc-canvas .dc-artboard.dc-dragging {
-  box-shadow: 0 18px 44px var(--maude-chrome-shadow, rgba(0,0,0,0.28)), 0 2px 8px var(--maude-chrome-shadow, rgba(0,0,0,0.28));
+  box-shadow: var(--shadow-lg, 0 18px 44px var(--maude-chrome-shadow, rgba(0,0,0,0.28)), 0 2px 8px var(--maude-chrome-shadow, rgba(0,0,0,0.28)));
 }
 .ed-guide-soft { position: fixed; z-index: 5; pointer-events: none; background: color-mix(in oklab, ${GUIDE} 45%, transparent); }
 .ed-gap { position: fixed; z-index: 6; pointer-events: none; display: flex; align-items: center; justify-content: center; }

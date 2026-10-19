@@ -12,11 +12,13 @@
 //               Export selection… · Deselect
 //   Remove ⌫
 //
-// "Nothing deleted": every v1 row is either in the main list or under Advanced ▸ (D6). Ask AI ⌘/ and
-// Cut / Copy / Paste of objects are the first section's rows once S2.19 / an object clipboard exist;
-// they are not faked here. Pure over the item structure — testable without a DOM.
+// Ask AI about “<name>” ⌘/ opens the list (S2.22; it runs `ai.ask-selection` through the ask bubble). Cut / Copy /
+// Paste of OBJECTS are drawn in the design but no element clipboard exists in the registry (`edit.copy`/`cut`/`paste`
+// are text and annotation rows), so they are not faked here. "Nothing deleted": every v1 row is either in the main
+// list or under Advanced ▸ (D6). Pure over the item structure — testable without a DOM.
 
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
+import { ASK_OBJECTS_EVENT, askAboutWords } from './ask-bubble.tsx';
 import type { ObjectOpAction } from './object-ops.ts';
 
 export interface ObjectMenuDeps {
@@ -27,6 +29,16 @@ export interface ObjectMenuDeps {
 }
 
 /** v1 ids that move into the v2 main list (relabelled); everything else goes under Advanced ▸. */
+/** What the Ask AI row calls the selection: its own words, else its tag; “3 objects” for several. */
+export function objectNameOf(els: readonly Element[]): string | null {
+  if (els.length === 0) return null;
+  if (els.length > 1) return `${els.length} objects`;
+  const el = els[0] as Element;
+  const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+  if (text) return text.length > 40 ? `${text.slice(0, 39)}…` : text;
+  return el.tagName.toLowerCase();
+}
+
 const MAIN = new Set(['duplicate-element', 'copy-style', 'paste-style', 'delete-element', 'hide']);
 
 // ── what the rows say about the selection ─────────────────────────────────────────────────────
@@ -101,12 +113,25 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
 
   const sections: MenuSection[] = [
     [
+      {
+        id: 'ask-ai-object',
+        label: 'Ask AI about this',
+        labelOf: (t) => {
+          const name = objectNameOf(deps.elementsFor(t));
+          return name ? askAboutWords(name) : null;
+        },
+        shortcut: '⌘/',
+        onSelect: () => window.dispatchEvent(new CustomEvent(ASK_OBJECTS_EVENT)),
+      },
+    ],
+    [
       ...reuse('duplicate-element', { label: 'Duplicate', shortcut: '⌘D' }),
       ...reuse('copy-style', { label: 'Copy properties', shortcut: '⌥⌘C' }),
       ...reuse('paste-style', { label: 'Paste properties', shortcut: '⌥⌘V' }),
       {
         id: 'select-matching',
         label: 'Select matching',
+        note: 'same style',
         onSelect: (t) => deps.selectMatching(t),
       },
     ],

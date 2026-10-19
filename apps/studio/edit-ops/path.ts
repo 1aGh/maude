@@ -27,7 +27,7 @@ import { applyEdit, readAttributeState } from '../canvas-edit.ts';
 import { generateElementId, usedIds, walkIdElements } from '../element-ids.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { inlinePosition, refuse, writeStyle } from './constraints.ts';
-import { appendChild } from './insert-shape.ts';
+import { appendChild, SHARED_FRAME_LINE } from './insert-shape.ts';
 import {
   type Box,
   cleanPath,
@@ -117,7 +117,7 @@ export const objectInsertPath: EditOp = {
       ? walk.elements.find((e) => e.id === parentRef.element)
       : walk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === artboard);
     if (!parent) return refuse(req, 'That frame is not on this canvas.');
-    if (parent.artboard !== artboard) return refuse(req, 'That frame is not on this artboard.');
+    if (parent.artboard !== artboard) return refuse(req, SHARED_FRAME_LINE);
 
     const id = generateElementId({ tag: 'svg', dcElement: 'path' }, usedIds(walk.elements));
     let out = appendChild(source, parent, pathSvg(id, placementOf(model)), req);
