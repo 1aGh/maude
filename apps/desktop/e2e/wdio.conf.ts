@@ -48,6 +48,10 @@ const DEDICATED: Record<string, string> = {
   's20-deployment.e2e.ts': 'pnpm test:e2e:desktop:s20',
   // V2-3.9: open, quit, relaunch, twice — against one kept app-state.
   'relaunch.e2e.ts': 'pnpm test:e2e:desktop:relaunch',
+  // S5.14: ⌘Q while AI works, then a relaunch — needs a signed-in `claude`.
+  'ai-quit.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ai-quit',
+  // S9.17: a cloud cell tab's browser door — needs a cell.
+  'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above
