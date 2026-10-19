@@ -60,6 +60,7 @@ import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
 import { isRuntimeStateRel } from './sync/file-membership.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
+import { findCloseName, tooCloseText } from './sync-name-key.ts';
 
 // Re-exported so existing external callers (canvas-list-watch.ts, tests) keep
 // importing it from api.ts — the actual implementation now lives in
@@ -1436,6 +1437,81 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
   function fileSlug(file: string): string {
     return canvasSlugFromRel(file, paths.designRel);
+  }
+
+  // S1.23b — names that collide in sync. Two names that differ only in what the sync slug flattens
+  // (an em dash vs a hyphen, `a%20b` vs `a b`, case, `ui/a/b` vs `ui/a-b`) share ONE sync document,
+  // and one canvas would overwrite the other on every peer. Every path that writes a new canvas or
+  // folder name asks here first; `sync-name-key.ts` holds the key and the words.
+  /** Every canvas under a canvas group, as design-root-relative paths (`ui/Poster.tsx`). */
+  async function allCanvasRels(): Promise<string[]> {
+    const drPrefix = paths.designRel.replace(/^\/+|\/+$/g, '');
+    const out: string[] = [];
+    for (const g of cfg.canvasGroups) {
+      let files: string[];
+      try {
+        files = await findHtmlFiles(
+          path.join(paths.designRoot, g.path),
+          path.posix.join(paths.designRel, g.path)
+        );
+      } catch {
+        continue;
+      }
+      for (const f of files)
+        out.push(f.startsWith(`${drPrefix}/`) ? f.slice(drPrefix.length + 1) : f);
+    }
+    return out;
+  }
+
+  /** The 409 for `toRel` (a canvas or a folder, design-root-relative) when its sync key is one an
+   *  existing different canvas already has. `except` is what is moving (the same canvas, or a batch
+   *  that goes together). Returns null when the name is clear. */
+  async function closeCanvasName(
+    name: string,
+    toRel: string,
+    except: (rel: string) => boolean = () => false
+  ): Promise<{ ok: false; status: 409; error: string } | null> {
+    const other = findCloseName(toRel, await allCanvasRels(), except);
+    if (!other) return null;
+    const dir = path.posix.dirname(toRel);
+    return {
+      ok: false,
+      status: 409,
+      error: tooCloseText(name, other, dir === '.' ? '' : dir),
+    };
+  }
+
+  /** Same, for a FOLDER name among the folders beside it: two sibling folders that share a key give
+   *  every same-named canvas inside them one document. */
+  async function closeFolderName(
+    name: string,
+    parentRel: string,
+    selfRel?: string
+  ): Promise<{ ok: false; status: 409; error: string } | null> {
+    let entries: Dirent[];
+    try {
+      entries = await readdir(path.join(paths.designRoot, parentRel), { withFileTypes: true });
+    } catch {
+      return null;
+    }
+    const siblings = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_'))
+      .map((e) => path.posix.join(parentRel, e.name));
+    const toRel = path.posix.join(parentRel, name);
+    const other = findCloseName(toRel, siblings, (r) => r === selfRel);
+    if (!other) return null;
+    return { ok: false, status: 409, error: tooCloseText(name, other, parentRel) };
+  }
+
+  /** True when both paths are the one file or folder (a case-only rename on a case-insensitive
+   *  volume: the target "exists" because it is the source). */
+  async function isSameEntry(a: string, b: string): Promise<boolean> {
+    try {
+      const [sa, sb] = await Promise.all([statp(a), statp(b)]);
+      return sa.dev === sb.dev && sa.ino === sb.ino && sa.ino !== 0;
+    } catch {
+      return false;
+    }
   }
 
   async function fileForSlug(slug: string): Promise<string | null> {
@@ -3761,11 +3837,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const base =
         input.fromPrompt == null ? UNTITLED_CANVAS : nameFromPrompt(input.fromPrompt).canvas;
       // A canvas in the trash is not in the folder, so it does not hold its name.
+      const existingRels = await allCanvasRels();
       const free = nextFreeCanvasName(
         base,
         (n) =>
           existsSync(path.join(groupAbs, `${n}.tsx`)) ||
-          existsSync(path.join(groupAbs, `${n}.meta.json`))
+          existsSync(path.join(groupAbs, `${n}.meta.json`)) ||
+          // S1.23b — a name too close to one already here is taken too.
+          findCloseName(path.posix.join(group, `${n}.tsx`), existingRels) !== null
       );
       v = validateCanvasName(free);
       if (!v.ok || !v.name || !v.componentName) {
@@ -3796,6 +3875,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'resolved path escapes the canvas group' };
     }
+    // S1.23b — before the plain "already exists", so a case-only variant says the same words on a
+    // case-insensitive volume (where it IS the file) as on a case-sensitive one.
+    const closeToCreate = await closeCanvasName(v.name, path.posix.join(group, `${v.name}.tsx`));
+    if (closeToCreate) return closeToCreate;
     if (await Bun.file(fileAbs).exists()) {
       return {
         ok: false,
@@ -3949,6 +4032,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const candidate = path.posix.join(dir, `${v.name}.tsx`);
       if (await Bun.file(path.join(paths.designRoot, candidate)).exists()) continue;
       if (await fileForSlug(fileSlug(candidate))) continue;
+      // S1.23b — a copy name that shares a sync document with another canvas is taken too.
+      if (await closeCanvasName(v.name, candidate)) continue;
       name = v.name;
     }
     if (!name) return { ok: false, status: 409, error: 'too many copies of this canvas' };
@@ -4602,7 +4687,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'source and destination are the same' };
     }
     const toAbs = path.join(paths.designRoot, toRel);
-    if (await Bun.file(toAbs).exists()) {
+    // S1.23b — a rename onto ITSELF with a case change is the same file on a case-insensitive
+    // volume: it "exists", and is not a collision. Anything else already at the target is.
+    if ((await Bun.file(toAbs).exists()) && !(await isSameEntry(fileAbs, toAbs))) {
       return {
         ok: false,
         status: 409,
@@ -4636,6 +4723,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         };
       }
     }
+    // S1.23b — the exact slug is the case above; this is the SYNC key, which flattens further (an
+    // em dash and a hyphen are one document on the wire). The canvas itself is not a collision.
+    const closeTo = await closeCanvasName(base.replace(/\.tsx$/i, ''), toRel, (r) => r === rel);
+    if (closeTo) return closeTo;
 
     // Collab guard — a pinned room (shared-doc hub provider attached, DDR-064)
     // must not have its file renamed out from under it. The old behaviour was
@@ -4864,11 +4955,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'source and destination are the same' };
     }
     const toDirFinalAbs = path.join(paths.designRoot, toRelDir);
-    try {
-      await statp(toDirFinalAbs);
-      return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
-    } catch {
-      /* good — doesn't exist yet */
+    // S1.23b — a folder renamed onto ITSELF with a case change is the same folder on a
+    // case-insensitive volume; a sibling that shares a sync key with the new name is a collision.
+    const caseOnlyFolder = await isSameEntry(dirAbs, toDirFinalAbs);
+    if (!caseOnlyFolder) {
+      const closeFolder = await closeFolderName(base, toDir, relDir);
+      if (closeFolder) return closeFolder;
+      try {
+        await statp(toDirFinalAbs);
+        return { ok: false, status: 409, error: `"${base}" already exists in ${toDir || '.'}` };
+      } catch {
+        /* good — doesn't exist yet */
+      }
     }
 
     // Enumerate every .tsx canvas under this folder (recursive) BEFORE the
@@ -4910,6 +5008,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           };
         }
       }
+      // S1.23b — the SYNC key, which flattens further than the exact slug above.
+      const closeNested = await closeCanvasName(
+        path.posix.basename(toRel).replace(/\.tsx$/i, ''),
+        toRel,
+        (o) => batchRelSet.has(o)
+      );
+      if (closeNested) return closeNested;
     }
 
     // ONE project action for the whole folder (accepted-revisions mode) —
@@ -4957,7 +5062,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // leaving the old folder in this person's tree while every teammate had
     // the move (plan T31/L02). A destination holding nothing but placeholders
     // is that projection; it is replaced, never merged into.
-    if (await onlyFolderPlaceholders(toDirFinalAbs)) {
+    // (Never when this IS the source — a case-only rename — or the source would be removed.)
+    if (!caseOnlyFolder && (await onlyFolderPlaceholders(toDirFinalAbs))) {
       await rm(toDirFinalAbs, { recursive: true, force: true });
     }
     try {
@@ -5119,6 +5225,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ) {
       return { ok: false, status: 400, error: 'resolved path escapes the parent folder' };
     }
+    // S1.23b — a sibling folder that shares a sync key with this name is a collision (before the
+    // plain "already exists", so a case-only variant says the same words on either volume).
+    const closeFolder = await closeFolderName(v.name, parent);
+    if (closeFolder) return closeFolder;
     try {
       await statp(dirAbs); // throws if absent (works for files AND dirs)
       return { ok: false, status: 409, error: `"${v.name}" already exists` };
