@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { Key } from '../helpers/parity';
@@ -116,6 +117,7 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
   before(async () => {
     await waitForSidecar();
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await countUndoKeys();
   });
   after(() => fixtures.restore());

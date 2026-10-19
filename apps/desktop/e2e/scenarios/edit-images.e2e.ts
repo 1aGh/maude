@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -103,6 +104,7 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -116,6 +117,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
@@ -197,6 +199,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     writeFileSync(META, `${JSON.stringify({ dsRev: 'a'.repeat(64) })}\n`);
     await browser.pause(800);
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await inFrame((doc) => {
       (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
         new MouseEvent('click', { bubbles: true })
@@ -239,6 +242,7 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
     writeFileSync(META, '{}\n');
     await browser.pause(800);
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });

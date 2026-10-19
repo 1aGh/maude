@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -103,6 +104,7 @@ describe('text in place, styles and the Czech ties (S2.12)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await rectOf('Jdu do lesa')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());
@@ -117,9 +119,12 @@ describe('text in place, styles and the Czech ties (S2.12)', () => {
     await browser.waitUntil(async () => (await arcs()) === 3, { timeout: 5000 });
     await capture(report, 'ties-while-typing');
     await commit();
-    await browser.waitUntil(async () => source().includes(`Jdu v${NBSP}lese a${NBSP}s${NBSP}„Petrem“`), {
-      timeout: 8000,
-    });
+    await browser.waitUntil(
+      async () => source().includes(`Jdu v${NBSP}lese a${NBSP}s${NBSP}„Petrem“`),
+      {
+        timeout: 8000,
+      }
+    );
     // the id, the language and the style are untouched
     expect(source()).toContain('data-cd-id="tx-title" lang="cs" className="t-heading"');
     expect(await arcs()).toBe(0);

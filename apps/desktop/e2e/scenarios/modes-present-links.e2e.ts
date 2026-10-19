@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -95,6 +96,7 @@ describe('follow a link and back (S3.10a)', () => {
       )
     );
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await rectOf(HEADING))?.id === 'smoke-h1', {
       timeout: 15000,
       timeoutMsg: 'the linked heading never appeared on the canvas',

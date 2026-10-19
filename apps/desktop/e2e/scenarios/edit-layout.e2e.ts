@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -140,6 +141,7 @@ describe('auto layout, reorder and free placement (S2.11)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await rectOf('Small apps')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());

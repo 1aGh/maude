@@ -46,6 +46,10 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     await active('.design/ui/Smoke.tsx');
     await (await $(tid('share-cluster-share'))).click();
     await (await $(tid('share-dialog'))).waitForDisplayed();
+    // The raw links sit under Advanced · Other ways in (S9.19) — folded until asked for.
+    if (!(await $(tid('share-app-url')).isExisting())) {
+      await (await $(tid('share-other-ways-toggle'))).click();
+    }
     expect(await (await $(tid('share-app-url'))).getValue()).toBe(
       'maude://open/project?open=ui/Smoke.tsx'
     );

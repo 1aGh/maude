@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -124,6 +125,7 @@ describe('multi-select, align and rotate (S2.7)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, POST);
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await browser.waitUntil(async () => (await rectOf('ZAPIŠ SE')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());

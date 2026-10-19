@@ -19,3 +19,27 @@ export async function enterCanvasFrame(timeout = 30_000): Promise<void> {
 export async function exitToTop(): Promise<void> {
   await browser.switchFrame(null);
 }
+
+/**
+ * Wait until the open canvas has RENDERED: its frame is in the shell and `__maudeCanvasRects()`
+ * (canvas-lib's geometry hook) lists elements. Clicking a Files-panel row only starts the load, so a
+ * spec that reads an element's box straight after the click races the canvas and gets `null`.
+ */
+export async function waitForCanvasRects(timeout = 30_000): Promise<void> {
+  await browser.waitUntil(
+    async () =>
+      browser.execute(() => {
+        const frame = document.querySelector<HTMLIFrameElement>('[data-testid="canvas-frame"]');
+        const win = frame?.contentWindow as
+          | (Window & { __maudeCanvasRects?: () => { elements?: unknown[] } })
+          | null
+          | undefined;
+        try {
+          return (win?.__maudeCanvasRects?.().elements?.length ?? 0) > 0;
+        } catch {
+          return false;
+        }
+      }),
+    { timeout, interval: 250, timeoutMsg: 'the canvas never rendered (no elements in its rects)' }
+  );
+}

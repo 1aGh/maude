@@ -1,6 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { videoPlays } from '../helpers/modes-present-video';
@@ -54,6 +55,7 @@ describe('modes-present (S3.13)', () => {
     fixtures.snapshot();
     await waitForSidecar();
     await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForCanvasRects();
     await $(tid('canvas-frame')).waitForExist({ timeout: 15000 });
   });
   after(() => fixtures.restore());
