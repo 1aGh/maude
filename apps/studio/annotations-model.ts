@@ -26,6 +26,7 @@
  */
 
 import { SECTION_FOLDED_H } from './annotations/constants.ts';
+import { fitSticky } from './annotations/elements/sticky.model.ts';
 import type { CanvasHostBind } from './annotations/hosts.ts';
 import { defOf } from './annotations/registry.ts';
 import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
@@ -635,6 +636,40 @@ export function grownStickyBox(
     h: next,
   };
 }
+/**
+ * The sticky a body edit commits, or null when there is nothing to write. `baseText` is the text the
+ * edit session OPENED with: the idle-typing draft (600 ms) has usually already put the final words on
+ * the board, so comparing against the stored text alone would call the commit an identity edit and
+ * skip the fit (S4.V4 G1 - a sticky that never grew). Growth rides along with a real edit and is not
+ * itself a reason to write: opening an already-overflowing note and clicking away writes nothing.
+ * S4.12 (an-sticky cell 1) - five lines, then wider, smaller type only past 120 words; the editor's
+ * own measurement still decides when the card needs more height than that estimate.
+ */
+export function stickyEditNext(
+  existing: StickyStroke,
+  text: string,
+  fmt: EditorFmt | undefined,
+  measuredH: number | undefined,
+  baseText: string = existing.text
+): StickyStroke | null {
+  if (baseText === text && existing.text === text && fmtEqual(existing, fmt)) return null;
+  const fit = fitSticky({ w: existing.w, h: existing.h, fontSize: existing.fontSize }, text);
+  const sized =
+    fit.w !== Math.abs(existing.w) ||
+    fit.h !== Math.abs(existing.h) ||
+    fit.fontSize !== existing.fontSize
+      ? {
+          x: Math.min(existing.x, existing.x + existing.w),
+          y: Math.min(existing.y, existing.y + existing.h),
+          w: fit.w,
+          h: fit.h,
+          fontSize: fit.fontSize,
+        }
+      : null;
+  const grown = measuredH == null ? null : grownStickyBox(sized ?? existing, measuredH);
+  return { ...existing, text, ...normFmt(fmt), ...(sized ?? {}), ...(grown ?? {}) };
+}
+
 // Phase 24 — a bare tap with the Shape tool drops a default-sized shape at the
 // tap point (FigJam parity: click commits, drag sizes). Square aspect.
 export const SHAPE_DEFAULT_SIZE = 120;

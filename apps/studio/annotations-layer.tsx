@@ -1,10 +1,5 @@
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
-import {
-  fanOut,
-  fitSticky,
-  stackLanding,
-  stackMembers,
-} from './annotations/elements/sticky.model.ts';
+import { fanOut, stackLanding, stackMembers } from './annotations/elements/sticky.model.ts';
 import { type HostRects, resolverFromRects } from './annotations/hosts.ts';
 import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
@@ -216,7 +211,6 @@ import {
   type EditorFmt,
   type EllipseStroke,
   fmtEqual,
-  grownStickyBox,
   HALO_PAD_PX,
   IMAGE_MAX_DROP_SIDE,
   IMAGE_MIN_SIZE,
@@ -269,6 +263,7 @@ import {
   type Stroke,
   splitTextLines,
   stickyCornerPath,
+  stickyEditNext,
   stripEditorMarkers,
   strokeBBox,
   strokeCenter,
@@ -3828,33 +3823,18 @@ export function AnnotationsLayer() {
         | StickyStroke
         | undefined;
       if (!existing) return;
-      // issue-106 — grow the card to whatever the editor actually rendered, so
-      // the lines the user just typed survive the return to the clipped read
-      // view. Null when the text already fits (the common case).
-      // The growth rides along with a real edit — it is NOT itself a reason to
-      // write. Otherwise opening a peer's already-overflowing note and clicking
-      // away, having typed nothing, would produce an undo entry, a
-      // full-document PUT and a sync broadcast.
-      if (existing.text === text && fmtEqual(existing, fmt)) return;
-      // S4.12 (an-sticky cell 1) - five lines, then wider, smaller type only past 120 words; the editor's own
-      // measurement still decides when the card needs more height than that estimate.
-      const fit = fitSticky({ w: existing.w, h: existing.h, fontSize: existing.fontSize }, text);
-      const sized =
-        fit.w !== Math.abs(existing.w) ||
-        fit.h !== Math.abs(existing.h) ||
-        fit.fontSize !== existing.fontSize
-          ? {
-              x: Math.min(existing.x, existing.x + existing.w),
-              y: Math.min(existing.y, existing.y + existing.h),
-              w: fit.w,
-              h: fit.h,
-              fontSize: fit.fontSize,
-            }
-          : null;
-      const grown = measuredH == null ? null : grownStickyBox(sized ?? existing, measuredH);
-      const next = prev.map((s) =>
-        s.id === id ? { ...existing, text, ...normFmt(fmt), ...(sized ?? {}), ...(grown ?? {}) } : s
+      // issue-106 / S4.12 / S4.V4 G1 - grow the card to fit the words (annotations-model.ts
+      // stickyEditNext). The edit session's base text decides "nothing was typed": an idle draft has
+      // usually put the final words on the board already, so the stored text alone would skip the fit.
+      const edited = stickyEditNext(
+        existing,
+        text,
+        fmt,
+        measuredH,
+        commitSessionRef.current?.base ?? existing.text
       );
+      if (!edited) return;
+      const next = prev.map((s) => (s.id === id ? edited : s));
       commitStrokes(prev, next, 'edit sticky');
     },
     [commitStrokes]
