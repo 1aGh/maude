@@ -1,0 +1,30 @@
+S5.V3 — pass 3 on 03 AI Chat (package S5). Base feat/maude-v2 e80f9d3b0 (has S5.18). Rig: scripts/v2-verify/S5-rig.mjs (fake ACP agent, VERIFY_PRE=1), real keyboard input in the panel.
+Browser pane 1440x900, window.__TAURI__ stubbed, panel via ⌘/. Scratch project: 3-artboard Site canvas + .meta.json. Signed-out lane: fake-claude with FAKE_CLAUDE_LOGGED_IN=0.
+
+VERIFIED (ledger set, 7)
+  ai-two-artboards  run list 192 px inside the 288 px column (x 1144..1336 of 1136..1424), rows = ask / where-line / Working   ai-two-artboards.jpg
+  ai-chat-list      Running "Site › Landing · now", Earlier groups; idle rows carry the where-line ("Landing") and "now / 1 min ago"   ai-chat-list.jpg
+  ai-choice-fail    answered question stays as a settled card, "Calm" marked, the others dimmed (ai-choice-settled.jpg); failure card "Couldn't finish — … Nothing changed." + Try again (ai-fail.jpg)
+  ai-adv-edges      "/" + "des": "Slash commands" group, 5 rows + "More… · 24 more" (ai-adv-edges-slash.jpg); nit: rows are alphabetical manifest descriptions, 03 draws critic / edit / export with plain notes
+  ai-history        ⌥⌘H opens Version history (dock id changes); "Made by AI" filter; row title = the ask, sub "12:17 · landing", chip Made by AI; opened row: Compare · Undo this chat · Restore this version; banner "Viewing “…” · esc back to now"   ai-history.jpg ; nit: sub shows the artboard id, not its label
+  ai-permission     card "Edit Site.tsx?" + detail + Not now / Edit, ring + needs-you state (lead default: no "Always for this canvas" box)   ai-permission.jpg
+  ai-not-ready      signed out: first send is QUEUED (/_api/outbox ai.prompt, gates [ai-connected], state queued) and the ConnectSheet shows "Connect your Claude account? … Cancel / Connect"   ai-not-ready.jpg
+                    (offline / setting-up / used-up / almost-used-up panels are proven by unit tests only: gate-lines.js pinned to gateWords; the server gates cannot be closed on this rig)
+  live G11          Pricing selected + "Whole canvas" picked -> run scope artboards "*" (g11-whole-canvas.txt)
+
+GAPS (not verified)
+  G1 ai-needs-hidden  S. Canvas row says "Needs you" (azure) now, folded spark count, toast "AI needs you on Site — edit Site.tsx?" + Open exist; but toast Open does not switch canvas:
+                      console "Uncaught TypeError: oe.openTab is not a function". apps/studio/client/app.jsx:1788 `tabs.openTab(canvas)` — `tabs` there is the tab array; use the destructured `openTab` (app.jsx:1542) and put it in the effect deps (line 1797).   ai-needs-hidden.jpg/.txt
+  G2 ai-copy          S. Divider "Ran on a copy — Landing was busy", copy named "Landing · copy", "Made by AI" tag, Undo · Keep the copy, chip "Same on Landing" all right; copy lands BELOW the original (03: beside it), no overlap.
+                      Undo removes the copy artboard from Site.tsx but leaves its Site.meta.json entries (sections[].artboards + layout.artboards "landing-copy-<id>") — 03 note: "Undo removes the copy". Suspect: apps/studio/routes/ai.ts:188-211 settleCopyMeta writes the sidecar outside the run's undoable action (S5.11b: the copy is the run's action).   ai-copy-divider.jpg, ai-copy-result.jpg
+  G3 ai-question      M. No point ring ("AI points at the spot it means with a small spark ring, gone when you click") anywhere in client/ or canvas-lib; the answer line and chips are right.
+  G4 ai-long          M. No day dividers ("Yesterday, 18:20" / "Today, 09:12") in the feed, no Before/After thumbs in the Result (run-model.js resultVerbs `canCompare` defaults false; Compare lives only in Version history).
+
+KNOWN (not gaps): ai-permission no Always box; Advanced shows backed blocks; ai-copy canvas caption "Copied from … before …" not drawn (ask text must not reach the untrusted canvas).
+
+UNREACHABLE (U): ai-hero (Tereza half: hub peer), ai-suggest (clips / shared: video canvas + hub), ai-quit, ai-other-tab, ai-needs-tab, ai-needs-away, ai-tereza (native / desktop lane or hub peer). The stubbed-Tauri rig does not reach them.
+
+OBSERVATIONS (not rows)
+  - Synthetic JS events on the composer (el.click on New chat + a dispatched Enter) after a Stop routed two asks to an already-ended chat and they failed in 3 ms; with real typing a new chat is a new chat (c-… ids differ). Not reproduced with real input, so not filed.
+  - After a FAILED run the follow-up chips still offer "Explain what changed" / "Try a variation".
+  - With a whole-canvas ask waiting, "Run on a copy" answers "Couldn't make a copy. The ask is still waiting." (copy is of the one artboard the ask waits for; by design 409 one-artboard).
