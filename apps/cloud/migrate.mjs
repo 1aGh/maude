@@ -452,6 +452,51 @@ export const MIGRATIONS = [
       'CREATE INDEX IF NOT EXISTS trial_claims_account ON trial_claims (account_id, request_id);',
     ],
   },
+  {
+    version: 20, // Maude v2 S9.18 — mention e-mails, the switch for them, and its unsubscribe link
+    // ATOMIC, like v17: `email_tokens` is rebuilt (SQLite cannot alter a
+    // CHECK) and a crash between drop and rename would lose every live
+    // verify/reset link.
+    atomic: true,
+    statements: [
+      'PRAGMA defer_foreign_keys = on;',
+      // 'unsub' joins the purposes. It can only turn mention e-mails off; the
+      // purpose is bound into the row and re-checked on consumption, so it is
+      // never a reset, a verify, or a session.
+      `CREATE TABLE email_tokens_v2 (
+        id         TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+        purpose    TEXT NOT NULL CHECK (purpose IN ('verify','reset','unsub')),
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        used_at    INTEGER
+      );`,
+      `INSERT INTO email_tokens_v2 (id, account_id, purpose, created_at, expires_at, used_at)
+         SELECT id, account_id, purpose, created_at, expires_at, used_at FROM email_tokens;`,
+      'DROP TABLE email_tokens;',
+      'ALTER TABLE email_tokens_v2 RENAME TO email_tokens;',
+      'CREATE INDEX IF NOT EXISTS email_tokens_account ON email_tokens (account_id, purpose);',
+      // Which e-mails an account gets. No row = the defaults (mention e-mails
+      // on), so nothing is backfilled and every existing account keeps today's
+      // behaviour until it says otherwise.
+      `CREATE TABLE IF NOT EXISTS email_prefs (
+        account_id TEXT PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+        mentions   INTEGER NOT NULL DEFAULT 1 CHECK (mentions IN (0, 1)),
+        updated_at INTEGER NOT NULL
+      );`,
+      // What was mailed, for two limits only: the same thread does not mail the
+      // same person twice within the hour, and a project's cell cannot mail
+      // past its daily cap. No address and no text — ids and a time.
+      `CREATE TABLE IF NOT EXISTS mention_emails (
+        project_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        thread     TEXT NOT NULL,
+        sent_at    INTEGER NOT NULL
+      );`,
+      'CREATE INDEX IF NOT EXISTS mention_emails_project ON mention_emails (project_id, sent_at);',
+      'CREATE INDEX IF NOT EXISTS mention_emails_thread ON mention_emails (project_id, account_id, thread, sent_at);',
+    ],
+  },
 ];
 
 /** Run one migration's statements plus its schema_migrations row. */
