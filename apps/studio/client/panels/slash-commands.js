@@ -128,3 +128,60 @@ export function filterCommands(all, token, limit = 8) {
   }
   return [...prefix, ...substr].slice(0, limit);
 }
+
+// ── S5.18 G8 (03 `ai-adv-edges`, `chat-cmd-menu`): the trimmed v2 menu ─────────────────────────────
+//
+// Typing "/" shows a short "Slash commands" list — the four design verbs people reach for, then the
+// person's own commands — with one-line notes and no argument hints. NOTHING is removed: "More…" (and
+// typing, which searches every command) reaches the whole catalogue, plugins' and the person's own.
+
+/** The verbs the short list leads with, and the one-line note 03 draws under each. */
+export const FEATURED = Object.freeze([
+  { name: 'design:critic', note: 'Review this canvas' },
+  { name: 'design:edit', note: 'Change the selection' },
+  { name: 'design:screenshot', note: 'Capture an artboard' },
+  { name: 'design:export', note: 'Export this canvas' },
+]);
+
+/** Rows the short list shows before "More…". */
+export const MENU_ROWS = 5;
+const NOTE_MAX = 44;
+
+/** A command's one-line note: the featured words, else the description's first sentence, cut short. */
+export function shortNote(c) {
+  const f = FEATURED.find((x) => x.name === c.name);
+  if (f) return f.note;
+  const first = String(c.description ?? '')
+    .split(/(?<=[.!?])\s/)[0]
+    .trim()
+    .replace(/[.!?]$/, '');
+  if (first.length <= NOTE_MAX) return first;
+  return `${first.slice(0, NOTE_MAX - 1).trimEnd()}…`;
+}
+
+/**
+ * The rows of the "/" menu. `token` is the partial after the slash; `expanded` is "More…" picked.
+ * @returns {{ items: Array, more: number }} items carry `note` (no argHint); `more` = what "More…" would add.
+ */
+export function trimmedCommands(all, token, { expanded = false } = {}) {
+  const q = normalizeName(token);
+  let rows;
+  let total;
+  if (q) {
+    const hits = filterCommands(all, q, 200);
+    total = hits.length;
+    rows = expanded ? hits : hits.slice(0, MENU_ROWS);
+  } else {
+    total = all.length;
+    if (expanded) rows = all;
+    else {
+      const byName = new Map(all.map((c) => [c.name, c]));
+      const lead = FEATURED.map((f) => byName.get(f.name)).filter(Boolean);
+      // the person's own commands (anything that is not the design plugin's) fill the rest of the short list
+      const own = all.filter((c) => c.group !== 'design');
+      rows = [...lead, ...own].slice(0, MENU_ROWS);
+    }
+  }
+  const items = rows.map((c) => ({ ...c, argHint: '', note: shortNote(c) }));
+  return { items, more: expanded ? 0 : Math.max(0, total - items.length) };
+}

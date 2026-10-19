@@ -44,6 +44,22 @@ export function selectedArtboardIds(selected, canvas) {
   return out;
 }
 
+/**
+ * S5.18 G11 — what a selection IS, as a string: the canvas announces the same selection again as a NEW array
+ * (focus changes, state echoes), and that must not look like a new selection — the person's chip choice
+ * lives until the selection really changes.
+ */
+export function selectionKey(selected) {
+  return first(selected)
+    .filter((el) => el && typeof el === 'object')
+    .map((el) =>
+      [el.file, el.artboardId, el.id, el.selector, el.index, el.stale === true ? 's' : ''].join(
+        '\u0001'
+      )
+    )
+    .join('\u0002');
+}
+
 /** The scope the selection implies (the chip's default). */
 export function autoScope({ selected, canvas } = {}) {
   const ids = selectedArtboardIds(selected, canvas);

@@ -53,6 +53,7 @@ import {
 } from './access/request.ts';
 import { type Access, sees as accessSees } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
+import { createConnectedFact } from './acp/connected-fact.ts';
 import {
   cancelSignin,
   getClaudeAuthStatus,
@@ -1673,11 +1674,18 @@ export function createHttp(
   const outboxSenders: Parameters<typeof createOutbox>[0]['senders'] = {};
   // ONE source of gate facts for the chat (queue or send now) and the drain (release).
   // `online` has no server-side source yet (the shell's reachability) — it stays open, as before.
+  // S5.18 (G10): `ai-connected` is the SIGNED-IN answer (the one `/_api/acp/status` gives the panel), not "claude is
+  // installed" — a signed-out Mac keeps the prompt. A status probe that finds it connected wakes the drain.
+  const aiConnectedFact = createConnectedFact({
+    probe: probeAcpAvailabilityAuthed,
+    sync: () => probeAcpAvailability().available,
+    onOpen: () => void outbox.drain.wake().catch(() => null),
+  });
   const outboxGates = (): GateFacts => ({
     online: true,
     hubReachable: true,
     signedIn: true,
-    aiConnected: probeAcpAvailability().available,
+    aiConnected: aiConnectedFact.read(),
     aiReady: true,
     allowanceResetsAt: currentAllowanceResetsAt(),
   });
@@ -1718,7 +1726,12 @@ export function createHttp(
         emit: (e, p) => ctx.bus.emit(e, p),
       }),
     });
-  const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
+  const askQueue = createAskQueue({
+    outbox,
+    gates: outboxGates,
+    runs: () => runs,
+    ready: () => aiConnectedFact.pending(),
+  });
   outboxSenders['ai.prompt'] = askQueue.sender;
   // S9.19 — the Share sheet's door to the linked hub (routes/share.ts). The hub is the one this
   // project is linked to AND that this Mac holds a credential for (a committed config alone names no
@@ -1929,6 +1942,8 @@ export function createHttp(
       endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
       // S5.11b — Run on a copy: the accepted source + the waiting run's stage
       control: () => ctx.syncControl?.current?.() ?? null,
+      // S5.18 (G2) — the copy's name + place go into the canvas sidecar through the layout-write door
+      meta: { write: (file, text, base) => api.writeCanvasMetaText(file, text, base) },
     },
     agent: {
       repoRoot: ctx.paths.repoRoot,
@@ -2377,7 +2392,9 @@ export function createHttp(
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      return Response.json(await probeAcpAvailabilityAuthed(), {
+      const availability = await probeAcpAvailabilityAuthed();
+      aiConnectedFact.note(availability.available); // S5.18: the panel's answer is the queue's answer
+      return Response.json(availability, {
         headers: { 'Cache-Control': 'no-store' },
       });
     },

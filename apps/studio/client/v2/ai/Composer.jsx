@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildCommandModel,
   filterCommands,
+  trimmedCommands,
   matchLeadingCommand,
   normalizeName,
   STATIC_COMMANDS,
@@ -227,29 +228,51 @@ export function useSlashCommands(conn) {
 // Autocomplete menu — opens upward above the composer while a slash command is
 // being typed. Keyboard-driven from the composer (see Composer); mouse hover +
 // click supported. onMouseDown (not onClick) so picking beats the textarea blur.
+// S5.18 G8 (03 `ai-adv-edges`): a "Slash commands" group, one-line notes, no argument hints; "More…" opens the rest.
 function CommandPopover({ items, activeIndex, onPick, onHover }) {
   if (!items.length) return null;
   return (
     <div className="chat-cmd-menu" role="listbox" data-testid="chat-cmd-menu">
-      {items.map((c, i) => (
-        <button
-          key={c.name}
-          type="button"
-          role="option"
-          aria-selected={i === activeIndex}
-          data-testid={`chat-cmd-item-${c.name.replace(/[^a-z0-9]+/gi, '-')}`}
-          className={`chat-cmd-item${i === activeIndex ? ' is-active' : ''}`}
-          onMouseEnter={() => onHover(i)}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onPick(c);
-          }}
-        >
-          <span className={`chat-cmd-name chat-cmd-name--${c.group}`}>/{c.name}</span>
-          {c.description ? <span className="chat-cmd-desc">{c.description}</span> : null}
-          {c.argHint ? <span className="chat-cmd-arg">{c.argHint}</span> : null}
-        </button>
-      ))}
+      <div className="chat-cmd-group" role="presentation">
+        Slash commands
+      </div>
+      {items.map((c, i) =>
+        c.more ? (
+          <button
+            key="__more"
+            type="button"
+            role="option"
+            aria-selected={i === activeIndex}
+            data-testid="chat-cmd-more"
+            className={`chat-cmd-item chat-cmd-item--more${i === activeIndex ? ' is-active' : ''}`}
+            onMouseEnter={() => onHover(i)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onPick(c);
+            }}
+          >
+            <span className="chat-cmd-name">More…</span>
+            <span className="chat-cmd-desc">{c.note}</span>
+          </button>
+        ) : (
+          <button
+            key={c.name}
+            type="button"
+            role="option"
+            aria-selected={i === activeIndex}
+            data-testid={`chat-cmd-item-${c.name.replace(/[^a-z0-9]+/gi, '-')}`}
+            className={`chat-cmd-item${i === activeIndex ? ' is-active' : ''}`}
+            onMouseEnter={() => onHover(i)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onPick(c);
+            }}
+          >
+            <span className={`chat-cmd-name chat-cmd-name--${c.group}`}>/{c.name}</span>
+            {c.note ? <span className="chat-cmd-desc">{c.note}</span> : null}
+          </button>
+        )
+      )}
     </div>
   );
 }
@@ -404,16 +427,22 @@ export function Composer({
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, attachTick, attachmentsRef]);
-  const items = useMemo(
-    () => (menuOpen ? filterCommands(all, match.token) : []),
-    [menuOpen, all, match?.token]
-  );
+  // S5.18 G8: the short list; "More…" (or just typing) reaches every command
+  const [moreOpen, setMoreOpen] = useState(false);
+  const items = useMemo(() => {
+    if (!menuOpen) return [];
+    const { items: rows, more } = trimmedCommands(all, match.token, { expanded: moreOpen });
+    return more > 0
+      ? [...rows, { more: true, name: '', note: `${more} more`, group: 'other' }]
+      : rows;
+  }, [menuOpen, all, match?.token, moreOpen]);
 
   // Reset selection + un-dismiss whenever the typed token changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setActiveIndex(0);
     setDismissed(false);
+    setMoreOpen(false);
   }, [match?.token]);
 
   // Warm the adapter the first time the user starts a slash command, so the live
@@ -439,6 +468,11 @@ export function Composer({
 
   const pick = useCallback(
     (cmd) => {
+      if (cmd.more) {
+        setMoreOpen(true);
+        setActiveIndex(0);
+        return;
+      }
       composerRuntime.setText(`/${cmd.name} `);
       setDismissed(false);
       setActiveIndex(0);

@@ -17,6 +17,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { filterRunsView, type Seer } from '../access/filters.ts';
+import { copyLabelOf, metaWithCopy } from '../ai/copy-meta.ts';
 import { isLive, type RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
 import { CanvasEditError, copyArtboard } from '../canvas-edit.ts';
@@ -55,6 +56,12 @@ export interface AiRouteDeps {
   } | null;
   /** the canvas write behind Run on a copy — injectable for the race tests */
   copyOnDisk?: typeof copyArtboard;
+  /**
+   * S5.18 (G2) — the door for the copy's `.meta.json` entries (its name, its place): the same writer a layout
+   * write uses (`api.writeCanvasMetaText`: sync hook + cell announce). `file` is repo-relative. Absent = the
+   * copy lands without them (the chip then shows its id).
+   */
+  meta?: { write(file: string, nextText: string, baseText: string | null): Promise<boolean> };
 }
 
 const json = (status: number, body: unknown) =>
@@ -178,6 +185,33 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
     body: { error, code },
   });
 
+  /** G2 — the copy's name and place go into the sidecar; best effort, the copy stands without them. */
+  async function settleCopyMeta(canvas: string, artboardId: string, copyId: string): Promise<void> {
+    if (!deps.meta || !/\.(tsx|html)$/i.test(canvas)) return;
+    try {
+      const metaAbs = path.join(designRoot(), canvas.replace(/\.(tsx|html)$/i, '.meta.json'));
+      if (!existsSync(metaAbs)) return;
+      const baseText = readFileSync(metaAbs, 'utf8');
+      const cur = JSON.parse(baseText) as unknown;
+      if (!cur || typeof cur !== 'object' || Array.isArray(cur)) return;
+      const source = readFileSync(path.join(designRoot(), canvas), 'utf8');
+      const next = metaWithCopy(cur as Record<string, unknown>, {
+        source,
+        artboardId,
+        copyId,
+        label: copyLabelOf(source, copyId) ?? `${artboardId} · copy`,
+      });
+      if (next)
+        await deps.meta.write(
+          path.posix.join(deps.designRel, canvas),
+          `${JSON.stringify(next, null, 2)}\n`,
+          baseText
+        );
+    } catch {
+      /* the copy stands without its sidecar entry */
+    }
+  }
+
   async function runOnCopy(id: string): Promise<Answer> {
     const rec = reg.get(id);
     if (!rec) return refuse(404, 'not-found', 'no such run');
@@ -205,7 +239,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
           // the copy is the WAITING run's write: claimed for its stage before it lands
           beforeWrite: (next) => {
             if (!stage || !control) return;
-            control.beginAiAction?.(stage.key, `Claude: ${was.label}`, stage.meta);
+            control.beginAiAction?.(stage.key, was.label, stage.meta);
             control.claimAiWrite?.(stage.key, repoRel, hashBytes(next));
           },
         }
@@ -218,6 +252,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         err instanceof Error ? err.message : 'could not make the copy'
       );
     }
+    await settleCopyMeta(canvas, at.artboard, copyId);
     const out = (await reg.copyStart(id, was)) ?? reg.get(id);
     return out ? copied(out) : refuse(404, 'not-found', 'no such run');
   }

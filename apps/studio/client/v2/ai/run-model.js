@@ -8,6 +8,7 @@
 // Words are CONTRACT §3–§4: "AI is drawing the footer" (a name, no article), "Done — <artboard> is
 // <result>." (the AI describes the result, never itself), Undo first and then the way on.
 
+import { humanize } from './runs-model.js';
 import { shortArtboardName } from './scope.js';
 
 /** The run is on a turn (or about to be): the working line shows, with Stop. */
@@ -237,4 +238,14 @@ export function createAnnouncer() {
       return text;
     },
   };
+}
+
+/**
+ * S5.18 G2 (03 `ai-copy`) — the divider above a run that ran on a copy: "Ran on a copy — Post 1:1 was busy".
+ * `name` is the artboard the copy was made of (its short name); null when the run is not a copy.
+ */
+export function copyDividerText(run, { name = null } = {}) {
+  const of = run?.copyOf?.artboard;
+  if (!of) return null;
+  return `Ran on a copy — ${name || humanize(of)} was busy`;
 }

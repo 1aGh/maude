@@ -32,7 +32,7 @@ import { AcpBridge, type BridgeUsage } from './bridge.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
 import { registerActivityProbe, registerRunningChatsProbe } from './running.ts';
-import { linkChatCanvas, readChatLinesAfter } from './transcript.ts';
+import { linkChatCanvas, noteChatArtboards, readChatLinesAfter } from './transcript.ts';
 
 /**
  * Browser → server frames: `{ t: 'attach', chat, seq }` (Addendum Task 8 — bind
@@ -173,7 +173,7 @@ export function parseRunScope(raw: unknown, designRel = ''): RunScope | null {
  */
 export function turnLabelOf(prompt: string): string {
   const words = promptLabel(prompt);
-  return words ? `Claude: ${words}` : 'Claude edit';
+  return words || 'AI edit';
 }
 
 /** S2.19 — the most elements one ask names (the registry's per-run cap). */
@@ -893,6 +893,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     if (asked) {
       try {
         linkChatCanvas(ctx.paths.designRoot, safeChat, asked.canvas);
+        // S5.18 G5 — the list's "where" line: the artboards this ask named
+        noteChatArtboards(ctx.paths.designRoot, safeChat, asked.canvas, asked.artboards);
       } catch {
         /* a read-only _chat/ keeps the chat under "No canvas" — never blocks the prompt */
       }
@@ -909,6 +911,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     // V2-1.14 — a closed gate (offline, AI not connected, allowance used up, setting up), or an
     // earlier prompt of this chat still queued (O2), keeps the prompt in the outbox; the drain
     // releases it into `registry.ask` by itself. Nothing is lost and nothing jumps the line.
+    // S5.18 (G10): the signed-in check settles first — a Mac that is not signed in keeps the prompt.
+    const settling = options.queue?.()?.ready();
+    if (settling) await settling; // only while the sign-in answer is stale: a fresh one stays synchronous
     const queued = options.queue?.()?.maybeQueue({ chatId: safeChat, text, scope }) ?? null;
     if (queued && 'refused' in queued) {
       send(ws, { t: 'error', code: 'not-queued', chat: safeChat, message: queued.refused });
