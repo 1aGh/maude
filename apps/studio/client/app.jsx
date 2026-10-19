@@ -1649,6 +1649,7 @@ function ShellProjectPill() {
       closeTab,
       duplicateCanvasReq,
       moveCanvasReq,
+      openTab,
       reloadActive,
       renameCanvasReq,
       showShare,

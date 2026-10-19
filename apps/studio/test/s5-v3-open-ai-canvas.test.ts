@@ -16,4 +16,11 @@ describe('Needs-you Open switches canvas', () => {
     expect(body).not.toContain('tabs.openTab(');
     expect(body).toMatch(/\bopenTab\(canvas\)/);
   });
+  test('openTab is in scope there: the enclosing component destructures it from the shell store', () => {
+    // the first fix called a bare openTab that ShellProjectPill never took from useShellStore() —
+    // a ReferenceError the release boot gate (check-client-boots-source) caught
+    const fnStart = src.lastIndexOf('\nfunction ', start);
+    const head = src.slice(fnStart, start);
+    expect(head).toMatch(/tabs: \{[^}]*\bopenTab,/);
+  });
 });
