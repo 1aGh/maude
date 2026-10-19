@@ -391,6 +391,9 @@ export interface ShellToCanvas {
     revs: Record<string, { tokens: string; components: string | null }>;
     rootClass: string | null;
   };
+  // S10.8 — a canvas left out of a design-system update: the `data-cd-id`s of the elements that wear what
+  // changed (client/v2/ds/update-dots.js names them from the usage index); the shell document draws a dot.
+  'ds-update-dots': { ids: string[] };
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
   'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
@@ -787,6 +790,11 @@ export const DS_PINS_MAX = 16;
 const pinValue: V = (v) => (typeof v === 'string' && PIN_VALUE.test(v) ? v : BAD);
 const pinValues: V = (v) =>
   Array.isArray(v) && v.length <= DS_PINS_MAX ? arrOf(pinValue)(v) : BAD;
+/** S10.8 — the element ids a left-out canvas dots: `data-cd-id` values, capped (client/v2/ds/update-dots.js). */
+export const DS_DOTS_MAX = 200;
+const DOT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+const dotId: V = (v) => (typeof v === 'string' && DOT_ID.test(v) ? v : BAD);
+const dotIds: V = (v) => (Array.isArray(v) && v.length <= DS_DOTS_MAX ? arrOf(dotId)(v) : BAD);
 const dsPinEntry = shape({ tokens: dsCssPath, components: nul(dsCssPath) });
 const dsPinRevs: V = (v) => {
   if (!isPlain(v)) return BAD;
@@ -1593,6 +1601,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'tpl/_shell.html',
     parse: p({ revs: dsPinRevs, rootClass: nul(rootClassName) }),
+  },
+  // S10.8 — sent by client/v2/ds/update-dots.js, drawn by the shell template's `ds-update-dots` region
+  'ds-update-dots': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ ids: dotIds }),
   },
   'ai-activity': {
     gate: 'parent',

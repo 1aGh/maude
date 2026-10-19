@@ -686,6 +686,38 @@ function scopeCss(css, value, opts = {}) {
       schedulePinScan();
       // ds-pins:end
 
+      // ds-update-dots:begin
+      // S10.8 (13 · ds-edit-review) — a canvas that was left out of a design-system update shows a small dot on
+      // each element that wears what changed. The studio only NAMES the elements (`ds-update-dots {ids}`, the
+      // `data-cd-id`s from the usage index); this document marks them with `data-ds-update` and a rule draws the
+      // dot. Parent only, and an id is looked up as a plain attribute value (never built into a selector).
+      const DOT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+      function applyUpdateDots(m) {
+        for (const el of document.querySelectorAll('[data-ds-update]')) el.removeAttribute('data-ds-update');
+        const ids = Array.isArray(m.ids) ? m.ids.slice(0, 200) : [];
+        if (ids.length === 0) return;
+        const want = new Set(ids.filter((x) => typeof x === 'string' && DOT_ID.test(x)));
+        for (const el of document.querySelectorAll('[data-cd-id]')) {
+          if (want.has(el.getAttribute('data-cd-id'))) el.setAttribute('data-ds-update', '');
+        }
+        if (!document.getElementById('maude-ds-update-dots')) {
+          const style = document.createElement('style');
+          style.id = 'maude-ds-update-dots';
+          style.textContent =
+            '[data-ds-update]:not([style*="position: absolute"]):not([style*="position: fixed"]){position:relative}' +
+            '[data-ds-update]::after{content:"";position:absolute;top:-4px;right:-4px;width:8px;height:8px;' +
+            'border-radius:50%;background:#2f6bff;box-shadow:0 0 0 2px #fff;pointer-events:none;z-index:2}';
+          document.head.appendChild(style);
+        }
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-update-dots') return;
+        applyUpdateDots(m);
+      });
+      // ds-update-dots:end
+
       // text-patches:begin
       function applyTextPatches(patches) {
         for (const patch of patches.slice(0, 500)) {
