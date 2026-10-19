@@ -27,6 +27,8 @@ import { isAbsolute, join, resolve } from 'node:path';
 
 import { makeHostLookup } from '../annotations/ai-read.ts';
 import { AiBatch, AiOpError, CREATE_SIZE, describeTypes } from '../annotations/ai-write.ts';
+// the character-level text merge (ai-write no longer side-effect-imports it — canvas-lib graph)
+import '../annotations/ops-merge.ts';
 import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
 import {
   applyOriginOffset,
