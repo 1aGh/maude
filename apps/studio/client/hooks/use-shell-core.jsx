@@ -25,6 +25,7 @@ import {
   isModuleCanvasPath,
 } from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
+import { isArtboardSelectionOf } from '../selection-scope.js';
 import { setPresentSource, shellMode, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
 import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
@@ -148,7 +149,7 @@ export function useShellCore({}) {
       setTimeout(() => {
         const cur = selectedRef.current;
         const c1 = Array.isArray(cur) ? cur[0] : cur;
-        if (!c1 || c1.artboardId !== artboardId || c1.file !== file) return; // superseded
+        if (!isArtboardSelectionOf(c1, artboardId, file)) return; // superseded
         const frame = iframesRef.current.get(file);
         if (!frame?.contentWindow) return;
         try {

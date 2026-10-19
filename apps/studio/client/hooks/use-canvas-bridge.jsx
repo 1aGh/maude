@@ -18,7 +18,7 @@ import {
   trashArtboardBody,
 } from '../edit-op-relay.ts';
 import { exportRegionOf } from '../export-region.ts';
-import { localSelectRecord } from '../selection-scope.js';
+import { localSelectRecord, restoreAfterLoad, shellSelectionOf } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
 import { runActionMessage, runForwardedKey } from '../actions/shell-key-handlers.js';
@@ -269,7 +269,8 @@ export function useCanvasBridge({
         } else if (Array.isArray(payload)) {
           const head = payload[0] ?? null;
           if (head) wsSend({ type: 'select', selection: head });
-          setSelected(payload.length === 1 ? described(head) : head);
+          // S2.22 G4/G6 — several stay several: the inspector reads the list ("4 artboards · Mixed")
+          setSelected(shellSelectionOf(payload, described));
           // Stage C — auto-open only for a genuine SINGLE selection, never multi.
           if (payload.length === 1) maybeAutoOpenInspectorOnSelect(head);
         } else {
@@ -1097,11 +1098,11 @@ export function useCanvasBridge({
             // Retry-laddered: dgn:'loaded' fires from the inline inspector script
             // BEFORE the React canvas-shell mounts its listener, so a one-shot
             // post is lost on fresh iframes (canvas-switch restore case).
-            const sel0 = selectedRef.current;
-            const sel = Array.isArray(sel0) ? sel0[0] : sel0;
-            if (sel && sel.id && sel.file === m.file) {
-              scheduleHaloRestore(sel);
-            }
+            // S2.22 G2 — a whole artboard (no element id) is put back by its name, so a resize that
+            // reloaded the canvas leaves the board selected, with its new size in the inspector.
+            const back = restoreAfterLoad(selectedRef.current, m.file);
+            if (back?.kind === 'element') scheduleHaloRestore(back.sel);
+            else if (back?.kind === 'artboard') scheduleArtboardResync(back.artboardId, back.file);
           }
         }
       } else if (m.dgn === 'export-request' && m.id && m.payload) {

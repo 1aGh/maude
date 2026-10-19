@@ -2,7 +2,7 @@
 // It RE-ARRANGES the v1 `artboard-chrome` sections rather than replacing their closures (canvas-shell
 // builds them as before; every handler and every `canvas-menu-item-<id>` testid stays), in the v2 order:
 //
-//   Ask AI about this artboard ⌘/   (a menu label is static, so it says "this artboard", not its name)
+//   Ask AI about “<artboard name>” ⌘/   (`labelOf` names it per click; the static label stays "this artboard")
 //   Duplicate ⌘D · Duplicate at another width ▸ Laptop 1280 · Tablet 834 · Mobile 390 · Custom width… · Rename
 //   Add comment
 //   Export… ⇧⌘E
@@ -16,7 +16,7 @@
 // Pure over the item structure — testable without a DOM.
 
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
-import { ASK_ARTBOARD_EVENT } from './ask-bubble.tsx';
+import { ASK_ARTBOARD_EVENT, askAboutWords } from './ask-bubble.tsx';
 
 /** The widths the submenu offers, in the order the design draws them (the registry's web widths). */
 export const DUPLICATE_WIDTHS: ReadonlyArray<{ id: string; label: string; width: number }> = [
@@ -24,6 +24,17 @@ export const DUPLICATE_WIDTHS: ReadonlyArray<{ id: string; label: string; width:
   { id: 'tablet', label: 'Tablet', width: 834 },
   { id: 'mobile', label: 'Mobile', width: 390 },
 ];
+
+/** The name the right-clicked artboard wears (DCArtboard stamps it as `data-dc-label`); null when unknown. */
+export function artboardNameOf(t: ContextTarget): string | null {
+  const board =
+    t.el?.closest?.('[data-dc-screen]') ??
+    (t.artboardId && typeof document !== 'undefined'
+      ? document.querySelector(`[data-dc-screen="${CSS.escape(t.artboardId)}"]`)
+      : null);
+  const name = board?.getAttribute('data-dc-label')?.replace(/\s+/g, ' ').trim();
+  return name || null;
+}
 
 export interface ArtboardMenuDeps {
   duplicate(target: ContextTarget): void;
@@ -66,6 +77,11 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
       {
         id: 'ask-ai',
         label: 'Ask AI about this artboard',
+        // 14 Editing, ed-ab-menu: Ask AI about “Desktop” (typographic quotes, the artboard's own name)
+        labelOf: (t) => {
+          const name = artboardNameOf(t);
+          return name ? askAboutWords(name) : null;
+        },
         shortcut: '⌘/',
         // S2.21 — the same bubble ⌘/ on a selection opens (ask-bubble.tsx), scoped to this artboard.
         onSelect: (t) => {

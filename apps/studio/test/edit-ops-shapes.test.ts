@@ -333,3 +333,38 @@ describe('object.set-corner-radius — goldens per corner', () => {
     expect(h.src()).toBe(HOME);
   });
 });
+
+// S2.22 G8 — a frame that several artboards share cannot take one drawing for one artboard: the op addresses source,
+// not an instance, so it refuses in CONTRACT words (what happened · what is safe · one verb) and writes nothing.
+describe('drawing onto a component shared by several artboards', () => {
+  const SHARED = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+function Card() {
+  return <div data-cd-id="card" style={{ width: "300px", height: "300px" }} />;
+}
+export default function Home() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="desktop" label="Desktop" width={1440} height={900}><Card /></DCArtboard>
+      <DCArtboard id="mobile" label="Mobile" width={390} height={800}><Card /></DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+  const draw = { artboard: 'mobile', rect: { x: 10, y: 10, w: 100, h: 100 } };
+
+  test('a shape: refused in the contract words, nothing written', async () => {
+    const h = harness(SHARED);
+    const r = await h.run(
+      'object.insert-shape',
+      ['card'],
+      { ...draw, kind: 'rectangle' },
+      'mobile'
+    );
+    expect(r.ok).toBe(false);
+    expect((r as { message: string }).message).toBe(
+      'That frame is shared by several artboards, so a drawing would appear in all of them. Nothing was drawn. Detach it to draw on this artboard only.'
+    );
+    expect(h.snapshots).toHaveLength(0);
+    expect(h.src()).toBe(SHARED);
+  });
+});

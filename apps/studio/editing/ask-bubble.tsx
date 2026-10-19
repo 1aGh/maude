@@ -25,7 +25,12 @@ import { refsOf } from './object-ops.ts';
 export const ASK_SELECTION_ACTION = 'ai.ask-selection';
 /** S2.21 — the artboard menu's “Ask AI about this artboard” row announces itself here: `detail: { artboardId }`. */
 export const ASK_ARTBOARD_EVENT = 'maude:ask-artboard';
+/** S2.22 — the object menu's “Ask AI about …” row announces itself here; it asks about the current selection. */
+export const ASK_OBJECTS_EVENT = 'maude:ask-objects';
 const KEYS = canvasKeyIndex([ASK_SELECTION_ACTION]);
+
+/** S2.22 — the menus' row for a named thing: Ask AI about “Desktop” (typographic quotes, per the canvas). */
+export const askAboutWords = (name: string): string => `Ask AI about \u201c${name}\u201d`;
 
 type Box = { x: number; y: number; w: number; h: number };
 
@@ -143,10 +148,12 @@ export function AskBubble({ readOnly }: { readOnly: boolean }): null {
     document.addEventListener('keydown', onKey);
     window.addEventListener('message', onMessage);
     window.addEventListener(ASK_ARTBOARD_EVENT, onAskArtboard);
+    window.addEventListener(ASK_OBJECTS_EVENT, ask);
     return () => {
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('message', onMessage);
       window.removeEventListener(ASK_ARTBOARD_EVENT, onAskArtboard);
+      window.removeEventListener(ASK_OBJECTS_EVENT, ask);
     };
   }, [readOnly]);
 

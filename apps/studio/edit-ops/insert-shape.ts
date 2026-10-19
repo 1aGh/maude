@@ -160,6 +160,14 @@ export function appendChild(
   return s.toString();
 }
 
+/**
+ * S2.22 — a frame that lives outside this artboard's own JSX is a component several artboards share: a drawing in
+ * it would appear in every one of them. The edit-op addresses source, not one instance, so it does not guess; it
+ * says what happened, that nothing was written, and the one verb (CONTRACT §4).
+ */
+export const SHARED_FRAME_LINE =
+  'That frame is shared by several artboards, so a drawing would appear in all of them. Nothing was drawn. Detach it to draw on this artboard only.';
+
 export const objectInsertShape: EditOp = {
   id: 'object.insert-shape',
   apply(source, req) {
@@ -177,7 +185,7 @@ export const objectInsertShape: EditOp = {
       ? walk.elements.find((e) => e.id === parentRef.element)
       : walk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === artboard);
     if (!parent) return refuse(req, 'That frame is not on this canvas.');
-    if (parent.artboard !== artboard) return refuse(req, 'That frame is not on this artboard.');
+    if (parent.artboard !== artboard) return refuse(req, SHARED_FRAME_LINE);
 
     const { style, shape } = styleFor(req, kind as DrawnKind);
     const id = generateElementId({ tag: 'div', dcElement: kind }, usedIds(walk.elements));

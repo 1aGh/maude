@@ -51,8 +51,15 @@ export interface ContextTarget {
 export interface MenuItem {
   id: string;
   label: string;
+  /**
+   * S2.22 — the label for THIS click, when it names what was clicked (`Ask AI about “Desktop”`). Falsy
+   * falls back to the static `label`, which stays the word every list, test and screen reader can rely on.
+   */
+  labelOf?: (target: ContextTarget) => string | null | undefined;
   /** Right-aligned shortcut hint (e.g. `⌘C`, `⌫`). */
   shortcut?: string;
+  /** S2.22 — a quiet word beside the row where there is no shortcut ("same style" on Select matching). */
+  note?: string;
   destructive?: boolean;
   /**
    * A FUNCTION form is resolved per-click against `target` — same rationale as
@@ -241,6 +248,10 @@ const MENU_CSS = `
 .dc-context-menu .dc-menu-item.is-destructive:focus-visible {
   background: #c0392b;
   color: #fff;
+}
+.dc-context-menu .dc-menu-note {
+  color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55));
+  font-size: 11px;
 }
 .dc-context-menu .dc-menu-shortcut {
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55));
@@ -474,8 +485,12 @@ function MenuItemRow({
           onClose();
         }}
       >
-        <span>{item.label}</span>
-        {item.shortcut ? <span className="dc-menu-shortcut">{item.shortcut}</span> : null}
+        <span>{item.labelOf?.(target) || item.label}</span>
+        {item.shortcut ? (
+          <span className="dc-menu-shortcut">{item.shortcut}</span>
+        ) : item.note ? (
+          <span className="dc-menu-note">{item.note}</span>
+        ) : null}
       </button>
     );
   }
@@ -528,7 +543,7 @@ function MenuItemRow({
           }
         }}
       >
-        <span>{item.label}</span>
+        <span>{item.labelOf?.(target) || item.label}</span>
         <span className="dc-menu-caret" aria-hidden="true">
           ▸
         </span>

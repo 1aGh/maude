@@ -61,3 +61,39 @@ export function exportSelectionV2(selected, activePath) {
     selectedElements: elements,
   };
 }
+
+/**
+ * S2.22 G4/G6 — what the shell holds after the canvas's `select-set`: nothing, the one object (with the
+ * canvas's crumbs / kind / refs when `described` adds them) or, for several, the WHOLE list. The inspector reads
+ * that list to say "4 artboards · Mixed … Changes go to all 4."; keeping only the head hid every multi-selection.
+ */
+export function shellSelectionOf(payload, described = (s) => s) {
+  if (payload == null) return null;
+  if (!Array.isArray(payload)) return described(payload);
+  if (payload.length === 0) return null;
+  if (payload.length === 1) return described(payload[0]);
+  return payload;
+}
+
+const SCREEN_SELECTOR = /^\[data-dc-screen="([^"]+)"\]$/;
+
+/** Is `sel` the whole-artboard selection of `artboardId` on `file`? The server's echo drops `artboardId`, so the
+ *  `[data-dc-screen="…"]` selector is the identity that survives it. */
+export function isArtboardSelectionOf(sel, artboardId, file) {
+  if (!sel || !artboardId || sel.file !== file || sel.id) return false;
+  return sel.artboardId === artboardId || sel.selector === `[data-dc-screen="${artboardId}"]`;
+}
+
+/**
+ * S2.22 G2 — what to re-select once a canvas has (re)loaded after a write. An element goes back by its id; a
+ * whole artboard (no id) by its name — a resize, a kind or a style write reloads the canvas, and the selection
+ * must still be on the board afterwards, with its new size.
+ * @returns {{ kind: 'element', sel: any } | { kind: 'artboard', artboardId: string, file: string } | null}
+ */
+export function restoreAfterLoad(selected, file) {
+  const sel = Array.isArray(selected) ? selected[0] : selected;
+  if (!sel || sel.file !== file) return null;
+  if (sel.id) return { kind: 'element', sel };
+  const artboardId = sel.artboardId || SCREEN_SELECTOR.exec(sel.selector || '')?.[1] || null;
+  return artboardId ? { kind: 'artboard', artboardId, file } : null;
+}

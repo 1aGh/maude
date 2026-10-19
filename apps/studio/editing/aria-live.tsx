@@ -71,13 +71,26 @@ const itemsOf = (el: Element, measure: Measure): number =>
     (c) => stampedParent(c) === el && measure.shown(c)
   ).length;
 
+/**
+ * What VoiceOver calls the object: its crumb name, and — for a frame that has none of its own (no layer name, no
+ * label, no loose words, so the crumb would be the tag, “div”) — the first heading inside it (“Services”).
+ */
+export function spokenNameOf(el: Element): string {
+  const node = crumbNodeOf(el);
+  const label = crumbLabel(node);
+  if (label !== node.tag) return label;
+  const heading = el.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]');
+  const words = (heading?.textContent ?? '').replace(/\s+/g, ' ').trim();
+  return words ? crumbLabel({ ...node, text: words }) : label;
+}
+
 /** What the screen reader needs to know about the focused object. */
 export function factsOf(el: Element, measure: Measure = domMeasure): FocusFacts {
   const items = itemsOf(el, measure);
   const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
   const { n, of } = positionOf(el, measure);
   return {
-    name: crumbLabel(crumbNodeOf(el)),
+    name: spokenNameOf(el),
     kind: selectionKind(1, {
       tag: el.tagName,
       elements: el.children.length,
