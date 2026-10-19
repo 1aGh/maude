@@ -304,6 +304,63 @@ export function holdsFor(view, { activeCanvas, entryOf } = {}) {
   return out;
 }
 
+// ── the spot an answered question points at (dgn `ai-holds` rows with `point`, S5.19) ──────────────────
+
+/** How long a question's spot stays marked after the answer (a click puts it away sooner, canvas side). */
+export const POINT_MS = 20000;
+
+/**
+ * `[{artboard, element, occurrence?, tag, mine, point: true}]` — 03 `ai-question`: "AI points at the spot it means
+ * with a small spark ring". The newest run of YOURS that ended `done` having changed nothing (`touched` is empty —
+ * a question) and was asked about elements marks those elements on the open canvas for `POINT_MS`. The tag is
+ * the element's NAME (its id, humanized) and nothing else: the prompt and the answer never reach the canvas
+ * (DDR-054, v2-lead-neutral-ai-ring-tags).
+ */
+export function pointsFor(view, { activeCanvas, entryOf, now = Date.now() } = {}) {
+  let best = null;
+  for (const r of view?.mine || []) {
+    if (!r || r.state !== 'ended' || r.outcome !== 'done' || !Number.isFinite(r.endedAt)) continue;
+    if (now - r.endedAt > POINT_MS || r.endedAt > now + POINT_MS) continue;
+    if (Object.keys(r.touched || {}).length) continue;
+    if (!Array.isArray(r.scope?.elements) || !r.scope.elements.length) continue;
+    if (!best || r.endedAt > best.endedAt) best = r;
+  }
+  if (!best) return [];
+  const out = [];
+  const seen = new Set();
+  for (const o of best.scope.elements) {
+    if (out.length >= HOLDS_MAX || !onCanvas(o, activeCanvas, entryOf)) continue;
+    if (!holdText(o.artboard) || !holdText(o.element)) continue;
+    const key = holdKey(o);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const occ =
+      Number.isInteger(o.occurrence) && o.occurrence >= 0 && o.occurrence < 10000
+        ? o.occurrence
+        : undefined;
+    out.push({
+      artboard: o.artboard,
+      element: o.element,
+      ...(occ !== undefined ? { occurrence: occ } : {}),
+      tag: humanize(o.element).slice(0, HOLD_TEXT_MAX),
+      mine: true,
+      point: true,
+    });
+  }
+  return out;
+}
+
+/** When the marked spot lets go (ms epoch), for the relay's timer; null = nothing marked. */
+export function pointExpiry(view, now = Date.now()) {
+  let at = null;
+  for (const r of view?.mine || []) {
+    if (r?.state !== 'ended' || r.outcome !== 'done' || !Number.isFinite(r.endedAt)) continue;
+    const end = r.endedAt + POINT_MS;
+    if (end > now && (at === null || end > at)) at = end;
+  }
+  return at;
+}
+
 // ── the waiting card ───────────────────────────────────────────────────────────────────────────────
 
 /** The waiting runs of one chat, oldest first. */

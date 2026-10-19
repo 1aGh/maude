@@ -59,9 +59,18 @@ export interface AiRouteDeps {
   /**
    * S5.18 (G2) — the door for the copy's `.meta.json` entries (its name, its place): the same writer a layout
    * write uses (`api.writeCanvasMetaText`: sync hook + cell announce). `file` is repo-relative. Absent = the
-   * copy lands without them (the chip then shows its id).
+   * copy lands without them (the chip then shows its id). S5.19: with a sync runtime and a run stage the write passes
+   * `{ hooks: false }` — it is NOT the person's own layout edit (the hook proposes at once, outside the run), it is a
+   * plain disk write the watcher stages into the copy's run action, so one Undo takes copy and entries together.
    */
-  meta?: { write(file: string, nextText: string, baseText: string | null): Promise<boolean> };
+  meta?: {
+    write(
+      file: string,
+      nextText: string,
+      baseText: string | null,
+      opts?: { hooks?: boolean }
+    ): Promise<boolean>;
+  };
 }
 
 const json = (status: number, body: unknown) =>
@@ -186,7 +195,12 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
   });
 
   /** G2 — the copy's name and place go into the sidecar; best effort, the copy stands without them. */
-  async function settleCopyMeta(canvas: string, artboardId: string, copyId: string): Promise<void> {
+  async function settleCopyMeta(
+    canvas: string,
+    artboardId: string,
+    copyId: string,
+    staged: boolean
+  ): Promise<void> {
     if (!deps.meta || !/\.(tsx|html)$/i.test(canvas)) return;
     try {
       const metaAbs = path.join(designRoot(), canvas.replace(/\.(tsx|html)$/i, '.meta.json'));
@@ -205,7 +219,8 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         await deps.meta.write(
           path.posix.join(deps.designRel, canvas),
           `${JSON.stringify(next, null, 2)}\n`,
-          baseText
+          baseText,
+          staged ? { hooks: false } : undefined
         );
     } catch {
       /* the copy stands without its sidecar entry */
@@ -252,7 +267,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         err instanceof Error ? err.message : 'could not make the copy'
       );
     }
-    await settleCopyMeta(canvas, at.artboard, copyId);
+    await settleCopyMeta(canvas, at.artboard, copyId, !!(stage && control));
     const out = (await reg.copyStart(id, was)) ?? reg.get(id);
     return out ? copied(out) : refuse(404, 'not-found', 'no such run');
   }

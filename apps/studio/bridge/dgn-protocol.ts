@@ -548,6 +548,8 @@ export interface ShellToCanvas {
       tag: string;
       mine: boolean;
       scope?: boolean;
+      /** S5.19 (03 `ai-question`) — a spot the AI points at (a small spark ring, gone on a click); the tag is its name only */
+      point?: boolean;
     }>;
   };
   // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
@@ -845,6 +847,7 @@ const aiHoldList: V = (v) =>
           tag: holdText,
           mine: bool,
           scope: opt(bool),
+          point: opt(bool),
         })
       )(v)
     : BAD;

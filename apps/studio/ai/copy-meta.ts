@@ -101,6 +101,41 @@ export function placeCopy(
   return candidates[2] ?? null;
 }
 
+/**
+ * S5.19 (G2) — BESIDE the original, always (03: "lands right beside the original"). When the slot on the right is
+ * taken, the artboards to the right of the original in the same row band move over by the copy's width + a
+ * gutter (their new places go into the same sidecar write, so the copy's Undo puts them back with it). Falls
+ * back to `placeCopy` (below / past the right edge) only when shifting the row would itself overlap something.
+ */
+export function placeBeside(
+  rects: Rect[],
+  copyId: string,
+  artboardId: string
+): { at: { x: number; y: number }; shifts: Array<{ id: string; x: number; y: number }> } | null {
+  const orig = rects.find((r) => r.id === artboardId);
+  const me = rects.find((r) => r.id === copyId);
+  if (!orig || !me) return null;
+  const others = rects.filter((r) => r.id !== copyId);
+  const gap = VP_GRID.gutter;
+  const at = { x: orig.x + orig.w + gap, y: orig.y };
+  const box = { ...me, ...at };
+  if (!others.some((o) => overlaps(box, o, 8))) return { at, shifts: [] };
+  const dx = me.w + gap;
+  const movers = others.filter(
+    (o) =>
+      o.id !== orig.id && o.x >= orig.x + orig.w - 1 && o.y < orig.y + me.h && orig.y < o.y + o.h
+  );
+  const moved = new Map(movers.map((o) => [o.id, { ...o, x: o.x + dx }]));
+  const after = others.map((o) => moved.get(o.id) ?? o);
+  if (after.some((o) => overlaps(box, o, 8))) return null;
+  for (const m of moved.values())
+    if (after.some((o) => o.id !== m.id && overlaps(m, o))) return null;
+  return {
+    at,
+    shifts: movers.map((o) => ({ id: o.id, x: o.x + dx, y: o.y })),
+  };
+}
+
 /** The label the copy's `<DCArtboard>` carries in `source`, or null. */
 export function copyLabelOf(source: string, copyId: string): string | null {
   const re = /<DCArtboard\b([^>]*)>/g;
@@ -152,8 +187,15 @@ export function metaWithCopy(
   const layout = isObj(next.layout) ? next.layout : null;
   const placed = layout && Array.isArray(layout.artboards) ? (layout.artboards as Json[]) : null;
   if (placed && placed.length > 0 && !placed.some((e) => isObj(e) && e.id === o.copyId)) {
-    const at = placeCopy(artboardRects(o.source, placed), o.copyId, o.artboardId);
+    const rects = artboardRects(o.source, placed);
+    const beside = placeBeside(rects, o.copyId, o.artboardId);
+    const at = beside?.at ?? placeCopy(rects, o.copyId, o.artboardId);
     if (at) {
+      for (const sh of beside?.shifts ?? []) {
+        const e = placed.find((p) => isObj(p) && p.id === sh.id);
+        if (e) e.x = sh.x;
+        else placed.push({ id: sh.id, x: sh.x, y: sh.y });
+      }
       placed.push({ id: o.copyId, x: at.x, y: at.y });
       changed = true;
     }

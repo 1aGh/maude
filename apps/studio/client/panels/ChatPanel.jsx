@@ -161,6 +161,8 @@ function toThreadMessages(msgs) {
       return {
         role: 'user',
         content: [{ type: 'text', text: (m.parts || []).map((p) => p.text || '').join('') }],
+        // S5.19 — the day dividers read when the ask was sent
+        ...(Number.isFinite(m.at) ? { createdAt: new Date(m.at) } : {}),
       };
     }
     return {
@@ -494,6 +496,7 @@ function ChatThread({
                     selectedClips={selectedClips}
                     justShared={justShared}
                     enabled={suggestOn}
+                    lastFailed={!!turnError}
                   />
                 </ThreadPrimitive.If>
               }

@@ -13089,6 +13089,20 @@
     "v2": "new"
   },
   {
+    "hook": "edit-ai-point",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the small spark ring AI points at the element a question was about with (03 ai-question); the tag is the element's name only. Gone on a click.",
+    "producer": {
+      "file": "apps/studio/editing/ai-point-ring.tsx",
+      "symbol": "AiPointRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "ask-selection-bubble",
     "kind": "testid",
     "pattern": false,

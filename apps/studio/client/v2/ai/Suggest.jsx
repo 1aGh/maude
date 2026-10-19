@@ -84,6 +84,7 @@ export function SuggestStrip({
   selectedClips = 0,
   justShared = null,
   enabled = true,
+  lastFailed = false,
 }) {
   const lastAsk = useThread((t) => lastUserText(t.messages) || '');
   const sug = deriveSuggestions({
@@ -92,6 +93,7 @@ export function SuggestStrip({
     selectedClips,
     justShared,
     lastAsk: lastAsk ? { text: lastAsk } : null,
+    lastFailed,
   });
   if (!sug) return null;
   return (

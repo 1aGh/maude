@@ -66,6 +66,8 @@ export interface ChatMessagePart {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   parts: ChatMessagePart[];
+  /** S5.19 — when the ask was sent (ms, the transcript line's `ts`): the feed's day dividers. User turns only. */
+  at?: number;
 }
 
 function chatDir(designRoot: string): string {
@@ -600,6 +602,7 @@ export function readChatMessages(designRoot: string, chatId: string): ChatMessag
       messages.push({
         role: 'user',
         parts: [{ type: 'text', text: stripContextBlock(line.text) }],
+        ...(typeof line.ts === 'number' && Number.isFinite(line.ts) ? { at: line.ts } : {}),
       });
       continue;
     }
