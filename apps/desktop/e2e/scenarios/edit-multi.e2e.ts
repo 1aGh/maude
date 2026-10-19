@@ -168,10 +168,11 @@ describe('multi-select, align and rotate (S2.7)', () => {
     expect(source()).toMatch(/data-cd-id="mx-sub" style=\{\{[^}]*left: "24px"/);
     // top is never touched by a left align
     expect(source()).toMatch(/data-cd-id="mx-sub" style=\{\{[^}]*top: "100px"/);
-    await browser.waitUntil(async () => (await textIn('edit-align-chip')) !== null, {
+    // the chip is shown for a moment after the align: look for it, don't read it twice
+    await browser.waitUntil(async () => /^X \d+$/.test((await textIn('edit-align-chip')) ?? ''), {
       timeout: 4000,
+      timeoutMsg: 'no "X <n>" chip after Align left',
     });
-    expect(await textIn('edit-align-chip')).toMatch(/^X \d+$/);
     await capture(report, 'guide');
   });
 
@@ -192,6 +193,7 @@ describe('multi-select, align and rotate (S2.7)', () => {
 
   it('the rotate handle turns one object; ⇧ snaps to 15°', async () => {
     const report = startReport('edit-multi-rotate');
+    await browser.waitUntil(async () => (await rectOf('ZAPIŠ SE')) !== null, { timeout: 15000 });
     const p = await rectOf('ZAPIŠ SE');
     await click(p!.x, p!.y);
     await browser.waitUntil(async () => (await chromeAt('edit-rotate-handle')) !== null, {

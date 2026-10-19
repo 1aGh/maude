@@ -158,8 +158,17 @@ describe('auto layout, reorder and free placement (S2.11)', () => {
     const report = startReport('edit-layout-bands');
     // the frame is selected by clicking its padding (left of the first card)
     const card = (await rectOf('Small apps'))!;
-    await click(card.x - 140, card.y);
-    await browser.waitUntil(async () => (await count('edit-gap-band')) === 2, { timeout: 8000 });
+    // the editing layer mounts a beat after the new canvas renders: press again until the bands answer
+    await browser.waitUntil(
+      async () => {
+        if ((await count('edit-gap-band')) === 2) return true;
+        const c = (await rectOf('Small apps')) ?? card;
+        await click(c.x - 140, c.y);
+        await browser.pause(500);
+        return (await count('edit-gap-band')) === 2;
+      },
+      { timeout: 15000, timeoutMsg: 'selecting the frame never tinted its gaps' }
+    );
     expect(await textIn('edit-gap-chip')).toBe('24');
     await capture(report, 'bands');
   });

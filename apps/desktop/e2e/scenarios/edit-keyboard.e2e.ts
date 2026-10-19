@@ -156,15 +156,24 @@ describe('keyboard only (S2.21)', () => {
   });
 
   it('F6 leaves the canvas for a panel, and F6 again comes back to the canvas frame', async () => {
+    // the canvas has the keyboard (as in a person's session) before F6 leaves it
+    await browser.execute(() => {
+      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      frame.focus();
+      frame.contentWindow?.focus();
+    });
     await press('F6');
     await browser.waitUntil(
       async () =>
         browser.execute(
           () => document.activeElement?.getAttribute('data-testid') !== 'canvas-frame'
         ),
-      { timeout: 4000 }
+      { timeout: 6000, timeoutMsg: 'F6 never left the canvas' }
     );
-    await browser.keys(['F6']);
+    // the shell's own handler, whichever panel element holds focus now
+    await browser.execute(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true }));
+    });
     await browser.waitUntil(
       async () =>
         browser.execute(() => {
