@@ -318,6 +318,37 @@ export function createWs(
   // S1.7b — the shared Trash changed (here, or on another Mac: sync/trash-watch.ts). `{ seq }`
   // only, never an item — the view re-reads `GET /_api/trash`, which is L18-filtered per session.
   // S9.11's frame classes: project-level, but it names nothing, so canvas-only sockets may get it.
+  // S9.21b (V2-1.7 §5.6) — the hub's access notices, deduped and rebuilt key by key in
+  // sync/access-notices.ts. Inspector (shell) sockets only — never the canvas iframe's socket.
+  // `access` carries no canvas and no text (a canvas-only session hears its own ending);
+  // `access-request` names a person and a canvas, for the owner's toast: project class.
+  // Desktop-shaped shells only (session ''): in a cell one studio serves several members over a
+  // link that is the cell's own, so a notice it heard is about nobody here (a cell's members hear
+  // the hub through their own sessions).
+  const toDesktopShell = (payload: Record<string, unknown>) => {
+    const msg = JSON.stringify(payload);
+    for (const ws of clients) {
+      if (ws.data.kind !== 'inspector' || ws.data.session !== '') continue;
+      const out = scoped(ws, payload, msg);
+      if (out !== null) send(ws, out);
+    }
+  };
+  ctx.bus.on('access:notice', (frame: { type?: unknown } & Record<string, unknown>) => {
+    if (frame?.type === 'maude.access')
+      toDesktopShell({
+        type: 'access',
+        change: frame.change,
+        ...(frame.reason ? { reason: frame.reason } : {}),
+      });
+    else if (frame?.type === 'maude.access-request')
+      toDesktopShell({
+        type: 'access-request',
+        id: frame.id,
+        from: frame.from,
+        ...(frame.canvas ? { canvas: frame.canvas } : {}),
+        at: frame.at,
+      });
+  });
   ctx.bus.on('trash:changed', (p: { seq?: unknown }) =>
     broadcast({ type: 'trash:changed', payload: { seq: typeof p?.seq === 'number' ? p.seq : 0 } })
   );
