@@ -368,6 +368,12 @@ describe('image.crop — Fill · Fit · Crop · Tile', () => {
     expect(tile).not.toContain('11111111');
   });
 
+  test('Tile refuses a source that could end its CSS url(); nothing is written', async () => {
+    const h = harness(SRC.replace('src="assets/11111111.png"', 'src="assets/a&quot;).png"'));
+    bad(await h.run('image.crop', { fit: 'tile' }, ['a']));
+    expect(h.writes()).toBe(0);
+  });
+
   test('refusals: a non-picture, an unknown fit, a zoom or a point out of range, a computed style', async () => {
     const h = harness();
     bad(await h.run('image.crop', { fit: 'fit' }, ['player']));

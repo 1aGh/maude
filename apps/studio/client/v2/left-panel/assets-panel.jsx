@@ -232,7 +232,13 @@ export function AssetsPanel({
                         <StIcon name="resolve" size={16} />
                       </span>
                     ) : (
-                      <img className="lp-thumb" src={url(a.path)} alt={a.name} loading="lazy" />
+                      <img
+                        className="lp-thumb"
+                        src={url(a.path)}
+                        alt={a.name}
+                        loading="lazy"
+                        draggable={false}
+                      />
                     )}
                     <span className="lp-tile-name">{a.name}</span>
                   </button>

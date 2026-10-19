@@ -254,6 +254,9 @@ export const imageCrop: EditOp = {
       const asset = literal(req.file, out, t.element, 'src');
       if (!asset)
         return refuse(req, 'That picture is chosen by the code; change it there.', t.element);
+      // the source becomes a CSS url(): nothing that could end the string or the function
+      if (/["'\\()\s]/.test(asset))
+        return refuse(req, 'That picture’s name cannot be tiled; rename the file.', t.element);
       const alt = literal(req.file, out, t.element, 'alt') ?? '';
       out = reTag(
         out,
