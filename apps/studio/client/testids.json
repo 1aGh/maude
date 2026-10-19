@@ -10845,6 +10845,19 @@
     "v2": "stable"
   },
   {
+    "hook": "settings-open-emails",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "settings-theme",
     "kind": "testid",
     "pattern": false,

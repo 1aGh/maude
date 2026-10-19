@@ -436,6 +436,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `settings-close` | testid | The sheet’s Done button. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
 | `settings-account` | testid | General › Account group (shown when a dashboard address is known). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-open-dashboard` | testid | General › Account › Open the cloud dashboard. | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-open-emails` | testid | General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard. | `client/v2/settings/general-section.jsx` · `GeneralSection` | test:v2-settings | new in v2 (S9.18) |
 | `settings-theme` | testid | General › Look › the Light / Dark radio group. | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
 | `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
 | `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
