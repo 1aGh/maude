@@ -3445,6 +3445,7 @@
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar": "testid:ds-bar",
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-mode-mode": "testid:ds-bar-mode-<mode>",
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-pending": "testid:ds-bar-pending",
+    "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-review": "testid:ds-bar-review",
     "testid:studio/ds/board/parts.tsx#canvas/ds-section-kind": "testid:ds-section-<kind>",
     "testid:studio/figma/to-artboard.ts#canvas iframe chrome/data-dc-element": "testid:[data-dc-element]",
     "testid:studio/inspect-overlay.tsx#other/dc-cv-inspect-tag": "testid:.dc-cv-inspect-tag",
