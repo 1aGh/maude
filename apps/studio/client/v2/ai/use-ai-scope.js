@@ -8,7 +8,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildChatContext } from '../../panels/chat-context.js';
-import { autoScope, resolveScope, scopeForPrompt, selectedArtboardIds } from './scope.js';
+import {
+  autoScope,
+  resolveScope,
+  scopeForPrompt,
+  selectedArtboardIds,
+  selectionKey,
+} from './scope.js';
 
 /**
  * S5.17 G2 — the artboards a `.meta.json` names, `{ id, label }[]`. Real sidecars carry them in
@@ -91,10 +97,13 @@ export function useAiScope({ activeCanvas, selected, panelHidden = false, viewAr
   );
   const scope = resolveScope(choice, auto);
 
-  // The selection, the canvas or the panel changed → follow the selection again.
+  // The selection, the canvas or the panel changed → follow the selection again. The SELECTION is compared by
+  // what it is, not by array identity: the same selection announced again must not undo the person's pick (G11).
+  const selKey = selectionKey(selected);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the reset runs on the selection's content (selKey) and the canvas, not on a re-announced array
   useEffect(() => {
     setChoice(null);
-  }, [activeCanvas, selected]);
+  }, [activeCanvas, selKey]);
   useEffect(() => {
     if (!panelHidden) setChoice(null);
   }, [panelHidden]);
