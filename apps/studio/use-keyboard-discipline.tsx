@@ -60,6 +60,13 @@ export function nudgeDelta(input: NudgeInput): { dx: number; dy: number } | null
   }
 }
 
+/** ⌘A (⌃A) and nothing else: ⇧⌘A is Select all annotations (S4.9), never the design objects (S4.18). */
+export function isSelectAllElementsChord(
+  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>
+): boolean {
+  return (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a';
+}
+
 export function useKeyboardDiscipline(): void {
   const selSet = useSelectionSet();
   const artboardsCtx = useArtboardsContext();
@@ -96,9 +103,10 @@ export function useKeyboardDiscipline(): void {
       // S3.11 — Inspect reads: the same keyboard editing ops are off there too.
       if (toolRef.current === 'browse' || toolRef.current === 'inspect') return;
 
-      // Cmd+A → select all stamped elements in the active artboard.
+      // Cmd+A → select all stamped elements in the active artboard. Not ⇧⌘A: that chord is Select all
+      // annotations (S4.9); v1 matched any ⇧ (V2-1.3 defect 1) and kept winning it in Edit (S4.18).
       const isMeta = e.metaKey || e.ctrlKey;
-      if (isMeta && e.key.toLowerCase() === 'a') {
+      if (isSelectAllElementsChord(e)) {
         if (!artboardsCtx) return;
         const id = artboardsCtx.activeArtboardId;
         if (!id) return;

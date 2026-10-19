@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ANNOTATIONS_HIDDEN_TOAST } from '../../annotations/ui/visibility.ts';
+import { acceptFromCanvas } from '../../bridge/dgn-protocol.ts';
 import { notify } from '../../notifications.tsx';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
 import { installDropGuard } from '../shell/drop-guard.js';
@@ -31,6 +32,15 @@ import {
   pruneDirs,
   toggleSection as toggleSectionState,
 } from '../tree-expansion.js';
+
+/** "Annotations hidden. Press ⇧P to bring them back." + Show — one toast, whichever path hid them. */
+export function notifyAnnotationsHidden(onShow) {
+  notify({
+    id: 'annotations-hidden',
+    title: ANNOTATIONS_HIDDEN_TOAST.title,
+    action: { label: ANNOTATIONS_HIDDEN_TOAST.action, onClick: onShow },
+  });
+}
 
 export function usePhotoAndTimeline({
   groups,
@@ -477,17 +487,35 @@ export function usePhotoAndTimeline({
       }
       // S4.9: hiding says how to bring them back; the shell owns the toast because canvas notices
       // can't carry an action (decision v2-S4.9-shell-owns-hidden-toast).
-      if (!next) {
-        queueMicrotask(() =>
-          notify({
-            id: 'annotations-hidden',
-            title: ANNOTATIONS_HIDDEN_TOAST.title,
-            action: { label: ANNOTATIONS_HIDDEN_TOAST.action, onClick: () => toggleAnnotations() },
-          }),
-        );
-      }
+      if (!next) queueMicrotask(() => notifyAnnotationsHidden(() => toggleAnnotations()));
       return next;
     });
+  }, [activePath]);
+  const toggleAnnotationsRef = useRef(toggleAnnotations);
+  toggleAnnotationsRef.current = toggleAnnotations;
+
+  // S4.18 (an-visibility) — ⇧P pressed inside the canvas toggles the layer there (annotations-layer) and
+  // reports it: the shell keeps the pref in step and shows the same toast, once (the canvas path never
+  // calls toggleAnnotations). Only the active canvas, from the origin its frame was built on.
+  useEffect(() => {
+    const onMessage = (e) => {
+      const el = activePath ? iframesRef.current.get(activePath) : null;
+      const win = el?.contentWindow;
+      if (!win || e.source !== win) return;
+      let canvasOrigin;
+      try {
+        canvasOrigin = new URL(el.src, window.location.href).origin;
+      } catch {
+        return;
+      }
+      const m = acceptFromCanvas(e, { canvasOrigin, active: win });
+      if (m && m.dgn === 'annotations-visibility') {
+        setAnnotationsVisible(m.visible);
+        if (!m.visible) notifyAnnotationsHidden(() => toggleAnnotationsRef.current());
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [activePath]);
 
   // Chrome visibility (minimap / zoom-controls / Presentation Mode) applies to
