@@ -15,6 +15,9 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { syncPresentation } from '../../../sync/presentation.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
+import { notify } from '../../../notifications.tsx';
+import { AccessHost } from '../access/access-host.jsx';
+import { getTrashedOpen, subscribeTrashedOpen } from '../access/access-client.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { usePresenceHost } from '../presence/use-presence-host.js';
@@ -96,16 +99,19 @@ export function ShellShareCluster() {
       project,
       selected,
       syncStatus,
+      tabs: openTabs,
       viewerMode,
     },
     keyboardShortcuts: { totalOpen },
-    tabs: { shareLinksFor },
+    tabs: { openTab, shareLinksFor },
     paletteAndPanels: { rightActive },
     // S9.22b — the unread @mention count (useCommentsShell); a shell without it keeps the open count
     comments,
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
+  // S9.21b — the open canvas went to the trash: Viewing, no toolbar (the server refuses its writes anyway).
+  const trashedOpen = useSyncExternalStore(subscribeTrashedOpen, getTrashedOpen, () => null);
 
   const linked =
     !!cfg?.cloud || !!cloudLinkedHub?.credentialed || (!!syncStatus && syncStatus.linked !== false);
@@ -138,7 +144,7 @@ export function ShellShareCluster() {
     activePath,
     iframesRef,
     cfg,
-    canEdit: !viewerMode,
+    canEdit: !viewerMode && !trashedOpen,
     role: cfg?.cloud?.role,
   });
   const faces = useMemo(
@@ -246,61 +252,80 @@ export function ShellShareCluster() {
     }
   }, []);
 
+  const designRel = cfg?.designRel || '.design';
+  const openTrashed = useCallback(
+    (rel) => openTab?.(`${designRel.replace(/\/+$/, '')}/${rel}`),
+    [openTab, designRel]
+  );
+
   return (
-    <ShareCluster
-      accountSlot={
-        chip ? (
-          <AccountChip
-            chip={chip}
-            card={card}
-            onSwitch={() => menuRunner.run('account.switch')}
-            onSignOut={acct.signOut}
+    <>
+      <ShareCluster
+        accountSlot={
+          chip ? (
+            <AccountChip
+              chip={chip}
+              card={card}
+              onSwitch={() => menuRunner.run('account.switch')}
+              onSignOut={acct.signOut}
+            />
+          ) : null
+        }
+        faces={faces}
+        onFollow={lane.follow}
+        presence={presence}
+        status={shown}
+        access={access}
+        commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}
+        commentsCountKind={comments ? 'unread' : 'open'}
+        commentsOpen={!!commentsPanelOpen}
+        exports={ex}
+        exportsOpen={!!exportCenter?.panelOpen}
+        panelsHidden={panelsHidden}
+        canShare={canvasOpen}
+        ctx={ctx}
+        run={(id) => menuRunner.run(id)}
+        onStatusAction={(id) => {
+          if (id === 'retry') retry();
+        }}
+        // S3.12 — Viewing's one way out. The flow is S9.21's (outbox kind `share.ask-to-edit`): the button runs
+        // that registry action the day it exists; until then it says what to do, as the menubar does.
+        onAskToEdit={() => askToEdit((id) => menuRunner.run(id), shellToast)}
+        docked={pinned && !panelsHidden && !!rightActive}
+        mode={lane.mode}
+        present={lane.presentSpec}
+        modeSlot={
+          <ModeSwitch
+            mode={lane.mode}
+            caps={lane.caps}
+            onSelect={lane.select}
+            // S3.5 — Order and notes… is a registry action (minRole edit), not a way into Present.
+            onPresent={(kind) =>
+              kind === 'order-notes'
+                ? menuRunner.run('present.order-notes')
+                : kind === 'copy-link'
+                  ? copyPresentation()
+                  : lane.present(kind)
+            }
+            copyLink={copyLink}
+            presentFromLabel={fromLabel}
+            presenterView={presenterView}
+            onPresenterView={() => menuRunner.run('present.presenter-view')}
+            canPresent={canvasOpen}
           />
-        ) : null
-      }
-      faces={faces}
-      onFollow={lane.follow}
-      presence={presence}
-      status={shown}
-      access={access}
-      commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}
-      commentsCountKind={comments ? 'unread' : 'open'}
-      commentsOpen={!!commentsPanelOpen}
-      exports={ex}
-      exportsOpen={!!exportCenter?.panelOpen}
-      panelsHidden={panelsHidden}
-      canShare={canvasOpen}
-      ctx={ctx}
-      run={(id) => menuRunner.run(id)}
-      onStatusAction={(id) => {
-        if (id === 'retry') retry();
-      }}
-      // S3.12 — Viewing's one way out. The flow is S9.21's (outbox kind `share.ask-to-edit`): the button runs
-      // that registry action the day it exists; until then it says what to do, as the menubar does.
-      onAskToEdit={() => askToEdit((id) => menuRunner.run(id), shellToast)}
-      docked={pinned && !panelsHidden && !!rightActive}
-      mode={lane.mode}
-      present={lane.presentSpec}
-      modeSlot={
-        <ModeSwitch
-          mode={lane.mode}
-          caps={lane.caps}
-          onSelect={lane.select}
-          // S3.5 — Order and notes… is a registry action (minRole edit), not a way into Present.
-          onPresent={(kind) =>
-            kind === 'order-notes'
-              ? menuRunner.run('present.order-notes')
-              : kind === 'copy-link'
-                ? copyPresentation()
-                : lane.present(kind)
-          }
-          copyLink={copyLink}
-          presentFromLabel={fromLabel}
-          presenterView={presenterView}
-          onPresenterView={() => menuRunner.run('present.presenter-view')}
-          canPresent={canvasOpen}
-        />
-      }
-    />
+        }
+      />
+      {/* S9.21b — the access states: Ask to edit's tip, the request toast, access ended / link off, trashed while open. */}
+      <AccessHost
+        activePath={activePath}
+        designRel={designRel}
+        tabs={openTabs}
+        project={projectName}
+        canEdit={!viewerMode}
+        toast={notify}
+        run={(id) => menuRunner.run(id)}
+        onOpenTab={openTrashed}
+      />
+    </>
   );
 }

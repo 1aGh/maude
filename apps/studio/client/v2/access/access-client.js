@@ -222,6 +222,49 @@ export function accessSlots(me) {
   return { rows, foot, canvasOnly };
 }
 
+// ---------------------------------------------------------------------------------------- the shell's lanes
+
+/** app.jsx → the access host: the inspector socket's `access` / `access-request` frames, as they came. */
+export const ACCESS_FRAME_EVENT = 'maude:access-frame';
+/** use-canvas-bridge → the access host: the active (read-only) canvas saw a drag go nowhere. */
+export const VIEW_ONLY_EVENT = 'maude:view-only-gesture';
+
+/**
+ * A shell socket frame (ws.ts `access:notice`: `{ type: 'access', change, reason? }` /
+ * `{ type: 'access-request', id, from, canvas?, at }`) → what the window does, or null. Rebuilt through the
+ * same readers as the hub's own notices, so nothing but the known keys is ever read.
+ */
+export function shellAccessFrame(frame) {
+  if (frame?.type === 'access')
+    return accessNotice({ type: 'maude.access', change: frame.change, reason: frame.reason });
+  if (frame?.type === 'access-request') {
+    const r = requestNotice({
+      type: 'maude.access-request',
+      id: frame.id,
+      from: frame.from,
+      canvas: frame.canvas,
+    });
+    return r ? { kind: 'request', ...r } : null;
+  }
+  return null;
+}
+
+// The open tab's canvas is in the trash (S9.21b): the access host publishes it, the Share cluster's mode lane
+// reads it (Viewing, no toolbar). One designRoot-relative path or null.
+let trashedOpen = null;
+const trashedOpenListeners = new Set();
+export function setTrashedOpen(rel) {
+  const next = typeof rel === 'string' && rel ? rel : null;
+  if (next === trashedOpen) return;
+  trashedOpen = next;
+  for (const fn of trashedOpenListeners) fn();
+}
+export const getTrashedOpen = () => trashedOpen;
+export function subscribeTrashedOpen(fn) {
+  trashedOpenListeners.add(fn);
+  return () => trashedOpenListeners.delete(fn);
+}
+
 // ---------------------------------------------------------------------------------------- the runner rows
 
 /**

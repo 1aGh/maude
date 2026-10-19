@@ -51,6 +51,12 @@
     margin-top: var(--space-2);
   }
 
+  /* S9.21b — the shell's own tip (access-host.jsx): under the Share cluster, where Ask to edit is. */
+  .v2ac-tip--shell {
+    top: 56px;
+    right: var(--space-4);
+  }
+
   .v2ac-scrim {
     position: absolute;
     inset: 0;
