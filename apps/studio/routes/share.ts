@@ -52,6 +52,10 @@ export const MAX_SHARE_RESPONSE = 1024 * 1024;
 const MAX_BODY = 64 * 1024;
 
 export const OFFLINE_INVITE_WORDS = 'Invites send when this Mac is online.';
+/** S9.21 — Ask to edit, queued while the hub cannot hear it (V2-1.14 policy's own queued words). */
+export const OFFLINE_ASK_WORDS = 'Queued — sends when this Mac is online.';
+/** A requester's name as the owner reads it: one short line, no control characters. */
+export const MAX_REQUEST_NAME = 80;
 const NOT_LINKED = 'Share this project to the cloud first.';
 const UNREACHABLE = 'Sharing is not available right now. Try again in a minute.';
 
@@ -214,6 +218,87 @@ export function shareInviteSender(deps: ShareRouteDeps): Sender {
       ok: false,
       status: a.status,
       ...(typeof body.reason === 'string' ? { code: body.reason } : {}),
+      ...(typeof body.error === 'string' ? { message: body.error } : {}),
+    };
+  };
+}
+
+/**
+ * S9.21 — the ONLY body an Ask to edit carries: `{ canvas? }`. A note, a message, any other key the
+ * caller sent is dropped here, so no free text a requester typed ever reaches an owner (whose canvas
+ * iframe is untrusted, DDR-054) — the owner reads who asked, for what, and when; nothing else.
+ */
+export function askBody(b: Record<string, unknown>): Record<string, unknown> | null {
+  if (b.canvas !== undefined && b.canvas !== null && !validCanvas(b.canvas)) return null;
+  return typeof b.canvas === 'string' ? { canvas: b.canvas } : {};
+}
+
+// \p{Cc} = C0 + C1 controls; the rest are line/paragraph separators and bidi overrides/isolates.
+const CONTROL = /[\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]/gu;
+
+/** A name for one line of the owner's toast: control and bidi characters gone, cut short. */
+export function requestName(v: unknown): string {
+  const s = typeof v === 'string' ? v.replace(CONTROL, '').trim() : '';
+  return s.length > MAX_REQUEST_NAME ? `${s.slice(0, MAX_REQUEST_NAME - 1)}…` : s;
+}
+
+/**
+ * The open requests as the owner's Share sheet reads them, rebuilt key by key from the hub's answer:
+ * `{ id, from: { name, email? }, canvas?, at }`. Whatever else a cell sent (a note, markup) is gone.
+ */
+export function requestRows(body: unknown): Array<Record<string, unknown>> {
+  const list = (body as { requests?: unknown } | null)?.requests;
+  if (!Array.isArray(list)) return [];
+  const rows: Array<Record<string, unknown>> = [];
+  for (const r of list.slice(0, 200)) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    if (typeof o.id !== 'string' || !ID_RE.test(o.id)) continue;
+    const from = (o.from && typeof o.from === 'object' ? o.from : {}) as Record<string, unknown>;
+    const email =
+      typeof from.email === 'string' &&
+      from.email.length <= 320 &&
+      /^[^\s@]+@[^\s@]+$/.test(from.email)
+        ? from.email
+        : null;
+    rows.push({
+      id: o.id,
+      from: {
+        name: requestName(from.name) || (email ? email.split('@')[0] : ''),
+        ...(email ? { email } : {}),
+      },
+      ...(validCanvas(o.canvas) ? { canvas: o.canvas } : {}),
+      at: typeof o.at === 'number' && Number.isFinite(o.at) ? o.at : null,
+    });
+  }
+  return rows;
+}
+
+/**
+ * The outbox's door for `share.ask-to-edit` (V2-1.14 §5.4): the queued request, sent to the hub this
+ * project is linked to NOW, as `{ canvas? }` only (the record's `note` is never sent — see `askBody`).
+ * "You already asked" and "you can already edit" are the request having landed (G16), not a failure.
+ */
+export function shareAskToEditSender(deps: ShareRouteDeps): Sender {
+  return async (record) => {
+    const p = record.payload as Extract<IntentPayload, { kind: 'share.ask-to-edit' }>;
+    const hub = deps.hub();
+    if (!hub) return { ok: false, status: 409, code: 'not-linked', message: NOT_LINKED };
+    if (record.project.hub && record.project.hub !== hub.url)
+      return { ok: false, status: 409, code: 'not-linked', message: NOT_LINKED };
+    const canvas = typeof p.scope === 'object' ? p.scope.canvas : undefined;
+    const a = await callHub(deps, hub, 'POST', '/api/access/requests', canvas ? { canvas } : {});
+    if (!a.ok) return { ok: false, network: true };
+    const body = (a.body ?? {}) as { id?: unknown; error?: unknown; reason?: unknown };
+    if (a.status >= 200 && a.status < 300)
+      return { ok: true, ...(typeof body.id === 'string' ? { ref: body.id } : {}) };
+    const reason = typeof body.reason === 'string' ? body.reason : undefined;
+    return {
+      ok: false,
+      status: a.status,
+      ...(reason
+        ? { code: reason === 'pending' || reason === 'already-can-edit' ? 'already' : reason }
+        : {}),
       ...(typeof body.error === 'string' ? { message: body.error } : {}),
     };
   };
@@ -389,5 +474,63 @@ export function createShareRoutes(deps: ShareRouteDeps): RouteSpec[] {
         return relay(await callHub(deps, hub, 'DELETE', `/api/access/people/${id}${q}`));
       }),
     },
+    // S9.21 — Ask to edit (10 co-ask-edit). ANY session may ask (a read-only one most of all — this
+    // is the read-only person's one write); the hub decides whether it may (`request` on the scope,
+    // 409 `already-can-edit`, 409 `pending`, 429 when asked too often). Only `{ canvas? }` is sent.
+    {
+      method: 'POST',
+      path: '/_api/share/requests',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async (req) => {
+        const hub = deps.hub();
+        if (!hub) return json(409, { error: NOT_LINKED, reason: 'not-linked' });
+        const raw = await readBody(req);
+        const body = raw && askBody(raw);
+        if (!body) return json(403, { error: 'not-in-scope', reason: 'not-in-scope' });
+        const a = await callHub(deps, hub, 'POST', '/api/access/requests', body);
+        if (a.ok || !deps.outbox) return relay(a);
+        const scope: ShareScope =
+          typeof body.canvas === 'string' ? { canvas: body.canvas } : 'project';
+        const r = deps.outbox.enqueue({
+          kind: 'share.ask-to-edit',
+          actor: deps.actor?.() ?? 'you',
+          device: deps.device?.() ?? 'studio',
+          project: { id: null, hub: hub.url },
+          label: 'Ask to edit',
+          payload: { kind: 'share.ask-to-edit', scope },
+          gates: ['hub'],
+        });
+        if (!r.ok) return json(503, { error: UNREACHABLE, reason: r.code });
+        return json(202, { queued: true, id: r.record.id, words: OFFLINE_ASK_WORDS });
+      },
+    },
+    // The open requests — the owner's (the request block at the top of Share). Rebuilt row by row.
+    {
+      method: 'GET',
+      path: '/_api/share/requests',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: asOwner(async (_req, _p, hub) => {
+        const a = await callHub(deps, hub, 'GET', '/api/access/requests');
+        if (!a.ok) return relay(a);
+        if (a.status !== 200) return json(a.status, a.body);
+        return json(200, { requests: requestRows(a.body) });
+      }),
+    },
+    // Let Petra edit / Not now — the owner's; the hub re-checks `invite` and writes the grant.
+    ...(['approve', 'decline'] as const).map(
+      (verb): RouteSpec => ({
+        method: 'POST',
+        path: `/_api/share/requests/:id/${verb}`,
+        origin: 'main',
+        readOnly: 'refused',
+        handle: asOwner(async (_req, params, hub) => {
+          const id = idOf(params);
+          if (!id) return json(404, { error: 'That request is no longer open.', reason: 'gone' });
+          return relay(await callHub(deps, hub, 'POST', `/api/access/requests/${id}/${verb}`, {}));
+        }),
+      })
+    ),
   ];
 }
