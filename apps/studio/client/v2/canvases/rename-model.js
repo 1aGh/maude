@@ -19,6 +19,11 @@ export const RENAME_WORDS = {
       ? `Names can use letters, numbers, spaces, - and _. Try “${suggestion}”.`
       : 'Names can use letters, numbers, spaces, - and _. Try another name.',
   long: `Names are ${RENAME_MAX} characters or fewer.`,
+  // sec-a L3 — same words as the server's `underscoreRefusal` (canvas-create.ts)
+  underscore: (suggestion) =>
+    suggestion
+      ? `Names can’t start with _. Try “${suggestion}”.`
+      : 'Names can’t start with _. Try another name.',
   failed: 'Could not rename. Try again.',
   // Same words as the server's `tooCloseText` (sync-name-key.ts) — a test pins them equal.
   close: (name, other) =>
@@ -114,6 +119,12 @@ export function checkRename({ draft, current, siblings = new Set() }) {
     return folded && !collides
       ? { kind: 'error', error: RENAME_WORDS.refusal(folded), suggestion: folded }
       : { kind: 'error', error: RENAME_WORDS.refusal('') };
+  }
+  if (name.startsWith('_')) {
+    const fix = name.replace(/^[_\s]+/, '');
+    return fix && !siblings.has(fold(fix))
+      ? { kind: 'error', error: RENAME_WORDS.underscore(fix), suggestion: fix }
+      : { kind: 'error', error: RENAME_WORDS.underscore('') };
   }
   if ([...name].length > RENAME_MAX) return { kind: 'error', error: RENAME_WORDS.long };
   if (siblings.has(fold(name))) return { kind: 'error', error: RENAME_WORDS.taken };

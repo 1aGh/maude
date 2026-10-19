@@ -81,6 +81,20 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view', 'comment'],
     body: { file: '.design/ui/a.tsx', id: 'st-1' },
   },
+  // sec-a L7 — the other direction (comment → sticky) and the conversion's undo token are board writes
+  // too (access/request.ts ANNOTATE_WRITES): refused below `edit`, before the body is read
+  {
+    method: 'POST',
+    route: '/_api/comments/to-sticky',
+    refused: ['view', 'comment'],
+    body: { commentId: 'c_1' },
+  },
+  {
+    method: 'POST',
+    route: '/_api/annotations/convert-undo',
+    refused: ['view', 'comment'],
+    body: { token: 'tok-1' },
+  },
   // S4.16 - a FigJam board arrives as annotations: an edit (hub `annotate`), refused before the body is read
   {
     method: 'POST',

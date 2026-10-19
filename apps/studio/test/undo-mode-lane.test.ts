@@ -58,6 +58,7 @@ test('frames hear their mode; the active canvas’s undo-key runs the projection
     activePath: () => '.design/ui/a.tsx',
     canvasOrigin: () => ORIGIN,
     store: store as never,
+    focused: () => true, // sec-a: the canvas holds focus (the gate is pinned in sec-a-undo-key)
     runKey: ((path: string, redo: boolean, fallback: () => void) => {
       ran.push([path, redo]);
       fallbackOf = fallback;

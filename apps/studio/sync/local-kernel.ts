@@ -1406,11 +1406,35 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       if (content === null || base === null)
         return { status: 'rejected', code: 'invalid' } as LocalOutcome;
       // A stroke that leaves the store's head as it is (a room repeating the PUT) is no action —
-      // whatever base it names: a room projecting the board an artboard move's rider already
+      // a room projecting the board an artboard move's rider already
       // recorded reads its base from the not-yet-flushed file, and a catch-up + second edit there
       // made the move a two-step ⌘Z (S4.18 an-follow).
-      if (lanes.length === 1 && laneHash(content) === headHash)
-        return { status: 'accepted' } as LocalOutcome;
+      if (lanes.length === 1 && laneHash(content) === headHash) {
+        const baseHash = laneHash(base);
+        // …when the base is a state the store already holds (the S4.18 replay: its base is the board
+        // the rider's action started from).
+        if (baseHash === headHash || (await store.blob(baseHash)) != null)
+          return { status: 'accepted' } as LocalOutcome;
+        // sec-a L1 — a base the store never saw is a passing OUTSIDE write that this stale PUT is about
+        // to overwrite. Keep the catch-up `outside` row (history shows what passed), and record the
+        // return to the head as `outside` too — never as the person's edit, so their ⌘Z stack is
+        // what it was (one ⌘Z after an artboard drag still restores everything).
+        const passed = await submit(
+          [{ op: 'lane.replace', doc: live.doc, lane, content: base, base: headHash }],
+          { kind: OUTSIDE_KIND, label: null },
+          actor,
+          {},
+          true
+        );
+        if (passed.status !== 'accepted') return passed;
+        return submit(
+          [{ op: 'lane.replace', doc: live.doc, lane, content, base: baseHash }],
+          { kind: OUTSIDE_KIND, label: null },
+          actor,
+          {},
+          true
+        );
+      }
       if (laneHash(base) !== headHash)
         catchUp.push({ op: 'lane.replace', doc: live.doc, lane, content: base, base: headHash });
       ops.push({ op: 'lane.replace', doc: live.doc, lane, content, base: laneHash(base) });
