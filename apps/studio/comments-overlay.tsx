@@ -60,6 +60,7 @@ import {
   type WorldPoint,
   worldToClient,
 } from './comment-anchor.ts';
+import { fromHeadline, fromWho } from './comments/from-line.ts';
 import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
@@ -155,7 +156,13 @@ export interface OverlayComment {
   mm?: { x: number; y: number };
   authorKind?: 'ai';
   /** A converted sticky (S4-S9-votes-comments §3.1). */
-  from?: { kind: string; id: string; author: string; convertedBy: string; at: string };
+  from?: {
+    kind: string;
+    id: string;
+    author: string;
+    convertedBy: string;
+    at: string;
+  };
   // html_excerpt unused at overlay layer; kept off the type to keep the
   // surface tight.
 }
@@ -1723,7 +1730,7 @@ export function CommentThread({
         ) : null}
         {comment.from ? (
           <div className="cm-thread__from" data-testid={`comment-from-${comment.id}`}>
-            From {firstName(comment.from.author)}’s sticky · turned into a comment by{' '}
+            {fromHeadline(comment.from)} · turned into a comment by{' '}
             {mine ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
           </div>
         ) : null}
@@ -1732,13 +1739,13 @@ export function CommentThread({
       {draft === null ? (
         <div className="cm-msg cm-msg--root">
           <Avatar
-            name={comment.from ? comment.from.author : comment.author}
-            ai={comment.authorKind === 'ai'}
+            name={comment.from ? fromWho(comment.from).name : comment.author}
+            ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
           />
           <div className="cm-msg__main">
             <div className="cm-msg__head">
               <span className="cm-thread__author">
-                {(comment.from ? comment.from.author : comment.author)?.trim() || 'unknown'}
+                {(comment.from ? fromWho(comment.from).name : comment.author?.trim()) || 'unknown'}
               </span>
               <span className="cm-thread__time">{formatRelativeTime(comment.created)}</span>
             </div>

@@ -28,6 +28,7 @@ import {
   diffToOps,
 } from './annotations/ops.ts';
 import './annotations/ops-merge.ts';
+import { runTagOf } from './annotations/run-tag.ts';
 import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
@@ -2609,7 +2610,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }));
       // A live room is ahead of the file (its flush is debounced): the batch
       // goes to its replica, or it would revert a peer's unflushed edit (H1).
-      const live = withHooks ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null) : null;
+      // A run-tagged batch (`run:<runId>`, an AI run's resolves and review stickies) never takes the live-room
+      // shortcut: the room's flush would publish it as a person's "Edit annotations" action, outside the run's
+      // stage, and ⌘Z / "Undo this chat" would miss it (contract S4-S5-ai-annotations §2; S4.20).
+      const live =
+        withHooks && runTagOf(actionId) === null
+          ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null)
+          : null;
       if (live === 'too-large') {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }

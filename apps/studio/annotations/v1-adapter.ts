@@ -31,6 +31,7 @@ import { v1ToV2 } from './migrate-v1.ts';
 import { defOf, HEAD_FIELDS, isKnownType, TAIL_FIELDS } from './registry.ts';
 import { Scene } from './scene.ts';
 import { validateElements } from './schema.ts';
+import { readTimeRange } from './time-marks.ts';
 import type { AnnotationElement, ArrowEnd, Box } from './types.ts';
 
 /** Stable id of the v1 anchored-text stroke that shows a shape's label. */
@@ -85,6 +86,13 @@ function shared(el: AnnotationElement): Partial<Stroke> {
     out.resolved = { by: res.by, at: res.at };
   if (el.type === 'sticky' && typeof el.at === 'string') out.at = el.at;
   if (el.type === 'section' && el.folded === true) out.folded = true;
+  // S4.20 — a note's membership and its video pin reach the scene (chip, fade, "Not printed"). Read-only:
+  // neither is STROKE_EXT_OWNED, so a stroke commit keeps the stored values untouched.
+  if (el.type === 'sticky') {
+    if (typeof el.parentArtboard === 'string') out.parentArtboard = el.parentArtboard;
+    const tr = readTimeRange(el.timeRange);
+    if (tr) out.timeRange = tr;
+  }
   const src = el.source as { kind?: unknown; author?: unknown } | undefined;
   if (src && typeof src.kind === 'string')
     out.source = {
@@ -119,6 +127,7 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
           ...base,
           tool: 'sticky',
           color: str(el.fill, DEFAULT_STICKY_FILL),
+          ...(typeof el.fill === 'string' && el.fill ? {} : { unfilled: true }),
           x,
           y,
           w,

@@ -217,6 +217,32 @@ describe('the local home — one action, both lanes', () => {
     expect(comments().some((c) => c.id === thread?.id)).toBe(true);
     expect(ids()).not.toContain('s_hero');
   }, 30_000);
+
+  // S4.20 (an-convert) — an AI-authored sticky has no person's name: the thread reads "From AI's sticky" with the
+  // AI avatar (the word travels in `from.author`; the format has no author-kind on `from`), and "Turn back
+  // into a sticky" gives an AI sticky back, not a person called AI.
+  test('an AI sticky converts as "AI" and turns back into an AI sticky', async () => {
+    const aiSticky = sticky({ id: 's_ai', author: { kind: 'ai' }, x: 400, y: 120 });
+    const put = await post('/_api/annotations/ops', {
+      file: FILE,
+      actionId: 'ui-s420-put',
+      ops: [{ op: 'put', el: aiSticky }],
+    });
+    expect(put.status).toBe(200);
+    const conv = await post('/_api/annotations/to-comment', { file: FILE, id: 's_ai' });
+    expect(conv.status).toBe(200);
+    const thread = comments().find((c) => c.id === conv.json.commentId);
+    expect(thread?.from).toMatchObject({ kind: 'sticky', id: 's_ai', author: 'AI' });
+    const back = await post('/_api/comments/to-sticky', { commentId: conv.json.commentId });
+    expect(back.status).toBe(200);
+    const el = parseBoard(read(boardFile()) ?? '').elements.find((e) => e.id === 's_ai');
+    expect(el?.author).toEqual({ kind: 'ai' });
+    await post('/_api/annotations/ops', {
+      file: FILE,
+      actionId: 'ui-s420-del',
+      ops: [{ op: 'delete', id: 's_ai' }],
+    });
+  }, 30_000);
 });
 
 /* --------------------------------------------------------- Can comment */

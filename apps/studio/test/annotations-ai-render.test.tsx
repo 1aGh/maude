@@ -56,14 +56,24 @@ const sticky = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('a sticky the AI wrote', () => {
-  test('neutral paper, a spark edge and a spark glyph; "AI" under it when selected', () => {
-    const html = draw(sticky({ author: AI, at: new Date().toISOString() }), { selected: true });
+  // S4.20 (lead decision v2-lead-explicit-fill-beats-ai-neutral-paper): a stored fill ALWAYS renders; the neutral
+  // paper is only the default for an AI sticky that has none.
+  test('neutral paper (when it has no fill), a spark edge and a spark glyph; "AI" under it when selected', () => {
+    const html = draw(sticky({ author: AI, fill: undefined, at: new Date().toISOString() }), {
+      selected: true,
+    });
     expect(html).toContain('data-author="ai"');
     expect(html).toContain(AI_PAPER);
-    expect(html).not.toContain('#fce8a6'); // its stored swatch is not what it draws
+    expect(html).not.toContain('#fce8a6');
     expect(html).toContain(`stroke="${AI_SPARK}"`);
     expect(html).toContain('dc-annot-spark');
     expect(html).toContain('AI');
+  });
+  test('an AI sticky with a stored fill wears that fill, still with the spark edge', () => {
+    const html = draw(sticky({ author: AI, fill: '#c9b8f0' }));
+    expect(html).toContain('#c9b8f0');
+    expect(html).not.toContain(AI_PAPER);
+    expect(html).toContain('dc-annot-spark');
   });
   test("a person's sticky keeps its swatch and has no spark", () => {
     const html = draw(sticky({ author: { kind: 'human', name: 'Tereza' } }));
