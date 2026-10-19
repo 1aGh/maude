@@ -17,6 +17,7 @@ import * as Y from 'yjs';
 
 import { ballotId } from '../annotations/elements/ballot.model.ts';
 import { stampId } from '../annotations/elements/stamp.model.ts';
+import { voteResultId } from '../annotations/elements/vote.model.ts';
 import { diffToOps } from '../annotations/ops.ts';
 import { withFormat1Reader } from '../annotations/registry.ts';
 import {
@@ -29,6 +30,7 @@ import {
 import { serializeBoard, validateElements } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import { elementsToStrokes, strokesToElementMap } from '../annotations/v1-adapter.ts';
+import { castOps, endOps, startOps } from '../annotations/votes-local.ts';
 
 const AT = '2026-10-01T10:00:00Z';
 const v1 = <T>(fn: () => T): T => withFormat1Reader(fn);
@@ -261,5 +263,55 @@ describe('v1 → v2 (a format-2 peer receives a format-1 board)', () => {
       .sort();
     expect(ballots).toEqual(['u_ana', 'u_jonas']);
     expect(serializeBoard(readReplica(b)?.elements ?? [])).toBe(replicaBoardText(a) as string);
+  });
+
+  // S4.14 — a vote ended on v2 (the counts on the vote element, `expected`, the result section and its
+  // text member — annotations/votes-local.ts endOps) reaches a v1 peer whole, both ways, and the v1
+  // peer reads the result as an ordinary section + text (what a 1.x reader and AI see).
+  test('an ended vote + its result section survive a v1 peer both ways', () => {
+    const { a, b } = pair();
+    const T0 = Date.UTC(2026, 9, 1, 10, 0, 0);
+    const start = startOps(
+      [],
+      { targets: ['ab:dir-a', 'ab:dir-b'], title: 'Helmy', expected: 3 },
+      'You',
+      T0,
+      'vote-abcdefghij'
+    );
+    if ('refused' in start) throw new Error('start refused');
+    let board = canonical([start.vote as Record<string, unknown>]);
+    const cast = castOps(board, 'vote-abcdefghij', 'u_ana', { 'ab:dir-a': 2 }, T0 + 1000);
+    if ('refused' in cast) throw new Error('cast refused');
+    board = canonical([
+      ...board,
+      ...cast.ops.flatMap((o) => (o.op === 'put' ? [o.el] : [])),
+    ] as never);
+    const end = endOps(board, 'vote-abcdefghij', 'ui/j.tsx', T0 + 60_000, {
+      labels: { 'ab:dir-a': 'A' },
+    });
+    if ('refused' in end) throw new Error('end refused');
+    writeReplica(a, board);
+    applyOpsToReplica(a, end.ops);
+    const v2Bytes = replicaBoardText(a) as string;
+    expect(v1(() => replicaBoardText(b))).toBe(v2Bytes);
+    const onV1 = v1(() => els(b));
+    expect(onV1.get('vote-abcdefghij')?.tallies).toEqual({ 'ab:dir-a': 2 });
+    expect(onV1.get('vote-abcdefghij')?.expected).toBe(3);
+    const sec = onV1.get(voteResultId('vote-abcdefghij'));
+    expect(sec?.label).toBe('Vote · Helmy · 1 Oct');
+    // v1 re-texts the result; v2 keeps it and every vote field
+    v1(() =>
+      applyOpsToReplica(b, [
+        {
+          op: 'patch',
+          id: `${voteResultId('vote-abcdefghij')}-t`,
+          set: { text: 'A · 2 (checked)' },
+        },
+      ])
+    );
+    const onV2 = els(a);
+    expect(onV2.get(`${voteResultId('vote-abcdefghij')}-t`)?.text).toBe('A · 2 (checked)');
+    expect(onV2.get('vote-abcdefghij')?.state).toBe('ended');
+    expect(onV2.get(ballotId('vote-abcdefghij', 'u_ana'))?.picks).toEqual({ 'ab:dir-a': 2 });
   });
 });

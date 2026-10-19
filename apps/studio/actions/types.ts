@@ -197,7 +197,10 @@ export type HumanReason =
   // S11.10: the git half of Version history › Advanced (branch, save with a note, publish, open a pull
   // request…). The person's working tree and remote; an agent runs git itself in the project folder —
   // decision:maude/v2-S11.10-git-actions-human
-  | 'git';
+  | 'git'
+  // S4.14: a formal vote is people's decision (Gate 0 A18). The agent has no vote verb; it reads the
+  // result section the vote leaves (`maude design read-annotations`) — decision:maude/v2-S4.14-votes-human
+  | 'vote';
 
 export type AgentPath =
   | { path: 'file'; format: FormatId; skill: SkillRef; how: string }

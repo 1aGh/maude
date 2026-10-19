@@ -45,6 +45,7 @@ import { createSyncConflictRoutes, type SyncConflictRouteDeps } from './sync-con
 import type { RouteSpec } from './table.ts';
 import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 import { createVideoRoutes } from './video.ts';
+import { createVoteRoutes, type VoteRouteDeps } from './votes.ts';
 
 const trashAccessNone = resolveAccess(null);
 
@@ -65,6 +66,8 @@ export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 export { announceAction, runStageHooks } from './project-undo.ts';
 // S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
 export { type ShareRouteDeps, shareInviteSender } from './share.ts';
+// S4.14 — where a project's votes live (local / hub / off), resolved per request by http.ts.
+export { createVoteHomeResolver as voteHomeResolver } from './votes.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -117,6 +120,8 @@ export interface RouteDeps {
   syncConflicts?: SyncConflictRouteDeps;
   /** S10.3 — a converted design system's reviews (`/_api/ds/*`, main origin only, Q15 gates) */
   ds?: DsRouteDeps;
+  /** S4.14 — `/_api/votes*`: formal votes (local board ballots, or a proxy to a `votes-v1` hub) */
+  votes?: VoteRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -187,6 +192,16 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
         engine: () => null,
         access: () => trashAccessNone,
         person: async () => ({ name: '' }),
+      }
+    ),
+    // S4.14 — no home wired: votes are off (every write 409 `votes-off`), nothing is read or written
+    ...createVoteRoutes(
+      deps.votes ?? {
+        designRel: deps.ai.designRel,
+        home: () => ({ kind: 'off' }),
+        person: async () => '',
+        readBoard: async () => ({ ok: false, error: 'no board' }),
+        applyOps: async () => ({ ok: false }),
       }
     ),
   ];

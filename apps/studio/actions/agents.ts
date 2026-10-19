@@ -1024,6 +1024,22 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'Remove the stickies whose resolved is set from the board file'
   ),
   'annotations.select-resolved': { effect: 'none', agent: cli('maude design read-annotations') },
+  // S4.14 — people vote; the agent reads the result section. The doors are /_api/votes/start|end (edit).
+  'annotations.start-vote': {
+    effect: 'shared',
+    minRole: 'edit',
+    server: { route: '/_api/votes/start', method: 'POST' },
+    agent: human(
+      'vote',
+      'the result section is on the board when it ends: `maude design read-annotations`'
+    ),
+  },
+  'annotations.end-vote': {
+    effect: 'shared',
+    minRole: 'edit',
+    server: { route: '/_api/votes/end', method: 'POST' },
+    agent: human('vote', 'the counts and the result section: `maude design read-annotations`'),
+  },
   'annotation.point-to': BOARD(
     'Set the arrow’s startHost / endHost to the new ab:<artboard> or el:<artboard>/<id> ref (with the name it is shown under) and move its start / end cache to where the host is'
   ),

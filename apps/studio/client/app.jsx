@@ -86,6 +86,7 @@ import { migrateAtBoot } from './v2/settings/prefs-migrate.js';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';
+import VoteHost from './v2/annotations/vote-bar.jsx';
 import ComponentPicker from './v2/inspector/component-picker.jsx';
 import { getPaletteEnv } from './v2/search/search-env.js';
 import {
@@ -3266,6 +3267,14 @@ function ShellTree() {
           anchor={stickerPickerReq.anchor ?? null}
         />
       )}
+      {/* S4.14 — the vote bar + the Start a vote sheet for the active canvas (Gate 0 A18) */}
+      <VoteHost
+        iframesRef={iframesRef}
+        activePath={activePath}
+        canEdit={!viewerMode}
+        role={cfg?.cloud?.role}
+        notify={notify}
+      />
       {templatesReq && (
         <TemplatesPanel
           onPick={({ id }) => postToActiveCanvas({ dgn: 'insert-template', id, follow: true })}

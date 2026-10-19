@@ -69,6 +69,13 @@ export const COMMENT_WRITE_PATTERNS: readonly RegExp[] = Object.freeze([
   /^\/_api\/comments\/[A-Za-z0-9_-]+\/reply$/,
 ]);
 
+/**
+ * S4.14 — table routes (routes/votes.ts) of the vote class: casting your own ballot. The spec declares
+ * `readOnly: 'allowed'` itself; this set says WHICH capability that is: `vote` (Can comment and up —
+ * Can view is refused), never the table's default `session`. Start / end are `edit` (the default).
+ */
+export const VOTE_TABLE_WRITES: ReadonlySet<string> = new Set(['/_api/votes/ballot']);
+
 /** Every download and export — `export` on the export's target. */
 export const EXPORT_WRITES: ReadonlySet<string> = new Set([
   '/_api/export',
@@ -124,6 +131,7 @@ export function writeCapability(pathname: string, tableSession?: SessionAllowlis
     COMMENT_WRITE_PATTERNS.some((re) => re.test(pathname))
   )
     return 'comment';
+  if (VOTE_TABLE_WRITES.has(pathname)) return 'vote';
   if (SESSION_WRITES.has(pathname)) return 'session';
   if (tableSession?.exact.has(pathname) || tableSession?.patterns.some((re) => re.test(pathname)))
     return 'session';

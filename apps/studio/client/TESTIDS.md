@@ -1884,3 +1884,19 @@ These selectors appear in consumers but target content that is not studio UI, so
 | `stamps-row-<id>` | testid (pattern) | S4.13: one stamp in the row the Stickers gallery folds to after a stamp (`yes`, `no`, `star`, `heart`, `ask`, `plus`; `data-on` on the armed one). | `client/v2/annotations/stamp-row.jsx` · `StampRow` | test:stickers-recent-stamps.test | new |
 | `stamps-row-more` | testid | S4.13: the chevron on the folded Stamps row that opens the whole gallery again. | `client/v2/annotations/stamp-row.jsx` · `StampRow` | test:stickers-recent-stamps.test | new |
 | `stamps-row-done` | testid | S4.13: Done on the folded Stamps row (closes the gallery). | `client/v2/annotations/stamp-row.jsx` · `StampRow` | test:stickers-recent-stamps.test | new |
+| `vote-sheet` | testid | The Start a vote sheet (S4.14, canvas 15 an-vote): the artboards to vote on, title, votes each, time, the secrecy line, Cancel · Start vote. | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-sheet-target-<artboard>` | testid (pattern) | One artboard row of the Start a vote sheet (a checkbox). | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-sheet-title` | testid | The sheet's optional title field (the result section is "Vote · <title> · 1 Oct"). | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-sheet-per-voter` | testid | The sheet's "Votes each" field (1–10, default 3). | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-sheet-duration` | testid | The sheet's "Time" select (1, 2, 5, 10 min; default 2 min). | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-sheet-line` | testid | The sheet's secrecy line: local "Anyone who can open this project's files can see the votes.", hub "Nobody sees the others' votes until the end.", or the older-team-server line (Start vote disabled). | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-sheet-start` | testid | The sheet's Start vote button (POST /_api/votes/start, edit). | `client/v2/annotations/vote-sheet.jsx` · `VoteSheet` | test:votes | new |
+| `vote-bar` | testid | The vote bar while the active canvas has an open vote: "Vote <what> · N left of your 3 · 1:42 · 4 of 5 done · End vote". | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
+| `vote-bar-left` | testid | The bar's "N left of your M" (your own dots only). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
+| `vote-bar-time` | testid | The bar's countdown (m:ss). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
+| `vote-bar-done` | testid | The bar's faces + "4 of 5 done": WHO has voted, never what. | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
+| `vote-bar-end` | testid | The bar's End vote button (editors only; POST /_api/votes/end). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
+| `vote-dots` | testid | The canvas-side vote chips host (world space; only while a vote is shown). | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |
+| `vote-dots-<artboard>` | testid (pattern) | Your dots on one voted artboard ("yours") while the vote is open; a dot click takes it back. | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |
+| `vote-add-<artboard>` | testid (pattern) | The "+" on a voted artboard: one more dot (disabled when none are left). | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |
+| `vote-count-<artboard>` | testid (pattern) | A voted artboard's count once the vote has ended (the winner ringed: `dc-vcount--win`). | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |

@@ -22917,5 +22917,213 @@
       "apps/studio/test/stickers-recent-stamps.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "vote-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Start a vote sheet (S4.14, canvas 15 an-vote): the artboards to vote on, title, votes each, time, the secrecy line, Cancel · Start vote.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-target-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard row of the Start a vote sheet (a checkbox).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's optional title field (the result section is \"Vote · <title> · 1 Oct\").",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-per-voter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's \"Votes each\" field (1–10, default 3).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-duration",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's \"Time\" select (1, 2, 5, 10 min; default 2 min).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's secrecy line: local \"Anyone who can open this project's files can see the votes.\", hub \"Nobody sees the others' votes until the end.\", or the older-team-server line (Start vote disabled).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-sheet-start",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's Start vote button (POST /_api/votes/start, edit).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-sheet.jsx",
+      "symbol": "VoteSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The vote bar while the active canvas has an open vote: \"Vote <what> · N left of your 3 · 1:42 · 4 of 5 done · End vote\".",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-left",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's \"N left of your M\" (your own dots only).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's countdown (m:ss).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's faces + \"4 of 5 done\": WHO has voted, never what.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-end",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's End vote button (editors only; POST /_api/votes/end).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-dots",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The canvas-side vote chips host (world space; only while a vote is shown).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-dots-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Your dots on one voted artboard (\"yours\") while the vote is open; a dot click takes it back.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-add-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The \"+\" on a voted artboard: one more dot (disabled when none are left).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-count-<artboard>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A voted artboard's count once the vote has ended (the winner ringed: `dc-vcount--win`).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/vote-dots.tsx",
+      "symbol": "VoteDots"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
   }
 ]

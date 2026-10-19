@@ -368,6 +368,7 @@ describe('the artboard menu', () => {
       ['ask-ai'],
       ['duplicate-artboard', 'duplicate-at-width', 'rename-artboard'],
       ['add-comment'],
+      ['start-vote'], // S4.14
       ['export-artboard'],
       ['advanced'],
       ['delete-artboard'],

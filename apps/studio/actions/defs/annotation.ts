@@ -122,6 +122,24 @@ export const VISIBILITY_ACTIONS: ActionDef[] = [
     enabled: { minRole: 'edit', facts: ['canvasOpen'] },
     search: { keywords: ['resolved', 'trash', 'clear', 'sticky', 'done', 'delete'] },
   },
+  // S4.14 (Gate 0 A18) — a formal vote. The canvas answers with its artboards (`vote-board {open}`) and
+  // the shell opens the sheet; the artboard's right-click row sends the same. Editors start and end.
+  {
+    id: 'annotations.start-vote',
+    label: 'Start a vote…',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
+    search: { keywords: ['vote', 'poll', 'dot', 'decide', 'ballot', 'pick'] },
+  },
+  {
+    id: 'annotations.end-vote',
+    label: 'End vote',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
+    search: { keywords: ['vote', 'end', 'finish', 'results', 'count'] },
+  },
   {
     id: 'annotations.select-resolved',
     label: 'Select resolved stickies',

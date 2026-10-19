@@ -131,6 +131,27 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'proposeLanes → one action, comments + annotations lane.replace with the read bases',
     test: 'test/annotations-convert.test.ts',
   },
+  // S4.14 — formal votes (routes/votes.ts). Local: the vote + your ballot element are board ops;
+  // hub: the board gets the vote element (start) and its counts + the result section (end) only.
+  '/_api/votes': { class: 'read' }, // the canvas's votes + the session's own picks
+  '/_api/votes/start': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'api.applyAnnotationOps → onAnnotationsChanged hook → annotations lane.replace (the vote element)',
+    test: 'test/votes-local.test.ts',
+  },
+  '/_api/votes/ballot': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'local: api.applyAnnotationOps (your ballot element) → annotations lane; hub: nothing on the board',
+    test: 'test/votes-cloud-client.test.ts',
+  },
+  '/_api/votes/end': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'api.applyAnnotationOps → annotations lane (the counts + the result section)',
+    test: 'test/votes-local.test.ts',
+  },
   // No op log (a legacy link): the conversion's in-memory undo token puts both files back.
   '/_api/annotations/convert-undo': {
     class: 'lane',
