@@ -47,6 +47,18 @@ export function runScopeOf({ canvas, scope } = {}) {
       }));
     return artboards.length && elements.length ? { canvas, artboards, elements } : undefined;
   }
+  // S4.15 — ⌘/ on stickies: the artboards they sit on (and their arrows reach) are leased; none → the whole
+  // canvas. Annotation writes themselves take no lease (contract S4-S5-ai-annotations §1/§2).
+  if (scope.kind === 'annotations' && Array.isArray(scope.ids) && scope.ids.length) {
+    const boards = [
+      ...new Set(
+        (Array.isArray(scope.artboards) ? scope.artboards : []).filter(
+          (id) => typeof id === 'string' && ARTBOARD_ID_RE.test(id)
+        )
+      ),
+    ].slice(0, 64);
+    return boards.length ? { canvas, artboards: boards } : { canvas, artboards: '*' };
+  }
   if (scope.kind === 'artboards' && Array.isArray(scope.ids)) {
     const ids = [
       ...new Set(scope.ids.filter((id) => typeof id === 'string' && ARTBOARD_ID_RE.test(id))),

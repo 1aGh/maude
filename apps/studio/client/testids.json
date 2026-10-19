@@ -22917,5 +22917,117 @@
       "apps/studio/test/stickers-recent-stamps.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "ai-offer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI offer card: it read the stickies and offers one change (15 `an-ai-read`). Nothing has changed yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-offer.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-says",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The plan in one line, as the agent wrote it, rendered as text.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-offer.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-leaves",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line that names how many stickies the offer leaves alone.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-offer.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-make",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offer card's one button, \"Make these changes\": sends the follow-up with the same stickies as the scope.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-offer.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-skip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offer card's \"Not now\": folds the card, sends nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-offer.test.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-seen",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas side: the layer that holds the AI offer's outlines (aria-hidden, no pointer events).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ai-seen.tsx",
+      "symbol": "AiSeenRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-seen-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas side: one dashed spark outline + tag round what the AI's offer means (\"The hero picture\").",
+    "producer": {
+      "file": "apps/studio/annotations/ui/ai-seen.tsx",
+      "symbol": "AiSeenRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-ai-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas side: the small spark badge on a status sticker the AI placed (\"Placed by AI\").",
+    "producer": {
+      "file": "apps/studio/annotations/ui/element-node.tsx",
+      "symbol": "ImageView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotations-ai-render.test.tsx"],
+    "v2": "new"
   }
 ]

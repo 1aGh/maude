@@ -17,6 +17,8 @@ import { runScopeOf } from '../v2/ai/ask-frame.js';
 
 /** Max elements listed in the block; the rest collapse to a `+N more` line. */
 export const CONTEXT_MAX_ELEMENTS = 12;
+/** S4.15 — a marquee of stickies is named by id (short, plain): more than a handful ride. */
+export const ANNOTATION_IDS_MAX = 100;
 
 /** Strip line/grammar-breaking chars from a canvas-derived string. Newlines are
  *  the load-bearing removal: the context rides as `[maude-context …]` LINES, so
@@ -122,6 +124,23 @@ export function buildChatContext({ canvas, selected, scope } = {}) {
       .map((id) => sanitize(id, 64))
       .filter(Boolean);
     if (ids.length) lines.push(`[maude-scope artboards="${ids.join(',')}"]`);
+  } else if (scope?.kind === 'annotations' && Array.isArray(scope.ids) && scope.ids.length) {
+    // S4.15 — ⌘/ on stickies: their ids and the file only, never their words. The agent reads those through
+    // `read-annotations`, which wraps them as untrusted data (contract S4-S5-ai-annotations §1).
+    const ids = scope.ids
+      .slice(0, ANNOTATION_IDS_MAX)
+      .map((id) => sanitize(id, 64))
+      .filter(Boolean);
+    const file = sanitize(scope.file || canvas, 200);
+    if (ids.length)
+      lines.push(
+        `[maude-scope annotations: ${ids.length} on ${file} — read them with: maude design read-annotations --selection ${ids.join(',')}]`
+      );
+    // "Make these changes" (S4.15): the stickies the offer answers, which the apply run resolves
+    const answers = (Array.isArray(scope.answers) ? scope.answers : [])
+      .filter((id) => ids.includes(sanitize(id, 64)))
+      .map((id) => sanitize(id, 64));
+    if (answers.length) lines.push(`[maude-offer-accepted answers=${answers.join(',')}]`);
   } else if (scope?.kind === 'elements' && Array.isArray(scope.refs) && scope.refs.length) {
     // S2.19 — ⌘/ on a selection: the asked elements by their data-cd-id (ids only, never their text)
     const ids = scope.refs
@@ -156,5 +175,16 @@ export function buildChatContext({ canvas, selected, scope } = {}) {
     count: els.length,
     stale,
     runScope: runScopeOf({ canvas, scope }),
+    // S4.15 — the stickies this ask is about, for the offer card's validation (client/v2/ai/ai-offer.js)
+    ...(scope?.kind === 'annotations' && Array.isArray(scope.ids) && scope.ids.length
+      ? {
+          annotations: {
+            file: scope.file || canvas,
+            ids: scope.ids.slice(0, ANNOTATION_IDS_MAX),
+            artboards: Array.isArray(scope.artboards) ? scope.artboards : [],
+            kinds: scope.kinds && typeof scope.kinds === 'object' ? scope.kinds : {},
+          },
+        }
+      : {}),
   };
 }
