@@ -42,6 +42,7 @@ import { objectRotate } from './rotate.ts';
 import { layoutSetGap } from './set-gap.ts';
 import { elementSetId } from './set-id.ts';
 import { SET_LINK_OP } from './set-link.ts';
+import { elementStamp } from './stamp.ts';
 import { componentSwapVariant } from './swap-variant.ts';
 import { textSet, textSetLanguage } from './text-copy.ts';
 import { textDetachStyle } from './text-detach.ts';
@@ -80,6 +81,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectHide,
   // S2.2b — the inspector's Element id field: renames the id and every durable reference to it
   elementSetId,
+  // S4.11 — an arrow to an unnamed element: name it first (the stamp is the write; Q12)
+  elementStamp,
   // S2.7 — the align bar and the rotate handle
   ...alignOps,
   ...distributeOps,
