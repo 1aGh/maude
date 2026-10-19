@@ -96,6 +96,9 @@ export const saveRecentSearch = (q, results) => post('/_home/recent-searches', {
 export const setPin = (pid, canvas, pinned) => post('/_home/pins', { pid, canvas, pinned });
 /** "Just a local project" (V2-1.1 §5.3): `~/Maude/<name>` scaffolded → `{ok, root, pid, name}`. */
 export const createLocal = (name) => post('/_home/projects/create-local', { name });
+/** S6.4: "a new project" from Home's question — named from the sentence on the server (C4). */
+export const createLocalFromPrompt = (fromPrompt) =>
+  post('/_home/projects/create-local', { fromPrompt });
 export const prepareCloud = (profile, server, projectId) =>
   post('/_home/cloud/prepare', { profile, server, projectId });
 /** A connect link's project (`maude://open/<project>?code=…`): the same prepare, with the link's
@@ -172,9 +175,15 @@ export async function shellListen(event, handler) {
 
 // The commands Home calls, with the argument shapes V2-1.1 §5.4 fixes — one place to look.
 export const shellState = () => shellInvoke('shell_state');
-/** `{pid}` (or `{root}`), optional `target: {canvas, artboard?}` → `{label, opened}`. */
-export const openProject = (where, target) =>
-  shellInvoke('open_project', target ? { ...where, target } : { ...where });
+/** `{pid}` (or `{root}`), optional `target: {canvas, artboard?}` and `intent: {kind, prompt,
+ *  projectHint?, moveToCloud?}` (S6.4 — Rust parks it for the new window; the prompt is never in a
+ *  URL) → `{label, opened}`. */
+export const openProject = (where, target, intent) =>
+  shellInvoke('open_project', {
+    ...where,
+    ...(target ? { target } : {}),
+    ...(intent ? { intent } : {}),
+  });
 export const openProjectFolder = () => shellInvoke('open_project_folder');
 export const relinkProject = (pid) => shellInvoke('relink_project', { pid });
 /** The existing command (github.js `managedProjectOpen`): resolves the managed copy's folder. */

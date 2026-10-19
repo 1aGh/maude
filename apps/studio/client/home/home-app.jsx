@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   createLocal,
+  createLocalFromPrompt,
   getCloud,
   getIndex,
   getRecentSearches,
@@ -36,18 +37,26 @@ import {
 } from './home-api.js';
 import { parseMaudeLink } from '../share-link.js';
 import { browserDoorOf } from '../v2/cloud/browser-door.js';
+import { HomeAsk } from './HomeAsk.jsx';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
+  accountFace,
   buildHomeModel,
   canvasCount,
   cloudRoleWord,
+  defaultTarget,
   indexQuery,
   linkProfile,
   localPidForLink,
+  newThisWeek,
   relativeTime,
   rowSlug,
+  sharedRows,
+  targetChoices,
   thumbUrl,
 } from './home-model.js';
+import { pickStarters } from './home-starters.js';
+import { ProjectsEmpty, SharedWithYou } from './Shelves.jsx';
 
 // ── theme: the Home window follows the Mac's appearance (light is the v2 default) ──────────────
 function systemTheme() {
@@ -239,13 +248,18 @@ function useDeepLink(native) {
 // a project tab IdentityBar opens its create dialog; on Home nothing listened, so the menu item did
 // nothing. Home's answer is this sheet: a name → `create-local` (`~/Maude/<name>`) → `open_project
 // ({root})`, the new project's tab (V2-1.1 §5.4 "A new project from Home is create-local first").
-function useNewProjectRequest(native, onRequest) {
+function useMenuActions(native, handlers) {
+  const ref = useRef(handlers);
+  ref.current = handlers;
   useEffect(() => {
     if (!native) return undefined;
     let alive = true;
     let off = null;
     shellListen('menu://action', (p) => {
-      if (p?.id === 'project.new') onRequest();
+      // the menu sends the focused window ONE id: project.new opens the sheet, canvas.new (⌘N) is the
+      // `create-empty` intent in the chip's project (S6.4 — no new id, the registry's own)
+      const run = typeof p?.id === 'string' ? ref.current[p.id] : null;
+      if (run) run();
     }).then((fn) => {
       if (alive) off = fn;
       else fn();
@@ -254,7 +268,45 @@ function useNewProjectRequest(native, onRequest) {
       alive = false;
       off?.();
     };
-  }, [native, onRequest]);
+  }, [native]);
+}
+
+// S6.4 — "online" = this Mac says so AND the cloud answered. Offline the AI is not on offer and cloud
+// projects not on this Mac grey out; this Mac's own projects and the empty canvas stay.
+function useOnline() {
+  const [online, setOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine !== false
+  );
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
+  }, []);
+  return online;
+}
+
+// "Shared with you" rows already opened on this Mac (they stop counting as "new this week"). A per-Mac
+// convenience, so Home's own storage is enough; it renders correctly without it.
+const SEEN_KEY = 'maude-home-shared-seen';
+function readSeen() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    return new Set(Array.isArray(v) ? v.filter((k) => typeof k === 'string').slice(-500) : []);
+  } catch {
+    return new Set();
+  }
+}
+function writeSeen(set) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...set].slice(-500)));
+  } catch {
+    /* private window / blocked storage: the count just stays */
+  }
 }
 
 // ── page ─────────────────────────────────────────────────────────────────────────────────────
@@ -269,7 +321,12 @@ export function HomeApp() {
   // null | { name, busy } — the New project… sheet.
   const [creating, setCreating] = useState(null);
   const askNewProject = useCallback(() => setCreating((c) => c ?? { name: '', busy: false }), []);
-  useNewProjectRequest(data.native, askNewProject);
+  const online = useOnline();
+  // S6.4 — where the sentence lands, and the shelves that come from the cloud
+  const [pick, setPick] = useState(null); // the person's choice in the chip, by key
+  const [asking, setAsking] = useState(false);
+  const askingRef = useRef(false);
+  const [seen, setSeen] = useState(readSeen);
 
   const model = useMemo(
     () =>
@@ -285,6 +342,21 @@ export function HomeApp() {
     () => (data.shell ? indexQuery(data.shell).pids : browserPids()),
     [data.shell]
   );
+
+  const signedIn = useMemo(() => data.clouds.some((c) => c?.signedIn), [data.clouds]);
+  const cloudOnline = online && !data.clouds.some((c) => c?.offline);
+  const choices = useMemo(
+    () => targetChoices({ model, signedIn, online: cloudOnline }),
+    [model, signedIn, cloudOnline]
+  );
+  const targetKey = useMemo(() => {
+    const chosen = choices.find((c) => c.key === pick && !c.disabled);
+    return chosen ? chosen.key : defaultTarget(choices, { shell: data.shell, model });
+  }, [choices, pick, data.shell, model]);
+  const target = choices.find((c) => c.key === targetKey) ?? choices.at(-1);
+  const starters = useMemo(() => pickStarters({ target, signedIn }), [target, signedIn]);
+  const shared = useMemo(() => sharedRows(data.clouds), [data.clouds]);
+  const sharedNew = useMemo(() => newThisWeek(shared, seen), [shared, seen]);
 
   // ⌘K focuses Search (contract §5.9 `home.search`)
   useEffect(() => {
@@ -352,7 +424,7 @@ export function HomeApp() {
   // resolves the copy's folder, `open_project` opens it). Cloud rows and connect links share it.
   // A Can view account gets no copy (S9.17b): the prepare's browser door opens the cell as a
   // `c-*` tab of the profile it was prepared for.
-  const openPrepared = useCallback(async (prep, name, profile) => {
+  const openPrepared = useCallback(async (prep, name, profile, target, intent) => {
     const door = browserDoorOf(prep.json);
     if (door) {
       const r = await openCellDoor(door.url, profile);
@@ -364,11 +436,11 @@ export function HomeApp() {
       return;
     }
     const root = await managedProjectOpen(prep.json);
-    if (typeof root === 'string' && root) await openProject({ root });
+    if (typeof root === 'string' && root) await openProject({ root }, target, intent);
   }, []);
 
   const openCloud = useCallback(
-    async (row) => {
+    async (row, target) => {
       try {
         const prep = await prepareCloud(row.profile, row.url, row.projectId);
         // A cloud that answers Can view with no browser door (before S9.2): the browser, as before.
@@ -376,13 +448,88 @@ export function HomeApp() {
           if (row.url) await openCloudUrl(row.url);
           return;
         }
-        await openPrepared(prep, row.name, row.profile);
+        await openPrepared(prep, row.name, row.profile, target);
       } catch (e) {
         fail(e);
       }
     },
     [fail, openPrepared]
   );
+
+  // A "Shared with you" row: the same open as a cloud project (cloud.open-remote), landing on the
+  // shared canvas when the share is one; opening it stops it counting as new.
+  const openShared = useCallback(
+    (row) => {
+      setSeen((prev) => {
+        const next = new Set(prev).add(row.key);
+        writeSeen(next);
+        return next;
+      });
+      return openCloud(
+        {
+          profile: row.profile,
+          url: null,
+          projectId: row.projectId,
+          name: row.projectName,
+          role: row.role,
+        },
+        row.canvasPath ? { canvas: row.canvasPath } : null
+      );
+    },
+    [openCloud]
+  );
+
+  // The question (S6.4). The sentence — or the empty canvas, or "Bring my existing brand" — leaves as an
+  // INTENT that Rust parks for the target window; it is never in a URL. The target is a project on this
+  // Mac (opened by pid), a cloud project not here yet (its own copy first, like any cloud row), or a
+  // project that does not exist yet: created on this Mac now, named from the sentence (C4), and — signed
+  // in and online — asked to move to the cloud in the background by its own window (Q4).
+  const startIn = useCallback(
+    async (intent) => {
+      if (!data.native || askingRef.current || !target) return false;
+      askingRef.current = true;
+      setAsking(true);
+      try {
+        if (target.kind === 'local') {
+          await openProject({ pid: target.pid }, null, intent);
+        } else if (target.kind === 'cloud') {
+          const prep = await prepareCloud(target.profile, null, target.projectId);
+          await openPrepared(prep, target.name, target.profile, null, intent);
+        } else {
+          const r = intent.prompt
+            ? await createLocalFromPrompt(intent.prompt)
+            : await createLocal('');
+          if (!r.ok || !r.json?.ok || typeof r.json.root !== 'string') {
+            setNotice(r.json?.error || 'The project could not be created. Nothing changed.');
+            return false;
+          }
+          await openProject({ root: r.json.root }, null, {
+            ...intent,
+            projectHint: r.json.name,
+            ...(signedIn && cloudOnline ? { moveToCloud: true } : {}),
+          });
+        }
+        return true;
+      } catch (e) {
+        fail(e);
+        return false;
+      } finally {
+        askingRef.current = false;
+        setAsking(false);
+      }
+    },
+    [data.native, target, signedIn, cloudOnline, openPrepared, fail]
+  );
+  const sendSentence = useCallback(
+    (prompt) => startIn({ kind: 'create-canvas', prompt }),
+    [startIn]
+  );
+  const startEmpty = useCallback(() => startIn({ kind: 'create-empty', prompt: '' }), [startIn]);
+  const startBrand = useCallback(
+    (s) => startIn({ kind: s.intent || 'import-brand', prompt: '' }),
+    [startIn]
+  );
+  useMenuActions(data.native, { 'project.new': askNewProject, 'canvas.new': startEmpty });
 
   // A file link whose project IS here (its tab failed to open from the link) opens like a
   // Pinned card; one for a project this Mac doesn't have gets the calm note below.
@@ -450,6 +597,7 @@ export function HomeApp() {
   }, [creating]);
 
   const hasProjects = model.groups.some((g) => g.rows.length);
+  const showShared = signedIn && (hasProjects || shared.length > 0);
   return (
     <div className="maude-v2 home-root" data-theme={theme} data-testid="home-root">
       <header className="home-top">
@@ -467,8 +615,18 @@ export function HomeApp() {
 
       <main className="home-page" aria-label="Home">
         <h1 className="home-sr">Home</h1>
-        {/* S6 puts the question here ("What shall we make?", Ask AI, starters). */}
-        <div className="home-ask" data-slot="home-ask" />
+        <HomeAsk
+          choices={choices}
+          targetKey={targetKey}
+          onTarget={setPick}
+          starters={starters}
+          online={online}
+          native={data.native}
+          busy={asking}
+          onSend={sendSentence}
+          onEmpty={startEmpty}
+          onBrand={startBrand}
+        />
 
         {!data.native ? (
           <p className="home-callout" role="note">
@@ -606,56 +764,69 @@ export function HomeApp() {
           )}
         </section>
 
-        <section className="home-sec" aria-labelledby="home-h-projects">
-          <h2 className="home-h" id="home-h-projects">
-            Projects
-            {model.projectCount ? (
-              <span className="home-h-aside">
-                {model.projectCount} {model.projectCount === 1 ? 'project' : 'projects'}
-              </span>
-            ) : null}
-          </h2>
-          <div className="island home-projlist">
-            {model.groups.map((g) => (
-              <ProfileGroup
-                key={g.profile.id}
-                group={g}
-                showHeader={model.groups.length > 1 || !!g.profile.email}
-                canOpen={data.native}
-                onOpen={(pid) => open(pid)}
-                onRelink={relink}
-                onOpenCloud={openCloud}
-              />
-            ))}
-            {!hasProjects && data.status !== 'loading' ? (
-              <p className="home-empty-line">No projects on this Mac yet.</p>
-            ) : null}
-            <div className="home-projmore">
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm home-projopen"
-                data-testid="home-new-project"
-                onClick={askNewProject}
-                disabled={!data.native}
-              >
-                <HIcon name="plus" size={14} />
-                New project…
-                <kbd className="kbd">⇧⌘N</kbd>
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm home-projopen"
-                data-testid="home-open-folder"
-                onClick={openFolder}
-                disabled={!data.native}
-              >
-                <HIcon name="folder" size={14} />
-                Open project…
-                <kbd className="kbd">⌘O</kbd>
-              </button>
-            </div>
-          </div>
-        </section>
+        {/* Shared with you (when signed in) sits beside Projects — canvas 11 pn-home. A first run with
+            nothing on either keeps the page quiet: the question does the work (05 es-home-cloud). */}
+        <div className={showShared ? 'home-two' : undefined}>
+          {showShared ? (
+            <SharedWithYou
+              rows={shared}
+              newCount={sharedNew}
+              canOpen={data.native}
+              onOpen={openShared}
+            />
+          ) : null}
+          {hasProjects ? (
+            <section className="home-sec" aria-labelledby="home-h-projects">
+              <h2 className="home-h" id="home-h-projects">
+                Projects
+                {model.projectCount ? (
+                  <span className="home-h-aside">
+                    {model.projectCount} {model.projectCount === 1 ? 'project' : 'projects'}
+                  </span>
+                ) : null}
+              </h2>
+              <div className="island home-projlist">
+                {model.groups.map((g) => (
+                  <ProfileGroup
+                    key={g.profile.id}
+                    group={g}
+                    showHeader={model.groups.length > 1 || !!g.profile.email}
+                    canOpen={data.native}
+                    onOpen={(pid) => open(pid)}
+                    onRelink={relink}
+                    onOpenCloud={openCloud}
+                  />
+                ))}
+                <div className="home-projmore">
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm home-projopen"
+                    data-testid="home-new-project"
+                    onClick={askNewProject}
+                    disabled={!data.native}
+                  >
+                    <HIcon name="plus" size={14} />
+                    New project…
+                    <kbd className="kbd">⇧⌘N</kbd>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm home-projopen"
+                    data-testid="home-open-folder"
+                    onClick={openFolder}
+                    disabled={!data.native}
+                  >
+                    <HIcon name="folder" size={14} />
+                    Open project…
+                    <kbd className="kbd">⌘O</kbd>
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : data.status !== 'loading' ? (
+            <ProjectsEmpty signedIn={signedIn} native={data.native} onOpenFolder={openFolder} />
+          ) : null}
+        </div>
       </main>
 
       {link?.kind === 'connect' ? (
@@ -843,8 +1014,11 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
     <div className="home-acct" data-testid={`home-profile-${profile.id}`}>
       {showHeader ? (
         <h3 className="home-acct-h">
-          <span className="home-acctf" aria-hidden="true">
-            {(profile.label || '·')[0].toUpperCase()}
+          <span
+            className={`home-acctf home-acctf--${accountFace(profile).tone}`}
+            aria-hidden="true"
+          >
+            {accountFace(profile).initial}
           </span>
           {profile.label}
           {profile.email ? ` · ${profile.email}` : ''}

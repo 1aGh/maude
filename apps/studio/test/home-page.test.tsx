@@ -373,9 +373,18 @@ describe('Home page in the desktop app', () => {
     mount();
     await flush();
     expect($('home-create-dialog')).toBeNull();
-    // menu.rs sends `menu://action {id}` to the ACTIVE tab; any other id is not Home's.
-    await act(async () => listeners['menu://action']?.({ payload: { id: 'canvas.new' } }));
+    // menu.rs sends `menu://action {id}` to the ACTIVE tab; any id but these two is not Home's.
+    await act(async () => listeners['menu://action']?.({ payload: { id: 'file.save' } }));
     expect($('home-create-dialog')).toBeNull();
+    expect(invokes.some((i) => i.cmd === 'open_project')).toBe(false);
+    // S6.4: ⌘N on Home is the `create-empty` intent in the chip's project — not the create sheet
+    await act(async () => listeners['menu://action']?.({ payload: { id: 'canvas.new' } }));
+    await flush();
+    expect($('home-create-dialog')).toBeNull();
+    expect(invokes.filter((i) => i.cmd === 'open_project').map((i) => i.args)).toEqual([
+      { pid: P1, intent: { kind: 'create-empty', prompt: '' } },
+    ]);
+    invokes = invokes.filter((i) => i.cmd !== 'open_project');
     await act(async () => listeners['menu://action']?.({ payload: { id: 'project.new' } }));
     expect($('home-create-dialog')).not.toBeNull();
     const input = $('home-create-name') as HTMLInputElement;
@@ -780,6 +789,7 @@ describe('home-api', () => {
     expect(http.map(([n]) => n).sort()).toEqual(
       [
         'createLocal',
+        'createLocalFromPrompt',
         'getCloud',
         'getConfig',
         'getIndex',
