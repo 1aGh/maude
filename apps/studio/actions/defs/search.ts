@@ -15,8 +15,13 @@ export const SEARCH_ACTIONS: ActionDef[] = [
       // v1: ⌘K toggles the palette everywhere, even in a text field; the canvas forwards it
       // (inspect.ts). v1's shell matched `e.key === 'k' || 'K'`, so ⇧⌘K toggles too — but only
       // there: the canvas forwarder required !shift.
-      kb('⌘K', 'global', { inText: true }),
-      kb('⇧⌘K', 'global', { inText: true, alias: true, when: { focus: SHELL_FOCI } }),
+      // S6.4: not on Home — there ⌘K is `home.search` (cross-project, Home's own page), same chord, its own shell.
+      kb('⌘K', 'global', { inText: true, when: { notShell: ['home'] } }),
+      kb('⇧⌘K', 'global', {
+        inText: true,
+        alias: true,
+        when: { focus: SHELL_FOCI, notShell: ['home'] },
+      }),
     ],
     help: { group: 'finding', order: 10 },
     legacy: { sheet: 'Command palette' },

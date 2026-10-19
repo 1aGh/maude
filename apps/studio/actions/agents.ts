@@ -1079,6 +1079,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   'project.open': { effect: 'none', agent: human('native-window') },
   'home.open': { effect: 'none', agent: human('native-window') },
+  // S6.4 — Home's own rows. Search across projects is navigation (V2-1.11 §5.1: the agent moves the person's
+  // view with `maude design open`; it reads one project through `maude design index`, never the cross-project
+  // index). Opening a cloud project that is not on this Mac is the person's hub link.
+  'home.search': { effect: 'none', agent: cli('maude design open') },
+  'cloud.open-remote': {
+    effect: 'external',
+    agent: human(
+      'hub-link',
+      'makes the person’s own copy of a cloud project on this Mac, then opens it'
+    ),
+  },
   'nav.home': { effect: 'none', agent: human('native-window') },
   // V2-4.2: a person's sign-in; an agent never picks an account.
   'account.switch': {

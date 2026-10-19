@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "d6ab84a8b936",
+  "manifestVersion": "54f86784dff4",
   "actions": [
     {
       "id": "search.open",
@@ -4039,6 +4039,29 @@
       "agent": {
         "path": "human",
         "because": "native-window"
+      }
+    },
+    {
+      "id": "home.search",
+      "label": "Search",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open"
+      }
+    },
+    {
+      "id": "cloud.open-remote",
+      "label": "Open",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "makes the person’s own copy of a cloud project on this Mac, then opens it"
       }
     },
     {

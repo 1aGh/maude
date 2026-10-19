@@ -9,7 +9,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'search.open',
     exec: 'shell',
     fromCanvas: true,
-    keys: [{ chord: '⌘K', layer: 'global', inText: true }],
+    keys: [{ chord: '⌘K', layer: 'global', inText: true, when: { notShell: ['home'] } }],
   },
   {
     id: 'canvas.new',
@@ -995,6 +995,12 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'home.open',
     exec: 'native',
     keys: [{ chord: '⌘T', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'home.search',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    keys: [{ chord: '⌘K', layer: 'global', inText: true, when: { shell: ['home'] } }],
   },
   {
     id: 'tab.close',

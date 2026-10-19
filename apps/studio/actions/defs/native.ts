@@ -61,6 +61,29 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     help: { group: 'tabs-windows', order: 30 },
     native: { menu: 'File', order: 4 },
   },
+  // S6.4 — Home's own rows (V2-1.1 §5.9). Home draws them in its page, not in the shell menu; the registry
+  // row is what the manifest, the shortcut sheet and the agent-parity table name. ⌘K there focuses Home's
+  // Search (cross-project, V2-3.3); the project windows' `search.open` is the same chord in their shell.
+  {
+    id: 'home.search',
+    label: 'Search',
+    kind: 'command',
+    icon: 'search',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { hidden: true },
+    keys: [kb('⌘K', 'global', { inText: true, when: { shell: ['home'] } })],
+  },
+  {
+    // A cloud project (or a share) that is not on this Mac yet: Open makes its own copy, then a tab.
+    // Can view opens a cell tab instead (V2-1.7); the server (`/_home/cloud/prepare`) decides.
+    id: 'cloud.open-remote',
+    label: 'Open',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { hidden: true },
+  },
   {
     // V2-4.2: "Back to Home" is the first row of the project pill's menu (CONTRACT §1) — the SAME
     // command as File ▸ Show Home (`home.open`, `new_home_tab`), worded for the Menu. ⌘T stays
