@@ -92,8 +92,9 @@ export const CHAT_ACTIONS: ActionDef[] = [
     label: 'Open in terminal',
     kind: 'command',
     exec: 'native',
-    // 'native' = the Tauri shell (ctx.ts adds the fact for desktop windows only).
-    visible: { shell: ['desktop'], facts: ['native'] },
+    // 'native' = the Tauri shell (ctx.ts adds the fact for desktop windows only). S11.15 (06 ad-edge-where):
+    // Can comment sees no AI at all (C30), so the door to its session is Can edit and up.
+    visible: { shell: ['desktop'], facts: ['native'], minRole: 'edit' },
     // ⌘K finds it from the Advanced fold (S5.12); a chat is always in hand there.
     search: { keywords: ['terminal', 'resume', 'claude'], where: ADVANCED_WHERE },
   },
