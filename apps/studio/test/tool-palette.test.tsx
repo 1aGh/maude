@@ -153,9 +153,9 @@ describe('visibleSlots / role, pending and read-only', () => {
       'el-shape', // S2.13
       'el-pen', // S2.14: click for a point, drag for a smooth one
       'el-text', // S2.12b: click to type
-      'image', // today's insert Image
+      'image', // S2.15: I opens the Assets tab (a panel-first slot)
       'components', // S2.16: the shell's Component picker (a panel-only slot)
-      'more', // S2.13: Line · Ellipse · Polygon · Export area (Crop is still pending)
+      'more', // S2.13/S2.15: Line · Ellipse · Polygon · Crop · Export area
     ]);
   });
 
@@ -225,8 +225,8 @@ describe('pending slots / no dead buttons', () => {
   // package list only shrinks when that package lands (the lead edits this list in the same commit).
   test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
     const pend = pendingSlots();
-    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area, S2.14 the Pen, S2.16 the Component slot; only Crop remains
-    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['crop']);
+    // S2.13 built Shape and More's Line, Ellipse, Polygon, Export area; S2.14 the Pen, S2.15 Crop, S2.16 the Component slot; none remain
+    expect(pend.map((p) => p.slot.tool).sort()).toEqual([]);
     for (const p of pend) {
       expect(p.slot.pending).toBe('S2');
       expect(p.mode).toBe('edit');
@@ -240,7 +240,7 @@ describe('pending slots / no dead buttons', () => {
       if (s.pending) return;
       if (s.more) return void s.more.forEach(check);
       if (s.insert) return; // today's insert action
-      if (s.tool === null) return expect(s.panel).toBeDefined(); // Stickers
+      if (s.tool === null || s.panelFirst) return expect(s.panel).toBeDefined(); // Stickers, Image
       expect(pendingTools.has(s.tool)).toBe(false);
       expect(armTarget(s.tool, armableDefault)).not.toBeNull();
     };
@@ -479,16 +479,16 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     expect(q('toolbar-slot-hand')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('Image adds one through today’s insert verb and arms nothing; Frame and Shape are tools (S2.13)', () => {
+  test('Image asks the shell for the Assets tab and arms nothing; Frame and Shape are tools (S2.13, S2.15)', () => {
     const art = document.createElement('div');
     art.innerHTML =
       '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
     document.body.appendChild(art);
     mountBar();
     click(q('toolbar-slot-image'));
-    expect(verbs()).toEqual([{ dgn: 'insert-image-request', refId: 'p1', position: 'after' }]);
+    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'assets', anchor: null }]);
     expect(ctx?.tool).toBe('move');
-    expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false); // momentary, not a tool
+    expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false); // a panel, not a tool
     click(q('toolbar-slot-frame'));
     expect(ctx?.tool).toBe('frame');
     expect(q('toolbar-slot-frame')?.getAttribute('aria-pressed')).toBe('true');
@@ -500,13 +500,19 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     art.remove();
   });
 
-  test('More is a labelled list: Line · Ellipse · Polygon · Export area (Crop waits); a row arms that tool', () => {
+  test('More is a labelled list: Line · Ellipse · Polygon · Crop · Export area; a row arms that tool', () => {
     mountBar();
     expect(q('toolbar-popover-more')).toBeNull();
     click(q('toolbar-slot-more'));
     expect(q('toolbar-popover-more')?.getAttribute('role')).toBe('menu');
     const rows = [...document.querySelectorAll('[data-testid^="toolbar-more-"]')];
-    expect(rows.map((r) => r.textContent)).toEqual(['Line', 'Ellipse', 'Polygon', 'Export area']);
+    expect(rows.map((r) => r.textContent)).toEqual([
+      'Line',
+      'Ellipse',
+      'Polygon',
+      'Crop',
+      'Export area',
+    ]);
     click(q('toolbar-more-ellipse'));
     expect(ctx?.tool).toBe('ellipse');
     expect(q('toolbar-popover-more')).toBeNull(); // chose, closed

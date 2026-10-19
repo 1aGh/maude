@@ -10,6 +10,7 @@
 
 import type { JSX, SVGProps } from 'react';
 import {
+  IconCrop,
   IconExportArea,
   IconFrame,
   IconLineTool,
@@ -536,6 +537,7 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   slice: IconExportArea,
   // S2.14 — Edit's Pen (P)
   'el-pen': IconPenTool,
+  crop: IconCrop,
   eraser: IconEraser,
 };
 

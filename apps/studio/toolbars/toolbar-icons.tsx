@@ -112,6 +112,16 @@ export function IconExportArea(props: IconProps) {
   );
 }
 
+/** Crop (More, S2.15) — the two crossing crop marks. */
+export function IconCrop(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7 3v14h14" />
+      <path d="M3 7h14v14" />
+    </Svg>
+  );
+}
+
 export const SLOT_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   frame: IconFrame,
   image: IconImage,
@@ -121,4 +131,5 @@ export const SLOT_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   line: IconLineTool,
   polygon: IconPolygon,
   slice: IconExportArea,
+  crop: IconCrop,
 };

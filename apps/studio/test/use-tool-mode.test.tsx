@@ -36,6 +36,7 @@ describe('use-tool-mode / static', () => {
       'line',
       'polygon',
       'slice',
+      'crop',
       'eraser',
     ]);
     expect(DEFAULT_TOOLS.map((t) => t.shortcut)).toEqual([
@@ -58,6 +59,7 @@ describe('use-tool-mode / static', () => {
       '', // line
       '', // polygon
       '', // slice (Export area)
+      '', // crop (S2.15)
       'E',
     ]);
   });

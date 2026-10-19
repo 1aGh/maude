@@ -2174,31 +2174,57 @@ export function useCanvasBridge({
         // Re-point an authored <img>/<video> src via /_api/edit-attr (+ undo).
         const canvas = activePath;
         if (!canvas || !req.id) return;
+        const viaEditAttr = () =>
+          fetch('/_api/edit-attr', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ canvas, id: req.id, attr: 'src', value: pickedPath }),
+          })
+            .then((r) => r.json().catch(() => ({})))
+            .then((j) => {
+              if (j.ok) {
+                recordSourceEdit({
+                  op: 'attr',
+                  canvas,
+                  id: req.id,
+                  key: 'src',
+                  before: replacedValue(j, req.before ?? null),
+                  after: pickedPath,
+                });
+              } else {
+                console.warn('[replace-src]', j.error || 'failed');
+              }
+            })
+            .catch(() => {});
+        // S2.15 — a picture the inspector names by ref is replaced by the `image.replace` edit-op: one write, one
+        // undo step, and a per-use photo edit of the old picture goes with it. An older studio (no such op) and a
+        // video keep the edit-attr write above.
+        const viaEditOp = () =>
+          fetch('/_api/edit-op', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              file: canvas,
+              op: 'image.replace',
+              targets: [req.ref],
+              params: { asset: pickedPath },
+            }),
+          })
+            .then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }))
+            .then(({ status, j }) => {
+              if (status === 404 || status === 405) return viaEditAttr();
+              if (j.ok) {
+                const payload = legacyRecordPayload(j, 'Replace picture');
+                if (payload) recordSourceEdit(payload);
+              } else {
+                console.warn('[replace-src]', j.message || 'failed');
+              }
+              return undefined;
+            })
+            .catch(() => {});
         editApplyChainRef.current = editApplyChainRef.current
           .catch(() => {})
-          .then(() =>
-            fetch('/_api/edit-attr', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ canvas, id: req.id, attr: 'src', value: pickedPath }),
-            })
-              .then((r) => r.json().catch(() => ({})))
-              .then((j) => {
-                if (j.ok) {
-                  recordSourceEdit({
-                    op: 'attr',
-                    canvas,
-                    id: req.id,
-                    key: 'src',
-                    before: replacedValue(j, req.before ?? null),
-                    after: pickedPath,
-                  });
-                } else {
-                  console.warn('[replace-src]', j.error || 'failed');
-                }
-              })
-              .catch(() => {})
-          );
+          .then(req.ref ? viaEditOp : viaEditAttr);
         return;
       }
       if (req.purpose === 'replace-annotation-media') {
@@ -2299,6 +2325,12 @@ export function useCanvasBridge({
         canvas: activePath,
         id: elSel.id,
         before: elSel.attrs?.src ?? null,
+        // S2.15 — the picture as an edit-op target; absent on an old canvas bundle (then edit-attr)
+        ref:
+          Array.isArray(elSel.refs) &&
+          (elSel.tag === 'img' || elSel.attrs?.['data-image-tile'] !== undefined)
+            ? (elSel.refs[0] ?? null)
+            : null,
       });
     },
     [activePath]

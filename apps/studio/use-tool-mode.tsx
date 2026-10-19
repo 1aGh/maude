@@ -145,6 +145,8 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   { id: 'slice', label: 'Export area', shortcut: '', cursor: TOOL_CURSORS.slice },
   // S2.14 — Edit's Pen (editing/pen/draw.tsx)
   { id: 'el-pen', label: 'Pen', shortcut: 'P', cursor: TOOL_CURSORS['el-pen'] },
+  // S2.15 — More › Crop: click a picture to crop it (editing/crop-mode.tsx); selects like Select
+  { id: 'crop', label: 'Crop', shortcut: '', cursor: TOOL_CURSORS.crop },
   { id: 'eraser', label: 'Eraser', shortcut: 'E', cursor: TOOL_CURSORS.eraser },
 ]);
 

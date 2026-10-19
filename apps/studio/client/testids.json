@@ -21239,6 +21239,325 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
+    "hook": "insp-image-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Image section's first row: the picture's thumb, its file name and size, and Replace….",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-thumb",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the picture's small thumb (served from the project's assets).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the file the picture shows (`ab12cd34.jpg`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the picture's own size, \"4032 × 3024\", once it has loaded.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Replace… — opens the asset picker; its pick is the `image.replace` edit-op. Disabled below Can edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-source",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › From: where a pasted picture came from (\"Figma · Hero / v3\", read from `data-source`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-image-fit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Fit: Fill · Fit · Crop · Tile (a picture pasted from Figma: Fill · Fit). One choice asks the canvas for one `image.crop`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-zoom",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › Zoom (percent), shown for Crop; typed or stepped it asks `image.crop` with the zoom.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-crop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Image › the line under Zoom: \"Double-click the picture to move it inside the frame.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "ImageBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-adjust",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › Adjust… — opens Photo. Drawn only where the panel can open Photo.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-remove-bg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › ✦ Remove background — opens Photo (the existing editor).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-image-photo-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Adjust › the line under the two rows; \"Edits apply to this use only.\" is said only where Photo edits one use (S8.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/image.jsx",
+      "symbol": "AdjustBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-image.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-mode",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: crop mode is open on a picture (ghost, frame, brackets, handles, tag, hint).",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the whole picture, faded, beyond the frame in crop mode; drag it to move it inside the frame.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the frame the picture is cropped to, outlined in crop mode.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-bracket-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the four brackets on the frame in crop mode (`nw` `ne` `se` `sw`).",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-handle-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the four corner handles of the faded picture in crop mode; drag to zoom, the opposite corner stays.",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the tag over the frame in crop mode (\"<name> · crop\").",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-crop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line under the frame in crop mode: \"↵ done · esc cancel\".",
+    "producer": {
+      "file": "apps/studio/editing/crop-mode.tsx",
+      "symbol": "CropMode"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-drop-target",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring on the picture, frame or artboard an Assets tile would land on while it is dragged over the canvas (`data-kind`).",
+    "producer": {
+      "file": "apps/studio/editing/image-drop.tsx",
+      "symbol": "ImageDrop"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the bar after a Figma paste (\"Pasted from Figma as an image of “Hero / v3”.\"), `data-state` placed or layers.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-as-picture",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Paste as picture\" on the paste bar when Figma sent layers and no picture.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-paste-make-editable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"Make editable\" on the paste bar. Not drawn until Figma import (S8.17) lands.",
+    "producer": {
+      "file": "apps/studio/editing/paste-bar.tsx",
+      "symbol": "PasteBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/desktop/e2e/scenarios/edit-images.e2e.ts"],
     "v2": "new"
   }
 ]

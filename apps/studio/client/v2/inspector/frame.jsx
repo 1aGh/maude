@@ -82,6 +82,8 @@ export function InspectorFrame({
   onRecordEdit,
   onRunAction,
   onReplaceMedia,
+  onOpenPhoto,
+  photoPerUse,
   onUndoRedo,
   onRenameElementId,
   onResizeArtboard,
@@ -165,6 +167,9 @@ export function InspectorFrame({
     onRunAction,
     onUndoRedo,
     onReplaceMedia,
+    // S2.15 — Adjust… / Remove background hand off to Photo; drawn only when the panel can open it (kinds/image.jsx)
+    onOpenPhoto,
+    photoPerUse,
     artboard,
   };
   const edit = { onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo };
