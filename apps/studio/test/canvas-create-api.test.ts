@@ -21,12 +21,21 @@ import { componentNameFrom, renderBriefBoard, validateCanvasName } from '../canv
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 describe('canvas-create / validateCanvasName (the security boundary)', () => {
-  test('accepts ordinary names (incl. spaces + accents)', () => {
-    for (const n of ['Onboarding Brief', 'checkout-flow', 'Krok_1', 'Přihlášení', 'A1']) {
+  test('accepts ordinary names (letters, numbers, spaces, - and _)', () => {
+    for (const n of ['Onboarding Brief', 'checkout-flow', 'Krok_1', 'Prihlaseni', 'A1']) {
       const v = validateCanvasName(n);
       expect(v.ok).toBe(true);
       expect(v.name).toBe(n);
     }
+  });
+
+  // S1.23c (`v2-lead-canvas-names-sync-safe`): an accent is outside the sync path charset — refused,
+  // with the folded name offered.
+  test('an accented name is refused with the accent-free suggestion', () => {
+    const v = validateCanvasName('Přihlášení');
+    expect(v.ok).toBe(false);
+    expect(v.suggestion).toBe('Prihlaseni');
+    expect(v.error).toBe('Names can use letters, numbers, spaces, - and _. Try “Prihlaseni”.');
   });
 
   test('trims surrounding whitespace', () => {
@@ -63,10 +72,12 @@ describe('canvas-create / validateCanvasName (the security boundary)', () => {
     });
   }
 
-  // S1.23 G2 (`v2-lead-canvas-names-any-filename-safe`): braces and a leading hyphen are filename-safe, so
-  // they are accepted — the braces are ESCAPED where they reach the JSX text of a template.
-  test('braces and a leading hyphen are accepted; the braces cannot become a JSX expression', () => {
-    expect(validateCanvasName('A{2+2}B').ok).toBe(true);
+  // S1.23c: a brace is outside the sync path charset, so it is refused ("A22B" is offered); a leading
+  // hyphen is inside it. The template still escapes braces as belt and braces.
+  test('braces are refused with a suggestion, a leading hyphen is accepted; the template still escapes braces', () => {
+    const v = validateCanvasName('A{2+2}B');
+    expect(v.ok).toBe(false);
+    expect(v.suggestion).toBe('A22B');
     expect(validateCanvasName('-dash').ok).toBe(true);
     const out = renderBriefBoard({
       name: 'A{2+2}B',

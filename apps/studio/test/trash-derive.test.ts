@@ -198,6 +198,41 @@ describe('the local home derives the Trash from its store', () => {
     expect(items[0]?.id).toMatch(/^canvas:/);
   });
 
+  // S1.23c (verifier pass 2, G1): the studio's rename moves the file, then its sidecars (history dir, locator,
+  // pins), and only then says "moved". The file watcher saw the old path vanish in the meantime and its
+  // settle timer ran out first, so the vanish was recorded as a DELETE: the old name sat in the Trash and
+  // restoring it would have brought it back beside the renamed canvas. A rename is never a trash entry.
+  test('a rename whose "moved" arrives after the watcher settled is not a trash entry', async () => {
+    const p = localProject({ 'ui/ahoj2.tsx': board('A1'), 'ui/keep.tsx': board('K1') });
+    await p.home.ready();
+    p.home.expectMove('ui/ahoj2.tsx', 'ui/renamed.tsx'); // api.ts says so before it renames
+    writeFileSync(p.abs('ui/renamed.tsx'), readFileSync(p.abs('ui/ahoj2.tsx')));
+    unlinkSync(p.abs('ui/ahoj2.tsx'));
+    p.home.observe('ui/ahoj2.tsx'); // the watcher: the old path is gone
+    p.home.observe('ui/renamed.tsx');
+    await new Promise((r) => setTimeout(r, 120)); // …and its settle timer ran out before "moved"
+    await p.home.flush();
+    p.home.observeMove('ui/ahoj2.tsx', 'ui/renamed.tsx');
+    await p.home.flush();
+    const listing = (await p.home.runtime.acceptedTrash()) as TrashListing;
+    expect(deriveTrash(listing, { readSource: () => null })).toEqual([]);
+    // the renamed canvas is the same document the old name was: one live path, not two
+    expect(await p.home.runtime.acceptedHistory({ limit: 20 })).not.toEqual([]);
+  });
+
+  test('a deleted canvas that is NOT followed by a move is still a trash entry', async () => {
+    const p = localProject({ 'ui/gone.tsx': board('G1') });
+    await p.home.ready();
+    unlinkSync(p.abs('ui/gone.tsx'));
+    p.home.observe('ui/gone.tsx');
+    await new Promise((r) => setTimeout(r, 120));
+    await p.home.flush();
+    const items = deriveTrash((await p.home.runtime.acceptedTrash()) as TrashListing, {
+      readSource: () => null,
+    });
+    expect(items.map((i) => i.path)).toEqual(['ui/gone.tsx']);
+  });
+
   test('restore brings the canvas back in place, with the same entry', async () => {
     const p = localProject({ 'ui/b.tsx': board('B1') });
     await p.home.ready();

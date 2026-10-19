@@ -171,8 +171,9 @@ const type = (el: HTMLInputElement | null, v: string) => {
   const propsKey = Object.keys(el).find((k) => k.startsWith('__reactProps$')) as string;
   const props = (el as unknown as Record<string, { onChange: (e: unknown) => void }>)[propsKey];
   return act(async () => {
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    set?.call(el, v);
+    // The instance setter is React's value tracker: DOM and tracker agree, as after a real keystroke, so
+    // the `change` happy-dom fires on ↵ does not read as a second edit.
+    el.value = v;
     props.onChange({ target: el, currentTarget: el });
   });
 };
@@ -214,18 +215,26 @@ describe('rename in place', () => {
     expect(inputOf(host, 'ui-ahoj')).toBeNull();
   });
 
-  test('the canvas example "Combine — test barev" renames (S1.23 G2: any filename-safe text)', async () => {
+  test('the canvas example "Combine — test barev" is refused with a suggestion; one ↵ more accepts it (S1.23c)', async () => {
     const { host, spy } = await mount();
     await dbl(q(host, 'canvas-row-ui-ahoj'));
     const input = inputOf(host, 'ui-ahoj');
     await type(input, 'Combine — test barev');
     await key(input, 'Enter');
     await settle(20);
+    expect(spy.renames).toEqual([]);
+    expect(q(host, 'canvas-rename-error')?.textContent).toBe(
+      'Names can use letters, numbers, spaces, - and _. Try “Combine - test barev”.'
+    );
+    // the suggestion is already in the field, so one more ↵ takes it
+    expect(inputOf(host, 'ui-ahoj')?.value).toBe('Combine - test barev');
+    await key(inputOf(host, 'ui-ahoj'), 'Enter');
+    await settle(20);
     expect(q(host, 'canvas-rename-error')).toBeNull();
-    expect(spy.renames).toEqual([[`${ROOT}/ahoj.tsx`, 'Combine — test barev', { quiet: true }]]);
+    expect(spy.renames).toEqual([[`${ROOT}/ahoj.tsx`, 'Combine - test barev', { quiet: true }]]);
   });
 
-  test('a reserved character is refused under the field in CONTRACT words, nothing sent (S1.23 G2)', async () => {
+  test('a character outside the set is refused under the field in CONTRACT words, nothing sent (S1.23c)', async () => {
     const { host, spy } = await mount();
     await dbl(q(host, 'canvas-row-ui-ahoj'));
     const input = inputOf(host, 'ui-ahoj');
@@ -234,7 +243,7 @@ describe('rename in place', () => {
     await settle(20);
     expect(spy.renames).toEqual([]);
     expect(q(host, 'canvas-rename-error')?.textContent).toBe(
-      'Names can’t contain / \\ : * ? " < > | or start with a dot. Try another name.'
+      'Names can use letters, numbers, spaces, - and _. Try “Plan draft”.'
     );
   });
 

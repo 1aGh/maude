@@ -49,24 +49,20 @@ describe('"?" sheet · Tabs and windows / Finding a canvas (S1.21)', () => {
 
   test('Finding a canvas lists Search, Open project… and Version history', () => {
     const rows = rowsOf(sheet, 'finding');
-    // S1.23: ⇧⌘K is its own binding, so it is its own row (not "⌘K or ⇧⌘K" on one label)
-    expect(rows.map((r) => r.id)).toEqual([
-      'search.open',
-      'search.open:also',
-      'project.open',
-      'history.open',
-    ]);
-    expect(rows.map((r) => r.keys[0])).toEqual(['⌘K', '⇧⌘K', '⌘O', '⌥⌘H']);
+    // ⇧⌘K stays a binding but has no row on the sheet (lead decision v2-lead-help-sheet-no-search-too-row)
+    expect(rows.map((r) => r.id)).toEqual(['search.open', 'project.open', 'history.open']);
+    expect(rows.map((r) => r.keys[0])).toEqual(['⌘K', '⌘O', '⌥⌘H']);
   });
 
-  test('the canvas’s words: "Search every project ⌘K", the older key on its own row, no "or" (S1.23 G7)', () => {
+  test('the canvas’s words: "Search every project ⌘K", no "Search, too" row and no "or" (S1.23 G7)', () => {
     const rows = rowsOf(sheet, 'finding');
     const by = Object.fromEntries(rows.map((r) => [r.id, r]));
     expect(by['search.open'].label).toBe('Search every project');
     expect(by['search.open'].keys).toEqual(['⌘K']);
     expect(by['search.open'].alt).toEqual([]);
-    expect(by['search.open:also'].label).toBe('Search, too');
-    expect(by['search.open:also'].keys).toEqual(['⇧⌘K']);
+    expect(by['search.open:also']).toBeUndefined();
+    // the binding stays: the action still takes ⇧⌘K
+    expect(ACTIONS_BY_ID.get('search.open')?.keys?.map((b) => b.chord)).toContain('⇧⌘K');
     expect(by['project.open'].label).toBe('Open project…');
     // only the sheet is reworded: the action keeps its menu label
     expect(ACTIONS_BY_ID.get('search.open')?.label).toBe('Search');

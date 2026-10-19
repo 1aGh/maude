@@ -18,6 +18,8 @@ import briefBoardTemplate from '../../plugins/design/templates/brief-board.tsx.t
   type: 'text',
 };
 
+import { COMPONENT } from './sync/canvas-path.ts';
+
 export const BRIEF_BOARD_TEMPLATE: string = briefBoardTemplate;
 /** V2 S6.1 — the blank canvas: an empty DesignCanvas (⌘N, Home's "Start with an empty canvas"). */
 export const BLANK_TEMPLATE: string = blankCanvasTemplate;
@@ -28,35 +30,58 @@ export const BLANK_TEMPLATE: string = blankCanvasTemplate;
  * (`<group>/<name>.tsx`), the `@canvas` header comment, JSX text (brief board)
  * and a JSON string (`.meta.json`).
  *
- * Lead decision `v2-lead-canvas-names-any-filename-safe`: a canvas or folder name is ANY
- * filename-safe text — Unicode letters, spaces, —, digits, punctuation. Refused: path separators
- * (/ \), the reserved characters (: * ? " < > |), control characters, a leading dot, the empty
- * name. That is also what keeps every sink safe:
- *   • path safety     — no `/`, `\`, or leading dot ⇒ no traversal (and no `:` for Windows/macOS);
+ * Lead decision `v2-lead-canvas-names-sync-safe` (replaces the earlier any-filename-safe widening):
+ * a canvas or folder name stays inside the SYNC PATH CHARSET — letters A–Z/a–z, digits, space, `_`
+ * and `-`, first character not a space — which is exactly what `sync/canvas-path.ts` `COMPONENT`
+ * accepts (imported, not re-typed, so the two cannot drift) and what every v1 receiver accepts. A name
+ * outside it lands at a flat fallback path on other peers, and v1 peers can never be widened.
+ * That one allowlist also keeps every sink safe:
+ *   • path safety     — no `/`, `\`, `.` ⇒ no traversal, no dotfile, no `..` (and no `:`);
  *   • comment safety  — no `*` ⇒ nothing can close the header comment;
- *   • template safety — no `<`, `>` ⇒ no JSX tag; `{ } &` are ESCAPED where they reach JSX text
- *                       (`nameForTemplate`);
+ *   • template safety — no `<`, `>`, `{`, `}`, `&` ⇒ no JSX tag, expression or entity
+ *                       (`nameForTemplate` still escapes them, belt and braces);
  *   • JSON safety     — no `"` or `\`; the meta is written with JSON.stringify anyway.
  */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point.
-const RESERVED_RE = /[\\/:*?"<>|\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;
-
-/** CONTRACT §4 voice (what happened · what is safe · one verb): said for every refused character. */
-export const NAME_REFUSAL =
-  'Names can’t contain / \\ : * ? " < > | or start with a dot. Try another name.';
+/** CONTRACT §4 voice (what is safe · one verb). `nameRefusal` adds the suggestion. */
+export const NAME_RULE = 'Names can use letters, numbers, spaces, - and _.';
+/** The words said for a refused name: the rule, then “Try “<suggestion>”.” — or “Try another name.” when
+ *  there is no suggestion worth offering. */
+export function nameRefusal(suggestion?: string | null): string {
+  return suggestion ? `${NAME_RULE} Try “${suggestion}”.` : `${NAME_RULE} Try another name.`;
+}
 /** The longest name, in characters. */
 export const NAME_MAX = 60;
 export const NAME_TOO_LONG = `Names are ${NAME_MAX} characters or fewer.`;
 export const NAME_EMPTY = 'Give it a name.';
+
+/**
+ * The typed name folded to the allowed set: — – and kin become `-`, letters lose their accents (NFD, then
+ * strip the marks, so č→c), every other character is dropped, runs of spaces collapse, and the ends are
+ * trimmed. Capped at the longest name. Empty when nothing usable is left. The client mirrors this
+ * (`rename-model.js` `suggestName`); `test/canvas-names-sync-safe.test.ts` pins them equal.
+ */
+export function foldToAllowedName(raw: string): string {
+  const folded = raw
+    .normalize('NFC')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^A-Za-z0-9 _-]+/g, '')
+    .replace(/ +/g, ' ')
+    .trim();
+  return [...folded].slice(0, NAME_MAX).join('').trim();
+}
 
 export interface NameValidation {
   ok: boolean;
   name?: string;
   componentName?: string;
   error?: string;
+  /** For a refused character set: the typed name folded to the allowed set (never empty). */
+  suggestion?: string;
 }
 
-function checkFilenameSafe(raw: unknown): NameValidation {
+function checkCanvasName(raw: unknown): NameValidation {
   if (typeof raw !== 'string') return { ok: false, error: 'name must be a string' };
   // NFC-normalize so a decomposed (NFD) name and its composed sibling can't hash
   // to two JS strings that collide to ONE on-disk path on a normalizing filesystem
@@ -67,16 +92,22 @@ function checkFilenameSafe(raw: unknown): NameValidation {
   // newlines are control characters and are refused below.
   const name = raw.normalize('NFC').trim().replace(/ +/g, ' ');
   if (!name) return { ok: false, error: NAME_EMPTY };
+  // Outside the sync path charset (includes every dot, so `.`, `..` and dotfiles): refused in CONTRACT
+  // words, with the folded name as the way out when anything usable is left.
+  if (!COMPONENT.test(name)) {
+    const suggestion = foldToAllowedName(name);
+    return suggestion
+      ? { ok: false, error: nameRefusal(suggestion), suggestion }
+      : { ok: false, error: nameRefusal() };
+  }
   if ([...name].length > NAME_MAX) return { ok: false, error: NAME_TOO_LONG };
-  // A leading dot (`.`, `..`, dotfiles) is refused with the same words.
-  if (RESERVED_RE.test(name) || name.startsWith('.')) return { ok: false, error: NAME_REFUSAL };
   return { ok: true, name };
 }
 
 /** True when `name` is already the form a validated name takes (for names that arrive from a
  *  manifest rather than the create endpoint). */
-export function isFilenameSafeName(name: unknown): boolean {
-  const v = checkFilenameSafe(name);
+export function isAllowedCanvasName(name: unknown): boolean {
+  const v = checkCanvasName(name);
   return v.ok && v.name === name;
 }
 
@@ -85,11 +116,11 @@ export function isFilenameSafeName(name: unknown): boolean {
  * name never reaches JSX or JSON, but it IS a path segment.
  */
 export function validateFolderName(raw: unknown): NameValidation {
-  return checkFilenameSafe(raw);
+  return checkCanvasName(raw);
 }
 
 export function validateCanvasName(raw: unknown): NameValidation {
-  const v = checkFilenameSafe(raw);
+  const v = checkCanvasName(raw);
   if (!v.ok || !v.name) return v;
   return { ok: true, name: v.name, componentName: componentNameFrom(v.name) };
 }
@@ -286,7 +317,7 @@ function projectFrom(prompt: string, czech: boolean): string {
  * C4: name a canvas (and the project it starts) from the first sentence, with no AI call.
  * `canvas` comes from a lexicon of artifact nouns (EN + CZ), `project` from what the sentence says
  * it is for. Either falls back to "Untitled canvas" / "Untitled project". The result only ever
- * holds letters, numbers, spaces and hyphens, at most 40 characters.
+ * holds the allowed set (A–Z, a–z, numbers, spaces and hyphens — accents folded off), at most 40 characters.
  */
 export function nameFromPrompt(prompt: unknown): { canvas: string; project: string } {
   const text = typeof prompt === 'string' ? prompt.normalize('NFC').slice(0, MAX_PROMPT_CHARS) : '';
@@ -309,8 +340,11 @@ export function nameFromPrompt(prompt: unknown): { canvas: string; project: stri
       }
     }
   }
+  // S1.23c: the canvas name an app makes obeys the same allowed set as one a person types, so "Plakát"
+  // becomes "Plakat" and the create endpoint never refuses what the app itself named. The project name
+  // is not a canvas or folder name (no sync path component), so it keeps its accents.
   return {
-    canvas: canvas || UNTITLED_CANVAS,
+    canvas: foldToAllowedName(canvas) || UNTITLED_CANVAS,
     project: projectFrom(text, czech) || UNTITLED_PROJECT,
   };
 }

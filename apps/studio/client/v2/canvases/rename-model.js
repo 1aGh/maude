@@ -5,14 +5,19 @@
 // to a sibling's — one that would share its sync document (an em dash vs a hyphen, `a%20b` vs `a b`,
 // case); the server (`sync-name-key.ts`) is the authority and also checks across folders. Everything
 // else the server's allowlist decides (`canvas-create.ts` validateCanvasName) and its words come back in
-// the same slot.
+// the same slot. S1.23c (lead decision `v2-lead-canvas-names-sync-safe`): a name stays inside the sync
+// path charset, and a refused one carries a suggestion folded to it, which the inline field takes in.
 
 export const RENAME_MAX = 60;
 
 export const RENAME_WORDS = {
   taken: 'That name is already used in this folder.',
-  // Same words as the server's `NAME_REFUSAL` (canvas-create.ts) — a test pins them equal.
-  reserved: 'Names can’t contain / \\ : * ? " < > | or start with a dot. Try another name.',
+  // Same words as the server's `NAME_RULE` / `nameRefusal` (canvas-create.ts) — a test pins them equal.
+  rule: 'Names can use letters, numbers, spaces, - and _.',
+  refusal: (suggestion) =>
+    suggestion
+      ? `Names can use letters, numbers, spaces, - and _. Try “${suggestion}”.`
+      : 'Names can use letters, numbers, spaces, - and _. Try another name.',
   long: `Names are ${RENAME_MAX} characters or fewer.`,
   failed: 'Could not rename. Try again.',
   // Same words as the server's `tooCloseText` (sync-name-key.ts) — a test pins them equal.
@@ -20,10 +25,11 @@ export const RENAME_WORDS = {
     `“${name}” is too close to “${other}”, which is already here. Try another name.`,
 };
 
-// Path separators, the reserved characters and control characters (lead decision
-// `v2-lead-canvas-names-any-filename-safe`): the same set as `canvas-create.ts` RESERVED_RE.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point.
-const RESERVED = /[\\/:*?"<>|\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;
+// The allowed names: the sync path charset — letters A–Z/a–z, digits, space, `_` and `-`, first character
+// not a space. The SAME regex as `sync/canvas-path.ts` `COMPONENT` (the server imports that one); this
+// file ships in the browser bundle, so it is mirrored here and `test/canvas-names-sync-safe.test.ts`
+// pins the two `.source`s equal.
+export const ALLOWED_NAME_RE = /^[A-Za-z0-9_-][A-Za-z0-9 _-]*(?![\s\S])/;
 
 const norm = (s) =>
   String(s ?? '')
@@ -31,6 +37,23 @@ const norm = (s) =>
     .trim()
     .replace(/ +/g, ' ');
 const fold = (s) => norm(s).toLowerCase();
+
+/**
+ * The typed name folded to the allowed set: — – and kin become `-`, letters lose their accents (NFD,
+ * marks stripped: č→c), every other character is dropped, spaces collapse, ends trimmed, at most
+ * RENAME_MAX characters. Mirrors `canvas-create.ts` `foldToAllowedName`; empty when nothing is left.
+ */
+export function suggestName(raw) {
+  const folded = String(raw ?? '')
+    .normalize('NFC')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^A-Za-z0-9 _-]+/g, '')
+    .replace(/ +/g, ' ')
+    .trim();
+  return [...folded].slice(0, RENAME_MAX).join('').trim();
+}
 
 /**
  * The sync key of one name inside a folder: the real slug (`canvas-slug.ts`: percent-decode,
@@ -75,15 +98,23 @@ export function siblingNames(tree, dir, selfPath) {
 /**
  * What ↵ would do with `draft`.
  *  { kind: 'keep' }              empty or unchanged — close the field, send nothing
- *  { kind: 'error', error }      refuse inline, keep the field open
+ *  { kind: 'error', error, suggestion? }  refuse inline, keep the field open; `suggestion` is the
+ *                                whole-name fix the field takes in so one ↵ accepts it — offered only
+ *                                when it is non-empty and does not collide with a sibling
  *  { kind: 'rename', name }      send `name`
  * `siblings` is a Set of folded names (see `siblingNames`).
  */
 export function checkRename({ draft, current, siblings = new Set() }) {
   const name = norm(draft);
   if (!name || name === norm(current)) return { kind: 'keep' };
-  if (RESERVED.test(name) || name.startsWith('.'))
-    return { kind: 'error', error: RENAME_WORDS.reserved };
+  if (!ALLOWED_NAME_RE.test(name)) {
+    const folded = suggestName(name);
+    const collides =
+      siblings.has(fold(folded)) || siblings.closeKeys?.get?.(closeKey(folded)) !== undefined;
+    return folded && !collides
+      ? { kind: 'error', error: RENAME_WORDS.refusal(folded), suggestion: folded }
+      : { kind: 'error', error: RENAME_WORDS.refusal('') };
+  }
   if ([...name].length > RENAME_MAX) return { kind: 'error', error: RENAME_WORDS.long };
   if (siblings.has(fold(name))) return { kind: 'error', error: RENAME_WORDS.taken };
   const near = siblings.closeKeys?.get?.(closeKey(name));

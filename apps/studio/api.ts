@@ -33,6 +33,7 @@ import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
 import {
+  foldToAllowedName,
   nameFromPrompt,
   nextFreeCanvasName,
   renderBlankCanvas,
@@ -4021,7 +4022,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!(await Bun.file(fileAbs).exists())) {
       return { ok: false, status: 404, error: 'canvas not found' };
     }
-    const base = path.basename(rel).replace(/\.tsx$/i, '');
+    // A canvas made before names were held to the allowed set (S1.23c) may carry an accent or a dash the
+    // set no longer takes: its copy is named from the folded base, so duplicating is never refused.
+    const srcBase = path.basename(rel).replace(/\.tsx$/i, '');
+    const base = foldToAllowedName(srcBase) || UNTITLED_CANVAS;
     const dir = path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel);
     // "<name> copy", then "<name> copy 2", … — the first free, valid name.
     let name: string | null = null;
@@ -4046,7 +4050,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       try {
         const meta = JSON.parse(text) as Record<string, unknown>;
         const now = new Date().toISOString();
-        if (typeof meta.title !== 'string' || meta.title === base) meta.title = name;
+        if (typeof meta.title !== 'string' || meta.title === srcBase) meta.title = name;
         meta.created = now;
         meta.last_modified = now;
         text = `${JSON.stringify(meta, null, 2)}\n`;
@@ -4757,6 +4761,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // Primary `.tsx` moves FIRST — abort the whole op if this fails so the
     // tree is never wrong about where the canvas lives.
     await mkdir(toDirAbs, { recursive: true });
+    // Said BEFORE the rename: the local history must not read the old path vanishing as a delete (a
+    // Trash row for a rename) while the sidecars below are still moving; `moved` follows when all is done.
+    ctx.bus.emit('canvas-move-begin', { rel: toRel, fromRel: rel });
     try {
       await rename(fileAbs, toAbs);
     } catch (err) {
