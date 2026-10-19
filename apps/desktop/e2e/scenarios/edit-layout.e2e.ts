@@ -170,7 +170,9 @@ describe('auto layout, reorder and free placement (S2.11)', () => {
     expect(h).not.toBeNull();
     // 9 px to the right: 33 raw → the 32 stop
     await drag(h, { x: h.x + 4, y: h.y }, { x: h.x + 9, y: h.y });
-    await browser.waitUntil(async () => /gap: "(32px|var\(--space-32\))"/.test(source()), { timeout: 8000 });
+    await browser.waitUntil(async () => /gap: "(32px|var\(--space-32\))"/.test(source()), {
+      timeout: 8000,
+    });
     expect(await textIn('edit-token-ruler-hint')).toBeNull(); // released: the ruler is gone
     await capture(report, 'stop');
   });

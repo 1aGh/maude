@@ -97,16 +97,16 @@ async function drag(from: Pt, to: Pt, shift = false): Promise<void> {
   const err = await browser.execute(
     (a, b, sh) => {
       try {
-      const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      const win = frame.contentWindow as Window;
-      const doc = frame.contentDocument as Document;
-      // no named inner function here: tsx's keepNames wraps it in `__name(...)`, which the page does not have
-      const base = { bubbles: true, cancelable: true, pointerId: 1, button: 0, shiftKey: sh };
-      (doc.elementFromPoint(a.x, a.y) ?? doc.body).dispatchEvent(
-        new PointerEvent('pointerdown', { ...base, clientX: a.x, clientY: a.y })
-      );
-      win.dispatchEvent(new PointerEvent('pointermove', { ...base, clientX: b.x, clientY: b.y }));
-      win.dispatchEvent(new PointerEvent('pointerup', { ...base, clientX: b.x, clientY: b.y }));
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        const win = frame.contentWindow as Window;
+        const doc = frame.contentDocument as Document;
+        // no named inner function here: tsx's keepNames wraps it in `__name(...)`, which the page does not have
+        const base = { bubbles: true, cancelable: true, pointerId: 1, button: 0, shiftKey: sh };
+        (doc.elementFromPoint(a.x, a.y) ?? doc.body).dispatchEvent(
+          new PointerEvent('pointerdown', { ...base, clientX: a.x, clientY: a.y })
+        );
+        win.dispatchEvent(new PointerEvent('pointermove', { ...base, clientX: b.x, clientY: b.y }));
+        win.dispatchEvent(new PointerEvent('pointerup', { ...base, clientX: b.x, clientY: b.y }));
         return null;
       } catch (e) {
         return String(e);

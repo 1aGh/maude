@@ -116,12 +116,30 @@ const ghost = () =>
   });
 
 const openPicker = async () => {
-  await press('I', true);
+  // the tool keys register once the editing layer has mounted over the canvas, a beat after it renders:
+  // press again until the picker answers (a press on an open picker would close it, so only while it is shut)
   await browser.waitUntil(
-    async () => (await $('[data-testid="tool-panel-components"]')).isExisting(),
-    {
-      timeout: 5000,
-    }
+    async () => {
+      if (await $('[data-testid="tool-panel-components"]').isExisting()) return true;
+      // the shell opens a tool panel only for a FOCUSED canvas (tool-panels gate, testids.json tool-panel-<panel>)
+      await browser.execute(() => {
+        const frame = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+        frame.focus();
+        frame.contentWindow?.focus();
+      });
+      await press('I', true);
+      await browser.pause(700);
+      if (await $('[data-testid="tool-panel-components"]').isExisting()) return true;
+      // the toolbar's own Components slot, in the frame — what a person without the key presses
+      await inFrame((doc) => {
+        (
+          doc.querySelector('[data-testid="toolbar-slot-components"]') as HTMLElement | null
+        )?.click();
+      });
+      await browser.pause(700);
+      return $('[data-testid="tool-panel-components"]').isExisting();
+    },
+    { timeout: 15000, timeoutMsg: '⇧I never opened the Component picker' }
   );
 };
 
