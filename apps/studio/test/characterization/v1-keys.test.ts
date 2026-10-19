@@ -93,11 +93,16 @@
 // `object.bring-forward`, one `POST /_api/edit-op`. (4) ⇧⌘E opens the S8.2 sheet, which asks
 // `POST /_api/export-estimate` (S8.1/S8.2). (5) ⇧⌘M runs `presence.context`. (6) timeline ⌘Z / ⇧⌘Z are
 // `edit.undo` / `edit.redo` with an `undo-barrier` (the retired `timeline.undo`). (7) Esc in the canvas no longer
-// sends `force-clear` / `tool-cursor tool=move` (not traced to a recorded decision).
+// sends `force-clear` / `tool-cursor tool=move` (decision v2-S3.12-esc-one-rung).
 // Not attributed one by one: the cases that only gained a `viewport-zoom` / `PATCH canvas-meta` (s n c a e, ⌘0 …,
 // the presenting Esc cases, tauri ⌘N's composer) and the 42 whose only change is the shell/canvas DOM hash (the
 // floating panels' content moved). They are stable across the two regenerations, so they are the measured wave A
 // behaviour; a case-by-case read of them is open (the lead's call).
+// Lead decision (v2-lead-v1-keys-normalise-volatile): the undo toast (message and DOM), the `artboards` message and
+// `undo-key` / `undo-mode` are timing races against the snapshot window, so a case records which of them appeared as a
+// sorted, de-duplicated `{kind,…}` presence (the boot-time `viewport-zoom` / `peers` / `mode-changed` / `hold-view` of a reloaded canvas joined them: how often each repeats on a reload is the same race) at the end of its message list — no order, no count — and the toast's
+// DOM lines are left out of the fingerprint. The Esc cases that stopped sending `force-clear` are decision
+// v2-S3.12-esc-one-rung (one rung per Esc).
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
 // happened yet (Settings' scout card, the inspector's edit-scope row), and under load it answers
@@ -827,7 +832,8 @@ interface DocSnap {
 
 async function snapDoc(target: Page | Frame, lane: Lane): Promise<DocSnap | null> {
   try {
-    return { lines: await target.evaluate(fingerprintInPage, { work: lane.work }) };
+    const lines = await target.evaluate(fingerprintInPage, { work: lane.work });
+    return { lines: lines.filter((l) => !VOLATILE_DOM.test(l)) };
   } catch {
     return null;
   }
@@ -839,27 +845,32 @@ async function snapDoc(target: Page | Frame, lane: Lane): Promise<DocSnap | null
  *  do not see it coming, they only see "nothing changed so far". */
 interface Net {
   pending(): string[];
+  /** an edit-op / duplicate-element write went out in this case */
+  wrote(): boolean;
 }
 function trackNetwork(context: BrowserContext): Net {
   const open = new Map<Request, string>();
+  let wrote = false;
   context.on('request', (r) => {
     // Only READS: a write is recorded as a write (and a keepalive POST never "finishes" in the
     // protocol's eyes), a stream is open by design. What a document waits on is data coming in.
-    // One write IS waited for (V2-5 gate): an edit-op's answer changes the DOM (the notice, the inspector)
+    // Two writes ARE waited for (V2-5 gate; edit-op, duplicate-element): an edit-op's answer changes the DOM (the notice, the inspector)
     // and the canvas's undo stack — a snapshot taken before it lands made ⌘G and the ⌘Z after it flip
     // between two bodies from run to run.
     const path = r
       .url()
       .replace(/^https?:\/\/[^/]+/, '')
       .split('?')[0];
-    const editOp = r.method() === 'POST' && path === '/_api/edit-op';
+    const editOp =
+      r.method() === 'POST' && (path === '/_api/edit-op' || path === '/_api/duplicate-element');
     if ((r.method() !== 'GET' && !editOp) || r.resourceType() === 'eventsource') return;
+    if (editOp) wrote = true;
     open.set(r, `${r.method()} ${path}`);
   });
   const done = (r: Request) => void open.delete(r);
   context.on('requestfinished', done);
   context.on('requestfailed', done);
-  return { pending: () => [...open.values()] };
+  return { pending: () => [...open.values()], wrote: () => wrote };
 }
 /** The longest a document waits for the reads it fired (the server and the machine are shared with the
  *  other lanes and with everything else running). A read still open after this is a hang, and the
@@ -869,6 +880,9 @@ const NET_WAIT_MS = 20_000;
 /** Snapshot until two in a row agree (≤ ~3 s) and no read is in flight: async effects (a fetch, a
  *  timer) have landed. Reads that are still open extend the wait up to NET_WAIT_MS. */
 async function stable(target: Page | Frame, lane: Lane, net: Net): Promise<DocSnap | null> {
+  // After a write the shell keeps answering for a beat (the notice, the undo mode, the inspector's
+  // fields): give it that beat before the first snapshot, or two equal early reads end the wait.
+  if (net.wrote()) await sleep(1500);
   let prev = await snapDoc(target, lane);
   const t0 = Date.now();
   for (let i = 0; i < 12 || (net.pending().length && Date.now() - t0 < NET_WAIT_MS); i++) {
@@ -984,6 +998,12 @@ async function clearRec(target: Page | Frame | null) {
 const NOISE =
   /^(child|parent|self) (presence|cursor|camera|viewport-state|hover|perf|heartbeat|canvas-rects|select-set|select-by-id|layers-tree|request-layers|toolbar-rect)\b/;
 
+/** The message kinds whose arrival inside the snapshot window is a race (see runCase). */
+const VOLATILE =
+  /^(?:child|parent) (canvas-notice|artboards|undo-key|undo-mode|viewport-zoom|peers|mode-changed|hold-view|set-mode|occluded-insets|timeline-request-comps)\b/;
+/** The toast's DOM is volatile for the same reason; its presence is recorded as the `canvas-notice` kind. */
+const VOLATILE_DOM = /maude-notice/;
+
 async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
   if (resetFixture(lane)) await sleep(2500); // let the watcher fire before the page loads
   const context = await browser.newContext({
@@ -1091,19 +1111,53 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
       ...(frame1 === frame0 ? canvasRec.keys.map((k) => `canvas ${k}`) : []),
     ];
     lines.push(`  keydown: ${events.length ? events.join(' · ') : '(none)'}`);
-    const toShell = shellRec.msgs.filter((m) => !m.startsWith('self ') && !NOISE.test(m));
-    const toCanvas = canvasRec.msgs.filter((m) => m.startsWith('parent ') && !NOISE.test(m));
-    lines.push(`  to-shell: ${toShell.length ? toShell.join(' · ') : '(none)'}`);
+    // Timing-volatile kinds (decision v2-lead-v1-keys-normalise-volatile): whether the undo toast, the
+    // artboard list and the undo-stack messages land inside the snapshot window differs run to run, so
+    // they are recorded as presence — sorted, de-duplicated, no order, no count — after the stable lines.
+    const dropUndoMode = (m: string) => !(net.wrote() && /^(?:child|parent) undo-mode\b/.test(m));
+    const split = (all: string[]) => {
+      const msgs = all.filter(dropUndoMode);
+      const stable: string[] = [];
+      const volatile = new Set<string>();
+      for (const m of msgs) {
+        // the whole message (kind + its arguments, direction dropped) is the presence token, so a
+        // `set-mode mode=viewing` stays distinguishable from `set-mode mode=edit`
+        if (VOLATILE.test(m)) volatile.add(m.replace(/^(?:child|parent) /, ''));
+        else stable.push(m);
+      }
+      return { stable, volatile: [...volatile].sort() };
+    };
+    const toShell = split(shellRec.msgs.filter((m) => !m.startsWith('self ') && !NOISE.test(m)));
+    const toCanvas = split(canvasRec.msgs.filter((m) => m.startsWith('parent ') && !NOISE.test(m)));
+    const withVolatile = (x: { stable: string[]; volatile: string[] }) =>
+      [...x.stable, ...(x.volatile.length ? [`{${x.volatile.join(',')}}`] : [])].join(' · ');
     lines.push(
-      `  to-canvas: ${frame1 !== frame0 ? `(canvas reloaded) ${toCanvas.join(' · ')}`.trim() : toCanvas.length ? toCanvas.join(' · ') : '(none)'}`
+      `  to-shell: ${toShell.stable.length || toShell.volatile.length ? withVolatile(toShell) : '(none)'}`
+    );
+    lines.push(
+      `  to-canvas: ${frame1 !== frame0 ? `(canvas reloaded) ${withVolatile(toCanvas)}`.trim() : toCanvas.stable.length || toCanvas.volatile.length ? withVolatile(toCanvas) : '(none)'}`
     );
     lines.push(`  writes: ${writes.length ? [...new Set(writes)].sort().join(' · ') : '(none)'}`);
-    lines.push(...summarise('shell', shellBefore, shellAfter));
+    // A case that wrote through an edit-op / duplicate-element (decision v2-lead-v1-keys-normalise-volatile):
+    // whether the inspector's X / Y / W / H fields show the new numbers inside the snapshot window is a race,
+    // so those fields are recorded as present, without their values; `undo-mode` is dropped for the same reason.
+    const maskNums = (d: DocSnap | null): DocSnap | null =>
+      d && net.wrote()
+        ? {
+            ...d,
+            lines: d.lines.map((l) =>
+              /spinbutton|insp-num|st-cp-numin/.test(l)
+                ? l.replace(/\{value="[^"]*"\}/, '{value}')
+                : l
+            ),
+          }
+        : d;
+    lines.push(...summarise('shell', maskNums(shellBefore), maskNums(shellAfter)));
     lines.push(...LATE);
     lines.push(
       ...(frame1 !== frame0 && frame0 && frame1
         ? ['  canvas: (reloaded)']
-        : summarise('canvas', canvasBefore, canvasAfter))
+        : summarise('canvas', maskNums(canvasBefore), maskNums(canvasAfter)))
     );
     return lines.join('\n');
   } finally {

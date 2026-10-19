@@ -70,15 +70,15 @@
   canvas: =
 ## browser/canvas/chrome Meta+r
   keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
-  to-shell: child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child viewport-zoom · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: =
   canvas: =
 ## browser/canvas/chrome Meta+Shift+M
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="M" PREVENTED
   to-shell: (none)
-  to-canvas: parent run-action id=presence.context · parent occluded-insets
+  to-canvas: parent run-action id=presence.context · {occluded-insets}
   writes: (none)
   shell: +22 -4 #b460a43655
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
@@ -104,7 +104,7 @@
 ## browser/canvas/chrome Meta+Shift+I
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="I" PREVENTED
   to-shell: (none)
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +13 -2 #cb16f40cb2
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
@@ -266,8 +266,8 @@
     + div [data-active-tool="hand"]
 ## browser/canvas/chrome s
   keydown: shell key="s" PREVENTED · canvas key="s" PREVENTED
-  to-shell: child mode-request tool=section mode=preview · child peers · child mode-changed tool=section mode=preview · child viewport-zoom · child tool-cursor tool=section · child tool-cursor tool=section · child viewport-zoom · child active-artboard id=home-pricing
-  to-canvas: parent run-action id=tool.key · parent occluded-insets · parent set-mode tool=section mode=preview
+  to-shell: child mode-request tool=section mode=preview · child tool-cursor tool=section · child tool-cursor tool=section · child active-artboard id=home-pricing · {mode-changed tool=section mode=preview,peers,viewport-zoom}
+  to-canvas: parent run-action id=tool.key · {occluded-insets,set-mode tool=section mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +18 -12 #74c2b4f370
     - @focus body
@@ -309,8 +309,8 @@
     + … 24 more
 ## browser/canvas/chrome n
   keydown: shell key="n" PREVENTED · canvas key="n" PREVENTED
-  to-shell: child mode-request tool=sticky mode=preview · child peers · child mode-changed tool=sticky mode=preview · child viewport-zoom · child tool-cursor tool=sticky · child tool-cursor tool=sticky · child viewport-zoom · child active-artboard id=home-pricing
-  to-canvas: parent run-action id=tool.key · parent occluded-insets · parent set-mode tool=sticky mode=preview
+  to-shell: child mode-request tool=sticky mode=preview · child tool-cursor tool=sticky · child tool-cursor tool=sticky · child active-artboard id=home-pricing · {mode-changed tool=sticky mode=preview,peers,viewport-zoom}
+  to-canvas: parent run-action id=tool.key · {occluded-insets,set-mode tool=sticky mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +18 -12 #74c2b4f370
     - @focus body
@@ -469,8 +469,8 @@
   canvas: =
 ## browser/canvas/chrome c
   keydown: shell key="c" PREVENTED · canvas key="c" PREVENTED
-  to-shell: child mode-request tool=comment mode=preview · child peers · child mode-changed tool=comment mode=preview · child viewport-zoom · child tool-cursor tool=comment · child tool-cursor tool=comment · child viewport-zoom · child active-artboard id=home-pricing
-  to-canvas: parent run-action id=tool.key · parent occluded-insets · parent set-mode tool=comment mode=preview
+  to-shell: child mode-request tool=comment mode=preview · child tool-cursor tool=comment · child tool-cursor tool=comment · child active-artboard id=home-pricing · {mode-changed tool=comment mode=preview,peers,viewport-zoom}
+  to-canvas: parent run-action id=tool.key · {occluded-insets,set-mode tool=comment mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +18 -12 #74c2b4f370
     - @focus body
@@ -602,15 +602,15 @@
   canvas: =
 ## browser/canvas/text Meta+r
   keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
-  to-shell: child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child viewport-zoom · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: =
   canvas: =
 ## browser/canvas/text Meta+Shift+M
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="M" PREVENTED
   to-shell: (none)
-  to-canvas: parent run-action id=presence.context · parent occluded-insets
+  to-canvas: parent run-action id=presence.context · {occluded-insets}
   writes: (none)
   shell: +22 -4 #b460a43655
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
@@ -636,7 +636,7 @@
 ## browser/canvas/text Meta+Shift+I
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="I" PREVENTED
   to-shell: (none)
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +13 -2 #cb16f40cb2
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
@@ -1313,8 +1313,8 @@
     + div [data-active-tool="hand"]
 ## browser/in-canvas/canvas c
   keydown: canvas key="c" PREVENTED
-  to-shell: child mode-request tool=comment mode=preview · child peers · child mode-changed tool=comment mode=preview · child viewport-zoom · child tool-cursor tool=comment · child tool-cursor tool=comment · child viewport-zoom
-  to-canvas: parent occluded-insets · parent set-mode tool=comment mode=preview
+  to-shell: child mode-request tool=comment mode=preview · child tool-cursor tool=comment · child tool-cursor tool=comment · {mode-changed tool=comment mode=preview,peers,viewport-zoom}
+  to-canvas: {occluded-insets,set-mode tool=comment mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +58 -13 #a0b26f2ad6
     - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
@@ -1403,8 +1403,8 @@
   canvas: =
 ## browser/in-canvas/canvas a
   keydown: canvas key="a" PREVENTED
-  to-shell: child mode-request tool=arrow mode=preview · child peers · child mode-changed tool=arrow mode=preview · child viewport-zoom · child tool-cursor tool=arrow · child tool-cursor tool=arrow · child viewport-zoom
-  to-canvas: parent occluded-insets · parent set-mode tool=arrow mode=preview
+  to-shell: child mode-request tool=arrow mode=preview · child tool-cursor tool=arrow · child tool-cursor tool=arrow · {mode-changed tool=arrow mode=preview,peers,viewport-zoom}
+  to-canvas: {occluded-insets,set-mode tool=arrow mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +58 -13 #a0b26f2ad6
     - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
@@ -1446,8 +1446,8 @@
     + … 28 more
 ## browser/in-canvas/canvas n
   keydown: canvas key="n" PREVENTED
-  to-shell: child mode-request tool=sticky mode=preview · child peers · child mode-changed tool=sticky mode=preview · child viewport-zoom · child tool-cursor tool=sticky · child tool-cursor tool=sticky · child viewport-zoom
-  to-canvas: parent occluded-insets · parent set-mode tool=sticky mode=preview
+  to-shell: child mode-request tool=sticky mode=preview · child tool-cursor tool=sticky · child tool-cursor tool=sticky · {mode-changed tool=sticky mode=preview,peers,viewport-zoom}
+  to-canvas: {occluded-insets,set-mode tool=sticky mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +58 -13 #a0b26f2ad6
     - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
@@ -1521,8 +1521,8 @@
   canvas: =
 ## browser/in-canvas/canvas s
   keydown: canvas key="s" PREVENTED
-  to-shell: child mode-request tool=section mode=preview · child peers · child mode-changed tool=section mode=preview · child viewport-zoom · child tool-cursor tool=section · child tool-cursor tool=section · child viewport-zoom
-  to-canvas: parent occluded-insets · parent set-mode tool=section mode=preview
+  to-shell: child mode-request tool=section mode=preview · child tool-cursor tool=section · child tool-cursor tool=section · {mode-changed tool=section mode=preview,peers,viewport-zoom}
+  to-canvas: {occluded-insets,set-mode tool=section mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +58 -13 #a0b26f2ad6
     - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
@@ -1564,8 +1564,8 @@
     + … 24 more
 ## browser/in-canvas/canvas e
   keydown: canvas key="e" PREVENTED
-  to-shell: child mode-request mode=preview · child tool-panel-open · child peers · child mode-changed tool=browse mode=preview · child viewport-zoom · child tool-cursor tool=browse · child viewport-zoom
-  to-canvas: parent occluded-insets · parent set-mode mode=preview
+  to-shell: child mode-request mode=preview · child tool-panel-open · child tool-cursor tool=browse · {mode-changed tool=browse mode=preview,peers,viewport-zoom}
+  to-canvas: {occluded-insets,set-mode mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +161 -14 #6ccd304218
     - @focus iframe[data-testid="canvas-frame"]
@@ -1608,7 +1608,7 @@
 ## browser/in-canvas/canvas Escape
   keydown: canvas key="Escape" PREVENTED
   to-shell: (none)
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +2 -234 #66bead18ed
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -1633,7 +1633,7 @@
 ## browser/in-canvas/canvas Shift+Escape
   keydown: canvas ⇧key="Shift" default · canvas ⇧key="Escape" PREVENTED
   to-shell: (none)
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +2 -234 #66bead18ed
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -1658,7 +1658,7 @@
 ## browser/in-canvas/canvas Meta+Escape
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="Escape" PREVENTED
   to-shell: (none)
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +2 -234 #66bead18ed
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -1736,8 +1736,8 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+r
   keydown: (none)
-  to-shell: child key · child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child key · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: =
   canvas: +0 -1 #57fc8cbb43
@@ -1752,7 +1752,7 @@
 ## browser/in-canvas/canvas Meta+Shift+I
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="I" PREVENTED
   to-shell: child key
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +2 -234 #66bead18ed
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -1928,7 +1928,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+0
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="0" PREVENTED
-  to-shell: child viewport-zoom · child active-artboard id=home-pricing
+  to-shell: child active-artboard id=home-pricing · {viewport-zoom}
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: +1 -1 #26786c162b
@@ -1948,7 +1948,7 @@
   canvas: =
 ## browser/in-canvas/canvas Shift+Digit0
   keydown: canvas ⇧key="Shift" default · canvas ⇧key=")" PREVENTED
-  to-shell: child viewport-zoom
+  to-shell: {viewport-zoom}
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
@@ -1957,7 +1957,7 @@
     + @world translate(62.6766px, 249.963px)
 ## browser/in-canvas/canvas Meta+Equal
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="=" PREVENTED
-  to-shell: child viewport-zoom
+  to-shell: {viewport-zoom}
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
@@ -1968,7 +1968,7 @@
     + div .ed-name-tag [data-testid="edit-name-tag"] [aria-hidden="true"] "main · 800 × 217"
 ## browser/in-canvas/canvas Meta+Minus
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
-  to-shell: child viewport-zoom
+  to-shell: {viewport-zoom}
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
@@ -2021,17 +2021,11 @@
     + … 18 more
 ## browser/in-canvas/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child viewport-zoom · child active-artboard id=home-pricing · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom
-  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child duplicate-request id=3807c330 · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
-  shell: +9 -3 #8072db3c7c
-    - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
-    - input .st-cp-numin [role="spinbutton"] [aria-label="Y"] {value="0"}
+  shell: +4 -1 #5ab6a6c6d3
     - strong .insp-title [data-testid="inspector-title"] "main"
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-canvas-notice-0"]
-    + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="218"}
-    + input .st-cp-numin [role="spinbutton"] [aria-label="Y"] {value="218"}
     + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
   canvas: +7 -3 #aef03dc995
     - @world translate(443.42px, 502.565px)
@@ -2042,28 +2036,27 @@
     + input [aria-label="Name"] [placeholder="Name"]
 ## browser/in-canvas/canvas Meta+g
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" PREVENTED
-  to-shell: child edit-op op=object.frame · child canvas-notice kind=undo · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child viewport-zoom · child active-artboard id=home-pricing · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom
-  to-canvas: parent edit-op-result · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child edit-op op=object.frame · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent edit-op-result · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/edit-op
-  shell: +43 -13 #639e30ba78
+  shell: +34 -10 #9e1496a7af
     - button .insp-crumb.insp-crumb--btn [data-testid="inspector-crumb-0"] [title="Select Hero"] [type="button"] "Hero"
     - button .is-active [role="radio"] [aria-label="Free"] [aria-checked="true"] [title="Free"] [type="button"]
     - button [role="radio"] [aria-label="Column"] [aria-checked="false"] [title="Column"] [type="button"]
-    - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
-    - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
-    - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
     - kbd .insp-crumbs-esc [data-testid="inspector-crumbs-esc"] [title="esc steps out one level"] "esc"
     - nav .insp-crumbs [data-testid="inspector-crumbs"] [aria-label="Where this is"]
-    - … 3 more
+    - span .insp-crumb [data-testid="inspector-crumb-1"] [aria-current="location"] "main"
+    - span .insp-crumb-ch [aria-hidden="true"]
+    - strong .insp-title [data-testid="inspector-title"] "main"
     + button .btn.btn--sm [data-testid="insp-layout-convert"] [type="button"] "Convert children to absolute position"
     + button .insp-chip [aria-label="Gap"] [aria-expanded="false"] [type="button"]
     + button .is-active [role="radio"] [aria-label="Column"] [aria-checked="true"] [title="Column"] [type="button"]
     + button .is-active [role="radio"] [aria-label="align tc"] [aria-checked="true"] [type="button"]
     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "Packed"
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
     + button .st-cp-segbtn [role="radio"] [aria-checked="false"] [type="button"] "Space between"
     + button [role="radio"] [aria-label="Free"] [aria-checked="false"] [title="Free"] [type="button"]
-    + … 25 more
+    + button [role="radio"] [aria-label="align bc"] [aria-checked="false"] [type="button"]
+    + … 20 more
   canvas: +1 -29 #6981ce9e79
     - @world translate(443.42px, 502.565px)
     - button .ed-cdot [data-testid="edit-corner-dot-bl"] [aria-label="Round the bottom left corner"] [type="button"]
@@ -2077,10 +2070,10 @@
     + @world translate(581.854px, 737.512px)
 ## browser/in-canvas/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
-  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom
-  to-canvas: parent record-edit · parent run-action id=select.none · parent occluded-insets · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child delete-request id=3807c330 · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/delete-element
-  shell: +8 -234 #000262a9ec
+  shell: +5 -234 #b6a4df20c9
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2090,9 +2083,7 @@
     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
     - … 120 more
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
     + button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
-    + div .maude-notice [data-testid="notice-canvas-notice-0"]
   canvas: +0 -34 #4800862e1a
     - button .ed-cdot [data-testid="edit-corner-dot-bl"] [aria-label="Round the bottom left corner"] [type="button"]
     - button .ed-cdot [data-testid="edit-corner-dot-br"] [aria-label="Round the bottom right corner"] [type="button"]
@@ -2113,10 +2104,10 @@
     + span .ed-nudge-tag [data-testid="edit-nudge-tag"] [aria-hidden="true"] "X 0"
 ## browser/in-canvas/canvas BracketRight
   keydown: canvas key="]" PREVENTED
-  to-shell: child edit-op op=object.bring-forward · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child viewport-zoom · child active-artboard id=home-pricing · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom
-  to-canvas: parent edit-op-result · parent undo-mode · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child edit-op op=object.bring-forward · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent edit-op-result · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/edit-op
-  shell: +1 -1 #26786c162b
+  shell: +4 -1 #5ab6a6c6d3
     - strong .insp-title [data-testid="inspector-title"] "main"
     + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
   canvas: +1 -30 #ec360cb075
@@ -2245,8 +2236,8 @@
     + @focus body
 ## browser/in-canvas-text/canvas Meta+r
   keydown: (none)
-  to-shell: child key · child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child key · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: =
   canvas: +1 -2 #f4fa5be56e
@@ -2275,7 +2266,7 @@
 ## browser/in-canvas-text/canvas Meta+Shift+I
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="I" PREVENTED
   to-shell: child key
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +2 -235 #96bf8b4111
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -2313,7 +2304,7 @@
 ## browser/in-canvas-selected/canvas Escape
   keydown: canvas key="Escape" PREVENTED
   to-shell: (none)
-  to-canvas: parent occluded-insets
+  to-canvas: {occluded-insets}
   writes: (none)
   shell: +2 -234 #66bead18ed
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -2353,17 +2344,11 @@
     + span .ed-nudge-tag [data-testid="edit-nudge-tag"] [aria-hidden="true"] "X 0"
 ## browser/in-canvas-selected/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child viewport-zoom · child active-artboard id=home-pricing · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom
-  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child duplicate-request id=3807c330 · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
-  shell: +9 -3 #8072db3c7c
-    - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
-    - input .st-cp-numin [role="spinbutton"] [aria-label="Y"] {value="0"}
+  shell: +4 -1 #5ab6a6c6d3
     - strong .insp-title [data-testid="inspector-title"] "main"
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-canvas-notice-0"]
-    + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="218"}
-    + input .st-cp-numin [role="spinbutton"] [aria-label="Y"] {value="218"}
     + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
   canvas: +9 -5 #74fb2d028f
     - @world translate(443.42px, 502.565px)
@@ -2385,10 +2370,10 @@
   canvas: =
 ## browser/in-canvas-selected/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
-  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom
-  to-canvas: parent record-edit · parent run-action id=select.none · parent occluded-insets · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child delete-request id=3807c330 · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/delete-element
-  shell: +8 -234 #000262a9ec
+  shell: +5 -234 #b6a4df20c9
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2398,9 +2383,7 @@
     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
     - … 120 more
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
     + button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
-    + div .maude-notice [data-testid="notice-canvas-notice-0"]
   canvas: +2 -36 #ce085f61a3
     - body [data-active-tool="move"]
     - button .ed-cdot [data-testid="edit-corner-dot-bl"] [aria-label="Round the bottom left corner"] [type="button"]
@@ -2635,9 +2618,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +6 -0 #a27da6a95a
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-notice-2"]
+  shell: +3 -0 #ba7912be44
   canvas: =
 ## browser/timeline/chrome Escape
   keydown: shell key="Escape" default
@@ -2835,8 +2816,8 @@
   canvas: =
 ## browser/presenting/chrome Escape
   keydown: shell key="Escape" PREVENTED
-  to-shell: child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child tool-cursor tool=move · child tool-cursor tool=move
-  to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set
+  to-shell: child tool-cursor tool=move · child tool-cursor tool=move · {mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent view-chrome · parent comments-set · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: +3 -12 #66ace29891
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
@@ -2862,8 +2843,8 @@
     + … 17 more
 ## browser/presenting/chrome Shift+Escape
   keydown: shell ⇧key="Shift" default · shell ⇧key="Escape" PREVENTED
-  to-shell: child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child tool-cursor tool=move · child tool-cursor tool=move
-  to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set
+  to-shell: child tool-cursor tool=move · child tool-cursor tool=move · {mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent view-chrome · parent comments-set · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: +3 -12 #66ace29891
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
@@ -2896,8 +2877,8 @@
   canvas: =
 ## browser/presenting/text Escape
   keydown: canvas key="Escape" PREVENTED
-  to-shell: child mode-request mode=back · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child tool-cursor tool=move · child tool-cursor tool=move
-  to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set
+  to-shell: child mode-request mode=back · child tool-cursor tool=move · child tool-cursor tool=move · {mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent view-chrome · parent comments-set · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: +3 -12 #66ace29891
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
@@ -2923,8 +2904,8 @@
     + … 17 more
 ## browser/presenting/canvas Escape
   keydown: canvas key="Escape" PREVENTED
-  to-shell: child mode-request mode=back · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child tool-cursor tool=move · child tool-cursor tool=move
-  to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set
+  to-shell: child mode-request mode=back · child tool-cursor tool=move · child tool-cursor tool=move · {mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: parent view-chrome · parent comments-set · {occluded-insets,set-mode mode=edit}
   writes: (none)
   shell: +3 -12 #66ace29891
     - button .pr-pill.st-present-exit [data-testid="present-pill"] [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
@@ -2957,8 +2938,8 @@
   canvas: =
 ## tauri/canvas/chrome Meta+n
   keydown: shell ⌘key="Meta" default · shell ⌘key="n" PREVENTED
-  to-shell: child loaded · child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard · child tool-cursor tool=move · child tool-cursor tool=browse · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
-  to-canvas: (canvas reloaded) parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent timeline-request-comps · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
+  to-shell: child loaded · child loaded · child active-artboard · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: (canvas reloaded) parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit,timeline-request-comps}
   writes: POST /_api/canvas
   shell: +27 -236 #0c914d92a0
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
@@ -3069,18 +3050,14 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +6 -0 #339a8350bf
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-notice-2"]
+  shell: +3 -0 #ba7912be44
   canvas: =
 ## viewer/canvas/chrome n
   keydown: shell key="n" PREVENTED · canvas key="n" PREVENTED
   to-shell: child mode-request tool=sticky mode=preview
   to-canvas: parent run-action id=tool.key
   writes: (none)
-  shell: +6 -0 #339a8350bf
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-notice-2"]
+  shell: +3 -0 #ba7912be44
   canvas: =
 ## viewer/canvas/chrome Meta+Shift+E
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="E" PREVENTED
@@ -3125,18 +3102,14 @@
   to-shell: child mode-request tool=sticky mode=preview
   to-canvas: (none)
   writes: (none)
-  shell: +6 -0 #339a8350bf
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-notice-2"]
+  shell: +3 -0 #ba7912be44
   canvas: =
 ## viewer/in-canvas/canvas v
   keydown: canvas key="v" PREVENTED
   to-shell: child mode-request tool=move mode=edit
   to-canvas: (none)
   writes: (none)
-  shell: +6 -0 #339a8350bf
-    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
-    + div .maude-notice [data-testid="notice-notice-2"]
+  shell: +3 -0 #ba7912be44
   canvas: =
 ## viewer/in-canvas/canvas Meta+z
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="z" PREVENTED
