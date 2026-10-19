@@ -53,6 +53,8 @@ import {
   imageFromClipboard,
   MAKE_EDITABLE_READY,
   pasteTarget,
+  placedBarFollows,
+  placedBarMemory,
 } from '../editing/paste-bar.tsx';
 
 const ok = (over: Partial<Extract<EditOpResult, { ok: true }>> = {}): EditOpResult => ({
@@ -365,6 +367,31 @@ describe('the paste bar', () => {
       expect(line).not.toMatch(/\b(we|I)\b|editable text|stays editable|oops|!/i);
     }
     expect(AS_PICTURE_VERB).toBe('Paste as picture');
+  });
+
+  test('G5: the line waits for the picture to be selected — the paste target is still selected when the bar opens', () => {
+    const mine = JSON.stringify([{ artboard: 'desktop', element: 'image' }]);
+    const target = JSON.stringify([{ artboard: 'desktop', element: 'hero' }]);
+    // the bar opens before the canvas re-renders: the old selection must not close it
+    let s = placedBarFollows(mine, target, false);
+    expect(s).toEqual({ stays: true, seen: false });
+    // the picture is selected (selectWhenRendered): now the bar is bound to it
+    s = placedBarFollows(mine, mine, s.seen);
+    expect(s).toEqual({ stays: true, seen: true });
+    // something else selected afterwards closes it; clearing the selection does not
+    expect(placedBarFollows(mine, target, true).stays).toBe(false);
+    expect(placedBarFollows(mine, '[]', true).stays).toBe(true);
+  });
+
+  test('G5: the line survives the canvas reload the placing write causes (the bar is rebuilt from the document’s memory)', () => {
+    const win = {} as unknown as Window;
+    const line = { line: pastedLine('Hero / v3'), ref: { artboard: 'desktop', element: 'img' } };
+    expect(placedBarMemory(win).recall()).toBeNull();
+    placedBarMemory(win).remember(line);
+    // a soft swap remounts the bar: a second reader of the same document sees what the first remembered
+    expect(placedBarMemory(win).recall()).toEqual(line);
+    placedBarMemory(win).remember(null);
+    expect(placedBarMemory(win).recall()).toBeNull();
   });
 
   test('Make editable is not offered until Figma import (S8.17) lands', () => {
