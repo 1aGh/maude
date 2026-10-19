@@ -42,6 +42,26 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view'],
     body: { op: 'add', file: '.design/ui/a.tsx', text: 'x' },
   },
+  // S4.14 — formal votes (routes/votes.ts): a ballot needs `vote` (Can view refused, Can comment may);
+  // starting and ending one need `edit` (`annotations.start-vote` / `annotations.end-vote`).
+  {
+    method: 'POST',
+    route: '/_api/votes/ballot',
+    refused: ['view'],
+    body: { file: '.design/ui/a.tsx', id: 'vote-aaaaaaaaaa', picks: {} },
+  },
+  {
+    method: 'POST',
+    route: '/_api/votes/start',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', targets: ['ab:a'] },
+  },
+  {
+    method: 'POST',
+    route: '/_api/votes/end',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', id: 'vote-aaaaaaaaaa' },
+  },
   // export — every download and export
   { method: 'POST', route: '/_api/export', refused: ['view'] },
   { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },

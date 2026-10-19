@@ -131,6 +131,16 @@ export interface CanvasToShell {
   'annotation-toast': { v: 1; message: string; undo: boolean };
   // S4.12 — ⌘/ (or Ask AI about it) with annotations selected: open the AI chat with that scope.
   'annotation-ask-ai': { v: 1 };
+  // S4.14 (S4-S9 §2.6) — a formal vote. The canvas holds no vote: it names an artboard for one dot more or
+  // less (`remove`), and the SHELL posts the ballot to /_api/votes/ballot as the session.
+  'vote-cast': { artboard: string; remove?: boolean };
+  // S4.14 — the canvas's artboards (names + world rects; untrusted, text only) for the Start a vote sheet
+  // and the result section's place. `open` = "Start a vote…" (⌘K / the artboard's right-click, `focus`).
+  'vote-board': {
+    artboards: Array<{ id: string; label: string; x: number; y: number; w: number; h: number }>;
+    open?: boolean;
+    focus?: string;
+  };
   'canvas-notice': {
     message: string;
     kind: 'info' | 'success' | 'error' | 'warning' | 'undo';
@@ -527,6 +537,18 @@ export interface ShellToCanvas {
   // S4.8 (Q8) — the person's annotation-tool memory, seeded on `loaded` / `canvas-rendered` and re-sent on
   // each change made in another canvas. State, not an event.
   'annotation-prefs': { prefs: AnnotationPrefsPayload };
+  // S4.14 (S4-S9 §2.6) — the vote the canvas shows: the projection only (targets, state, YOUR dots, the
+  // counts once ended). Never a name, never another person's picks — the parser keeps nothing else.
+  'vote-state': {
+    vote: {
+      id: string;
+      targets: string[];
+      state: 'open' | 'ended';
+      perVoter: number;
+      tallies?: Record<string, number>;
+    } | null;
+    mine: Record<string, number>;
+  };
   // S2.18 (V2-1.15 §5.12) — what the canvas can't see for this person's `holding`: an inspector field has
   // focus (`field`), the app has focus (`app`), an inspector edit just landed (`gesture`). State, sent on
   // every change to the active canvas.
@@ -972,6 +994,25 @@ const c2s: C2S = {
     status: 'live',
     owner: 'annotations-layer (S4.12) → shell AI chat',
     parse: p({ v: lit(1) }),
+  },
+  'vote-cast': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/vote-dots (S4.14) → shell vote store (routes/votes.ts)',
+    parse: p({ artboard: linkArtboardIdV, remove: opt(bool) }),
+  },
+  'vote-board': {
+    gate: 'active',
+    status: 'live',
+    owner: 'annotations/ui/vote-dots + editing/artboard-menu (S4.14) → shell vote sheet',
+    parse: p({
+      artboards: capped(
+        200,
+        arrOf(shape({ id: linkArtboardIdV, label: shortStr(120), x: num, y: num, w: num, h: num }))
+      ),
+      open: opt(bool),
+      focus: opt(linkArtboardIdV),
+    }),
   },
   'canvas-notice': {
     gate: 'active',
@@ -1900,6 +1941,24 @@ const s2c: S2C = {
     status: 'live',
     owner: 'annotations/ui/tool-state (S4.8)',
     parse: p({ prefs: annotationPrefs }),
+  },
+  // S4.14 — the parser IS the projection: a field it does not name never reaches the canvas.
+  'vote-state': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'annotations/ui/vote-dots (S4.14)',
+    parse: p({
+      vote: nul(
+        shape({
+          id: annotationIdV,
+          targets: capped(32, arrOf(shortStr(200))),
+          state: lit('open', 'ended'),
+          perVoter: intIn(1, 99),
+          tallies: opt(recOf(count, 32)),
+        })
+      ),
+      mine: recOf(count, 32),
+    }),
   },
   'hold-intent': {
     gate: 'parent',

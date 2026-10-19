@@ -5,6 +5,7 @@
 //   Ask AI about “<artboard name>” ⌘/   (`labelOf` names it per click; the static label stays "this artboard")
 //   Duplicate ⌘D · Duplicate at another width ▸ Laptop 1280 · Tablet 834 · Mobile 390 · Custom width… · Rename
 //   Add comment
+//   Start a vote…   (S4.14)
 //   Export… ⇧⌘E
 //   Advanced ▸  Fit just this artboard · Reset position · Convert layout to absolute… · Open Timeline ·
 //               Fit to view · Reset view · Align… · Distribute… · Theme ▸ · Kind ▸
@@ -15,6 +16,7 @@
 // drawn in the design but need an artboard clipboard that does not exist yet — not faked here.
 // Pure over the item structure — testable without a DOM.
 
+import { askVoteBoard } from '../annotations/ui/vote-dots.tsx';
 import type { ContextTarget, MenuItem, MenuSection } from '../context-menu.tsx';
 import { ASK_ARTBOARD_EVENT, askAboutWords } from './ask-bubble.tsx';
 
@@ -112,6 +114,15 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
       { id: 'rename-artboard', label: 'Rename', onSelect: deps.rename },
     ],
     reuse('add-comment'),
+    // S4.14 — "Start a vote…" with this artboard ticked: the canvas hands the shell its artboards
+    // (`vote-board {open, focus}`); the shell opens the sheet for an editor (the server refuses the rest).
+    [
+      {
+        id: 'start-vote',
+        label: 'Start a vote…',
+        onSelect: (t) => askVoteBoard(true, t.artboardId ?? null),
+      },
+    ],
     reuse('export-artboard', { label: 'Export…', shortcut: '⇧⌘E' }),
     [{ id: 'advanced', label: 'Advanced', onSelect: () => {}, submenu: advanced }],
     reuse('delete-artboard', { label: 'Move to trash' }),

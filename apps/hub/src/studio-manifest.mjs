@@ -138,6 +138,13 @@ export const STUDIO_ROUTES = Object.freeze({
   // an annotation write (the comment half needs `comment`, which `annotate` implies).
   '/_api/annotations/to-comment': { safe: null, unsafe: 'annotate' },
   '/_api/comments/to-sticky': { safe: null, unsafe: 'annotate' },
+  // S4.14 — the studio's vote door (routes/votes.ts). A cell has no hub path for it yet, and board
+  // ballots there would sync to every member (A18): refused in a cell, fail closed. The cell's own
+  // votes are the hub's `/api/projects/:p/v1/votes*` (S9.13).
+  '/_api/votes': REFUSED,
+  '/_api/votes/start': REFUSED,
+  '/_api/votes/ballot': REFUSED,
+  '/_api/votes/end': REFUSED,
   // The no-op-log undo token — a cell is always in accepted mode and never issues one.
   '/_api/annotations/convert-undo': REFUSED,
   // A photo edit is a validated JSON sidecar next to the asset

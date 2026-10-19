@@ -74,6 +74,7 @@
 @import url("../v2/annotations/stickers-gallery.css");
 /* S4.4 — the Templates panel (tile grid + "describe it") on the same tool-panel shell. */
 @import url("../v2/annotations/templates-panel.css");
+@import url("../v2/annotations/vote.css");
 /* S4.17 — Layers in Preview = the annotation list (person chips, sections, the filter foot). */
 @import url("../v2/annotations/annotation-list.css");
 /* S2.16 — the Component picker (⇧I) on the same tool-panel shell. */

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "6ba299d2442a",
+  "manifestVersion": "a0d7e610c6a5",
   "actions": [
     {
       "id": "search.open",
@@ -3899,6 +3899,40 @@
         "format": "annotations",
         "skill": "design:whiteboard",
         "how": "Remove the stickies whose resolved is set from the board file"
+      }
+    },
+    {
+      "id": "annotations.start-vote",
+      "label": "Start a vote…",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/votes/start",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "vote",
+        "note": "the result section is on the board when it ends: `maude design read-annotations`"
+      }
+    },
+    {
+      "id": "annotations.end-vote",
+      "label": "End vote",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/votes/end",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "vote",
+        "note": "the counts and the result section: `maude design read-annotations`"
       }
     },
     {

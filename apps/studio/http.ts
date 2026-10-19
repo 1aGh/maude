@@ -204,6 +204,7 @@ import {
   announceAction,
   assetStateDepsFor,
   canvasPathsOfIndex,
+  voteHomeResolver as createVoteHomeResolver,
   type ExportRouteDeps,
   gateSpecV2,
   heldByAiRefusal,
@@ -231,6 +232,7 @@ import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { hubHealth } from './sync/journal-client.ts';
 import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
@@ -1825,6 +1827,28 @@ export function createHttp(
         return { name: vouched || (await api.gitCurrentUser()) || 'You' };
       },
       emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S4.14 — `/_api/votes*` (routes/votes.ts): board ballots locally, a proxy to a `votes-v1` hub when
+    // linked, off in a cell / on an older hub. The voter is this machine's person, never the body.
+    votes: {
+      designRel: ctx.paths.designRel,
+      home: createVoteHomeResolver({
+        linked: () => {
+          const url = ctx.cfg.linkedHub?.url;
+          return url ? { hubUrl: url, token: () => getHubRecord(url)?.token ?? null } : null;
+        },
+        workspace: () => isWorkspaceMode(),
+        health: (hubUrl) => hubHealth({ hubUrl }),
+      }),
+      person: async () => ((await api.gitCurrentUser()) || 'You').slice(0, 64),
+      readBoard: (file) => api.readBoard(file),
+      applyOps: (file, ops) => api.applyAnnotationOps(file, ops),
+      scope: (req, file) => {
+        const see = seerFor(req);
+        if (!see) return null;
+        const rel = toDesignRel(file, ctx.paths.designRel);
+        return rel === null || !see(rel) ? notInScopeResponse() : null;
+      },
     },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
     // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched

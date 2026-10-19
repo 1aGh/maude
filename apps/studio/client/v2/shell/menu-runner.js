@@ -14,6 +14,7 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { voteStore } from '../annotations/vote-store.js';
 import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
@@ -351,6 +352,8 @@ export function createMenuHandlers(d) {
       if (d.canvasOpen !== false)
         d.postToActiveCanvas({ dgn: 'insert-template', id: t.id, follow: true });
     };
+  // S4.14 — End vote: the shell's vote store (its own canvas, its own vote) asks /_api/votes/end.
+  h['annotations.end-vote'] = () => void voteStore.end();
   // V2-4.8a: outside the desktop app "Back to Home" is the cloud dashboard (the v1 menubar's
   // "← Dashboard" link). In the desktop app it stays the native Home tab (NATIVE_COMMANDS).
   if (!d.native) h['nav.home'] = () => d.onOpenDashboard?.();
