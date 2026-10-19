@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 135,
+  "humanMax": 136,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -128,6 +128,12 @@
       "from": 130,
       "by": "decision:maude/v2-S9.23-presence-actions-human-summon",
       "why": "A6b-3 integration, measured from the merged registry (+5): S9.23 +3 — presence.follow, presence.bring-everyone and presence.stop are one person watching or moving other people's cameras through awareness; an agent has no camera and no cursor in the room, and Bring everyone here is the `summon` capability itself (V2-1.7 §5.5). presence.go-to is NAV (`maude design open <canvas>#<artboard>`), not human. Human reason 'summon' (already cited). Three human rows. S9.19 +4 — share.invite, share.set-role, share.remove, share.resend (human 'invite' / 'roles': who has access is the owner's and the linked hub decides; routes/share.ts is the door, an agent has no seat to give). S7.6b −2 — timeline.undo / timeline.redo retired (the transport's ⌘Z is edit.undo / edit.redo)."
+    },
+    {
+      "to": 136,
+      "from": 135,
+      "by": "decision:maude/v2-S9.20-link-settings-human",
+      "why": "S9.20 registers Share › Advanced › This link (share.link-settings): who can open the project's link, the role it gives and when it ends are the owner's to change about other people — human 'links', the same reason share.open and share.copy-link already have (V2-1.11: no CLI verb touches an invite/links route). One human row; lead ack needed."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. V2-5 A5 integration: measured 113 human actions in the merged registry (107 on feat + trash.clear from S1.7b + four ai.attach-* from S5.10 + present.presenter-view from S3.6b); every other A5 slice adds no human row. V2-5 A6a integration: measured 118 human actions in the merged registry (113 on feat + artboard.ask-ai S2.10 + element.set-id S2.2b/lead + edit.undo-history S2.20 + history.filter S1.12b − view.trash S1.17 (cli) + tab.overview + tab.rename S1.22b); every other A6a slice adds no human row."

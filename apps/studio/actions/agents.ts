@@ -788,7 +788,20 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: cli('maude design exports retry <id> [--item <id,…>]'),
   },
   'share.open': { effect: 'shared', agent: human('links') },
-  'share.copy-link': { effect: 'none', agent: human('links') },
+  // S9.20: where the hub has links, the owner's Copy link makes the project's link (POST); everyone
+  // else copies the location, which grants nothing. Making a link is the owner's, refused there.
+  'share.copy-link': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/links', method: 'POST' },
+    agent: human('links'),
+  },
+  'share.link-settings': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/links/:id', method: 'PATCH' },
+    agent: human('links'),
+  },
   // S6.0c: uploads the whole project to the person's billed cloud account — the window only; the
   // studio refuses a POST without its Sec-Fetch-Site and the design hook denies one (human-only).
   'share.move-to-cloud': {

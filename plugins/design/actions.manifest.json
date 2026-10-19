@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c2308323457c",
+  "manifestVersion": "9792bc346daf",
   "actions": [
     {
       "id": "search.open",
@@ -2757,7 +2757,12 @@
       "label": "Copy link",
       "kind": "command",
       "exec": "shell",
-      "effect": "none",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/links",
+        "method": "POST"
+      },
       "agent": {
         "path": "human",
         "because": "links"
@@ -2773,6 +2778,22 @@
         "path": "human",
         "because": "billing",
         "note": "moves the project to the person’s billed Maude Cloud account"
+      }
+    },
+    {
+      "id": "share.link-settings",
+      "label": "Link settings…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/links/:id",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "human",
+        "because": "links"
       }
     },
     {
