@@ -909,6 +909,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     // V2-1.14 — a closed gate (offline, AI not connected, allowance used up, setting up), or an
     // earlier prompt of this chat still queued (O2), keeps the prompt in the outbox; the drain
     // releases it into `registry.ask` by itself. Nothing is lost and nothing jumps the line.
+    // S5.18 (G10): the signed-in check settles first — a Mac that is not signed in keeps the prompt.
+    const settling = options.queue?.()?.ready();
+    if (settling) await settling; // only while the sign-in answer is stale: a fresh one stays synchronous
     const queued = options.queue?.()?.maybeQueue({ chatId: safeChat, text, scope }) ?? null;
     if (queued && 'refused' in queued) {
       send(ws, { t: 'error', code: 'not-queued', chat: safeChat, message: queued.refused });
