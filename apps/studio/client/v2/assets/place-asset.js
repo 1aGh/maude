@@ -88,3 +88,27 @@ export async function placeAsset(req, opts = {}) {
   }
   return { ok: false, message: SAID[body?.code] ?? body?.message ?? 'Not placed; try again.' };
 }
+
+/**
+ * Where ↵ on a selected Assets tile puts it: the selected artboard (loose), or the selected frame / picture (fill).
+ * `selected` is what the shell holds (one element, an array, or null); null = nothing to place onto.
+ *
+ * @returns {{ canvas: string, artboardId: string, frameId?: string, occurrence?: number } | null}
+ */
+export function placeTargetOf(selected, canvas) {
+  if (typeof canvas !== 'string' || !canvas) return null;
+  const list = Array.isArray(selected) ? selected : selected ? [selected] : [];
+  if (list.length !== 1) return null;
+  const el = list[0];
+  if (!el || (el.file && el.file !== canvas) || typeof el.artboardId !== 'string' || !el.artboardId)
+    return null;
+  if (!el.id) return { canvas, artboardId: el.artboardId };
+  return {
+    canvas,
+    artboardId: el.artboardId,
+    frameId: el.id,
+    ...(Number.isInteger(el.index) && el.index > 0 ? { occurrence: el.index } : {}),
+  };
+}
+
+export const SELECT_ARTBOARD_LINE = 'Select an artboard first, then press ↵ on a picture.';

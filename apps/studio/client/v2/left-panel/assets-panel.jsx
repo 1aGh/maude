@@ -4,14 +4,18 @@
 // It hosts the asset list that exists today — the content-addressed media under <designRoot>/assets/
 // (GET /_api/assets, the list the Choose-media dialog shows), with the dialog's own Upload path (POST
 // /_api/asset through asset-upload.ts, native picker on the desktop). Grouped by kind, searched by name.
-// NOT here yet (S8): placing a tile on the selected artboard (↵ / drag), tags + "what's in pictures",
-// Generate, the browse view and asset details — the empty state and the list are the contract's words.
+// S2.15: a picture tile drags onto a frame (editing/image-drop.tsx) and ↵ on it places it on the selected artboard
+// (`placeAsset`, client/v2/assets/place-asset.js).
+// NOT here yet (S8): tags + "what's in pictures", Generate, the browse view and asset details — the empty state and
+// the list are the contract's words.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { uploadAsset } from '../../../asset-upload.ts';
 import { mimeFromExt } from '../../dialogs/asset-picker.jsx';
 import { isNativeApp, pickMediaFiles, pickedMediaSource } from '../../github.js';
 import { Kbd, StIcon } from '../../shell/icons.jsx';
+import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
+import { tileDragProps } from '../assets/tile-drag.js';
 
 const GROUPS = [
   { kind: 'image', title: 'Photos' },
@@ -72,7 +76,13 @@ function addFilesBrowser(onProgress) {
   });
 }
 
-export function AssetsPanel({ designRel = '.design', readOnly = false }) {
+export function AssetsPanel({
+  designRel = '.design',
+  readOnly = false,
+  // S2.15 — where ↵ puts the picked tile (place-asset.js `placeTargetOf`), and the undo sink for that write
+  placeTarget = null,
+  onRecord = undefined,
+}) {
   const [assets, setAssets] = useState(null);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState(null);
@@ -113,6 +123,23 @@ export function AssetsPanel({ designRel = '.design', readOnly = false }) {
     }
     setProgress(null);
     setBusy(false);
+  };
+
+  // ↵ on a picture tile: onto the selected artboard (or frame). One edit-op, one undo step.
+  const place = async (path, el) => {
+    if (readOnly) return;
+    if (!placeTarget) {
+      setErr(SELECT_ARTBOARD_LINE);
+      return;
+    }
+    setErr('');
+    const img = el?.querySelector?.('img');
+    const natural =
+      img?.naturalWidth > 0 && img?.naturalHeight > 0
+        ? { w: img.naturalWidth, h: img.naturalHeight }
+        : undefined;
+    const r = await placeAsset({ asset: path, target: placeTarget, natural }, { record: onRecord });
+    if (!r.ok && alive.current) setErr(r.message);
   };
 
   const shown = useMemo(() => filterAssets(assets || [], query), [assets, query]);
@@ -190,6 +217,13 @@ export function AssetsPanel({ designRel = '.design', readOnly = false }) {
                     aria-pressed={picked === a.path}
                     title={`${a.name} · ${Math.max(1, Math.round(a.size / 1024))} KB`}
                     onClick={() => setPicked(a.path)}
+                    {...(g.kind === 'image' && !readOnly ? tileDragProps(a.path) : {})}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || g.kind !== 'image' || readOnly) return;
+                      e.preventDefault();
+                      setPicked(a.path);
+                      void place(a.path, e.currentTarget);
+                    }}
                   >
                     {g.kind === 'video' ? (
                       <video className="lp-thumb" src={url(a.path)} muted playsInline />
