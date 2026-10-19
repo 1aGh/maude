@@ -86,3 +86,13 @@ export function runEscRung(
   }
   return ESC_TERMINAL[mode];
 }
+
+/**
+ * S3.15 (md-esc) — what the `selection` rung does to the selection. Edit steps ONE level up the tree
+ * (`object.step-out`, deselecting at the top); Preview and Viewing hold an inspection, which esc CLEARS in one
+ * press — stepping out to the parent left the panel up on a new element, so the first esc read as "nothing
+ * happened". A canvas no shell governs (`null`) keeps v1's step-out.
+ */
+export function escClearsSelection(mode: CanvasModeV2 | null | undefined): boolean {
+  return mode === 'preview' || mode === 'viewing';
+}

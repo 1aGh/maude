@@ -86,6 +86,19 @@ const COMMENT_CLAIMS: ReadonlySet<RouterAction['kind']> = new Set<RouterAction['
   'hover',
 ]);
 
+/**
+ * esc for this mount layer's router. A bare specimen has no shell ladder: clear everything (v1). On a UI canvas
+ * the esc belongs to the canvas shell's ladder (S3.12, one rung per press) — and this router must say so with
+ * `true`: the input router reads a void return as "no rung ran" and asks the shell to step the MODE back as
+ * well, so the first esc after a ⌘-click cleared the inspection and left Preview in the same press (S3.15, 04
+ * md-esc). The shell's own router still asks for `back` when ITS ladder had nothing to do.
+ */
+export function commentMountEscape(bare: boolean, clearBare: () => void): boolean | undefined {
+  if (!bare) return true;
+  clearBare();
+  return undefined;
+}
+
 // True when no DesignCanvas/CanvasShell is mounted on this surface — i.e. a
 // bare DS specimen. On a UI canvas (`.dc-canvas` present) the inner shell owns
 // hover-halo painting + `resolveHoverTarget` element anchoring, so the lite
@@ -243,21 +256,19 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
         setHoverEl((prev) => (prev === el ? prev : el));
       },
       onTool: ({ tool: t }) => setTool(t),
-      onEscape: () => {
-        // S3.12 — a UI canvas's esc belongs to the canvas shell's ladder (one rung per press); this mount
-        // layer's own clear-everything would be a second step on the same key.
-        if (!isBareSpecimen()) return;
-        if (toolRef.current !== 'move') setTool('move');
-        setHoverEl(null);
-        selSet.clear();
-        if (typeof window !== 'undefined') {
-          try {
-            window.parent.postMessage({ dgn: 'force-clear' }, '*');
-          } catch {
-            /* parent detached */
+      onEscape: () =>
+        commentMountEscape(isBareSpecimen(), () => {
+          if (toolRef.current !== 'move') setTool('move');
+          setHoverEl(null);
+          selSet.clear();
+          if (typeof window !== 'undefined') {
+            try {
+              window.parent.postMessage({ dgn: 'force-clear' }, '*');
+            } catch {
+              /* parent detached */
+            }
           }
-        }
-      },
+        }),
       onDropComment: ({ clientX, clientY }) => dropComment(clientX, clientY, selSet, file),
     },
   });

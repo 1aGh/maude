@@ -46,6 +46,10 @@ export function linkedSelection(
   return el && raw ? { el, raw } : null;
 }
 
+/** The chip's height (16 line + 1 + 1 padding) and its distance from the element's right edge. */
+const CHIP_H = 18;
+const CHIP_GAP = 10;
+
 const CSS_TEXT = `
 .ed-linkchip {
   position: fixed;
@@ -60,9 +64,23 @@ const CSS_TEXT = `
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
   font: 500 11px/16px var(--maude-chrome-font-mono);
-  transform: translate(-100%, calc(-100% - 4px));
 }
 `;
+
+/**
+ * S3.15 (md-edit) — where the chip sits: to the RIGHT of the selection, centred on it, joined by a dashed
+ * link (the canvas draws it so). The selection's name/size tag lives above the top edge, so the chip's old
+ * place (right-aligned above the corner) landed on it by up to 53 px.
+ */
+export function linkChipPosition(r: { right: number; top: number; height: number }): {
+  left: number;
+  top: number;
+} {
+  return {
+    left: Math.round(r.right + CHIP_GAP),
+    top: Math.round(r.top + r.height / 2 - CHIP_H / 2),
+  };
+}
 
 /** Edit, or an ungoverned canvas (no shell yet): the only places the chip may show. */
 function useEditing(): boolean {
@@ -94,8 +112,7 @@ export function LinkChipOverlay() {
         setChip((c) => (c ? null : c));
       } else {
         const r = hit.el.getBoundingClientRect();
-        const left = Math.round(r.right);
-        const top = Math.round(r.top);
+        const { left, top } = linkChipPosition(r);
         setChip((c) =>
           c && c.words === words && c.left === left && c.top === top ? c : { words, left, top }
         );

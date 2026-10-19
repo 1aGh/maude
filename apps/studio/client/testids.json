@@ -10115,6 +10115,19 @@
     "v2": "stable"
   },
   {
+    "hook": "assets-from-mac",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"From this Mac...\" row under the photos in the Assets tab: the same picker and upload as Add files (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "assets-empty",
     "kind": "testid",
     "pattern": false,
