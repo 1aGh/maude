@@ -624,7 +624,7 @@ describe('the folded spark (03 ai-needs-hidden, ai-panel-closed)', () => {
     expect(v.q('ai-fold-needs')?.textContent).toBe('2');
     expect(v.host.querySelector('.st-corner-dot')).toBeNull();
     expect(v.q('panel-icon-assistant')?.getAttribute('aria-label')).toBe(
-      'Open Assistant — AI needs you'
+      'Ask AI ⌘/ — AI needs you'
     );
     await v.act(async () => v.store.setLocalNeedsYou('c1', 0));
     expect(v.q('ai-fold-needs')).toBeNull();

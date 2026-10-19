@@ -191,6 +191,16 @@ export function problemModel(error) {
       verb: null,
     };
   }
+  if (error.code === 'bad-scope') {
+    // S5.17 G1 — the server refused a scope outside the design root before anything ran
+    return {
+      code: 'bad-scope',
+      title:
+        message || 'That selection is not on a canvas in this project. Choose it again and resend.',
+      detail: null,
+      verb: null,
+    };
+  }
   // An uncoded error is the v1 connection-problem card (Feed.jsx ErrorCard, `chat-error-card`): it keeps its place.
   return null;
 }
