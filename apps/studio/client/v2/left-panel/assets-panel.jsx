@@ -247,6 +247,19 @@ export function AssetsPanel({
             </section>
           ))
         )}
+        {readOnly ? null : (
+          // S3.15 (04 md-edit-image): the row under the photos — the same picker and upload as "Add files…"
+          <button
+            type="button"
+            className="lp-mac"
+            data-testid="assets-from-mac"
+            disabled={busy}
+            onClick={add}
+          >
+            <StIcon name="folder" size={14} />
+            <span>From this Mac…</span>
+          </button>
+        )}
       </div>
       {query && assets ? (
         <p className="lp-foot">Searched {assets.length} assets — names and tags</p>

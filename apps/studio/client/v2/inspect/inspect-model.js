@@ -124,7 +124,9 @@ export function inspectRows(el, layersTree) {
   };
 }
 
-/** The panel appears for a selection in Preview or Viewing — the modes that read rather than edit. */
-export function inspectOpensOnSelect({ mode, hasId }) {
-  return !!hasId && modeShows(mode, 'inspect-panel');
+/** The panel appears for an INSPECTED selection in Preview or Viewing — the modes that read rather than edit.
+ *  A selection made in Edit (no `inspected` mark, set by the canvas on a ⌘-click / click) does not open it
+ *  on entering Preview (04 md-model: Inspect shows after a ⌘-click). */
+export function inspectOpensOnSelect({ mode, hasId, inspected }) {
+  return !!hasId && !!inspected && modeShows(mode, 'inspect-panel');
 }

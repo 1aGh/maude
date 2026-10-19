@@ -103,8 +103,10 @@ function chordsOf(def, ctx) {
     (b) => !b.hold && holds({ ...b.when, focus: undefined, selection: undefined }, ctx)
   );
   const main = uniq(live.filter((b) => !b.alias).map((b) => b.chord));
+  // S3.15: compare as DRAWN — ⌘= and its ⌘+ alias read the same ⌘+, so the alias adds nothing to show
+  const shown = new Set(main.map((c) => formatChord(c)));
   const alt = uniq(live.filter((b) => b.alias).map((b) => b.chord)).filter(
-    (c) => !main.includes(c)
+    (c) => !main.includes(c) && !shown.has(formatChord(c))
   );
   const perBase = new Map();
   for (const c of alt) perBase.set(baseOf(c), (perBase.get(baseOf(c)) ?? 0) + 1);
