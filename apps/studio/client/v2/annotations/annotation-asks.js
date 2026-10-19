@@ -18,7 +18,31 @@ export const ASK_WORDS = {
   failed: 'Couldn’t turn it into a comment.',
   undoFailed: 'Couldn’t undo that. The comment is still there.',
   undone: 'Brought the sticky back.',
+  // S4.V4 G5 — the thread's ⋯ "Turn back into a sticky" (S4-S9 §3.4)
+  turnBack: 'Turn back into a sticky',
+  turnedBack: 'Turned back into a sticky.',
+  turnBackFailed: 'Couldn’t turn it back into a sticky.',
+  turnBackForbidden: 'Your role in this project can’t turn a comment into a sticky.',
+  notConverted: 'Only a comment that was a sticky can turn back into one.',
 };
+
+/**
+ * S4.V4 G5 — this app session's conversions: comment id → the S4.7 answer's undo (`actionId` or the legacy
+ * `token`). The thread header's Undo shows only while the session holds one (S4-S9 §3.4: after a relaunch
+ * the header has no Undo, like ⌘Z). Shell memory only; the canvas never sees an action id or a token.
+ */
+const conversions = new Map();
+const CONVERSIONS_MAX = 50;
+export function rememberConversion(commentId, undo) {
+  if (typeof commentId !== 'string' || !commentId || !undo) return;
+  conversions.delete(commentId);
+  conversions.set(commentId, undo);
+  while (conversions.size > CONVERSIONS_MAX) conversions.delete(conversions.keys().next().value);
+}
+export const conversionOf = (commentId) => conversions.get(commentId) ?? null;
+export function forgetConversion(undo) {
+  for (const [id, u] of conversions) if (u === undo) conversions.delete(id);
+}
 
 async function postJson(fetchImpl, url, body) {
   try {
@@ -58,6 +82,7 @@ export async function turnIntoComment({ file, id, fetchImpl = globalThis.fetch }
     : data?.undoToken
       ? { token: String(data.undoToken) }
       : undefined;
+  if (typeof data?.commentId === 'string' && undo) rememberConversion(data.commentId, undo);
   return {
     ok: true,
     line: ASK_WORDS.converted,
@@ -66,14 +91,36 @@ export async function turnIntoComment({ file, id, fetchImpl = globalThis.fetch }
   };
 }
 
+/**
+ * S4.V4 G5 — the thread's ⋯ "Turn back into a sticky": POST /_api/comments/to-sticky (S4.7, main origin;
+ * the server needs `annotate` and refuses a thread someone else replied to, with its own line).
+ */
+export async function turnBackIntoSticky({ commentId, fetchImpl = globalThis.fetch }) {
+  if (typeof commentId !== 'string' || !commentId)
+    return { ok: false, line: ASK_WORDS.turnBackFailed };
+  const { status, data } = await postJson(fetchImpl, '/_api/comments/to-sticky', { commentId });
+  if (status >= 200 && status < 300 && data?.ok !== false) {
+    forgetConversion(conversionOf(commentId));
+    return { ok: true, line: ASK_WORDS.turnedBack };
+  }
+  if (typeof data?.line === 'string' && data.line) return { ok: false, line: data.line };
+  if (status === 403) return { ok: false, line: ASK_WORDS.turnBackForbidden };
+  if (status === 404) return { ok: false, line: ASK_WORDS.gone };
+  if (status === 409 && data?.reason === 'not-converted')
+    return { ok: false, line: ASK_WORDS.notConverted };
+  return { ok: false, line: ASK_WORDS.turnBackFailed };
+}
+
 /** Undo one conversion: the op-log action (both lanes together) or, on a legacy link, the in-memory token. */
 export async function undoConversion(undo, { fetchImpl = globalThis.fetch } = {}) {
   if (!undo) return { ok: false, line: ASK_WORDS.undoFailed };
   const { status, data } = undo.actionId
     ? await postJson(fetchImpl, '/_api/project/undo', { actionId: undo.actionId })
     : await postJson(fetchImpl, '/_api/annotations/convert-undo', { token: undo.token });
-  if (status >= 200 && status < 300 && data?.ok !== false)
+  if (status >= 200 && status < 300 && data?.ok !== false) {
+    forgetConversion(undo);
     return { ok: true, line: ASK_WORDS.undone };
+  }
   // 409 has-replies carries its own line ("Tereza replied — resolve the thread instead.")
   const line = typeof data?.line === 'string' && data.line ? data.line : ASK_WORDS.undoFailed;
   return { ok: false, line };

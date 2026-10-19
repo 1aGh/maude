@@ -969,6 +969,7 @@ export function CommentsOverlay(): React.ReactNode {
               !!(me ?? collab?.myName) &&
               (focused.author ?? '').trim() === (me ?? collab?.myName ?? '').trim()
             }
+            me={(me ?? collab?.myName) || undefined}
           />
         );
       })()}
@@ -1518,6 +1519,7 @@ export function CommentThread({
   onDelete,
   onReply,
   mine = false,
+  me,
 }: {
   comment: OverlayComment;
   sequence: number;
@@ -1527,6 +1529,8 @@ export function CommentThread({
   onReply: (body: string) => Promise<boolean>;
   /** The person looking wrote this comment — they may edit its text. */
   mine?: boolean;
+  /** The person looking (S4.V4 G5: did they convert this sticky? did someone else reply?). */
+  me?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1627,6 +1631,45 @@ export function CommentThread({
     ? artboardLabelOf(comment.artboard)
     : selectorChip || 'On the canvas';
 
+  // S4.V4 G5 (S4-S9-votes-comments §3.4) — a converted sticky's thread: the header's Undo (the converter,
+  // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
+  // into a sticky" (any editor). Both refuse while someone else has replied; the server judges either way.
+  const from = comment.from;
+  const meName = (me ?? '').trim();
+  const byYou = from ? (meName ? (from.convertedBy ?? '').trim() === meName : mine) : false;
+  const foreignReply = from
+    ? (comment.thread ?? []).find(
+        (r) => (r.author ?? '').trim() !== (meName || (from.convertedBy ?? '').trim())
+      )
+    : undefined;
+  const repliedLine = foreignReply
+    ? `${firstName(foreignReply.author ?? '') || 'Someone'} replied — resolve the thread instead.`
+    : null;
+  const canTurnBack = !!from && !isReadOnlyCanvas();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [convertLine, setConvertLine] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState(false);
+  useEffect(() => {
+    if (!from || !byYou) {
+      setUndoable(false);
+      return;
+    }
+    let live = true;
+    void shellCommentOp({ op: 'convert-undoable', commentId: comment.id }).then((r) => {
+      if (live) setUndoable(!!r?.ok);
+    });
+    return () => {
+      live = false;
+    };
+  }, [comment.id, from, byYou]);
+  const runConvert = async (op: 'to-sticky' | 'convert-undo') => {
+    setMenuOpen(false);
+    setConvertLine(null);
+    const r = await shellCommentOp({ op, commentId: comment.id });
+    if (r?.ok) onClose();
+    else setConvertLine(r?.error || 'That did not go through.');
+  };
+
   return (
     <div
       ref={dialogRef}
@@ -1698,6 +1741,38 @@ export function CommentThread({
                     Delete comment
                   </button>
                 ) : null}
+                {canTurnBack ? (
+                  <span className="cm-thread__more">
+                    <button
+                      type="button"
+                      className="cm-btn cm-btn--icon"
+                      aria-label="More"
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      data-testid={`comment-menu-${comment.id}`}
+                      onClick={() => setMenuOpen((v) => !v)}
+                    >
+                      ⋯
+                    </button>
+                    {menuOpen ? (
+                      <span className="cm-thread__menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="cm-thread__menu-item"
+                          data-testid={`comment-menu-to-sticky-${comment.id}`}
+                          disabled={!!repliedLine}
+                          onClick={() => void runConvert('to-sticky')}
+                        >
+                          Turn back into a sticky
+                        </button>
+                        {repliedLine ? (
+                          <span className="cm-thread__menu-note">{repliedLine}</span>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
               </span>
             ) : null}
             <button
@@ -1731,7 +1806,25 @@ export function CommentThread({
         {comment.from ? (
           <div className="cm-thread__from" data-testid={`comment-from-${comment.id}`}>
             {fromHeadline(comment.from)} · turned into a comment by{' '}
-            {mine ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
+            {byYou ? 'You' : firstName(comment.from.convertedBy || comment.author || '')}
+            {byYou && undoable && !repliedLine ? (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  className="cm-link"
+                  data-testid={`comment-from-undo-${comment.id}`}
+                  onClick={() => void runConvert('convert-undo')}
+                >
+                  Undo
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+        {convertLine ? (
+          <div className="cm-thread__convert-line" role="alert">
+            {convertLine}
           </div>
         ) : null}
       </div>
