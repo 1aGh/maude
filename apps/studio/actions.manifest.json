@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "e16179418467",
+  "manifestVersion": "26cfecc25b3d",
   "actions": [
     {
       "id": "search.open",
@@ -1329,6 +1329,25 @@
         "path": "human",
         "because": "keys",
         "note": "ask the person to use Element id; an agent never rewrites the comments file"
+      }
+    },
+    {
+      "id": "element.stamp",
+      "label": "Name element",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give the element a readable data-cd-id (kebab-case, unique on the canvas) so an arrow can point at it"
       }
     },
     {
@@ -3689,6 +3708,19 @@
         "format": "annotations",
         "skill": "design:whiteboard",
         "how": "Remove the elements from the board file"
+      }
+    },
+    {
+      "id": "annotation.point-to",
+      "label": "Point to…",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set the arrow’s startHost / endHost to the new ab:<artboard> or el:<artboard>/<id> ref (with the name it is shown under) and move its start / end cache to where the host is"
       }
     },
     {

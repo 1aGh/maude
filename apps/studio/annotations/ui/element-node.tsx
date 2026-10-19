@@ -48,6 +48,8 @@ import { colorForName } from '../../use-collab.tsx';
 import type { AnnotationElement } from '../types.ts';
 import { quietPaper } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
+import { labelPoint } from './rest-route.ts';
+import { polylinePrims } from './ride.ts';
 import { type CommitInfo, type SizeMode, TextEditor } from './text-editor.tsx';
 import {
   anchorShift,
@@ -508,10 +510,21 @@ function ArrowView({ el, ends, interactive }: ElementNodeProps) {
   if (!ends) return null;
   const width = num(el.width, 2);
   const pad = width * 4 + 24; // heads + curve bulge stay inside the node's box
-  const x = Math.min(ends.x1, ends.x2) - pad;
-  const y = Math.min(ends.y1, ends.y2) - pad;
-  const w = Math.abs(ends.x2 - ends.x1) + pad * 2;
-  const h = Math.abs(ends.y2 - ends.y1) + pad * 2;
+  // S4.11 — an elbow arrow at rest draws the route it settled on (rest-route.ts), so its box
+  // covers every waypoint, not just the two ends.
+  const routed = el.line === 'elbow' && ends.route && ends.route.length >= 2 ? ends.route : null;
+  const xs = routed ? routed.map((p) => p.x) : [];
+  const ys = routed ? routed.map((p) => p.y) : [];
+  const x = Math.min(ends.x1, ends.x2, ...xs) - pad;
+  const y = Math.min(ends.y1, ends.y2, ...ys) - pad;
+  const w = Math.max(ends.x1, ends.x2, ...xs) - Math.min(ends.x1, ends.x2, ...xs) + pad * 2;
+  const h = Math.max(ends.y1, ends.y2, ...ys) - Math.min(ends.y1, ends.y2, ...ys) + pad * 2;
+  const label = str(el.label);
+  const lp = label ? labelPoint(el, ends) : null;
+  // A dangling end (its host is gone) keeps its place, dashed, with no head (an-dangling).
+  const dangling = ends.dangling;
+  const drawn = danglingEl(el, dangling);
+  const prims = routed ? polylinePrims(routed, drawn) : arrowPrimitives(arrowGeom(drawn, ends));
   return (
     <Node el={el} x={x} y={y} w={w} h={h}>
       <Geo x={x} y={y} w={w} h={h}>
@@ -522,12 +535,34 @@ function ArrowView({ el, ends, interactive }: ElementNodeProps) {
           strokeLinejoin="round"
           fill="none"
           pointerEvents={hit(interactive)}
+          {...(routed ? { 'data-route': routed.length } : {})}
+          {...(dangling?.start || dangling?.end ? { 'data-dangling': '1' } : {})}
         >
-          {arrowPrimitives(arrowGeom(el, ends)).map((p, i) => renderArrowPrimitive(p, i))}
+          {prims.map((p, i) => renderArrowPrimitive(p, i))}
         </g>
       </Geo>
+      {lp ? (
+        <span
+          className="dc-annot-alabel"
+          data-testid="annot-arrow-label"
+          style={{ left: lp.x - x, top: lp.y - y }}
+        >
+          {label}
+        </span>
+      ) : null}
     </Node>
   );
+}
+
+/** The record as drawn when an end is dangling: dashed, and no head on the lost end. */
+function danglingEl(el: AnnotationElement, d: ResolvedEnds['dangling']): AnnotationElement {
+  if (!d?.start && !d?.end) return el;
+  return {
+    ...el,
+    dashed: true,
+    ...(d.start ? { startHead: 'none' } : {}),
+    ...(d.end ? { endHead: 'none' } : {}),
+  };
 }
 
 function PenView({ el, interactive }: ElementNodeProps) {
@@ -950,8 +985,17 @@ function sameEnds(a?: ResolvedEnds, b?: ResolvedEnds): boolean {
     a.startAnchor?.nx === b.startAnchor?.nx &&
     a.startAnchor?.ny === b.startAnchor?.ny &&
     a.endAnchor?.nx === b.endAnchor?.nx &&
-    a.endAnchor?.ny === b.endAnchor?.ny
+    a.endAnchor?.ny === b.endAnchor?.ny &&
+    sameRoute(a.route, b.route) &&
+    a.dangling?.start === b.dangling?.start &&
+    a.dangling?.end === b.dangling?.end
   );
+}
+
+function sameRoute(a?: ResolvedEnds['route'], b?: ResolvedEnds['route']): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((p, i) => p.x === b[i]?.x && p.y === b[i]?.y);
 }
 
 export const ElementNode = memo(

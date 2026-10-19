@@ -22182,5 +22182,275 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
     "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-candidate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: a dashed outline of something an armed Arrow could point at, near the pointer. Repeats.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-aim-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the ring on the element under an arrow end being dropped (an-arrow-bind).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-aim-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the ring’s tag, “Button · See the work” (the kind word, then what it says).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-edge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the edge light — over an artboard’s edge the whole artboard lights up.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "AimOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-bound-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: “Bound to the artboard” — shown for a moment when the element could not be named (the file was busy, Q12).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "BoundTag"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-dangling-mark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the open circle at an arrow end whose host the canvas cannot find (derived, never stored). `data-cause` is `element` or `artboard`. Repeats.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-dangling-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: “Pointed at “Book a call” — it was replaced or removed”, shown for the selected arrow with a lost end.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-point-to",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the Point to… button on the dangling card; the next click on an element or an artboard edge re-aims the end.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-rewritten",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the ring on an element AI rewrote with its new words and “· rewritten by AI” (the arrow stays bound).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "HostMarks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the words written on an arrow, on the middle of the line as drawn (route included).",
+    "producer": {
+      "file": "apps/studio/annotations/ui/element-node.tsx",
+      "symbol": "ArrowView"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-elbow-rest.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-label-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the field a double-click on an arrow opens; Enter or leaving saves, Esc cancels.",
+    "producer": {
+      "file": "apps/studio/annotations/ui/arrow-cards.tsx",
+      "symbol": "ArrowLabelEditor"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/annotations-arrow-bind-ui.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-kind-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.11: Straight · Curved · Elbow on the arrow toolbar (`aria-pressed` on the arrow’s line). `<kind>`: `straight`, `curved`, `elbow`.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-two-way",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the two-way toggle on the arrow toolbar (a head on both ends).",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "AnnotationContextToolbar"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-ink-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S4.11: one ink on the arrow toolbar. `<name>`: `ink`, `red`, `green`, `blue` up front; `orange`, `amber`, `purple`, `pink`, `grey` behind “+5”.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ArrowInks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "annot-arrow-ink-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S4.11: the “+5” button that opens the remaining inks.",
+    "producer": {
+      "file": "apps/studio/annotations-context-toolbar.tsx",
+      "symbol": "ArrowInks"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "apps/studio/test/e2e/annotations-follow.e2e.mjs"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/arrow-kinds.test.ts"
+    ],
+    "v2": "new"
   }
 ]

@@ -41,6 +41,16 @@ export const ANNOTATION_ACTIONS: ActionDef[] = [
     ...mods('⌫', '⇧', 'selection', { when: ANN }),
     ...mods('⌦', '⇧', 'selection', { when: ANN }),
   ]),
+  // S4.11 (an-dangling): re-aim an arrow end at another element or artboard edge. The dangling card's
+  // button and this row do the same; with a lost end selected it is that end, else the arrow's end.
+  {
+    id: 'annotation.point-to',
+    label: 'Point to…',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['annotation'] },
+    search: { keywords: ['arrow', 'point', 'bind', 're-aim', 'dangling'] },
+  },
 ];
 
 // S4.9 (C29): resolved stickies stay struck through in place; this hides them for the person who

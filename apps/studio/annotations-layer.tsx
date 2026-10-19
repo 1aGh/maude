@@ -1,5 +1,5 @@
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
-import type { HostRects } from './annotations/hosts.ts';
+import { type HostRects, resolverFromRects } from './annotations/hosts.ts';
 import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
 import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
@@ -8,6 +8,31 @@ import { observeReplica } from './annotations/replica.ts';
 import { createArrowRouter } from './annotations/route.ts';
 import { parseBoard, validateElements } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import {
+  type AimRects,
+  asHostRects,
+  attachHosts,
+  type BindCandidate,
+  type BoundEnd,
+  bindEnd,
+  bindNow,
+  edgeBand,
+  hostRefOf,
+  pickCandidate,
+  type StampFn,
+} from './annotations/ui/arrow-bind.ts';
+import {
+  AimOverlay,
+  type AimState,
+  ArrowLabelEditor,
+  BoundTag,
+  type DanglingCardModel,
+  danglingCard,
+  HostMarks,
+  nearbyOutlines,
+  rewrittenFor,
+} from './annotations/ui/arrow-cards.tsx';
+import { labelPatch, NEW_ARROW } from './annotations/ui/arrow-kinds.ts';
 import { BoardStore } from './annotations/ui/board.ts';
 import {
   Containment,
@@ -17,9 +42,22 @@ import {
   marqueeHits,
 } from './annotations/ui/containment.ts';
 import type { EditRequest } from './annotations/ui/element-node.tsx';
+import {
+  danglingOf,
+  hasHosts,
+  hostSignature,
+  markDangling,
+  rectsReady,
+  viewStrokes,
+} from './annotations/ui/host-view.ts';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
-import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
+import {
+  type RenderItem,
+  type ResolvedEnds,
+  renderItemsFromStrokes,
+} from './annotations/ui/render-model.ts';
+import { type BoardRect, labelPoint, routeElbowsAtRest } from './annotations/ui/rest-route.ts';
 import {
   createDomRideSink,
   createRideController,
@@ -101,7 +139,7 @@ import {
   BIND_THRESHOLD_PX,
   bindCandidate,
   isBindable,
-  recomputeBoundArrows,
+  recomputeBoundArrows as recomputeBoundArrowsBase,
 } from './annotations-bindings.ts';
 import { AnnotationContextToolbar } from './annotations-context-toolbar.tsx';
 import {
@@ -214,6 +252,7 @@ import {
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
 import { clickToType } from './editing/click-to-type.ts';
+import { runEditOp } from './editing/edit-op.ts';
 import { crossedDragThreshold, postModeRequest, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
 import {
@@ -311,6 +350,31 @@ function canvasRectsNow(): HostRects | null {
     return null;
   }
 }
+
+/**
+ * S4.11 — `recomputeBoundArrows` with the live canvas as the resolver for `ab:` / `el:` ends. Every
+ * commit that re-derives bound arrows refreshes the cache of a canvas-bound end from where its host
+ * IS (hosts.ts: the cache is what a 1.x peer draws). Nothing is derived until the canvas has
+ * painted, and a host the canvas cannot find keeps its cached point (dangling is derived).
+ */
+function recomputeBoundArrows(list: readonly Stroke[]): Stroke[] {
+  if (!hasHosts(list)) return recomputeBoundArrowsBase(list);
+  const rects = canvasRectsNow() as AimRects | null;
+  return recomputeBoundArrowsBase(
+    list,
+    rectsReady(rects) ? resolverFromRects(asHostRects(rects)) : undefined
+  );
+}
+
+/** S4.11 — stamp an element through the S2.1 edit-op relay (Q12, `element.stamp`). */
+const stampViaEditOp: StampFn = async ({ artboard, element, occurrence, expectRev }) => {
+  const r = await runEditOp({
+    op: 'element.stamp',
+    targets: [{ artboard, element, ...(occurrence ? { occurrence } : {}) }],
+    ...(expectRev ? { expectRev } : {}),
+  });
+  return r.ok ? { ok: true, refs: r.refs } : { ok: false, code: r.code, message: r.message };
+};
 
 /** S4.10 — an artboard's visible label (the refused-straight tag names it), else its id. */
 function artboardLabel(id: string): string {
@@ -536,6 +600,36 @@ const ANNOT_CSS = `
   color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--maude-hud-danger, #c4321b) 50%, transparent);
 }
+/* S4.11 - arrow aiming, dangling cards, labels (annotations/ui/arrow-cards.tsx). World space; the
+   interactive pieces take pointers (CHROME_SELECTOR), the rest never do. */
+.dc-annot-arrowui { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 6; }
+.dc-annot-arrowui-live { pointer-events: auto; }
+.dc-annot-cand { position: absolute; border-radius: 4px; outline-style: dashed; outline-color: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 55%, transparent); pointer-events: none; }
+.dc-annot-snap, .dc-annot-edge { position: absolute; border-radius: 4px; pointer-events: none; }
+.dc-annot-snap-tag {
+  position: absolute; display: inline-flex; gap: 3px; transform-origin: 0 0; white-space: nowrap; pointer-events: none;
+  font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 4px;
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, #d63b1f);
+}
+.dc-annot-snap-tag b { font-weight: 600; }
+.dc-annot-open { position: absolute; box-sizing: border-box; transform: translate(-50%, -50%); border-style: solid; border-radius: 50%; border-color: var(--maude-hud-accent, #d63b1f); background: var(--maude-hud-bg, #fff); pointer-events: none; }
+.dc-annot-dg {
+  position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 228px; transform-origin: 0 0;
+  padding: 10px; border-radius: 10px; box-sizing: border-box;
+  font: 400 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.12);
+}
+.dc-annot-dg p { margin: 0; }
+.dc-annot-dg-btn {
+  font: 500 12px/1 var(--font-ui, system-ui, sans-serif); padding: 5px 10px; border: 0; border-radius: 6px; cursor: pointer;
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, #d63b1f);
+}
+.dc-annot-alabel {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font: 600 13px/1.3 var(--font-ui, system-ui, sans-serif); padding: 1px 6px; border-radius: 3px;
+  color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
+}
+.dc-annot-alabel--edit { pointer-events: auto; border: 0; outline: 1.5px solid var(--maude-hud-accent, #d63b1f); min-width: 80px; text-align: center; transform-origin: 0 0; }
 .dc-annot-belongs {
   position: absolute; pointer-events: none; border-radius: 6px;
   outline: 1.5px dashed var(--maude-hud-accent, #d63b1f); outline-offset: 0;
@@ -694,7 +788,7 @@ export function useStrokesStore(): StrokesStoreValue | null {
 // the main tool palette, the in-canvas draw chrome, the minimap, and the
 // right-click menu. Clicks on these route to their own handlers.
 const CHROME_SELECTOR =
-  '.dc-annot-conn-dot, .dc-annot-ctx, .dc-tool-palette, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
+  '.dc-annot-conn-dot, .dc-annot-arrowui-live, .dc-annot-ctx, .dc-tool-palette, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
 
 const HINTS_KEY = 'maude-annot-hints-v1';
 
@@ -910,8 +1004,13 @@ export function AnnotationsLayer() {
   // move the members on screen and re-route bound arrows through an imperative sink (never React
   // state per frame); the commit rider hands the bus ONE op batch in the move's undo group.
   const rideRef = useRef<RideController | null>(null);
+  // S4.11 — artboards moved: an elbow arrow re-reads the layout to keep its route (rest-route.ts).
+  const [layoutTick, setLayoutTick] = useState(0);
   const dragBus = useDragBusRide({
-    frame: (f) => rideRef.current?.onFrame(f),
+    frame: (f) => {
+      rideRef.current?.onFrame(f);
+      if (f.phase === 'end') setTimeout(() => setLayoutTick((t) => t + 1), 0);
+    },
     rider: (moved) => {
       const els = [...board.committed.values()];
       const layout = dragBusRef.current?.layoutRects() ?? [];
@@ -988,6 +1087,20 @@ export function AnnotationsLayer() {
   // id of the host a dragged arrow endpoint would bind to (accent halo).
   const [snapGuides, setSnapGuides] = useState<SnapGuide[] | null>(null);
   const [bindHintId, setBindHintId] = useState<string | null>(null);
+  // S4.11 — aiming an arrow at an artboard edge / a canvas element (an-arrow-bind): the candidate
+  // under the pointer and the outlines around it. The `canvas-rects` snapshot is taken when the
+  // aim starts (never per move) and dropped when it ends.
+  const [aim, setAim] = useState<AimState | null>(null);
+  const aimRef = useRef<AimState | null>(null);
+  const aimRectsRef = useRef<AimRects | null>(null);
+  // An unstamped target is being named (Q12): the drawn arrow waits for its bind, and the pointer
+  // is not a draw in the meantime.
+  const finishingRef = useRef(false);
+  const [boundTag, setBoundTag] = useState<{ text: string; at: [number, number] } | null>(null);
+  // Point to… (an-dangling): the arrow end being re-aimed; the next click on a target binds it.
+  const [pointTo, setPointTo] = useState<{ arrowId: string; end: 'start' | 'end' } | null>(null);
+  // Double-click an arrow: the id whose words are being written (an-arrow-kinds 3).
+  const [labelEdit, setLabelEdit] = useState<string | null>(null);
   // FigJam v3 — live size label + dimension-match halos while resizing (the
   // resize overlay sets it through the strokes store; the SVG layer paints).
   const [resizeInfo, setResizeInfo] = useState<{
@@ -1732,6 +1845,20 @@ export function AnnotationsLayer() {
         setHideResolved((h) => !h);
         return;
       }
+      // S4.11 — Point to… (an-dangling): re-aim the selected arrow's lost end (else its end).
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown; id?: unknown }).v === 1 &&
+        (m as { id?: unknown }).id === 'annotation.point-to'
+      ) {
+        const sel = annotSel?.selectedIds ?? [];
+        const arrow = strokesRef.current.find((s) => s.tool === 'arrow' && sel.includes(s.id));
+        if (arrow) {
+          const lost = danglingRef.current.find((d) => d.arrowId === arrow.id);
+          setPointTo({ arrowId: arrow.id, end: lost?.end ?? 'end' });
+        }
+        return;
+      }
       // V2-2.4 — Select all annotations rides the `run-action` lane (V2-1.3 §5.7).
       if (
         m.dgn === 'run-action' &&
@@ -2049,6 +2176,8 @@ export function AnnotationsLayer() {
       if (e.button !== 0) return false;
       if (spaceHeld) return false;
       if (e.metaKey || e.ctrlKey) return false;
+      if (finishingRef.current) return true;
+      if (tool === 'arrow') aimRectsRef.current = canvasRectsNow() as AimRects | null;
       // We do NOT stopPropagation — viewport-controller listens on the host
       // ancestor and never claims a bare-left/no-space pointerdown anyway.
       e.preventDefault();
@@ -2127,6 +2256,7 @@ export function AnnotationsLayer() {
           });
         }
       } else if (tool === 'arrow') {
+        // S4.11 (an-arrow-kinds): a new arrow is Curved with a filled head.
         setDrawing({
           id,
           tool: 'arrow',
@@ -2136,6 +2266,7 @@ export function AnnotationsLayer() {
           y1: wy,
           x2: wx,
           y2: wy,
+          ...NEW_ARROW,
         });
       } else if (tool === 'sticky') {
         // Phase 21 — drag-create a paper card. Default size if the user just
@@ -2255,9 +2386,43 @@ export function AnnotationsLayer() {
     ]
   );
 
+  /** S4.11 — what the pointer is over, for the ring / edge light / outlines (null = not aiming). */
+  const updateAim = useCallback((wx: number, wy: number, on: boolean) => {
+    if (!on) {
+      if (aimRef.current) {
+        aimRef.current = null;
+        setAim(null);
+      }
+      return;
+    }
+    if (!aimRectsRef.current) aimRectsRef.current = canvasRectsNow() as AimRects | null;
+    const rects = aimRectsRef.current;
+    if (!rectsReady(rects)) return;
+    const zoom = getLiveViewport()?.zoom || 1;
+    const hot = pickCandidate(rects, wx, wy, { band: edgeBand(zoom), labelOf: artboardLabel });
+    const near = nearbyOutlines(rects, wx, wy, 240 / zoom);
+    const prev = aimRef.current;
+    const same =
+      prev &&
+      !!prev.hot === !!hot &&
+      (!hot ||
+        !prev.hot ||
+        (prev.hot.box.x === hot.box.x &&
+          prev.hot.box.y === hot.box.y &&
+          prev.hot.box.w === hot.box.w &&
+          prev.hot.edge === hot.edge)) &&
+      prev.near.length === near.length &&
+      prev.near.every((b, i) => b.x === near[i]?.x && b.y === near[i]?.y && b.w === near[i]?.w);
+    if (same) return;
+    const next: AimState = { hot, near };
+    aimRef.current = next;
+    setAim(next);
+  }, []);
+
   const moveStroke = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!isActive || !visible) return;
+      if (finishingRef.current) return;
       const [wx, wy] = screenToWorld(e.clientX, e.clientY);
       cmdHeldRef.current = e.metaKey || e.ctrlKey;
       if (isErase) {
@@ -2269,6 +2434,8 @@ export function AnnotationsLayer() {
       // cursor so a translucent preview can follow it; an active draw hides it.
       if (drawingRef.current == null) {
         if (ghostCapable) setGhost({ x: wx, y: wy });
+        // S4.11 — an armed Arrow tool shows what it would point at before the drag starts.
+        if (tool === 'arrow') updateAim(wx, wy, !cmdHeldRef.current);
         return;
       }
       setGhost(null);
@@ -2283,6 +2450,8 @@ export function AnnotationsLayer() {
           ? null
           : bindCandidate(wx, wy, strokesRef.current, BIND_THRESHOLD_PX / zoom);
         setBindHintId(cand?.hostId ?? null);
+        // A board item under the pointer wins over the canvas (the shipped behaviour); else aim.
+        updateAim(wx, wy, !cand && !cmdHeldRef.current);
       }
       setDrawing((cur) => {
         if (!cur) return cur;
@@ -2298,7 +2467,7 @@ export function AnnotationsLayer() {
         return applyDrawModifiers(cur, anchor, wx, wy, mods);
       });
     },
-    [isActive, isErase, visible, screenToWorld, eraseAt, ghostCapable]
+    [isActive, isErase, visible, screenToWorld, eraseAt, ghostCapable, tool, updateAim]
   );
 
   const endStroke = useCallback(() => {
@@ -2374,66 +2543,207 @@ export function AnnotationsLayer() {
       }
     }
     setBindHintId(null);
-    if (final) {
-      const committed = final;
-      const prev = strokesRef.current;
-      // FigJam — sections are CONTAINERS: they slot in at the BACK of the
-      // z-order so content placed on them keeps rendering above — and a
-      // section drawn INSIDE another goes right above that one (Task 20), so
-      // it renders in front of its outer section and adopts what sits on it.
-      let next: Stroke[];
-      if (committed.tool === 'section') {
-        const bb = strokeBBox(committed);
-        const outer = bb
-          ? new Containment(strokesToElementMap(prev, board.committed).values()).containerAt(
-              bb.x + bb.w / 2,
-              bb.y + bb.h / 2
-            )
-          : null;
-        next = insertSection(prev, committed, outer);
-      } else {
-        next = [...prev, committed];
+    updateAim(0, 0, false);
+    const finish = (final: Stroke | null): void => {
+      if (final) {
+        const committed = final;
+        const prev = strokesRef.current;
+        // FigJam — sections are CONTAINERS: they slot in at the BACK of the
+        // z-order so content placed on them keeps rendering above — and a
+        // section drawn INSIDE another goes right above that one (Task 20), so
+        // it renders in front of its outer section and adopts what sits on it.
+        let next: Stroke[];
+        if (committed.tool === 'section') {
+          const bb = strokeBBox(committed);
+          const outer = bb
+            ? new Containment(strokesToElementMap(prev, board.committed).values()).containerAt(
+                bb.x + bb.w / 2,
+                bb.y + bb.h / 2
+              )
+            : null;
+          next = insertSection(prev, committed, outer);
+        } else {
+          next = [...prev, committed];
+        }
+        commitStrokes(prev, next, `draw ${committed.tool}`);
+        // T18 — auto-select the freshly drawn shape so the user can immediately
+        // see + adjust it. annotSel is optional (some test harnesses mount
+        // AnnotationsLayer without the provider), so guard the call.
+        if (annotSel) annotSel.replace(committed.id);
+        // Phase 21 — a fresh sticky opens in edit mode (FigJam parity: drop a
+        // note, type immediately). Phase 1 whiteboard-improvements — shapes get
+        // the same treatment (rect/ellipse/polygon are all AnchorHost, so
+        // setEditingId resolves them via editingTarget's 'anchored' branch same
+        // as a double-click would).
+        if (
+          committed.tool === 'sticky' ||
+          committed.tool === 'rect' ||
+          committed.tool === 'ellipse' ||
+          committed.tool === 'polygon'
+        ) {
+          setEditingId(committed.id);
+          showOnceHint('chain', '⌘Enter commits and creates the next one beside it.');
+        }
       }
-      commitStrokes(prev, next, `draw ${committed.tool}`);
-      // T18 — auto-select the freshly drawn shape so the user can immediately
-      // see + adjust it. annotSel is optional (some test harnesses mount
-      // AnnotationsLayer without the provider), so guard the call.
-      if (annotSel) annotSel.replace(committed.id);
-      // Phase 21 — a fresh sticky opens in edit mode (FigJam parity: drop a
-      // note, type immediately). Phase 1 whiteboard-improvements — shapes get
-      // the same treatment (rect/ellipse/polygon are all AnchorHost, so
-      // setEditingId resolves them via editingTarget's 'anchored' branch same
-      // as a double-click would).
-      if (
-        committed.tool === 'sticky' ||
-        committed.tool === 'rect' ||
-        committed.tool === 'ellipse' ||
-        committed.tool === 'polygon'
-      ) {
-        setEditingId(committed.id);
-        showOnceHint('chain', '⌘Enter commits and creates the next one beside it.');
+      // T18 / T19 — flip the tool back to the MODE's resting tool after every
+      // commit UNLESS sticky mode is locked on this tool (DDR-223: move in edit
+      // — byte-identical to the old hardcode — browse in preview, so drawing an
+      // annotation never silently exits the alive posture). Sticky lets the user
+      // draw many shapes in a row (canonical pattern: tldraw double-click to
+      // lock). Map a highlighter pen (a 'pen' stroke with the flag) back to the
+      // 'highlighter' tool id so its sticky-lock check matches the active tool.
+      //
+      // No eraser case here: an eraser commits no stroke, so `cur.tool` (a stroke
+      // KIND, off `drawingRef`) can never be 'eraser' — erase leaves through the
+      // `isErase` branch above. It stays armed by being unreachable from here,
+      // not by a guard. The typecheck surface completion (A2) proved the old
+      // `!== 'eraser'` test was dead.
+      const toolJustUsed = cur.tool === 'pen' && cur.highlighter ? 'highlighter' : cur.tool;
+      const stickyOnThis = sticky.locked && sticky.tool === toolJustUsed;
+      if (!stickyOnThis) resetTool();
+      drawAnchorRef.current = null;
+      lastDrawPointRef.current = null;
+      setDrawing(null);
+    };
+    // S4.11 (an-arrow-bind) — an end dropped on a canvas element, or on an artboard's edge, binds to
+    // THAT: `el:<artboard>/<id>` / `ab:<artboard>`. An element without an authored id is named first
+    // through the edit-op `element.stamp` (Q12); busy, it falls back to the artboard with the tag
+    // "Bound to the artboard". A board item under the end already won above (the shipped bind).
+    const rects =
+      aimRectsRef.current ??
+      (final?.tool === 'arrow' ? (canvasRectsNow() as AimRects | null) : null);
+    aimRectsRef.current = null;
+    if (final && final.tool === 'arrow' && !cmdHeldRef.current && rectsReady(rects)) {
+      const arrow = final;
+      const band = edgeBand(vpRef.current?.zoom || 1);
+      const pick = (x: number, y: number) =>
+        pickCandidate(rects, x, y, { band, labelOf: artboardLabel });
+      const jobs: Array<{ end: 'start' | 'end'; cand: BindCandidate }> = [];
+      const sc = arrow.startBind ? null : pick(arrow.x1, arrow.y1);
+      const ec = arrow.endBind ? null : pick(arrow.x2, arrow.y2);
+      if (sc) jobs.push({ end: 'start', cand: sc });
+      // Both ends on one host is a loop: the end stays free.
+      if (ec && !(sc && hostRefOf(sc) === hostRefOf(ec))) jobs.push({ end: 'end', cand: ec });
+      if (jobs.length) {
+        const resolve = resolverFromRects(asHostRects(rects));
+        const attach = (done: Array<{ end: 'start' | 'end'; bound: BoundEnd | null }>): Stroke =>
+          attachHosts(
+            arrow,
+            {
+              start: done.find((d) => d.end === 'start')?.bound?.bind,
+              end: done.find((d) => d.end === 'end')?.bound?.bind,
+            },
+            resolve
+          );
+        const now = jobs.map((j) => ({ end: j.end, bound: bindNow(j.cand) }));
+        if (now.every((j) => j.bound)) {
+          finish(attach(now));
+          return;
+        }
+        finishingRef.current = true;
+        void Promise.all(
+          jobs.map(async (j) => ({ end: j.end, bound: await bindEnd(j.cand, stampViaEditOp) }))
+        ).then((done) => {
+          finishingRef.current = false;
+          const tag = done.find((d) => d.bound?.tag)?.bound?.tag;
+          if (tag) {
+            setBoundTag({ text: tag, at: [arrow.x2, arrow.y2] });
+            setTimeout(() => setBoundTag(null), 2400);
+          }
+          finish(done.some((d) => d.bound) ? attach(done) : arrow);
+        });
+        return;
       }
     }
-    // T18 / T19 — flip the tool back to the MODE's resting tool after every
-    // commit UNLESS sticky mode is locked on this tool (DDR-223: move in edit
-    // — byte-identical to the old hardcode — browse in preview, so drawing an
-    // annotation never silently exits the alive posture). Sticky lets the user
-    // draw many shapes in a row (canonical pattern: tldraw double-click to
-    // lock). Map a highlighter pen (a 'pen' stroke with the flag) back to the
-    // 'highlighter' tool id so its sticky-lock check matches the active tool.
-    //
-    // No eraser case here: an eraser commits no stroke, so `cur.tool` (a stroke
-    // KIND, off `drawingRef`) can never be 'eraser' — erase leaves through the
-    // `isErase` branch above. It stays armed by being unreachable from here,
-    // not by a guard. The typecheck surface completion (A2) proved the old
-    // `!== 'eraser'` test was dead.
-    const toolJustUsed = cur.tool === 'pen' && cur.highlighter ? 'highlighter' : cur.tool;
-    const stickyOnThis = sticky.locked && sticky.tool === toolJustUsed;
-    if (!stickyOnThis) resetTool();
-    drawAnchorRef.current = null;
-    lastDrawPointRef.current = null;
-    setDrawing(null);
-  }, [isActive, isErase, visible, commitStrokes, annotSel, resetTool, sticky]);
+    finish(final);
+  }, [isActive, isErase, visible, commitStrokes, annotSel, resetTool, sticky, updateAim]);
+
+  // S4.11 — Point to…: while it is armed, the next click on a canvas element / artboard edge binds
+  // that end of the arrow (stamping the element first when it has no authored id); Esc cancels.
+  // Capture-phase on the window so the click never also selects or draws.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: armed by `pointTo` only
+  useEffect(() => {
+    if (!pointTo) return;
+    const { arrowId, end } = pointTo;
+    aimRectsRef.current = canvasRectsNow() as AimRects | null;
+    const stop = () => {
+      aimRectsRef.current = null;
+      updateAim(0, 0, false);
+      setPointTo(null);
+    };
+    const onMove = (e: PointerEvent) => {
+      const [x, y] = screenToWorld(e.clientX, e.clientY);
+      updateAim(x, y, true);
+    };
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (t?.closest?.(CHROME_SELECTOR)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      const rects = aimRectsRef.current;
+      if (!rectsReady(rects)) return;
+      const [x, y] = screenToWorld(e.clientX, e.clientY);
+      const cand = pickCandidate(rects, x, y, {
+        band: edgeBand(getLiveViewport()?.zoom || 1),
+        labelOf: artboardLabel,
+      });
+      if (!cand) return; // empty canvas: keep aiming
+      void bindEnd(cand, stampViaEditOp).then((bound) => {
+        stop();
+        if (!bound) return;
+        const prev = strokesRef.current;
+        const a = prev.find((st) => st.id === arrowId);
+        if (!a || a.tool !== 'arrow') return;
+        const placed = attachHosts(
+          a,
+          end === 'start' ? { start: bound.bind } : { end: bound.bind },
+          resolverFromRects(asHostRects(rects))
+        );
+        commitStrokes(
+          prev,
+          prev.map((st) => (st.id === arrowId ? placed : st)),
+          'point arrow'
+        );
+        if (bound.tag) {
+          setBoundTag({ text: bound.tag, at: [placed.x2, placed.y2] });
+          setTimeout(() => setBoundTag(null), 2400);
+        }
+      });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      stop();
+    };
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [pointTo, commitStrokes]);
+
+  /** S4.11 — the words written on an arrow commit as one undoable edit; empty removes them. */
+  const commitLabel = useCallback(
+    (id: string, text: string) => {
+      setLabelEdit(null);
+      const prev = strokesRef.current;
+      const a = prev.find((st) => st.id === id);
+      if (!a || a.tool !== 'arrow') return;
+      const patch = labelPatch(text);
+      if ((a.label || undefined) === patch.label) return;
+      commitStrokes(
+        prev,
+        prev.map((st) => (st.id === id ? ({ ...st, ...patch } as Stroke) : st)),
+        patch.label ? 'label arrow' : 'clear arrow label'
+      );
+    },
+    [commitStrokes]
+  );
 
   // T21 — abort a mid-stroke draw without committing. Dispatched by the
   // canvas-shell Esc handler (`maude:cancel-stroke`). Safe to call when
@@ -2483,9 +2793,79 @@ export function AnnotationsLayer() {
     };
   }, []);
 
+  // S4.11 — the live canvas under bound arrows (host-view.ts). The manifest is re-read on a board
+  // change and every 1.5 s while any arrow is bound (an element moved, AI rewrote it, it left the
+  // canvas), and kept only when a bound host's box (or its absence) changed — so a quiet canvas
+  // re-renders nothing. Nothing is derived until the canvas has painted an artboard.
+  const [liveRects, setLiveRects] = useState<AimRects | null>(null);
+  const liveSigRef = useRef('');
+  const bound = useMemo(() => hasHosts(strokes), [strokes]);
+  const strokesForRects = useRef(strokes);
+  strokesForRects.current = strokes;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read per board version
+  useEffect(() => {
+    if (!bound) {
+      liveSigRef.current = '';
+      setLiveRects(null);
+      return;
+    }
+    const tick = () => {
+      const r = canvasRectsNow() as AimRects | null;
+      const sig = hostSignature(strokesForRects.current, r);
+      if (sig === liveSigRef.current) return;
+      liveSigRef.current = sig;
+      setLiveRects(rectsReady(r) ? r : null);
+    };
+    tick();
+    const first = [60, 250, 800].map((ms) => setTimeout(tick, ms));
+    const id = setInterval(tick, 1500);
+    return () => {
+      for (const t of first) clearTimeout(t);
+      clearInterval(id);
+    };
+  }, [bound, boardVersion]);
+  const viewedStrokes = useMemo(() => viewStrokes(strokes, liveRects), [strokes, liveRects]);
+  const danglingCards = useMemo<DanglingCardModel[]>(
+    () => (liveRects ? danglingOf(strokes, liveRects).map((d) => danglingCard(d, liveRects)) : []),
+    [strokes, liveRects]
+  );
+  const danglingRef = useRef(danglingCards);
+  danglingRef.current = danglingCards;
+  // S4.11 — the artboards an elbow arrow routes around at rest. Read from the layout (drag bus)
+  // when there is one, else the manifest; refreshed on a board change and after an artboard move.
+  const [boards, setBoards] = useState<BoardRect[]>([]);
+  const boardsSigRef = useRef('');
+  const anyElbow = useMemo(
+    () => strokes.some((s) => s.tool === 'arrow' && s.lineType === 'elbow'),
+    [strokes]
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: layoutTick / boardVersion are the triggers
+  useEffect(() => {
+    if (!anyElbow) {
+      if (boardsSigRef.current) {
+        boardsSigRef.current = '';
+        setBoards([]);
+      }
+      return;
+    }
+    const layout = dragBusRef.current?.layoutRects() ?? [];
+    const list: BoardRect[] = layout.length
+      ? layout.map((a) => ({ id: a.id, x: a.x, y: a.y, w: a.w, h: a.h }))
+      : (canvasRectsNow()?.artboards ?? []).map((a) => ({
+          id: a.id,
+          x: a.x,
+          y: a.y,
+          w: a.w,
+          h: a.h,
+        }));
+    const sig = list.map((a) => `${a.id}:${a.x},${a.y},${a.w},${a.h}`).join('|');
+    if (sig === boardsSigRef.current) return;
+    boardsSigRef.current = sig;
+    setBoards(list);
+  }, [anyElbow, layoutTick, boardVersion]);
   const renderStrokes = useMemo(
-    () => (drawing ? [...strokes, drawing] : strokes),
-    [strokes, drawing]
+    () => (drawing ? [...viewedStrokes, drawing] : viewedStrokes),
+    [viewedStrokes, drawing]
   );
   // S4.9 - the person filter and C29's Hide resolved stickies leave elements out of the DRAWING only.
   const shownStrokes = useMemo(
@@ -2552,9 +2932,9 @@ export function AnnotationsLayer() {
 
   const strokesById = useMemo(() => {
     const map = new Map<string, Stroke>();
-    for (const s of strokes) map.set(s.id, s);
+    for (const s of viewedStrokes) map.set(s.id, s);
     return map;
-  }, [strokes]);
+  }, [viewedStrokes]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Move-tool selection + drag (Phase 5.1 Tasks 6 + 7). Single doc-level
@@ -3109,6 +3489,14 @@ export function AnnotationsLayer() {
         e.preventDefault();
         e.stopPropagation();
         annotSel.replace(id);
+      }
+      if (t === 'arrow') {
+        // S4.11 (an-arrow-kinds 3): the words on the line. Claimed so the canvas-shell
+        // dblclick-empty→fit() handler does not jump the view.
+        e.preventDefault();
+        e.stopPropagation();
+        setLabelEdit(id);
+        return;
       }
       if (t === 'rect' || t === 'ellipse' || t === 'polygon' || t === 'sticky' || t === 'section') {
         // A double-click we've claimed for editing must not also reach the
@@ -4115,6 +4503,25 @@ export function AnnotationsLayer() {
     return selectedStrokes.some((s) => locked.has(s.id));
   }, [selectedStrokes, strokes]);
 
+  // S4.11 — what the arrow cards draw: the aim, the lost ends, the selected arrow's rewritten rings.
+  const selectedArrow =
+    selectedStrokes.length === 1 && selectedStrokes[0]?.tool === 'arrow'
+      ? (selectedStrokes[0] as ArrowStroke)
+      : null;
+  const arrowUi: ArrowUi = {
+    aim: aim && (tool === 'arrow' || pointTo) ? aim : null,
+    boundTag,
+    dangling: danglingCards,
+    selectedArrowId: selectedArrow?.id ?? null,
+    rewritten: selectedArrow && liveRects ? rewrittenFor(selectedArrow, liveRects) : [],
+    onPointTo: (arrowId, end) => setPointTo({ arrowId, end }),
+    canEdit: !quiet,
+    labelEditId: labelEdit,
+    onLabelCommit: commitLabel,
+    onLabelCancel: () => setLabelEdit(null),
+    boards,
+  };
+
   return (
     <AnnotationPipelineContext.Provider value={pipeline}>
       <StrokesStoreContext.Provider value={strokesStore}>
@@ -4125,7 +4532,11 @@ export function AnnotationsLayer() {
           beginStroke={beginStroke}
           moveStroke={moveStroke}
           endStroke={endStroke}
-          onLeave={() => setGhost(null)}
+          onLeave={() => {
+            setGhost(null);
+            aimRectsRef.current = null;
+            updateAim(0, 0, false);
+          }}
         />
         {visible ? (
           <AnnotationsSvg
@@ -4153,6 +4564,7 @@ export function AnnotationsLayer() {
             gestureState={gestureState}
             editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
             unknownElements={unknownElements}
+            arrowUi={arrowUi}
           />
         ) : null}
         {visible && !quiet ? (
@@ -4312,9 +4724,12 @@ function AnnotationsSvg({
   editNotice,
   gestureState,
   unknownElements,
+  arrowUi,
 }: {
   worldRef: ReturnType<typeof useWorldRefContext>;
   strokes: readonly Stroke[];
+  /** S4.11 — aiming, lost ends, labels and the artboards an elbow routes around. */
+  arrowUi: ArrowUi;
   /** Elements of a type this build does not know — drawn as placeholders, never dropped. */
   unknownElements: readonly AnnotationElement[];
   /** Idle-typing draft of the open editor (Task 19). */
@@ -4370,9 +4785,22 @@ function AnnotationsSvg({
     return () => clearTimeout(id);
   }, [worldRef]);
   // DDR-242 AD7/AD8 — one node per element, text as HTML (annotations/ui/).
+  const restRouter = useMemo(() => createArrowRouter(), []);
+  const zoomNow = useLiveViewport().zoom || 1;
+  const { boards: restBoards, dangling: lostEnds } = arrowUi;
+  const moving = gestureState !== 'idle';
   const baseItems = useMemo(
-    () => renderItemsFromStrokes(strokes, unknownElements),
-    [strokes, unknownElements]
+    () =>
+      markDangling(
+        routeElbowsAtRest(
+          renderItemsFromStrokes(strokes, unknownElements),
+          restBoards,
+          restRouter,
+          moving ? 'drag' : 'settle'
+        ),
+        lostEnds
+      ),
+    [strokes, unknownElements, restBoards, restRouter, moving, lostEnds]
   );
   // The element whose text slot is open: a shape's label edits on the shape,
   // everything else on itself; `pending` is a caret not yet backed by an element.
@@ -4450,6 +4878,9 @@ function AnnotationsSvg({
     [lodCtl]
   );
   const target = worldRef?.current ?? null;
+  const labelItem = arrowUi.labelEditId
+    ? items.find((it) => it.el.id === arrowUi.labelEditId && it.ends)
+    : undefined;
   if (!target) return null;
   return (
     <>
@@ -4469,6 +4900,33 @@ function AnnotationsSvg({
           pending={pending}
           resolveAsset={resolveAssetHref}
         />,
+        target
+      )}
+      {createPortal(
+        <div className="dc-annot-arrowui">
+          {arrowUi.aim ? <AimOverlay aim={arrowUi.aim} zoom={zoomNow} /> : null}
+          {arrowUi.boundTag ? (
+            <BoundTag text={arrowUi.boundTag.text} at={arrowUi.boundTag.at} zoom={zoomNow} />
+          ) : null}
+          <HostMarks
+            zoom={zoomNow}
+            dangling={arrowUi.dangling}
+            selectedId={arrowUi.selectedArrowId}
+            rewritten={arrowUi.rewritten}
+            onPointTo={arrowUi.onPointTo}
+            canEdit={arrowUi.canEdit}
+          />
+          {labelItem ? (
+            <ArrowLabelEditor
+              key={labelItem.el.id}
+              at={labelPoint(labelItem.el, labelItem.ends as ResolvedEnds)}
+              initial={typeof labelItem.el.label === 'string' ? labelItem.el.label : ''}
+              zoom={zoomNow}
+              onCommit={(text) => arrowUi.onLabelCommit(labelItem.el.id, text)}
+              onCancel={arrowUi.onLabelCancel}
+            />
+          ) : null}
+        </div>,
         target
       )}
       {createPortal(
@@ -4909,6 +5367,21 @@ function AnnotationContextMenu({
       {item('delete', 'Delete', '⌫', { destructive: true, disabled: allLocked })}
     </div>
   );
+}
+
+/** S4.11 — everything the arrow cards need from the layer (annotations/ui/arrow-cards.tsx). */
+interface ArrowUi {
+  aim: AimState | null;
+  boundTag: { text: string; at: [number, number] } | null;
+  dangling: DanglingCardModel[];
+  selectedArrowId: string | null;
+  rewritten: ReturnType<typeof rewrittenFor>;
+  onPointTo: (arrowId: string, end: 'start' | 'end') => void;
+  canEdit: boolean;
+  labelEditId: string | null;
+  onLabelCommit: (id: string, text: string) => void;
+  onLabelCancel: () => void;
+  boards: BoardRect[];
 }
 
 /**

@@ -619,6 +619,16 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
   },
+  // S4.11 — naming an element so an arrow can point at it (Q12). No menu, no key, no ⌘K row: the canvas asks
+  // for it when an arrow is dropped on an element with no authored id; it runs as the edit-op of this id.
+  {
+    id: 'element.stamp',
+    label: 'Name element',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
   // S2.8 — artboards. Both take a size, so neither is a ⌘K row: their homes are the eight handles on a
   // selected artboard (`artboard.resize` is the edit-op id they run, S2-edit-ops.md) and the artboard
   // inspector's "Other widths › Add a width…" (a copy of the board at another width, beside it).

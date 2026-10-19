@@ -22,6 +22,16 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
+import {
+  ARROW_HEAD_CHOICES,
+  ARROW_INK_FRONT,
+  ARROW_INK_MORE,
+  ARROW_KINDS,
+  headPatch,
+  isTwoWay,
+  kindPatch,
+  twoWayPatch,
+} from './annotations/ui/arrow-kinds.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
@@ -94,7 +104,7 @@ const HEAD_OPTIONS: ReadonlyArray<{ value: ArrowHead; label: string }> = [
   { value: 'none', label: 'None' },
   { value: 'line', label: 'Line' },
   { value: 'triangle', label: 'Triangle' },
-  { value: 'triangle-outline', label: 'Triangle (outline)' },
+  { value: 'triangle-outline', label: 'Triangle outline' },
   { value: 'circle', label: 'Circle' },
   { value: 'diamond', label: 'Diamond' },
 ];
@@ -711,11 +721,29 @@ export function AnnotationContextToolbar({
     },
     [store, selectedIds]
   );
+  // S4.11 (an-arrow-kinds): the end head (a two-way arrow keeps both alike) and the two-way toggle.
+  const setHeadPicked = useCallback(
+    (head: ArrowHead) => {
+      store?.applyToStrokes(
+        selectedIds,
+        (s) => (s.tool === 'arrow' ? headPatch(s, head) : null),
+        'set arrowhead'
+      );
+    },
+    [store, selectedIds]
+  );
+  const toggleTwoWay = useCallback(() => {
+    store?.applyToStrokes(
+      selectedIds,
+      (s) => (s.tool === 'arrow' ? twoWayPatch(s) : null),
+      'toggle two-way arrow'
+    );
+  }, [store, selectedIds]);
   const setLineType = useCallback(
     (lineType: ArrowLineType) => {
       store?.applyToStrokes(
         selectedIds,
-        (s) => (s.tool === 'arrow' ? ({ lineType } as Partial<Stroke>) : null),
+        (s) => (s.tool === 'arrow' ? kindPatch(lineType) : null),
         'set line type'
       );
     },
@@ -1142,6 +1170,9 @@ export function AnnotationContextToolbar({
         selectedStrokes.map((s) => (s.tool === 'arrow' ? (s.lineType ?? 'straight') : undefined))
       )
     : undefined;
+  const uniqTwoWay = caps.arrowDir
+    ? uniformValue(selectedStrokes.map((s) => (s.tool === 'arrow' ? isTwoWay(s) : undefined)))
+    : undefined;
   const uniqDashed = caps.dash
     ? uniformValue(
         selectedStrokes.map((s) =>
@@ -1215,30 +1246,34 @@ export function AnnotationContextToolbar({
           <div className="dc-annot-ctx-sep" />
         </>
       ) : null}
-      <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
-        {effectiveMode === 'fill' ? (
-          <button
-            type="button"
-            className="dc-annot-ctx-sw dc-annot-ctx-fill--none"
-            aria-label="No fill"
-            aria-pressed={uniqFill == null}
-            title="No fill"
-            onClick={() => setFill(null)}
-          />
-        ) : null}
-        {showPalette.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className="dc-annot-ctx-sw"
-            aria-label={`${swatchKind} ${c}`}
-            aria-pressed={activeValue === c}
-            title={`${swatchKind} ${c}`}
-            style={{ background: c }}
-            onClick={() => onSwatchClick(c)}
-          />
-        ))}
-      </div>
+      {caps.arrowDir ? (
+        <ArrowInks value={uniqColor} onPick={setColor} />
+      ) : (
+        <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
+          {effectiveMode === 'fill' ? (
+            <button
+              type="button"
+              className="dc-annot-ctx-sw dc-annot-ctx-fill--none"
+              aria-label="No fill"
+              aria-pressed={uniqFill == null}
+              title="No fill"
+              onClick={() => setFill(null)}
+            />
+          ) : null}
+          {showPalette.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="dc-annot-ctx-sw"
+              aria-label={`${swatchKind} ${c}`}
+              aria-pressed={activeValue === c}
+              title={`${swatchKind} ${c}`}
+              style={{ background: c }}
+              onClick={() => onSwatchClick(c)}
+            />
+          ))}
+        </div>
+      )}
       {caps.thickness && effectiveMode === 'stroke' ? (
         <>
           <div className="dc-annot-ctx-sep" />
@@ -1374,36 +1409,42 @@ export function AnnotationContextToolbar({
       {caps.arrowDir ? (
         <>
           <div className="dc-annot-ctx-sep" />
+          <div className="dc-annot-ctx-mode" role="radiogroup" aria-label="Arrow line">
+            {ARROW_KINDS.map((k) => (
+              <button
+                key={k.value}
+                type="button"
+                className="dc-annot-ctx-mode-btn"
+                data-testid={`annot-arrow-kind-${k.value}`}
+                aria-pressed={uniqLineType === k.value}
+                onClick={() => setLineType(k.value)}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <div className="dc-annot-ctx-sep" />
           <IconDropdown
-            ariaLabel="Start arrowhead"
-            value={uniqStartHead ?? 'none'}
-            options={HEAD_OPTIONS}
-            renderIcon={(v) => {
-              const I = HEAD_ICON[v as ArrowHead];
-              return I ? <I size={16} /> : null;
-            }}
-            onPick={(v) => setStartHead(v as ArrowHead)}
-          />
-          <IconDropdown
-            ariaLabel="End arrowhead"
+            ariaLabel="Arrowhead"
             value={uniqEndHead ?? 'triangle'}
-            options={HEAD_OPTIONS}
+            options={ARROW_HEAD_CHOICES}
             renderIcon={(v) => {
               const I = HEAD_ICON[v as ArrowHead];
               return I ? <I size={16} /> : null;
             }}
-            onPick={(v) => setEndHead(v as ArrowHead)}
+            onPick={(v) => setHeadPicked(v as ArrowHead)}
           />
-          <IconDropdown
-            ariaLabel="Line type"
-            value={uniqLineType ?? 'straight'}
-            options={LINETYPE_OPTIONS}
-            renderIcon={(v) => {
-              const I = LINETYPE_ICON[v as ArrowLineType];
-              return I ? <I size={16} /> : null;
-            }}
-            onPick={(v) => setLineType(v as ArrowLineType)}
-          />
+          <button
+            type="button"
+            className="dc-annot-ctx-ibtn"
+            data-testid="annot-arrow-two-way"
+            aria-label="Two-way"
+            aria-pressed={uniqTwoWay === true}
+            title="Two-way"
+            onClick={toggleTwoWay}
+          >
+            <span aria-hidden="true">⇄</span>
+          </button>
         </>
       ) : null}
       {caps.dash ? (
@@ -1484,6 +1525,47 @@ AnnotationContextToolbar.displayName = 'AnnotationContextToolbar';
  * is a single row of icon-only radio items. Closes on outside-pointerdown or
  * Escape. Reuses the existing `.dc-annot-ctx-ibtn` button styling.
  */
+/** S4.11 — an arrow's inks: four up front (black first), "+5" opens the rest in place. */
+function ArrowInks({
+  value,
+  onPick,
+}: {
+  value: string | undefined;
+  onPick: (hex: string) => void;
+}) {
+  const [more, setMore] = useState(false);
+  const all = more ? [...ARROW_INK_FRONT, ...ARROW_INK_MORE] : ARROW_INK_FRONT;
+  return (
+    <div className="dc-annot-ctx-swrow" role="radiogroup" aria-label="Color">
+      {all.map((c) => (
+        <button
+          key={c.hex}
+          type="button"
+          className="dc-annot-ctx-sw"
+          data-testid={`annot-arrow-ink-${c.name.toLowerCase()}`}
+          aria-label={`Color ${c.name}`}
+          aria-pressed={value === c.hex}
+          title={c.name}
+          style={{ background: c.hex }}
+          onClick={() => onPick(c.hex)}
+        />
+      ))}
+      {more ? null : (
+        <button
+          type="button"
+          className="dc-annot-ctx-ibtn"
+          data-testid="annot-arrow-ink-more"
+          aria-label={`${ARROW_INK_MORE.length} more colors`}
+          title="More colors"
+          onClick={() => setMore(true)}
+        >
+          +{ARROW_INK_MORE.length}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function IconDropdown({
   ariaLabel,
   value,

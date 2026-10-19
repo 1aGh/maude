@@ -33,6 +33,14 @@ export interface ResolvedEnds {
   y2: number;
   startAnchor?: ArrowAnchor;
   endAnchor?: ArrowAnchor;
+  /**
+   * An elbow arrow's route around the other artboards, at rest (S4.11, the S4.10 follow-up):
+   * WORLD points from the start to the end, axis-aligned, computed by the same router the drag
+   * uses in settle mode (annotations/ui/rest-route.ts). Absent = the plain single-corner elbow.
+   */
+  route?: ReadonlyArray<{ x: number; y: number }>;
+  /** S4.11 — an end whose canvas host cannot be found right now (derived, never stored). */
+  dangling?: { start?: boolean; end?: boolean };
 }
 
 export interface RenderItem {
@@ -157,6 +165,9 @@ export function strokeToRenderItem(s: Stroke, label?: Label): RenderItem | null 
           ...(s.endHead ? { endHead: s.endHead } : {}),
           ...(s.dashed ? { dashed: true } : {}),
           ...(s.lineType ? { line: s.lineType } : {}),
+          ...(s.label ? { label: s.label } : {}),
+          ...(s.startHost ? { startHost: s.startHost } : {}),
+          ...(s.endHost ? { endHost: s.endHost } : {}),
         },
         ends: {
           x1: s.x1,

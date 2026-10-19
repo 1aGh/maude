@@ -26,6 +26,7 @@ import {
   STICKY_RADIUS,
 } from './constants.ts';
 import { keyBetween, orderKeys } from './fractional-index.ts';
+import type { CanvasHostBind } from './hosts.ts';
 import { v1ToV2 } from './migrate-v1.ts';
 import { defOf, HEAD_FIELDS, isKnownType, TAIL_FIELDS } from './registry.ts';
 import { Scene } from './scene.ts';
@@ -195,6 +196,11 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
           ...(typeof el.line === 'string' && el.line !== 'straight' ? { lineType: el.line } : {}),
           ...(sb ? { startBind: sb } : {}),
           ...(eb ? { endBind: eb } : {}),
+          // S4.11 — canvas binds and the line's words ride on the stroke view, so a stroke-path
+          // commit writes (and removes) them instead of carrying the committed ones forever.
+          ...(isHostBind(el.startHost) ? { startHost: el.startHost } : {}),
+          ...(isHostBind(el.endHost) ? { endHost: el.endHost } : {}),
+          ...(typeof el.label === 'string' && el.label ? { label: el.label } : {}),
         } as Stroke);
         break;
       }
@@ -276,6 +282,17 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
     }
   }
   return out;
+}
+
+const ARROW_STROKE_EXT: ReadonlySet<string> = new Set(['startHost', 'endHost', 'label']);
+
+function isHostBind(v: unknown): v is CanvasHostBind {
+  return (
+    v !== null &&
+    typeof v === 'object' &&
+    typeof (v as { ref?: unknown }).ref === 'string' &&
+    typeof (v as { label?: unknown }).label === 'string'
+  );
 }
 
 /** Keys of a known-type element that are not format-1 fields (typed ext + unknown). */
@@ -420,7 +437,10 @@ export function strokesToElements(
     const prevEl = current.get(el.id);
     if (prevEl && prevEl.type === el.type) {
       const base = new Set(Object.keys(rec));
-      for (const k of extensionKeys(prevEl)) if (!base.has(k)) rec[k] = prevEl[k];
+      // An arrow's canvas binds and label are on its stroke view (S4.11): the stroke is the truth,
+      // so removing them there (Point to…, a drag off the host) is a real removal.
+      const owned = el.type === 'arrow' ? ARROW_STROKE_EXT : null;
+      for (const k of extensionKeys(prevEl)) if (!base.has(k) && !owned?.has(k)) rec[k] = prevEl[k];
     }
     // Standalone text: v1 only knows a character estimate — keep the measured box while the text is unchanged.
     const prev = current.get(el.id);

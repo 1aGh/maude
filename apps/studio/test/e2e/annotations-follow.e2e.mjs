@@ -10,8 +10,16 @@
 //   F3 one ⌘Z puts the artboard AND its members back
 //   F4 a selected member shows "On Desktop · moves with it" around its artboard
 //   F5 a marker stroke drawn over Desktop belongs to it (parentArtboard on disk)
+//   F6 (S4.11) an Arrow dropped on a button binds to THAT button — the ring names it, an unnamed
+//      element is stamped first (`element.stamp`) and the bind stores the id it got; a new arrow
+//      is Curved with a filled head; over an artboard's edge the whole artboard lights up
+//   F7 (S4.11) double-click an arrow writes a label that is stored on the arrow
+//   F8 (S4.11) the bound element is rewritten (same id, new words): the arrow stays bound and the
+//      ring says "rewritten by AI"; the element removed: the dangling card appears, Point to…
+//      re-aims, restoring the element re-attaches
+//   F9 (S4.11) the elbow arrow keeps its route around Mobile at rest (a routed path, not one corner)
 //
-// Written for S4.10; the lead runs it at the wave gate (it needs Chromium + a free port).
+// Written for S4.10 and S4.11; the lead runs it at the wave gate (it needs Chromium + a free port).
 
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -33,6 +41,8 @@ export default function Board() {
     <DesignCanvas>
       <DCArtboard id="desktop" label="Desktop" width={720} height={450}>
         <div style={{ padding: 24 }}>Home</div>
+        <button data-cd-id="see-the-work" style={{ position: "absolute", left: 40, top: 120 }}>See the work</button>
+        <a className="pricing" style={{ position: "absolute", left: 300, top: 120 }}>Pricing</a>
       </DCArtboard>
       <DCArtboard id="mobile" label="Mobile" width={195} height={422}>
         <div style={{ padding: 12 }}>Mobile</div>
@@ -243,5 +253,152 @@ describe('F5 — marker strokes belong to the artboard under them', () => {
     const pen = [...after.values()].find((e) => !before.has(e.id) && e.type === 'pen');
     assert.ok(pen, 'a marker stroke landed');
     assert.equal(pen.parentArtboard, 'desktop');
+  });
+});
+
+// ── S4.11 — arrows that bind to the thing you mean ───────────────────────────────────────────────
+const canvasPath = () => join(root, '.design', 'ui', 'Board.tsx');
+const centerOfPage = async (sel) => {
+  const b = await c.frame.locator(sel).first().boundingBox();
+  assert.ok(b, `${sel} on screen`);
+  return [b.x + b.width / 2, b.y + b.height / 2];
+};
+
+async function drawArrow(from, to, mid) {
+  await reset();
+  await c.page.keyboard.press('a'); // Arrow
+  await c.page.mouse.move(from[0], from[1]);
+  await c.page.mouse.down();
+  for (let i = 1; i <= 12; i++) {
+    await c.page.mouse.move(
+      from[0] + ((to[0] - from[0]) * i) / 12,
+      from[1] + ((to[1] - from[1]) * i) / 12
+    );
+    await sleep(16);
+  }
+  if (mid) await mid();
+  await c.page.mouse.up();
+}
+
+describe('F6 — an arrow binds to the button, not the artboard', () => {
+  test('a new arrow dropped on a named button: ring + tag, Curved, filled head, bound by id', async () => {
+    const before = new Set(disk().keys());
+    const target = await centerOfPage('[data-cd-id="see-the-work"]');
+    const start = await c.center('note');
+    await drawArrow(start, target, async () => {
+      assert.equal(await c.frame.locator('[data-testid="annot-arrow-aim-ring"]').count(), 1);
+      assert.match(
+        (await c.frame.locator('[data-testid="annot-arrow-aim-tag"]').textContent()) ?? '',
+        /Button · See the work/
+      );
+    });
+    const board = await waitForBoard(server.root, (m) =>
+      [...m.keys()].some((k) => !before.has(k) && m.get(k).type === 'arrow')
+    );
+    const a = [...board.values()].find((e) => !before.has(e.id) && e.type === 'arrow');
+    assert.equal(a.endHost.ref, 'el:desktop/see-the-work');
+    assert.equal(a.endHost.label, 'See the work');
+    assert.equal(a.line, 'curved', 'a new arrow is Curved');
+    assert.ok(!a.endHead || a.endHead === 'triangle', 'with a filled head');
+  });
+
+  test('an unnamed element is stamped first and the bind stores the id it was given', async () => {
+    const before = new Set(disk().keys());
+    const target = await centerOfPage('.pricing');
+    const start = await c.center('note');
+    await drawArrow(start, target);
+    const board = await waitForBoard(server.root, (m) =>
+      [...m.keys()].some((k) => !before.has(k) && m.get(k).type === 'arrow')
+    );
+    const a = [...board.values()].find((e) => !before.has(e.id) && e.type === 'arrow');
+    assert.match(a.endHost.ref, /^el:desktop\/[a-z][a-z0-9-]*$/);
+    assert.doesNotMatch(a.endHost.ref, /\/[0-9a-f]{8}$/, 'never a computed id');
+    const id = a.endHost.ref.split('/')[1];
+    assert.ok(
+      readFileSync(canvasPath(), 'utf8').includes(`data-cd-id="${id}"`),
+      'the id is in the TSX'
+    );
+  });
+
+  test('over an artboard edge the whole artboard lights up', async () => {
+    await reset();
+    await c.page.keyboard.press('a');
+    const b = await label().boundingBox();
+    await c.page.mouse.move(b.x - 2, b.y + 200);
+    await sleep(200);
+    assert.equal(await c.frame.locator('[data-testid="annot-arrow-edge"]').count(), 1);
+    await reset();
+  });
+});
+
+describe('F7 — double-click an arrow writes on it', () => {
+  test('the label is stored on the arrow', async () => {
+    await reset();
+    const arrow = [...disk().values()].find((e) => e.type === 'arrow' && e.id !== 'arw');
+    assert.ok(arrow, 'an arrow from F6');
+    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    await c.page.mouse.dblclick(x, y);
+    const input = c.frame.locator('[data-testid="annot-arrow-label-input"]');
+    assert.equal(await input.count(), 1);
+    await input.fill('then here');
+    await c.page.keyboard.press('Enter');
+    const board = await waitForBoard(server.root, (m) => m.get(arrow.id)?.label === 'then here');
+    assert.equal(board.get(arrow.id).label, 'then here');
+  });
+});
+
+describe('F8 — rewritten stays bound; gone is dangling; restore re-attaches', () => {
+  const original = () => readFileSync(canvasPath(), 'utf8');
+  let saved;
+  test('AI rewrites the button: still bound', async () => {
+    saved = original();
+    writeFileSync(canvasPath(), saved.replace('>See the work<', '>See our work<'));
+    await sleep(2500);
+    await reset();
+    const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
+    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    await c.click(x, y);
+    await sleep(400);
+    assert.match(
+      (await c.frame.locator('[data-testid="annot-arrow-rewritten"]').textContent()) ?? '',
+      /See our work · rewritten by AI/
+    );
+    assert.equal(await c.frame.locator('[data-testid="annot-dangling-mark"]').count(), 0);
+  });
+
+  test('the button is removed: the open circle + the card with Point to…', async () => {
+    writeFileSync(canvasPath(), saved.replace(/<button[^>]*>See the work<\/button>/, ''));
+    await sleep(2500);
+    const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
+    assert.ok(arrow, 'the bind is still on the board');
+    const [x, y] = await centerOfPage(`[data-id="${arrow.id}"] path`);
+    await c.click(x, y);
+    await sleep(400);
+    assert.ok((await c.frame.locator('[data-testid="annot-dangling-mark"]').count()) >= 1);
+    assert.match(
+      (await c.frame.locator('[data-testid="annot-dangling-card"]').textContent()) ?? '',
+      /Pointed at “See the work”/
+    );
+    assert.equal(await c.frame.locator('[data-testid="annot-point-to"]').count(), 1);
+  });
+
+  test('restoring the button re-attaches the arrow — nothing was stripped', async () => {
+    writeFileSync(canvasPath(), saved);
+    await sleep(2500);
+    assert.equal(await c.frame.locator('[data-testid="annot-dangling-mark"]').count(), 0);
+    const arrow = [...disk().values()].find((e) => e.endHost?.ref === 'el:desktop/see-the-work');
+    assert.ok(arrow, 'the bind survived the round trip');
+  });
+});
+
+describe('F9 — the elbow keeps its route at rest', () => {
+  test('arw (an elbow bound to Desktop) is a routed path with more than one corner', async () => {
+    await reset();
+    const waypoints = await c.frame.evaluate(
+      () =>
+        document.querySelector('.dc-annot-scene [data-id="arw"] g')?.getAttribute('data-route') ??
+        '0'
+    );
+    assert.ok(Number(waypoints) >= 2, 'ArrowView draws the route held on ends.route');
   });
 });

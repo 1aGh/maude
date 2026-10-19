@@ -373,6 +373,18 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'ask the person to use Element id; an agent never rewrites the comments file'
     ),
   },
+  // S4.11 — the stamp is the write: an agent that creates or rewrites an element gives it a readable id itself.
+  'element.stamp': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Give the element a readable data-cd-id (kebab-case, unique on the canvas) so an arrow can point at it'
+    ),
+  },
   // S3.10a — `data-cd-link` is the one data-cd-* an agent may write (S3-links-format §8; checked by link-format ·
   // link-no-id · link-dangling). The studio writes it through POST /_api/edit-op (edit-ops/{set,clear}-link.ts).
   'element.set-link': {
@@ -988,6 +1000,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'annotation.edit-text': BOARD('Change the element’s text field'),
   'annotation.nudge': BOARD('Change the elements’ x / y'),
   'annotation.remove': BOARD('Remove the elements from the board file'),
+  'annotation.point-to': BOARD(
+    'Set the arrow’s startHost / endHost to the new ab:<artboard> or el:<artboard>/<id> ref (with the name it is shown under) and move its start / end cache to where the host is'
+  ),
   // ── native ──
   // V2-1.1 §5.9
   'project.new': { effect: 'project', agent: human('onboarding') },

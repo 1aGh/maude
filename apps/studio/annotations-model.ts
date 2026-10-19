@@ -25,6 +25,7 @@
  *   - sticky / polygon / image / link — see the per-tool serializers below.
  */
 
+import type { CanvasHostBind } from './annotations/hosts.ts';
 import { defOf } from './annotations/registry.ts';
 import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
 import {
@@ -187,6 +188,11 @@ export interface ArrowStroke extends StrokeBase {
   startBind?: ArrowBind;
   /** FigJam v3 — magnetic binding of the (x2,y2) end to a host stroke. */
   endBind?: ArrowBind;
+  /** S4.11 — the start / end bound to an artboard or a canvas element (annotations/hosts.ts). */
+  startHost?: CanvasHostBind;
+  endHost?: CanvasHostBind;
+  /** S4.11 — the words written on the line (double-click an arrow). */
+  label?: string;
 }
 export interface TextStroke extends StrokeBase {
   tool: 'text';
