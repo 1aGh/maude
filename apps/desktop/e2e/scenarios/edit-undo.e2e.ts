@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { focusCanvasFrame, focusShell, waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { Key } from '../helpers/parity';
@@ -20,7 +20,9 @@ import { canvasRow } from '../helpers/tree';
  * Driving model (memory: the canvas iframe is unreachable by DOM selectors once the origin split is
  * on): objects are found by COORDINATES from `window.__maudeCanvasRects()` (the whiteboard toolkit's
  * manifest), clicks and chords are synthetic events dispatched on the frame's document, and every
- * assertion is on the file on disk or on a shell `data-testid`.
+ * assertion is on the file on disk or on a shell `data-testid`. Synthetic events move no focus, so the
+ * canvas is given REAL focus first (`focusCanvasFrame`): the shell runs a canvas's ⌘Z only while the
+ * canvas frame holds focus in the active window (sec-a, decision maude/v2-sec-a-undo-key-focus-rate).
  *
  * Written, not run, by the slice (the lane has no desktop build); run with the `desktop-e2e` skill.
  */
@@ -126,6 +128,9 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await waitForCanvasRects();
     await countUndoKeys();
+    // The person is IN the canvas: the shell honours a canvas ⌘Z only then (sec-a). Synthetic clicks
+    // and chords move no focus, so this one focus lasts the whole describe (until the palette).
+    await focusCanvasFrame();
   });
   after(() => fixtures.restore());
 
@@ -164,6 +169,7 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
     await lockHeading();
     await browser.waitUntil(async () => locked(), { timeout: 8000 });
     // Menu › Edit › Undo history… (edit.undo-history), run from ⌘K like every registry action
+    await focusShell();
     await browser.keys([Key.Command, 'k']);
     const input = await $('[data-testid="palette-input"]');
     await input.waitForExist({ timeout: 10_000 });
@@ -176,6 +182,7 @@ describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
     await popover.waitForDisplayed({ timeout: 8000 });
     await expect($('[data-testid="undo-history-row-0"]')).toBeDisplayed();
     await capture(report, 'popover');
+    await focusCanvasFrame(); // back in the canvas for its ⌘Z
     await chord('z', { metaKey: true });
     await browser.waitUntil(async () => !locked(), { timeout: 8000 });
   });
