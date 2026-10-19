@@ -1,0 +1,27 @@
+// continues from ai3 state is lost on reload: redo quickly
+await openSite('ui/Hero.tsx');
+await page.evaluate(() => { window.__TAURI__ = { core: { invoke: async () => null }, event: { listen: async () => () => {}, emit: async () => {} }, window: {} }; });
+await sleep(500);
+await page.click('[data-testid="palette-mode-preview"]');
+await sleep(1000);
+await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', metaKey: true, bubbles: true })));
+await sleep(1200);
+await view(0.5, 300, 130);
+const out = {};
+const pts = [S(300 + 60, 200 + 40), S(440 + 70, 200 + 40), S(300 + 70, 320 + 40)];
+await page.mouse.click(pts[0].x, pts[0].y); await sleep(500);
+await shift(async () => { await page.mouse.click(pts[1].x, pts[1].y); await sleep(400); await page.mouse.click(pts[2].x, pts[2].y); await sleep(400); });
+await sleep(800);
+await page.click('textarea').catch(() => {});
+await page.keyboard.type('What do these ask for?');
+await page.keyboard.press('Enter');
+await sleep(6000);
+out.srcBefore = (fs.readFileSync('/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/s4v3/proj/.design/ui/Hero.tsx', 'utf8').match(/width=\{(\d+)\} height=\{380\}/) || [])[1];
+await page.click('[data-testid="ai-offer-make"]');
+await sleep(7000);
+out.srcAfter = (fs.readFileSync('/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/s4v3/proj/.design/ui/Hero.tsx', 'utf8').match(/width=\{(\d+)\} height=\{380\}/) || [])[1];
+out.board = (board().elements || []).filter(e => e.type === 'sticky').map(e => e.text.slice(0, 18) + ' resolved=' + JSON.stringify(e.resolved || null).slice(0, 60));
+out.chat = await page.evaluate(() => (document.querySelector('[data-testid="ai-chat-island"]')?.innerText || '').slice(0, 900));
+out.tids = await tids(/^ai-(undo|chat-undo|offer|canvas|followup)/);
+await shot('ai4-applied');
+return out;
