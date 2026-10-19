@@ -82,6 +82,10 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
+  /* a11y gate B4: --fg-2 on the highlighted row (--accent-muted) was 4.24:1 */
+  [role="option"][aria-selected="true"] .st-pal-meta {
+    color: var(--fg-1);
+  }
   /* where it lives — the path a person learns the way back by */
   .st-pal-where {
     flex: none;

@@ -40,6 +40,12 @@
     --island-shadow: 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26);
   }
 
+  /* gate-a-polish: the kit's .island--pad (colors_and_type / _components.css) had no rule in the shell, so every
+     island that asked for padding (Inspect, Exports) painted its rows flush against the edge. */
+  .island--pad {
+    padding: var(--space-3);
+  }
+
   .st-body--float .island {
     background: var(--island-bg);
     -webkit-backdrop-filter: var(--island-backdrop);

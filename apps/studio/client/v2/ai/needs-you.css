@@ -141,13 +141,18 @@
     white-space: nowrap;
   }
   /* Decline keeps `.btn--danger` (the desktop e2e reads it) but is drawn quiet: "Not now" is not an alarm. */
-  .ai-nc-decline {
+  /* (gate-a-polish: `.maude .btn--danger` is 0,2,0 and painted this red; the selector below is 0,3,0 so the
+     decline really is the plain button 03 draws, hover included.) */
+  .ai-nc-a .btn.ai-nc-decline {
     background: var(--bg-3);
+    border-color: transparent;
     color: var(--fg-1);
     box-shadow: inset 0 0 0 0.5px var(--border-default);
   }
-  .ai-nc-decline:hover:not(:disabled) {
+  .ai-nc-a .btn.ai-nc-decline:hover:not(:disabled) {
     background: var(--bg-4);
+    border-color: transparent;
+    color: var(--fg-0);
   }
 
   /* "Always for this canvas" gets its own line so the two verbs never wrap. */

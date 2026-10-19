@@ -514,6 +514,29 @@ export function CanvasesPanel({
     jump: jumpFootArgs,
     foots: slots.foots,
   });
+  // a11y gate B1: the Sort button is a control, not a treeitem, so it cannot live inside the role=tree element. The
+  // head row (name + count) stays a row of the list; the button is drawn over its right end from a sibling lane
+  // that follows the list's scroll.
+  const headIndex = searching ? -1 : rows.findIndex((r) => r.key === 'head:project');
+  const headTop = headIndex >= 0 ? layout.tops[headIndex] - scrollTop : 0;
+  const headH = headIndex >= 0 ? rowHeight(rows[headIndex]) : 0;
+  const sortLane =
+    headIndex >= 0 && headTop > -headH ? (
+      <div className="cv-sort-lane" style={{ top: headTop + (headH - 20) / 2 }}>
+        <button
+          type="button"
+          className={`cv-sort${sortOpen ? ' is-open' : ''}`}
+          data-testid="canvases-sort"
+          aria-haspopup="menu"
+          aria-expanded={sortOpen}
+          aria-label={`Sort canvases — ${SORT_LABELS[sort.by]}`}
+          onClick={openSortMenu}
+        >
+          {SORT_ASIDE[sort.by]}
+          <StIcon name="chevron-down" size={11} />
+        </button>
+      </div>
+    ) : null;
   const slice = [];
   for (let i = range.start; i < range.end; i++) slice.push(i);
   if (focusIndex >= 0 && (focusIndex < range.start || focusIndex >= range.end))
@@ -521,6 +544,7 @@ export function CanvasesPanel({
 
   return (
     <div className="cv-panel" ref={panelRef}>
+      {sortLane}
       {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}
       <div
         ref={treeRef}
@@ -705,20 +729,6 @@ function PanelHead({ row, style, ctx }) {
         <span className="cv-drop-tag" data-testid="canvases-drop-tag">
           Move here
         </span>
-      ) : null}
-      {isProject && !ctx.searching ? (
-        <button
-          type="button"
-          className={`cv-sort${ctx.sortOpen ? ' is-open' : ''}`}
-          data-testid="canvases-sort"
-          aria-haspopup="menu"
-          aria-expanded={ctx.sortOpen}
-          aria-label={`Sort canvases — ${SORT_LABELS[ctx.sort.by]}`}
-          onClick={ctx.openSortMenu}
-        >
-          {SORT_ASIDE[ctx.sort.by]}
-          <StIcon name="chevron-down" size={11} />
-        </button>
       ) : null}
     </div>
   );
