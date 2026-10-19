@@ -17,6 +17,7 @@ import { artboardResize } from './artboard-resize.ts';
 import { artboardTrash } from './artboard-trash.ts';
 import { CLEAR_LINK_OP } from './clear-link.ts';
 import { CLIP_OPS } from './clip/index.ts';
+import { shapeCombineOps } from './combine.ts';
 import { objectConstrain } from './constraints.ts';
 import { objectSetCornerRadius } from './corner-radius.ts';
 import { distributeOps } from './distribute.ts';
@@ -27,6 +28,7 @@ import { componentInsert } from './insert-component.ts';
 import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { hasLayoutChange } from './layout-patch.ts';
 import { objectLock } from './lock.ts';
+import { objectInsertPath, pathEdit } from './path.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
 import { assetRelink } from './relink.ts';
@@ -103,6 +105,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectInsertShape,
   artboardDraw,
   objectSetCornerRadius,
+  // S2.14 — the Pen's finished path, a point drag, and Combine shapes (union · subtract · intersect · exclude)
+  objectInsertPath,
+  pathEdit,
+  ...shapeCombineOps,
   // S8.19c — Relink… on a missing picture: every reference to the old file, one write
   assetRelink,
   // S7.6 — every clip verb (clip-ops.ts appliers) + the video ops, artboard-scoped
