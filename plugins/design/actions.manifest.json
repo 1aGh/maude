@@ -3757,6 +3757,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/annotations/to-comment",
+        "method": "POST"
+      },
       "agent": {
         "path": "file",
         "format": "comments",

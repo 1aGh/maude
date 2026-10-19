@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import StickersGallery from '../client/v2/annotations/stickers-gallery.jsx';
+import { createAnnotationPrefsStore } from '../client/v2/shell/annotation-prefs-store.js';
 
 const DIR = join(import.meta.dir, '..', 'stickers');
 const PACKS = readdirSync(DIR)
@@ -32,7 +33,11 @@ const PACKS = readdirSync(DIR)
     };
   });
 
+// S4.13: Recent lives in the per-person annotation prefs, so each test gets its own store (it outlives a mount).
+let prefs = createAnnotationPrefsStore({ persist: () => {}, storage: null });
+
 beforeEach(() => {
+  prefs = createAnnotationPrefsStore({ persist: () => {}, storage: null });
   (globalThis as any).fetch = async () => ({ json: async () => ({ ok: true, packs: PACKS }) });
   try {
     localStorage.clear();
@@ -46,7 +51,12 @@ async function mount(props: Record<string, unknown> = {}) {
   const picked: any[] = [];
   await act(async () => {
     root.render(
-      <StickersGallery onPick={(s: any) => picked.push(s)} onClose={() => {}} {...props} />
+      <StickersGallery
+        prefs={prefs}
+        onPick={(s: any) => picked.push(s)}
+        onClose={() => {}}
+        {...props}
+      />
     );
   });
   await act(async () => {}); // the fetch resolves

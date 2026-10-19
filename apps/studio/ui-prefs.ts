@@ -25,7 +25,10 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { type AnnotationPrefs, checkAnnotationPrefsPatch } from './annotations/ui/tool-prefs.ts';
+import {
+  checkAnnotationPrefsPatch,
+  type ShellAnnotationPrefs,
+} from './annotations/ui/tool-prefs.ts';
 import { verGt } from './client/whats-new-seen.js';
 import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
@@ -75,7 +78,7 @@ export interface UiPrefs {
    * tip, Highlighter hue / nib. Named `annotationPrefs` because `annotations` is already the v1
    * show/hide switch above. Absent = the tools' defaults.
    */
-  annotationPrefs?: AnnotationPrefs;
+  annotationPrefs?: ShellAnnotationPrefs;
   /** S11.13: Settings › Advanced › "Use my own plugin copy" (`MAUDE_NO_PLUGIN_BOOTSTRAP`, read at ACP spawn). */
   ownPluginCopy?: boolean;
   /** S11.13: "AI reviews argue it out (teams)" — agent teams on at the next AI session. */

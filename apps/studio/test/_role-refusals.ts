@@ -54,6 +54,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // annotate — stickies, marker, arrows (D5: Can comment may not annotate)
   { method: 'POST', route: '/_api/annotations/ops', refused: ['view', 'comment'] },
   { method: 'PUT', route: '/_api/annotations', refused: ['view', 'comment'] },
+  // S4.13 — Turn into a comment writes the comment and removes the sticky: an edit (Q6, hub `annotate`)
+  {
+    method: 'POST',
+    route: '/_api/annotations/to-comment',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', id: 'st-1' },
+  },
   // edit — the versioned layout lane, canvas writes, the AI chat (D2)
   {
     method: 'PATCH',

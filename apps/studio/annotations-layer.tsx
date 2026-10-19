@@ -57,6 +57,7 @@ import {
   viewStrokes,
 } from './annotations/ui/host-view.ts';
 import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
+import { PlacementGhost, StickerSizeChip } from './annotations/ui/placement.tsx';
 import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
 import {
   type RenderItem,
@@ -82,6 +83,15 @@ import {
   withoutFolded,
 } from './annotations/ui/section-fold.ts';
 import { postToShell, scopeKey, selectionScope } from './annotations/ui/shell-asks.ts';
+import { stampElement, stampTargetAt, upsertStampStroke } from './annotations/ui/stamps.ts';
+import {
+  dropSticker,
+  isGallerySticker,
+  type Pending,
+  placementOf,
+  replacePatch,
+  stickerRefOf,
+} from './annotations/ui/sticker-drop.ts';
 import {
   NO_RESOLVED_LINE,
   resolveVerb,
@@ -90,6 +100,7 @@ import {
   trashedLine,
   withoutResolvedStickies,
 } from './annotations/ui/sticky-resolve.ts';
+import { expandTemplate, templateExtent } from './annotations/ui/template-place.ts';
 import {
   aimCommitOps,
   draftOp,
@@ -367,6 +378,16 @@ function isEditable(t: EventTarget | null): boolean {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (el.isContentEditable) return true;
   return false;
+}
+
+/** S4.13 - the name an artboard wears on the canvas ("Směr B"), for the stamp card; '' when it cannot be read. */
+function artboardLabelNow(id: string): string {
+  try {
+    const sel = `[data-dc-screen="${id.replace(/["\\]/g, '')}"] .dc-artboard-label`;
+    return document.querySelector(sel)?.textContent?.trim() ?? '';
+  } catch {
+    return '';
+  }
 }
 
 /** S4.10 — one `__maudeCanvasRects()` snapshot (artboards + elements, world coords), or null. */
@@ -1153,6 +1174,8 @@ export function AnnotationsLayer() {
   // shape/sticky/text tool is armed and nothing is being drawn yet. Pure chrome
   // (low-opacity, pointer-events:none) — never selectable, hit-tested, or saved.
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  // S4.13 - a gallery pick, a stamp or a template that trails the pointer until a click (placement.tsx).
+  const [placing, setPlacing] = useState<Pending | null>(null);
   // FigJam v3 — smart-guide lines painted while a drag is snapping, and the
   // id of the host a dragged arrow endpoint would bind to (accent halo).
   const [snapGuides, setSnapGuides] = useState<SnapGuide[] | null>(null);
@@ -1979,10 +2002,12 @@ export function AnnotationsLayer() {
         const before = strokesRef.current;
         const target = before.find((s) => s.id === id);
         if (!target || (target.tool !== 'image' && target.tool !== 'mediaref')) return;
+        // S4.13 - Replace… on a gallery sticker names the new one; any other pick clears the sticker identity.
+        const ref = stickerRefOf((m as { sticker?: unknown }).sticker);
         const after = before.map((s) => {
           if (s.id !== id) return s;
           return target.tool === 'image'
-            ? ({ ...s, href: path } as ImageStroke)
+            ? ({ ...s, ...replacePatch(target, { path, sticker: ref }) } as ImageStroke)
             : ({ ...s, src: path } as MediaRefStroke);
         });
         commitStrokes(before, after, 'replace media');
@@ -1997,28 +2022,20 @@ export function AnnotationsLayer() {
       // cursor position to reuse. Inlines the screenToWorld formula (that
       // callback isn't declared until below this effect) against vpRef, which
       // is.
-      if (m.dgn === 'insert-sticker' && typeof (m as { path?: unknown }).path === 'string') {
-        const path = (m as { path: string }).path;
-        const v = vpRef.current ?? { x: 0, y: 0, zoom: 1 };
-        const z = v.zoom || 1;
+      // S4.13 - a gallery pick / stamp / template trails the pointer until a click (`follow`), and a stamp stays
+      // armed; without `follow` a sticker or template lands mid-view at once, as before. One Pending, three kinds.
+      const placement =
+        m.dgn === 'insert-sticker' || m.dgn === 'insert-template' ? placementOf(m) : null;
+      if (placement) {
+        const armed =
+          placement.kind === 'stamp' || ('follow' in placement && placement.follow === true);
+        if (armed) {
+          setPlacing(placement);
+          return;
+        }
         const cx = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
         const cy = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
-        const wx = (cx - v.x) / z;
-        const wy = (cy - v.y) / z;
-        const size = STICKER_DROP_SIZE;
-        const id = rid();
-        const stroke: ImageStroke = {
-          id,
-          tool: 'image',
-          x: wx - size / 2,
-          y: wy - size / 2,
-          w: size,
-          h: size,
-          href: path,
-        };
-        const before = strokesRef.current;
-        commitStrokes(before, [...before, stroke], 'add sticker');
-        annotSel?.replace([id]);
+        placeRef.current(placement, { x: cx, y: cy });
       }
       // feature-bulk-media-insert Task 11 — the shell's AssetPicker (main-
       // origin) multi-select "Add as annotation" confirm. Every path is
@@ -2072,6 +2089,43 @@ export function AnnotationsLayer() {
     },
     [vp]
   );
+
+  // S4.13 - what a click (or a mid-view drop) makes of a pick. Kept in a ref so the message effect above, which
+  // is declared first, calls the latest closure. Returns true when the pick is spent (a stamp stays armed).
+  const placeRef = useRef<(p: Pending, client: { x: number; y: number }) => boolean>(() => true);
+  placeRef.current = (p, client) => {
+    const [wx, wy] = screenToWorld(client.x, client.y);
+    const before = strokesRef.current;
+    const name = collab?.myName ?? '';
+    if (p.kind === 'sticker') {
+      const stroke = dropSticker(
+        p,
+        { x: wx, y: wy },
+        rid(),
+        name ? { name, id: collab?.myConnId } : undefined
+      );
+      commitStrokes(before, [...before, stroke], 'add sticker');
+      annotSel?.replace([stroke.id]);
+      return true;
+    }
+    if (p.kind === 'stamp') {
+      const target = stampTargetAt({ x: wx, y: wy }, before, canvasRectsNow()?.artboards ?? []);
+      const el = stampElement({
+        kind: p.stampKind,
+        who: { name: name || 'Someone' },
+        target,
+        x: wx,
+        y: wy,
+      });
+      commitStrokes(before, upsertStampStroke(before, el), 'add stamp');
+      return false;
+    }
+    const placed = expandTemplate(p.id, { x: wx, y: wy }, name || null);
+    if (!placed) return true;
+    commitStrokes(before, [...before, ...placed.strokes], `add ${p.id} template`);
+    annotSel?.replace(placed.selectIds);
+    return true;
+  };
 
   // ── Phase 23 — media intake (drag-drop / paste / file-picker / link input) ──
   // Image: optimistic blob: preview stroke (LOCAL only — never persisted) →
@@ -2369,6 +2423,7 @@ export function AnnotationsLayer() {
           text: '',
           fontSize: DEFAULT_FONT_SIZE,
           cornerRadius: STICKY_CORNER_RADIUS,
+          at: new Date().toISOString(), // S4.13 — when it was made (the author line's "2 h ago")
           ...(collab?.myName ? { authorName: collab.myName, authorId: collab.myConnId } : null),
         });
       } else if (tool === 'section') {
@@ -2972,22 +3027,19 @@ export function AnnotationsLayer() {
     );
   }, [renderStrokes, authorFilter, hideResolved, collab?.myName, board.committed]);
   // S4.12 - the count line on a folded section's chip: what is inside, and how many people wrote it.
+  // S4.13 - and an open section says how many it holds (canvas 15 an-plan: "Nápady 4"): its value is just the number.
   const foldNotes = useMemo(() => {
     const m = new Map<string, string>();
-    if (!renderStrokes.some((s) => s.tool === 'section' && s.folded)) return m;
-    const c = new Containment(strokesToElementMap(renderStrokes, board.committed).values());
-    for (const s of renderStrokes) {
-      if (s.tool === 'section' && s.folded)
-        m.set(
-          s.id,
-          foldSummary(
-            membersOf(renderStrokes, s.id, (id) => c.contentsOf(id)),
-            collab?.myName
-          )
-        );
+    if (!viewedStrokes.some((s) => s.tool === 'section')) return m;
+    const c = new Containment(strokesToElementMap(viewedStrokes, board.committed).values());
+    for (const s of viewedStrokes) {
+      if (s.tool !== 'section') continue;
+      const members = membersOf(viewedStrokes, s.id, (id) => c.contentsOf(id));
+      if (s.folded) m.set(s.id, foldSummary(members, collab?.myName));
+      else if (members.length > 0) m.set(s.id, String(members.length));
     }
     return m;
-  }, [renderStrokes, board.committed, collab?.myName]);
+  }, [viewedStrokes, board.committed, collab?.myName]);
   // Task 22 — what is being drawn, live for peers (pen ink tail, or the box).
   const drawPublishedRef = useRef(false);
   useEffect(() => {
@@ -4820,6 +4872,16 @@ export function AnnotationsLayer() {
   return (
     <AnnotationPipelineContext.Provider value={pipeline}>
       <StrokesStoreContext.Provider value={strokesStore}>
+        <PlacementGhost
+          pending={isActive && visible ? placing : null}
+          zoom={vp?.zoom || 1}
+          resolveAsset={resolveAssetHref}
+          templateSize={templateExtent}
+          onPlace={(at) => {
+            if (placing && placeRef.current(placing, at)) setPlacing(null);
+          }}
+          onCancel={() => setPlacing(null)}
+        />
         <AnnotationsInput
           isActive={isActive}
           visible={visible}
@@ -5103,6 +5165,18 @@ function AnnotationsSvg({
       ),
     [strokes, unknownElements, restBoards, restRouter, moving, lostEnds]
   );
+  // S4.13 - the stamps gather into clusters on their target: where an artboard sits and what it is called.
+  const stampHosts = useMemo(() => {
+    if (!baseItems.some((it) => it.el.type === 'stamp')) return undefined;
+    const boards = canvasRectsNow()?.artboards ?? [];
+    return {
+      box: (t: string) => {
+        const a = t.startsWith('ab:') ? boards.find((b) => b.id === t.slice(3)) : undefined;
+        return a ? { x: a.x, y: a.y, w: a.w, h: a.h } : null;
+      },
+      label: (t: string | null) => (t?.startsWith('ab:') ? artboardLabelNow(t.slice(3)) : ''),
+    };
+  }, [baseItems]);
   // The element whose text slot is open: a shape's label edits on the shape,
   // everything else on itself; `pending` is a caret not yet backed by an element.
   const editingId =
@@ -5217,6 +5291,7 @@ function AnnotationsSvg({
           me={collab?.myName ?? null}
           typists={typists}
           foldNotes={foldNotes}
+          stampHosts={stampHosts}
         />,
         target
       )}
@@ -5387,6 +5462,13 @@ function AnnotationsSvg({
             </g>
           ) : null}
           {ghost ? <GhostPreview ghost={ghost} /> : null}
+          {/* S4.13 - a sticker from the gallery says how big it is: "160 × 160" (corners keep it square). */}
+          {selectedStrokes.length === 1 && isGallerySticker(selectedStrokes[0]) ? (
+            <StickerSizeChip
+              box={strokeBBox(selectedStrokes[0]) ?? { x: 0, y: 0, w: 0, h: 0 }}
+              zoom={zoomNow}
+            />
+          ) : null}
         </svg>,
         target
       )}

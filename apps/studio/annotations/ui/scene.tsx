@@ -10,8 +10,11 @@
  *             hides annotations from exported artboards.
  */
 
+import type { Box } from '../types.ts';
 import { type EditRequest, ElementNode, PendingTextNode } from './element-node.tsx';
 import type { RenderItem } from './render-model.ts';
+import { clusterStamps } from './stamps.ts';
+import { StampClusters } from './stamps.tsx';
 
 export interface PendingText {
   x: number;
@@ -32,6 +35,7 @@ export function AnnotationScene({
   me,
   typists,
   foldNotes,
+  stampHosts,
 }: {
   items: readonly RenderItem[];
   interactive: boolean;
@@ -51,28 +55,41 @@ export function AnnotationScene({
   typists?: ReadonlyMap<string, string>;
   /** S4.12 — section id → "6 stickies · 2 people", drawn on a folded section's chip. */
   foldNotes?: ReadonlyMap<string, string>;
+  /**
+   * S4.13 - the stamps gather into clusters (one per person per kind): this finds where a bound target sits
+   * and what to call it ("Směr B"). Absent = stamps sit where they were put, unnamed.
+   */
+  stampHosts?: {
+    box: (target: string) => Box | null;
+    label: (target: string | null) => string;
+  };
 }) {
+  const stampEls = items.filter((it) => it.el.type === 'stamp').map((it) => it.el);
+  const clusters = stampEls.length ? clusterStamps(stampEls, stampHosts?.box) : [];
   return (
     <div
       className="dc-annot-scene"
       data-mdcc-annotations="1"
       {...(quiet ? { 'data-an-quiet': '1' } : {})}
     >
-      {items.map((it) => (
-        <ElementNode
-          key={it.el.id}
-          el={it.el}
-          ends={it.ends}
-          interactive={interactive}
-          quiet={quiet}
-          selected={selectedIds?.has(it.el.id) === true}
-          mine={isMine(it.el, me)}
-          typist={typists?.get(it.el.id) ?? null}
-          foldNote={foldNotes?.get(it.el.id)}
-          edit={it.el.id === editingId ? edit : null}
-          resolveAsset={resolveAsset}
-        />
-      ))}
+      {items
+        .filter((it) => it.el.type !== 'stamp')
+        .map((it) => (
+          <ElementNode
+            key={it.el.id}
+            el={it.el}
+            ends={it.ends}
+            interactive={interactive}
+            quiet={quiet}
+            selected={selectedIds?.has(it.el.id) === true}
+            mine={isMine(it.el, me)}
+            typist={typists?.get(it.el.id) ?? null}
+            foldNote={foldNotes?.get(it.el.id)}
+            edit={it.el.id === editingId ? edit : null}
+            resolveAsset={resolveAsset}
+          />
+        ))}
+      <StampClusters clusters={clusters} labelOf={stampHosts?.label ?? (() => '')} me={me} />
       {pending && edit ? (
         <PendingTextNode
           x={pending.x}

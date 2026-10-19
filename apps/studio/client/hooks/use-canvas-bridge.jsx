@@ -2345,6 +2345,18 @@ export function useCanvasBridge({
   const onStickerPicked = useCallback(
     async (sticker) => {
       const req = stickerPickerReq;
+      // S4.13: a vote stamp has no picture to upload. The canvas arms it (the pick trails the pointer and
+      // stays armed), and the gallery stays open - folded to the Stamps row by the gallery itself.
+      if (sticker?.pack === 'stamps') {
+        if (req && (!req.canvas || req.canvas === activePath))
+          postToActiveCanvas({
+            dgn: 'insert-sticker',
+            path: '',
+            follow: true,
+            sticker: { pack: 'stamps', id: sticker.id },
+          });
+        return;
+      }
       setStickerPickerReq(null);
       if (!req || !sticker?.url) return;
       // G3 security (DDR-152) — same re-check as onAssetPicked: the request
@@ -2369,13 +2381,20 @@ export function useCanvasBridge({
           return;
         }
         // S4.3: name the bundled sticker the bytes came from (the gallery's pack slug + file)
-        postToActiveCanvas({
-          dgn: 'insert-sticker',
-          path: j.path,
-          ...(sticker.pack && sticker.id
-            ? { sticker: { pack: sticker.pack, id: sticker.id } }
-            : {}),
-        });
+        const ref =
+          sticker.pack && sticker.id ? { sticker: { pack: sticker.pack, id: sticker.id } } : {};
+        if (req.replace) {
+          // S4.13: Replace… swaps the picture of the selected sticker in place (same spot, same size)
+          postToActiveCanvas({
+            dgn: 'replace-annotation-media',
+            id: req.replace,
+            path: j.path,
+            ...ref,
+          });
+        } else {
+          // S4.13: the pick follows the pointer until a click, then lands at 160 px
+          postToActiveCanvas({ dgn: 'insert-sticker', path: j.path, follow: true, ...ref });
+        }
       } catch {
         console.warn('[sticker-picker] could not load or upload that sticker');
       }

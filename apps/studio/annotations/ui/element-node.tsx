@@ -45,6 +45,7 @@ import {
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
 import { colorForName } from '../../use-collab.tsx';
+import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
 import { quietPaper } from './posture.ts';
@@ -277,7 +278,11 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
   const isAi = a?.kind === 'ai';
   // S4.12 — a hand-rotated sticky keeps its angle; the rest tilt a little, from the id, and lie flat while typed in.
   const rot = num(el.rot) || (edit ? 0 : tiltOf(el.id));
-  const line = authorLine({ name: authorName, ai: isAi, me: mine }, null, 0);
+  const line = authorLine(
+    { name: authorName, ai: isAi, me: mine },
+    typeof el.at === 'string' ? el.at : null,
+    Date.now()
+  );
   const origin = provenanceLine(el.source);
   const doneLine =
     resolved && typeof resolved.by === 'string'
@@ -672,6 +677,7 @@ function PenView({ el, interactive }: ElementNodeProps) {
 }
 
 function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
+  const flipped = (el.sticker as { flip?: unknown } | undefined)?.flip === true;
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
@@ -684,6 +690,9 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
           y={y}
           width={w}
           height={h}
+          // S4.13 - Flip mirrors the picture about its own centre; the box and the handles stay put.
+          transform={flipped ? `translate(${2 * x + w} 0) scale(-1 1)` : undefined}
+          data-flipped={flipped ? '1' : undefined}
           href={resolveAsset(str(el.href))}
           preserveAspectRatio="xMidYMid meet"
           aria-label={str(el.alt) || undefined}
@@ -853,11 +862,14 @@ function SectionChip({
   interactive,
   edit,
   note,
+  count,
 }: {
   el: AnnotationElement;
   interactive: boolean;
   edit: EditRequest | null;
   note?: string;
+  /** S4.13 - how many an open section holds, drawn as a small number after its name. */
+  count?: string;
 }) {
   // Counter-scaled chrome needs the live zoom, not the settle-cadence one.
   const zoom = useLiveViewport().zoom || 1;
@@ -904,10 +916,15 @@ function SectionChip({
     <div
       className="dc-annot-chip"
       data-section-chip="1"
-      style={{ ...box, width: note ? undefined : g.chipW, whiteSpace: 'nowrap' }}
+      style={{ ...box, width: note || count ? undefined : g.chipW, whiteSpace: 'nowrap' }}
     >
       <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
         {label}
+        {count ? (
+          <span data-section-count="1" style={{ opacity: 0.7, marginLeft: 6, fontWeight: 500 }}>
+            {count}
+          </span>
+        ) : null}
         {note ? (
           <span data-fold-note="1" style={{ opacity: 0.75, marginLeft: 8, fontWeight: 500 }}>
             {note}
@@ -926,15 +943,18 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
   const color = str(el.color, '#8a8a8a');
   // S4.12 - folded: the members are not drawn, so the body is a faint dashed outline and the chip says what is inside.
   const folded = el.folded === true;
+  // S4.13 - and a folded section is ONE LINE on the board: the strip under its chip, not the full outline.
+  // The element keeps its size in the file, so Unfold restores it.
+  const drawnH = folded ? Math.min(h, SECTION_FOLDED_H) : h;
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} raised={!!edit}>
-      <Geo x={x} y={y} w={w} h={h}>
+    <Node el={el} x={x} y={y} w={w} h={drawnH} raised={!!edit}>
+      <Geo x={x} y={y} w={w} h={drawnH}>
         {/* Body: pure backdrop, click-through (content on a section selects normally). */}
         <rect
           x={x}
           y={y}
           width={w}
-          height={h}
+          height={drawnH}
           rx={SECTION_CORNER_RADIUS}
           ry={SECTION_CORNER_RADIUS}
           fill={color}
@@ -952,7 +972,7 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
             x={x}
             y={y}
             width={w}
-            height={h}
+            height={drawnH}
             rx={SECTION_CORNER_RADIUS}
             ry={SECTION_CORNER_RADIUS}
             fill="none"
@@ -968,6 +988,7 @@ function SectionView({ el, interactive, edit, foldNote }: ElementNodeProps) {
         interactive={interactive}
         edit={edit}
         note={folded ? (foldNote ?? '') : undefined}
+        count={!folded && foldNote ? foldNote : undefined}
       />
       {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>

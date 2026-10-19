@@ -1008,8 +1008,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
-    // The studio's route (POST /_api/annotations/to-comment, S4.7) is the person's door; it is not declared as
-    // `server` here because the role suite (test/_role-refusals.ts) lands its row with S9.9's `annotate` gate.
+    // The studio's route (POST /_api/annotations/to-comment, S4.7) is the person's door and the one place
+    // minRole is enforced; its refusal row is in test/_role-refusals.ts (S4.13).
+    server: { route: '/_api/annotations/to-comment', method: 'POST' },
     agent: file(
       'comments',
       'design:whiteboard',

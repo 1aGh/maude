@@ -25,6 +25,7 @@
  *   - sticky / polygon / image / link — see the per-tool serializers below.
  */
 
+import { SECTION_FOLDED_H } from './annotations/constants.ts';
 import type { CanvasHostBind } from './annotations/hosts.ts';
 import { defOf } from './annotations/registry.ts';
 import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
@@ -105,6 +106,8 @@ interface StrokeBase {
    * from the UI is a real write and a removal is real. Not serialized into the legacy SVG.
    */
   resolved?: { by: string; at: string };
+  /** S4.13 — when a sticky was made (ISO, local clock). The stroke view of the element's `at` (format-2 ext); the author line reads "Jonas · 2 h ago" from it. */
+  at?: string;
   /** S4.12 — a section folded to its title chip + count. The stroke view of the element's `folded`. */
   folded?: true;
   /** S4.12 — where an imported element came from (`figjam`, `comment`, …). Read-only in the UI. */
@@ -282,6 +285,12 @@ export interface ImageStroke extends StrokeBase {
    * in-canvas `aria-label` is pruned; the alt's audience is the export. Absent ⇒ ''.
    */
   alt?: string;
+  /**
+   * S4.13 — set when the picture came from the Stickers gallery: which bundled sticker (`pack` slug + catalogue
+   * `id`) and whether it is mirrored. The stroke view of the image element's `sticker` (format-2 ext), so
+   * Replace… and Flip are real writes. Absent = a pasted / dropped picture.
+   */
+  sticker?: { pack: string; id: string; flip?: boolean };
 }
 /**
  * Phase 23 — pasted / dropped URL rendered as a client-only preview chip. NO
@@ -1888,6 +1897,11 @@ export function strokeCenter(s: Stroke): [number, number] | null {
   return [bb.x + bb.w / 2, bb.y + bb.h / 2];
 }
 
+/** S4.13 — where a section's grabbable body ends: its full bottom, or the header strip while folded. */
+function foldedBottom(s: SectionStroke, yMin: number): number {
+  return s.folded ? yMin + SECTION_FOLDED_H : Number.POSITIVE_INFINITY;
+}
+
 export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): boolean {
   // FigJam v3 — rotated strokes hit-test in their LOCAL frame: inverse-rotate
   // the probe around the pivot, then run the axis-aligned math unchanged.
@@ -1921,7 +1935,8 @@ export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): b
     const xMin = Math.min(s.x, s.x + s.w);
     const xMax = Math.max(s.x, s.x + s.w);
     const yMin = Math.min(s.y, s.y + s.h);
-    const yMax = Math.max(s.y, s.y + s.h);
+    // S4.13 — a folded section is one line: nothing is grabbable below its header strip.
+    const yMax = Math.min(Math.max(s.y, s.y + s.h), foldedBottom(s, yMin));
     // Label chip above the top-left corner.
     const chipW = Math.max(56, s.label.length * SECTION_LABEL_FONT * 0.62 + 18);
     if (wx >= xMin && wx <= xMin + chipW && wy >= yMin - SECTION_LABEL_H - 6 && wy <= yMin) {
@@ -2190,12 +2205,15 @@ export function strokeBBox(
     s.tool === 'section'
   ) {
     // Phase 23 — image + link + mediaref are rect-shaped cards, same bbox as a
-    // sticky; FigJam v3 sections share it too.
+    // sticky; FigJam v3 sections share it too (a folded one is its header strip, S4.13).
     return {
       x: Math.min(s.x, s.x + s.w),
       y: Math.min(s.y, s.y + s.h),
       w: Math.abs(s.w),
-      h: Math.abs(s.h),
+      h:
+        s.tool === 'section' && s.folded
+          ? Math.min(Math.abs(s.h), SECTION_FOLDED_H)
+          : Math.abs(s.h),
     };
   }
   // text — anchored inherits its host's bbox; standalone (Phase 21) gets a
