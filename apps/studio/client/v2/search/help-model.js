@@ -61,11 +61,12 @@ const modeOf = (bar) => (bar === null ? null : /^Preview/.test(bar) ? 'preview' 
 /**
  * The sheet's own words for a row where the canvas (11 · pn-switch-ai) says it differently from the
  * action's menu label. `also` names the row an action's ALIAS keys get — two bindings are two rows, never
- * one label with an "or" (canvas: "Next / previous tab, too"). Only the sheet is reworded: the registry, the
- * menus and ⌘K keep the action's own label.
+ * one label with an "or" (canvas: "Next / previous tab, too"). `also: null` keeps the alias off the sheet
+ * (lead decision `v2-lead-help-sheet-no-search-too-row`: ⇧⌘K stays a binding, the sheet teaches ⌘K only).
+ * Only the sheet is reworded: the registry, the menus and ⌘K keep the action's own label.
  */
 const HELP_WORDS = Object.freeze({
-  'search.open': { label: 'Search every project', also: 'Search, too' },
+  'search.open': { label: 'Search every project', also: null },
 });
 
 /** The sheet group an action belongs in. */
@@ -152,15 +153,16 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
     const words = HELP_WORDS[def.id];
     const row = { id: def.id, label: words?.label ?? def.label, keys, alt: altKeys };
     const order = def.help?.order ?? 1000;
-    if (words?.also && altKeys.length && !inAdvanced) {
+    if (words && 'also' in words && altKeys.length && !inAdvanced) {
       row.alt = [];
-      byGroup.get(helpGroupOf(def))?.push({
-        id: `${def.id}:also`,
-        label: words.also,
-        keys: altKeys,
-        alt: [],
-        order: order + 0.5,
-      });
+      if (words.also)
+        byGroup.get(helpGroupOf(def))?.push({
+          id: `${def.id}:also`,
+          label: words.also,
+          keys: altKeys,
+          alt: [],
+          order: order + 0.5,
+        });
     }
     if (inAdvanced) {
       advanced.push({ ...row, path: path ?? '' });
