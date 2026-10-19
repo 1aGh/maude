@@ -200,7 +200,9 @@ function resolveAppPath(): string {
       `[wdio] no built app at:\n  ${candidates.join('\n  ')}\nRun \`pnpm test:e2e:desktop:build\` first (or set MAUDE_E2E_APP).`
     );
   }
-  return found;
+  // Canonical, symlink-free: a worktree that links `src-tauri/target` to another checkout's build
+  // would otherwise start the app but never its sidecar (the same resolver rule as above).
+  return realpathSync(found);
 }
 
 export const config: WebdriverIO.Config = {
