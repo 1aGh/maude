@@ -1326,6 +1326,62 @@
     "v2": "stable"
   },
   {
+    "hook": "chat-error-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: the failure card's one sentence — \"Couldn't finish — <what>. Nothing changed.\" (or how to undo, when the run changed something).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "chat-error-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: the failure card's › Advanced disclosure (`aria-expanded`); the raw message sits behind it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "chat-error-raw",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: under › Advanced, the raw error message (untrusted text, mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "chat-error-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: the failure card's one verb, Try again.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "ErrorCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "chat-qa-implement-comments",
     "kind": "testid",
     "pattern": false,
@@ -1556,14 +1612,8 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
-        "symbol": "ChoiceCard"
-      }
-    ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
+    "consumers": [],
     "v2": "stable"
   },
   {
@@ -1588,12 +1638,6 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
-        "symbol": "ChoiceCard"
-      }
-    ],
     "region": "chat/ACP",
     "consumers": [],
     "v2": "stable"
@@ -6017,6 +6061,34 @@
     "region": "other",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: Advanced › AI may › Folders AI may read — \"1 · Combine 2026 fotky\" or None (S5.10 grants).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-adv-folders-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.17b: Reset beside Folders AI may read — takes every granted folder's consent back (POST /_api/ai/attach/folder/revoke).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/s5-17b-fidelity.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "ai-adv-raw-log",
@@ -21620,17 +21692,6 @@
     "v2": "new"
   },
   {
-    "hook": "insp-combine-<kind>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "Combine shapes: one button — `union`, `subtract`, `intersect`, `exclude`. Disabled for one shape; a click asks the canvas for ONE `shape.combine.<kind>` edit-op.",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/kinds/path.jsx",
-      "symbol": "CombineBody"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-path.test.tsx"],
     "hook": "insp-image-file",
     "kind": "testid",
     "pattern": false,
@@ -22019,9 +22080,7 @@
     },
     "region": "canvas iframe chrome",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotations-mode-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotations-mode-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -22035,9 +22094,7 @@
     },
     "region": "canvas iframe chrome",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotations-lod.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
     "v2": "new"
   },
   {
@@ -22051,9 +22108,7 @@
     },
     "region": "canvas iframe chrome",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotations-lod.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
     "v2": "new"
   },
   {
@@ -22067,9 +22122,7 @@
     },
     "region": "canvas iframe chrome",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotations-lod.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotations-lod.test.ts"],
     "v2": "new"
   }
 ]

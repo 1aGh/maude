@@ -194,3 +194,21 @@ export function rawLogText(log) {
     )
     .join('\n');
 }
+
+/** S5.17b — "1 · Combine 2026 fotky": how many folders AI may read, and (for a few) which. */
+export function foldersLine(folders) {
+  const list = Array.isArray(folders) ? folders : [];
+  if (!list.length) return 'None';
+  const names = list
+    .map(
+      (f) =>
+        f?.name ||
+        String(f?.root ?? '')
+          .split('/')
+          .pop()
+    )
+    .filter(Boolean);
+  const shown = names.slice(0, 2).join(', ');
+  const more = names.length > 2 ? ` and ${names.length - 2} more` : '';
+  return `${list.length} · ${shown}${more}`;
+}

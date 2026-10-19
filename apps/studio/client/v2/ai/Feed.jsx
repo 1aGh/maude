@@ -12,7 +12,9 @@ import {
   transcriptForcesExpand,
 } from '../../panels/transcript-view.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
+import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
+import { failureModel } from './needs-you.js';
 
 // ── message-part renderers ──
 // Assistant text: markdown, plus a thumbnail strip for any designRoot image
@@ -478,37 +480,56 @@ export function ContinuationBubble({ parts: rawParts, viewMode }) {
 // disambiguate by magnitude (a seconds-epoch never reaches 10^11 until the
 // year 2286) rather than guessing wrong silently.
 
-// Connection-problem error card (Task C3) — a transient bridge/socket failure
-// mid-turn, distinct from the hard NotConnected state (claude not installed/
-// signed in): that one gates the WHOLE panel before any chat exists; this one
-// is per-chat and recoverable with a retry. Rendered below the feed, like
-// ActivityBar/ContinuationBubble — chrome, not a per-message assistant-ui error.
-export function ErrorCard({ error, onRetry }) {
-  const [expanded, setExpanded] = useState(false);
-  if (!error) return null;
+// The failure card (03 `ai-choice-fail`, right; S5.17b G7) — a transient bridge/socket failure, recoverable
+// with a retry, distinct from the hard NotConnected state (claude not installed/signed in). It says what
+// happened, what is safe and the ONE verb that fixes it (CONTRACT §4); the raw message sits under › Advanced.
+// `changed` is whether the chat's run touched anything (run-model `changedSomething`): "Nothing changed" is
+// said only when it is false. Rendered below the feed — chrome, not a per-message assistant-ui error.
+export function ErrorCard({ error, onRetry, changed = null }) {
+  const [open, setOpen] = useState(false);
+  const failure = failureModel(error, { changed });
+  if (!failure) return null;
   return (
-    <div className="chat-error-card" role="alert" data-testid="chat-error-card">
-      <div className="chat-error-hd">
-        <span className="chat-error-ic" aria-hidden="true">
-          ⚠
+    <div className="ai-nc ai-nc-prob" role="alert" data-testid="chat-error-card">
+      <p className="ai-nc-t">
+        <span className="ai-nc-ic ai-nc-ic--prob" aria-hidden="true">
+          <StIcon name="problem" size={14} />
         </span>
-        <b>Connection problem</b>
-      </div>
-      {expanded ? (
-        <p className="chat-error-detail">{error.message}</p>
-      ) : (
-        <p className="chat-error-detail chat-error-detail--muted">
-          Something interrupted the connection to Claude.
-        </p>
-      )}
-      <div className="chat-error-actions">
-        <button type="button" className="btn btn--sm" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? 'Hide details' : 'View details'}
+        <span className="ai-nc-tt" data-testid="chat-error-title">
+          {failure.title}
+        </span>
+      </p>
+      {failure.raw ? (
+        <>
+          <button
+            type="button"
+            className="ai-nc-adv"
+            aria-expanded={open}
+            data-testid="chat-error-advanced"
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span className="ai-nc-adv-ch" aria-hidden="true">
+              <StIcon name="chevron-right" size={12} />
+            </span>
+            Advanced
+          </button>
+          {open ? (
+            <p className="ai-nc-d ai-nc-raw" data-testid="chat-error-raw">
+              {failure.raw}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      <span className="ai-nc-a">
+        <button
+          type="button"
+          className="btn btn--sm btn--primary"
+          data-testid="chat-error-retry"
+          onClick={onRetry}
+        >
+          {failure.verb}
         </button>
-        <button type="button" className="btn btn--primary btn--sm" onClick={onRetry}>
-          Try again
-        </button>
-      </div>
+      </span>
     </div>
   );
 }

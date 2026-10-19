@@ -205,6 +205,26 @@ export function problemModel(error) {
   return null;
 }
 
+/**
+ * S5.17b G7 — the failure card (03 `ai-choice-fail`, right): "Couldn't finish — <what>. <what is safe>." and
+ * ONE verb. What is safe depends on the run: "Nothing changed." only when the run touched nothing; when it
+ * did, the chat's own Undo is the way back; when we cannot tell (no run frame seen), nothing is promised.
+ * `changed` is `changedSomething(run)` (run-model.js), or null/undefined when there is no run to ask.
+ * The raw message is for › Advanced, never the headline.
+ */
+export function failureModel(error, { changed } = {}) {
+  if (!error) return null;
+  const raw = typeof error.message === 'string' ? error.message.trim() : '';
+  let safe = '';
+  if (changed === true) safe = ' Undo this chat takes back what it did.';
+  else if (changed === false) safe = ' Nothing changed.';
+  return {
+    title: `Couldn't finish — the connection to Claude was interrupted.${safe}`,
+    verb: 'Try again',
+    raw: raw || null,
+  };
+}
+
 /** The question a Needs-you toast / row quotes: "replace 4 team photos?" — lower-cased verb, no trailing "?". */
 export function needsYouLine(model) {
   return model.title.replace(/\?$/, '');

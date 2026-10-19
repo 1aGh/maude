@@ -22,6 +22,8 @@ import { needsYouNotice, openAiChat } from './needs-you-toast.js';
 import { QueuedState } from './NotReady.jsx';
 import PermissionCard from './PermissionCard.jsx';
 import ProblemCard from './ProblemCard.jsx';
+import { changedSomething } from './run-model.js';
+import { useChatRuns } from './use-chat-runs.js';
 
 /** This chat's waiting prompts: frames now, the outbox after a reload, kept honest while any is waiting. */
 export function useQueuedPrompts(conn, chatId) {
@@ -109,6 +111,9 @@ export default function NeedsYouSlot({
   onConnected,
 }) {
   const { queued, refresh } = useQueuedPrompts(conn, chatId);
+  // S5.17b G7 — the failure card says "Nothing changed" only when this chat's run touched nothing; no run seen = not claimed
+  const { run: chatRun } = useChatRuns(conn, chatId);
+  const changed = chatRun ? changedSomething(chatRun) : null;
 
   const requests = useMemo(
     () => [
@@ -183,7 +188,7 @@ export default function NeedsYouSlot({
         // A refusal the server coded (S5.6: view only, prompt not kept) says plainly what happened.
         <ProblemCard error={turnError} />
       ) : (
-        <ErrorCard error={turnError} onRetry={onRetry} />
+        <ErrorCard error={turnError} onRetry={onRetry} changed={changed} />
       )}
       {queued.length > 0 ? (
         <QueuedState queued={queued[0]} count={queued.length}>
