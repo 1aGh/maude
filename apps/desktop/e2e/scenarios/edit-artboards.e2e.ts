@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
+import { waitForEditChrome } from '../helpers/canvas-frame';
 import { canvasRow } from '../helpers/tree';
 
 /**
@@ -130,6 +131,7 @@ describe('edit-artboards (part 1) — select, resize onto a preset, long page', 
     const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
+    await waitForEditChrome();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     // select the artboard the way a person does: its name, in the canvas
     await browser.execute((id) => {
@@ -138,8 +140,13 @@ describe('edit-artboards (part 1) — select, resize onto a preset, long page', 
         `[data-dc-screen="${id}"] .dc-artboard-label`
       ) as HTMLElement;
       const win = iframe.contentWindow as Window & typeof globalThis;
+      // the router picks its target by the pointer's POSITION, not by where the event was fired
+      const r = label.getBoundingClientRect();
+      const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
       for (const t of ['pointerdown', 'pointerup', 'click'])
-        label.dispatchEvent(new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0 }));
+        label.dispatchEvent(
+          new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0, ...at })
+        );
     }, ARTBOARD);
     await browser.waitUntil(async () => (await hud()).selected, {
       timeout: 15_000,
@@ -254,9 +261,12 @@ function onLabel(id: string, types: string[], mods: Record<string, number | bool
       const label = iframe.contentDocument?.querySelector(
         `[data-dc-screen="${bid}"] .dc-artboard-label`
       ) as HTMLElement;
+      // the router picks its target by the pointer's POSITION, not by where the event was fired
+      const r = label.getBoundingClientRect();
+      const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
       for (const t of ts)
         label.dispatchEvent(
-          new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0, ...m })
+          new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0, ...at, ...m })
         );
     },
     id,
@@ -290,6 +300,7 @@ describe('edit-artboards (part 2) — arrange: Tidy up', () => {
     const row = await canvasRow('canvas-row-ui-arrange');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
+    await waitForEditChrome();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     await onLabel('one', ['pointerdown', 'pointerup', 'click']);
     for (const id of BOARDS.slice(1))
@@ -418,6 +429,7 @@ describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place',
     const row = await canvasRow('canvas-row-ui-artboardmenu');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
+    await waitForEditChrome();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     await inFrame((d) => {
       const win = d.defaultView as Window & typeof globalThis;

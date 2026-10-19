@@ -45,6 +45,7 @@ function rectOf(text: string): Promise<{ x: number; y: number } | null> {
   }, text);
 }
 
+/** ⌘-click: a bare click selects the TOP-level object (the content wrapper); ⌘ picks the heading. */
 async function click(x: number, y: number): Promise<void> {
   await browser.execute(
     (px, py) => {
@@ -53,7 +54,7 @@ async function click(x: number, y: number): Promise<void> {
       const target = doc.elementFromPoint(px, py) ?? doc.body;
       for (const type of ['pointerdown', 'pointerup', 'click']) {
         target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0, metaKey: true })
         );
       }
     },
