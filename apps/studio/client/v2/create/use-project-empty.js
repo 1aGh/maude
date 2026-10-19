@@ -3,12 +3,13 @@
 // The model is a pure function of what the shell already knows (the project's tree groups, whether the tree
 // has loaded, the open tabs, the role), so every rule is a plain test. The starter turns the two ways out into
 // the one create call S6.1 built: ↵ in the prompt sends the sentence as `fromPrompt` (the server names the
-// canvas from it and S6.3 picks the sentence up to draft the first version); the plain button, like ⌘N, makes
-// a blank canvas. Neither opens the Connect sheet — that waits for the first SEND in the chat (lead decision
+// canvas from it and S6.3's `startFirstDraft` then sends the sentence to a new AI chat to draft the first
+// version); the plain button, like ⌘N, makes a blank canvas. Neither opens the Connect sheet — that waits for the first SEND in the chat (lead decision
 // v2-lead-connect-sheet-on-first-send).
 
 import { useCallback, useRef, useState } from 'react';
 import { buildTree } from '../canvases/tree-model.js';
+import { startFirstDraft } from './first-draft.js';
 import { createBlankCanvas } from './new-canvas.js';
 
 /** How many canvases a project holds, by the same rule the Canvases panel counts them. */
@@ -50,7 +51,7 @@ export function sentenceOf(raw) {
 export async function startFromSentence(raw, deps = {}) {
   const sentence = sentenceOf(raw);
   if (!sentence) return { ok: false, error: 'nothing typed' };
-  return createBlankCanvas({ ...deps, fromPrompt: sentence });
+  return startFirstDraft(sentence, deps);
 }
 
 /** "Start with an empty canvas ⌘N": the same call ⌘N makes. */
