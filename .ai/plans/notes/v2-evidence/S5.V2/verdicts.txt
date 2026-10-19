@@ -1,0 +1,15 @@
+S5.V2 — pass 2 on 03 AI Chat (package S5), base feat/maude-v2 incl. S5.17 + S5.17b. Rig: scripts/v2-verify/S5-rig.mjs (fake ACP agent, VERIFY_PRE=1 so the real pre-edit hook half runs). Never a real provider.
+Browser pane at 1440x900 with window.__TAURI__ stubbed, panel via ⌘/ . Scratch project: 3-artboard Site canvas.
+
+VERIFIED (ledger set)
+  ai-open           hint only + one suggestion strip ("Resolve 3 comments · Reply to the comments · List what changed" + "Because 3 comments are open on this canvas"), chip "Pricing" (ai-open.jpg)
+  ai-scope          chip = artboard short name; menu "Whole canvas / <label> / Choose artboards… / No canvas — just ask"; shift-select → "3 artboards" with names on hover; folded spark title "Ask AI ⌘/" (ai-scope-menu.jpg)
+  ai-working        dashed ring + "AI is working" tag on the artboard, panel line + Stop (ai-working.jpg)  [G1 gone: own edits are no longer denied, leases keyed .design/ui/Site.tsx]
+  ai-done           solid ring + wipe, "Made by AI" tag, "Done — …", Undo · Keep going, "What AI did · 1 step · 8 s", follow-up chips (ai-done.jpg)
+  ai-same-artboard  2nd ask on a busy artboard: "Waiting for “…” to finish on Landing." + "AI is working · 1 waiting" tag (ai-same-artboard.jpg)
+  ai-queue-rule     rules 1-4 measured on /_api/ai/runs (ai-queue-rule.txt)
+  ai-advanced       Ask before (optgroups "AI asks before…" / "AI changes nothing"), Model, Show in chat, Suggestions, AI may › Folders AI may read, This chat › Context used / Session, Raw log / Copy transcript / Open in terminal + foot — the backed subset per decision v2-S5.17b-advanced-only-backed-blocks (ai-advanced.jpg). Nit: Ask before is drawn above Model; the canvas has Model first.
+  ai-attach         drop overlay "Drop to attach / AI can use it in this chat"; paste + drop make an image chip (40px thumb + ×), a PDF chip "Combine-brief-2026.pdf / PDF" (canvas says "PDF · 12 pages": no page count) (ai-attach.jpg)
+
+GAPS (details in the hand-back)
+  see hand-back G-list
