@@ -27,7 +27,6 @@ import { foldsPanels } from '../../../bridge/mode-shows.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { presenterOn, presentRunStore, usePresenterState } from '../present/presenter-store.js';
 import { presentZoomStore } from '../present/present-zoom-store.js';
-import { shellToast } from '../../shell/util.js';
 import {
   capsFor,
   createModeLane,
@@ -41,6 +40,7 @@ import {
   shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
+import { ROLE_DENIAL, showRoleDenial } from './role-denial.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
 
@@ -141,7 +141,7 @@ export function presentMediaCmd(op) {
 const modalOpenNow = () =>
   typeof document !== 'undefined' && !!document.querySelector('[role="dialog"][aria-modal="true"]');
 
-export const ROLE_DENIAL = 'You can view this canvas. Ask a project owner for edit access.';
+export { ROLE_DENIAL }; // S4.16 - defined beside the lines that name the tool (./role-denial.js)
 
 /**
  * @returns {{ mode, caps, peers, follow(clientID), select(mode), present(kind), step(to) }}
@@ -328,7 +328,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         });
         if (!d) return;
         if (d.kind === 'deny') {
-          if (d.reason === 'role') shellToast(ROLE_DENIAL);
+          if (d.reason === 'role') showRoleDenial(m);
           return;
         }
         if (d.kind === 'exit-viewing') {

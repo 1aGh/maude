@@ -13,6 +13,7 @@ import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
 import { createArrowRouter } from './annotations/route.ts';
 import { parseBoard, validateElements } from './annotations/schema.ts';
+import { withTimePins } from './annotations/time-marks.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import {
   type AimRects,
@@ -111,6 +112,7 @@ import {
   type TextSession,
 } from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
+import { TIME_PIN_CSS } from './annotations/ui/time-pins.tsx';
 import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
@@ -319,6 +321,7 @@ import { useGovernedMode } from './use-governed-mode.ts';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
 import { useUndoSinks, useUndoStackOptional } from './use-undo-stack.tsx';
+import { playheadOf } from './video-comp.tsx';
 
 // FigJam v3 — the pure data model (Stroke types, palettes, serialize/parse,
 // geometry) lives in annotations-model.ts: React-free, importable headlessly
@@ -776,7 +779,7 @@ function ensureAnnotStyles(): void {
   if (document.getElementById('dc-annot-css')) return;
   const s = document.createElement('style');
   s.id = 'dc-annot-css';
-  s.textContent = `${ANNOT_CSS}\n${LOD_CSS}\n${TEXT_LAYER_CSS}`;
+  s.textContent = `${ANNOT_CSS}\n${LOD_CSS}\n${TEXT_LAYER_CSS}\n${TIME_PIN_CSS}`;
   document.head.appendChild(s);
 }
 
@@ -1226,7 +1229,13 @@ export function AnnotationsLayer() {
   // visibility toggle — render/input gate folds `present` in, the stored value
   // (visibilityCtx.visible) is left untouched so exiting restores it.
   const mode = useGovernedMode();
-  const posture = annotationPosture(mode, visibilityCtx?.visible ?? true, chrome?.present ?? false);
+  // S4.16 (an-viewer) - a person who may not annotate sees everyone's notes and cannot change them, in any mode.
+  const posture = annotationPosture(
+    mode,
+    visibilityCtx?.visible ?? true,
+    chrome?.present ?? false,
+    typeof window === 'undefined' ? null : canvasModeStore(window).get().caps
+  );
   const visible = posture !== 'hidden';
   const quiet = posture === 'quiet';
   // S4.9 - what the list and the ⌘K rows ask the layer to leave out of view (a view, never a delete).
@@ -1535,10 +1544,14 @@ export function AnnotationsLayer() {
       const committed = board.committed;
       const prevMap = strokesToElementMap(persist(prev), committed);
       // S4.10 — what this commit created or dropped joins the artboard under its centre (Q3).
-      const nextMap = withMembership(
-        prevMap,
-        strokesToElementMap(persist(next), committed),
-        dragBusRef.current?.layoutRects() ?? []
+      const nextMap = withTimePins(
+        prevMap, // S4.16 — a new sticky over a video is pinned to the playhead (annotations/time-marks.ts)
+        withMembership(
+          prevMap,
+          strokesToElementMap(persist(next), committed),
+          dragBusRef.current?.layoutRects() ?? []
+        ),
+        playheadOf
       );
       // #137 — the lock safety net: whatever tool produced this commit, a
       // locked element (as of `prevMap`) is not moved, resized, re-texted or
