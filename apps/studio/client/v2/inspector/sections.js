@@ -119,3 +119,14 @@ export const SECTION_IDS = Object.freeze(SECTIONS.map((s) => s.id));
 
 const BY_ID = new Map(SECTIONS.map((s) => [s.id, s]));
 export const sectionById = (id) => BY_ID.get(id);
+
+/**
+ * The sections in the order a kind draws them. An artboard puts Fill before Layout (14 Editing, ed-ab-select:
+ * Artboard, Fill, Layout, Export); every other kind keeps the table's order.
+ */
+export function sectionsFor(kindId) {
+  if (kindId !== 'artboard') return SECTIONS;
+  const rest = SECTIONS.filter((s) => s.id !== 'fill');
+  const at = rest.findIndex((s) => s.id === 'layout');
+  return [...rest.slice(0, at), BY_ID.get('fill'), ...rest.slice(at)];
+}

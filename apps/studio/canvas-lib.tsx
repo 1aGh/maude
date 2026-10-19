@@ -2782,6 +2782,8 @@ export function DCArtboard({
   // panel pre-fills current state with no new plumbing. React omits an
   // attribute entirely when its value is `undefined`.
   const readBackAttrs = {
+    // S2.22 G1 — the artboard's own name, so the inspector title says "Desktop", not the id "desktop".
+    'data-dc-label': typeof label === 'string' && label ? label : undefined,
     'data-dc-fixed': fixed ? 'true' : undefined,
     'data-dc-bg': background,
     'data-dc-padding': padding != null ? String(padding) : undefined,

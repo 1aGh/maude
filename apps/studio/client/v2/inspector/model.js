@@ -33,7 +33,13 @@ export function titleOf(selection, layersTree) {
   }
   const el = singleOf(selection);
   if (!el) return '';
-  if (isArtboardSelection(el)) return el.artboardId || el.attrs?.['data-dc-screen'] || 'Artboard';
+  if (isArtboardSelection(el))
+    return (
+      collapse(el.attrs?.['data-dc-label']) ||
+      el.artboardId ||
+      el.attrs?.['data-dc-screen'] ||
+      'Artboard'
+    );
   const hit = el.id ? findNode(layersTree?.nodes, el.id, el.index) : null;
   const label = collapse(hit?.node?.label);
   if (label) return label;

@@ -30,6 +30,10 @@ import { isArtboardSelection } from './kinds/index.js';
 
 export { copyText, InspectFacts };
 
+/** The fold's count: "6 properties" (14 Editing, ed-ab-select). */
+export const propertiesWords = (n) =>
+  n > 0 ? `${n} ${n === 1 ? 'property' : 'properties'}` : undefined;
+
 /**
  * What the role may do here. Can view = `observer` (no code at all); Can comment is the other read-only role
  * (it may read and copy the code — the server gives it `export` — but writes nothing).
@@ -96,7 +100,7 @@ export function InspectorAdvanced({
   useSyncExternalStore(subscribeAdvancedRows, advancedRowsVersion, advancedRowsVersion);
   const many = Array.isArray(selected) && selected.length > 1;
   const isArtboard = !many && isArtboardSelection(el);
-  const hint = many ? 'Mixed' : isArtboard ? undefined : 'Code, tokens, CSS';
+  let hint = many ? 'Mixed' : isArtboard ? undefined : 'Code, tokens, CSS';
   const access = advancedAccess(cfg, role);
   const [textOn, setTextOn] = useState(false);
   // a different element starts a fresh view of it
@@ -125,6 +129,16 @@ export function InspectorAdvanced({
     fetchImpl,
     runAction: runAction ?? ((id) => menuRunner.run(id)),
   };
+
+  // S2.22 (14 Editing, ed-ab-select): "Advanced  6 properties" — the rows the fold holds for this artboard
+  if (isArtboard) {
+    const q = { el, kind: 'artboard', ctx };
+    const n =
+      (artboard?.onSetArtboardTheme ? 1 : 0) +
+      advancedRowsFor('artboard', q).length +
+      advancedRowsFor('in-code', q).length;
+    hint = propertiesWords(n);
+  }
 
   // ⌘K: Copy code · Edit CSS as text… · Detach — the registry actions run on the element this fold shows
   useEffect(() => {

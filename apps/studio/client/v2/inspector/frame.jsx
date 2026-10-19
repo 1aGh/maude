@@ -21,7 +21,7 @@ import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
 import { useInstanceSelection } from './kinds/instance.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
-import { SECTIONS } from './sections.js';
+import { sectionsFor } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
 import { HoldLine, useHoldView, viewModeOf } from './view-mode.jsx';
 
@@ -215,7 +215,7 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        {SECTIONS.map((def) => {
+        {sectionsFor(kind.id).map((def) => {
           const entries = slotsFor(def.id, kind.id, selected, ctx);
           if (!entries.length) return null;
           return (
