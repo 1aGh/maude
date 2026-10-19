@@ -133,6 +133,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   // S4.14 — formal votes (routes/votes.ts). Local: the vote + your ballot element are board ops;
   // hub: the board gets the vote element (start) and its counts + the result section (end) only.
+  '/_api/votes': { class: 'read' }, // the canvas's votes + the session's own picks
   '/_api/votes/start': {
     class: 'lane',
     rows: 'S23',
