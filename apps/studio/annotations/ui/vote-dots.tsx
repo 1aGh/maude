@@ -33,7 +33,8 @@ const isCount = (n: unknown): n is number =>
 export function readVoteState(
   m: unknown
 ): { vote: VoteView | null; mine: Record<string, number> } | null {
-  if (!m || typeof m !== 'object' || (m as { dgn?: unknown }).dgn !== 'vote-state') return null;
+  // `m` is the table's parsed `vote-state` (acceptFromShell already checked the parent and the type)
+  if (!m || typeof m !== 'object' || !('vote' in m)) return null;
   const raw = (m as { vote?: unknown }).vote;
   const mineRaw = (m as { mine?: unknown }).mine;
   if (raw === null) return { vote: null, mine: {} };
