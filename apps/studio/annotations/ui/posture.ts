@@ -33,6 +33,18 @@ export function annotationPosture(
 /** The layer takes pointer input (tools, selection, drags) only when it is Preview's. */
 export const postureTakesInput = (p: AnnotationPosture): boolean => p === 'drawn';
 
+/**
+ * S4.18b - the tools that PICK an annotation (click-select, resize, double-click to type, connector dots, the
+ * annotation context menu). Edit's resting tool is `move`; Preview's resting tool is the Hand (`browse`), and
+ * the Hand is how a person in Preview selects a sticky - so `browse` picks wherever the layer is editable
+ * (`drawn`). Viewing (`read-only`), Edit (`quiet`) and hidden layers pick with neither.
+ */
+export const annotationPicks = (tool: string, p: AnnotationPosture): boolean =>
+  tool === 'move' || (tool === 'browse' && postureTakesInput(p));
+
+/** Only the Move tool rubber-bands empty canvas; the Hand's drag on empty canvas stays the canvas's pan. */
+export const annotationMarquees = (tool: string): boolean => tool === 'move';
+
 /** Ink (pen, arrows, shapes) fades to this in Edit. Sticky paper does not fade; it mixes (below). */
 export const QUIET_INK_OPACITY = 0.45;
 /** The grey a quiet sticky's paper is mixed with, half and half. */

@@ -159,7 +159,7 @@ describe('the card says what the arrow meant (an-dangling, an-rebind 2)', () => 
     if (!d) throw new Error('expected a dangling end');
     const card = danglingCard(d, rects);
     expect(card.cause).toBe('element');
-    expect(card.lead).toBe('Pointed at “Book a call” — it was replaced or removed');
+    expect(card.lead).toBe('Pointed at “Book a call” — moved to the trash');
   });
 
   test('its artboard gone too: the artboard is in the trash', () => {

@@ -22458,7 +22458,7 @@
     "hook": "annot-dangling-card",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S4.11: “Pointed at “Book a call” — it was replaced or removed”, shown for the selected arrow with a lost end.",
+    "meaning": "S4.11: “Pointed at “Book a call” — moved to the trash”, shown for the selected arrow with a lost end.",
     "producer": {
       "file": "apps/studio/annotations/ui/arrow-cards.tsx",
       "symbol": "HostMarks"

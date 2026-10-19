@@ -21,7 +21,7 @@ import { recomputeBoundArrows } from '../../annotations-bindings.ts';
 import type { Stroke } from '../../annotations-model.ts';
 import { type DanglingEnd, danglingEnds, hostsOf, resolverFromRects } from '../hosts.ts';
 import type { AimRects } from './arrow-bind.ts';
-import { asHostRects } from './arrow-bind.ts';
+import { asHostRects, rewrittenText } from './arrow-bind.ts';
 import type { RenderItem, ResolvedEnds } from './render-model.ts';
 
 /** The manifest says something about the canvas (it has painted at least one artboard). */
@@ -76,7 +76,7 @@ export function markDangling(
 
 /**
  * The cheap signature of everything a re-render of the host view depends on: the box of each
- * referenced host, or `-` when it cannot be found. The layer polls the manifest and only sets
+ * referenced host (and, for an element, the words AI rewrote it to), or `-` when it cannot be found. The layer polls the manifest and only sets
  * state when this changes.
  */
 export function hostSignature(strokes: readonly Stroke[], rects: AimRects | null): string {
@@ -89,7 +89,10 @@ export function hostSignature(strokes: readonly Stroke[], rects: AimRects | null
     for (const b of [h.startHost, h.endHost]) {
       if (!b) continue;
       const box = resolve(b.ref);
-      parts.push(box ? `${b.ref}@${box.x},${box.y},${box.w},${box.h}` : `${b.ref}@-`);
+      // S4.18b - the words are part of what the view depends on: AI can rewrite a button and keep its box
+      // (an-rebind's ring names the new words), and a box-only signature never re-read it.
+      const words = rewrittenText(rects, b) ?? '';
+      parts.push(box ? `${b.ref}@${box.x},${box.y},${box.w},${box.h}~${words}` : `${b.ref}@-`);
     }
   }
   return parts.join('|');

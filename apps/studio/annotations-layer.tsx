@@ -158,7 +158,11 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { inMosaic, LOD_CSS, LodMosaic, lodModel, type Rect } from './annotations/ui/lod.tsx';
-import { annotationPosture } from './annotations/ui/posture.ts';
+import {
+  annotationMarquees,
+  annotationPicks,
+  annotationPosture,
+} from './annotations/ui/posture.ts';
 import { resolveInk } from './annotations/ui/tool-prefs.ts';
 import {
   eraseTargetIndex,
@@ -3188,7 +3192,7 @@ export function AnnotationsLayer() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: commitStrokes/strokesStore are stable refs from parent context; manual dep list reflects effect-trigger semantics, not internal callbacks
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     if (!annotSel) return;
 
     const findStrokeId = (el: Element | null): string | null => {
@@ -3491,6 +3495,25 @@ export function AnnotationsLayer() {
       // sitting ON an artboard instead of falling through to artboard-drag.
       if (!strokeId && !e.shiftKey && target?.closest?.('[data-dc-screen]')) return;
 
+      // S4.18b - the Hand (Preview's resting tool) picks stickies but never rubber-bands: a drag on empty
+      // canvas is the canvas's pan, so this stage claims nothing. A bare click still lets go of the selection.
+      if (!annotationMarquees(tool)) {
+        if (!e.shiftKey && annotSel.selectedIds.length > 0) {
+          const letGo = (up: PointerEvent) => {
+            document.removeEventListener('pointerup', letGo, true);
+            document.removeEventListener('pointercancel', letGo, true);
+            if (
+              up.type === 'pointerup' &&
+              !crossedDragThreshold(startClientX, startClientY, up.clientX, up.clientY)
+            )
+              annotSel.clear();
+          };
+          document.addEventListener('pointerup', letGo, true);
+          document.addEventListener('pointercancel', letGo, true);
+        }
+        return;
+      }
+
       // Empty world — start a drag-select gesture. A bare click without
       // moving clears annotation selection (post-Wave-3 feedback: click-to-
       // deselect is back; Esc also still works).
@@ -3542,7 +3565,7 @@ export function AnnotationsLayer() {
     // commitStrokes is included defensively (it is a stable useCallback([]) ref,
     // so this never re-registers the stage) to remove the latent stale-closure
     // trap flagged in the Phase 24 frontend review.
-  }, [pipeline, tool, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
+  }, [pipeline, tool, posture, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
 
   // Latest marquee + strokes refs for the doc-level pointerup callback
   // (avoids re-binding the listener on every state tick).
@@ -3564,7 +3587,7 @@ export function AnnotationsLayer() {
   // use-annotation-resize.tsx.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     if (!annotSel) return;
 
     const onDown = (e: PointerEvent): Claim => {
@@ -3659,14 +3682,14 @@ export function AnnotationsLayer() {
       commitStrokes(d.undoBase, final, `resize ${d.ids.length} strokes`);
     };
     return pipeline.add({ priority: 3, name: 'group-resize', down: onDown });
-  }, [pipeline, tool, annotSel, screenToWorld, anchorsById, commitStrokes]);
+  }, [pipeline, tool, posture, annotSel, screenToWorld, anchorsById, commitStrokes]);
 
   // Double-click enters text-edit mode: rect/ellipse (anchored text), sticky
   // (its own body), or a standalone text node (re-edit in place). Anchored text
   // nodes are edited via their host, so a data-anchor-id text node is skipped.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     const onDbl = (e: MouseEvent) => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       const target = e.target as Element | null;
@@ -3732,7 +3755,7 @@ export function AnnotationsLayer() {
     };
     document.addEventListener('dblclick', onDbl, true);
     return () => document.removeEventListener('dblclick', onDbl, true);
-  }, [tool, annotSel]);
+  }, [tool, posture, annotSel]);
 
   const commitText = useCallback(
     (anchorId: string, text: string, fmt?: EditorFmt) => {
@@ -4398,7 +4421,7 @@ export function AnnotationsLayer() {
   const [addTextHintId, setAddTextHintId] = useState<string | null>(null);
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') {
+    if (!annotationPicks(tool, posture)) {
       setAddTextHintId(null);
       return;
     }
@@ -4417,7 +4440,7 @@ export function AnnotationsLayer() {
     };
     document.addEventListener('pointermove', onMove, { passive: true });
     return () => document.removeEventListener('pointermove', onMove);
-  }, [tool]);
+  }, [tool, posture]);
 
   // FigJam v3 — connector draft: dragging from a connection dot (the side
   // magnets shown on a selected bindable shape) draws a BOUND curved
@@ -4435,7 +4458,7 @@ export function AnnotationsLayer() {
   connDraftRef.current = connDraft;
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     const onDown = (e: PointerEvent): Claim => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       if (e.button !== 0) return;
@@ -4517,7 +4540,7 @@ export function AnnotationsLayer() {
       };
     };
     return pipeline.add({ priority: 2, name: 'connector', down: onDown });
-  }, [pipeline, tool, screenToWorld, commitStrokes, annotSel, theme]);
+  }, [pipeline, tool, posture, screenToWorld, commitStrokes, annotSel, theme]);
 
   // FigJam v3 — right-click on a stroke SELECTS it (keeping a multi-selection
   // the press lands inside) and opens the annotation context menu (z-order,
@@ -4545,7 +4568,7 @@ export function AnnotationsLayer() {
       : null;
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    if (tool !== 'move') return;
+    if (!annotationPicks(tool, posture)) return;
     if (!annotSel) return;
     const strokeAt = (target: Element | null): string | null => {
       if (target?.closest?.(CHROME_SELECTOR)) return null;
@@ -4583,7 +4606,7 @@ export function AnnotationsLayer() {
       document.removeEventListener('contextmenu', onCtx, true);
       unstage();
     };
-  }, [pipeline, tool, annotSel]);
+  }, [pipeline, tool, posture, annotSel]);
 
   // Keyboard: arrow nudge + Backspace/Delete remove selected strokes.
   useEffect(() => {
@@ -4932,7 +4955,7 @@ export function AnnotationsLayer() {
             strokes={shownStrokes}
             quiet={quiet}
             anchorsById={anchorsById}
-            selectMode={tool === 'move' && !quiet}
+            selectMode={annotationPicks(tool, posture) && !quiet}
             selectedStrokes={selectedStrokes}
             selectionLocked={selectionLocked}
             marquee={marquee}
@@ -4998,7 +5021,7 @@ export function AnnotationsLayer() {
             onClose={() => setCtxMenu(null)}
           />
         ) : null}
-        {visible && !quiet && tool === 'move' ? (
+        {visible && !quiet && annotationPicks(tool, posture) ? (
           <AnnotationResizeOverlay store={strokesStore} />
         ) : null}
       </StrokesStoreContext.Provider>

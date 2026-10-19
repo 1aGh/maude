@@ -47,12 +47,19 @@ export function danglingCause(ref: string, rects: Pick<AimRects, 'artboards'>): 
   return rects.artboards.some((a) => a.id === ab) ? 'element' : 'artboard';
 }
 
+/**
+ * The card's words, as canvas 15 (an-dangling) draws them: "Pointed at “Book a call” — moved to the
+ * trash by Jonas". `by` is the person's NAME when the layer knows who moved it (name-only, never an id or
+ * an e-mail); without one the line stops at "moved to the trash" rather than guessing.
+ */
 export function danglingCard(
   d: DanglingEnd,
-  rects: Pick<AimRects, 'artboards'>
+  rects: Pick<AimRects, 'artboards'>,
+  by?: string
 ): DanglingCardModel {
   const cause = danglingCause(d.ref, rects);
-  const what = cause === 'artboard' ? 'its artboard is in the trash' : 'it was replaced or removed';
+  const who = by?.trim() ? ` by ${by.trim().slice(0, 60)}` : '';
+  const what = cause === 'artboard' ? 'its artboard is in the trash' : `moved to the trash${who}`;
   return {
     arrowId: d.arrowId,
     end: d.end,
