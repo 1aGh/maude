@@ -283,15 +283,24 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
         meta: string;
         openedAt?: number;
         group: SearchRow['group'];
+        /** S1.23 — what the row carries beyond the match text */
+        extra?: Pick<SearchRow, 'boards' | 'cover' | 'kind'>;
       }> = [];
       for (const c of rows.values()) {
-        inputs.push({ key: c.rel, name: c.name, meta: c.folder, group: 'canvases' });
+        inputs.push({
+          key: c.rel,
+          name: c.name,
+          meta: c.folder,
+          group: 'canvases',
+          extra: { boards: c.artboards.length, cover: c.cover?.key ?? null },
+        });
         for (const a of c.artboards)
           inputs.push({
             key: `${c.rel}#${a.id}`,
             name: a.label ?? a.id,
             meta: `${c.name} ${c.folder} ${a.kind ?? ''}`,
             group: 'artboards',
+            extra: { kind: a.kind ?? null },
           });
       }
       const hits = match(inputs, q, opts?.limit ?? 200);
@@ -303,6 +312,7 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
         score: h.score,
         close: h.close,
         marks: h.marks,
+        ...(h.row.extra ?? {}),
       }));
       return { q, rows: out, closeOnly: out.length > 0 && out.every((r) => r.close) };
     },

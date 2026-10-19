@@ -1293,6 +1293,10 @@ export function Sidebar({
           trash={trash}
           readOnly={readOnly}
           projectName={cloud?.projectName || ''}
+          roots={groups
+            .filter((g) => g.kind === 'canvas' && g.label !== 'Design system' && g.fullPath)
+            .map((g) => g.fullPath.split('/').slice(1).join('/'))
+            .filter(Boolean)}
           onBack={() => setTrashOpen(false)}
           onChanged={reloadTrash}
         />

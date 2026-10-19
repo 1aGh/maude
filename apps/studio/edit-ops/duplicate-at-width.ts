@@ -62,13 +62,54 @@ const unescapeAttr = (v: string): string =>
 /** Every `<DCArtboard label="…">` in `source`, by artboard id → label (quote-aware, no parser). */
 export function artboardLabels(source: string): Map<string, string> {
   const out = new Map<string, string>();
-  const tag = /<DCArtboard\b((?:[^>"'{}]|"[^"]*"|'[^']*'|\{[^{}]*\})*)>/g;
-  for (const m of source.matchAll(tag)) {
-    const attrs = m[1] ?? '';
-    const id = /\bid=(?:"([^"]*)"|'([^']*)')/.exec(attrs);
-    const label = /\blabel=(?:"([^"]*)"|'([^']*)')/.exec(attrs);
+  const open = /<DCArtboard\b/g;
+  for (let m = open.exec(source); m; m = open.exec(source)) {
+    const attrs = openingTagAttrs(source, m.index + m[0].length);
+    if (attrs === null) continue;
+    // the string props only: `id="…"`/`label="…"` at brace depth 0 (a `label` inside `print={{…}}` is not it)
+    const top = stripBraces(attrs);
+    const id = /\bid=(?:"([^"]*)"|'([^']*)')/.exec(top);
+    const label = /\blabel=(?:"([^"]*)"|'([^']*)')/.exec(top);
     const key = id?.[1] ?? id?.[2];
     if (key !== undefined) out.set(key, unescapeAttr(label?.[1] ?? label?.[2] ?? key));
+  }
+  return out;
+}
+
+/** The attribute text of an opening tag from `from` up to its closing `>`: string- and brace-aware (a
+ *  `>` inside a quote or a `{…}` expression, however nested, does not end the tag). Null when unclosed. */
+function openingTagAttrs(source: string, from: number): string | null {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = from; i < source.length; i++) {
+    const c = source[i] as string;
+    if (quote) {
+      if (c === '\\' && depth > 0) i++;
+      else if (c === quote) quote = null;
+    } else if (c === '"' || c === "'" || (c === '`' && depth > 0)) quote = c;
+    else if (c === '{') depth++;
+    else if (c === '}') depth = Math.max(0, depth - 1);
+    else if (c === '>' && depth === 0) return source.slice(from, i);
+    else if (c === '<' && depth === 0) return null; // a malformed tag runs into the next one
+  }
+  return null;
+}
+
+/** `attrs` with every `{…}` expression (nested) blanked, string props kept. */
+function stripBraces(attrs: string): string {
+  let out = '';
+  let depth = 0;
+  let quote: string | null = null;
+  for (const c of attrs) {
+    if (quote) {
+      if (depth === 0) out += c;
+      if (c === quote) quote = null;
+    } else if (c === '"' || c === "'" || (c === '`' && depth > 0)) {
+      quote = c;
+      if (depth === 0) out += c;
+    } else if (c === '{') depth++;
+    else if (c === '}') depth = Math.max(0, depth - 1);
+    else if (depth === 0) out += c;
   }
   return out;
 }

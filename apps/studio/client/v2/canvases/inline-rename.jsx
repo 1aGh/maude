@@ -88,6 +88,11 @@ export function InlineRename({ slug, current, siblings, onCommit, onCancel }) {
         onClick={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       />
+      {error ? null : (
+        <span className="cv-rename-hint" data-testid="canvas-rename-hint">
+          <kbd className="kbd">↵</kbd> rename · <kbd className="kbd">esc</kbd> keep “{current}”
+        </span>
+      )}
       {error ? (
         <p
           id={`cv-rename-err-${slug}`}

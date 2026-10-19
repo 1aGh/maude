@@ -214,6 +214,42 @@ describe('rename in place', () => {
     expect(inputOf(host, 'ui-ahoj')).toBeNull();
   });
 
+  test('the canvas example "Combine — test barev" renames (S1.23 G2: any filename-safe text)', async () => {
+    const { host, spy } = await mount();
+    await dbl(q(host, 'canvas-row-ui-ahoj'));
+    const input = inputOf(host, 'ui-ahoj');
+    await type(input, 'Combine — test barev');
+    await key(input, 'Enter');
+    await settle(20);
+    expect(q(host, 'canvas-rename-error')).toBeNull();
+    expect(spy.renames).toEqual([[`${ROOT}/ahoj.tsx`, 'Combine — test barev', { quiet: true }]]);
+  });
+
+  test('a reserved character is refused under the field in CONTRACT words, nothing sent (S1.23 G2)', async () => {
+    const { host, spy } = await mount();
+    await dbl(q(host, 'canvas-row-ui-ahoj'));
+    const input = inputOf(host, 'ui-ahoj');
+    await type(input, 'Plan: draft');
+    await key(input, 'Enter');
+    await settle(20);
+    expect(spy.renames).toEqual([]);
+    expect(q(host, 'canvas-rename-error')?.textContent).toBe(
+      'Names can’t contain / \\ : * ? " < > | or start with a dot. Try another name.'
+    );
+  });
+
+  test('the field carries "↵ rename · esc keep “<name>”" until an error speaks (S1.23 G2)', async () => {
+    const { host } = await mount();
+    await dbl(q(host, 'canvas-row-ui-ahoj'));
+    expect(q(host, 'canvas-rename-hint')?.textContent).toBe('↵ rename · esc keep “ahoj”');
+    const input = inputOf(host, 'ui-ahoj');
+    await type(input, 'a/b');
+    await key(input, 'Enter');
+    await settle(20);
+    expect(q(host, 'canvas-rename-hint')).toBeNull();
+    expect(q(host, 'canvas-rename-error')).not.toBeNull();
+  });
+
   test('a name the folder already has is refused under the field — nothing sent, field stays', async () => {
     const { host, spy } = await mount();
     await dbl(q(host, 'canvas-row-ui-ahoj'));
@@ -551,5 +587,45 @@ describe('the Sort menu from the keyboard', () => {
     });
     expect(q(host, 'canvases-sort-menu')).toBeNull();
     expect(document.activeElement).toBe(button);
+  });
+});
+
+describe('the Sort menu stays on screen (S1.23 G1, 11 · pn-organise)', () => {
+  const rect = (left: number, right: number) => ({
+    left,
+    right,
+    top: 100,
+    bottom: 124,
+    width: right - left,
+    height: 24,
+    x: left,
+    y: 100,
+    toJSON() {},
+  });
+  async function openAt(left: number, right: number) {
+    const { host } = await mount();
+    const button = q(host, 'canvases-sort') as HTMLButtonElement;
+    button.getBoundingClientRect = () => rect(left, right) as DOMRect;
+    await click(button);
+    return q(host, 'canvases-sort-menu') as HTMLElement;
+  }
+
+  test('260 wide, placed in the window at the button, pulled back off the right edge', async () => {
+    const vw = window.innerWidth;
+    const menu = await openAt(vw - 40, vw - 12);
+    expect(menu.style.position).toBe('fixed');
+    // a 260 wide menu: its left edge is at most vw - 8 - 260, so its right edge is on screen
+    expect(parseFloat(menu.style.left)).toBe(vw - 8 - 260);
+    expect(menu.style.top).toBe('128px');
+  });
+
+  test('a button near the left edge never puts the menu off the left (the clipped "ort by")', async () => {
+    const menu = await openAt(-30, -6);
+    expect(parseFloat(menu.style.left)).toBe(8);
+  });
+
+  test('a button with room puts the menu at its left edge', async () => {
+    const menu = await openAt(120, 144);
+    expect(parseFloat(menu.style.left)).toBe(120);
   });
 });

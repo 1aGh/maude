@@ -833,6 +833,12 @@ function ShellState({ children }) {
           } else if (m.type === 'thumb-ready' && typeof m.key === 'string') {
             // S1.14 — a picture landed: Version history looks again for the rows still drawing theirs.
             window.dispatchEvent(new CustomEvent('maude:thumb-ready', { detail: { key: m.key } }));
+          } else if (m.type === 'index-changed') {
+            // S1.23 — a canvas's content moved (an artboard trashed or added): the Canvases panel re-reads
+            // the index so its artboard counts are not stale.
+            window.dispatchEvent(
+              new CustomEvent('maude:index-changed', { detail: { seq: m.seq, rels: m.rels } })
+            );
           } else if (m.type === 'ai:runs') {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
             // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.

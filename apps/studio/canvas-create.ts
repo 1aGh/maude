@@ -24,16 +24,30 @@ export const BLANK_TEMPLATE: string = blankCanvasTemplate;
 
 /**
  * The ONE security boundary for the create endpoint. A canvas name is the only
- * user-controlled value, and it is interpolated into BOTH a real nested
- * filesystem path (`<group>/<name>.tsx`) AND the generated `.tsx` (JSX text) +
- * `.meta.json` (JSON string). This strict allowlist does triple duty:
- *   • path safety   — no `/`, `\`, `..`, or leading dot ⇒ no traversal;
- *   • template safety — no `<`, `>`, `{`, `}` ⇒ can't break out of JSX text;
- *   • JSON safety    — no `"` or `\` ⇒ can't break out of a meta string.
- * Unicode letters/numbers are allowed (so "Onboarding Brief" / accented names
- * work); the first char must be a letter/number (excludes leading space/dash/dot).
+ * user-controlled value, and it becomes a real nested filesystem path
+ * (`<group>/<name>.tsx`), the `@canvas` header comment, JSX text (brief board)
+ * and a JSON string (`.meta.json`).
+ *
+ * Lead decision `v2-lead-canvas-names-any-filename-safe`: a canvas or folder name is ANY
+ * filename-safe text — Unicode letters, spaces, —, digits, punctuation. Refused: path separators
+ * (/ \), the reserved characters (: * ? " < > |), control characters, a leading dot, the empty
+ * name. That is also what keeps every sink safe:
+ *   • path safety     — no `/`, `\`, or leading dot ⇒ no traversal (and no `:` for Windows/macOS);
+ *   • comment safety  — no `*` ⇒ nothing can close the header comment;
+ *   • template safety — no `<`, `>` ⇒ no JSX tag; `{ } &` are ESCAPED where they reach JSX text
+ *                       (`nameForTemplate`);
+ *   • JSON safety     — no `"` or `\`; the meta is written with JSON.stringify anyway.
  */
-const NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} _-]{0,59}$/u;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point.
+const RESERVED_RE = /[\\/:*?"<>|\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;
+
+/** CONTRACT §4 voice (what happened · what is safe · one verb): said for every refused character. */
+export const NAME_REFUSAL =
+  'Names can’t contain / \\ : * ? " < > | or start with a dot. Try another name.';
+/** The longest name, in characters. */
+export const NAME_MAX = 60;
+export const NAME_TOO_LONG = `Names are ${NAME_MAX} characters or fewer.`;
+export const NAME_EMPTY = 'Give it a name.';
 
 export interface NameValidation {
   ok: boolean;
@@ -42,53 +56,60 @@ export interface NameValidation {
   error?: string;
 }
 
-/**
- * Folder names reuse `NAME_RE` — the same path/JSX/JSON-safe allowlist as
- * canvas names. Folder names never reach JSX or a JSON string interpolation,
- * but sharing the regex keeps one thing to audit rather than two allowlists
- * that could drift.
- */
-export function validateFolderName(raw: unknown): NameValidation {
-  if (typeof raw !== 'string') return { ok: false, error: 'name must be a string' };
-  const name = raw.normalize('NFC').trim().replace(/ +/g, ' ');
-  if (!name) return { ok: false, error: 'name is required' };
-  if (name.length > 60) return { ok: false, error: 'name must be 60 characters or fewer' };
-  if (!NAME_RE.test(name)) {
-    return {
-      ok: false,
-      error: 'name may contain only letters, numbers, spaces, hyphens and underscores',
-    };
-  }
-  if (name.includes('..') || name.includes('/') || name.includes('\\') || name.startsWith('.')) {
-    return { ok: false, error: 'name may not contain path separators or leading dots' };
-  }
-  return { ok: true, name };
-}
-
-export function validateCanvasName(raw: unknown): NameValidation {
+function checkFilenameSafe(raw: unknown): NameValidation {
   if (typeof raw !== 'string') return { ok: false, error: 'name must be a string' };
   // NFC-normalize so a decomposed (NFD) name and its composed sibling can't hash
   // to two JS strings that collide to ONE on-disk path on a normalizing filesystem
   // (APFS/HFS+) — which would let the 409 existence guard be bypassed and an
   // existing board silently overwritten (Phase 22 security review, low). Collapse
-  // runs of SPACES (the one allowed whitespace) to a single space so the JS slug
-  // (`/\s+/→_`) and slug.sh (`tr ' ' '_'`) can't diverge on a double-spaced name
-  // (review #4); tabs/newlines stay un-collapsed and are rejected by NAME_RE.
+  // runs of SPACES to a single space so the JS slug (`/\s+/→_`) and slug.sh
+  // (`tr ' ' '_'`) can't diverge on a double-spaced name (review #4). Tabs and
+  // newlines are control characters and are refused below.
   const name = raw.normalize('NFC').trim().replace(/ +/g, ' ');
-  if (!name) return { ok: false, error: 'name is required' };
-  if (name.length > 60) return { ok: false, error: 'name must be 60 characters or fewer' };
-  if (!NAME_RE.test(name)) {
-    return {
-      ok: false,
-      error: 'name may contain only letters, numbers, spaces, hyphens and underscores',
-    };
-  }
-  // Defense in depth — the regex already forbids these, but assert no path bits
-  // survive (a regex edit must never silently re-open traversal).
-  if (name.includes('..') || name.includes('/') || name.includes('\\') || name.startsWith('.')) {
-    return { ok: false, error: 'name may not contain path separators or leading dots' };
-  }
-  return { ok: true, name, componentName: componentNameFrom(name) };
+  if (!name) return { ok: false, error: NAME_EMPTY };
+  if ([...name].length > NAME_MAX) return { ok: false, error: NAME_TOO_LONG };
+  // A leading dot (`.`, `..`, dotfiles) is refused with the same words.
+  if (RESERVED_RE.test(name) || name.startsWith('.')) return { ok: false, error: NAME_REFUSAL };
+  return { ok: true, name };
+}
+
+/** True when `name` is already the form a validated name takes (for names that arrive from a
+ *  manifest rather than the create endpoint). */
+export function isFilenameSafeName(name: unknown): boolean {
+  const v = checkFilenameSafe(name);
+  return v.ok && v.name === name;
+}
+
+/**
+ * Folder names share the canvas rule — one allowlist to audit, not two that could drift. A folder
+ * name never reaches JSX or JSON, but it IS a path segment.
+ */
+export function validateFolderName(raw: unknown): NameValidation {
+  return checkFilenameSafe(raw);
+}
+
+export function validateCanvasName(raw: unknown): NameValidation {
+  const v = checkFilenameSafe(raw);
+  if (!v.ok || !v.name) return v;
+  return { ok: true, name: v.name, componentName: componentNameFrom(v.name) };
+}
+
+/** A name for the JSX text of a template: `{`, `}` and `&` would otherwise be read as code or an
+ *  entity. (`<` `>` are already refused.) */
+export function nameForTemplate(name: string): string {
+  return name.replaceAll('&', '&amp;').replaceAll('{', '&#123;').replaceAll('}', '&#125;');
+}
+
+/** Substitute `{{NAME}}`: raw inside a ` * ` header-comment line, JSX-escaped everywhere else. */
+function substituteName(template: string, name: string): string {
+  return template
+    .split('\n')
+    .map((line) =>
+      line.includes('{{NAME}}')
+        ? line.replaceAll('{{NAME}}', /^\s*\*/.test(line) ? name : nameForTemplate(name))
+        : line
+    )
+    .join('\n');
 }
 
 /** PascalCase a name into a valid JS identifier for the component default export.
@@ -123,7 +144,7 @@ export interface BriefBoardOpts {
  *  (the only user value reaching here) is validated by `validateCanvasName`,
  *  and every other field is server-derived (config / fixed strings). */
 export function renderBriefBoard(opts: BriefBoardOpts): string {
-  return BRIEF_BOARD_TEMPLATE.replaceAll('{{NAME}}', opts.name)
+  return substituteName(BRIEF_BOARD_TEMPLATE, opts.name)
     .replaceAll('{{COMPONENT_NAME}}', opts.componentName)
     .replaceAll('{{DS_NAME}}', opts.dsName)
     .replaceAll('{{PLATFORM}}', opts.platform)
@@ -141,7 +162,7 @@ export interface BlankCanvasOpts {
 
 /** Substitute the blank-canvas template placeholders (same trust story as `renderBriefBoard`). */
 export function renderBlankCanvas(opts: BlankCanvasOpts): string {
-  return BLANK_TEMPLATE.replaceAll('{{NAME}}', opts.name)
+  return substituteName(BLANK_TEMPLATE, opts.name)
     .replaceAll('{{COMPONENT_NAME}}', opts.componentName)
     .replaceAll('{{DS_NAME}}', opts.dsName)
     .replaceAll('{{PLATFORM}}', opts.platform)
