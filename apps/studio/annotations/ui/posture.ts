@@ -92,3 +92,25 @@ export function contrast(a: string, b: string): number {
   const [hi, lo] = [luminance(x), luminance(y)].sort((p, q) => q - p) as [number, number];
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/** Object ink — the words on any sticky paper (canvas 15 `--object-ink`; element-node's sticky colour). */
+export const OBJECT_INK = '#2a2a28';
+/** The AI author line's ink: the spark hue pulled dark enough to read on the neutral AI paper (canvas 15 `--spark-text`). */
+export const AI_WHO_INK = '#8a3410';
+
+/**
+ * The author line's colour on a paper (canvas 15 `.an-st-who`: ink at 88%, "at least 5.2:1 on every paper").
+ * Mixed into an opaque hex so the contrast is a number a test can read, not an alpha the page composites.
+ * An AI sticky (neutral paper, spark edge) says "AI" in the spark ink instead.
+ */
+export function whoInk(paper: string, ai = false): string {
+  const bg = rgb(paper);
+  if (!bg) return ai ? AI_WHO_INK : OBJECT_INK;
+  const mixed = (base: string) => {
+    const ink = rgb(base) as [number, number, number];
+    return `#${[0, 1, 2].map((i) => hex2(ink[i] * 0.88 + (bg[i] as number) * 0.12)).join('')}`;
+  };
+  // The spark ink is only for the neutral AI paper; an AI sticky with a stored colour reads in object ink.
+  if (ai && contrast(mixed(AI_WHO_INK), paper) >= 5.2) return mixed(AI_WHO_INK);
+  return mixed(OBJECT_INK);
+}
