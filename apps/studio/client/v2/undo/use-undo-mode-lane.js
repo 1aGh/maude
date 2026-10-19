@@ -4,6 +4,12 @@
 //                                        frame that has just loaded or rendered (a reload forgets it)
 //   canvas → shell  `undo-key {redo}`    active-gated: ⌘Z / ⇧⌘Z pressed with an op-log canvas focused
 //
+// sec-a (wave-A attacker, low): the shell can't prove from here that a key was really pressed inside the
+// iframe — a planted canvas could post `undo-key` and run the person's ⌘Z on its own. So the shell honours one
+// only while the active canvas frame HOLDS FOCUS in a focused window (`focused`: the person is in the canvas,
+// where their own ⌘Z would land anyway), and at most UNDO_KEY_BURST per second (a held key repeats slower
+// than a script). Anything else is dropped without a word.
+//
 // An op-log canvas keeps no durable stack (editing/undo-mode.ts): its keys come here and run the
 // projection (`runUndoKey`), exactly as the shell's own ⌘Z does. Should the projection answer `legacy`
 // after all, the store flips the mode first — this lane tells the frame `opLog: false` synchronously
@@ -22,11 +28,31 @@ import { runUndoKey, undoProjection } from './use-undo-projection.jsx';
  *   canvasOrigin: () => string,
  *   store?: typeof undoProjection,
  *   runKey?: typeof runUndoKey,
+ *   focused?: () => boolean,
+ *   now?: () => number,
  * }} o
  */
+export const UNDO_KEY_BURST = 8;
+
 export function createUndoModeLane(o) {
   const store = o.store ?? undoProjection;
   const runKey = o.runKey ?? runUndoKey;
+  const now = o.now ?? (() => Date.now());
+  /** Absent = the canvas never holds focus: fail closed. */
+  const focused = o.focused ?? (() => false);
+  let windowStart = -Infinity;
+  let inWindow = 0;
+  const allowKey = () => {
+    if (!focused()) return false;
+    const t = now();
+    if (t - windowStart >= 1000) {
+      windowStart = t;
+      inWindow = 0;
+    }
+    if (inWindow >= UNDO_KEY_BURST) return false;
+    inWindow++;
+    return true;
+  };
   /** path → what the frame was last told (absent = never told: the canvas starts legacy). */
   const told = new Map();
 
@@ -64,6 +90,7 @@ export function createUndoModeLane(o) {
     const active = path ? (o.frames().get(path) ?? null) : null;
     const m = acceptFromCanvas(e, { canvasOrigin: o.canvasOrigin(), active });
     if (m?.dgn !== 'undo-key' || !path) return null;
+    if (!allowKey()) return null;
     return runKey(path, m.redo, () => {
       try {
         active?.postMessage(runActionMessage(m.redo ? 'edit.redo' : 'edit.undo'), '*');
@@ -88,6 +115,13 @@ export function useUndoModeLane({ iframesRef, activePath, cfg, store = undoProje
         new Map([...(iframesRef?.current?.entries() ?? [])].map(([p, f]) => [p, f?.contentWindow])),
       activePath: () => live.current.activePath ?? null,
       canvasOrigin: () => live.current.cfg?.canvasOrigin || window.location.origin,
+      // the active canvas frame holds the focus of a focused window (sec-a: undo-key gate)
+      focused: () => {
+        const frame = live.current.activePath
+          ? iframesRef?.current?.get(live.current.activePath)
+          : null;
+        return !!frame && document.hasFocus() && document.activeElement === frame;
+      },
     });
     const onMessage = (e) => void lane.onMessage(e);
     window.addEventListener('message', onMessage);

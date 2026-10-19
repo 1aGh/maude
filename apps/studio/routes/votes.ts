@@ -73,6 +73,12 @@ export interface VoteRouteDeps {
   applyOps(file: string, ops: Op[]): Promise<{ ok: boolean; error?: string }>;
   /** S9.9 — a canvas-only session acts on the canvases it holds; a Response refuses (as missing). */
   scope?: (req: Request, file: string) => Response | null;
+  /**
+   * sec-a C1(c) — the result's names: target (`ab:<id>`) → the artboard's label, read by the SERVER
+   * from the canvas source (designRoot-relative `canvas`). Never the body's labels: those come off
+   * the untrusted canvas (`vote-board`). Absent → the result names each target by its id.
+   */
+  labels?: (canvas: string) => Promise<Record<string, string>> | Record<string, string>;
   fetchImpl?: typeof fetch;
   now?: () => number;
 }
@@ -122,16 +128,17 @@ async function readBody(req: Request): Promise<Record<string, unknown> | Respons
 const validFile = (f: unknown): f is string =>
   typeof f === 'string' && f.length > 0 && f.length <= 1024 && !f.includes('\0');
 
-/** labels / place from the shell (it reads them off the canvas): sanitized, optional. */
-function hintsOf(body: Record<string, unknown>): ResultHints {
+/**
+ * The place from the shell (sanitized, optional) + the labels the SERVER read (sec-a C1(c)): a body
+ * `labels` map is ignored — the shell takes it off the untrusted canvas, and the result text is the
+ * one line people read as the outcome.
+ */
+function hintsOf(body: Record<string, unknown>, labels: Record<string, string> = {}): ResultHints {
   const hints: ResultHints = {};
-  const l = body.labels;
-  if (l && typeof l === 'object' && !Array.isArray(l)) {
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(l as Record<string, unknown>).slice(0, 64))
-      if (typeof v === 'string' && k.length <= 200) out[k] = v.slice(0, 120);
-    hints.labels = out;
-  }
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(labels).slice(0, 64))
+    if (typeof v === 'string' && k.length <= 200) out[k] = v.slice(0, 120);
+  hints.labels = out;
   const p = body.place as { x?: unknown; y?: unknown } | undefined;
   if (p && Number.isFinite(p.x) && Number.isFinite(p.y))
     hints.place = { x: p.x as number, y: p.y as number };
@@ -401,7 +408,7 @@ export function createVoteRoutes(deps: VoteRouteDeps): RouteSpec[] {
         if (typeof id !== 'string' || !VOTE_ID_RE.test(id)) return refuse('not-found');
         const home = await deps.home();
         if (home.kind === 'off') return refuse('votes-off');
-        const hints = hintsOf(b.body);
+        const hints = hintsOf(b.body, (await deps.labels?.(b.canvas)) ?? {});
         const me = await deps.person(req);
         if (home.kind === 'local') {
           const els = await elementsOf(b.file);

@@ -110,6 +110,7 @@ describe('the bar and the dots', () => {
       time: '1:42',
       done: '4 of 5 done',
       faces: ROW.done,
+      pending: false, // sec-a M2: nothing moved on the canvas waits for Cast
     });
     expect(barModel({ ...ROW, title: '', expected: undefined }, {}, 0)?.what).toBe('3 artboards');
     expect(barModel({ ...ROW, state: 'ended' }, {}, 0)).toBeNull();

@@ -8,7 +8,10 @@
 //
 // The untrusted canvas (DDR-054) hears `vote-state` (the projection: the vote's targets, state, your own
 // dots, the counts once ended — never a name, never anyone else's picks) and asks `vote-cast {artboard,
-// remove?}` / `vote-board {artboards, open?}`. No React, no DOM: `fetchImpl` / `now` / `setTimer` are
+// remove?}` / `vote-board {artboards, open?}`. sec-a M2 (lead decision `v2-lead-ballots-commit-in-shell`):
+// a `vote-cast` only moves a PENDING pick; the ballot is posted by the shell bar's Cast button alone, so a
+// canvas can't spend the viewer's vote. `vote-board {open}` no longer opens the sheet either (C1(e)):
+// "Start a vote…" is a shell gesture (⌘K, the artboard menu routed through the shell's own handlers). No React, no DOM: `fetchImpl` / `now` / `setTimer` are
 // injected, so it is unit-tested without a browser.
 
 /** The words (CONTRACT §3–§4). */
@@ -22,6 +25,8 @@ export const VOTE_WORDS = {
   failed: 'Couldn’t start the vote. Nothing was changed.',
   castFailed: 'Your vote didn’t count. Try again.',
   noneLeft: 'No votes left. Take one back to move it.',
+  cast: 'Cast',
+  clear: 'Clear',
   ended: 'Vote ended. The counts are on the canvas.',
 };
 
@@ -29,6 +34,8 @@ export const VOTE_WORDS = {
 export const DURATIONS = [60, 120, 300, 600];
 export const DEFAULT_DURATION = 120;
 export const DEFAULT_PER_VOTER = 3;
+/** sec-a C1(e) — how long a shell "Start a vote…" lets the canvas's answer open the sheet. */
+export const SHEET_ASK_MS = 3000;
 /** While a vote is open the store re-reads this often (the "4 of 5 done" faces). */
 export const POLL_MS = 3000;
 
@@ -62,10 +69,11 @@ export function clock(msLeft) {
 }
 
 /** The bar's pieces: "Vote · 3 directions · 0 left of your 3 · ⏱ 1:42 · 4 of 5 done". */
-export function barModel(vote, mine, now) {
+export function barModel(vote, mine, now, pending = null) {
   if (!vote || vote.state !== 'open') return null;
   const n = vote.targets.length;
-  const left = Math.max(0, vote.perVoter - spent(mine));
+  const picks = pending ?? mine;
+  const left = Math.max(0, vote.perVoter - spent(picks));
   const done = vote.done?.length ?? 0;
   return {
     what: vote.title || (n === 1 ? '1 artboard' : `${n} artboards`),
@@ -74,7 +82,18 @@ export function barModel(vote, mine, now) {
     time: clock(vote.endsAt - now),
     done: vote.expected ? `${done} of ${vote.expected} done` : `${done} done`,
     faces: [...(vote.done ?? [])],
+    /** sec-a M2 — picks moved on the canvas but not cast yet: the bar offers Cast / Clear. */
+    pending: pending !== null && !samePicks(pending, mine),
   };
+}
+
+/** Two picks maps hold the same dots. */
+export function samePicks(a, b) {
+  const x = a ?? {};
+  const y = b ?? {};
+  const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
+  for (const k of keys) if ((x[k] ?? 0) !== (y[k] ?? 0)) return false;
+  return true;
 }
 
 /**
@@ -165,6 +184,8 @@ export function createVoteStore(o = {}) {
     line: null,
     vote: null,
     mine: {},
+    /** sec-a M2 — the picks the canvas moved, not cast yet (null = none). Only Cast posts them. */
+    pending: null,
     me: null,
     artboards: [],
     sheet: null, // { focus?: string } while the sheet is open
@@ -176,6 +197,9 @@ export function createVoteStore(o = {}) {
   let gen = 0;
   let lastPoll = 0;
   let endingId = null;
+  /** sec-a C1(e) — when the shell last asked the canvas for "Start a vote…" (null = not asked). */
+  let askedAt = null;
+  let offer = () => {};
   const set = (patch) => {
     state = { ...state, ...patch };
     for (const f of subs) f(state);
@@ -209,11 +233,13 @@ export function createVoteStore(o = {}) {
     }
     const before = state.vote;
     const vote = currentVote(r.data.votes);
+    const keep = vote?.state === 'open' && before?.id === vote.id;
     set({
       mode: r.data.mode,
       line: r.data.line ?? null,
       vote,
       mine: (vote && r.data.mine?.[vote.id]) || {},
+      pending: keep ? state.pending : null,
       me: r.data.me ?? null,
     });
     arm();
@@ -248,7 +274,15 @@ export function createVoteStore(o = {}) {
     setFile(file) {
       if (file === state.file) return;
       gen++;
-      set({ file: file ?? null, vote: null, mine: {}, mode: null, artboards: [], sheet: null });
+      set({
+        file: file ?? null,
+        vote: null,
+        mine: {},
+        pending: null,
+        mode: null,
+        artboards: [],
+        sheet: null,
+      });
       arm();
       if (file) void load();
     },
@@ -258,15 +292,27 @@ export function createVoteStore(o = {}) {
     setRole({ canEdit, canVote }) {
       set({ canEdit: !!canEdit, canVote: !!canVote });
     },
-    /** dgn `vote-board` from the active canvas: its artboards; `open` asks for the sheet. */
+    /**
+     * dgn `vote-board` from the active canvas: its artboards. sec-a C1(e) — its `open` no longer opens
+     * the sheet: a canvas could pop "Start a vote" over the shell unasked. The sheet opens from a shell
+     * gesture (`openSheet`: ⌘K "Start a vote…", the artboard menu's run-action).
+     */
     noteBoard({ artboards, open, focus }) {
-      const list = cleanArtboards(artboards);
-      set({
-        artboards: list,
-        ...(open && state.canEdit
-          ? { sheet: { focus: typeof focus === 'string' ? focus : null } }
-          : {}),
-      });
+      set({ artboards: cleanArtboards(artboards) });
+      if (!open || !state.canEdit) return;
+      const f = typeof focus === 'string' ? focus : null;
+      if (askedAt !== null && now() - askedAt < SHEET_ASK_MS) {
+        askedAt = null;
+        set({ sheet: { focus: f } });
+      } else offer(f); // the canvas's own row (its artboard menu): the shell asks first
+    },
+    /** The shell ran "Start a vote…" (⌘K / a menu): the canvas's answer may open the sheet once. */
+    expectSheet() {
+      askedAt = now();
+    },
+    /** `offer(focus)` — how the shell asks before a canvas-asked sheet opens (VoteHost: a toast). */
+    setOffer(f) {
+      offer = typeof f === 'function' ? f : () => {};
     },
     openSheet(focus = null) {
       if (state.canEdit) set({ sheet: { focus } });
@@ -291,29 +337,42 @@ export function createVoteStore(o = {}) {
       await load();
       return { ok: true };
     },
-    /** A dot on (`+1`) or off (`-1`) an artboard — `vote-cast {artboard, remove?}`. */
-    async cast(artboard, delta = 1) {
+    /**
+     * A dot on (`+1`) or off (`-1`) an artboard — `vote-cast {artboard, remove?}` from the canvas.
+     * sec-a M2: it moves a PENDING pick only; nothing is posted until the person presses Cast.
+     */
+    pick(artboard, delta = 1) {
       const v = state.vote;
       if (!v || v.state !== 'open' || !state.canVote) return { ok: false };
-      const picks = nextPicks(state.mine, asTarget(artboard), delta, v.perVoter, v.targets);
+      const from = state.pending ?? state.mine;
+      const picks = nextPicks(from, asTarget(artboard), delta, v.perVoter, v.targets);
       if (!picks) {
         if (delta > 0 && v.targets.includes(asTarget(artboard))) notify(VOTE_WORDS.noneLeft);
         return { ok: false };
       }
-      const prev = state.mine;
-      set({ mine: picks }); // optimistic: your own dots only
+      set({ pending: samePicks(picks, state.mine) ? null : picks });
+      return { ok: true };
+    },
+    /** Drop the pending picks: back to the ballot as cast. */
+    clearPending() {
+      if (state.pending !== null) set({ pending: null });
+    },
+    /** The bar's Cast button (a shell gesture): post the pending picks as the session's ballot. */
+    async cast() {
+      const v = state.vote;
+      const picks = state.pending;
+      if (!v || v.state !== 'open' || !state.canVote || picks === null) return { ok: false };
       const r = await call(fetchImpl, 'POST', url('/ballot'), {
         file: state.file,
         id: v.id,
         picks,
       });
       if (r.status !== 200) {
-        set({ mine: prev });
         notify(r.data?.line ?? VOTE_WORDS.castFailed);
         if (r.status === 409) void load();
         return { ok: false };
       }
-      set({ mine: r.data.mine ?? picks, vote: r.data.vote ?? v });
+      set({ mine: r.data.mine ?? picks, pending: null, vote: r.data.vote ?? v });
       return { ok: true };
     },
     async end() {

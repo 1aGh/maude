@@ -225,6 +225,7 @@ import { useLastFinishedAt } from './v2/export/last-finished.js';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
+import ShellErrorBoundary from './v2/shell/shell-error-boundary.jsx';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
@@ -3403,14 +3404,30 @@ function App() {
 // V2-3.3 — so is Home (`/_config.mode === 'home'`, client/home/shell-mode.js).
 const root = createRoot(document.getElementById('root'));
 // S3.7a — a follow link (`?present=follow`, or any `audience` URL) is the follower page: never the editor.
-if (isFollowLocation(location)) root.render(<FollowView />);
-else if (isEmbedLocation(location)) root.render(<EmbedView />);
+// sec-a C3 — every root sits in the shell error boundary: one render throw shows a Reload card
+// instead of unmounting the whole window.
+if (isFollowLocation(location))
+  root.render(
+    <ShellErrorBoundary>
+      <FollowView />
+    </ShellErrorBoundary>
+  );
+else if (isEmbedLocation(location))
+  root.render(
+    <ShellErrorBoundary>
+      <EmbedView />
+    </ShellErrorBoundary>
+  );
 else {
   // S11.13 (Gate 0 D20) — the 1.x preferences move to their v2 homes once per origin, before the
   // first v2 home is read (a second boot is a no-op without a request). Bounded: a slow server
   // never holds the first paint, and a failure leaves the 1.x keys where they are.
   const migrated = migrateAtBoot().catch(() => {});
   Promise.race([migrated, new Promise((r) => setTimeout(r, 1500))]).then(() =>
-    bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />))
+    bootShellMode((mode) =>
+      root.render(
+        <ShellErrorBoundary>{mode === 'home' ? <HomeApp /> : <App />}</ShellErrorBoundary>
+      )
+    )
   );
 }

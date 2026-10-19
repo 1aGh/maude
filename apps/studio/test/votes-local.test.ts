@@ -39,6 +39,12 @@ function harness(home: VoteHome = { kind: 'local' }) {
       return { ok: true };
     },
     now: () => clock,
+    // sec-a C1(c) — the names come from the server's read of the canvas, not the request body
+    labels: async () => ({
+      'ab:a': 'Helma: matná zelená',
+      'ab:b': 'Helma: lesklá',
+      'ab:c': 'Helma: se pruhem',
+    }),
   });
   const find = (method: string, path: string) =>
     specs.find((s) => s.method === method && s.path === path) as RouteSpec;

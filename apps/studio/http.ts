@@ -2,7 +2,9 @@ import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
 import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
 import { serializeBoard } from './annotations/schema.ts';
+import { VOTE_DOOR_REFUSAL, voteDoorOnly } from './annotations/vote-guard.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
+import { artboardLabels } from './edit-ops/duplicate-at-width.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // HTTP layer for Bun.serve.
 //
@@ -1843,6 +1845,19 @@ export function createHttp(
       person: async () => ((await api.gitCurrentUser()) || 'You').slice(0, 64),
       readBoard: (file) => api.readBoard(file),
       applyOps: (file, ops) => api.applyAnnotationOps(file, ops),
+      // sec-a C1(c) — the result names come from the canvas source, never the canvas's vote-board
+      labels: (canvas) => {
+        if (!canvas || canvas.startsWith('/') || canvas.split('/').some((s) => s === '..' || !s))
+          return {};
+        try {
+          const src = readFileSync(join(ctx.paths.designRoot, ...canvas.split('/')), 'utf8');
+          const out: Record<string, string> = {};
+          for (const [id, label] of artboardLabels(src)) out[`ab:${id}`] = label;
+          return out;
+        } catch {
+          return {};
+        }
+      },
       scope: (req, file) => {
         const see = seerFor(req);
         if (!see) return null;
@@ -7284,7 +7299,17 @@ export function createHttp(
       return new Response('too many ops in one batch', { status: 413 });
     }
     const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
-    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
+    // sec-a M1 — no HTTP caller (canvas or main origin) writes a vote or a ballot: those land
+    // only through the vote door (routes/votes.ts → api.applyAnnotationOps in-process).
+    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined, {
+      guard: voteDoorOnly,
+    });
+    if (r.refused) {
+      return Response.json(
+        { ok: false, changed: false, rejected: [], error: VOTE_DOOR_REFUSAL },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
     return Response.json(r, {
       status: r.ok ? 200 : r.unreadable ? 409 : 413,
       headers: { 'Cache-Control': 'no-store' },

@@ -1205,6 +1205,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-offer-says` | testid | The plan in one line, as the agent wrote it, rendered as text. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-leaves` | testid | The line that names how many stickies the offer leaves alone. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-make` | testid | The offer card's one button, "Make these changes": sends the follow-up with the same stickies as the scope. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
+| `ai-offer-sends` | testid | The offer card's line saying exactly what "Make these changes" sends: words, stickies, how many it resolves, the refs (sec-a C2). | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-offer-skip` | testid | The offer card's "Not now": folds the card, sends nothing. | `client/v2/ai/OfferCard.jsx` · `OfferSlot` | — | new |
 | `ai-seen` | testid | Canvas side: the layer that holds the AI offer's outlines (aria-hidden, no pointer events). | `annotations/ui/ai-seen.tsx` · `AiSeenRings` | — | new |
 | `ai-seen-ring` | testid | Canvas side: one dashed spark outline + tag round what the AI's offer means ("The hero picture"). | `annotations/ui/ai-seen.tsx` · `AiSeenRings` | — | new |
@@ -1908,6 +1909,10 @@ These selectors appear in consumers but target content that is not studio UI, so
 | `vote-bar-time` | testid | The bar's countdown (m:ss). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
 | `vote-bar-done` | testid | The bar's faces + "4 of 5 done": WHO has voted, never what. | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
 | `vote-bar-end` | testid | The bar's End vote button (editors only; POST /_api/votes/end). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | test:votes | new |
+| `vote-bar-clear` | testid | The bar's Clear button: drops the dots moved on the canvas but not cast yet (pending picks only; sec-a M2). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | — | new |
+| `vote-bar-cast` | testid | The bar's Cast button: the only thing that posts your ballot; canvas dots are pending until it is pressed (sec-a M2). | `client/v2/annotations/vote-bar.jsx` · `VoteBar` | — | new |
+| `shell-error-card` | testid | The shell error boundary's card: a render throw shows "This window stopped drawing." instead of a blank window (sec-a C3). | `client/v2/shell/shell-error-boundary.jsx` · `ShellErrorBoundary` | — | new |
+| `shell-error-reload` | testid | The error card's Reload button (reloads the window). | `client/v2/shell/shell-error-boundary.jsx` · `ShellErrorBoundary` | — | new |
 | `vote-dots` | testid | The canvas-side vote chips host (world space; only while a vote is shown). | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |
 | `vote-dots-<artboard>` | testid (pattern) | Your dots on one voted artboard ("yours") while the vote is open; a dot click takes it back. | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |
 | `vote-add-<artboard>` | testid (pattern) | The "+" on a voted artboard: one more dot (disabled when none are left). | `annotations/ui/vote-dots.tsx` · `VoteDots` | test:votes | new |

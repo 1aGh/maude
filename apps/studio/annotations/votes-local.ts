@@ -121,8 +121,11 @@ export function boardVoteRow(
   if (typeof v.expected === 'number') row.expected = v.expected;
   if (ended) {
     row.endedAt = ms(v.endedAt);
-    row.tallies = { ...((v.tallies as Record<string, number>) ?? {}) };
-    row.voters = typeof v.votersDone === 'number' ? v.votersDone : done.length;
+    // sec-a C1(a) — the counts are RECOUNTED from the genuine ballots on every read; the stored
+    // `tallies` / `votersDone` fields are a projection for format-1 peers, never trusted here.
+    const recount = tallyBallots(elements, v.id);
+    row.tallies = recount.tallies;
+    row.voters = recount.voters;
   }
   return row;
 }
@@ -319,21 +322,37 @@ const finite = (p: unknown): p is { x: number; y: number } =>
   Math.abs((p as { x: number }).x) < 1e7 &&
   Math.abs((p as { y: number }).y) < 1e7;
 
-/** The result section + its text member, unless the section is already on the board. */
+/**
+ * The result section + its text member. sec-a C1(b): an existing section under the result id is
+ * OVERWRITTEN (a planted one must not stand as the outcome): its place is kept, anything else
+ * parented in it leaves, and its text is the recount's. Equal elements are no-op puts.
+ */
 export function resultOps(
   elements: readonly AnnotationElement[],
   row: VoteRow,
   hints: ResultHints = {}
 ): Op[] {
   const sid = voteResultId(row.id);
-  if (elements.some((e) => e.id === sid)) return [];
-  const at = finite(hints.place) ? hints.place : defaultPlace(elements);
+  const tid = `${sid}-t`.slice(0, 64);
+  const had = elements.find((e) => e.id === sid);
+  const kept =
+    had && typeof had.x === 'number' && typeof had.y === 'number' ? { x: had.x, y: had.y } : null;
+  const at = kept ?? (finite(hints.place) ? hints.place : defaultPlace(elements));
   const text = resultText(row, hints.labels ?? {});
   const lines = text.split('\n').length;
   const h = Math.max(150, 56 + lines * 26);
-  const i1 = keyBetween(topIndex(elements), null);
-  const i2 = keyBetween(i1, null);
-  return [
+  const top = topIndex(elements);
+  const i1 = typeof had?.index === 'string' ? had.index : keyBetween(top, null);
+  const oldText = elements.find((e) => e.id === tid);
+  const i2 =
+    typeof oldText?.index === 'string'
+      ? oldText.index
+      : keyBetween(top !== null && top > i1 ? top : i1, null);
+  const planted: Op[] = elements
+    .filter((e) => e.parent === sid && e.id !== tid)
+    .map((e) => ({ op: 'delete', id: e.id }));
+  const ops: Op[] = [
+    ...planted,
     {
       op: 'put',
       el: {
@@ -351,7 +370,7 @@ export function resultOps(
     {
       op: 'put',
       el: {
-        id: `${sid}-t`.slice(0, 64),
+        id: tid,
         type: 'text',
         parent: sid,
         index: i2,
@@ -363,6 +382,8 @@ export function resultOps(
       },
     },
   ];
+  // An unchanged section is a no-op put (applyOps skips an equal element), so a second End writes nothing.
+  return ops;
 }
 
 /** The vote element's end fields (local and hub): counts revealed at once. */

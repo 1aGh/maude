@@ -23148,6 +23148,62 @@
     "v2": "new"
   },
   {
+    "hook": "vote-bar-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's Clear button: drops the dots moved on the canvas but not cast yet (shows only with pending picks; sec-a M2).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-vote-cast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "vote-bar-cast",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's Cast button: the ONLY thing that posts your ballot (POST /_api/votes/ballot); canvas dots are pending until it is pressed (sec-a M2, decision v2-lead-ballots-commit-in-shell).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/vote-bar.jsx",
+      "symbol": "VoteBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-vote-cast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shell-error-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The shell error boundary's card: one render throw shows \"This window stopped drawing.\" instead of a blank window (sec-a C3).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/shell-error-boundary.jsx",
+      "symbol": "ShellErrorBoundary"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-canvas-toast.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shell-error-reload",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The error card's Reload button (reloads the window).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/shell-error-boundary.jsx",
+      "symbol": "ShellErrorBoundary"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-canvas-toast.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "vote-dots",
     "kind": "testid",
     "pattern": false,
@@ -23261,6 +23317,20 @@
     "sourceConsumers": [
       "apps/studio/test/annotations-ai-offer.test.ts"
     ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offer-sends",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offer card's line saying exactly what \"Make these changes\" sends: the canned words, how many stickies ride, how many it resolves, the refs it points at (sec-a C2).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/OfferCard.jsx",
+      "symbol": "OfferSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/sec-a-ai-offer.test.ts"],
     "v2": "new"
   },
   {

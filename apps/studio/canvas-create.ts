@@ -53,6 +53,13 @@ export function nameRefusal(suggestion?: string | null): string {
 export const NAME_MAX = 60;
 export const NAME_TOO_LONG = `Names are ${NAME_MAX} characters or fewer.`;
 export const NAME_EMPTY = 'Give it a name.';
+/** sec-a L3 — a leading `_` is the runtime-state mark (`_state/`, `_history/` … never sync, DDR-115):
+ *  a canvas or folder named so would stay on this Mac. CONTRACT §4: what happened · one verb. */
+export function underscoreRefusal(suggestion?: string | null): string {
+  return suggestion
+    ? `Names can’t start with _. Try “${suggestion}”.`
+    : 'Names can’t start with _. Try another name.';
+}
 
 /**
  * The typed name folded to the allowed set: — – and kin become `-`, letters lose their accents (NFD, then
@@ -99,6 +106,12 @@ function checkCanvasName(raw: unknown): NameValidation {
     return suggestion
       ? { ok: false, error: nameRefusal(suggestion), suggestion }
       : { ok: false, error: nameRefusal() };
+  }
+  if (name.startsWith('_')) {
+    const suggestion = name.replace(/^[_\s]+/, '');
+    return suggestion
+      ? { ok: false, error: underscoreRefusal(suggestion), suggestion }
+      : { ok: false, error: underscoreRefusal() };
   }
   if ([...name].length > NAME_MAX) return { ok: false, error: NAME_TOO_LONG };
   return { ok: true, name };

@@ -12,7 +12,13 @@
 import { useMessage, useThread } from '@assistant-ui/react';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { Spark } from './icons.jsx';
-import { askedAnnotations, OFFER_WORDS, parseOffer, seenTargetsFor } from './ai-offer.js';
+import {
+  askedAnnotations,
+  OFFER_WORDS,
+  parseOffer,
+  seenTargetsFor,
+  sendsLine,
+} from './ai-offer.js';
 import { sendAskSelection } from './ask-selection.js';
 import { annotationsScope } from './scope.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
@@ -43,9 +49,17 @@ const textOf = (parts) =>
     .map((p) => p.text)
     .join('\n');
 
-/** The assistant message's offer, validated against the ask it answers (null: plain text). */
-export function offerOf(parts, ask = askedAnnotations()) {
-  return parseOffer(textOf(parts), { scopeIds: ask?.ids ?? [] }).offer;
+/**
+ * The assistant message's offer, validated against the ask it answers (null: plain text). sec-a C2: the
+ * message must END on its own text (a tool part after it is not the agent's closing word), and `echoes` —
+ * the person's message this answers — must not already carry the block.
+ */
+export function offerOf(parts, ask = askedAnnotations(), echoes = []) {
+  const list = (Array.isArray(parts) ? parts : []).filter(
+    (p) => !(p?.type === 'text' && typeof p.text === 'string' && !p.text.trim())
+  );
+  if (list.at(-1)?.type !== 'text') return null;
+  return parseOffer(textOf(parts), { scopeIds: ask?.ids ?? [], echoes }).offer;
 }
 
 /**
@@ -72,6 +86,13 @@ export function acceptOffer({ offer, ask, send = sendAskSelection, mode = shellM
 export function OfferSlot({ parts, status }) {
   const id = useMessage((m) => m.id);
   const latestId = useThread((t) => t.messages[t.messages.length - 1]?.id);
+  // the person's message this answers: a block it carried is an echo, never the agent's offer (sec-a C2)
+  const asked = useThread((t) => {
+    const i = t.messages.findIndex((m) => m.id === id);
+    for (let j = i - 1; j >= 0; j--)
+      if (t.messages[j]?.role === 'user') return textOf(t.messages[j].content);
+    return '';
+  });
   const done = useSyncExternalStore(
     subscribe,
     () => answered.has(id),
@@ -79,8 +100,8 @@ export function OfferSlot({ parts, status }) {
   );
   const ask = askedAnnotations();
   const offer = useMemo(
-    () => (status === 'complete' ? offerOf(parts, ask) : null),
-    [parts, status, ask]
+    () => (status === 'complete' ? offerOf(parts, ask, asked ? [asked] : []) : null),
+    [parts, status, ask, asked]
   );
   const visible = !!offer && latestId === id && !done;
 
@@ -111,6 +132,9 @@ export function OfferSlot({ parts, status }) {
         <span className="ai-nc-tt" data-testid="ai-offer-says">
           {offer.says}
         </span>
+      </p>
+      <p className="ai-nc-d" data-testid="ai-offer-sends">
+        {sendsLine(offer, ask)}
       </p>
       {leaves ? (
         <p className="ai-nc-d" data-testid="ai-offer-leaves">
