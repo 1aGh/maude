@@ -1537,8 +1537,26 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return null;
   }
 
+  /**
+   * sec-a2 (Windows backslash) — a per-canvas sidecar is ONE file directly in `dir`.
+   * `canvasSlugFromRel` flattens `/` but not `\`, and on Windows `path.join` treats `\` as a
+   * separator, so a canvas named `..\..\x` reached a board or comment file outside the design
+   * root. A slug carrying `\` is refused everywhere (it is never a canvas a person made in the
+   * studio, which writes `/`), and the result must still sit directly in `dir`. Throws — every
+   * caller is a read that already fails soft or a write that must not happen.
+   */
+  function sidecarPath(dir: string, file: string, suffix: string): string {
+    const slug = fileSlug(file);
+    const base = path.resolve(dir);
+    const abs = path.resolve(base, `${slug}${suffix}`);
+    if (!slug || slug.includes('\\') || slug.includes('\0') || path.dirname(abs) !== base) {
+      throw new Error('not a canvas path');
+    }
+    return abs;
+  }
+
   function commentsPath(file: string): string {
-    return path.join(paths.commentsDir, `${fileSlug(file)}.json`);
+    return sidecarPath(paths.commentsDir, file, '.json');
   }
 
   async function loadCommentsForFile(file: string): Promise<Comment[]> {
@@ -2481,11 +2499,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // migrate-boot.ts) rewrites it on disk.
 
   function annotationsPath(file: string): string {
-    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.json`);
+    return sidecarPath(paths.designRoot, file, '.annotations.json');
   }
 
   function legacyAnnotationsPath(file: string): string {
-    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.svg`);
+    return sidecarPath(paths.designRoot, file, '.annotations.svg');
   }
 
   type BoardRead = { ok: true; text: string | null } | { ok: false; error: string };
@@ -2496,7 +2514,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    * empty board, or the next write would silently erase it (code review H2).
    */
   async function readBoard(file: string): Promise<BoardRead> {
-    for (const p of [annotationsPath(file), legacyAnnotationsPath(file)]) {
+    let candidates: string[];
+    try {
+      candidates = [annotationsPath(file), legacyAnnotationsPath(file)];
+    } catch {
+      return { ok: false, error: 'not a canvas path' };
+    }
+    for (const p of candidates) {
       const f = Bun.file(p);
       if (!(await f.exists())) continue;
       // Untrusted (peer / git) content: size gate BEFORE reading (DDR-054).
@@ -2640,6 +2664,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   ): Promise<boolean> {
     if (typeof text !== 'string' || text.length > MAX_ANNOTATIONS_BYTES) return false;
     if (!isCurrent()) return false;
+    let dest: string;
+    try {
+      dest = annotationsPath(file);
+    } catch {
+      return false;
+    }
     const clean = canonicalAnnotations(text);
     if (clean === null) return false;
     // Runtime scratch stays out of the file plane. The async IO must not touch
@@ -2651,7 +2681,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     try {
       await Bun.write(temp, clean);
       if (!isCurrent()) return false;
-      renameSync(temp, annotationsPath(file));
+      renameSync(temp, dest);
       announceWritten(`${fileSlug(file)}.annotations.json`);
       return true;
     } finally {

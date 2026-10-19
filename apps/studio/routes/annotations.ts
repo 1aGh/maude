@@ -545,7 +545,9 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
       const { file, url, at, confirmLarge } = parsed.req;
       try {
         // FigJam only: a design-file link is another import door, and the parser is the host gate.
-        if (parseFigmaTarget(url, 'board').surface !== 'board')
+        // sec-a2 — the board surface must come FROM the link: a bare key carries none, so it
+        // parses as `design` here and is refused (it could name a design file).
+        if (parseFigmaTarget(url, 'design').surface !== 'board')
           return json(400, { ok: false, reason: 'bad-url' });
       } catch {
         return json(400, { ok: false, reason: 'bad-url' });
