@@ -1180,6 +1180,18 @@ export function AnnotationContextToolbar({
       aria-label="Annotation properties"
       style={{ display: 'flex', top: -9999, left: -9999 }}
     >
+      {selectedStrokes.length > 1 ? (
+        <>
+          <span
+            className="dc-annot-ctx-label"
+            data-testid="annot-ctx-count"
+            style={{ padding: '0 8px', fontSize: 12, whiteSpace: 'nowrap' }}
+          >
+            <b>{selectedStrokes.length} annotations</b>
+          </span>
+          <div className="dc-annot-ctx-sep" />
+        </>
+      ) : null}
       {caps.fill ? (
         <>
           <div className="dc-annot-ctx-mode" role="radiogroup" aria-label="Swatch target">

@@ -71,6 +71,10 @@ export const PRESENT_HIDES: readonly string[] = [
   '.dc-cv-halo', // a selected / hovered element's halo
   '.dc-cv-group-bbox',
   '.dc-activity-rim',
+  // S4.9 - the annotation layer never reaches an audience, whatever the viewer's own switch says.
+  '.dc-annot-scene',
+  '.dc-annot-lod',
+  '.dc-annot-svg',
 ];
 
 /** The CSS the engine stylesheet carries for `PRESENT_HIDES`. */

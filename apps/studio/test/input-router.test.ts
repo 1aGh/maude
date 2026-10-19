@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  annotationToolOwnsPointer,
   type ClassifyInput,
   classify,
   crossedDragThreshold,
@@ -766,5 +767,43 @@ describe('input-router / dragPansCanvas — Preview Hand (Q3)', () => {
     expect(isDesignSurface(el(false) as unknown as EventTarget)).toBe(false);
     expect(isDesignSurface(null)).toBe(false);
     expect(isDesignSurface({} as EventTarget)).toBe(false);
+  });
+});
+
+// S4.9 (an-visibility) - the posture rows: Edit shows the annotation layer quiet and click-through, so a
+// leftover annotation tool id owns no pointer there; Preview's owns it; a canvas no shell governs is v1.
+describe('input-router / annotation tools by mode (S4.9)', () => {
+  test('Edit: a bare click with a leftover annotation tool selects the design under the sticky', () => {
+    const action = classify(
+      base({ type: 'pointerdown', button: 0, activeTool: 'sticky' as Tool, mode: 'edit' })
+    );
+    expect(action).toMatchObject({ kind: 'select', mode: 'replace' });
+  });
+
+  test('Edit: hover with a leftover annotation tool still paints the design halo', () => {
+    const action = classify(base({ type: 'pointermove', activeTool: 'pen' as Tool, mode: 'edit' }));
+    expect(action.kind).toBe('hover');
+  });
+
+  test('Preview: the armed annotation tool owns the click', () => {
+    expect(
+      classify(
+        base({ type: 'pointerdown', button: 0, activeTool: 'sticky' as Tool, mode: 'preview' })
+      )
+    ).toEqual({ kind: 'no-op' });
+    expect(
+      classify(base({ type: 'pointermove', activeTool: 'pen' as Tool, mode: 'preview' }))
+    ).toEqual({ kind: 'no-op' });
+  });
+
+  test('a canvas no shell governs keeps v1: the armed annotation tool owns the click', () => {
+    expect(
+      classify(base({ type: 'pointerdown', button: 0, activeTool: 'sticky' as Tool }))
+    ).toEqual({ kind: 'no-op' });
+  });
+
+  test('Viewing and Present never hand the pointer to an annotation tool', () => {
+    for (const mode of ['viewing', 'present'] as const)
+      expect(annotationToolOwnsPointer({ activeTool: 'pen' as Tool, mode })).toBe(false);
   });
 });

@@ -70,12 +70,15 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { inMosaic, LOD_CSS, LodMosaic, lodModel, type Rect } from './annotations/ui/lod.tsx';
+import { annotationPosture } from './annotations/ui/posture.ts';
 import { resolveInk } from './annotations/ui/tool-prefs.ts';
 import {
   eraseTargetIndex,
   useCanvasChromeTheme,
   useToolState,
 } from './annotations/ui/tool-state.ts';
+import { filterByAuthors, knownIds, withoutResolved } from './annotations/ui/visibility.ts';
 import {
   type AlignEdge,
   alignStrokes,
@@ -198,7 +201,7 @@ import {
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
 import { clickToType } from './editing/click-to-type.ts';
-import { crossedDragThreshold, type Tool } from './input-router.tsx';
+import { crossedDragThreshold, postModeRequest, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
 import {
   AnnotationResizeOverlay,
@@ -221,6 +224,7 @@ import {
 } from './use-canvas-media-drop.tsx';
 import { useChromeVisibility } from './use-chrome-visibility.tsx';
 import { type AnnotationGesture, colorForName, useCollab } from './use-collab.tsx';
+import { useGovernedMode } from './use-governed-mode.ts';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
 import { useUndoSinks, useUndoStackOptional } from './use-undo-stack.tsx';
@@ -471,6 +475,11 @@ function findTextStrokeAt(
 // Styles
 
 const ANNOT_CSS = `
+/* S4.9 - Edit's posture (annotations/ui/posture.ts): the ink fades, a sticky's paper is mixed with grey in
+   JS (quietPaper) so its words keep their contrast, and nothing in the scene takes a pointer: a click
+   reaches the design under it. */
+.dc-annot-scene[data-an-quiet] .dc-annot-el:not([data-tool="sticky"]) { opacity: 0.45; }
+.dc-annot-scene[data-an-quiet], .dc-annot-scene[data-an-quiet] * { pointer-events: none !important; }
 .dc-annot-input {
   position: absolute;
   inset: 0;
@@ -527,7 +536,7 @@ function ensureAnnotStyles(): void {
   if (document.getElementById('dc-annot-css')) return;
   const s = document.createElement('style');
   s.id = 'dc-annot-css';
-  s.textContent = `${ANNOT_CSS}\n${TEXT_LAYER_CSS}`;
+  s.textContent = `${ANNOT_CSS}\n${LOD_CSS}\n${TEXT_LAYER_CSS}`;
   document.head.appendChild(s);
 }
 
@@ -898,7 +907,15 @@ export function AnnotationsLayer() {
   // Presentation Mode hides annotations without mutating the user's own
   // visibility toggle — render/input gate folds `present` in, the stored value
   // (visibilityCtx.visible) is left untouched so exiting restores it.
-  const visible = (visibilityCtx?.visible ?? true) && !(chrome?.present ?? false);
+  const mode = useGovernedMode();
+  const posture = annotationPosture(mode, visibilityCtx?.visible ?? true, chrome?.present ?? false);
+  const visible = posture !== 'hidden';
+  const quiet = posture === 'quiet';
+  // S4.9 - what the list and the ⌘K rows ask the layer to leave out of view (a view, never a delete).
+  const [authorFilter, setAuthorFilter] = useState<readonly string[]>([]);
+  const [hideResolved, setHideResolved] = useState(false);
+  // ⇧⌘A pressed in Edit: the layer asks the shell for Preview and selects once it has landed.
+  const selectAllPending = useRef(false);
   const setVisible = useCallback(
     (next: boolean | ((cur: boolean) => boolean)) => {
       if (!visibilityCtx) return;
@@ -1526,6 +1543,36 @@ export function AnnotationsLayer() {
     [commitStrokes, annotSel]
   );
 
+  // S4.9 - tell the shell the board changed (a local write, a peer's, an undo) so the Preview annotation list
+  // re-reads it. Trailing, so a drag's burst of versions is one message. The first version is a load, not a change.
+  const announcedVersion = useRef(boardVersion);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the board version
+  useEffect(() => {
+    if (announcedVersion.current === boardVersion) return;
+    announcedVersion.current = boardVersion;
+    const file = fileRef.current;
+    if (!file || typeof window === 'undefined' || window.parent === window) return;
+    const t = window.setTimeout(() => {
+      try {
+        window.parent.postMessage({ dgn: 'annotations-changed', file }, '*');
+      } catch {
+        /* detached */
+      }
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [boardVersion]);
+  // S4.9 - Edit shows the layer quiet, and a quiet layer holds no selection: a chord (⇧⌘L, ⌘G, ] [ ...) can
+  // never land on a sticky the user cannot see as selectable.
+  useEffect(() => {
+    if (posture === 'quiet' && annotSel && annotSel.selectedIds.length > 0) annotSel.clear();
+  }, [posture, annotSel]);
+  // ⇧⌘A from Edit: Preview has landed, select them all (the bar says "N annotations").
+  useEffect(() => {
+    if (posture !== 'drawn' || !selectAllPending.current || !annotSel) return;
+    selectAllPending.current = false;
+    annotSel.replace(strokesRef.current.map((s) => s.id));
+  }, [posture, annotSel]);
+
   // Menubar bridge (Phase 5.1 Task 10) — listen for postMessages from the
   // dev-server shell. `run-action` select.none + `tool-set` live in canvas-shell
   // (those providers are above us); we own visibility + select.all-annotations
@@ -1540,12 +1587,51 @@ export function AnnotationsLayer() {
         if (typeof m.visible === 'boolean') setVisible(m.visible);
         return;
       }
+      // S4.9 - the Preview annotation list (client/v2/annotations/annotation-list.jsx) selects and filters.
+      if (m.dgn === 'annotation-filter') {
+        const a = (m as { v?: unknown; authors?: unknown }).authors;
+        if ((m as { v?: unknown }).v !== 1 || !Array.isArray(a)) return;
+        setAuthorFilter(
+          a.filter((x): x is string => typeof x === 'string' && x.length <= 200).slice(0, 64)
+        );
+        return;
+      }
+      if (m.dgn === 'annotation-select') {
+        const ids = (m as { v?: unknown; ids?: unknown }).ids;
+        if ((m as { v?: unknown }).v !== 1 || !Array.isArray(ids) || !annotSel) return;
+        annotSel.replace(
+          knownIds(
+            ids.filter((x): x is string => typeof x === 'string').slice(0, 5000),
+            strokesRef.current
+          )
+        );
+        return;
+      }
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown; id?: unknown }).v === 1 &&
+        (m as { id?: unknown }).id === 'annotations.hide-resolved'
+      ) {
+        setHideResolved((h) => !h);
+        return;
+      }
       // V2-2.4 — Select all annotations rides the `run-action` lane (V2-1.3 §5.7).
       if (
         m.dgn === 'run-action' &&
         (m as { v?: unknown; id?: unknown }).v === 1 &&
         (m as { id?: unknown }).id === 'select.all-annotations'
       ) {
+        // S4.9 - annotations are Preview's to change: in Edit the layer asks for Preview first and
+        // selects them once it has landed (the effect below).
+        const governed = canvasModeStore(window).get().mode;
+        if (governed && !modeShows(governed, 'annotations-editable')) {
+          selectAllPending.current = true;
+          postModeRequest({ mode: 'preview', cause: 'key' });
+          window.setTimeout(() => {
+            selectAllPending.current = false;
+          }, 2000);
+          return;
+        }
         if (annotSel) annotSel.replace(strokes.map((s) => s.id));
         return;
       }
@@ -2283,6 +2369,12 @@ export function AnnotationsLayer() {
   const renderStrokes = useMemo(
     () => (drawing ? [...strokes, drawing] : strokes),
     [strokes, drawing]
+  );
+  // S4.9 - the person filter and C29's Hide resolved stickies leave elements out of the DRAWING only.
+  const shownStrokes = useMemo(
+    () =>
+      withoutResolved(filterByAuthors(renderStrokes, authorFilter, collab?.myName), hideResolved),
+    [renderStrokes, authorFilter, hideResolved, collab?.myName]
   );
   // Task 22 — what is being drawn, live for peers (pen ink tail, or the box).
   const drawPublishedRef = useRef(false);
@@ -3921,9 +4013,10 @@ export function AnnotationsLayer() {
         {visible ? (
           <AnnotationsSvg
             worldRef={worldRef}
-            strokes={renderStrokes}
+            strokes={shownStrokes}
+            quiet={quiet}
             anchorsById={anchorsById}
-            selectMode={tool === 'move'}
+            selectMode={tool === 'move' && !quiet}
             selectedStrokes={selectedStrokes}
             selectionLocked={selectionLocked}
             marquee={marquee}
@@ -3948,7 +4041,7 @@ export function AnnotationsLayer() {
         {/* DDR-150 dogfood #8 — inline players for media-reference chips (HTML
           overlay in the world div; see MediaRefPlayers for why not
           foreignObject). */}
-        <MediaRefPlayers worldRef={worldRef} strokes={renderStrokes} visible={visible} />
+        <MediaRefPlayers worldRef={worldRef} strokes={shownStrokes} visible={visible} />
         <AnnotationContextToolbar
           editingId={
             editingTarget?.kind === 'anchored'
@@ -3979,7 +4072,9 @@ export function AnnotationsLayer() {
             onClose={() => setCtxMenu(null)}
           />
         ) : null}
-        {visible && tool === 'move' ? <AnnotationResizeOverlay store={strokesStore} /> : null}
+        {visible && !quiet && tool === 'move' ? (
+          <AnnotationResizeOverlay store={strokesStore} />
+        ) : null}
       </StrokesStoreContext.Provider>
     </AnnotationPipelineContext.Provider>
   );
@@ -4074,6 +4169,7 @@ function AnnotationsSvg({
   strokes,
   anchorsById,
   selectMode,
+  quiet,
   selectedStrokes,
   selectionLocked,
   marquee,
@@ -4108,6 +4204,8 @@ function AnnotationsSvg({
   editNotice: 'edited' | 'deleted' | null;
   anchorsById: Map<string, AnchorHost>;
   selectMode: boolean;
+  /** S4.9 - Edit's posture: faded, readable, click-through (annotations/ui/posture.ts). */
+  quiet: boolean;
   selectedStrokes: readonly Stroke[];
   /** #137 — a locked member pins the selection: no handles, a lock badge. */
   selectionLocked: boolean;
@@ -4213,14 +4311,36 @@ function AnnotationsSvg({
       onCancel: () => cancelRef.current(),
     };
   }, [sessionKey, editNotice]);
+  // S4.9 (an-crowd) - below 25 % the stickies and sections draw as a mosaic (annotations/ui/lod.tsx).
+  // The PUBLISHED zoom (settle cadence), so a pinch never flips it mid-gesture.
+  const lodCtl = useViewportControllerContext();
+  const lodZoom = lodCtl?.viewport?.zoom ?? 1;
+  const lod = useMemo(
+    () => (inMosaic(lodZoom) && !editingId ? lodModel(strokes) : null),
+    [lodZoom, editingId, strokes]
+  );
+  if (lod) items = items.filter((it) => !lod.covered.has(it.el.id));
+  const zoomToRect = useCallback(
+    (r: Rect) => {
+      lodCtl?.jumpTo(r as unknown as Parameters<NonNullable<typeof lodCtl>['jumpTo']>[0]);
+    },
+    [lodCtl]
+  );
   const target = worldRef?.current ?? null;
   if (!target) return null;
   return (
     <>
+      {lod
+        ? createPortal(
+            <LodMosaic model={lod} zoom={lodZoom} quiet={quiet} onZoomTo={zoomToRect} />,
+            target
+          )
+        : null}
       {createPortal(
         <AnnotationScene
           items={items}
           interactive={selectMode}
+          quiet={quiet}
           editingId={editingId}
           edit={edit}
           pending={pending}
