@@ -149,4 +149,32 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     visible: { minRole: 'owner', facts: ['linkedHub'] },
     search: { keywords: ['resend', 'invitation', 'pending'] },
   },
+  // S9.21 (10 co-ask-edit): a view-only person's one way to more — one request to the project's owners
+  // (routes/share.ts → the hub, which judges `request` on the scope and rate-limits it). The answer is the
+  // owner's, from the request block at the top of Share; approve / decline take the request `{ id }`, so
+  // ⌘K does not list them (a row there would have no request to answer).
+  {
+    id: 'share.ask-to-edit',
+    label: 'Ask to edit',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'view', facts: ['linkedHub'] },
+    search: { keywords: ['ask to edit', 'request access', 'edit access', 'permission'] },
+  },
+  {
+    id: 'share.request-approve',
+    label: 'Let them edit',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'share.request-decline',
+    label: 'Not now',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: { hidden: true },
+  },
 ];

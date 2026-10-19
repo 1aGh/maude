@@ -1659,6 +1659,8 @@ function ShellProjectPill() {
   live.current = {
     native,
     activePath,
+    // S9.21 — Ask to edit names the open canvas designRoot-relative (the hub keys a grant that way)
+    designRel: cfg?.designRel,
     canvasName: displayName(basename(activePath || '')),
     toast: (m) => shellToast(m),
     postToActiveCanvas,

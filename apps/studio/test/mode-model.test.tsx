@@ -162,15 +162,17 @@ describe('md-edge-viewer · a view-only link, in a browser', () => {
   test('Ask to edit runs S9.21’s registry action when it exists, else says what to do', () => {
     const ran: string[] = [];
     const said: string[] = [];
-    // S9.21 has not registered `share.ask-to-edit` in this build: the line is said, nothing runs
+    // S9.21 registered `share.ask-to-edit`: the button runs it (the flow says its own words); the fallback
+    // line stays for a build without it, and is never said beside the action.
     expect(
       askToEdit(
         (id: string) => ran.push(id),
         (t: string) => said.push(t)
       )
-    ).toBe('fallback');
-    expect(said).toEqual([ASK_TO_EDIT_FALLBACK]);
-    expect(ran).toEqual([]);
+    ).toBe('action');
+    expect(ran).toEqual(['share.ask-to-edit']);
+    expect(said).toEqual([]);
+    expect(ASK_TO_EDIT_FALLBACK).toBe('Ask a project owner for edit access.');
   });
 });
 

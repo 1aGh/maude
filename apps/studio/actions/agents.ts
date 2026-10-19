@@ -820,6 +820,27 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/share/invites/:id/resend', method: 'POST' },
     agent: human('invite'),
   },
+  // S9.21 — asking for more access and granting it are a person's (an agent never asks on someone's
+  // behalf, never answers for an owner). Ask is any role's (the hub answers an editor 409); the answer is
+  // the owner's, refused below owner by routes/share.ts first and by the hub (`invite`) always.
+  'share.ask-to-edit': {
+    effect: 'shared',
+    minRole: 'view',
+    server: { route: '/_api/share/requests', method: 'POST' },
+    agent: human('roles'),
+  },
+  'share.request-approve': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/requests/:id/approve', method: 'POST' },
+    agent: human('roles'),
+  },
+  'share.request-decline': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/requests/:id/decline', method: 'POST' },
+    agent: human('roles'),
+  },
   // ── presence (S9.23) ──
   // Where people are is awareness, not a file: an agent reads the room through the studio, never writes
   // it. Go to is the view move `maude design open` already does; Bring everyone here is a person's

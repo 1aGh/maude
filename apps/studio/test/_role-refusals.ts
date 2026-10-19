@@ -130,6 +130,18 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   },
   { method: 'POST', route: '/_api/share/people/:id/remove', refused: ['view', 'comment', 'edit'] },
   { method: 'POST', route: '/_api/share/invites/:id/resend', refused: ['view', 'comment', 'edit'] },
+  // S9.21 — the answer to an Ask to edit is the owner's (`invite`); asking is everyone's, so no role is below it.
+  {
+    method: 'POST',
+    route: '/_api/share/requests/:id/approve',
+    refused: ['view', 'comment', 'edit'],
+  },
+  {
+    method: 'POST',
+    route: '/_api/share/requests/:id/decline',
+    refused: ['view', 'comment', 'edit'],
+  },
+  { method: 'POST', route: '/_api/share/requests', refused: [] },
   // S10.3b — the design-system writes (routes/ds.ts, Q15): every one is a project edit; a token's
   // clear-out is the owner's (`writeCapability` classes /_api/ds/clear `delete`).
   ...[

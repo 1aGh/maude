@@ -64,7 +64,7 @@ export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
 // S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
-export { type ShareRouteDeps, shareInviteSender } from './share.ts';
+export { type ShareRouteDeps, shareAskToEditSender, shareInviteSender } from './share.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];

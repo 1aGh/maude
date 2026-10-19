@@ -210,6 +210,7 @@ import {
   riderPatch,
   runStageHooks,
   type ShareRouteDeps,
+  shareAskToEditSender,
   shareInviteSender,
   trashAccess,
 } from './routes/index.ts';
@@ -1732,6 +1733,8 @@ export function createHttp(
     outbox,
   };
   outboxSenders['share.invite'] = shareInviteSender(shareDeps);
+  // S9.21 — an Ask to edit queued while the hub could not hear it; sends `{ canvas? }` only.
+  outboxSenders['share.ask-to-edit'] = shareAskToEditSender(shareDeps);
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
   // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c2308323457c",
+  "manifestVersion": "2d9730b64c40",
   "actions": [
     {
       "id": "search.open",
@@ -2837,6 +2837,54 @@
       "agent": {
         "path": "human",
         "because": "invite"
+      }
+    },
+    {
+      "id": "share.ask-to-edit",
+      "label": "Ask to edit",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "view",
+      "server": {
+        "route": "/_api/share/requests",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
+      }
+    },
+    {
+      "id": "share.request-approve",
+      "label": "Let them edit",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/requests/:id/approve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
+      }
+    },
+    {
+      "id": "share.request-decline",
+      "label": "Not now",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/requests/:id/decline",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
       }
     },
     {
