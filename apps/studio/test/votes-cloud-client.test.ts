@@ -139,7 +139,8 @@ describe('cloud votes (hub-held ballots)', () => {
     expect(h.board()).not.toContain('ballot');
     const v = parseBoard(h.board()).elements.find((e) => e.id === id);
     expect(v?.type).toBe('vote');
-    expect(v?.state).toBe('open');
+    expect(v?.state ?? 'open').toBe('open'); // the default word is omitted from the record
+    expect(v?.tallies).toBeUndefined();
 
     const end = await h.call('You', 'POST', '/_api/votes/end', {
       file: FILE,
