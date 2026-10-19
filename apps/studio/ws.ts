@@ -8,6 +8,7 @@ import { type Access, accessWiderThan } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
+import { canvasSlugFromRel } from './canvas-slug.ts';
 import type { Collab, RoomConn } from './collab/index.ts';
 import type { Context } from './context.ts';
 import { createContainerWriteBridge, createHmrBroadcaster } from './hmr-broadcast.ts';
@@ -417,6 +418,20 @@ export function createWs(
   // right room to disconnect from. Multiplexed via ws.data.id.
   const collabConns = new Map<string, { roomSlug: string; conn: RoomConn }>();
 
+  // S9.21b (decision v2-lead-trashed-while-open-stops-writes) — a canvas moved to the trash while a tab
+  // has it open takes no writes: routes/trash.ts's write stop names the stopped canvases after every
+  // read of the Trash, and every collab socket on one of them turns read-only with no writable lane
+  // (comments included) until it is restored. Presence still flows.
+  let trashStopped: ReadonlySet<string> = new Set();
+  ctx.bus.on('trash:write-stop', (p: { stems?: unknown }) => {
+    const stems = Array.isArray(p?.stems) ? p.stems : [];
+    trashStopped = new Set(
+      stems
+        .filter((s): s is string => typeof s === 'string' && s !== '')
+        .map((s) => canvasSlugFromRel(`${s}.tsx`, ctx.paths.designRel))
+    );
+  });
+
   function bindCollab(
     ws: ServerWebSocket<WsData>,
     slug: string,
@@ -430,9 +445,14 @@ export function createWs(
       id: ws.data.id,
       realm,
       // S9.15c — a lanes-closed conn is read-only too (presence strip, gated path).
-      readOnly: readOnly || lanesClosed,
+      // S9.21b — read per frame, so a canvas trashed under an open socket stops at once.
+      get readOnly() {
+        return readOnly || lanesClosed || trashStopped.has(slug);
+      },
+      get lanesClosed() {
+        return lanesClosed || trashStopped.has(slug);
+      },
       ...(follow ? { follow: true } : {}),
-      ...(lanesClosed ? { lanesClosed: true } : {}),
       // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
