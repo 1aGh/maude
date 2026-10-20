@@ -319,6 +319,20 @@ export interface CanvasToShell {
    */
   'space-tap': Empty;
   /**
+   * S7.17 (07 · ve-together) — the teammates whose timeline is open, from this canvas's awareness (already through
+   * `sanitizeForeignState`): where each playhead is (`artboardId`, `frame`) and the caption word each is fixing
+   * (`word`, a `src|wordId|clip` key). ≤ PEERS_MAX entries; names are untrusted text, rendered as text only.
+   */
+  'timeline-peers': {
+    peers: Array<{
+      clientID: number;
+      name: string;
+      artboardId: string;
+      frame?: number;
+      word?: string;
+    }>;
+  };
+  /**
    * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
    * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
    * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
@@ -523,6 +537,9 @@ export interface ShellToCanvas {
   // shows the chip "Or drop here — adds at the end" (`on: false` = the drag ended or left). The shell owns the drop
   // (a catcher over the artboard's rect), so the canvas only draws.
   'timeline-drop-hint': { artboardId: Id; on: boolean };
+  // S7.17 (07 ve-together): the caption word this person is fixing in the shell (the Transcript panel's field) — the
+  // canvas publishes it on awareness as a soft lock; `{ artboardId: null }` = they left it.
+  'timeline-word': { artboardId: Id | null; wordKey?: string };
   // S7.20: the F size picker's hover — where the artboard of this preset would land, dashed and labelled
   // ("FB event cover 1920 × 1005"); `null` = the pointer left the tiles. The canvas picks the place.
   'size-ghost': {
@@ -835,6 +852,33 @@ const intIn =
 /** The `data-cd-id` grammar the writers accept (api.ts CD_ID_RE): word characters and dashes, 1–64. */
 const cdId: V = (v) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : BAD);
 const rect = shape({ x: num, y: num, w: num, h: num });
+/** S7.17 — a caption word key (`src|wordId|clip`): bounded, no control characters (collab/timeline-awareness.ts). */
+export const TIMELINE_WORD_MAX = 512;
+const wordKeyV: V = (v) => {
+  if (typeof v !== 'string' || v.length < 5 || v.length > TIMELINE_WORD_MAX) return BAD;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to refuse them
+  if (/[\u0000-\u001f\u007f]/.test(v) || v.split('|').length < 3) return BAD;
+  return v;
+};
+/** `timeline-peers` (S7.17): a planted or oversized list is REJECTED whole, never trimmed. */
+const timelinePeerList: V = (v) => {
+  if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
+  const cell = shape({
+    clientID: intIn(0, Number.MAX_SAFE_INTEGER),
+    name: (x) => (typeof x === 'string' && x.length <= PEER_NAME_MAX ? x : BAD),
+    artboardId: linkArtboardIdV,
+    frame: opt(intIn(0, 10_000_000)),
+    word: opt(wordKeyV),
+  });
+  const out: unknown[] = [];
+  for (const x of v) {
+    if (!isPlain(x)) return BAD;
+    const r = cell(x);
+    if (r === BAD) return BAD;
+    out.push(r);
+  }
+  return out;
+};
 /** A palette colour as the tools store it: `#rrggbb` or `#rrggbbaa` (the receivers check palette membership). */
 const hexColour: V = (v) =>
   typeof v === 'string' && /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(v) ? v : BAD;
@@ -1597,6 +1641,13 @@ const c2s: C2S = {
     owner: 'v2/timeline (S7.8)',
     parse: none,
   },
+  // S7.17 — teammates' playheads + caption words for the timeline island (collab/timeline-presence → v2/timeline/peers).
+  'timeline-peers': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline/peers (S7.17)',
+    parse: p({ peers: timelinePeerList }),
+  },
   'ask-selection': {
     gate: 'active',
     status: 'live',
@@ -2018,6 +2069,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'editing/drop-chip (S7.9)',
     parse: p({ artboardId: str, on: bool }),
+  },
+  // S7.17 — the caption word this person is in; the canvas publishes it as awareness `editing` (collab/timeline-presence).
+  'timeline-word': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'collab/timeline-presence (S7.17)',
+    parse: p({ artboardId: nul(linkArtboardIdV), wordKey: opt(wordKeyV) }),
   },
   'size-ghost': {
     gate: 'parent',
