@@ -279,6 +279,18 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'ONE kernel action (proposeFiles: meta lane.replace ops, plus the TSX where a data-ds-rev pin goes) for every switched canvas (ds/switch.ts, S10.14); nothing on Plane B',
     test: 'test/ds-switch.test.ts',
   },
+  '/_api/ds/fix-contrast': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles) — the lightness fix is a waiting edit (ds/edges.ts, S10.17)',
+    test: 'test/ds-edges.test.ts',
+  },
+  '/_api/ds/add-colour': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending add entry) as ONE kernel action (proposeFiles) (ds/edges.ts, S10.17)',
+    test: 'test/ds-edges.test.ts',
+  },
+  '/_api/ds/nearest': { class: 'read' }, // S10.17 the closest system colour (ds/nearest.ts)
+  '/_api/ds/off-system': { class: 'read' }, // S10.17 hand-picked colours on the changed lines (ds/edges.ts)
   '/_api/ds/default': {
     class: 'file-plane',
     rows: "config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only",
