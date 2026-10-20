@@ -110,14 +110,6 @@
       "lint/a11y/noNoninteractiveTabindex": 3,
       "lint/a11y/useSemanticElements": 3
     },
-    "apps/studio/client/panels/TimelinePanel.jsx": {
-      "lint/a11y/noAutofocus": 1,
-      "lint/a11y/noStaticElementInteractions": 11,
-      "lint/a11y/noSvgWithoutTitle": 1,
-      "lint/a11y/useAriaPropsSupportedByRole": 2,
-      "lint/a11y/useKeyWithClickEvents": 5,
-      "lint/a11y/useSemanticElements": 2
-    },
     "apps/studio/client/panels/acp-runtime.js": {
       "lint/suspicious/noAssignInExpressions": 2
     },
@@ -166,6 +158,14 @@
     },
     "apps/studio/client/v2/ai/paste-chips.jsx": {
       "lint/suspicious/noAssignInExpressions": 2
+    },
+    "apps/studio/client/v2/timeline/Timeline.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 11,
+      "lint/a11y/noSvgWithoutTitle": 1,
+      "lint/a11y/useAriaPropsSupportedByRole": 2,
+      "lint/a11y/useKeyWithClickEvents": 5,
+      "lint/a11y/useSemanticElements": 2
     },
     "apps/studio/client/whats-new.jsx": {
       "lint/a11y/noStaticElementInteractions": 1

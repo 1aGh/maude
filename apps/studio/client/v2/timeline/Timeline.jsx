@@ -21,10 +21,17 @@ import { createPortal } from 'react-dom';
 
 import { ImagePlus, MessageSquarePlus, Plus, Scissors, Sparkles, Type } from 'lucide-react';
 
-import ClipInspector from './ClipInspector.jsx';
-import { computeSnapTargets, snapFrame } from './timeline-snap.js';
-import { activeComp } from './timeline-comp-target.js';
-import { getFilmstrip, getPeaks, peaksToPath, stripBucket } from './timeline-media-cache.js';
+import ClipInspector from '../../panels/ClipInspector.jsx';
+import { useTimelineIsland } from './island-context.js';
+import { KeptStatus, SizeButton } from './island-controls.jsx';
+import { computeSnapTargets, snapFrame } from '../../panels/timeline-snap.js';
+import { activeComp } from '../../panels/timeline-comp-target.js';
+import {
+  getFilmstrip,
+  getPeaks,
+  peaksToPath,
+  stripBucket,
+} from '../../panels/timeline-media-cache.js';
 import {
   clampPxPerFrame,
   fitPxPerFrame,
@@ -34,11 +41,11 @@ import {
   tickStepFrames,
   ZOOM_STEP,
   zoomAroundScroll,
-} from './timeline-scale.js';
+} from '../../panels/timeline-scale.js';
 // DDR-150 dogfood — reuse the SAME context-menu component the canvas uses
 // (viewport-aware positioning, keyboard nav, outside-click/Esc dismiss, shared
 // .dc-context-menu styling) instead of a bespoke shell menu.
-import { ContextMenuView } from '../../context-menu.tsx';
+import { ContextMenuView } from '../../../context-menu.tsx';
 
 // DDR-150 dogfood #6 — per-row media-kind identity so the timeline reads like
 // an editor: what's footage, what's a still, what's audio, what's plain JSX.
@@ -242,6 +249,8 @@ export default function TimelinePanel({
   const scrollRef = useRef(null);
   const draggingRef = useRef(false);
   const rootRef = useRef(null);
+  // S7.7 — the island around this body (null when it stands alone): the empty-comp block lives there.
+  const island = useTimelineIsland();
   // Focus the dock the moment it opens — the transport shortcuts live on the
   // SHELL window and need shell focus (see the pre-restructure history).
   useEffect(() => {
@@ -370,7 +379,7 @@ export default function TimelinePanel({
   })();
   const zoomFromSlider = (v) => {
     const ratio = clamp(v, 0, 100) / 100;
-    return fitPxf * Math.pow(MAX_PX_PER_FRAME / Math.max(1e-6, fitPxf), ratio);
+    return fitPxf * (MAX_PX_PER_FRAME / Math.max(1e-6, fitPxf)) ** ratio;
   };
 
   // -------------------------------------------------------------------------
@@ -517,7 +526,7 @@ export default function TimelinePanel({
     const move = (e) => {
       const deltaFrames = (e.clientX - retimeDrag.startX) / retimeDrag.pxf;
       const rawEnd = retimeDrag.startFrom + Math.round(retimeDrag.startDur + deltaFrames);
-      let end = snapFrame(rawEnd, retimeDrag.targets, e.altKey ? 0 : 8 / retimeDrag.pxf);
+      const end = snapFrame(rawEnd, retimeDrag.targets, e.altKey ? 0 : 8 / retimeDrag.pxf);
       if (end !== rawEnd) flashSnap(end);
       let curDur = Math.max(1, end - retimeDrag.startFrom);
       // Task 8 — clamp to the source's real duration (footage sidecar) so a
@@ -1606,6 +1615,8 @@ export default function TimelinePanel({
             onChange={(e) => zoomTo(zoomFromSlider(Number(e.target.value)))}
           />
         ) : null}
+        <KeptStatus />
+        <SizeButton />
         <button type="button" className="tl-x" aria-label="Close timeline" onClick={onClose}>
           ×
         </button>
@@ -1617,6 +1628,10 @@ export default function TimelinePanel({
           <b>⌘K → New video…</b> for an empty one, or make an artboard a
           <code>&lt;VideoComp&gt;</code> yourself.
         </div>
+      ) : island?.empty && sequences.length === 0 && audio.length === 0 ? (
+        // S7.7 (05 · es-timeline) — a video artboard with no clips: the kit's line + one AI chip. The panel's
+        // own onDrop is on its root, so the block is the drop zone too.
+        island.empty
       ) : (
         <div className="tl-scroll" ref={setScrollRef}>
           <div

@@ -1890,7 +1890,7 @@
     "pattern": false,
     "meaning": "The Timeline (video) panel root.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1906,7 +1906,7 @@
     "pattern": false,
     "meaning": "Drag handle that resizes the Timeline panel height.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1919,7 +1919,7 @@
     "pattern": false,
     "meaning": "Play/pause button.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1932,7 +1932,7 @@
     "pattern": false,
     "meaning": "Loop toggle.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1945,7 +1945,7 @@
     "pattern": false,
     "meaning": "Mute toggle.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1958,7 +1958,7 @@
     "pattern": false,
     "meaning": "Volume slider.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1971,7 +1971,7 @@
     "pattern": false,
     "meaning": "Artboard (comp) picker.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1984,7 +1984,7 @@
     "pattern": false,
     "meaning": "Current-time readout.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -1999,7 +1999,7 @@
     "pattern": false,
     "meaning": "Split-at-playhead button.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2012,7 +2012,7 @@
     "pattern": false,
     "meaning": "Add-title-clip button.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2027,7 +2027,7 @@
     "pattern": false,
     "meaning": "Add-image-clip button.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2040,7 +2040,7 @@
     "pattern": false,
     "meaning": "Add an AI placeholder clip at the end of the storyline.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2053,7 +2053,7 @@
     "pattern": false,
     "meaning": "Timeline comment tool toggle.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2066,7 +2066,7 @@
     "pattern": false,
     "meaning": "Badge warning that the comp is long (slow export).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2079,7 +2079,7 @@
     "pattern": false,
     "meaning": "Timeline zoom control.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2094,7 +2094,7 @@
     "pattern": false,
     "meaning": "Empty state (no video comp on the canvas).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2110,7 +2110,7 @@
     "pattern": false,
     "meaning": "The scrollable track area.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2125,7 +2125,7 @@
     "pattern": false,
     "meaning": "The storyline (main clip) row.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2140,7 +2140,7 @@
     "pattern": false,
     "meaning": "The playhead.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2153,7 +2153,7 @@
     "pattern": false,
     "meaning": "Insertion caret shown while dragging a clip (two render sites).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2166,7 +2166,7 @@
     "pattern": false,
     "meaning": "Drop zone below the lanes that creates a new layer.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2179,7 +2179,7 @@
     "pattern": false,
     "meaning": "Tooltip while trimming a clip in-point.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2192,7 +2192,7 @@
     "pattern": false,
     "meaning": "Tooltip while retiming/trimming a clip.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2205,7 +2205,7 @@
     "pattern": false,
     "meaning": "Tooltip while moving a clip.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2218,7 +2218,7 @@
     "pattern": false,
     "meaning": "The strip of comment markers above the track.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2231,7 +2231,7 @@
     "pattern": true,
     "meaning": "One comment marker on the strip.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2244,7 +2244,7 @@
     "pattern": false,
     "meaning": "Timeline comment composer.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2257,7 +2257,7 @@
     "pattern": false,
     "meaning": "Timeline comment submit.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2270,7 +2270,7 @@
     "pattern": false,
     "meaning": "Popover showing a timeline comment.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2283,7 +2283,7 @@
     "pattern": true,
     "meaning": "Storyline clip block `<i>` (0-based); `title` includes \"drag to move\".",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2300,7 +2300,7 @@
     "pattern": true,
     "meaning": "Speed chip on clip `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2313,7 +2313,7 @@
     "pattern": true,
     "meaning": "Muted chip on clip `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2326,7 +2326,7 @@
     "pattern": true,
     "meaning": "Keyframe marker `<k>` on clip `<i>` (click seeks to it).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2339,7 +2339,7 @@
     "pattern": true,
     "meaning": "Comment pin on a clip (`<id>` = comment id).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2352,7 +2352,7 @@
     "pattern": true,
     "meaning": "Show/collapse the layers of beat `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2365,7 +2365,7 @@
     "pattern": true,
     "meaning": "Right-edge handle: drag to retime clip `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2380,7 +2380,7 @@
     "pattern": true,
     "meaning": "Left-edge handle: drag to trim the in-point of clip `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2393,7 +2393,7 @@
     "pattern": true,
     "meaning": "Replace-media button on clip `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2406,7 +2406,7 @@
     "pattern": true,
     "meaning": "Add-transition button at seam `<k>` (between clips).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2419,7 +2419,7 @@
     "pattern": true,
     "meaning": "Transition chip at seam `<k>` (click to edit).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2432,7 +2432,7 @@
     "pattern": true,
     "meaning": "Audio row `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2445,7 +2445,7 @@
     "pattern": true,
     "meaning": "Replace-audio button on audio row `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2458,7 +2458,7 @@
     "pattern": true,
     "meaning": "Overlay/audio lane row `<i>` (three render sites).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2471,7 +2471,7 @@
     "pattern": true,
     "meaning": "Lane label chip on row `<i>` (drag up/down to reorder layers).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2484,7 +2484,7 @@
     "pattern": true,
     "meaning": "Show/collapse the layers of row `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2497,7 +2497,7 @@
     "pattern": true,
     "meaning": "Layer `<li>` of lane `<i>` (two render sites).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2510,7 +2510,7 @@
     "pattern": true,
     "meaning": "The draggable block of layer `<li>` in lane `<i>`.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -2523,7 +2523,7 @@
     "pattern": true,
     "meaning": "Replace-media button on a layer block.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -8537,7 +8537,7 @@
     "pattern": false,
     "meaning": "Timeline panel root (same element as `timeline-panel`).",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -8553,7 +8553,7 @@
     "pattern": false,
     "meaning": "A storyline clip block; `.is-selected` = selected.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -8569,7 +8569,7 @@
     "pattern": false,
     "meaning": "A beat in the storyline.",
     "producer": {
-      "file": "apps/studio/client/panels/TimelinePanel.jsx",
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
@@ -27043,5 +27043,11 @@
   {"hook": "ds-token-locked-line", "kind": "testid", "pattern": false, "meaning": "S10.7: \"Locked brand colour. It can't be changed here.\" — replaces every field of a locked token.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
   {"hook": "ds-token-advanced", "kind": "testid", "pattern": false, "meaning": "S10.7: The token's Advanced fold: Light and Dark as the files write them, and the CSS name.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
   {"hook": "ds-token-nosystem", "kind": "testid", "pattern": false, "meaning": "S10.7: The token's canvas follows no design system: nothing to edit.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenBody"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-loading", "kind": "testid", "pattern": false, "meaning": "S10.7: The system is being read, or the studio could not give its model.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenBody"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"}
+  {"hook": "ds-token-loading", "kind": "testid", "pattern": false, "meaning": "S10.7: The system is being read, or the studio could not give its model.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenBody"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
+  {"hook": "timeline-island", "kind": "testid", "pattern": false, "meaning": "The timeline island (S7.7): the floating panel tied to the selected video artboard. `data-size` is `compact` or `full`, `data-artboard` the video it edits; it carries `data-occludes=\"bottom\"` once settled so Fit leaves room.", "producer": {"file": "apps/studio/client/v2/timeline/island.jsx", "symbol": "TimelineIsland"}, "region": "timeline", "consumers": [], "sourceConsumers": ["apps/studio/test/timeline-island.test.tsx"], "v2": "new"},
+  {"hook": "timeline-notch", "kind": "testid", "pattern": false, "meaning": "The notch on the compact island's top edge, pointing at the centre of the video artboard it belongs to (S7.7).", "producer": {"file": "apps/studio/client/v2/timeline/island.jsx", "symbol": "TimelineIsland"}, "region": "timeline", "consumers": [], "sourceConsumers": ["apps/studio/test/timeline-island.test.tsx"], "v2": "new"},
+  {"hook": "timeline-size", "kind": "testid", "pattern": false, "meaning": "Expand / Compact in the island's header (S7.7); no key. `aria-label` is the current action.", "producer": {"file": "apps/studio/client/v2/timeline/island-controls.jsx", "symbol": "SizeButton"}, "region": "timeline", "consumers": [], "sourceConsumers": ["apps/studio/test/timeline-island.test.tsx"], "v2": "new"},
+  {"hook": "timeline-kept", "kind": "testid", "pattern": false, "meaning": "\"Kept open\" in the island's header while the shortcut holds it open (S7.7).", "producer": {"file": "apps/studio/client/v2/timeline/island-controls.jsx", "symbol": "KeptStatus"}, "region": "timeline", "consumers": [], "sourceConsumers": ["apps/studio/test/timeline-island.test.tsx"], "v2": "new"},
+  {"hook": "timeline-empty-kit", "kind": "testid", "pattern": false, "meaning": "The S11 kit block on a video artboard with no clips (05 es-timeline): the situation and the one next step (S7.7).", "producer": {"file": "apps/studio/client/v2/timeline/timeline-empty.jsx", "symbol": "TimelineEmpty"}, "region": "timeline", "consumers": [], "sourceConsumers": ["apps/studio/test/timeline-island.test.tsx"], "v2": "new"},
+  {"hook": "timeline-empty-ask", "kind": "testid", "pattern": false, "meaning": "The one AI chip on an empty timeline, \"Cut 15 s from those clips\": pre-fills the chat, never sends; only where footage exists (S7.7).", "producer": {"file": "apps/studio/client/v2/timeline/timeline-empty.jsx", "symbol": "TimelineEmpty"}, "region": "timeline", "consumers": [], "sourceConsumers": ["apps/studio/test/timeline-island.test.tsx"], "v2": "new"}
 ]

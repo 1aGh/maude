@@ -37,7 +37,7 @@ export const EMPTY_CHROME_SEL =
 
 const LABEL_MAX = 120;
 
-function articleOf(doc: Document, id: string): HTMLElement | null {
+export function articleOf(doc: Document, id: string): HTMLElement | null {
   try {
     return doc.querySelector<HTMLElement>(`[data-dc-screen="${CSS.escape(id)}"]`);
   } catch {
@@ -45,7 +45,7 @@ function articleOf(doc: Document, id: string): HTMLElement | null {
   }
 }
 
-const bodyOf = (article: Element): HTMLElement | null =>
+export const bodyOf = (article: Element): HTMLElement | null =>
   article.querySelector<HTMLElement>(':scope > .dc-artboard-body');
 
 /** Does this artboard hold nothing but chrome? (An artboard with no body at all is not "empty": legacy markup.) */
@@ -58,7 +58,7 @@ function hasContent(article: Element): boolean {
   return false;
 }
 
-function labelOf(article: Element): string {
+export function labelOf(article: Element): string {
   const raw = article.querySelector(':scope > .dc-artboard-label')?.firstChild?.textContent;
   return (raw ?? article.getAttribute('data-dc-screen') ?? '').trim().slice(0, LABEL_MAX);
 }
