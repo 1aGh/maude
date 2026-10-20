@@ -94,7 +94,9 @@ Default: every system `status` lists with `converted: false`, one at a time. For
 
 1. Write `$RUN/handoff/ds-migrator-$N.in.json` — the hand-off in
    [`agents/ds-migrator.md`](../agents/ds-migrator.md) § Sample hand-off, with `context.ds` set and `owns` naming
-   `<ds.path>/design-system.tsx` + its `.meta.json`, the review and the result. (`RUN` and `N` as `/design:critic`
+   `<ds.path>/design-system.tsx` + its `.meta.json`, the review, its three run-folder verb outputs
+   (`$RUN/ds-migrator-$N.status.json`, `.plan.json`, `.result.json`: the agent saves the verb answers there, and the
+   hook refuses a run-folder write that `owns` does not name) and the result. (`RUN` and `N` as `/design:critic`
    defines them.) A `design-system.tsx` that already exists is a refusal of the verb: report it, never move it.
 2. Spawn `subagent_type: "design:ds-migrator"` with the hand-off JSON, then one line — "Hand-off: <path>".
 3. `maude design check <output>`, then print its summary and the review file. `status: "partial"` means the person

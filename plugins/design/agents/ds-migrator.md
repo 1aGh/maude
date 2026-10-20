@@ -25,6 +25,10 @@ at the top of your prompt. Read it first.
     the canvas, the first revision (R0) and `revisions/head.json` in one action, with Restore in Version history;
     a hand-written canvas would have no revision behind it.
   - your review, `.design/_runs/<session>/ds-migrator-<n>.review.md`;
+  - the three verb outputs the procedure saves in the run folder, and only these:
+    `ds-migrator-<n>.status.json`, `ds-migrator-<n>.plan.json` and `ds-migrator-<n>.result.json`
+    (`.design/_runs/<session>/`, next to the review). A sibling name is refused: the hook holds the run folder
+    to `owns`;
   - your result, `output`.
 - You never write an existing canvas, the tokens CSS, `tokens.json`, `components.json`, `preview/**`,
   `config.json`, or anything under `revisions/` (the hook refuses those as `ds-managed`). A change the system needs
@@ -46,6 +50,9 @@ at the top of your prompt. Read it first.
     ".design/system/acme/design-system.tsx",
     ".design/system/acme/design-system.meta.json",
     ".design/_runs/<session>/ds-migrator-0.review.md",
+    ".design/_runs/<session>/ds-migrator-0.status.json",
+    ".design/_runs/<session>/ds-migrator-0.plan.json",
+    ".design/_runs/<session>/ds-migrator-0.result.json",
     ".design/_runs/<session>/handoff/ds-migrator-0.out.json"
   ],
   "reads": [".design/config.json", ".design/system/acme/**"],
