@@ -56,6 +56,7 @@ import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
 import { deriveTracks } from './tracks.js';
 import { isBand } from './transport.js';
 import { KeptStatus, SharedStatus, SizeButton } from './island-controls.jsx';
+import { OtherTakesHost } from './other-takes.jsx';
 import { ReframeHost } from './reframe-island.jsx';
 import { bindClips } from './clip-search.js';
 import { FOLD_WORDS, FOLDABLE, trackFold, useFoldVersion } from './fold.js';
@@ -2839,6 +2840,15 @@ export default function TimelinePanel({
         canEdit={canEditHere && !!onClipVerb}
         url={selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null}
         run={(params) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.reframe', params)}
+      />
+      {/* S7.15 — Other takes: the selected clip's other good moments, swapped in at the same length (07 · ve-ai-adjust) */}
+      <OtherTakesHost
+        seq={selSeq}
+        fps={fps}
+        name={selSeq ? displayNameOf(selSeq, selIndex) : ''}
+        canEdit={canEditHere && !!onClipVerb}
+        url={selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null}
+        run={(params) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.take.swap', params)}
       />
       {fitFill.ask
         ? createPortal(

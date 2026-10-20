@@ -17,6 +17,7 @@ import { TITLE_MOTION_FRAMES } from '../../../../video/title-motion.ts';
 import { AdvancedFold } from '../../fold/advanced-fold.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
 import { FootageRows, footageAdvanced, useClipFootage } from '../../timeline/footage-rows.jsx';
+import { otherTakesUi } from '../../timeline/other-takes.jsx';
 import { reframeUi } from '../../timeline/reframe-island.jsx';
 import { registerKind, singleOf } from './index.js';
 import { registerSlot } from '../slots.js';
@@ -156,6 +157,22 @@ function FramingRow({ t, ctx }) {
       >
         Re-frame…
       </button>
+      {/* S7.15 (07 · ve-ai-adjust): the clip's other good moments, swapped in at the same length */}
+      {['Video', 'OffthreadVideo', 'MaudeVideo'].includes(t.seq.mediaTag ?? '') &&
+      t.seq.mediaSrc ? (
+        <button
+          type="button"
+          className="insp-quietlink"
+          data-testid="insp-clip-takes"
+          onClick={() =>
+            typeof ctx?.onShellAction === 'function'
+              ? ctx.onShellAction('video.take.swap')
+              : otherTakesUi.open()
+          }
+        >
+          Other takes…
+        </button>
+      ) : null}
     </Row>
   );
 }

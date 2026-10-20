@@ -39,6 +39,8 @@
 @import url("../v2/ai/ai.css");
 /* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */
 @import url("../v2/ai/ai-run.css");
+/* S7.15 — the AI cut's chat cards: footage line, watch grid, left out (client/v2/ai/video/). */
+@import url("../v2/ai/video/video-cards.css");
 /* S5.11 — the ✦ N run list and the waiting card. */
 @import url("../v2/ai/runs.css");
 @import url("../v2/ai/ai-list-advanced.css");
@@ -176,6 +178,8 @@
 /* S7.7 — the timeline island: placement, notch, Kept open / Expand, the empty block (client/v2/timeline/). */
 @import url("../v2/timeline/timeline.css");
 @import url("../v2/timeline/ai-edge.css");
+/* S7.15 — Other takes: the popover above a clip (client/v2/timeline/other-takes.jsx). */
+@import url("../v2/timeline/other-takes.css");
 /* S7.10 — the join picker, the "how should it sit?" ask and the Music line (client/v2/timeline/joins/). */
 @import url("../v2/timeline/joins/joins.css");
 /* S7.18 — the timeline's Advanced at its foot: frames, the easing curve, render settings, the cut as code. */

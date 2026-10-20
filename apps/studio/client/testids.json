@@ -38864,5 +38864,197 @@
       "apps/studio/test/timeline-marks.test.ts"
     ],
     "v2": "new in v2 (S7.17)"
+  },
+  {
+    "hook": "ai-clips-attached",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The footage line under an AI cut's ask: a stack of the first three clips and \"12 clips · 1:20 of footage · from Assets\" (S7.15, 07 ve-ai-watch).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/ClipsAttached.jsx",
+      "symbol": "ClipsAttached"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "ai-watch-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The watching card in the chat: one tile per attached clip and the found lines (data-done / data-total) (S7.15, 07 ve-ai-watch).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/WatchProgress.jsx",
+      "symbol": "WatchProgress"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "ai-watch-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The watching card title: \"Watching 12 clips… 7 done\" (built from the run progress numbers) (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/WatchProgress.jsx",
+      "symbol": "WatchProgress"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "ai-watch-found",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What AI liked so far: the last three found lines, each the second, what is in it and the clip (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/WatchProgress.jsx",
+      "symbol": "WatchProgress"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "ai-left-out-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "While shots land: AI's message \"Watched all 12. Left out 3: …\" with the reasons from the footage (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/LeftOut.jsx",
+      "symbol": "LeftOut"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "ai-left-out",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Once the run has ended: the clips the cut left out, named with their reason, and Use them anyway (S7.15, 07 ve-ai-proposal).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/LeftOut.jsx",
+      "symbol": "LeftOut"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "ai-left-out-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Use them anyway: sends a new ask that names the clips that were left out (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/video/LeftOut.jsx",
+      "symbol": "LeftOut"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ai-cut-cards.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "other-takes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Other takes: the popover above the selected clip with the source's other good moments, same length (S7.15, 07 ve-ai-adjust).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/other-takes.jsx",
+      "symbol": "OtherTakesPop"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/other-takes-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "other-takes-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The popover title: \"Other takes · Touchdown 2\" (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/other-takes.jsx",
+      "symbol": "OtherTakesPop"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/other-takes-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "other-takes-take",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One take: its first frame, its seconds, and \"AI's pick\" or its length; data-on = the take the clip is on, data-pick = AI's pick. Click swaps it in (video.take.swap) (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/other-takes.jsx",
+      "symbol": "OtherTakesPop"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/other-takes-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "other-takes-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The popover foot: \"Click a take to swap it in. Same length, same beat.\", or who to ask when the role cannot edit (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/other-takes.jsx",
+      "symbol": "OtherTakesPop"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/other-takes-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
+  },
+  {
+    "hook": "insp-clip-takes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Other takes… under a video clip's Framing row: opens the Other takes popover (video.take.swap) (S7.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "FramingRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/other-takes-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.15)"
   }
 ]

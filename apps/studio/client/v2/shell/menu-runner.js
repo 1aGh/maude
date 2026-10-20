@@ -66,6 +66,7 @@ import { setPosterAtPlayhead } from '../timeline/poster.js';
 import { timelineStore } from '../timeline/timeline-store.js';
 import { addCaptionsFromSpeech, transcriptUi } from '../transcript/captions-api.js';
 import { formatsUi } from '../inspector/formats-ui.js';
+import { otherTakesUi } from '../timeline/other-takes.jsx';
 import { reframeUi } from '../timeline/reframe-island.jsx';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
@@ -421,6 +422,8 @@ export function createMenuHandlers(d) {
     'video.transcript.open': () => transcriptUi.toggle(),
     // S7.13 — the Re-frame island (on the selected clip) and the Video inspector's Formats rows (07 ve-reframe, ve-formats)
     'video.reframe': () => reframeUi.open(),
+    // S7.15 — Other takes on the selected clip (07 ve-ai-adjust); the swap itself is the clip pipe's `video.take.swap`
+    'video.take.swap': () => otherTakesUi.open(),
     'video.format.add': () => {
       const said = formatsUi.requestAdd();
       if (said) d.toast?.(said);
