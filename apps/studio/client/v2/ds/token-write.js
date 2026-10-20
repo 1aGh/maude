@@ -10,7 +10,7 @@
 // entry the person saw: if someone else changed the same token since, the engine answers `ds-pending-conflict`
 // and the panel re-reads and shows theirs (two Macs on different tokens never meet).
 
-import { followDark } from '../../../ds/contrast.ts';
+import { followedDark } from '../../../ds/contrast.ts';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 const NAME_MAX = 64;
@@ -100,12 +100,18 @@ export function buildEntry(token, themes, edit) {
   const light = themes.light;
   const followedBefore = darkFollowsOf(token);
   let follows = followedBefore;
-  // Dark re-derived from the Light value that will be on screen, keeping the relation the pair has now
+  // Dark re-derived from the Light value that will be on screen, keeping the relation the pair has now. The engine
+  // applies the same rule to an entry that carries no Dark (S10.21b); sending it here keeps the request whole.
   const refollow = (nextLight) => {
-    const dark = followDark(
-      { light: currentValue(token, themes, light), dark: currentValue(token, themes, themes.dark) },
-      nextLight
-    );
+    const dark = followedDark({
+      follows: true,
+      nextLight,
+      ownDark: undefined,
+      prev: {
+        light: currentValue(token, themes, light),
+        dark: currentValue(token, themes, themes.dark),
+      },
+    });
     if (dark) entry[themes.dark] = dark;
   };
 

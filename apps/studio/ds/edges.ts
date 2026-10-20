@@ -20,7 +20,7 @@ import { buildBoardModel } from './board/build-model.ts';
 import type { BoardModel, BoardToken } from './board/types.ts';
 import { checkCanvas, scopeToChanged } from './canvas-check.ts';
 import { canvasContext } from './canvas-cli.ts';
-import { type ContrastFix, fixContrast, followDark, resolveColour } from './contrast.ts';
+import { type ContrastFix, fixContrast, followedDark, resolveColour } from './contrast.ts';
 import type { DsEngine, DsResult, PendingToken } from './engine.ts';
 import type { By } from './head.ts';
 import { type Nearest, nearestForToken, nearestForValue } from './nearest.ts';
@@ -211,11 +211,17 @@ export function createDsEdges(
     const lightFix = byTheme.get(light);
     const darkFix = dark ? byTheme.get(dark) : undefined;
     for (const [t, v] of byTheme) entry[t] = v;
-    if (dark && lightFix !== undefined && darkFix === undefined && followedBefore) {
-      // Dark follows Light: it moves with the fix, keeping the pair's relation
-      const d = followDark({ light: at(light), dark: at(dark) }, lightFix);
-      if (d) entry[dark] = d;
-    } else if (dark && darkFix !== undefined) follows = false; // Dark set by hand: it no longer follows
+    // Dark follows Light: it moves with the fix, keeping the pair's relation (the one follow rule, ds/contrast.ts)
+    const d = dark
+      ? followedDark({
+          follows: followedBefore,
+          nextLight: lightFix,
+          ownDark: darkFix,
+          prev: { light: at(light), dark: at(dark) },
+        })
+      : null;
+    if (dark && d) entry[dark] = d;
+    else if (dark && darkFix !== undefined) follows = false; // Dark set by hand: it no longer follows
     if (follows !== (token.darkFollows !== false)) entry.darkFollows = follows;
     const names = { ...(token.pending?.valueNames ?? {}) };
     if (Object.keys(names).length) entry.valueNames = names;

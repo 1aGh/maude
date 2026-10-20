@@ -262,7 +262,7 @@ const CASES: Record<string, Case> = {
     verb: ['pending', DS, '--cancel'],
   },
   // A Dark value set by hand: it no longer follows (the field the registry's agent text names). The Light edit on a
-  // token whose Dark follows is the finding pinned below — the page derives Dark, the agent's file does not.
+  // token whose Dark follows is in "Dark follows" below — the engine derives Dark for a Light-only file.
   'ds.set-token': {
     ui: (f) =>
       writeToken({ ds: DS, css: '--x-line-fine', edit: { theme: 'dark', value: '#444444' } }, f),
@@ -664,24 +664,10 @@ describe('every ds.* action: the button ≡ the agent (S10.21, rule 14)', () => 
   });
 });
 
-describe('findings (pinned: each flips to equality when its question is answered)', () => {
-  test('ds.set-token on Light, Dark following: the page derives Dark, the file the agent text describes does not', async () => {
-    const A: World = { p: await makeProject() };
-    const B: World = { p: await makeProject() };
-    const s = studio(A);
-    const r = await writeToken(
-      { ds: DS, css: '--x-line-fine', edit: { theme: 'light', value: '#cccccc' } },
-      s.fetchImpl
-    );
-    expect(r.ok).toBe(true);
-    const sent = s.last.sent as { tokens: Record<string, Record<string, string>> };
-    expect(Object.keys(sent.tokens['--x-line-fine']).sort()).toEqual(['dark', 'light']);
-    // the agent, per agents.ts `ds.set-token`: `tokens[<css>]: <theme>: <value>` — Light only
-    const file = {
-      tokens: { '--x-line-fine': { light: '#cccccc' } },
-      expect: { '--x-line-fine': null },
-    };
-    const v = await execDsPlan(
+describe('Dark follows: the engine derives it, so the page and the agent land the same file (S10.21b)', () => {
+  /** The agent's plain file on B (`maude design ds pending <ds> --set f.json`). */
+  const agentSets = (B: World, file: unknown) =>
+    execDsPlan(
       planDsVerb(['pending', DS, '--set', 'f.json'], () => JSON.stringify(file)),
       {
         root: B.p.root,
@@ -689,9 +675,66 @@ describe('findings (pinned: each flips to equality when its question is answered
         by: PERSON,
       }
     );
+  const waiting = (w: World, css: string): Record<string, unknown> | null =>
+    JSON.parse(w.p.read(`${DS_PATH}/design-system.meta.json`) as string)?.dsPending?.tokens?.[
+      css
+    ] ?? null;
+
+  test('ds.set-token on Light, Dark following: the page and a Light-only file land the same Dark', async () => {
+    const A: World = { p: await makeProject() };
+    const B: World = { p: await makeProject() };
+    const before = snapshot(A.p);
+    const s = studio(A);
+    const r = await writeToken(
+      { ds: DS, css: '--x-line-fine', edit: { theme: 'light', value: '#cccccc' } },
+      s.fetchImpl
+    );
+    expect(r.ok).toBe(true);
+    // the page still sends both (decision v2-S10.21b-page-sends-both): the engine keeps a Dark it is given
+    const sent = s.last.sent as { tokens: Record<string, Record<string, string>> };
+    expect(Object.keys(sent.tokens['--x-line-fine']).sort()).toEqual(['dark', 'light']);
+    // the agent, per agents.ts `ds.set-token`: `tokens[<css>]: <theme>: <value>` — Light only
+    const v = await agentSets(B, {
+      tokens: { '--x-line-fine': { light: '#cccccc' } },
+      expect: { '--x-line-fine': null },
+    });
     expect(v.status).toBe(200);
-    // the engine does not follow on the server for a plain pending edit (ds/edges.ts does, for fix-contrast)
-    expect(snapshot(B.p)).not.toEqual(snapshot(A.p));
+    expect(snapshot(B.p)).toEqual(snapshot(A.p));
+    expect(snapshot(A.p)).not.toEqual(before);
+  });
+
+  test('ds.set-dark-follows back on: the page and `darkFollows: true` land the same Dark', async () => {
+    const A: World = { p: await makeProject() };
+    const B: World = { p: await makeProject() };
+    for (const w of [A, B])
+      await w.p.engine.mergePending(DS, {
+        tokens: { '--x-line-fine': { dark: '#202020', darkFollows: false } },
+        by: PERSON,
+      });
+    const before = snapshot(A.p);
+    expect(snapshot(B.p)).toEqual(before);
+    const r = await writeToken(
+      { ds: DS, css: '--x-line-fine', edit: { follows: true } },
+      studio(A).fetchImpl
+    );
+    expect(r.ok).toBe(true);
+    const v = await agentSets(B, {
+      tokens: { '--x-line-fine': { darkFollows: true } },
+      expect: { '--x-line-fine': waiting(B, '--x-line-fine')?.at ?? null },
+    });
+    expect(v.status).toBe(200);
+    expect(snapshot(B.p)).toEqual(snapshot(A.p));
+    expect(snapshot(A.p)).not.toEqual(before);
+  });
+
+  test('a Dark the entry names itself is kept, never re-derived', async () => {
+    const B: World = { p: await makeProject() };
+    const v = await agentSets(B, {
+      tokens: { '--x-line-fine': { light: '#cccccc', dark: '#010101' } },
+      expect: { '--x-line-fine': null },
+    });
+    expect(v.status).toBe(200);
+    expect(waiting(B, '--x-line-fine')?.dark).toBe('#010101');
   });
 });
 

@@ -65,10 +65,21 @@ PendingComponents { [Master]: { [selector]: { [property]: { value, by?, at? } } 
   Read back by `pendingOf` (`:490`).
 - **Applied at publish** by `applyPending` (`ds/engine.ts:828`). A value on a trashed token takes it out of the trash
   (`:860-862`). `darkFollows` is stored only when it is a boolean (`:870-871`).
-- **Dark follows is derived by the page, not the server.** When Light changes on a token whose Dark follows, the
-  token editor computes the new Dark (`client/v2/ds/token-write.js` `buildEntry`) and sends both. The engine does
-  not derive it for a plain pending edit (only `ds/edges.ts` does, for fix-contrast). So an agent that writes Light
-  alone leaves Dark where it was. The test pins this as a finding (`test/ds-agent-parity.test.ts`, "findings").
+- **Dark follows is derived by the engine** (S10.21b, decision `v2-S10.21-dark-follows-in-engine`). When an entry
+  moves Light on a token whose Dark follows and names no Dark itself, `mergePending` adds the followed Dark
+  (`followIn`, `ds/engine.ts`). The rule is one function, `followedDark` (`ds/contrast.ts`), used by the engine, the
+  token editor (`client/v2/ds/token-write.js` `buildEntry`) and the contrast fix (`ds/edges.ts` `entryFor`):
+  - "follows" is the entry's `darkFollows`, else the waiting entry's, else the file's (absent = follows);
+  - the pair it keeps is the one on screen now: the waiting value over the working file's, Dark falling back to
+    Light (`followDark`);
+  - a Dark the entry names itself is kept (and a Dark set by hand stops the following: send `darkFollows: false`);
+  - `darkFollows: true` with no Light re-follows from the Light on screen;
+  - `darkFollows` is kept only when it differs from the file's.
+
+  So an agent writes **Light only** (`tokens[<css>]: { <light>: <value> }`) and lands the same file as the page.
+  The page still sends both values. `test/ds-agent-parity.test.ts` ("Dark follows") pins that the two are equal.
+  Value names do not follow on the server: the page copies a Light name to Dark itself, so an agent naming a
+  colour whose Dark follows sends both names.
 
 ## Revisions — `revisions/<id>.json`
 
