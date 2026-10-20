@@ -49,6 +49,7 @@ here, not permission to skip that requirement. Do not read all references at onc
 | Before planning edits on a canvas AI may be changing, or when an edit is denied | [AI runs and busy artboards](./_guide-27-ai-runs-and-busy-artboards.md) |
 | When looking at an earlier version of a canvas, going back to it, naming a version, or working with the Trash | [Versions and the Trash](./_guide-versions-and-trash.md) |
 | When changing objects the way the person does (frames, order, lock, hide) | [Editing in Maude v2](./_guide-editing-v2.md) |
+| When adding a file to the project: a photo, an iPhone HEIC, a Photoshop file, a logo, or when an add is refused | [Importing files](./_guide-importing-files.md) |
 | For `/design:present`: order, skipped artboards, speaker notes | [Per-canvas metadata sidecar](./_guide-17-per-canvas-metadata-sidecar.md) |
 
 ## A first draft from Home

@@ -57,6 +57,8 @@ const DEDICATED: Record<string, string> = {
   'ai-quit.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ai-quit',
   // S8.16: the sidecar must run the stub image provider (MAUDE_GENERATE_STUB=1) — no real provider is reached.
   'generate-takes.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:generate-takes',
+  // S8.17b: the Figma client answers from fixtures/figma (MAUDE_FIGMA_FIXTURE) — no Figma account, no network.
+  'import-figma.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:import-figma',
   // S9.17: a cloud cell tab's browser door — needs a cell.
   'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
   // S10.8: a converted acme project seeded with one pending Accent change.
@@ -86,7 +88,9 @@ const DEDICATED: Record<string, string> = {
   // Every dedicated config's spec must be listed (two configs may share one spec, e.g. ds-review +
   // ds-review-master seed different worlds for the same scenario file).
   const unlisted = confs.filter((c) => {
-    const m = readFileSync(join(HERE, c), 'utf8').match(/scenarios['"]?,\s*['"]([\w.-]+\.e2e\.ts)['"]|scenarios\/([\w.-]+\.e2e\.ts)/);
+    const m = readFileSync(join(HERE, c), 'utf8').match(
+      /scenarios['"]?,\s*['"]([\w.-]+\.e2e\.ts)['"]|scenarios\/([\w.-]+\.e2e\.ts)/
+    );
     const spec = m ? m[1] || m[2] : null;
     return !spec || !(spec in DEDICATED);
   });
