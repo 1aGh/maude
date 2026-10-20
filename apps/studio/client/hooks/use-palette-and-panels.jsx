@@ -747,6 +747,8 @@ export function usePaletteAndPanels({
           }
           onDuplicateArtboard={duplicateArtboardShell}
           editScope={editScope}
+          // S10.8 — `ds.review-update` / `ds.go-to`: the Inspector's links run through the one runner
+          onShellAction={(actionId, params) => menuRunner.run(actionId, params)}
           onUndoRedo={(dir) =>
             // V2-2.4 retired the canvas's `undo`/`redo` lanes for run-action; the inspector
             // knobs' ⌘Z rides the same lane (it reached no handler after step 6 — V2-2.10).

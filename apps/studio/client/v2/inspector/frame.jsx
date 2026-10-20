@@ -98,6 +98,7 @@ export function InspectorFrame({
   onSelectCrumb,
   editScope,
   onDetachInstance,
+  onShellAction,
 }) {
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
@@ -171,6 +172,8 @@ export function InspectorFrame({
     onOptimistic,
     onRecordEdit,
     onRunAction,
+    // S10.8 — a registry action the SHELL runs (`ds.review-update`, `ds.go-to`): `(id, params) => void`
+    onShellAction,
     onUndoRedo,
     onReplaceMedia,
     // S2.15 — Adjust… / Remove background hand off to Photo; drawn only when the panel can open it (kinds/image.jsx)

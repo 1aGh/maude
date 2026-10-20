@@ -120,6 +120,9 @@ export interface CanvasToShell {
   // S10.4 (V2-1.6 §5.8) — the `data-ds-rev` values (`head` | a revision id) the canvas document carries;
   // the studio answers with `ds-pins`. A value is a name, never a path.
   'ds-pins-want': { revs: string[] };
+  // S10.8 — "Review…" on the Design system canvas's bar: the person asks for "Update N canvases". The canvas
+  // only asks; the shell opens the sheet (client/v2/ds/review-host.jsx), for the canvas on screen.
+  'ds-review': Empty;
   'canvas-expired': Empty;
   // S4.9 — the annotation board of `file` changed (a local write, a peer's, an undo): the shell's
   // Preview annotation list (client/v2/annotations/annotation-list.jsx) re-reads it.
@@ -398,6 +401,9 @@ export interface ShellToCanvas {
     revs: Record<string, { tokens: string; components: string | null }>;
     rootClass: string | null;
   };
+  // S10.8 — a canvas left out of a design-system update: the `data-cd-id`s of the elements that wear what
+  // changed (client/v2/ds/update-dots.js names them from the usage index); the shell document draws a dot.
+  'ds-update-dots': { ids: string[] };
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
   'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
@@ -794,6 +800,11 @@ export const DS_PINS_MAX = 16;
 const pinValue: V = (v) => (typeof v === 'string' && PIN_VALUE.test(v) ? v : BAD);
 const pinValues: V = (v) =>
   Array.isArray(v) && v.length <= DS_PINS_MAX ? arrOf(pinValue)(v) : BAD;
+/** S10.8 — the element ids a left-out canvas dots: `data-cd-id` values, capped (client/v2/ds/update-dots.js). */
+export const DS_DOTS_MAX = 200;
+const DOT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+const dotId: V = (v) => (typeof v === 'string' && DOT_ID.test(v) ? v : BAD);
+const dotIds: V = (v) => (Array.isArray(v) && v.length <= DS_DOTS_MAX ? arrOf(dotId)(v) : BAD);
 const dsPinEntry = shape({ tokens: dsCssPath, components: nul(dsCssPath) });
 const dsPinRevs: V = (v) => {
   if (!isPlain(v)) return BAD;
@@ -1011,6 +1022,8 @@ const c2s: C2S = {
     owner: 'v2/create/use-render-error',
     parse: p({ file: str }),
   },
+  // S10.8 — handled by client/v2/ds/use-ds-frames.js (opens the review for the ACTIVE canvas's system)
+  'ds-review': { gate: 'active', status: 'live', owner: 'h/use-ds-frames', parse: none },
   // S10.4 — handled by client/v2/ds/pins.js (createPinsHost.onMessage)
   'ds-pins-want': {
     gate: 'active',
@@ -1620,6 +1633,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'tpl/_shell.html',
     parse: p({ revs: dsPinRevs, rootClass: nul(rootClassName) }),
+  },
+  // S10.8 — sent by client/v2/ds/update-dots.js, drawn by the shell template's `ds-update-dots` region
+  'ds-update-dots': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ ids: dotIds }),
   },
   'ai-activity': {
     gate: 'parent',

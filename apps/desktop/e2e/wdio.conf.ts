@@ -57,6 +57,8 @@ const DEDICATED: Record<string, string> = {
   'ai-quit.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ai-quit',
   // S9.17: a cloud cell tab's browser door — needs a cell.
   'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
+  // S10.8: a converted acme project seeded with one pending Accent change.
+  'ds-review.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-review',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

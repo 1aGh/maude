@@ -15,14 +15,14 @@
 //   setGhostRows('sync', GhostRow[])                   S11.4: canvases listed by the hub, not on this Mac yet
 //                                                      (slot `{ dim, arriving }` pulses, `{ dim, notLocal }`)
 //
-// `source` is 'ai' | 'sync' | 'access' | 'trash'; `path` is the canvas's designRoot-relative path
+// `source` is 'ai' | 'sync' | 'access' | 'ds' | 'trash'; `path` is the canvas's designRoot-relative path
 // ("ui/club-web/A.tsx" — the panel's `row.rel`). A RowSlot is
 //   { meta?: { word, tone?: 'quiet' | 'warn' | 'azure', title? },   one short word at the row's right
 //     sub?:  { text, icon?: 'trash' | 'eye' | 'comment' },            the words after the name
 //     dim?:  boolean }                                                the row fades
 //
 // Precedence (the panel's merge, `resolveSlot` / `resolveFoot` below — pure, pinned by tests):
-//   meta  ai > sync > access > trash       ("Needs you" > "not sent" / "sending"; one word per row)
+//   meta  ai > sync > access > ds > trash       ("Needs you" > "not sent" / "sending"; one word per row)
 //   sub   trash > access > sync > ai       (a search's own sub beats all of them — the panel decides)
 //   dim   any source
 //   foot  sync > arriving > jump > access > default   (the jump foot lives in tree-model.js `panelFootLine`)
@@ -32,12 +32,12 @@
 
 import { useSyncExternalStore } from 'react';
 
-export const SLOT_SOURCES = Object.freeze(['ai', 'sync', 'access', 'trash']);
+export const SLOT_SOURCES = Object.freeze(['ai', 'sync', 'access', 'ds', 'trash']);
 // S11.4 — `arriving` ("Getting <project> · 41 of 93 canvases") is its own foot: S9.24's offline foot is `sync`.
 export const FOOT_SOURCES = Object.freeze(['sync', 'arriving', 'access']);
 export const GHOST_SOURCES = Object.freeze(['trash', 'sync']);
-const META_ORDER = Object.freeze(['ai', 'sync', 'access', 'trash']);
-const SUB_ORDER = Object.freeze(['trash', 'access', 'sync', 'ai']);
+const META_ORDER = Object.freeze(['ai', 'sync', 'access', 'ds', 'trash']);
+const SUB_ORDER = Object.freeze(['trash', 'access', 'sync', 'ai', 'ds']);
 const FOOT_ORDER = FOOT_SOURCES; // sync first
 
 const need = (list, source, what) => {
@@ -109,7 +109,13 @@ export function resolveFoot(foots) {
 
 // ── the store ───────────────────────────────────────────────────────────────────────────────────────
 
-const empty = () => ({ ai: new Map(), sync: new Map(), access: new Map(), trash: new Map() });
+const empty = () => ({
+  ai: new Map(),
+  sync: new Map(),
+  access: new Map(),
+  ds: new Map(),
+  trash: new Map(),
+});
 let rows = empty();
 let foots = { sync: null, arriving: null, access: null };
 let ghosts = { trash: [], sync: [] };

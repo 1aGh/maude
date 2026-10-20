@@ -143,11 +143,13 @@ const CFG = {
   defaultDesignSystem: 'Studio',
 };
 const runs: Array<Record<string, unknown>> = [];
+const shellRuns: Array<[string, Record<string, unknown>]> = [];
 
 async function frame(el: Record<string, unknown> = {}) {
   await ensureTypeSlots();
   const { InspectorFrame } = await import('../client/v2/inspector/frame.jsx');
   runs.length = 0;
+  shellRuns.length = 0;
   return mount(
     <InspectorFrame
       {...({
@@ -160,6 +162,7 @@ async function frame(el: Record<string, unknown> = {}) {
         onReplaceMedia: () => {},
         onUndoRedo: () => {},
         onRunAction: (m: Record<string, unknown>) => runs.push(m),
+        onShellAction: (id: string, p: Record<string, unknown>) => shellRuns.push([id, p]),
       } as never)}
     />
   );
@@ -234,11 +237,19 @@ describe('Style', () => {
     expect(lastRun()).toMatchObject({ id: 'text.use-style', params: { role: 't-body' } });
   });
 
-  test('"Update … for every canvas…" is not drawn until S10 registers ds.review-update', async () => {
+  test('"Update … for every canvas…" is drawn when the style differs, and asks the shell for ds.review-update', async () => {
     const { ACTIONS_BY_ID } = await import('../actions/index.ts');
-    expect(ACTIONS_BY_ID.has('ds.review-update')).toBe(false);
+    expect(ACTIONS_BY_ID.has('ds.review-update')).toBe(true);
     const host = await frame({ textInfo: info({ differs: ['font-size'] }) });
-    expect(q(host, 'insp-style-update')).toBeNull();
+    const link = q(host, 'insp-style-update');
+    expect(link).not.toBeNull();
+    await click(link);
+    expect(shellRuns).toEqual([
+      [
+        'ds.review-update',
+        { canvas: FILE, elementId: 'headline', target: { kind: 'typeRole', role: 'heading' } },
+      ],
+    ]);
   });
 
   test('a viewer cannot ask: the control is disabled when the canvas cannot be asked', async () => {

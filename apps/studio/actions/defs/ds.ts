@@ -38,4 +38,11 @@ export const DS_ACTIONS: ActionDef[] = [
   // and previewing it in Light or Dark read the canvas and write nothing.
   row('ds.open', 'Design system', VIEW),
   row('ds.set-theme-preview', 'Show the system in Light or Dark', VIEW),
+  // S10.8 — the entries into the review (contracts/S10-ds-review-entry.md). All three are reached from a
+  // surface that names the thing (the inspector's "Update … for every canvas…", "Go to …", the Update
+  // button of an out-of-date instance), so none is a ⌘K row. The second is for anyone who can open the
+  // project (it only moves the view); the other two write.
+  row('ds.review-update', 'Update for every canvas…'),
+  row('ds.go-to', 'Go to the design system', VIEW),
+  row('ds.instance-update', 'Update to the current look'),
 ];

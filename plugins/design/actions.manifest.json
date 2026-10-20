@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "a7b17fdb7417",
+  "manifestVersion": "addc490e34c5",
   "actions": [
     {
       "id": "search.open",
@@ -5057,6 +5057,53 @@
       "agent": {
         "path": "cli",
         "verb": "maude design screenshot --url \"<canvas-url>&dsMode=dark\" --full --out <png>"
+      }
+    },
+    {
+      "id": "ds.review-update",
+      "label": "Update for every canvas…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --set <file.json> then maude design ds publish <ds>"
+      }
+    },
+    {
+      "id": "ds.go-to",
+      "label": "Go to the design system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <ds.path>/design-system.tsx@<--token|Component>"
+      }
+    },
+    {
+      "id": "ds.instance-update",
+      "label": "Update to the current look",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add data-ds-rev=\"head\" to the instance’s element (right after its data-cd-id; overwrite the attribute if it has one); the rest of the canvas keeps its version. Over HTTP: POST /_api/edit-op {op: \"ds.instance-update\", targets: [instance]} — refused on a canvas that follows the system already"
+      },
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
       }
     }
   ],

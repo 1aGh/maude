@@ -24,11 +24,12 @@ describe('the registry half of the menu', () => {
     for (const id of Object.keys(PENDING_MENU_IDS)) expect(ACTIONS_BY_ID.has(id), id).toBe(false);
   });
 
-  test('S10.0: the DS review entries are pending, owned by the S10 task that registers them', () => {
-    // S2.12 / S2.17 hide "Update <X> for every canvas…" and "Go to main" until these land.
-    expect(PENDING_MENU_IDS['ds.review-update']).toBe('S10 (S10.8 review update)');
-    expect(PENDING_MENU_IDS['ds.go-to']).toBe('S10 (S10.6 go to master)');
-    expect(PENDING_MENU_IDS['ds.instance-update']).toBe('S10 (S10.8 instance update)');
+  test('S10.8: the DS review entries are registered and have left the pending list', () => {
+    // S2.12 / S2.17 draw "Update <X> for every canvas…" and "Go to main" from the day these exist.
+    for (const id of ['ds.review-update', 'ds.go-to', 'ds.instance-update']) {
+      expect(ACTIONS_BY_ID.has(id), id).toBe(true);
+      expect(PENDING_MENU_IDS[id], id).toBeUndefined();
+    }
   });
 
   test('each pending id names the task that registers it', () => {

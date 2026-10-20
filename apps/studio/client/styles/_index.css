@@ -89,6 +89,7 @@
 @import url("../v2/canvases/canvases.css");
 /* S1.14 — Version history: rows with pictures, the Now row, the Viewing bar, Name this version. */
 @import url("../v2/history/history.css");
+@import url("../v2/ds/review.css");
 /* V2-4.7b — Menu › Diagnostics: the status words in the menu, the Logs · Server · AI setup · Sync sheet. */
 @import url("../v2/diagnostics/diagnostics.css");
 /* V2-4.7a — Settings: General · Connections · Advanced. */

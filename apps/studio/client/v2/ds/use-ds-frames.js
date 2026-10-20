@@ -15,6 +15,7 @@ import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts'
 import { canvasDsRender, canvasDsSystem } from '../../canvas-url.js';
 import { createFollowerSwap } from './follower-swap.js';
 import { createPinsHost } from './pins.js';
+import { requestDsReview } from './review-bus.js';
 
 /** What the studio knows about canvas `key` for `createPinsHost` — null when it follows no converted system. */
 export function dsFrameState(key, cfg) {
@@ -83,7 +84,7 @@ export function useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasAc
   useEffect(() => {
     function onMessage(e) {
       const t = e.data && typeof e.data === 'object' ? e.data.dgn : null;
-      if (t !== 'ds-pins-want' && t !== 'loaded') return;
+      if (t !== 'ds-pins-want' && t !== 'loaded' && t !== 'ds-review') return;
       const { activePath: active } = live.current;
       const frames = iframesRef.current;
       const activeWin = active ? (frames.get(active)?.contentWindow ?? null) : null;
@@ -95,6 +96,11 @@ export function useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasAc
       if (!m) return;
       if (m.dgn === 'ds-pins-want') {
         if (active) pins.onMessage(active, m);
+        return;
+      }
+      // the Design system canvas's "Review…": the person's click, from the canvas on screen (the gate says so)
+      if (m.dgn === 'ds-review') {
+        requestDsReview({ kind: 'review', canvas: active ?? undefined });
         return;
       }
       for (const [key, frame] of frames) {

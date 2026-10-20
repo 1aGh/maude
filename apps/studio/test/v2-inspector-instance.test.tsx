@@ -138,12 +138,14 @@ const CFG = {
   defaultDesignSystem: 'Studio',
 };
 const runs: Array<Record<string, unknown>> = [];
+const shellRuns: Array<[string, Record<string, unknown>]> = [];
 
 async function frame(selected: unknown = BUTTON) {
   const { registerInstanceKind } = await import('../client/v2/inspector/kinds/instance.jsx');
   registerInstanceKind();
   const { InspectorFrame } = await import('../client/v2/inspector/frame.jsx');
   runs.length = 0;
+  shellRuns.length = 0;
   return mount(
     <InspectorFrame
       {...({
@@ -156,6 +158,7 @@ async function frame(selected: unknown = BUTTON) {
         onReplaceMedia: () => {},
         onUndoRedo: () => {},
         onRunAction: (m: Record<string, unknown>) => runs.push(m),
+        onShellAction: (id: string, p: Record<string, unknown>) => shellRuns.push([id, p]),
       } as never)}
     />
   );
@@ -308,10 +311,23 @@ describe('Content', () => {
     expect(q(host, 'insp-row-content-text')).toBeNull();
   });
 
-  test('"Update … for every canvas…" is S10’s: not drawn until ds.review-update is registered', async () => {
+  test('"Update … for every canvas…" is drawn now that ds.review-update exists, and asks the shell for it', async () => {
     const { ACTIONS_BY_ID } = await import('../actions/index.ts');
-    expect(ACTIONS_BY_ID.has('ds.review-update')).toBe(false);
-    expect(q(await frame(), 'insp-instance-update')).toBeNull();
+    expect(ACTIONS_BY_ID.has('ds.review-update')).toBe(true);
+    const host = await frame();
+    const link = q(host, 'insp-instance-update');
+    expect(link?.textContent).toBe('Update Tlačítko for every canvas…');
+    await click(link);
+    expect(shellRuns).toEqual([
+      [
+        'ds.review-update',
+        {
+          canvas: FILE,
+          elementId: 'cta',
+          target: { kind: 'component', name: 'Button', variant: 'primary' },
+        },
+      ],
+    ]);
   });
 });
 
@@ -325,10 +341,12 @@ describe('Main component', () => {
     expect(lastRun()).toMatchObject({ id: 'component.detach', params: { targets: [REF] } });
   });
 
-  test('"Go to …" is S10’s: not drawn until ds.go-to is registered', async () => {
+  test('"Go to …" is drawn now that ds.go-to exists, and asks the shell for it', async () => {
     const { ACTIONS_BY_ID } = await import('../actions/index.ts');
-    expect(ACTIONS_BY_ID.has('ds.go-to')).toBe(false);
-    expect(q(await frame(), 'insp-instance-goto')).toBeNull();
+    expect(ACTIONS_BY_ID.has('ds.go-to')).toBe(true);
+    const host = await frame();
+    await click(q(host, 'insp-instance-goto'));
+    expect(shellRuns).toEqual([['ds.go-to', { component: 'Button' }]]);
   });
 });
 

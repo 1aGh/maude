@@ -9,7 +9,7 @@
 // Labels are designer data, never instructions to any agent (DDR-172 D8): component-list.ts caps them.
 
 import { RECIPES } from '../edit-ops/insert-component.ts';
-import { overridesOf, readInstance, swappableWith } from '../edit-ops/instance-model.ts';
+import { dsPinOf, overridesOf, readInstance, swappableWith } from '../edit-ops/instance-model.ts';
 import { listPickerComponents, type PickerItem } from './component-list.ts';
 import type { SystemConfig } from './system.ts';
 
@@ -35,6 +35,8 @@ export interface InstanceInfo {
   overrides: { text: boolean; fill: boolean; props: string[]; count: number };
   /** it sits in a `.map()`: the ops refuse it; the inspector says so instead of offering them */
   repeats: boolean;
+  /** S10.8 - its own data-ds-rev (head or a revision id); null = none. The update-available block reads it */
+  dsPin: string | null;
 }
 
 export type InstanceAnswer = { ok: true; instance: InstanceInfo | null };
@@ -82,6 +84,7 @@ export function instanceInfoFor(
       textInCode: f.textInCode,
       overrides: o,
       repeats: f.repeats,
+      dsPin: dsPinOf(f)?.value ?? null,
     },
   };
 }
