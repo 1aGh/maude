@@ -23,6 +23,13 @@ describe('Advanced bodies pin their column (G1, G2)', () => {
     expect(b).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   });
 
+  test('the open canvas path clips with an ellipsis and its label stays on one line (G5)', () => {
+    const css = read('client/v2/left-panel/left-panel.css');
+    // an inline-flex box puts the text in an anonymous flex item, where text-overflow cannot draw "…"
+    expect(body(css, '.lp-adv-path')).toMatch(/display:\s*block/);
+    expect(body(css, '.lp-adv-k')).toMatch(/white-space:\s*nowrap/);
+  });
+
   test('.v2-fold-body (every other panel fold: Version history, Inspector, …)', () => {
     const b = body(read('client/v2/fold/fold.css'), '.v2-fold-body');
     expect(b).toMatch(/display:\s*grid/);
