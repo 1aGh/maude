@@ -15,6 +15,7 @@ import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
 import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
 import { useDsRowDots } from './row-dots.js';
+import { DsTruthHost } from './truth-host.jsx';
 import { useDsUpdateDots } from './update-dots.js';
 import { bodyOf } from './update-available.jsx';
 
@@ -170,33 +171,46 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   );
 
   const close = useCallback(() => setSheet(null), []);
-  if (!sheet) return null;
-  return (
-    <DsReviewSheet
-      key={`${sheet.ds}:${sheet.review.expectHead}`}
-      review={sheet.review}
-      components={sheet.components}
-      places={sheet.places}
-      scope={scope}
-      onClose={close}
-      onUpdate={async (rows) => {
-        const r = await publishReview(
-          { ds: sheet.ds, expectHead: sheet.review.expectHead },
-          rows,
-          f()
-        );
-        if (!r.ok) return r;
-        say(updatedWords(r.updated, r.leftOut));
-        setSheet(null);
-        return { ok: true };
-      }}
-      onCancel={async () => {
-        const r = await cancelReview({ ds: sheet.ds }, f());
-        if (!r.ok) return r;
-        say(CANCELLED);
-        setSheet(null);
-        return { ok: true };
-      }}
+  // S10.11 — the outside-change review and the conflict pick live in the inspector's empty place; their host rides here
+  const truth = (
+    <DsTruthHost
+      cfg={cfg}
+      activePath={activePath}
+      toast={toast}
+      frameFor={frameFor}
+      fetchImpl={fetchImpl}
     />
+  );
+  if (!sheet) return truth;
+  return (
+    <>
+      {truth}
+      <DsReviewSheet
+        key={`${sheet.ds}:${sheet.review.expectHead}`}
+        review={sheet.review}
+        components={sheet.components}
+        places={sheet.places}
+        scope={scope}
+        onClose={close}
+        onUpdate={async (rows) => {
+          const r = await publishReview(
+            { ds: sheet.ds, expectHead: sheet.review.expectHead },
+            rows,
+            f()
+          );
+          if (!r.ok) return r;
+          say(updatedWords(r.updated, r.leftOut));
+          setSheet(null);
+          return { ok: true };
+        }}
+        onCancel={async () => {
+          const r = await cancelReview({ ds: sheet.ds }, f());
+          if (!r.ok) return r;
+          say(CANCELLED);
+          setSheet(null);
+          return { ok: true };
+        }}
+      />
+    </>
   );
 }
