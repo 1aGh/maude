@@ -9,6 +9,7 @@ import { notify } from '../../notifications.tsx';
 import { trashCanvas } from '../v2/canvases/trash-canvas.js';
 import { invoke, isNativeApp, listenHere } from '../github.js';
 import { applyShellNavigate, startShellEvents } from '../shell-events.js';
+import { threadAuthor } from '../v2/comments/use-comments-shell.jsx';
 
 export function useTabs({
   groups,
@@ -125,6 +126,9 @@ export function useTabs({
     openTab,
     frameFor: (f) => iframesRef.current.get(f),
     setPresent: () => {},
+    // S6.11b — a thread landing says where it came from, in S1.18's words (open-link.js)
+    toast: (title) => shellToast(title, true),
+    threadAuthor,
   };
   useEffect(() => {
     if (!treeLoaded || cfg.cloud === undefined || !isNativeApp()) return undefined;

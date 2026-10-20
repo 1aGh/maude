@@ -258,6 +258,7 @@ import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
 import { ShellMentionCallouts, useCommentsShell } from './v2/comments/use-comments-shell.jsx';
+import { commentFocusMessage, wantReplyFocus } from './v2/comments/reply-focus.js';
 import { noteMadeByAi } from './v2/ai/made-by-ai.js';
 import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
 import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
@@ -1157,11 +1158,14 @@ function ShellState({ children }) {
   // Jump from right-sidebar list to a comment: open file tab if needed, focus pin.
   // The iframe may be freshly mounted; the loaded handler also re-sends focus if focusedCommentId matches.
   const jumpToComment = useCallback(
-    (file, id) => {
+    (file, id, opts) => {
       if (file && file !== activePath) {
         setTabs((prev) => (prev.find((t) => t.path === file) ? prev : [...prev, { path: file }]));
         setActivePath(file);
       }
+      // S6.11b — a thread landing asks for the reply field (v2/comments/reply-focus.js)
+      const reply = opts?.reply === true && id != null;
+      wantReplyFocus(reply ? id : null);
       if (id == null) {
         setFocusedCommentId(null);
         return;
@@ -1172,7 +1176,7 @@ function ShellState({ children }) {
         const el = iframesRef.current.get(file);
         if (el && el.contentWindow) {
           try {
-            el.contentWindow.postMessage({ dgn: 'comment-focus', id }, '*');
+            el.contentWindow.postMessage(commentFocusMessage(id, reply), '*');
           } catch {}
         }
       };
@@ -1710,7 +1714,7 @@ function ShellProjectPill() {
     onToggleShowHidden: () => setShowHidden((v) => !v),
     // S9.22b — comments.filter-* / comments.open-thread (v2/comments/use-comments-shell.jsx)
     onCommentsFilter: (f) => comments?.showFilter(f),
-    onOpenCommentThread: (file, id) => comments?.openThread(file, id),
+    onOpenCommentThread: (file, id, opts) => comments?.openThread(file, id, opts),
     // V2-4.4a: View › Advanced › Layers as a panel — the Settings › Layout switch, from the menu.
     onToggleLayersMode: () => {
       const next = layersMode === 'separate' ? 'in-inspector' : 'separate';

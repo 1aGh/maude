@@ -58,6 +58,16 @@ export function useMentionSeen({ fetchImpl } = {}) {
   return { seen, markSeen };
 }
 
+// S6.11b — the shell's comments as of its last render, for the thread-landing toast (shell-events.js
+// runs outside React and reads them through `threadAuthor`). One shell per window.
+const shellComments = { current: null };
+
+/** The stored author of thread `id` on `file` (the name the toast may say), or null. */
+export function threadAuthor(file, id, commentsByFile = shellComments.current) {
+  const c = ((commentsByFile || {})[file] || []).find((x) => x && x.id === id);
+  return typeof c?.author === 'string' && c.author.trim() ? c.author.trim() : null;
+}
+
 /** Which file holds thread `id` (a deep link may name only the thread). */
 export function fileOfThread(commentsByFile, id) {
   for (const [file, list] of Object.entries(commentsByFile || {}))
@@ -84,6 +94,7 @@ export function useCommentsShell({
   const notices = useMentionNotices({ commentsByFile, me: me || null, seen, markSeen });
   const live = useRef(null);
   live.current = { commentsByFile, jumpToComment, setCommentsFilter, openRightPanel, notices };
+  shellComments.current = commentsByFile;
 
   /** The Comments panel on `filter` (`comments.filter-*`). */
   const showFilter = useCallback((filter) => {
@@ -96,7 +107,7 @@ export function useCommentsShell({
    * `comments.open-thread`: open the thread's canvas, focus its pin, show it in the panel, mark its
    * mentions read. No id = the oldest unread mention's thread, else just the panel.
    */
-  const openThread = useCallback((file, id, { markRead = true } = {}) => {
+  const openThread = useCallback((file, id, { markRead = true, reply = false } = {}) => {
     const cur = live.current;
     let threadId = typeof id === 'string' && id ? id : null;
     let where = typeof file === 'string' && file ? file : null;
@@ -110,7 +121,9 @@ export function useCommentsShell({
     if (threadId && !where) where = fileOfThread(cur.commentsByFile, threadId);
     cur.openRightPanel?.('comments');
     if (!threadId || !where) return false;
-    cur.jumpToComment?.(where, threadId);
+    // S6.11b — a thread landing opens it with the reply field focused
+    if (reply === true) cur.jumpToComment?.(where, threadId, { reply: true });
+    else cur.jumpToComment?.(where, threadId);
     if (markRead) cur.notices.read(threadId);
     return true;
   }, []);

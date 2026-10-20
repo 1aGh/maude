@@ -6,6 +6,8 @@
 //                                         resolves like a link (use-tabs `openLinkedFile`), the
 //                                         artboard runs `view.zoom-to-artboard` (ui-open.js);
 //                                         S9.17: `thread` then runs `comments.open-thread`
+//                                         (S6.11b: reply field focused, then one shot: tool.comment
+//                                         + "Opened from <name>'s link — <canvas>.")
 //   shell://opened-existing {name}       toast "<name> is open in this window."
 //   shell://tabs-restored {count}        toast "<count> tabs reopened. Each one starts when you open it."
 //   take_link_opened {name}              toast "Opened <name> from a link." (a link opened this NEW tab)
@@ -19,6 +21,7 @@
 import { CANVAS_EXT_RE as CANVAS_RE } from './shell/constants.js';
 import { normalizeOpenPath } from './share-link.js';
 import { applyUiOpen } from './ui-open.js';
+import { openedFromWords } from './v2/canvases/open-link.js';
 
 // The shell's one runner, loaded when a thread first needs it (it pulls the whole menu graph).
 const runShellAction = (id, params) =>
@@ -30,6 +33,19 @@ const okArtboard = (a) =>
   a.length > 0 &&
   a.length <= 128 &&
   ![...a].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127);
+
+/** S6.11b — the one delayed shot after a thread landing (a just-opened canvas has its comments by then). */
+export const LANDING_SHOT_MS = 1200;
+
+/** "Opened from Tereza's link — poster." (S1.18's words); no stored author → "Opened from a link — poster." */
+export function threadLandedWords(author, file) {
+  const who = typeof author === 'string' && author.trim() ? author.trim().slice(0, 80) : null;
+  const canvas = String(file ?? '')
+    .split('/')
+    .pop()
+    .replace(CANVAS_RE, '');
+  return openedFromWords({ who, canvas });
+}
 
 export const openedExistingWords = (name) => `${name} is open in this window.`;
 export const linkOpenedWords = (name) => `Opened ${name} from a link.`;
@@ -81,10 +97,19 @@ export function applyShellNavigate(payload, deps) {
   else if (plan.rel) deps.openLinkedFile(plan.rel);
   // S9.17 — then the thread: `comments.open-thread` (its tab, its pin, the Comments panel, read marks).
   // Only for a canvas in this tree; after the open, so the tab it focuses exists.
+  // S6.11b — every thread landing (an invite or a mention) opens with the reply field focused, then ONE
+  // delayed shot (not a retry ladder) puts the canvas in Preview with the Comment tool (CONTRACT §71–72)
+  // and says where it came from in S1.18's words. The name is the thread's author as this project
+  // stores it, never anything the payload carried.
   if (plan.thread && plan.file) {
     const schedule = deps.schedule ?? ((fn, ms) => setTimeout(fn, ms));
     const run = deps.runAction ?? runShellAction;
-    schedule(() => run('comments.open-thread', { file: plan.file, id: plan.thread }), 0);
+    const { file, thread } = plan;
+    schedule(() => run('comments.open-thread', { file, id: thread, reply: true }), 0);
+    schedule(() => {
+      run('tool.comment');
+      deps.toast?.(threadLandedWords(deps.threadAuthor?.(file, thread), file));
+    }, LANDING_SHOT_MS);
   }
   return plan;
 }

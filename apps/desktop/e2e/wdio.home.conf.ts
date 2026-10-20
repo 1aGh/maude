@@ -12,7 +12,8 @@
  * Run: `pnpm test:e2e:desktop:home`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +45,37 @@ if (!process.env.MAUDE_E2E_HOME_FIXTURES) {
     .trim()
     .split('\n')
     .pop();
+  // S6.11b — step 9 fires a real `maude://invite/<id>`, and Home now PEEKS it (S6.11 invite-flow): the
+  // control plane is a loopback stub, as in wdio.invite-landing.conf.ts, so nothing reaches
+  // cloud.maude.sh. Every peek is the one 404 (a dead invite); anything else is "not stubbed". Each
+  // request is one JSON line (method + path) in MAUDE_E2E_HOME_CLOUD_LOG for the spec to read.
+  const cloudLog = join(mkdtempSync(join(tmpdir(), 'maude-home-e2e-cloud-')), 'stub.ndjson');
+  writeFileSync(cloudLog, '');
+  const stub = createServer((req, res) => {
+    const path = (req.url || '').split('?')[0];
+    appendFileSync(cloudLog, `${JSON.stringify({ method: req.method, path })}\n`);
+    const peek = req.method === 'GET' && /^\/api\/invites\/[0-9a-f-]{36}\/peek$/.test(path);
+    res.writeHead(404, { 'content-type': 'application/json' });
+    res.end(
+      JSON.stringify(
+        peek
+          ? {
+              reason: 'gone',
+              error:
+                'This invitation link is not valid. Ask the person who invited you for a new one.',
+            }
+          : { error: 'not stubbed' }
+      )
+    );
+  });
+  const port: number = await new Promise((ok) =>
+    stub.listen(0, '127.0.0.1', () => ok((stub.address() as { port: number }).port))
+  );
+  process.env.MAUDE_CLOUD_URL = `http://127.0.0.1:${port}`;
+  // signed out, in throwaway files: the developer's cloud session never travels to the stub
+  process.env.MAUDE_CLOUD_CONFIG = join(dirname(cloudLog), 'cloud.json');
+  process.env.HUBS_CONFIG_PATH = join(dirname(cloudLog), 'hubs.json');
+  process.env.MAUDE_E2E_HOME_CLOUD_LOG = cloudLog;
 }
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');

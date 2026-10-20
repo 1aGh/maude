@@ -243,7 +243,62 @@ describe('A · the sheets as views', () => {
     expect(got).toEqual([{ url: 'https://maude.alligators.cz' }]);
   });
 
-  test('hub: "Invite link or key" is drawn and rests', async () => {
+  test('S6.11b hub: "Invite link or key" redeems — masked key, a pasted link fills the address, one onJoin, nothing echoed', async () => {
+    const KEY = `inv_${'ab'.repeat(24)}`;
+    const got: Array<Record<string, string>> = [];
+    let release: (v: { ok: boolean; error?: string }) => void = noop;
+    render(
+      createElement(HubSheet, {
+        onTest: async () => ({ ok: true }),
+        onConnect: async () => {
+          throw new Error('the password lane must not run in invite mode');
+        },
+        onJoin: (v: Record<string, string>) => {
+          got.push(v);
+          return new Promise((res) => {
+            release = res as never;
+          });
+        },
+        onCancel: noop,
+      })
+    );
+    const invite = $('onb-hub-mode-invite');
+    expect(invite?.getAttribute('aria-disabled')).toBeNull();
+    expect($('onb-hub-invite')).toBeNull(); // password mode first
+    click('onb-hub-mode-invite');
+    expect(invite?.getAttribute('aria-pressed')).toBe('true');
+    expect($('onb-hub-mode-password')?.getAttribute('aria-pressed')).toBe('false');
+    const field = $('onb-hub-invite') as HTMLInputElement;
+    expect(field.type).toBe('password');
+    expect(($('onb-hub-go') as HTMLButtonElement).disabled).toBe(true);
+    type('onb-hub-invite', `https://maude.alligators.cz/join/${KEY}`);
+    // the hub's own link names its hub: the empty address is filled (the address is not a secret)
+    expect(($('onb-hub-url') as HTMLInputElement).value).toBe('https://maude.alligators.cz');
+    type('onb-hub-email', 'me@alligators.cz');
+    type('onb-hub-password', PASSWORD);
+    click('onb-hub-go');
+    expect(got).toEqual([
+      {
+        url: 'https://maude.alligators.cz',
+        token: `https://maude.alligators.cz/join/${KEY}`,
+        email: 'me@alligators.cz',
+        password: PASSWORD,
+      },
+    ]);
+    // read once: both secrets are gone from the page while the request is in flight
+    expect(($('onb-hub-invite') as HTMLInputElement).value).toBe('');
+    expect(($('onb-hub-password') as HTMLInputElement).value).toBe('');
+    for (const s of [KEY, PASSWORD]) expect(document.body.innerHTML).not.toContain(s);
+    await act(async () => release({ ok: false, error: 'This invitation has expired.' }));
+    await flush();
+    expect($('onb-hub-error')?.textContent).toBe('This invitation has expired.');
+    for (const s of [KEY, PASSWORD]) expect(document.body.innerHTML).not.toContain(s);
+    // back to the password lane: the invite field leaves
+    click('onb-hub-mode-password');
+    expect($('onb-hub-invite')).toBeNull();
+  });
+
+  test('hub: without an invite route (S11.14 before it wires one) "Invite link or key" is drawn and rests', async () => {
     render(
       createElement(HubSheet, {
         onTest: async () => ({ ok: true }),
@@ -655,6 +710,55 @@ describe('C · Home: the flyout rows open their sheets', () => {
     expect($('onb-hub')).toBeNull();
     expect(JSON.stringify(invokes)).not.toContain(PASSWORD);
     expect(document.body.innerHTML).not.toContain(PASSWORD);
+  });
+
+  test('S6.11b hub: an invite key redeems through /_home/hub/join once and opens the managed copy as a tab', async () => {
+    const KEY = `inv_${'cd'.repeat(24)}`;
+    routes['/_home/hub/join'] = () => [
+      200,
+      {
+        ok: true,
+        serverUrl: 'https://hub.example',
+        projectId: 'proj-2',
+        name: 'Brand',
+        role: 'member',
+        canvasGroups: ['UI'],
+        mode: 'transactions',
+        profile: 'default',
+      },
+    ];
+    invokeAnswers.managed_project_open = () => '/Users/x/.maude/managed/Brand';
+    await mountHome();
+    await openRow('hub');
+    type('onb-hub-url', 'https://hub.example');
+    click('onb-hub-mode-invite');
+    type('onb-hub-invite', KEY);
+    type('onb-hub-email', 'me@alligators.cz');
+    type('onb-hub-password', PASSWORD);
+    click('onb-hub-go');
+    await flush();
+    expect(hit('/_home/hub/prepare')).toHaveLength(0);
+    expect(hit('/_home/hub/join')).toHaveLength(1);
+    expect(hit('/_home/hub/join')[0].body).toEqual({
+      profile: 'default',
+      url: 'https://hub.example',
+      token: KEY,
+      email: 'me@alligators.cz',
+      password: PASSWORD,
+    });
+    // the key and password rode the POST body only — never the request URL
+    for (const c of calls) for (const s of [KEY, PASSWORD]) expect(c.url).not.toContain(s);
+    expect(cmds('managed_project_open')[0]?.args).toMatchObject({
+      serverUrl: 'https://hub.example',
+      projectId: 'proj-2',
+      profile: 'default',
+    });
+    expect(cmds('open_project')[0]?.args).toMatchObject({ root: '/Users/x/.maude/managed/Brand' });
+    expect($('onb-hub')).toBeNull();
+    for (const s of [KEY, PASSWORD]) {
+      expect(JSON.stringify(invokes)).not.toContain(s);
+      expect(document.body.innerHTML).not.toContain(s);
+    }
   });
 
   test('hub: a refused sign-in stays on the sheet, in words; no tab opens; the password is gone', async () => {

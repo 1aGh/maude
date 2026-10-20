@@ -802,6 +802,7 @@ describe('home-api', () => {
         'getIndex',
         'getRecentSearches',
         'getWhatsNew',
+        'hubJoin',
         'hubPrepare',
         'hubTest',
         'inviteAccept',

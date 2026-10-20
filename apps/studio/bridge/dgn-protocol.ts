@@ -518,7 +518,8 @@ export interface ShellToCanvas {
   'photo-busy': { asset: string; busy: boolean };
   // comments
   'comments-set': { comments: CommentThread[] };
-  'comment-focus': { id: Id | null };
+  // S6.11b — `reply`: a thread landing (invite / mention) focuses the thread's reply field
+  'comment-focus': { id: Id | null; reply?: true };
   // S9.22 — the shell's answers to `comment-op` / `comment-people-request`, to the frame that asked.
   'comment-op-ack': { reqId: ReqId | null };
   'comment-op-result': {
@@ -1905,7 +1906,7 @@ const s2c: S2C = {
     target: 'parent',
     status: 'live',
     owner: 'comments-overlay',
-    parse: p({ id: nul(str) }),
+    parse: p({ id: nul(str), reply: opt(lit(true)) }),
   },
   'comment-op-ack': {
     gate: 'parent',

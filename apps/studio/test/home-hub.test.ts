@@ -21,8 +21,14 @@ interface Seen {
   body: string;
 }
 
-function fakeHub(opts: { health?: 'ok' | 'other' | 'down' | 'redirect' } = {}) {
+function fakeHub(
+  opts: {
+    health?: 'ok' | 'other' | 'down' | 'redirect';
+    join?: 'ok' | 'gone' | 'redirect' | 'junk';
+  } = {}
+) {
   const seen: Seen[] = [];
+  const access: (string | null)[] = [];
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -48,12 +54,37 @@ function fakeHub(opts: { health?: 'ok' | 'other' | 'down' | 'redirect' } = {}) {
           expiresAt: Date.now() + 3_600_000,
           user: { email: 'ana@example.test', role: 'member' },
         });
+      if (url.pathname === '/join' && req.method === 'POST') {
+        access.push(req.headers.get('x-maude-access'));
+        if (opts.join === 'gone')
+          return Response.json(
+            {
+              ok: false,
+              reason: 'expired',
+              error: 'This invitation has expired. Ask whoever invited you for a new link.',
+            },
+            { status: 410 }
+          );
+        if (opts.join === 'redirect')
+          return new Response(null, { status: 307, headers: { location: 'https://evil.test/' } });
+        if (opts.join === 'junk') return new Response('<html>', { status: 201 });
+        return Response.json(
+          {
+            ok: true,
+            token: 'hub-invite-session-xyz',
+            label: 'api-1',
+            expiresAt: Date.now() + 3_600_000,
+            user: { email: 'ana@example.test', role: 'member' },
+          },
+          { status: 201 }
+        );
+      }
       if (url.pathname === '/api/projects/current/v1/bootstrap')
         return Response.json({ projectId: 'team-a', canvasGroups: ['ui'] });
       return new Response('nope', { status: 404 });
     },
   });
-  return { url: `http://127.0.0.1:${server.port}`, seen, stop: () => server.stop(true) };
+  return { url: `http://127.0.0.1:${server.port}`, seen, access, stop: () => server.stop(true) };
 }
 
 /** Every file under `dir`, recursively — to prove the password landed in none of them. */
@@ -290,6 +321,154 @@ describe('Connect: the password is posted once and never stored by Home', () => 
   test('no password: a known hub this profile has no credential for → sign in first', async () => {
     const r = await createHomeHub().prepare({ profile: 'work', url: 'https://hub.example.com' });
     expect(r.status).toBe(401);
+  });
+});
+
+describe('S6.11b — "Invite link or key": redeem through the hub’s POST /join', () => {
+  const KEY = `inv_${'5e'.repeat(24)}`;
+  const joinBody = (url: string, token: string = KEY) => ({
+    profile: 'work',
+    url,
+    token,
+    email: 'ana@example.test',
+    password: PASSWORD,
+  });
+
+  test('probe, ONE POST /join (JSON, access declared), session in THIS profile’s hubs.json, prepare-shaped answer, no secret anywhere', async () => {
+    const hub = fakeHub();
+    const state = mkdtempSync(join(tmpdir(), 'maude-home-hub-state-'));
+    try {
+      const r = await homeFetch({ stateDir: state })(
+        homeReq('/_home/hub/join', { method: 'POST', body: JSON.stringify(joinBody(hub.url)) })
+      );
+      const text = await r.text();
+      expect(r.status).toBe(200);
+      expect(JSON.parse(text)).toMatchObject({
+        ok: true,
+        profile: 'work',
+        serverUrl: hub.url,
+        projectId: 'team-a',
+        role: 'member',
+        canvasGroups: ['ui'],
+      });
+      for (const s of [KEY, PASSWORD, 'hub-invite-session-xyz']) expect(text).not.toContain(s);
+      // the tokenless probe first; the invite key and password reach the hub once, in the /join body
+      expect(hub.seen[0]).toMatchObject({ method: 'GET', path: '/health', auth: null, body: '' });
+      const joins = hub.seen.filter((s) => s.path === '/join');
+      expect(joins).toHaveLength(1);
+      expect(JSON.parse(joins[0]?.body ?? '{}')).toEqual({
+        token: KEY,
+        email: 'ana@example.test',
+        password: PASSWORD,
+      });
+      expect(hub.access).toEqual(['2']);
+      for (const s of [KEY, PASSWORD]) {
+        expect(hub.seen.filter((x) => x.body.includes(s))).toHaveLength(1);
+        // never in a URL
+        expect(hub.seen.some((x) => x.path.includes(s))).toBe(false);
+      }
+      // the project is read with the minted session
+      expect(hub.seen.find((s) => s.path.endsWith('/bootstrap'))?.auth).toBe(
+        'Bearer hub-invite-session-xyz'
+      );
+      const workHubs = join(xdg, 'maude', 'profiles', 'work', 'hubs.json');
+      expect(JSON.parse(readFileSync(workHubs, 'utf8')).hubs[hub.url]).toMatchObject({
+        token: 'hub-invite-session-xyz',
+      });
+      expect(existsSync(join(xdg, 'maude', 'hubs.json'))).toBe(false);
+      for (const file of [...filesUnder(xdg), ...filesUnder(state)])
+        for (const s of [KEY, PASSWORD])
+          expect([file, s, readFileSync(file, 'utf8').includes(s)]).toEqual([file, s, false]);
+      for (const s of [KEY, PASSWORD]) expect(logged.join('\n')).not.toContain(s);
+    } finally {
+      hub.stop();
+    }
+  });
+
+  test('the hub’s own invite link for THIS hub works; a link to another hub is refused before any request', async () => {
+    const hub = fakeHub();
+    try {
+      const ok = await createHomeHub().join(joinBody(hub.url, `${hub.url}/join/${KEY}`));
+      expect(ok.status).toBe(200);
+      expect(JSON.parse(hub.seen.find((s) => s.path === '/join')?.body ?? '{}').token).toBe(KEY);
+      const before = hub.seen.length;
+      const other = await createHomeHub().join(
+        joinBody(hub.url, `https://other-hub.example/join/${KEY}`)
+      );
+      expect(other.status).toBe(400);
+      expect((other.body as { error: string }).error).toBe(
+        'That invite is for a different hub address.'
+      );
+      expect(hub.seen.length).toBe(before);
+    } finally {
+      hub.stop();
+    }
+  });
+
+  test('a dead invite answers in words; nothing is stored; a redirect is never followed', async () => {
+    for (const mode of ['gone', 'redirect', 'junk'] as const) {
+      const hub = fakeHub({ join: mode });
+      try {
+        const r = await createHomeHub().join(joinBody(hub.url));
+        expect([mode, r.status === 200]).toEqual([mode, false]);
+        const b = r.body as { ok: boolean; error: string };
+        expect(b.ok).toBe(false);
+        if (mode === 'gone') {
+          expect(r.status).toBe(410);
+          expect(b.error).toBe(
+            'This invitation has expired. Ask whoever invited you for a new link.'
+          );
+        }
+        for (const s of [KEY, PASSWORD]) expect(JSON.stringify(r.body)).not.toContain(s);
+        expect(hub.seen.filter((s) => s.path === '/join')).toHaveLength(1);
+        expect(hub.seen.some((s) => s.path.endsWith('/bootstrap'))).toBe(false);
+        expect(existsSync(join(xdg, 'maude', 'profiles', 'work', 'hubs.json'))).toBe(false);
+      } finally {
+        hub.stop();
+      }
+    }
+  });
+
+  test('a hub that fails the probe never receives the key or the password', async () => {
+    for (const health of ['down', 'other', 'redirect'] as const) {
+      const hub = fakeHub({ health });
+      try {
+        const r = await createHomeHub().join(joinBody(hub.url));
+        expect(r.status).not.toBe(200);
+        expect(hub.seen.map((s) => s.path)).toEqual(['/health']);
+      } finally {
+        hub.stop();
+      }
+    }
+  });
+
+  test('junk key, plain-http remote, bad profile, missing email or password → 400 before any request', async () => {
+    const calls: string[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (u: string) => {
+      calls.push(String(u));
+      return new Response('{}');
+    }) as unknown as typeof fetch;
+    try {
+      const hub = createHomeHub();
+      const base = joinBody('https://hub.example.com');
+      for (const body of [
+        { ...base, token: 'not-a-key' },
+        { ...base, token: `https://hub.example.com/join/${KEY}?x=1` },
+        { ...base, token: 7 },
+        { ...base, url: 'http://hub.example.com' },
+        { ...base, profile: '../x' },
+        { ...base, email: '' },
+        { ...base, password: '' },
+      ]) {
+        const r = await hub.join(body);
+        expect([body, r.status]).toEqual([body, 400]);
+        for (const s of [KEY, PASSWORD]) expect(JSON.stringify(r.body)).not.toContain(s);
+      }
+      expect(calls).toEqual([]);
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 });
 

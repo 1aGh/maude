@@ -134,7 +134,17 @@ export const hubPrepare = (profile, url, creds) =>
     url,
     ...(creds ? { email: creds.email, password: creds.password } : {}),
   });
-/** Claude readiness → `{available, claudeInstalled, reason, install:{phase,ok?,reason?}, signinInFlight}`. */
+/** S6.11b — "Invite link or key": redeem a hub invite (the hub's POST /join) → the same answer as
+ *  `hubPrepare`. The invite key, email and password ride this one POST body, never a URL or a log. */
+export const hubJoin = (profile, url, invite) =>
+  post('/_home/hub/join', {
+    profile,
+    url,
+    token: invite?.token,
+    email: invite?.email,
+    password: invite?.password,
+  });
+/** Claude readiness →`{available, claudeInstalled, reason, install:{phase,ok?,reason?}, signinInFlight}`. */
 export const aiStatus = () => homeFetch('/_home/ai/status');
 /** step: 'install' | 'signin' | 'cancel'. */
 export const aiConnect = (step) => post('/_home/ai/connect', { step });
