@@ -17,3 +17,34 @@ export function shouldOpenOnSelect({ pref, viewer, hasId, anyMainOpen }) {
 export function shouldCloseOnDeselect({ pref, autoOpened, hasSelection }) {
   return !!pref && !!autoOpened && !hasSelection;
 }
+
+// S6.16b (01 cf-select-tweak, "the view makes room"): when the Inspector arrives WITH a selection, the Canvases
+// panel folds to its corner icon; when the selection clears it comes back. The panel only — an inset change
+// never moves the view (I1, bridge/canvas-mode-store.ts), so "the canvas slides left" is NOT built.
+//
+// A claim, like the Inspector's own: only a fold THIS rule made is undone by it. Not folded when there was
+// nothing to fold (already shut — the person's choice), nor under "Pin panels to the side" (docked columns
+// already give the canvas its own room). Opened by hand while the Inspector is up, or pinned meanwhile: the
+// claim ends and the panel is left where the person put it.
+export function createCanvasesFold() {
+  let folded = false;
+  return {
+    /** The Inspector just arrived with a selection → `true` = fold Canvases now. */
+    arrive({ canvasesOpen, pinned }) {
+      if (folded || !canvasesOpen || pinned) return false;
+      folded = true;
+      return true;
+    },
+    /** The person opened Canvases themselves: the claim ends. */
+    release() {
+      folded = false;
+    },
+    /** The selection state changed → `true` = bring Canvases back now. */
+    clear({ hasSelection, canvasesOpen, pinned }) {
+      if (!folded || hasSelection) return false;
+      folded = false;
+      return !canvasesOpen && !pinned;
+    },
+    folded: () => folded,
+  };
+}
