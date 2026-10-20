@@ -41,6 +41,7 @@ import { reorderOps } from './reorder.ts';
 import { componentReset } from './reset-overrides.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
+import { artboardSetSafeZones } from './safe-zones.ts';
 import { layoutSetGap } from './set-gap.ts';
 import { elementSetId } from './set-id.ts';
 import { SET_LINK_OP } from './set-link.ts';
@@ -93,6 +94,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   // S2.10 — ⌘D / ⌥-drag / the artboard menu: a copy beside its source, in one write
   artboardDuplicate,
   artboardDuplicateAtWidth,
+  // S7.22 — Safe zones: which platform's own interface covers the artboard (the `safeZones` prop)
+  artboardSetSafeZones,
   // S2.11 — Place freely, constraints, reorder (earlier / later / to a slot)
   objectPlaceFreely,
   objectConstrain,

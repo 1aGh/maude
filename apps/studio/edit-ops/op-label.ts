@@ -6,6 +6,7 @@
 // params and its targets' names; an op without a row falls back to its registry label, never to "Edit canvas".
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
+import { safeZonePreset } from '../kinds/safe-zones.ts';
 import type { ElementRef } from './types.ts';
 
 type Say = (n: string, p: Record<string, unknown>, count: number) => string;
@@ -51,6 +52,10 @@ const ROWS: Readonly<Record<string, Say>> = {
     typeof p.width === 'number' ? `Resized ${n} to ${Math.round(p.width)} px wide` : `Resized ${n}`,
   'artboard.duplicate': (n) => `Duplicated ${n}`,
   'artboard.duplicate-at-width': (n) => `Duplicated ${n} at another width`,
+  'artboard.set-safe-zones': (_n, p) => {
+    const hit = safeZonePreset(p.preset);
+    return hit ? `Safe zones: ${hit.label}` : 'Removed safe zones';
+  },
   'object.place-freely': (n) => `Placed ${n} freely`,
   'object.constrain': (n) => `Pinned ${n}`,
   'object.reorder-earlier': (n) => `Moved ${n} earlier`,

@@ -26617,5 +26617,150 @@
       "test:v2-s11-14-connections"
     ],
     "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "safe-zones",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The safe-zone overlay root inside an artboard's guides mount (`.dc-artboard-guides`): `data-preset` = the preset id. Canvas only; hidden from every export.",
+    "producer": {
+      "file": "apps/studio/safe-zones-overlay.tsx",
+      "symbol": "SafeZonesOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/safe-zones-overlay.test.tsx",
+      "apps/studio/test/safe-zones-never-exported.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "safe-zone-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One hatched, labelled band of a safe zone (`data-edge` = top, bottom, left or right).",
+    "producer": {
+      "file": "apps/studio/safe-zones-overlay.tsx",
+      "symbol": "Band"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/safe-zones-overlay.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "safe-zone-cut",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dimmed part of an artboard a platform crops away (Instagram profile grid, Facebook event cover).",
+    "producer": {
+      "file": "apps/studio/safe-zones-overlay.tsx",
+      "symbol": "SafeZonesOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/safe-zones-overlay.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "safe-zone-flag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The amber tag on text that sits under a band (\"Under the caption\"); `data-edge` = the band's edge.",
+    "producer": {
+      "file": "apps/studio/safe-zones-overlay.tsx",
+      "symbol": "SafeZonesOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/safe-zones-overlay.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "insp-safe-zones",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Safe zones select (None, Instagram story, Instagram Reels, Instagram profile grid, TikTok, YouTube Shorts, Facebook event cover). Fixed-size and video artboards only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
+      "symbol": "SafeZonesBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "insp-safe-zones-show",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Show on canvas switch of the Safe zones section (the person's own view state); drawn only while a zone is chosen.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
+      "symbol": "SafeZonesBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "insp-safe-zones-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One line under the Safe zones rows: what the chosen platform covers.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
+      "symbol": "SafeZonesBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "insp-safe-zones-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Shown on the canvas only — never exported. Zones as each platform publishes them, checked Oct 2026.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
+      "symbol": "SafeZonesBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "insp-safe-zones-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why a safe-zone change was refused, in a plain line (held by AI, locked, stale, read-only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
+      "symbol": "SafeZonesBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
   }
 ]

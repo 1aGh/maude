@@ -106,6 +106,14 @@ export const SECTIONS = Object.freeze(
         'Where a click goes and what a hover does. Preview plays it; Edit shows the link while selected.',
     },
     {
+      // S7.22 (08 ak-safe-zones): a fixed-size or video artboard only — drawn when a body is registered for it.
+      n: 22,
+      id: 'safe-zones',
+      title: 'Safe zones',
+      explain:
+        'Where a platform’s own interface covers the artboard. Drawn on the canvas for you; never exported.',
+    },
+    {
       n: 10,
       id: 'export',
       title: 'Export',
