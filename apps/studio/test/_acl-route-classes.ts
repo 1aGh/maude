@@ -166,6 +166,9 @@ const CANVAS = [
   '/_api/ds/components',
   // S7.20 the F size picker's catalogue (`file`, minRole edit)
   '/_api/kinds/presets',
+  // S7.25 the things to check on an artboard and Change kind's plan (both name their canvas by `canvas`)
+  '/_api/kinds/warnings',
+  '/_api/kinds/convert-plan',
   '/_api/edit-instance',
   '/_api/sync/conflicts/resolve',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
