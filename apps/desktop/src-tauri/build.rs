@@ -59,6 +59,11 @@ fn main() {
                 "home_cloud_sign_in_open",
                 "home_cloud_signed_in",
                 "take_pending_invite",
+                // S6.10 (github_home.rs): GitHub from Home (Home-only, HOME_PERMISSIONS).
+                "github_repos",
+                "home_github_sign_in",
+                "github_clone",
+                "github_create",
                 "managed_project_open",
                 "managed_projects_list",
                 "resolve_project_for_link",

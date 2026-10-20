@@ -69,6 +69,8 @@ describe('Home route guards (§5.8 item 1)', () => {
       '/_home/cli/status',
       '/_home/cli/install',
       '/_home/whats-new',
+      // S6.10 — Rust's GitHub clone (bearer only)
+      '/_home/internal/github/clone',
     ])
       expect([p, paths.has(p)]).toEqual([p, true]);
   });
@@ -278,7 +280,10 @@ describe('internal routes (§5.8 item 2)', () => {
             })
           : rustReq(`${s.path}?q=x&pids=&pid=l0000000000000000`)
       );
-      expect([s.path, r.status]).toEqual([s.path, 200]);
+      // S6.10: the clone row got in and then refused this body (no owner/repo/folder) — its own
+      // validation, past the guard (home-github-clone.test.ts drives it with a real body)
+      const want = s.path === '/_home/internal/github/clone' ? 400 : 200;
+      expect([s.path, r.status]).toEqual([s.path, want]);
     }
   });
 

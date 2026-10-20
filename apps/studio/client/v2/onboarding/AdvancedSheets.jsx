@@ -5,7 +5,8 @@
 //
 //   hub            → /_home/hub/{test,prepare,join}   then Home's own open of the managed copy (a tab);
 //                    `join` (S6.11b) redeems a hub invite ("Invite link or key")
-//   folder-github  → the shell's folder picker (`open_project_folder`); the GitHub segment rests until S6.10
+//   folder-github  → the shell's folder picker (`open_project_folder`); "From GitHub" (S6.10) → Rust's
+//                    github_repos / home_github_sign_in / github_clone / github_create, then `open_project({root})`
 //   ai             → /_home/ai/{status,connect}  (install Claude Code, then the browser sign-in)
 //   cli            → /_home/cli/{status,install} (a link to the bundled maude; the plugin when claude is there)
 //   figma          → the target project opens with the `import-figma` intent (Q8)
@@ -23,8 +24,12 @@ import {
   hubJoin,
   hubPrepare,
   hubTest,
+  inShell,
+  openProject,
   openProjectFolder,
+  shellListen,
 } from '../../home/home-api.js';
+import { useGithubSegment } from './GithubSegment.jsx';
 import { ConnectAiSheet } from './ConnectAiSheet.jsx';
 import { CliSheet } from './CliSheet.jsx';
 import { FigmaSheet } from './FigmaSheet.jsx';
@@ -123,9 +128,19 @@ function CliHost({ onClose }) {
   );
 }
 
-function FolderHost({ onClose, openFolder }) {
+function FolderHost({ onClose, openFolder, profile, github: gh }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // S6.10: the GitHub segment — Rust lists, signs in and clones for `profile`; the clone opens as a tab
+  const github = useGithubSegment({
+    profile,
+    invoke: gh?.invoke,
+    listen: gh?.listen ?? shellListen,
+    openRoot: gh?.openRoot ?? ((root) => openProject({ root })),
+    onDone: onClose,
+    setBusy,
+    setError,
+  });
   const go = async () => {
     setBusy(true);
     setError(null);
@@ -137,7 +152,15 @@ function FolderHost({ onClose, openFolder }) {
       setError(typeof e === 'string' ? e : e?.message || "Couldn't open that folder.");
     }
   };
-  return <FolderGithubSheet busy={busy} error={error} onOpenFolder={go} onCancel={onClose} />;
+  return (
+    <FolderGithubSheet
+      busy={busy}
+      error={error}
+      onOpenFolder={go}
+      onCancel={onClose}
+      github={gh || inShell() ? github : null}
+    />
+  );
 }
 
 function FigmaHost({ target, onClose, startFigma }) {
@@ -160,7 +183,10 @@ function FigmaHost({ target, onClose, startFigma }) {
 /**
  * @param {{ open: string|null, onClose: () => void, profile: string, target?: object|null,
  *           openPrepared: (prep: object, name: string, profile: string) => Promise<unknown>,
- *           startFigma: () => Promise<boolean|undefined>, openFolder?: () => Promise<unknown> }} props
+ *           startFigma: () => Promise<boolean|undefined>, openFolder?: () => Promise<unknown>,
+ *           github?: { invoke?: Function, listen?: Function, openRoot?: Function } | null }} props
+ *   `github` is a seam for tests (and Settings › Connections): the shell invoke / listen / open the
+ *   GitHub segment uses. Without it the segment is drawn only inside the app.
  */
 export function AdvancedSheets({
   open,
@@ -170,6 +196,7 @@ export function AdvancedSheets({
   openPrepared,
   startFigma,
   openFolder = () => openProjectFolder(),
+  github = null,
 }) {
   if (open === 'hub')
     return (
@@ -200,7 +227,10 @@ export function AdvancedSheets({
         }}
       />
     );
-  if (open === 'folder-github') return <FolderHost onClose={onClose} openFolder={openFolder} />;
+  if (open === 'folder-github')
+    return (
+      <FolderHost onClose={onClose} openFolder={openFolder} profile={profile} github={github} />
+    );
   if (open === 'ai') return <AiSheet onClose={onClose} />;
   if (open === 'cli') return <CliHost onClose={onClose} />;
   if (open === 'figma')

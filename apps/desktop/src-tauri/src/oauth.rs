@@ -273,6 +273,54 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
     Ok(login)
 }
 
+/// S6.10 — the device flow for a caller with no project (Home): the code goes to `label` on its
+/// own channel, the browser opens, and the answer is `(login, token)` for the caller to store
+/// (github_home.rs `home_github_sign_in`, which picks the profile). The token is returned to Rust
+/// only. Debug builds honour `MAUDE_E2E_FAKE_GITHUB_LOGIN` like `github_sign_in`, and only with
+/// the in-memory keychain, so a fake token can never land in the person's keychain.
+pub(crate) async fn device_flow(label: &str) -> Result<(String, String), String> {
+    #[cfg(debug_assertions)]
+    if let Ok(login) = std::env::var("MAUDE_E2E_FAKE_GITHUB_LOGIN") {
+        if !login.is_empty() {
+            if !crate::keychain::test_store::e2e_installed() {
+                return Err("e2e sign-in needs MAUDE_E2E_FAKE_KEYCHAIN".into());
+            }
+            to_caller(
+                label,
+                "github://device-code",
+                DeviceCodeEvent {
+                    user_code: "E2E-CODE".to_string(),
+                    verification_uri: "https://github.com/login/device".to_string(),
+                    expires_in: 900,
+                },
+            );
+            sleep(Duration::from_millis(1500)).await;
+            to_caller(label, "github://signed-in", &login);
+            let token = format!("e2e-token-{login}");
+            return Ok((login, token));
+        }
+    }
+    let client_id = client_id()?;
+    let client = http_client()?;
+    let dc = request_device_code(&client, &client_id).await?;
+    to_caller(
+        label,
+        "github://device-code",
+        DeviceCodeEvent {
+            user_code: dc.user_code.clone(),
+            verification_uri: dc.verification_uri.clone(),
+            expires_in: dc.expires_in,
+        },
+    );
+    if let Err(e) = open::that(&dc.verification_uri) {
+        crate::sidecar::log_line(&format!("[maude] could not open browser for device flow: {e}"));
+    }
+    let token = poll_for_token(&client, &client_id, &dc.device_code, dc.interval).await?;
+    let login = fetch_login(&client, &token).await?;
+    to_caller(label, "github://signed-in", &login);
+    Ok((login, token))
+}
+
 /// V2-3.8 — the write half of a GitHub sign-in, shared by the device flow and
 /// the debug-only e2e seam. The project at `root` keeps its own sign-in: a
 /// token for another account than its profile holds (or one that would re-sign

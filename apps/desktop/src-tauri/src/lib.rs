@@ -22,6 +22,7 @@ mod deep_link;
 mod doors;
 mod export_save;
 mod external_link;
+mod github_home;
 mod home;
 mod keychain;
 mod lifecycle;
@@ -591,6 +592,10 @@ pub fn run() {
             profiles::home_cloud_sign_in_prepare,
             profiles::home_cloud_sign_in_open,
             profiles::home_cloud_signed_in,
+            github_home::github_repos,
+            github_home::home_github_sign_in,
+            github_home::github_clone,
+            github_home::github_create,
             notify::e2e_notification_click,
             app_state::app_is_first_run,
             app_state::app_get_last_project,

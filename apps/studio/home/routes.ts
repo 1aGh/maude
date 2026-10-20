@@ -42,6 +42,7 @@ import { createHomeAi, type HomeAi } from './ai.ts';
 import { createHomeCli, type HomeCli } from './cli.ts';
 import type { HomeCloud } from './cloud.ts';
 import { createLocalProject } from './create-local.ts';
+import { createHomeGithub, type HomeGithub } from './github.ts';
 import { createHomeHub, type HomeHub } from './hub.ts';
 import { readHomeIndex, resolveProject, searchHome, thumbSource } from './index-reader.ts';
 import { createHomeInvite, type HomeInvite } from './invite.ts';
@@ -82,6 +83,8 @@ export interface HomeDeps {
   cli?: HomeCli;
   /** S6.6 / Q11 — the feed + the one seen mark per Mac (ui-prefs) */
   whatsNew?: HomeWhatsNew;
+  /** S6.10 — the clone behind "From GitHub" (internal: Rust names the folder and the token) */
+  github?: HomeGithub;
 }
 
 const NO_STORE = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
@@ -252,6 +255,7 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
   const ai = deps.ai ?? createHomeAi();
   const cli = deps.cli ?? createHomeCli();
   const whatsNew = deps.whatsNew ?? createHomeWhatsNew();
+  const github = deps.github ?? createHomeGithub();
   return [
     {
       method: 'GET',
@@ -422,6 +426,8 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     post('/_home/cli/install', 'home', (b) => cli.install(b)),
     get('/_home/whats-new', () => whatsNew.get()),
     post('/_home/whats-new', 'home', (b) => whatsNew.post(b)),
+    // S6.10 — Rust's github_clone: the folder it claimed + the profile's token, bearer only
+    post('/_home/internal/github/clone', 'internal', (b) => github.clone(b)),
     {
       method: 'GET',
       path: '/_home/internal/search',

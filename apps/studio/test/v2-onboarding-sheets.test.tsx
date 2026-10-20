@@ -778,7 +778,10 @@ describe('C · Home: the flyout rows open their sheets', () => {
   test('folder: Open runs the shell’s folder picker and leaves the sheet', async () => {
     await mountHome();
     await openRow('folder-github');
-    expect($('onb-folder-tab-github')?.getAttribute('aria-disabled')).toBe('true');
+    // S6.10: inside the app the GitHub segment is live (v2-github-home.test.tsx drives it); the sheet
+    // still opens on the folder segment
+    expect($('onb-folder-tab-github')?.getAttribute('aria-disabled')).toBeNull();
+    expect($('onb-folder-tab-folder')?.getAttribute('aria-pressed')).toBe('true');
     click('onb-folder-go');
     await flush();
     expect(cmds('open_project_folder')).toHaveLength(1);

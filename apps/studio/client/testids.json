@@ -29278,14 +29278,15 @@
     "hook": "onb-folder-tab-github",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"From GitHub\" segment: resting (`aria-disabled`) until S6.10 hands the repo list in.",
+    "meaning": "\"From GitHub\" segment: live inside the app (S6.10 hands the repo list in); resting (`aria-disabled`) outside it.",
     "producer": {
       "file": "apps/studio/client/v2/onboarding/FolderGithubSheet.jsx",
       "symbol": "FolderGithubSheet"
     },
     "region": "home",
     "consumers": [
-      "test:v2-onboarding-sheets"
+      "test:v2-onboarding-sheets",
+      "test:v2-github-home"
     ],
     "v2": "new"
   },
@@ -29316,6 +29317,156 @@
     "region": "home",
     "consumers": [
       "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Loading your GitHub projects…\" while Rust reads the list.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the GitHub list could not be read, in words (inside the segment; the folder half is untouched).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-signin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Sign in with GitHub\" for a profile with no GitHub token (Rust `home_github_sign_in`); the device code shows above it.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The repo list from Rust `github_repos` (radiogroup).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-repo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One repo row: lock or folder icon, `owner/repo`, Private or Public; `aria-checked` on the chosen one.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"No projects on GitHub yet.\" when the list is empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Or paste a GitHub link\" — a github.com link or `owner/repo`; another host enables nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-new",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"New project on GitHub — private by default\" (Rust `github_create`).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-new-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The new project's name, after the New project row is chosen.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-github-choose-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Choose another folder…\" — Open then asks for the folder in the native picker instead of ~/Maude.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/GithubSegment.jsx",
+      "symbol": "useGithubSegment"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-github-home"
     ],
     "v2": "new"
   },

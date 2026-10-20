@@ -80,6 +80,12 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-home-cloud-sign-in-open",
     "allow-home-cloud-signed-in",
     "allow-take-pending-invite",
+    // S6.10 (github_home.rs): "From GitHub" — the list, Home's GitHub sign-in, the clone and
+    // "New project on GitHub". The token stays in Rust; the page sees names and a folder.
+    "allow-github-repos",
+    "allow-home-github-sign-in",
+    "allow-github-clone",
+    "allow-github-create",
 ];
 
 // ── The Home server record ──────────────────────────────────────────────────
@@ -443,7 +449,7 @@ pub fn home_capability(id: &str, port: u16) -> CapabilityBuilder {
 }
 
 /// `(url, token)` of the bound Home server.
-fn endpoint(app: &AppHandle) -> Option<(String, String)> {
+pub(crate) fn endpoint(app: &AppHandle) -> Option<(String, String)> {
     let state = app.try_state::<SidecarState>()?;
     let slot = state.home.lock().unwrap_or_else(|e| e.into_inner());
     let h = slot.as_ref()?;
