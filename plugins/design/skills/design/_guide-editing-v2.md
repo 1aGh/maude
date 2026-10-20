@@ -92,3 +92,13 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
 - Replace… changes `src` only and removes `data-photo-edit` (a per-use photo edit belongs to the old picture).
 - A pasted Figma frame is Figma’s exact picture (`data-source="figma"`), not layers — never claim its text stays editable.
 - Full recipe: `apps/studio/schema/canvas-tsx.md` ("Place, replace and crop an image").
+
+## Artboards of a kind (S7.20)
+
+- **F over empty canvas** opens the size picker (App · Web page · Social · Print · Video); the pick is ONE new `<DCArtboard>` that
+  already has its kind. App and Social both make `kind="digital" fixed` (the designer word is "Fixed size"), a Web page
+  `kind="web"` (the height is a floor and grows), Print `kind="print" print={{ paper, orientation }}` (px = trim + 2 × bleed,
+  A6 + 3 mm = 419 × 581), Video `kind="video"` with a `<VideoComp>` inside. Its place is `layout.artboards[]`, never a prop.
+- **A custom print size** is `print={{ paper: "<nearest larger preset>", orientation, sizeMm: [w, h], bleedMm }}` — never
+  `paper: "custom"`, which Maude 1 throws on. Always write `bleedMm`.
+- Full recipe and the sizes: `apps/studio/schema/canvas-tsx.md` ("Add an artboard of a kind").

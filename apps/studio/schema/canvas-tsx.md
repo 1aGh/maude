@@ -186,6 +186,27 @@ removed, and 0 on all four removes the declaration. A radius that lands on a `--
 token; anything else (⌘ held) is `px`. While the four are equal a drag rounds all four; when they differ, or with ⌥,
 only that corner changes and the other three keep what they had.
 
+## Add an artboard of a kind: the same result by hand (S7.20)
+
+F over empty canvas opens the size picker (App · Web page · Social · Print · Video); the tile you pick is ONE write
+(`artboard.insert-preset`, `edit-ops/insert-preset.ts`) that adds a whole artboard of the preset's kind. The catalogue
+is `kinds/presets.ts`; `GET /_api/kinds/presets` lists it. A pick adds a new last `<DCArtboard>`, a readable id (a slug
+of the label: `fb-event-cover`, then `fb-event-cover-2`), a label (the preset's name, then "… 2"), and — when the
+person or agent says where — its place in `layout.artboards[]` of the `.meta.json`, never a prop.
+
+| Picker group | The `<DCArtboard>` afterwards |
+| --- | --- |
+| App, Social (the kind `digital`, the word "Fixed size") | `kind="digital" fixed width={1920} height={1005}` — exact px. |
+| Web page | `kind="web" width={1440} height={900}` — no `fixed`: the height is the floor it grows from. |
+| Print | `kind="print" print={{"paper":"a6","orientation":"portrait"}} width={419} height={581}` — px = trim + 2 × bleed (A6 + 3 mm = 419 × 581, `print/units.ts resolvePrintArtboard`). |
+| Video | `kind="video" width={1920} height={1080}` and, inside, `<VideoComp component={VideoCut} durationInFrames={150} fps={30} width={1920} height={1080} />` with `const VideoCut = () => (<AbsoluteFill …/>)` and the `VideoComp` / `AbsoluteFill` imports. |
+| Print › Custom size… (mm) | `print={{"paper":"dl","orientation":"portrait","sizeMm":[99,210],"bleedMm":3}}` — `paper` is the **nearest larger preset** and `sizeMm` the trim; never `paper: "custom"` (Maude 1 throws on an unknown paper and then reads the nearest preset's guides). The width / height are the trim + 2 × bleed in px; bleed is always written. A side is 10–5000 mm. |
+
+Sizes (px unless said): App — Desktop 1440 × 1024, Laptop 1280 × 800, Mobile 390 × 844, Tablet 834 × 1194. Web —
+widths 1440 / 834 / 390 / 1280. Social — Post 4:5 1080 × 1350, Story 9:16 1080 × 1920, FB event cover 1920 × 1005,
+Post 1:1 1080 × 1080, Link preview 1200 × 630, YouTube thumbnail 1280 × 720. Print — A4, A5, A6, Letter, A3, A2,
+Business card (85 × 55 mm). Video — Reels 9:16 1080 × 1920, Landscape 16:9 1920 × 1080, Square 1:1 1080 × 1080.
+
 ## Place, replace and crop an image: the same result by hand (S2.15)
 
 A tile dropped on a frame (or placed with ↵), Replace…, and Fill · Fit · Crop · Tile are three edit-ops

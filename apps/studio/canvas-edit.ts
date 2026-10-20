@@ -4407,6 +4407,32 @@ export function setArtboardPrint(
 }
 
 /**
+ * S7.20 — an array literal of plain string / number / boolean literals (`sizeMm: [99, 210]`), or null when it holds
+ * anything else (an identifier, a spread, a hole, a nested array) or is longer than 16. Same no-eval rule as the
+ * object reader below.
+ */
+function plainLiteralArray(node: AnyNode): Array<string | number | boolean> | null {
+  const els: AnyNode[] = node?.elements ?? [];
+  if (els.length > 16) return null;
+  const out: Array<string | number | boolean> = [];
+  for (const e of els) {
+    if (
+      !e ||
+      !(
+        e.type === 'Literal' ||
+        e.type === 'StringLiteral' ||
+        e.type === 'NumericLiteral' ||
+        e.type === 'BooleanLiteral'
+      ) ||
+      !(typeof e.value === 'string' || typeof e.value === 'number' || typeof e.value === 'boolean')
+    )
+      return null;
+    out.push(e.value);
+  }
+  return out;
+}
+
+/**
  * Read a JS object-literal AST node into a plain object WITHOUT eval —
  * `print` (like every other canvas-authored JSX prop) is part of the
  * DDR-054 untrusted-canvas surface, so evaluating its source text
@@ -4417,7 +4443,11 @@ export function setArtboardPrint(
  * degrade to "field absent" rather than guess. Depth-capped defensively,
  * though `print`'s own shape never nests past marginsMm (depth 2).
  */
-function objectExpressionToPlain(node: AnyNode, depth = 0): Record<string, unknown> {
+function objectExpressionToPlain(
+  node: AnyNode,
+  depth = 0,
+  arrays = false
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (depth > 6 || node?.type !== 'ObjectExpression') return out;
   for (const p of node.properties ?? []) {
@@ -4432,7 +4462,10 @@ function objectExpressionToPlain(node: AnyNode, depth = 0): Record<string, unkno
     const v = p.value;
     if (!v) continue;
     if (v.type === 'ObjectExpression') {
-      out[key] = objectExpressionToPlain(v, depth + 1);
+      out[key] = objectExpressionToPlain(v, depth + 1, arrays);
+    } else if (arrays && v.type === 'ArrayExpression') {
+      const items = plainLiteralArray(v);
+      if (items) out[key] = items;
     } else if (
       (v.type === 'Literal' ||
         v.type === 'StringLiteral' ||
@@ -4469,11 +4502,16 @@ function objectExpressionToPlain(node: AnyNode, depth = 0): Record<string, unkno
  * file. Anything else genuinely computed (an import, a function call, a
  * spread) still returns null rather than guessing (RCA
  * issue-pdf-print-export-marks-missing).
+ *
+ * `opts.arrays` (S7.20, decision maude/v2-S7.20-print-reader-arrays-opt-in): also reads an array of plain literals
+ * (`sizeMm: [99, 210]`). Off by default, so every existing caller (the PDF exporter, and the test that models what a
+ * v1.9.1 peer reads) sees the bytes it always did; v2 readers of a custom print size ask for it.
  */
 export function readArtboardPrintProp(
   canvasAbsPath: string,
   source: string,
-  artboardId: string
+  artboardId: string,
+  opts: { arrays?: boolean } = {}
 ): Record<string, unknown> | null {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) return null;
@@ -4487,7 +4525,7 @@ export function readArtboardPrintProp(
   if (!expr) return null;
   const resolved = resolveValueNode(parsed.program, expr);
   if (resolved?.type !== 'ObjectExpression') return null;
-  return objectExpressionToPlain(resolved);
+  return objectExpressionToPlain(resolved, 0, opts.arrays === true);
 }
 
 /**

@@ -30,6 +30,7 @@ import {
   type ShellAnnotationPrefs,
 } from './annotations/ui/tool-prefs.ts';
 import { verGt } from './client/whats-new-seen.js';
+import { PRESET_ID_RE } from './kinds/presets.ts';
 import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
 /** The dockable shell panels the Layout tab can move between the two sides. */
@@ -90,6 +91,12 @@ export interface UiPrefs {
    * write this one mark (localStorage was per port origin). Only ever moves forward.
    */
   whatsNewSeen?: string;
+  /**
+   * S7.20: the F size picker's Recent chips — preset ids (kinds/presets.ts), newest first, at most 8. A list that
+   * REPLACES the stored one (it is an ordered history, not a map); ids that no longer name a preset are dropped
+   * on read by the catalogue.
+   */
+  recentSizes?: string[];
   migratedFrom?: number;
   /**
    * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
@@ -189,6 +196,7 @@ const MAP_KEY = /^[A-Za-z0-9._:/-]{1,128}$/;
 /** A What's New mark: a release version (semver, optional prerelease / build). */
 export const SEEN_VERSION_RE = /^\d{1,6}\.\d{1,6}\.\d{1,6}(?:[-+][0-9A-Za-z.+-]{1,40})?$/;
 const MAP_MAX = 256;
+const RECENT_SIZES_MAX = 8;
 const WIDTH_MAX = 4000;
 
 /** A fold / seen map: {id: boolean} (or {id: true}); ids are plain, short, and never prototype keys. */
@@ -288,6 +296,16 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
     if (typeof v !== 'string' || !SEEN_VERSION_RE.test(v))
       return fail('whatsNewSeen must be a version like 1.9.1');
     patch.whatsNewSeen = v;
+  }
+  if ('recentSizes' in body) {
+    const v = body.recentSizes;
+    if (
+      !Array.isArray(v) ||
+      v.length > RECENT_SIZES_MAX ||
+      !v.every((x) => typeof x === 'string' && PRESET_ID_RE.test(x))
+    )
+      return fail(`recentSizes must be a list of up to ${RECENT_SIZES_MAX} size ids`);
+    patch.recentSizes = [...new Set(v as string[])];
   }
   if ('annotationPrefs' in body) {
     const r = checkAnnotationPrefsPatch(body.annotationPrefs);

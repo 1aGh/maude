@@ -28,6 +28,7 @@ import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { imagePlace, imageReplace } from './image-fit.ts';
 import { componentInsert } from './insert-component.ts';
+import { artboardInsertPreset } from './insert-preset.ts';
 import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { hasLayoutChange } from './layout-patch.ts';
 import { objectLock } from './lock.ts';
@@ -132,6 +133,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   componentSwapVariant,
   componentReset,
   componentDetach,
+  // S7.20 — the F size picker's tile: a whole artboard of a preset's kind, in one write
+  artboardInsertPreset,
 ];
 
 export interface AiHoldHit {
