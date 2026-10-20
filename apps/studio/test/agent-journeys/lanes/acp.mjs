@@ -11,8 +11,9 @@
 //     outside the .app and its SessionStart would install over the network
 //   - `newSessionParams(project, brief, plugins)` (acp/bridge.ts) — recorded in plan.json, and the
 //     bridge builds the same object itself on `session/new`.
-// Nobody answers a permission card: every request is refused (the chat's own timeout default),
-// exactly as the terminal lane's "nobody answers" rule.
+// Nobody answers a permission card, except for a prompt-tier verb the journey JSON names in `allow`
+// (decision v2-S12.16-lanes-allow-named-prompt-verbs): that one card gets the one-time allow option.
+// Every other request is refused (the chat's own timeout default), as in the terminal lane.
 
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -21,6 +22,7 @@ import { buildStudioBrief } from '../../../acp/bootstrap-brief.ts';
 import { AcpBridge, MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../../../acp/bridge.ts';
 import { computeSessionPlugins } from '../../../acp/plugin-bootstrap.ts';
 import { logDenyIfAny, logTool, REPO } from './common.mjs';
+import { allowOf, answerCard } from './consent.mjs';
 
 export const CHAT_ID = 'journey';
 
@@ -39,6 +41,7 @@ export function planAcp(journey, { project, projectLabel = `journey ${journey.id
     brief,
     plugins,
     allowedTools: [...MAUDE_DEFAULT_ALLOWED_TOOLS],
+    allow: allowOf(journey),
     session: newSessionParams(project, brief, plugins),
     turns: journey.turns.map((t) => ({ say: t.say })),
   };
@@ -76,9 +79,15 @@ export async function runAcp(plan, project, trialDir, { timeoutMin = 20 } = {}) 
         );
     },
     onPermissionRequest: (id, req) => {
-      log({ t: 'permission', id, title: req.toolCall?.title ?? null });
-      const reject = (req.options ?? []).find((o) => String(o.kind).startsWith('reject'));
-      bridge.resolvePermission(id, reject?.optionId ?? 'cancelled');
+      const a = answerCard(plan.allow ?? [], req);
+      log({
+        t: 'permission',
+        id,
+        title: req.toolCall?.title ?? null,
+        allowed: a.allow,
+        why: a.why,
+      });
+      bridge.resolvePermission(id, a.optionId);
     },
   });
   const turns = [];

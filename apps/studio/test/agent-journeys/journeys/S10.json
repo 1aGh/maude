@@ -5,6 +5,7 @@
   "title": "A token change in the design system: read first, change the source, check, say who uses it",
   "ledger": [],
   "fixture": "app5",
+  "allow": ["maude design ds pending", "maude design ds publish"],
   "setup": [],
   "turns": [
     {
