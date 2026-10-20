@@ -42,6 +42,8 @@ const NOT_A_FILE_PLANE_WRITE = new Map([
   // S8.19: who holds which asset — `<dataDir>/asset-presence.json`, a hint the
   // probe feeds and the presence query reads; never a designRoot path.
   ['asset-presence.mjs', 'the asset-presence hint store in dataDir'],
+  // S10.18a: the team library's "used by N projects" count — `<dataDir>/ds-library-usage.json`.
+  ['ds-library.mjs', 'the ds-library usage count in dataDir'],
   // Plane A. The doc→file projection writes canvas bodies, sibling css, meta
   // and annotations — every one of them `canvas-owned`, which the classifier
   // refuses from the file plane by construction (DDR-226 §1: the planes are
