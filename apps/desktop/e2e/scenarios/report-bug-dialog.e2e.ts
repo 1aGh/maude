@@ -12,6 +12,10 @@ import { waitForSidecar } from '../helpers/sidecar';
  * Deliberately does NOT click "Send report" — an e2e run must never file a
  * real issue against the live intake. The submit path is covered by the
  * dev-server proxy + cloud route unit tests (report.test.mjs).
+ *
+ * The crash entry (S11.17, C37) — "Maude quit unexpectedly. …" › Report a bug… — needs a kill -9 and a
+ * relaunch, so it is a step of relaunch.e2e.ts leg 4; the crash-logs tick is pinned in
+ * apps/studio/test/v2-recovery-host.test.tsx (`crashLogsTicked`).
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
 
