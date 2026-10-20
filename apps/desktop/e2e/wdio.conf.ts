@@ -70,6 +70,8 @@ const DEDICATED: Record<string, string> = {
   'ds-review-outside.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-outside',
   // S6.11: an invite link landing on Home, against a loopback cloud stub.
   'invite-landing.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:invite-landing',
+  // S6.16: the first-canvas journey — Home's world (first run, two seeded projects) + a FAKE ACP agent.
+  'first-canvas.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:first-canvas',
   // S9.21c: several accounts on one hub (V2-1.7 §7) — an explicit run file from the V2-8 runner.
   'share-roles.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:share-roles',
 };
