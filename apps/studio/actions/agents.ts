@@ -261,7 +261,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.filter-kind': PREF(
     'narrows the Canvases list in the person’s window; `maude design index` lists every canvas with its artboard kinds'
   ),
-  'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
+  // S8.17 — the sheet lists a page's frames and brings the picked ones in as pictures (one new canvas); spends the
+  // person's Figma token and reaches the network. `--list` / `--frames <url> --pick <ids>` are the same two halves.
+  'import.figma': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/figma/import-frames', method: 'POST' },
+    agent: cli('maude design import-figma'),
+  },
   // S8.18 — a website read is third-party network (the fetch-asset gate); a logo alone writes assets/logos/
   'import.brand': { effect: 'external', agent: cli('maude design import-brand') },
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
@@ -653,8 +660,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Write the edit as assets/<img8>.photo.json (every use, a v1 PhotoEdit), then remove data-photo-edit from every <img> / <image> / tiled picture whose src is assets/<img8>.<ext> in every canvas (`maude design assets --usage assets/<img8>.<ext>` lists them), only when you may change every one of those canvases. Over HTTP: GET /_api/photo-every-use?asset=assets/<img8>.<ext> names the canvases ({uses, canApply, reason?}); POST /_api/photo-every-use {asset, edit} answers {path, canvases: [{canvas, ok}]}'
     ),
   },
-  // Registered, visible to no shell until S8.17 (Figma import) lands; its verb is S8's.
-  'figma.make-editable': { effect: 'external', agent: cli('maude design import-figma') },
+  // S8.17 — Make editable on an imported frame: DDR-219 codegen over the LOCAL Dev Mode server, one artboard
+  // (`maude design import-figma --editable <artboard> --canvas <dir>/<Canvas>.tsx`, = `--explode`).
+  'figma.make-editable': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/figma/explode', method: 'POST' },
+    agent: cli('maude design import-figma'),
+  },
   // S8.12 — the Assets tab's ↵ on a picked tile: the same write as `image.place`, started from the tab. The agent edits the TSX.
   'assets.place': {
     effect: 'project',

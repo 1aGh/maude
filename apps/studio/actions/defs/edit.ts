@@ -577,8 +577,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Make editable',
     kind: 'command',
     exec: 'shell',
-    visible: { shell: [] },
-    enabled: EDITS,
+    // S8.17 — the inspector's button on an imported frame (client/v2/import/figma-artboard.jsx)
+    enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
   // S2.17 (ed-comp-instance) — an instance of a design-system component. Swap takes a value (a variant, a
