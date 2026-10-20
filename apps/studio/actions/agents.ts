@@ -675,7 +675,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     minRole: 'view',
     server: { route: '/_api/asset-details', method: 'GET' },
-    agent: cli('maude design assets --usage <asset>'),
+    agent: cli('maude design assets --usage <asset> --details'),
   },
   // S8.13 — Move to trash on an asset: the picture and its sidecars go to `_trash/` together (the manifest says where each
   // lives, so Trash and Undo bring them all back). Never a picture a canvas uses or an older version still shows.
