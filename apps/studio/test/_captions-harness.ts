@@ -65,7 +65,14 @@ export function mediaOf(v: Video) {
     beats: [],
     unresolved: c.unresolved,
     transcripts: Object.fromEntries(
-      Object.entries(v.transcripts).map(([s, t]) => [s, { words: t.words }])
+      Object.entries(v.transcripts).map(([s, t]) => [
+        s,
+        {
+          ...(t.durationSec !== undefined ? { durationSec: t.durationSec } : {}),
+          ...(t.lang !== undefined ? { lang: t.lang } : {}),
+          words: t.words,
+        },
+      ])
     ),
     captions: caps,
   };
