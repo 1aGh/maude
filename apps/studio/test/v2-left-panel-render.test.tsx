@@ -182,7 +182,10 @@ describe('Canvases tab', () => {
     expect(order(list as Element, trash as Element)).toBe(true);
     expect(order(trash as Element, adv as Element)).toBe(true);
     // nothing else sits between the list and the Trash row: it is the last ROW
-    expect(list?.nextElementSibling).toBe(trash);
+    // (S7.24 wrapped the list in `.cv-listwrap` with the Sort lane beside it, so the Trash row follows the
+    // wrapper, not the tree element itself — same order on screen, stale sibling check.)
+    const wrap = list?.closest('.cv-listwrap') ?? list;
+    expect(wrap?.nextElementSibling).toBe(trash);
     expect(trash?.textContent).toContain('2'); // the count
     // …and the DESIGN SYSTEM section is not in the default list any more
     expect(host.querySelector('[data-testid="tree-section-design-system"]')).toBeNull();
