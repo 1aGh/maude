@@ -35,6 +35,12 @@ const ALLOW: readonly { file: string; rule: string; text: RegExp; why: string }[
     why: 'S10.16b: the brief the person hands the AI chat is written in their voice ("I pick one"), a prompt for the agent, never chrome',
   },
   {
+    file: 'ds/upgrade-model.js',
+    rule: 'i',
+    text: /Do not run --apply: I will/,
+    why: 'S10.15b: the bring-up brief the person hands the AI chat, in their voice; a prompt for the agent, never chrome',
+  },
+  {
     file: 'present/',
     rule: 'screen',
     text: /audience screen/i,
