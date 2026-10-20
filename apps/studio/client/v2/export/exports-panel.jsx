@@ -38,6 +38,7 @@ export function ExportsPanel({ center, native = isNativeApp(), onNewExport = ope
     download: center.download,
     again: center.again,
     retry: center.retry,
+    renderHere: center.renderHere,
   };
   return (
     <div

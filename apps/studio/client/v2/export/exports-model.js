@@ -162,6 +162,9 @@ export function progressPct(job) {
 /** The second line of a row: where it runs and the moment it is in. */
 export function jobMeta(job, { now = Date.now(), eta = null } = {}) {
   const where = whereWords(job);
+  // S8.5 — a cloud render waiting in the outbox says what it waits for (09 ex-offline)
+  if (job?.status === 'queued' && typeof job?.waiting === 'string' && job.waiting)
+    return `${where} · ${job.waiting}`;
   if (job?.status === 'queued') return `${where} · Queued`;
   if (job?.status === 'running') return `${where} · ${progressWords(job, eta)}`;
   if (job?.status === 'failed') return `${where} · Failed`;

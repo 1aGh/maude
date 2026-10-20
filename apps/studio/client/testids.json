@@ -33006,5 +33006,85 @@
       "apps/studio/test/v2-ds-edges.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "export-row-render",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The video’s Render row (09 ex-offline): shown only when the cloud is on offer for this spec.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/render-row.jsx",
+      "symbol": "RenderRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/export-lane-choice.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-render",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Render radio group; `data-value` is `cloud` or `this-mac` (Suggest each time ticks the cloud for 4K and long videos).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/render-row.jsx",
+      "symbol": "RenderRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/export-lane-choice.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-render-cloud",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Render option “In the cloud” — online “Keeps going if this Mac sleeps.”, offline “Waits for a connection, then starts by itself.”",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/render-row.jsx",
+      "symbol": "RenderRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/export-lane-choice.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-render-this-mac",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Render option “On this Mac” — offline “Starts now. … keep this window open until it’s done.”",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/render-row.jsx",
+      "symbol": "RenderRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/export-lane-choice.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-job-here-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "“Render on this Mac now” on a cloud row still queued (“Queued — starts when this Mac is online”): withdraws it and runs the same spec here.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/export-lane-choice.test.ts"
+    ],
+    "v2": "new"
   }
 ]

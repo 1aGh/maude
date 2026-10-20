@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultScopeForFormat, isScopeValidForFormat } from '../exporters/format-scopes.ts';
 import { notify } from '../notifications.tsx';
+import { renderHereNow } from './v2/export/cloud-queue.js';
 import { nativeSave } from './v2/export/native-save.js';
 import { replayBody } from './v2/export/run-export.js';
 import { retryItems } from './v2/export/exports-model.js';
@@ -94,7 +95,9 @@ export function useExportCenter({ enabled = true } = {}) {
     if (!job || typeof job.id !== 'string') return;
     setJobs((prev) => {
       const next = new Map(prev);
-      next.set(job.id, job);
+      // S8.5 — a queued cloud row taken back ("Render on this Mac now") leaves the list
+      if (job.gone === true) next.delete(job.id);
+      else next.set(job.id, job);
       return next;
     });
   }, []);
@@ -256,6 +259,16 @@ export function useExportCenter({ enabled = true } = {}) {
     },
     [fail]
   );
+  // S8.5 — "Render on this Mac now" on a cloud row still waiting: withdraw it and run it here. The
+  // queued row leaves the list; the this-Mac job arrives as its own row over the socket.
+  const renderHere = useCallback(
+    async (job) => {
+      const r = await withSaving(job, () => renderHereNow(job.id));
+      if (r?.ok) upsert({ id: job.id, gone: true });
+      else fail(job, "Couldn't render it on this Mac", r?.words || 'Try again.');
+    },
+    [withSaving, upsert, fail]
+  );
   // Retry: run again only the items that did not make it (POST /_api/export-jobs/retry). The job goes
   // back to running and its row and file update in place.
   const retry = useCallback(
@@ -319,6 +332,7 @@ export function useExportCenter({ enabled = true } = {}) {
     reveal,
     again,
     retry,
+    renderHere,
     savedPaths,
     savingIds,
   };
