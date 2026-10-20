@@ -8,6 +8,9 @@
 
 @layer shell {
   .st-sticker-picker.sz {
+    /* no scrim to carry the layer (the pointer stays with the canvas): sit where the scrim would */
+    z-index: 9000;
+    font-family: var(--font-body);
     width: 456px;
     max-width: calc(100vw - 2 * var(--space-2));
     padding: var(--space-2);
