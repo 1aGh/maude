@@ -38,6 +38,7 @@ import { ACCESS_ROWS } from './access.mjs';
 import { COMMENT_ROWS } from './comments.mjs';
 import { LEGACY_ROWS } from './legacy.mjs';
 import { PRESENT_ROWS } from './present.mjs';
+import { RENDER_JOBS_ROWS } from './render-jobs.mjs';
 import { TRASH_ROWS } from './trash.mjs';
 import { VOTES_ROWS } from './votes.mjs';
 
@@ -55,6 +56,7 @@ export const HUB_ROUTE_ROWS = Object.freeze([
   ...TRASH_ROWS,
   ...VOTES_ROWS,
   ...PRESENT_ROWS,
+  ...RENDER_JOBS_ROWS, // S8.5b-2
 ]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */
