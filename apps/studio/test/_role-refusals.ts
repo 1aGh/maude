@@ -147,6 +147,11 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
+  // S8.20 — search in pictures: the person's own answer (and Stop), per person on this Mac — `readOnly: 'allowed'`, so the
+  // local gate classes them `session` and no role is refused; a cell and a canvas-only guest are refused by the handler
+  // (test/describe-pictures.test.ts).
+  { method: 'POST', route: '/_api/describe/consent', refused: [], body: { on: false } },
+  { method: 'POST', route: '/_api/describe/stop', refused: [], body: { stopped: false } },
   // S8.13 — Move assets to the trash: an edit on the project (test/asset-trash-route.test.ts is the handler's own gate)
   {
     method: 'POST',

@@ -1,11 +1,13 @@
 // client/v2/settings/general-section.jsx — V2-4.7a: Settings › General (02 ob-settings, left card).
 //
-// Account (S9.20, account.jsx) · Look · Canvas and view · Panels. Everything here is a preference of the person, in every
+// Account (S9.20, account.jsx) · Look · Canvas and view · Keyboard · Search (S8.20, search in pictures) · Layout. Everything here is a preference of the person, in every
 // shell. The controls are today's (panels/SettingsPanel.jsx): the theme and Inspector-words radios,
 // the four canvas switches, the left/right panel positions and the Layers mode — same props, same
 // handlers, same stores. Nothing is stored differently.
 
 import { AppearanceTab, LayoutTab, PrefToggleRow } from '../../panels/SettingsPanel.jsx';
+import { DescribeSettingsRow } from '../assets/describe-consent.jsx';
+import { getPaletteEnv } from '../search/search-env.js';
 import { useSingleKeys } from '../shell/use-single-keys.js';
 import { AccountBlock } from './account.jsx';
 import { Group } from './parts.jsx';
@@ -89,6 +91,9 @@ export default function GeneralSection({
           />
         </div>
       </Group>
+
+      {/* S8.20 — Search in pictures: off at once, on through the one sheet; absent where the studio does not describe */}
+      <DescribeSettingsRow project={getPaletteEnv().projectName} Row={PrefToggleRow} />
 
       <Group title="Layout" testid="settings-layout">
         <LayoutTab

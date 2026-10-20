@@ -314,6 +314,13 @@ export function createMenuHandlers(d) {
       panelLayout.show();
       d.toggleRightPanel('assets');
     },
+    // S8.20 — Search in pictures: the sheet lives in the Assets tab, so the tab is shown first
+    'assets.describe': () => {
+      if (runAssetsAction('assets.describe')) return;
+      panelLayout.show();
+      d.toggleRightPanel('assets');
+    },
+    'assets.describe-stop': () => runAssetsAction('assets.describe-stop'),
     'image.next-take': () => void runTakeStepNow('next'),
     'image.prev-take': () => void runTakeStepNow('prev'),
     'view.layers-panel': () => d.onToggleLayersMode(),

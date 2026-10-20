@@ -205,6 +205,7 @@ import {
 } from './index/extractors/attribution-cache.ts';
 import { historySourceFromRuntime } from './index/history-source.ts';
 import { kickWhenReady } from './index/scan-kick.ts';
+import { createDescribeService, type DescribeService, envDescriber } from './describe/batch.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
@@ -1929,6 +1930,8 @@ export function createHttp(
   ctx.bus.on('file-plane:delivered', (p: { rel?: unknown }) => {
     if (typeof p?.rel === 'string') dsOutside.notify(p.rel, { kind: 'peer' });
   });
+  // S8.20 — built with the thumbnail service below; the describe routes read it lazily
+  let describeSvc: DescribeService | null = null;
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S11.4 — what is on this Mac vs still coming: the runtime's in-memory listing against the
@@ -2301,6 +2304,12 @@ export function createHttp(
         if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
       },
     },
+    // S8.20 — /_api/describe* (routes/describe.ts): search in pictures — the consent, Stop, and what AI saw. A Mac only.
+    describe: {
+      service: () => describeSvc,
+      access: (req) => accessOf(req),
+      inCell: isWorkspaceMode(),
+    },
     // S8.21 — GET /_api/asset-details, /_api/asset-generated (routes/asset-details.ts): details per kind, the Generated runs.
     // The Original path is this Mac's own record: a cell has no Mac, so it keeps none.
     assetDetails: {
@@ -2502,6 +2511,24 @@ export function createHttp(
     },
     onReady: (key) => ctx.bus.emit('thumb-ready', { key }),
   });
+  // S8.20 — search in pictures (describe/, contract V2-1.17 §5.9): opt-in per person on this Mac, never in a cell (A5).
+  // The picture that goes is the Assets tile the renderer made; the describer is S12.13's agent (none until then).
+  describeSvc = isWorkspaceMode()
+    ? null
+    : createDescribeService({
+        designRoot: ctx.paths.designRoot,
+        pid: pidOf(ctx.paths.repoRoot),
+        rows: () => projectIndex.assetsAnswer().assets,
+        describer: envDescriber,
+        prepare: async (row) => {
+          const t = await thumbs.assetTile(row.rel, 'card');
+          return t.status === 'ready' ? thumbs.read(t.key) : null;
+        },
+        auto: true,
+      });
+  projectIndex.on('changed', () => describeSvc?.poke());
+  ctx.bus.on('thumb-ready', () => describeSvc?.poke());
+  describeSvc?.poke();
 
   /** What a read-only session may still write: the module allowlist plus what
    *  the lane tables declare (`readOnly: 'allowed'`). */

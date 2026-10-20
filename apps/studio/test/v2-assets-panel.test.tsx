@@ -140,8 +140,10 @@ describe('groups from the index', () => {
       assets: [{ path: 'assets/aa11bb22.jpg', name: 'aa11bb22.jpg', size: 4096, kind: 'image' }],
     };
     const host = await mount();
-    // (the Generated group reads its own list once the rows are in: asset-generated, S8.21)
-    expect(calls.map((c) => c.url).filter((u) => u !== '/_api/asset-generated')).toEqual([
+    // (the Generated group reads its own list once the rows are in: asset-generated, S8.21; search in pictures reads its
+    // state: describe, S8.20)
+    const own = new Set(['/_api/asset-generated', '/_api/describe']);
+    expect(calls.map((c) => c.url).filter((u) => !own.has(u))).toEqual([
       '/_api/index?part=assets',
       '/_api/assets',
     ]);

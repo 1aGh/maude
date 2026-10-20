@@ -814,6 +814,21 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     // a read for every role (GET /_api/asset-details): no per-role refusal row, so no `server` key (as S10.9's ds.show-reach)
     agent: cli('maude design assets --usage <asset> --details'),
   },
+  // S8.20 — search in pictures: the person's own yes (or Stop) to describing their pictures with THEIR Claude account on
+  // THEIR Mac (V2-1.17 §5.9, Q9). An agent cannot say yes for the person whose account it spends.
+  'assets.describe': {
+    effect: 'external',
+    server: { route: '/_api/describe/consent', method: 'POST' },
+    agent: human(
+      'consent',
+      "the person's yes to AI describing their pictures; once on, re-describing is S12.13's `maude design describe`"
+    ),
+  },
+  'assets.describe-stop': {
+    effect: 'none',
+    server: { route: '/_api/describe/stop', method: 'POST' },
+    agent: human('consent', 'Stop / Resume of the describing the person said yes to'),
+  },
   // S8.13 — Move to trash on an asset: the picture and its sidecars go to `_trash/` together (the manifest says where each
   // lives, so Trash and Undo bring them all back). Never a picture a canvas uses or an older version still shows.
   'assets.trash': {

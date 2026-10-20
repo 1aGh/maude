@@ -550,6 +550,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/generate-takes/quote': { class: 'local' },
   '/_api/generate-takes/of': { class: 'read' },
   '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
+  // routes/describe.ts (S8.20): search in pictures — the answer is _canvas-state/_describe.json (DDR-115 runtime), the words
+  // live in ~/.maude/index (this Mac): nothing reaches a peer
+  '/_api/describe': { class: 'read' },
+  '/_api/describe/consent': { class: 'local' },
+  '/_api/describe/stop': { class: 'local' },
   // S11.13 routes/settings.ts — Settings › Advanced reads (a count; plugin versions)
   '/_api/kg/summary': { class: 'read' },
   '/_api/settings/about': { class: 'read' },

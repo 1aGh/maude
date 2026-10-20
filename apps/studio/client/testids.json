@@ -11872,7 +11872,7 @@
     "hook": "assets-group-<kind>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The group heading in the Assets tab: `<kind>` is image | video | audio (a button — \"Photos 120 ›\" widens into the Browse view, S8.13) or `added` (S8.14: \"Just added\", the files that arrived in this window, first in the tab — a plain heading, not a button) or `generated` (S8.21: \"Generated\", the media that has a `.gen.json`, one block per run, after Just added — a plain heading).",
+    "meaning": "The group heading in the Assets tab: `<kind>` is image | video | audio (a button — \"Photos 120 ›\" widens into the Browse view, S8.13) or `added` (S8.14: \"Just added\", the files that arrived in this window, first in the tab — a plain heading, not a button) or `generated` (S8.21: \"Generated\", the media that has a `.gen.json`, one block per run, after Just added — a plain heading) or `seen` (S8.20: \"Seen in the picture\", while searching with search in pictures on — what a word was found in only by what AI saw, first — a plain heading).",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
       "symbol": "AssetsPanel"
@@ -11982,6 +11982,162 @@
       "symbol": "ConfirmTrash"
     },
     "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-offer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — the line under an Assets search that offers search in pictures, once per project (never asked here yet): `data-kind` turn-on (\"Search what's in the pictures too?\" · Turn on…) or connect (no AI: \"Connect your Claude account to search what's in pictures, too.\" · Connect…).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeOffer"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-turn-on",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — \"Turn on…\" in the offer: opens the describe sheet (nothing is sent).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeOffer"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — \"Connect…\" in the offer when AI is not connected: runs `ai.connect`.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeOffer"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — \"Describe the pictures in <project>?\": the one consent sheet (Cancel focused first). Also opened by ⌘K \"Search in pictures\" and Settings › General.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — Cancel on the describe sheet: recorded as an answer (`POST /_api/describe/consent {on:false}`), so search does not ask again.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — \"Describe pictures\" on the sheet: `POST /_api/describe/consent {on:true}`; the studio then describes each picture once, budgeted.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-progress",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — the Assets tab's foot while describing: \"Describing 12 of 193 pictures\" (or \"Stopped at …\").",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeProgress"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-describe-stop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — Stop / Resume in the describing line (`assets.describe-stop`, `POST /_api/describe/stop`).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeProgress"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-seen-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — under a \"Seen in the picture\" tile: the words AI saw with the searched ones marked (`<mark>`); `data-field` caption | text | tags. Plain text only.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/search-marks.jsx",
+      "symbol": "SeenLine"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-nohits-describe",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 (05 · es-search-more) — under \"Nothing called …\" while never asked: the fine line next to \"Let AI describe your pictures\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-search-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — the foot under an Assets search: \"Searched 247 assets — names and tags\" · \"— names only\" (no AI) · \"5 results · 35 pictures still being described\" · \"5 results in 247 assets\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-describe",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.20 — Settings › General › Search: the \"Search in pictures\" switch (off at once; on through the describe sheet). Absent where the studio does not describe.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/describe-consent.jsx",
+      "symbol": "DescribeSettingsRow"
+    },
+    "region": "other",
     "consumers": [],
     "v2": "new"
   },

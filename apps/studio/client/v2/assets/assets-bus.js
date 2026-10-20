@@ -9,7 +9,7 @@
 // is picked AND keyboard focus is inside the tab. A tile still picked while focus moved to the canvas or a toolbar
 // button must leave ↵ to whatever has focus.
 
-/** @type {{ place: () => void, details: () => void, trash: () => void, generate?: () => void, tileSelected: () => boolean } | null} */
+/** @type {{ place: () => void, details: () => void, trash: () => void, generate?: () => void, describe?: () => void, describeStop?: () => void, tileSelected: () => boolean } | null} */
 let bound = null;
 
 /** The panel binds itself on mount. @returns the unbind. */
@@ -39,6 +39,16 @@ export function takeGenerateRequest() {
   return w;
 }
 
+/** S8.20 — `assets.describe` (⌘K "Search in pictures") asked while no Assets tab was mounted: the sheet opens on mount. */
+let wantsDescribe = false;
+
+/** The panel, on mount: was the describe sheet asked for before it was there? (read once) */
+export function takeDescribeRequest() {
+  const w = wantsDescribe;
+  wantsDescribe = false;
+  return w;
+}
+
 /**
  * Run `assets.place` / `assets.details` / `assets.trash` on the picked tile, or `assets.generate` (the ask).
  * @returns whether a mounted panel took it. `assets.generate` with no panel mounted is held for the next mount.
@@ -51,6 +61,19 @@ export function runAssetsAction(id) {
     }
     wantsGenerate = true;
     return false;
+  }
+  if (id === 'assets.describe') {
+    if (bound?.describe) {
+      bound.describe();
+      return true;
+    }
+    wantsDescribe = true;
+    return false;
+  }
+  if (id === 'assets.describe-stop') {
+    if (!bound?.describeStop) return false;
+    bound.describeStop();
+    return true;
   }
   const fn =
     id === 'assets.place'
