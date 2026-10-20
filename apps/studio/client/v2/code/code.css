@@ -9,10 +9,11 @@
   /* ─── The code view ─────────────────────────────────────────────────────────────────────── */
   .v2-code {
     position: absolute;
-    top: var(--space-4, 16px);
+    /* below the Share cluster (the right dock starts here too), above the docks and grips (z 20-25) */
+    top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
     right: var(--space-4, 16px);
     bottom: var(--space-4, 16px);
-    z-index: 12;
+    z-index: 26;
     width: min(760px, calc(100% - 2 * var(--space-4, 16px)));
     display: flex;
     flex-direction: column;
