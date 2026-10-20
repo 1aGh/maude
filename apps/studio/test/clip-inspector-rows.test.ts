@@ -341,12 +341,14 @@ describe('Advanced (src · in · out, then the v1 dialog’s Audio · Crop · Gr
   });
 });
 
-describe('a title (07 ve-text: Text · Motion · Length)', () => {
+describe('a title (07 ve-text: Text · Font · Colour · Motion · Length)', () => {
   test('the chip says Title; Text starts from the words, Motion lights the one it has', async () => {
     const host = await frame(selection('title', TITLE_SEQ));
     expect(q(host, 'inspector-kind')?.textContent).toBe('Title');
     expect(rowsOf(host, 'title-motion')).toEqual([
       'clip-text = Text',
+      'title-font = Font',
+      'title-colour = Colour',
       'title-motion = Motion',
       'clip-length = Length',
     ]);

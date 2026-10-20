@@ -2311,6 +2311,42 @@ function titleMotionOf(span: string): { preset: string; frames: number | null } 
   return { preset, frames: frames ? Number(frames) : null };
 }
 
+/**
+ * S7.11b — the font and colour of a title: the `style` literal of the element holding the clip's first `{"…"}` string
+ * (the same literal `clip.set-text` rewrites), read as text. Null when the clip holds no such text. The walk and the
+ * rules mirror `edit-ops/clip/title-style.ts` (which writes it); kept here because that module imports this one.
+ */
+function titleStyleOfClip(node: AnyNode): { font: string | null; color: string | null } | null {
+  const isStr = (n: AnyNode) =>
+    (n?.type === 'Literal' || n?.type === 'StringLiteral') && typeof n.value === 'string';
+  const holder = (el: AnyNode): AnyNode | null => {
+    if (!el || el.type !== 'JSXElement') return null;
+    // document order: the nearest text child of this element comes before the text of a child element after it
+    for (const ch of el.children ?? []) {
+      if (ch?.type === 'JSXExpressionContainer' && isStr(ch.expression)) return el;
+      if (ch?.type === 'JSXElement') {
+        const inner = holder(ch);
+        if (inner) return inner;
+      }
+    }
+    return null;
+  };
+  const el = holder(node);
+  if (!el) return null;
+  const out = { font: null as string | null, color: null as string | null };
+  const expr = findAttribute(el.openingElement, 'style')?.value;
+  const obj = expr?.type === 'JSXExpressionContainer' ? expr.expression : null;
+  if (obj?.type !== 'ObjectExpression') return out;
+  for (const p of obj.properties ?? []) {
+    if ((p?.type !== 'Property' && p?.type !== 'ObjectProperty') || p.computed) continue;
+    const k = p.key?.type === 'Identifier' ? p.key.name : isStr(p.key) ? p.key.value : null;
+    if (!isStr(p.value)) continue;
+    if (k === 'fontFamily') out.font = p.value.value;
+    else if (k === 'color') out.color = p.value.value;
+  }
+  return out;
+}
+
 /** S7.10 — the text `applySetClipText` would rewrite (same pattern), or null. */
 function literalTextOf(span: string): string | null {
   const m = span.match(/\{("(?:[^"\\]|\\.)*")\}/);
@@ -2374,6 +2410,9 @@ export interface ClipInfo {
   /** S7.10 — the title's entrance (`<TitleMotion preset frames>` around its content), read as literal text
    *  like `data-mframe`; null when the clip has none. The clip inspector's Motion row shows it. */
   titleMotion: { preset: string; frames: number | null } | null;
+  /** S7.11b — the font and colour the title's own `style` literal says (the Title inspector's Font and Colour rows);
+   *  null parts are not set. Null when the clip holds no text at all. */
+  titleStyle: { font: string | null; color: string | null } | null;
   /** S7.10 — the clip's editable text: its first `{"…"}` literal (a Title overlay's child, an AI slate's prompt) —
    *  what `clip.set-text` rewrites, so the inspector's Text row starts from what is there. */
   text: string | null;
@@ -2620,6 +2659,7 @@ export function enumerateClips(
       mediaProps,
       text: literalTextOf(source.slice(c.start, c.end)),
       titleMotion: titleMotionOf(source.slice(c.start, c.end)),
+      titleStyle: titleStyleOfClip(c.node),
       fit: fitOf(source.slice(c.start, c.end)),
       placeholder: (() => {
         // Direct <AIPlaceholder> child → a slate clip (Task 21). The prompt is

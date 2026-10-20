@@ -33,6 +33,15 @@ does not know (`video-title-motion`).
 
 Edit it with the `video.title.motion` op (`{ stableId, preset, frames? }`); `none` unwraps.
 
+### A title's font and colour
+
+A title's look is the `style` object literal of the element that holds its words (the parent of the
+clip's first `{"…"}` string): `fontFamily` is a design-system font token written `"var(--font-display)"`,
+`color` is a token (`"var(--accent)"`) or one plain CSS colour (`"#2fbf71"`, `"oklch(0.7 0.1 150)"`).
+Never a family name typed in. Put them there yourself, or use the `video.title.style` op
+(`{ stableId, font?, color? }`; `null` takes one off, and the last one off takes the empty `style` off
+too). A `style` that is not an object literal is left alone.
+
 ### A join's transition
 
 A join is the `<TransitionSeries.Transition>` between two scenes. The picker's six tiles are today's

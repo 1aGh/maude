@@ -568,6 +568,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/kinds/presets': { class: 'read' }, // S7.20 routes/kinds.ts: what the F size picker lists (minRole edit)
   '/_api/edit-instance': { class: 'read' }, // S2.17 routes/edit.ts: what an object is (instance of a component?) — read from the TSX, anyone who sees the canvas
   '/_api/comp-media': { class: 'read' }, // S7.4 routes/video.ts: the comp's words / speech / beats, derived from the cut
+  // S7.11b — routes/video.ts: runs transcribe-local / beats on one assets/<8 hex>.<ext>; the only file written is the
+  // companion sidecar (`<8 hex>.transcript.json` / `.beats.json`) next to it, which the file plane carries (S26)
+  '/_api/media-analysis': { class: 'file-plane', rows: 'S26' },
   // S9.19 — routes/share.ts: the desktop's door to the linked hub's /api/access/*. Who has access
   // lives on the hub (users / invites / grants), never in the project's files: no lane carries it.
   '/_api/share/posture': { class: 'read' },

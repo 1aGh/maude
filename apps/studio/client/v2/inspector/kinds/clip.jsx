@@ -2,7 +2,7 @@
 // ve-select; the `ClipInspector` of that canvas) and of a title (07 · ve-text).
 //
 //   Clip   Length · Speed · Volume · Framing        › Advanced: src · in · out, then Grade · Crop · Transition
-//   Title  Text · Motion · Length                   › Advanced: enter · easing, Speed
+//   Title  Text · Font · Colour · Motion · Length   › Advanced: enter · easing, Speed
 //
 // This is the home of every control the v1 `ClipInspector` dialog had (D15): its Speed, Audio, Crop, Grade, Text
 // and Transition tabs are rows here or under Advanced — nothing was deleted, the dialog file went. Every write is
@@ -33,7 +33,7 @@ import {
   srcInOut,
   volumeOf,
 } from './clip-model.js';
-import { MotionGrid, TextRows } from './title-rows.jsx';
+import { MotionGrid, StyleRows, TextRows } from './title-rows.jsx';
 
 const timelineOf = (selection) => singleOf(selection)?.timeline ?? null;
 
@@ -160,12 +160,13 @@ function ClipRows({ el }) {
   );
 }
 
-function TitleRows({ el }) {
+function TitleRows({ el, ctx }) {
   const t = el?.timeline;
   if (!t) return null;
   return (
     <div data-testid="timeline-inspector">
       <TextRows t={t} />
+      <StyleRows t={t} ctx={ctx} />
       <Row k="Motion" name="title-motion">
         <MotionGrid t={t} />
       </Row>

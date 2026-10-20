@@ -17,6 +17,13 @@
 // Warm cost: the answer is cached on (canvas, artboard) + the size and mtime of every file it was
 // built from, so a repeat read is a few `stat`s. A change to the canvas or to any sidecar it read
 // changes the signature, so the next read recomputes — nothing is invalidated by hand.
+//
+// `POST /_api/media-analysis {asset, kind: 'transcript' | 'speech' | 'beats', bpm?}` (S7.11b) runs the same
+// helper the verbs `transcribe-local` / `beats` are, on ONE `assets/<8 hex>.<ext>` of the project, and answers
+// when it is done — the sidecar it wrote is then in the next `comp-media` read (whose cache is keyed on the
+// sidecar's stat). Main origin only, in neither canvas allowlist; refused below Can edit (in the handler, and by
+// `readOnly: 'refused'` at the gate) and to a canvas-only session, whose grants name canvases, not the project's
+// assets. Exit codes → `{ok:true}` · 409 `no-engine` / `no-decoder` · 422 `no-words` · 500 `failed` (media-analysis.ts).
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -39,8 +46,16 @@ import {
   type MusicInfo,
 } from '../video/derive.ts';
 import {
+  ANALYSIS_KINDS,
+  type AnalysisKind,
+  type AnalysisRunner,
+  interpretExit,
+  spawnAnalysis,
+} from '../video/media-analysis.ts';
+import {
   BEATS_MAX_BYTES,
   type BeatGrid,
+  BPM_RANGE,
   readBeats,
   readTranscript,
   sidecarRelFor,
@@ -60,7 +75,13 @@ export interface VideoRouteDeps {
   designRoot: string;
   /** the design root relative to the repo root (`.design`) */
   designRel: string;
+  /** S7.11b — runs one analysis job; tests inject a stub, the studio spawns the verb's helper */
+  analyse?: AnalysisRunner;
 }
+
+/** The only assets an analysis names: the project's content-addressed files. */
+const ANALYSIS_ASSET_RE = /^assets\/[0-9a-f]{8}\.[a-z0-9]{1,8}$/;
+const ANALYSIS_MAX_BODY = 64 * 1024;
 
 export interface CompMedia {
   fps: number;
@@ -122,6 +143,88 @@ function readSidecar<T>(
 
 export function createVideoRoutes(deps: VideoRouteDeps): RouteSpec[] {
   const cache = new Map<string, { sig: string; body: string }>();
+  /** one job per (kind, asset, bpm) at a time: a second ask waits for the first's answer */
+  const inFlight = new Map<string, Promise<Response>>();
+
+  async function runAnalysis(req: Request): Promise<Response> {
+    // the gate already refused a read-only session; a handler reached any other way refuses it too
+    if (!currentAccess().can('edit', null))
+      return json(403, {
+        error: 'read-only',
+        reason: 'read-only',
+        message: 'Ask the owner to change this.',
+      });
+    if (Number(req.headers.get('content-length')) > ANALYSIS_MAX_BODY)
+      return json(413, { error: 'too-large' });
+    const text = await req.text();
+    if (text.length > ANALYSIS_MAX_BODY) return json(413, { error: 'too-large' });
+    let body: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('shape');
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return json(400, { error: 'bad-json' });
+    }
+    const kind = body.kind as AnalysisKind;
+    if (!ANALYSIS_KINDS.includes(kind)) return json(400, { error: 'bad-kind' });
+    if (typeof body.asset !== 'string') return json(400, { error: 'bad-asset' });
+    // the comp spells an asset `assets/x.mp4`; a leading `./` or `.design/` names the same file
+    let asset = body.asset.replace(/^\.\//, '');
+    if (asset.startsWith(`${deps.designRel}/`)) asset = asset.slice(deps.designRel.length + 1);
+    if (!ANALYSIS_ASSET_RE.test(asset)) return json(400, { error: 'bad-asset' });
+    let bpm: number | undefined;
+    if (body.bpm !== undefined) {
+      const n = body.bpm;
+      if (
+        kind !== 'beats' ||
+        typeof n !== 'number' ||
+        !Number.isFinite(n) ||
+        n < BPM_RANGE[0] ||
+        n > BPM_RANGE[1]
+      )
+        return json(400, { error: 'bad-bpm' });
+      bpm = n;
+    }
+    if (!existsSync(path.join(deps.designRoot, asset)))
+      return json(404, { error: 'no-such-asset' });
+
+    // the repo root is the design root minus its own name (read here, not at build: the table is built from stubs)
+    const repoRoot = path.resolve(
+      deps.designRoot,
+      ...deps.designRel
+        .split('/')
+        .filter(Boolean)
+        .map(() => '..')
+    );
+    const key = `${kind}|${asset}|${bpm ?? ''}`;
+    const running = inFlight.get(key);
+    if (running) return (await running).clone();
+    const job = (async () => {
+      try {
+        const result = await (deps.analyse ?? spawnAnalysis)({
+          kind,
+          asset,
+          ...(bpm !== undefined ? { bpm } : {}),
+          repoRoot,
+          designRel: deps.designRel,
+        });
+        const answer = interpretExit(kind, result);
+        return json(answer.status, answer.body);
+      } catch (e) {
+        return json(500, {
+          error: 'failed',
+          message: String((e as Error)?.message ?? e).slice(0, 300),
+        });
+      }
+    })();
+    inFlight.set(key, job);
+    try {
+      return (await job).clone();
+    } finally {
+      inFlight.delete(key);
+    }
+  }
 
   function compute(
     abs: string,
@@ -203,6 +306,13 @@ export function createVideoRoutes(deps: VideoRouteDeps): RouteSpec[] {
   }
 
   return [
+    {
+      method: 'POST',
+      path: '/_api/media-analysis',
+      origin: 'main',
+      readOnly: 'refused',
+      handle: (req) => runAnalysis(req),
+    },
     {
       method: 'GET',
       path: '/_api/comp-media',

@@ -37,6 +37,7 @@ export const CLIP_VERB_LABELS = {
   // S7.10 — the video.* ops the clip inspector and the join picker write (a verb with a dot IS its op id)
   'video.fit': 'set how the picture sits',
   'video.title.motion': 'set title motion',
+  'video.title.style': 'style title',
   'video.transition.set': 'set transition',
   // S7.11 — edit by transcript and the captions (the Transcript panel, the caption lane, the Captions inspector)
   'cut-source-range': 'cut words',
@@ -50,6 +51,7 @@ const REFUSAL_WORD = {
   remove: 'Remove',
   'video.fit': 'Framing',
   'video.title.motion': 'Motion',
+  'video.title.style': 'Style',
   'video.transition.set': 'Transition',
 };
 

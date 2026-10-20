@@ -254,6 +254,9 @@ const CANVAS = [
 ];
 
 const PROJECT = [
+  // S7.11b — a transcript / the beats of one project asset (routes/video.ts): the asset is the project's, so a
+  // canvas-only session never gets a 2xx (Can edit on the whole project)
+  '/_api/media-analysis',
   // A6b-2 — S6.0b: uploads the whole folder to the person's own cloud account (window-only, the owner's act)
   // A6b-3 — S10.3 design-system writes (Can edit on the whole project; clear is the owner’s), S9.19 who has access is the owner’s
   '/_api/ds/publish',

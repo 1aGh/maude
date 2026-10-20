@@ -1002,6 +1002,7 @@ export default function TimelinePanel({
         placeholder: selSeq.placeholder ?? null,
         text: selSeq.text ?? null,
         titleMotion: selSeq.titleMotion ?? null,
+        titleStyle: selSeq.titleStyle ?? null,
         fit: selSeq.fit ?? null,
         rowKind: rowKind(selSeq),
       },

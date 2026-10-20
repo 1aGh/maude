@@ -126,6 +126,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // S7.4 — the comp's words, speech and beats, derived from its cut (routes/video.ts). A transcript is
   // the project's content, not chrome: Can view is refused, Can comment and up read it.
   '/_api/comp-media': { safe: 'comment', unsafe: null },
+  // S7.11b — routes/video.ts: transcribe-local / beats on one asset; the sidecar is an edit
+  '/_api/media-analysis': { safe: null, unsafe: 'edit' },
 
   // ---- the one write a viewer holds --------------------------------------
   '/_comments': { safe: 'read', unsafe: 'comment' },

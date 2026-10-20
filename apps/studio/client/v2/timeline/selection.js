@@ -8,7 +8,7 @@
 //
 // The snapshot (everything the rows read and the one function they write through):
 //   { kind: 'clip' | 'title', canvas, artboardId, fps, label, stableId,
-//     seq: { from, duration, mediaTag, mediaSrc, mediaProps, fit, titleMotion, series, textValue, rowKind },
+//     seq: { from, duration, mediaTag, mediaSrc, mediaProps, fit, titleMotion, titleStyle, series, textValue, rowKind },
 //     transitionAfter: { k, stableId, dur, presentation } | null,
 //     onVerb: (verb, params) => Promise<any>,   // clip.<verb> through the shell's one pipe (undo, toasts, refusals)
 //     onOp: (op, params) => Promise<any>,       // video.<op>: the same pipe for the video.* edit ops

@@ -115,6 +115,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S7.11b — Captions from speech / Find the beat: a transcript or beat sidecar is an edit (test/media-analysis-route.test.ts)
+  {
+    method: 'POST',
+    route: '/_api/media-analysis',
+    refused: ['view', 'comment'],
+    body: { asset: 'assets/a1b2c3d4.mp4', kind: 'transcript' },
+  },
   // S6.15 — Help › Help and guides adds two canvases: an edit (routes/help-guides.ts, hub `edit`)
   { method: 'POST', route: '/_api/help/add-guides', refused: ['view', 'comment'] },
   // S7.6c — the video tools' edit ops (`video.*` server: POST /_api/edit-op): a clip op from a

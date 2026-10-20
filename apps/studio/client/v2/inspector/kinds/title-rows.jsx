@@ -1,11 +1,17 @@
 // client/v2/inspector/kinds/title-rows.jsx — S7.10: a title's own rows (07 · ve-text).
 //
 //   Text     the words the title says — the v1 dialog's Text tab, with its two testids          (clip.set-text)
+//   Font     the design system's font tokens, written as var(--font-…)                        (video.title.style)
+//   Colour   a token or a colour of its own, "Default" takes it off                           (video.title.style)
 //   Motion   None · Fade · Slide up · Pop · Type on · Per word — a grid of six small pictures     (video.title.motion)
 
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
+import { paintFromCss, paintToCss } from '../../../../edit-ops/words-paint.ts';
 import { TITLE_MOTION_LABELS, TITLE_MOTIONS } from '../../../../video/title-motion.ts';
+import { Select } from '../../../inspector-controls.jsx';
+import { ColorControl } from '../sections/color-control.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
+import { useDsFamilies } from '../token-chip.jsx';
 
 const PIC = { 'slide-up': 'up', 'type-on': 'type', 'per-word': 'word' };
 
@@ -80,5 +86,55 @@ export function MotionGrid({ t }) {
         </button>
       ))}
     </span>
+  );
+}
+
+/** `--font-display` → "Display". */
+function fontLabel(token) {
+  const name = String(token)
+    .replace(/^--font-?/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : String(token);
+}
+
+/** The DS's font tokens as the `var(--font-…)` values the file stores; a value the file has and the system lacks stays. */
+function fontOptions(vals, current) {
+  const opts = [{ value: '', label: 'Default' }];
+  for (const k of Object.keys(vals || {}).filter((x) => /^--font-/.test(x)))
+    opts.push({ value: `var(${k})`, label: fontLabel(k) });
+  if (current && !opts.some((o) => o.value === current))
+    opts.push({ value: current, label: current });
+  return opts;
+}
+
+/** Font and Colour: the `style` of the title's words, one `video.title.style` per change (null = off). */
+export function StyleRows({ t, ctx }) {
+  const fam = useDsFamilies(ctx);
+  const now = t.seq.titleStyle ?? { font: null, color: null };
+  const fonts = useMemo(() => fontOptions(fam.vals, now.font), [fam.vals, now.font]);
+  return (
+    <>
+      <Row k="Font" name="title-font">
+        <Select
+          value={now.font ?? ''}
+          options={fonts}
+          ariaLabel="Title font"
+          testId="insp-title-font"
+          onChange={(v) => t.onOp('title.style', { font: v || null })}
+        />
+      </Row>
+      <Row k="Colour" name="title-colour">
+        <ColorControl
+          name="title-colour"
+          label="Title colour"
+          value={now.color ? { paint: paintFromCss(now.color), opacity: 100 } : null}
+          colors={fam.color}
+          allowNone
+          noneLabel="Default"
+          onChange={(v) => t.onOp('title.style', { color: v ? paintToCss(v.paint) : null })}
+        />
+      </Row>
+    </>
   );
 }

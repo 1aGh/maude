@@ -489,6 +489,7 @@ export function usePhotoAndTimeline({
         // S7.10 — what the clip inspector reads back: the title's text and entrance, the picture's fit
         text: cm.text ?? null,
         titleMotion: cm.titleMotion ?? null,
+        titleStyle: cm.titleStyle ?? null,
         fit: cm.fit ?? null,
         // Task 21 — AI placeholder slate (✨ row + Generate flow).
         placeholder: cm.placeholder ?? null,
