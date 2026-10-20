@@ -3,7 +3,7 @@
 // While a system is being made (`model.making`) the sections fill in one by one. Two facts decide how a section
 // looks, and neither is stored on the canvas (S10 Q7):
 //   · its content — a section with nothing of its own in the working files yet is an outline ("Colour — next");
-//   · the shell's word, pushed in `maude:ds-make-states` — `waiting` · `drawing` · `done`, from
+//   · the shell's word, pushed in the dgn message `ds-make-states` —`waiting` · `drawing` · `done`, from
 //     `GET /_api/ds/make-state` (ds-check per registry group + the artboards a live AI run holds). When it speaks it
 //     wins: a section a run holds is `drawing` even before its first token lands, and `done` is never an outline.
 // Once the system is made (`making` false) nothing here applies and every section draws as it always did.
@@ -12,6 +12,7 @@
 // can set the states (same rule as the theme preview).
 
 import { useSyncExternalStore } from 'react';
+import { acceptFromShell } from '../../bridge/dgn-protocol.ts';
 import type { BoardModel } from './types.ts';
 import { SECTIONS, type SectionKind } from './types.ts';
 
@@ -55,14 +56,14 @@ export const getOutlineStates = () => pushed;
 const useStates = () => useSyncExternalStore(subscribe, getOutlineStates, getOutlineStates);
 
 let listening = false;
-/** Wire the parent's `maude:ds-make-states` message once. Safe without a window. */
+/** Wire the parent's `ds-make-states` dgn message (bridge/dgn-protocol.ts) once. Safe without a window. */
 export function listenForOutlineStates(): void {
   if (listening || typeof window === 'undefined') return;
   listening = true;
   window.addEventListener('message', (e: MessageEvent) => {
-    if (e.source !== window.parent) return;
-    const d = e.data as { type?: unknown; sections?: unknown } | null;
-    if (d && d.type === 'maude:ds-make-states') setOutlineStates(d.sections);
+    if (e.source !== window.parent || !e.data) return;
+    const m = acceptFromShell(e, window);
+    if (m && m.dgn === 'ds-make-states') setOutlineStates(m.sections);
   });
 }
 

@@ -686,7 +686,7 @@ describe('the host', () => {
     ).toBe(true);
     expect(posted).toEqual([
       [
-        { type: 'maude:ds-marks', outside: ['--fg-3'], conflicts: ['--accent'] },
+        { dgn: 'ds-marks', outside: ['--fg-3'], conflicts: ['--accent'] },
         'http://canvas.test',
       ],
     ]);
@@ -720,7 +720,7 @@ describe('the host', () => {
     expect(getTruth()?.ds).toBe('studio');
     expect(posted).toEqual([
       [
-        { type: 'maude:ds-marks', outside: ['--fg-3', '--radius-md'], conflicts: [] },
+        { dgn: 'ds-marks', outside: ['--fg-3', '--radius-md'], conflicts: [] },
         'http://canvas.test',
       ],
     ]);
@@ -744,7 +744,7 @@ describe('the host', () => {
     ]);
     expect(toasts).toEqual(['Kept 2 tokens. Canvases follow after the next update.']);
     expect(getTruth()).toBeNull();
-    expect(posted.at(-1)?.[0]).toEqual({ type: 'maude:ds-marks', outside: [], conflicts: [] });
+    expect(posted.at(-1)?.[0]).toEqual({ dgn: 'ds-marks', outside: [], conflicts: [] });
   });
 
   test('Undo says the old values are back in the file', async () => {

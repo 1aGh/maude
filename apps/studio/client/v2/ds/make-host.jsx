@@ -8,7 +8,7 @@
 //      composer with origin `ds-make` (the person's gesture: every composer gate applies), and the new canvas opens;
 //   3  while the open canvas is the Design system canvas of a system that is being made, reads `GET make-state`
 //      every few seconds and tells the canvas which sections wait, are being drawn or are done
-//      (`maude:ds-make-states` — a message to the canvas origin, never `*`);
+//      (the dgn message `ds-make-states` — to the canvas origin, never `*`);
 //   4  the ready card (13 · ds-make-done): "<name> system is ready." with one button that publishes the first
 //      revision and makes it the project's style (`POST … {action:'done'}`, then switch-bus `finishedMaking` so the
 //      existing canvases get one review).
@@ -181,7 +181,7 @@ export function DsMakeHost({ cfg, activePath, toast, frameFor, fetchImpl, pollMs
       const frame = live.current.frameFor?.();
       try {
         frame?.contentWindow?.postMessage(
-          { type: 'maude:ds-make-states', sections: sections ?? {} },
+          { dgn: 'ds-make-states', sections: sections ?? {} },
           live.current.cfg?.canvasOrigin || window.location.origin
         );
       } catch {

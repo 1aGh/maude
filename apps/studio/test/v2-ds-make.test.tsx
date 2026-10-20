@@ -592,7 +592,7 @@ describe('the host (13 · 13 → 17)', async () => {
     );
     await tick(60);
     expect(sent[0]).toEqual({
-      msg: { type: 'maude:ds-make-states', sections },
+      msg: { dgn: 'ds-make-states', sections },
       origin: 'http://127.0.0.1:9',
     });
     expect(q(host, 'ds-make-ready-title')?.textContent).toBe(READY_WORDS.partly('Studio site'));
