@@ -392,6 +392,11 @@
           "type": "boolean",
           "default": true,
           "description": "Shortcut to enable/disable §B AI-era rules in security-rules skill. When false, ethical-hacker still threat-models classic surface but the mandatory AI/MCP section reads \"N/A — disabled by config\"."
+        },
+        "projectChecklist": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path of a project-owned security checklist (markdown). security-auditor and ethical-hacker read it, when the file exists, and check the change against every item as well as the generic rules. Keep project-specific rules (tiers, roles, trust boundaries) there, not in the flow plugin."
         }
       }
     },

@@ -76,7 +76,7 @@ Failure handling:
 - Mount timeout → warn but don't fail the edit. The file already exists; the user can open it manually. Increase `--timeout` for heavy-JS canvases.
 - Both engines unavailable → helper exits 1; surface install hint (`agent-browser` or `playwright`) without rolling back the edit.
 
-Output is runtime state (it lives under the run folder and is never versioned), and is referenced from the iteration's chat.md row as `**Baseline:** {path}`.
+Output is runtime state (it lives under the run folder and is never versioned), and is named in the iteration's reply as `**Baseline:** {path}`.
 
 ### Scoped edit prompt (when `selected` is set)
 

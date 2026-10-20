@@ -25,7 +25,7 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When starting any design command | [Server lifecycle — every command starts here](./_guide-03-server-lifecycle-every-command-starts-here.md) |
 | When resolving the active canvas or selection | [Active state schema](./_guide-04-active-state-schema.md) |
 | When reading or resolving pinned comments | [Comments — element-pinned annotations](./_guide-05-comments-element-pinned-annotations.md) |
-| When reading or writing board annotations | [Whiteboard annotation layer — AI read/write surface](./_guide-06-strokes-annotation-layer-ai-read-write-surface-figjam-v.md) |
+| When reading or writing annotations | [Whiteboard annotation layer — AI read/write surface](./_guide-06-strokes-annotation-layer-ai-read-write-surface-figjam-v.md) |
 | Before edits, or to undo one | [Snapshot protocol](./_guide-07-snapshot-protocol.md) |
 | When selecting a canvas operation, or deciding whether a sub-agent is warranted | [Command routing](./_guide-08-command-routing.md) |
 | Before selecting or running critics | [Critic panel routing — orchestrator decides](./_guide-09-critic-panel-routing-orchestrator-decides.md) |
@@ -37,7 +37,7 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When performing this stage: Building the fix prompt | [Building the fix prompt](./_guide-15-building-the-fix-prompt.md) |
 | When performing this stage: Default flow vs. `--perfect` — different defaults per command | [Default flow vs. `--perfect` — different defaults per command](./_guide-16-default-flow-vs-perfect-different-defaults-per-command.md) |
 | When performing this stage: Per-canvas metadata sidecar | [Per-canvas metadata sidecar](./_guide-17-per-canvas-metadata-sidecar.md) |
-| When performing this stage: Iteration transcript | [Iteration transcript](./_guide-18-iteration-transcript.md) |
+| When recording what an auto-critic iteration did | [Iteration record](./_guide-18-iteration-transcript.md) |
 | When performing this stage: Continuous docs maintenance | [Continuous docs maintenance](./_guide-19-continuous-docs-maintenance.md) |
 | When performing this stage: `/design:handoff [--target <label>] [--force]` — production migration | [`/design:handoff [--target <label>] [--force]` — production migration](./_guide-20-design-handoff-target-label-force-production-migration.md) |
 | When performing this stage: `/design:browse` — boot/show server | [`/design:browse` — boot/show server](./_guide-21-design-browse-boot-show-server.md) |

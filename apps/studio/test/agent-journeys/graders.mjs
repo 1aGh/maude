@@ -14,7 +14,7 @@
 
 import { Database } from 'bun:sqlite';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createStoreCore } from '../../../hub/src/project-transactions/store-core.mjs';
@@ -129,6 +129,14 @@ export function observe({ project, trialDir = null }) {
     uiOpen: log('ui-open.jsonl'),
     tools: log('tools.jsonl'),
     text: (rel) => readOr(join(designRoot, rel)),
+    /** file names directly under a design-root folder (S12.16: assets/, …); [] when it is not there */
+    list: (rel) => {
+      try {
+        return readdirSync(join(designRoot, rel));
+      } catch {
+        return [];
+      }
+    },
     json: (rel, dflt = null) => jsonOr(join(designRoot, rel), dflt),
     baseline: (rel) => headOf(project, `${DESIGN}/${rel}`),
     comments: (rel) =>
@@ -176,6 +184,66 @@ export const GRADERS = {
   'canvas-exists'({ path, exists = true }, o) {
     const has = o.text(path) !== null;
     return ok(has === exists, `${path} ${has ? 'exists' : 'is missing'}`);
+  },
+
+  /**
+   * A canvas parses and holds at least `min` artboards; `sized`: each has a literal width and height;
+   * `kinds`: at least one artboard carries one of these `kind="…"`s; `minElements`: each artboard
+   * holds that many JSX elements (the artboard itself counts), so a draft is not empty shells.
+   */
+  artboards({ path, min = 1, sized = false, kinds, minElements = 0 }, o) {
+    const src = o.text(path);
+    if (src === null) return ok(false, `${path} is missing`);
+    const s = scanCanvas(path, src);
+    if (!s.ok) return ok(false, `${path} does not parse: ${s.error}`);
+    const why = [];
+    if (s.artboards.length < min) why.push(`${s.artboards.length} artboard(s), want ${min}`);
+    const open = (a) => src.slice(a.start, a.end).split('>')[0];
+    if (sized) {
+      const bare = s.artboards.filter(
+        (a) => !/\bwidth=/.test(open(a)) || !/\bheight=/.test(open(a))
+      );
+      if (bare.length) why.push(`no width/height on ${bare.map((a) => a.id).join(', ')}`);
+    }
+    if (kinds && !s.artboards.some((a) => kinds.some((k) => open(a).includes(`kind="${k}"`))))
+      why.push(`no artboard of kind ${kinds.join(' | ')}`);
+    if (minElements) {
+      const thin = s.artboards.filter(
+        (a) => s.elements.filter((e) => e.artboard === a.id).length < minElements
+      );
+      if (thin.length)
+        why.push(`under ${minElements} elements: ${thin.map((a) => a.id).join(', ')}`);
+    }
+    return ok(!why.length, why.join('; '));
+  },
+
+  /**
+   * At least `min` files directly under the design-root folder `dir` whose name matches `match`,
+   * each containing every `has` and none of `lacks` (regexes). `assets/` after an import, say.
+   */
+  files({ dir, match, has = [], lacks = [], min = 1 }, o) {
+    const names = o.list(dir).filter((n) => re(match).test(n));
+    const good = names.filter((n) => {
+      const t = o.text(`${dir}/${n}`) ?? '';
+      return has.every((h) => re(h).test(t)) && !lacks.some((h) => re(h).test(t));
+    });
+    return ok(
+      good.length >= min,
+      `${good.length}/${names.length} file(s) in ${dir}/ match /${match}/ with the wanted content (want ${min})`
+    );
+  },
+
+  /** The agent made a tool call matching `tool` (regex on the name) whose input matches `input` (regex on the JSON). */
+  'tool-used'({ tool, input, min = 1 }, o) {
+    const hits = o.tools.filter(
+      (t) =>
+        re(`^(?:${tool})$`).test(String(t.name)) &&
+        (input === undefined || re(input).test(JSON.stringify(t.input ?? {})))
+    );
+    return ok(
+      hits.length >= min,
+      `${hits.length} call(s) of ${tool}${input ? ` matching /${input}/` : ''} (${o.tools.length} tool call(s) in all)`
+    );
   },
 
   /** The file's text matches every `has` and none of `lacks` (regexes). */

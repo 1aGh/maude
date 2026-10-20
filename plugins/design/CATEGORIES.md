@@ -20,7 +20,7 @@ Default verbs. No prefix. Members:
 | Command | Description |
 |---|---|
 | `/design:edit` | Iterate on the active canvas with auto-critic loop |
-| `/design:new` | Scaffold a new multi-artboard canvas project (or, with `--blank`, an annotation-only **brief board**; ingests a board's notes when run on an annotated brief-board) |
+| `/design:new` | Scaffold a new multi-artboard canvas project (or, with `--blank`, an annotation-only **brief canvas**; ingests its notes when run on an annotated brief-board canvas) |
 | `/design:draw` | Generate a verified SVG mark (logo / icon / illustration / diagram / spot) via the geometry engine + visual self-verify loop |
 | `/design:generate` | Generate an image, a sound or a video clip from your own AI provider key (BYOK) and land it on the canvas, marked Made by AI — the key stays with Maude, skill `ai-generation` |
 | `/design:photo` | Edit a photo headlessly, for every use of it — adjustments / duotone / grain / pattern / mask (parametric, no browser) + background removal on this Mac, via the non-destructive PhotoEdit sidecar; one use only is a per-use edit |
@@ -46,7 +46,7 @@ Default verbs. No prefix. Members:
 
 The bare `/design` form was a one-version compat stub in v0.8 that redirected to `/design:edit`. **Removed in v0.9** — only `/design:edit` resolves now.
 
-**Brief boards (Phase 22).** `/design:new` has three modes (resolved internally, not separate verbs — see [DDR-085](../../.ai/archive/decisions/DDR-085-canvas-kind-and-design-new-ingest-mode.md)): **normal** (generate a new canvas), **blank** (`--blank` → an annotation-only `kind:"brief-board"` canvas, zero model cost), and **ingest** (run on an annotated brief-board → read its sticky/text notes verbatim and insert generated artboards into the same canvas). Escape hatches: `--from-annotations` (force ingest anywhere) / `--fresh` (ignore a board's notes, scaffold a new file). We deliberately overloaded `/design:new` rather than adding a `/design:brief-board` verb — the user creates and fills a board through the same command.
+**Brief canvases (Phase 22).** `/design:new` has three modes (resolved internally, not separate verbs — see [DDR-085](../../.ai/archive/decisions/DDR-085-canvas-kind-and-design-new-ingest-mode.md)): **normal** (generate a new canvas), **blank** (`--blank` → an annotation-only `kind:"brief-board"` canvas, zero model cost), and **ingest** (run on an annotated brief-board → read its sticky/text notes verbatim and insert generated artboards into the same canvas). Escape hatches: `--from-annotations` (force ingest anywhere) / `--fresh` (ignore a brief canvas's notes, scaffold a new file). We deliberately overloaded `/design:new` rather than adding a `/design:brief-board` verb — the user creates and fills a brief canvas through the same command.
 
 **Whiteboard AI toolkit (feature-whiteboard-ai-toolkit).** `/design:board` is a NEW verb, not an overload of `/design:edit`/`/design:new` — the read→understand→author→verify loop over the FigJam draw layer is a distinct workflow from component editing, and the user explicitly asked for the full two-way toolkit (see [DDR-151](../../.ai/archive/decisions/DDR-151-whiteboard-ai-toolkit-geometry-manifest-and-element-context.md)). The low-level verbs (`maude design canvas-rects`/`read-annotations`/`annotate`) and the full read/write/template spec live in skill `whiteboard`, not in this command's own body.
 

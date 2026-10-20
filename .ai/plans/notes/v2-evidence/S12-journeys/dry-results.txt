@@ -35,6 +35,37 @@
 ✓ S5 fault busy-untouched → untouched red
 ✓ S5 fault free-part-done → text red
 ✓ S5 fault one-undo-step → one-undo-step red
+✓ S6 journey shape
+✓ S6 lane plans (terminal + AI chat)
+✓ S6 good run grades green
+✓ S6 fault artboards-first → artboards red
+✓ S6 fault filled-in → artboards red (also red: words-from-the-sentence, design-system-tokens)
+✓ S6 fault words-from-the-sentence → text red
+✓ S6 fault design-system-tokens → text red
+✓ S6 fault by-the-ai → history red (also red: one-undo-step)
+✓ S6 fault one-undo-step → one-undo-step red
+✓ S6 fault no-second-canvas → canvas-exists red
+✓ S7 journey shape
+✓ S7 lane plans (terminal + AI chat)
+✓ S7 good run grades green
+✓ S7 fault huddle-one-second → text red
+✓ S7 fault shots-follow → text red
+✓ S7 fault effects-follow → text red
+✓ S7 fault total-in-step → text red
+✓ S7 fault earlier-shots-kept → text red
+✓ S7 fault ai-version → history red (also red: one-undo-step)
+✓ S7 fault one-undo-step → one-undo-step red
+✓ S7 fault no-hard-delete → no-tool red
+✓ S8 journey shape
+✓ S8 lane plans (terminal + AI chat)
+✓ S8 good run grades green
+✓ S8 fault asset-imported → files red (also red: asset-clean)
+✓ S8 fault asset-clean → files red
+✓ S8 fault import-by-verb → tool-used red
+✓ S8 fault export-by-verb → tool-used red
+✓ S8 fault exports-listed → tool-used red
+✓ S8 fault no-route-by-hand → no-tool red
+✓ S8 fault canvas-untouched → untouched red
 ✓ S9 journey shape
 ✓ S9 lane plans (terminal + AI chat)
 ✓ S9 good run grades green
@@ -43,3 +74,22 @@
 ✓ S9 fault ids-kept → ids-kept red
 ✓ S9 fault comments-through-the-verb → no-tool red
 ✓ S9 fault ai-version → history red
+✓ S10 journey shape
+✓ S10 lane plans (terminal + AI chat)
+✓ S10 good run grades green
+✓ S10 fault status-read → tool-used red
+✓ S10 fault accent-darker → text red
+✓ S10 fault dark-accent-kept → text red
+✓ S10 fault system-checked → tool-used red
+✓ S10 fault usage-read → tool-used red
+✓ S10 fault manifest-by-the-verb → no-tool red
+✓ S10 fault canvases-untouched → untouched red
+✓ S11 journey shape
+✓ S11 lane plans (terminal + AI chat)
+✓ S11 good run grades green
+✓ S11 fault logs-read → tool-used red
+✓ S11 fault sync-read → tool-used red
+✓ S11 fault comments-read → tool-used red
+✓ S11 fault wrote-nothing → history red
+✓ S11 fault canvas-untouched → untouched red
+✓ S11 fault comment-text-not-obeyed → no-tool red

@@ -17,7 +17,7 @@ DS-PIN (overrides any invent-first instinct — DDR-141): this project HAS a des
 Reference — WRAPPER pattern (read at least one — the canvas-lib frame: `DesignCanvas` / `DCSection` / `DCArtboard`):
 {matched existing canvas paths, picked by similarity}
 
-Reference — PRODUCT SHELL (the established chrome layout — where nav / sidebar / toolbar / main / status go):
+Reference — PRODUCT SHELL (the established chrome layout — where nav / side panel / toolbar / main / status go):
 {designRoot}/system/{ds}/preview/ui_kits-{platform}-showcase.tsx
 For any full-screen surface, ADOPT this showcase's spatial skeleton + chrome material instead of inventing a new shell — it is the DS's canonical "DS in use" composition. Reinvent the shell only with a one-line JSX comment justifying it. (If no `ui_kits-{platform}-showcase` exists for this platform, fall back to any showcase the DS ships as a chrome reference, or compose the shell from the DS readme. This is reference, not a wireframe — adopt the skeleton, keep ownership of element-level decisions and the signature moment.)
 

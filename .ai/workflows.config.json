@@ -57,6 +57,9 @@
     "responseTargetMs": 100,
     "bilingual": []
   },
+  "security": {
+    "projectChecklist": ".ai/security/v2-actions-checklist.md"
+  },
   "skills": {
     "motionRules": {
       "enabled": true

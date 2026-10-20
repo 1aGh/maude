@@ -45,6 +45,7 @@ If the feature is not clear from STATE.md, read the active `.ai/plans/<x>.plan.m
 
 Follow `.claude/skills/scenario/SKILL.md` — section "Running an existing scenario". Key principles:
 
+0. **Drive the product through its own command line where it has one.** If the project documents a CLI for an action (create, open, export, read state), run that for the setup and for reading the result, and use the browser or device only for what a person sees and does. A scenario that clicks through what a command does in one line is slower and flakier, and it hides whether the command works.
 1. **Web variants sequentially** (they share one agent-browser daemon). Native variants run **in parallel** with each other.
 2. Per-platform script returns `result.txt` with `pass` / `fail: <reason>`. Full runtime ≈ time(slowest web) + time(slowest native), i.e. ~60s for a flashcards-style flow.
 3. A failure on one platform **does not abort** the others — all run to completion.

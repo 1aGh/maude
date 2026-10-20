@@ -49,6 +49,28 @@ Scenarios target `data-testid`, never CSS classes (classes churn with the DS). F
 
 When a new feature adds UI a scenario must reach, add a `data-testid` to that element in the same change.
 
+### The v2 shell's hooks (where to look, what to use)
+
+The v2 shell re-emits the v1 hooks that kept their meaning and adds about 1,700 new ones. **The inventory is the source of truth:** `apps/studio/client/testids.json` (one record per hook: `hook`, `pattern`, `meaning`, `producer`, `region`, `consumers`, `v2`) and its readable twin `apps/studio/client/TESTIDS.md`. A hook marked `retired` has a `notes` field naming its replacement; never target one. Look a hook up before you write a selector: `jq -r '.[] | select(.hook|test("^vh-")) | [.hook,.v2,.meaning] | @tsv' apps/studio/client/testids.json`. Testids are an API: a new hook goes into both files in the same commit, an existing one is never renamed.
+
+Regions a scenario usually needs (all live; `<…>` is a pattern):
+
+| Area | Anchor hooks |
+| --- | --- |
+| Shell chrome | `project-pill` (opens `project-menu`; rows are `project-menu-row-<action-id>`, submenus `project-menu-row-sub-<name>`), `share-cluster` · `share-cluster-share` · `share-cluster-status` (`data-status`), `panel-icon-<which>`, `palette-input` · `palette-row-<id>` (⌘K), `settings-sheet` |
+| Home and sign-in | `home-root`, `home-search`, `home-recent-row-<pid>-<slug>`, `signin-card` · `signin-local` · `signin-cloud`, `onb-<sheet>` (Advanced sheets) |
+| Canvases and the open canvas | `canvas-list`, `canvas-row-<slug>`, `canvas-row-trashed-<slug>`, `canvas-frame`, `empty-canvas`, `toolbar-<mode>` · `toolbar-slot-<toolId>`, `edit-name-tag` and the other `edit-*` object hooks |
+| AI chat | `ai-chat-header`, `ai-chat-island`, `chat-composer`, `chat-tool-row`, `takes-island` |
+| Version history and Trash | `vh-panel`, `vh-now`, `vh-filter-<id>`, `vh-list`, `project-history-row-<revision>` · `project-history-restore-<revision>` · `project-history-undo-<revision>`, `all-trashed` · `all-trashed-restore` |
+| Comments and annotations | `comments-panel`, `comment-item-<id>`, `comment-filter-<id>`, `annotation-list`, `stickers-*`, `vote-sheet` |
+| Present and video | `present-controls`, `present-zone`, `presenter-view`, `timeline-panel`, `transcript-panel`, `video-scrub-bar` |
+| Export, assets, handoff | `export-format-<id>`, `export-scope`, `exports-panel`, `assets-panel`, `assets-search`, `handoff-sheet`, `handoff-target-<id>` |
+| Design system | `ds-bar`, `ds-section-<kind>`, `ds-bar-pending`, `ds-review-scrim`, `canvases-ds-row` |
+| Diagnostics and sync | `diag-tab-<view>`, `diag-logs`, `diag-logs-filter-<source>`, `sync-panel`, `sync-row-<slug>`, `sync-resync` |
+| Inspector | `inspector-panel`, `insp-sec-<id>`, `insp-row-<name>`, `layers-panel` |
+
+Notes for v2 scenarios: the canvas is a separate origin (see the gotchas), so drive it by coordinates or a structural route, not by selectors inside it; words in assertions come from the CONTRACT (`.design/system/maude-v2/CONTRACT.md` §3), so assert "Version history", "Trash", "Annotations", never the v1 names; and a scenario for a role-gated action asserts the server's refusal, not only a hidden button.
+
 ## How to add a new scenario
 
 1. **Add testids** to the studio-client (or native) elements the flow touches; rebuild the bundle (above).
