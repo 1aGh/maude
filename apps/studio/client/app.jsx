@@ -3282,6 +3282,8 @@ function ShellTree() {
           lastFinishedAt={exportLastFinishedAt}
           {...exportSelectionV2(selected, activePath)}
           activePath={activePath}
+          // S8.7 — Show on canvas turns the dashed safe margin on only when it is off
+          printGuidesVisible={printGuidesVisible}
           hasComps={activeComps.length > 0}
           comps={activeComps}
           // Which artboard "Active artboard" scope targets. The shell can't query
