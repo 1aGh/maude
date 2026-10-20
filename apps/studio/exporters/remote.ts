@@ -228,6 +228,15 @@ export async function renderRemotely(args: {
   signal?: AbortSignal;
 }): Promise<ExportResult> {
   const { format, targets, options, canvas, service, signal } = args;
+  // S8.1b — the second line behind routes/export.ts: the option allowlist below would drop these two
+  // keys, and the service would hand back an sRGB file / today's canvas as if it were what was asked.
+  // A v1 worker cannot honour either, so neither crosses; the protocol stays unchanged.
+  if (options.colorProfile === 'display-p3')
+    throw new Error('Display P3 exports in the desktop app — the render service writes sRGB.');
+  if (options.atSha !== undefined)
+    throw new Error(
+      'Exporting a past version works in the desktop app, not on the render service.'
+    );
   // The exporters' per-navigation timeouts (png.ts goto `--timeout`, etc.)
   // default to ~8s — tuned for the DESKTOP path where the canvas origin is
   // loopback and already warm. The render worker instead loads the canvas from

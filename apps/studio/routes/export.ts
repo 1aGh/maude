@@ -125,13 +125,34 @@ export function gateSpecV2(raw: unknown, deps: ExportRouteDeps, req?: Request): 
   };
 }
 
-/** What the v2 export doors cannot run yet: refused with the field, never silently dropped. */
-function notYet(spec: ExportSpecV2, units: SpecUnit[]): Response | null {
+/**
+ * S8.1b — the formats a past version and Display P3 export as: the PNG/JPG capture (exporters/png.ts)
+ * takes both. Every other capture would ignore them and hand over today's canvas / an sRGB file.
+ */
+const AT_FORMATS = new Set<string>(['png', 'jpg']);
+const P3_FORMATS = new Set<string>(['png', 'jpg']);
+
+/** What the v2 export doors cannot run (here, or yet): refused with the field, never silently dropped. */
+function notYet(
+  spec: ExportSpecV2,
+  units: SpecUnit[],
+  lane: 'local' | 'remote' | 'none'
+): Response | null {
   const no = (field: string, message: string) =>
     json(400, { error: 'not-available', field, message });
-  if (spec.at) return no('at', 'Exporting a past version is not available yet.');
-  if (spec.options?.colorProfile === 'display-p3')
-    return no('options.colorProfile', 'Display P3 is not available yet.');
+  // S8.1b — a past version renders on this Mac's capture origin from its own history store; the
+  // render service and the member's browser render today's canvas, so a workspace refuses it.
+  if (spec.at && lane !== 'local')
+    return no('at', 'Exporting a past version works in the desktop app.');
+  if (spec.at && units.some((u) => !AT_FORMATS.has(u.format)))
+    return no('at', 'A past version exports as PNG or JPG for now.');
+  // Q6 — Display P3 is the this-Mac Chromium lane only (forced there whatever `lane` asked for); the
+  // render service and the browser capture would write sRGB.
+  const p3 = units.filter((u) => u.v2.colorProfile === 'display-p3');
+  if (p3.length && lane !== 'local')
+    return no('options.colorProfile', 'Display P3 exports in the desktop app. Here, pick sRGB.');
+  if (p3.some((u) => !P3_FORMATS.has(u.format)))
+    return no('options.colorProfile', 'Display P3 is for PNG and JPG.');
   const missing = units.find((u) => !isFormat(u.format));
   if (missing) return no('format', `${missing.format.toUpperCase()} export is not available yet.`);
   return null;
@@ -150,15 +171,18 @@ export function planExportV2(
 ): { ok: false; response: Response } | { ok: true; group: GroupPlan; first: SpecUnit } {
   const g = gateSpecV2(raw, deps, req);
   if (!g.ok) return g;
-  const refused = notYet(g.spec, g.units);
+  const refused = notYet(g.spec, g.units, deps.renderLane());
   if (refused) return { ok: false, response: refused };
-  const first = g.units[0];
+  // S8.1b — the version every capture renders: the sha only (validated by spec-v2.ts), never a source
+  const at = g.spec.at?.sha;
+  const units = at ? g.units.map((u) => ({ ...u, options: { ...u.options, atSha: at } })) : g.units;
+  const first = units[0];
   if (!first)
     return { ok: false, response: json(422, { error: 'nothing-to-export', skipped: g.skipped }) };
   return {
     ok: true,
     first,
-    group: { spec: g.spec, units: g.units, project: deps.projectName(), date: now },
+    group: { spec: g.spec, units, project: deps.projectName(), date: now },
   };
 }
 

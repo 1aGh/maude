@@ -218,6 +218,18 @@ export async function spawnShim(args: string[], opts: SpawnShimOptions): Promise
  * near-copies collapsed into one). `args[0]` is the shim path by convention
  * (every adapter builds it that way), used only for the error message.
  */
+/**
+ * S8.1b (Q6) — the colour profile a raster capture renders in, as shim arguments. Display P3 is a
+ * THIS-MAC Chromium feature: the shim launches Chromium with `--force-color-profile=display-p3-d65`
+ * on ANGLE's software GL (the default raster path clamps wide-gamut CSS to sRGB first — measured
+ * 2026-10-20: `color(display-p3 1 0 0)` came out as sRGB red), and Chromium then writes the pixels
+ * converted to P3 with a Display P3 ICC profile embedded. sRGB (the default) adds nothing, so a
+ * default capture is the exact pre-S8.1b launch.
+ */
+export function colorProfileShimArgs(options: Record<string, unknown> | undefined): string[] {
+  return options?.colorProfile === 'display-p3' ? ['--color-profile', 'display-p3'] : [];
+}
+
 export async function runShim(args: string[], opts: SpawnShimOptions): Promise<string[]> {
   const { code, stdoutLines, stderr } = await spawnShim(args, opts);
   if (code !== 0) {
