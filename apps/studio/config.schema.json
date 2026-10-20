@@ -77,6 +77,29 @@
       },
       "default": []
     },
+    "handoff": {
+      "type": "object",
+      "description": "S8.10 — Handoff to production (Shift-Cmd-H). `targets[]` are the places the code can go; absent = Web (a shadcn registry item next to the canvas), App (React Native), Lottie animation and Design tokens. `out` is the ONE repo-relative file the AI run may write, with {Name}, {slug}, {ds} and {designRel} filled in (ignored for `web`).",
+      "properties": {
+        "targets": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$" },
+              "kind": { "type": "string", "enum": ["web", "rn", "lottie", "tokens"] },
+              "title": { "type": "string", "maxLength": 60 },
+              "sub": { "type": "string", "maxLength": 140 },
+              "out": { "type": "string", "maxLength": 300 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
     "newCanvasDir": {
       "type": "string",
       "description": "Default folder (under designRoot) where /design:new scaffolds new canvas .tsx files (Phase 3.6+; older repos may still hold .html canvases pending one-shot migration).",

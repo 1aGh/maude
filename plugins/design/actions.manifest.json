@@ -3673,7 +3673,7 @@
       "kind": "command",
       "exec": "shell",
       "fromCanvas": true,
-      "effect": "none",
+      "effect": "project",
       "agent": {
         "path": "cli",
         "verb": "maude design handoff"

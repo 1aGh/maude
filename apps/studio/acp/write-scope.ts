@@ -96,7 +96,10 @@ export type WriteScopeReason =
   | 'in-project-denied'
   /** Inside a folder the person allowed AI to READ (S5.10, `ai/attach-grants.ts`). A read grant
    *  never adds a write path — not even inside the project. */
-  | 'read-only-grant';
+  | 'read-only-grant'
+  /** S8.10 — inside the project, but not the one path this run may write (a Handoff to production
+   *  run writes its target file and nothing else, decision v2-S8.10-run-write-scope). */
+  | 'outside-run-scope';
 
 export interface WriteScopeVerdict {
   /** True ONLY when every resolvable target is inside the pinned project root. */
@@ -416,10 +419,11 @@ export function writeTargetsInsideProject(
   toolCall: ToolCallLike | null | undefined,
   scopeRoot: string,
   toolName: unknown,
-  readOnlyRoots: readonly string[] = []
+  readOnlyRoots: readonly string[] = [],
+  onlyPaths: readonly string[] | null = null
 ): WriteScopeVerdict {
   if (!isWriteToolName(toolName)) return { inside: false, reason: 'no-target', resolved: [] };
-  return resolveWriteTargets(toolCall, scopeRoot, readOnlyRoots);
+  return resolveWriteTargets(toolCall, scopeRoot, readOnlyRoots, onlyPaths);
 }
 
 /**
@@ -459,7 +463,8 @@ export function looksLikeWriteToolCall(toolCall: ToolCallLike | null | undefined
 export function resolveWriteTargets(
   toolCall: ToolCallLike | null | undefined,
   scopeRoot: string,
-  readOnlyRoots: readonly string[] = []
+  readOnlyRoots: readonly string[] = [],
+  onlyPaths: readonly string[] | null = null
 ): WriteScopeVerdict {
   const { fromLocations, fromRawInput } = collectTargets(toolCall);
   if (fromLocations.length === 0 && fromRawInput.length === 0) {
@@ -515,6 +520,20 @@ export function resolveWriteTargets(
   // out-of-project write would. See PROTECTED_IN_PROJECT.
   if (resolved.some((p) => isProtectedInProject(p, scopeRoot))) {
     return { inside: false, reason: 'in-project-denied', resolved };
+  }
+  // S8.10 — a run with its own write scope (Handoff to production: the target file only). Judged
+  // AFTER every project rule, so it can only narrow: each resolved target must BE one of the run's
+  // paths (or sit inside one that is a folder). An empty list allows nothing.
+  if (
+    onlyPaths &&
+    !resolved.every((p) =>
+      onlyPaths.some((o) => {
+        const allowed = resolveRealPath(o, scopeRoot);
+        return p === allowed || isInsideRoot(p, allowed);
+      })
+    )
+  ) {
+    return { inside: false, reason: 'outside-run-scope', resolved };
   }
   return { inside: true, reason: 'inside', resolved };
 }

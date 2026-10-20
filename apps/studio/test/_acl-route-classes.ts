@@ -173,6 +173,11 @@ const CANVAS = [
   '/_api/generate-takes',
   '/_api/generate-takes/quote',
   '/_api/generate-takes/of',
+  // S8.10 — Handoff to production: the targets, the run and Copy code all name ONE canvas (or, for a
+  // design system's tokens, the project: a canvas-only session is refused `not-in-scope`)
+  '/_api/handoff/targets',
+  '/_api/handoff',
+  '/_api/handoff/result',
   '/.design/:rel',
   '/assets/:asset',
   '/_canvas-shell',

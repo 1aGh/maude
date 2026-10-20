@@ -38,6 +38,7 @@ import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
 import { createFigmaRoutes, type FigmaRouteDeps } from './figma.ts';
 import { createGenerateRoutes, type GenerateRouteDeps } from './generate.ts';
+import { createHandoffRoutes, type HandoffRouteDeps } from './handoff.ts';
 import { createHelpGuidesRoutes, type HelpGuidesDeps } from './help-guides.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createKindRoutes } from './kinds.ts';
@@ -74,6 +75,8 @@ export { riderPatch } from './canvas-meta-rider.ts';
 export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 // S8.16 — the Generate-with-N-takes deps over the live registry, key store and generation queue.
 export { generateDepsFor } from './generate.ts';
+// S8.10 — the queued handoff's release reads the same target + review the route does.
+export { type HandoffRouteDeps, resolveQueuedHandoff } from './handoff.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
 // S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
@@ -142,6 +145,8 @@ export interface RouteDeps {
   assetDetails?: AssetDetailsRouteDeps;
   /** S8.16 — `/_api/generate-takes*` (main origin, Can edit on the canvas): N takes, the consent quote, ← → */
   generate?: GenerateRouteDeps;
+  /** S8.10 — `/_api/handoff*` (main origin, Can edit): Handoff to production as one scoped AI run */
+  handoff?: HandoffRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
   share: ShareRouteDeps;
   /** S9.24 — the object-conflict card: `GET /_api/sync/conflicts`, `POST …/resolve` (one lane edit) */
@@ -234,6 +239,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.figma ? createFigmaRoutes(deps.figma) : []),
     ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
+    ...(deps.handoff ? createHandoffRoutes(deps.handoff) : []),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
     ...createDsRoutes(dsDeps),

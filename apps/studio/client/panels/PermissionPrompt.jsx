@@ -114,9 +114,12 @@ export function describeOutOfProject(scope) {
             // inside the project, and what matters is the promise "nothing on disk changes".
             scope.reason === 'read-only-grant'
             ? 'This is in a folder you let AI read only. Nothing there changes unless you allow it now.'
-            : paths.length > 1
-              ? 'Claude wants to write files outside this project.'
-              : 'Claude wants to write a file outside this project.';
+            : // S8.10 — a Handoff to production run writes its target file only; this is another file.
+              scope.reason === 'outside-run-scope'
+              ? 'This handoff may write its one file only. Nothing else changes unless you allow it now.'
+              : paths.length > 1
+                ? 'Claude wants to write files outside this project.'
+                : 'Claude wants to write a file outside this project.';
   return {
     lead,
     paths,
@@ -155,7 +158,9 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
       ? 'Write to a file that runs'
       : request.scope?.reason === 'read-only-grant'
         ? 'Write to a folder AI may only read'
-        : 'Write outside this project';
+        : request.scope?.reason === 'outside-run-scope'
+          ? 'Write outside this handoff'
+          : 'Write outside this project';
   const headerTarget = outOfProject
     ? outOfProject.paths.length === 1
       ? String(outOfProject.paths[0]).split('/').pop()

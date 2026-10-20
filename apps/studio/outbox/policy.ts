@@ -119,7 +119,9 @@ export function closedGates(
   if (!facts.online) closed.add('online');
   if (record.project.hub !== null && !facts.hubReachable) closed.add('hub');
   if (NEEDS_SIGN_IN.includes(record.kind) && !facts.signedIn) closed.add('signed-in');
-  if (record.kind === 'ai.prompt') {
+  // S8.10 — a Handoff to production is an AI run that writes the code: it waits on the AI gates too
+  // ("Connect your Claude account to let AI draft this."; after Connect, the waiting handoff runs).
+  if (record.kind === 'ai.prompt' || record.kind === 'export.handoff') {
     if (!facts.aiConnected) closed.add('ai-connected');
     if (!facts.aiReady) closed.add('ai-ready');
     if (typeof facts.allowanceResetsAt === 'number' && now < facts.allowanceResetsAt)
@@ -781,6 +783,8 @@ function payloadErrors(p: unknown): string[] {
     case 'export.handoff':
       need('canvas', isStr(o.canvas));
       need('target', isStr(o.target));
+      need('ds', o.ds === undefined || isStr(o.ds));
+      need('useDs', o.useDs === undefined || typeof o.useDs === 'boolean');
       break;
     default:
       e.push('payload.kind');

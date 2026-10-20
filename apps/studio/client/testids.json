@@ -36120,5 +36120,245 @@
       "apps/studio/test/captions-inspector.test.ts"
     ],
     "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "handoff-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the head of the Handoff to production sheet (title + design system line). The frame keeps `export-sheet` with `data-mode=\"handoff\"` and `data-phase` pick|connect|drafting|queued|ready|failed.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-target-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S8.10: one target row (a radio): `aria-checked`, `aria-disabled` with the reason as its line (Lottie: “needs an animated frame”), `data-kind` web|rn|lottie|tokens. Ids come from config `handoff.targets[]`.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-use-ds",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: “Use the design system” (colours, type and spacing come from its tokens).",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-review",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the last review line: `data-tone` info (“Last review: no blockers.”) or warn (“The last review found N blockers: …”).",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/edges.jsx",
+      "symbol": "ReviewHint"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-show-on-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: Show on canvas on the blockers line.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/edges.jsx",
+      "symbol": "ReviewHint"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the sheet’s Advanced fold (the file it writes, where the targets live).",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: AI isn’t connected yet — the one connect sheet (holds `ai-connect-sheet`); after Connect the handoff runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/edges.jsx",
+      "symbol": "HandoffConnect"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-drafting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: AI is drafting the code (one scoped run).",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-queued",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: offline / waiting — “Queued — starts when this Mac is online”.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/edges.jsx",
+      "symbol": "QueuedLine"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the run ended without the file.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: Close once the handoff runs, waits or is ready.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/handoff-sheet.jsx",
+      "symbol": "HandoffSheet"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-ready",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the ready card — one thing to copy; `data-kind`.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/ready-card.jsx",
+      "symbol": "ReadyCard"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-ready-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the ready card’s one button: Copy command (web) or Copy code.",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/ready-card.jsx",
+      "symbol": "ReadyCard"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-ready-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S8.10: the ready card’s Advanced fold (file, snippet, Claude Code and terminal lines).",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/ready-card.jsx",
+      "symbol": "ReadyCard"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "handoff-ready-line-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S8.10: one line under the ready card’s Advanced (Any machine · This Mac only · Claude Code · Terminal).",
+    "producer": {
+      "file": "apps/studio/client/v2/handoff/ready-card.jsx",
+      "symbol": "ReadyCard"
+    },
+    "region": "handoff sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-handoff-sheet.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

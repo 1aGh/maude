@@ -89,7 +89,8 @@ export type IntentPayload =
   | { kind: 'share.invite'; email: string; role: Role; scope: ShareScope; message?: string }
   | { kind: 'share.ask-to-edit'; scope: ShareScope; note?: string }
   | { kind: 'export.cloud'; spec: ExportSpec; saveTo: string }
-  | { kind: 'export.handoff'; canvas: string; target: string };
+  // S8.10 — `canvas` is the canvas, or `system/<ds>` for a design system's tokens (+ `ds`)
+  | { kind: 'export.handoff'; canvas: string; target: string; ds?: string; useDs?: boolean };
 
 export interface IntentTarget {
   /** kernel doc entry (follows moves), or `path:<repoRel>` before the op log */

@@ -58,6 +58,7 @@ import { RenderRow } from './sections/render-row.jsx';
 import { useOnline } from './cloud-queue.js';
 import { readLanePref, renderChoice, withRenderLane } from '../../export-lane.js';
 import { usePreflight } from './preflight/use-preflight.js';
+import { HandoffSheet } from '../handoff/handoff-sheet.jsx';
 import { ShareHint } from './share-hint.jsx';
 import {
   browserLaneRequest,
@@ -385,6 +386,30 @@ export function ExportSheet({
   // Can view has no Export (A19): the entry points are absent and the server answers 403; if a stale
   // opener still gets here, there is nothing to draw.
   if (!acc.canExport) return null;
+
+  // S8.10 — Handoff to production is its own sheet (client/v2/handoff/): targets, one scoped AI run, Ready.
+  // Design system › Hand off tokens (S10.19) asks for `target: 'tokens'` of a system, not a canvas.
+  if (mode === 'handoff') {
+    const tokensOf =
+      request?.target === 'tokens' && typeof request?.ds === 'string' ? request.ds : null;
+    return (
+      <HandoffSheet
+        subject={tokensOf ? { ds: tokensOf } : { canvas: canvasRel(ctx) }}
+        name={tokensOf ?? canvasName}
+        askedTarget={request?.target ?? null}
+        onClose={onClose}
+        onBack={modeProp === 'handoff' ? null : () => setMode('export')}
+        onShowOnCanvas={
+          activePath && activeArtboardId
+            ? () => {
+                dispatchArtboardJump(activePath, activeArtboardId);
+                onClose();
+              }
+            : onClose
+        }
+      />
+    );
+  }
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it

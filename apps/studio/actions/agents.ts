@@ -1140,7 +1140,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design export png'),
   },
-  'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
+  // S8.10 — Handoff to production writes code into the project (one AI run, its target file only; the server
+  // refuses below Can edit). An agent runs the same verb (`--target web`), or /design:to-rn and /design:to-lottie.
+  'handoff.open': { effect: 'project', agent: cli('maude design handoff') },
   'export.rerun-last': {
     effect: 'project',
     agent: cli('maude design exports again <id>'),
