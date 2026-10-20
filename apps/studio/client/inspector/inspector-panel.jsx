@@ -132,6 +132,8 @@ export function InspectorPanel({
   // V2-4.8b — the open canvas's artboard count (was the status bar's "N artboards"), shown in the
   // standalone Layers panel's header; undefined elsewhere.
   artboardCount,
+  // S7.24b — the Layers header slot: a node drawn above the Layers view (the kind chips, v2/kinds/LayersKindFilter)
+  layersHeader = null,
   // S11.9 — Layers › Advanced › Select by selector: posts `select-by-selector {selector}` to the open canvas.
   onSelectBySelector,
   // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
@@ -611,6 +613,7 @@ export function InspectorPanel({
           the header. Inspector > Advanced > Used in says the same and keeps Detach (v2/inspector/advanced-rows-default.jsx,
           `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
       <div className="st-rp-body">
+        {effTab === 'layers' ? layersHeader : null}
         {effTab === 'photo' && photoTarget && photoPerUse ? (
           <PhotoSection
             key={`${photoTarget.asset}:${el.id}:${el.index ?? 0}`}

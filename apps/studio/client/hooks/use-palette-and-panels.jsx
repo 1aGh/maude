@@ -53,6 +53,7 @@ import { commentPanelActions } from '../v2/comments/comment-client.js';
 import { useBoardLabels } from '../v2/ai/RunList.jsx';
 import { artboardLabel as artboardLabelOf } from '../v2/ai/runs-model.js';
 import { addGuides } from '../v2/help/add-guides.js';
+import { LayersKindFilter } from '../v2/kinds/LayersKindFilter.jsx';
 
 export function usePaletteAndPanels({
   activeArtboards,
@@ -764,6 +765,15 @@ export function usePaletteAndPanels({
           testId={id === 'layers' ? 'layers-panel' : 'inspector-panel'}
           layersOnly={id === 'layers'}
           artboardCount={id === 'layers' ? activeArtboards : undefined}
+          // S7.24b — the kind chips in the Layers header, counted over the open canvas's artboards
+          layersHeader={
+            activeCanvasFile ? (
+              <LayersKindFilter
+                boards={boardLabels.get(activePath)}
+                canvasName={displayName(basename(activeCanvasFile))}
+              />
+            ) : null
+          }
           onSelectBySelector={(selector) =>
             postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })
           }
