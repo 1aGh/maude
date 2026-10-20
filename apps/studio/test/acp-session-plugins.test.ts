@@ -8,12 +8,40 @@
 // fail HERE, loudly, instead of silently shipping a desktop app whose chat
 // resolves no `/design:*` on a pristine machine.
 
-import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { newSessionParams } from '../acp/bridge.ts';
-import type { SdkPluginConfig } from '../acp/plugin-bootstrap.ts';
+import {
+  computeSessionPlugins,
+  type SdkPluginConfig,
+  suppressionFor,
+} from '../acp/plugin-bootstrap.ts';
+
+// Every test here reads Claude Code's config dir through CLAUDE_CONFIG_DIR, pointed at an
+// empty scratch dir — never this machine's real ~/.claude (its enabledPlugins would leak in).
+let configDir = '';
+let prevConfigDir: string | undefined;
+beforeEach(() => {
+  prevConfigDir = process.env.CLAUDE_CONFIG_DIR;
+  configDir = mkdtempSync(join(tmpdir(), 'maude-s12-3-cfg-'));
+  process.env.CLAUDE_CONFIG_DIR = configDir;
+});
+afterEach(() => {
+  if (prevConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = prevConfigDir;
+  rmSync(configDir, { recursive: true, force: true });
+});
 
 const PLUGINS: SdkPluginConfig[] = [
   { type: 'local', path: '/bundle/plugins/design', skipMcpDiscovery: true },
@@ -90,16 +118,13 @@ describe('newSessionParams — plugin carrier shape', () => {
   // must also force off any natively-loaded user-level copy of the same id via
   // the SDK's "flag" settings layer, so the bundled copy is the ONLY one that
   // ever loads.
-  test('with plugins: forces design@maude off via options.settings.enabledPlugins (double-registration guard)', () => {
+  test('with plugins: forces each injected id off via options.settings.enabledPlugins (double-registration guard)', () => {
     const p = newSessionParams('/repo', undefined, PLUGINS);
+    // S12.3 — derived from the injection set (PLUGINS = design + flow), not a hand literal:
+    // flow is suppressed because it is injected here, kgai is not because it is not.
     expect((p._meta as Meta).claudeCode?.options?.settings?.enabledPlugins).toEqual({
       'design@maude': false,
-      // kgai (third-party, injected by the desktop bundle for autonomous capture —
-      // feature-kgai-ecosystem-integration Phase 8). Suppressing a user-installed
-      // copy matters MORE here than for our own plugins: it would run its own
-      // SessionStart install.sh and point at a different engine version than the
-      // pinned, signed sidecar we ship.
-      kgai: false,
+      'flow@maude': false,
     });
   });
 
@@ -111,6 +136,166 @@ describe('newSessionParams — plugin carrier shape', () => {
   test('undefined plugins: options.settings is entirely absent', () => {
     const p = newSessionParams('/repo', 'BRIEF');
     expect((p._meta as Meta).claudeCode?.options?.settings).toBeUndefined();
+  });
+});
+
+// S12.3 — the suppression map is DERIVED from the injection set (S12-slices §3 row S12.3).
+// The old hand literal `{ 'design@maude': false, kgai: false }` drifted twice over: a
+// re-enabled flow was never suppressed, and the bare `kgai` key matches no native copy at all
+// (Claude Code keys enabledPlugins as `<plugin>@<marketplace>`; kgai installs as
+// `kgai@kgai-marketplace`).
+describe('suppressionFor — derived from the injection set', () => {
+  const bundle = (): string => mkdtempSync(join(tmpdir(), 'maude-s12-3-bundle-'));
+  const plant = (root: string, dir: string, manifestName?: string): SdkPluginConfig => {
+    const path = join(root, 'plugins', dir);
+    mkdirSync(join(path, '.claude-plugin'), { recursive: true });
+    if (manifestName !== undefined) {
+      writeFileSync(
+        join(path, '.claude-plugin', 'plugin.json'),
+        JSON.stringify({ name: manifestName })
+      );
+    }
+    return { type: 'local', path, skipMcpDiscovery: true };
+  };
+  const userEnabled = (enabled: Record<string, unknown>): void =>
+    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ enabledPlugins: enabled }));
+
+  test('a planted 4th injected plugin is suppressed with no edit to the suppression code', () => {
+    const root = bundle();
+    try {
+      const plugins = [
+        plant(root, 'design', 'design'),
+        plant(root, 'flow', 'flow'),
+        plant(root, 'kgai', 'kgai'),
+        plant(root, 'planted', 'planted'),
+      ];
+      const map = suppressionFor(plugins);
+      expect(map['planted@maude']).toBe(false);
+      expect(Object.keys(map).sort()).toEqual([
+        'design@maude',
+        'flow@maude',
+        'kgai@maude',
+        'planted@maude',
+      ]);
+      // …and newSessionParams carries exactly that map, so the bridge needs no edit either.
+      const p = newSessionParams('/repo', 'BRIEF', plugins);
+      expect((p._meta as Meta).claudeCode?.options?.settings?.enabledPlugins).toEqual(map);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("the user's own native copy is suppressed under whatever marketplace it came from", () => {
+    const root = bundle();
+    try {
+      userEnabled({
+        'kgai@kgai-marketplace': true, // the id kgai really installs under
+        'design@my-fork': true, // design added from a marketplace alias (CLAUDE.md: double-load)
+        'planted@elsewhere': true,
+        'github@claude-plugins-official': true, // not injected — never touched
+        'designer@maude': true, // a different plugin whose name only starts the same
+      });
+      const map = suppressionFor([
+        plant(root, 'design', 'design'),
+        plant(root, 'kgai', 'kgai'),
+        plant(root, 'planted', 'planted'),
+      ]);
+      expect(map).toEqual({
+        'design@maude': false,
+        'design@my-fork': false,
+        'kgai@maude': false,
+        'kgai@kgai-marketplace': false,
+        'planted@maude': false,
+        'planted@elsewhere': false,
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('installed-but-not-in-settings copies are suppressed too (installed_plugins.json)', () => {
+    const root = bundle();
+    try {
+      mkdirSync(join(configDir, 'plugins'), { recursive: true });
+      writeFileSync(
+        join(configDir, 'plugins', 'installed_plugins.json'),
+        JSON.stringify({ plugins: { 'design@other-mkt': [{ scope: 'user' }] } })
+      );
+      expect(suppressionFor([plant(root, 'design', 'design')])).toEqual({
+        'design@maude': false,
+        'design@other-mkt': false,
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('can only ever switch a plugin OFF — every value is false, whatever the inputs', () => {
+    const root = bundle();
+    try {
+      userEnabled({ 'design@maude': true, 'design@x': 'yes', 'flow@maude': false });
+      const map = suppressionFor([plant(root, 'design', 'design'), plant(root, 'flow', 'flow')]);
+      expect(Object.keys(map).length).toBeGreaterThan(0);
+      for (const v of Object.values(map)) expect(v).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a manifest name that is not a plugin id falls back to the bundle dir name', () => {
+    // The manifest is a bundle file, but its name still becomes a settings key: anything that is
+    // not a plain plugin id (a key injection, a wildcard, a path) is ignored.
+    const root = bundle();
+    try {
+      const map = suppressionFor([
+        plant(root, 'design', 'x@maude": true, "evil'),
+        plant(root, 'flow', '*'),
+        plant(root, 'kgai'), // no manifest at all
+      ]);
+      expect(Object.keys(map).sort()).toEqual(['design@maude', 'flow@maude', 'kgai@maude']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a user-config key that is not a plain <id>@<marketplace> is never copied', () => {
+    const root = bundle();
+    try {
+      userEnabled({ 'design@a b': true, 'design@': true, 'design@x@y': true, 'design@ok': true });
+      expect(suppressionFor([plant(root, 'design', 'design')])).toEqual({
+        'design@maude': false,
+        'design@ok': false,
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('unreadable / malformed Claude Code config degrades to the canonical ids only', () => {
+    writeFileSync(join(configDir, 'settings.json'), '{not json');
+    expect(suppressionFor(PLUGINS)).toEqual({ 'design@maude': false, 'flow@maude': false });
+  });
+
+  test('empty injection set ⇒ empty map (newSessionParams then omits settings entirely)', () => {
+    userEnabled({ 'design@maude': true });
+    expect(suppressionFor([])).toEqual({});
+  });
+
+  test('the real bundle: computeSessionPlugins over this tree suppresses design@maude', () => {
+    const repo = join(import.meta.dir, '..', '..', '..');
+    const plugins = computeSessionPlugins({
+      native: true,
+      designDir: join(repo, 'plugins', 'design'),
+      flowDir: null,
+      kgaiDir: null,
+    });
+    expect(suppressionFor(plugins)).toEqual({ 'design@maude': false });
+  });
+
+  test('bridge.ts carries no hand-maintained suppression literal any more', () => {
+    const src = readFileSync(join(import.meta.dir, '..', 'acp', 'bridge.ts'), 'utf8');
+    expect(src).not.toMatch(/enabledPlugins:\s*\{\s*'/);
+    expect(src).toContain('suppressionFor(plugins)');
   });
 });
 
