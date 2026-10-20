@@ -21,6 +21,13 @@ const GLYPHS = {
   ),
   close: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
   plus: <path d="M8 3.5v9M3.5 8h9" />,
+  // S6.10: a private repo in the From GitHub list (02 ob-adv-sheets)
+  lock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6" rx="1.25" />
+      <path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7" />
+    </>
+  ),
   laptop: (
     <>
       <rect x="3.5" y="3.5" width="9" height="6.5" rx="1.25" />
