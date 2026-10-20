@@ -36,13 +36,21 @@ export function layerOpMessage(id, node, artboardId, value) {
 }
 
 /** The padlock and the eye of a Layers row. `node` is a non-synthetic layer node. */
-export function LayerRowTools({ node, isLocked, isHidden, onToggleLock, onToggleVisibility }) {
+export function LayerRowTools({
+  node,
+  isLocked,
+  isHidden,
+  tabbable = true,
+  onToggleLock,
+  onToggleVisibility,
+}) {
   return (
     <>
       {onToggleLock ? (
         <button
           type="button"
           className="st-layer-lock"
+          tabIndex={tabbable ? 0 : -1}
           data-on={isLocked ? 'true' : undefined}
           aria-label={isLocked ? `Unlock ${node.label}` : `Lock ${node.label}`}
           aria-pressed={isLocked}
@@ -59,6 +67,7 @@ export function LayerRowTools({ node, isLocked, isHidden, onToggleLock, onToggle
         <button
           type="button"
           className="st-layer-eye"
+          tabIndex={tabbable ? 0 : -1}
           data-on={isHidden ? 'true' : undefined}
           aria-label={isHidden ? `Show ${node.label}` : `Hide ${node.label}`}
           aria-pressed={isHidden}

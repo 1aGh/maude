@@ -341,6 +341,17 @@
     font-family: var(--font-body);
   }
 
+  /* S11.18 (a11y): a row that cannot be used dims its label and its switch, not its note — the note says WHY, so it
+     keeps the full note colour (the old whole-row opacity left it at 2.5:1). */
+  .v2s-sheet .st-pref-row.is-disabled {
+    opacity: 1;
+  }
+  .v2s-sheet .st-pref-row.is-disabled .st-pref-label,
+  .v2s-sheet .st-pref-row.is-disabled .st-switch,
+  .v2s-sheet .st-pref-row.is-disabled input {
+    opacity: 0.6;
+  }
+
   /* S9.20 — Settings › General › Account: the five account pages on the web (02 ob-settings) */
   .v2s-acct-links {
     display: flex;

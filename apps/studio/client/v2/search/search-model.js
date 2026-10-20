@@ -386,8 +386,9 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   for (const g of GROUPS) {
     const all = byGroup.get(g.id) ?? [];
     if (all.length === 0) continue;
-    total += all.length;
     const rows = all.slice(0, g.id === 'canvases' || g.id === 'artboards' ? 12 : cap);
+    // S11.18 (a11y): the count is the rows drawn — "31 results" over 13 rows told a screen reader a lie
+    total += rows.length;
     const hidden = all.filter((r) => r.advanced).length;
     groups.push({
       id: g.id,
