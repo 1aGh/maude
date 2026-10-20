@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isNativeApp } from '../../github.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { usePanelLayout } from '../shell/use-panel-layout.js';
+import { AiLandingIsland, useAiCut } from './ai-edge.jsx';
 import { anchorCentre, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
 import { useFileDrag } from './edit/drop.jsx';
@@ -254,6 +255,14 @@ export default function TimelineHost({ children }) {
     return f?.getBoundingClientRect?.().left ?? 0;
   }, [activePath, iframesRef]);
 
+  // S7.14 — "Placing shot 7 · Tackle 2" beside the artboard while an AI cut lands its shots
+  const aiCut = useAiCut({ activePath, artboardId: targetId, compKey: null });
+  const frameBox = () => {
+    const f = activePath ? iframesRef?.current?.get(activePath) : null;
+    const r = f?.getBoundingClientRect?.();
+    return r ? { left: r.left, top: r.top } : null;
+  };
+
   if (!mounted) return null;
   const placement =
     view.size === 'full'
@@ -264,6 +273,7 @@ export default function TimelineHost({ children }) {
         });
   return (
     <div className="tl-host">
+      <AiLandingIsland cut={aiCut} rect={view.target?.rect ?? null} frame={frameBox()} />
       <TimelineIsland
         size={view.size}
         placement={placement}

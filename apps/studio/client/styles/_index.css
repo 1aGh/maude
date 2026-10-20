@@ -170,6 +170,7 @@
 @import url("../v2/comments/comments.css");
 /* S7.7 — the timeline island: placement, notch, Kept open / Expand, the empty block (client/v2/timeline/). */
 @import url("../v2/timeline/timeline.css");
+@import url("../v2/timeline/ai-edge.css");
 /* S7.10 — the join picker, the "how should it sit?" ask and the Music line (client/v2/timeline/joins/). */
 @import url("../v2/timeline/joins/joins.css");
 /* S7.11 — the Transcript panel and the caption lane on the Text track (client/v2/transcript/). */
