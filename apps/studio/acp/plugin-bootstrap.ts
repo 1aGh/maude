@@ -33,10 +33,15 @@
 // DDR-143 Decision 3 ("no-op for power users, hard") on purpose. The double-
 // registration risk that gate existed to prevent is now closed structurally,
 // one level up: `bridge.ts`'s `newSessionParams()` sets `options.settings
-// .enabledPlugins['design@maude'] = false` whenever it's carrying a non-empty
+// .enabledPlugins = suppressionFor(plugins)` (below, S12.3 — derived from the
+// injection set, `<id>@<marketplace>: false`) whenever it's carrying a non-empty
 // `plugins` array, forcing off any natively-loaded user-level copy of the same
 // id via the SDK's documented `flag > user` settings precedence — so the
 // bundled copy injected here is the ONLY one that ever loads.
+
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, join } from 'node:path';
 
 import { DESIGN_PLUGIN_DIR, FLOW_PLUGIN_DIR, KGAI_PLUGIN_DIR } from '../paths.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
@@ -91,10 +96,83 @@ export function computeSessionPlugins(deps: SessionPluginDeps): SdkPluginConfig[
   // (DDR-144) and a terminal-less DDR-177 user never marketplace-installs it.
   // Non-null only in the desktop bundle (sync-kg.mjs stages a pinned release).
   //
-  // ⚠ DRIFT TRAP — adding an id here REQUIRES a matching `'<id>': false` entry in
-  // bridge.ts's hand-maintained `enabledPlugins` suppression literal, or a user
-  // who ALSO has it natively enabled gets it double-loaded (see that comment).
+  // S12.3 — an id added here needs no other edit: its native copy is switched off
+  // by {@link suppressionFor}, which bridge.ts derives from this same list.
   add(deps.kgaiDir ?? null);
+  return out;
+}
+
+/** Maude's own marketplace id — the canonical `<plugin>@maude` a bundled plugin installs under. */
+export const MAUDE_MARKETPLACE = 'maude';
+
+/** A plain Claude Code plugin id (kebab/dotted name). Anything else never becomes a settings key. */
+const PLUGIN_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
+/** `<plugin>@<marketplace>`, as Claude Code keys `enabledPlugins` (sdk.d.ts `Settings.enabledPlugins`). */
+const ENABLED_KEY = /^([a-z0-9][a-z0-9._-]{0,63})@([a-z0-9][a-z0-9._-]{0,127})$/i;
+
+function readJson(path: string): Record<string, unknown> | null {
+  try {
+    const v = JSON.parse(readFileSync(path, 'utf8'));
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The plugin id of one injected config: the bundle manifest's `name`
+ * (`<dir>/.claude-plugin/plugin.json` — a signed-bundle file, never the served repo), else the
+ * bundle dir's own name (`plugins/<id>`, paths.ts `pluginDirFrom`). A name that is not a plain id
+ * is ignored, so a manifest cannot write an arbitrary settings key.
+ */
+export function injectedPluginId(plugin: SdkPluginConfig): string | null {
+  const name = readJson(join(plugin.path, '.claude-plugin', 'plugin.json'))?.name;
+  if (typeof name === 'string' && PLUGIN_ID.test(name)) return name;
+  const dir = basename(plugin.path);
+  return PLUGIN_ID.test(dir) ? dir : null;
+}
+
+/**
+ * The `<plugin>@<marketplace>` keys this user's own Claude Code config knows — `settings.json`
+ * `enabledPlugins` and `plugins/installed_plugins.json`. Read from the user's OWN config dir
+ * (`CLAUDE_CONFIG_DIR`, else `~/.claude`), the one `settingSources: ['user']` loads natively; the
+ * served project's `.claude/` is never read. Unreadable ⇒ none. Read-only.
+ */
+function nativePluginKeys(): string[] {
+  const dir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+  const enabled = readJson(join(dir, 'settings.json'))?.enabledPlugins;
+  const installed = readJson(join(dir, 'plugins', 'installed_plugins.json'))?.plugins;
+  const keys: string[] = [];
+  for (const src of [enabled, installed]) {
+    if (src && typeof src === 'object' && !Array.isArray(src)) keys.push(...Object.keys(src));
+  }
+  return keys;
+}
+
+/**
+ * S12.3 — the `enabledPlugins` suppression map for a session, DERIVED from the injection set
+ * (DDR-168's double-registration guard). For every injected plugin id it switches off
+ * `<id>@maude` and every `<id>@<marketplace>` the user's own config carries — so a native copy is
+ * forced off whatever marketplace it came from (kgai installs as `kgai@kgai-marketplace`; a
+ * design added from an alias is `design@<alias>`), and a plugin added to
+ * {@link computeSessionPlugins} is suppressed with no edit here or in bridge.ts.
+ *
+ * Every value is `false`: the map can only switch a plugin off, never on, and only a plugin this
+ * session is injecting anyway — so nothing in the user's config can widen what loads.
+ */
+export function suppressionFor(plugins: readonly SdkPluginConfig[]): Record<string, false> {
+  const ids = new Set<string>();
+  for (const p of plugins) {
+    const id = injectedPluginId(p);
+    if (id) ids.add(id);
+  }
+  const out: Record<string, false> = {};
+  if (ids.size === 0) return out;
+  for (const id of ids) out[`${id}@${MAUDE_MARKETPLACE}`] = false;
+  for (const key of nativePluginKeys()) {
+    const m = ENABLED_KEY.exec(key);
+    if (m && ids.has(m[1] as string)) out[key] = false;
+  }
   return out;
 }
 

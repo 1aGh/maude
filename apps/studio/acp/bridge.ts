@@ -31,7 +31,7 @@ import {
 import { autoAllowRules } from '../actions/verbs.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
-import type { SdkPluginConfig } from './plugin-bootstrap.ts';
+import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
 import {
   resolveAdapterEntry,
   resolveAgentClaudeExecutable,
@@ -567,28 +567,15 @@ export function newSessionParams(
     // settings layer (sdk.d.ts:1831 — highest priority among user-controlled
     // settings, precedence user < project < local < flag < policy; :5193's
     // `Settings.enabledPlugins` doc comment gives this exact worked example).
-    // Keyed to whichever plugin ids are actually being injected — currently
-    // only `design@maude`. Absent (not merely false) whenever `plugins` is
-    // empty, so the npm/web path (where `plugins` is always empty) is
-    // completely unaffected.
+    // Absent (not merely false) whenever `plugins` is empty, so the npm/web path
+    // (where `plugins` is always empty) is completely unaffected.
     //
-    // SECURITY LANDMINE (ethical-hacker finding, DDR-168 review round 2) — this
-    // literal is NOT derived from `plugins`/`plugin-bootstrap.ts`'s injection
-    // set; it's hand-maintained. `plugin-bootstrap.ts`'s own comment calls
-    // re-enabling `flow@maude` injection "a one-line addition" — that one line
-    // does NOT touch this object. If you flip that on, you MUST also add
-    // `'flow@maude': false` here, or a user with `flow@maude` natively enabled
-    // gets it double-loaded with zero suppression (the exact double-
-    // registration risk this override exists to close). No test currently
-    // catches this drift.
-    // `kgai` is the third-party autonomous-capture plugin the desktop bundle
-    // injects (plugin-bootstrap.ts). Suppressing its natively-installed copy is
-    // MORE load-bearing than for our own plugins: a user-installed kgai would
-    // run its own SessionStart `install.sh` (Go/network) and point at a
-    // different engine version than the pinned, signed sidecar we ship. Its id
-    // has no `@marketplace` suffix — it's injected as a bare local plugin dir
-    // whose manifest `name` is `kgai`.
-    options.settings = { enabledPlugins: { 'design@maude': false, kgai: false } };
+    // S12.3 — DERIVED from the injection set (was a hand literal that drifted:
+    // flow went unsuppressed when injected, and bare `kgai` matched no native
+    // `kgai@kgai-marketplace`). Every injected id's `<id>@maude` plus each
+    // `<id>@<marketplace>` in the user's own config, all `false`
+    // (plugin-bootstrap.ts; test/acp-session-plugins.test.ts plants a 4th).
+    options.settings = { enabledPlugins: suppressionFor(plugins) };
   }
   meta.claudeCode = { options };
   return {
