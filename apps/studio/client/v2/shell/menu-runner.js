@@ -41,6 +41,7 @@ import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { requestDsReview } from '../ds/review-bus.js';
 import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
 import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
+import { requestDsConvert, restoreSystemFolder } from '../ds/convert-model.js';
 import { runMasterAction } from '../ds/master-write.js';
 import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
@@ -344,6 +345,12 @@ export function createMenuHandlers(d) {
     // S10.14 — switch canvases to another system (one review) and look at the project in one first (session-only)
     'ds.switch': (p) => requestDsSwitch({ from: p?.from, to: p?.to, scope: p?.scope }),
     'ds.preview': (p) => requestDsPreview({ from: p?.from }),
+    // S10.12 — convert the system folders (the folder view's banner opens the dialog) / Restore one to its folder
+    'ds.convert': (p) => requestDsConvert(p, { toast: d.toast }),
+    'ds.convert-restore': async (p) => {
+      const r = await restoreSystemFolder(String(p?.ds ?? ''));
+      d.toast?.(r.message, r.ok);
+    },
     'ds.set-default': async (p) => {
       const r = await setDefaultSystem(String(p?.ds ?? ''), { label: p?.label });
       d.toast?.(r.message, r.ok);

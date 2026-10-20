@@ -1,6 +1,8 @@
 // system/system-view.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { canvasUrl } from '../canvas-url.js';
+import { DsConvertBanner } from '../v2/ds/convert-dialog.jsx';
+import { requestDsConvert } from '../v2/ds/convert-model.js';
 
 // ---------- SystemView ----------
 //
@@ -196,6 +198,11 @@ export function SystemView({ data, onOpen, cfg, onSelectDs }) {
           <code>{systemDir}</code>
         </span>
       </header>
+
+      {/* S10.12 — a system still in its folder (S10 Q6): the door to the Design system canvas. */}
+      {selectedName && cfg?.dsConverted?.[selectedName] !== true && !cfg?.readOnly ? (
+        <DsConvertBanner ds={selectedName} onOpen={() => requestDsConvert({ ds: selectedName })} />
+      ) : null}
 
       {ds?.description ? <p className="sv-ds-description">{ds.description}</p> : null}
 

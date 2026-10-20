@@ -18,6 +18,7 @@ import { onDsReviewRequest } from './review-bus.js';
 import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
 import { useDsRowDots } from './row-dots.js';
 import { DsSwitchHost } from './switch-host.jsx';
+import { DsConvertHost } from './convert-host.jsx';
 import { DsTruthHost } from './truth-host.jsx';
 import { useDsUpdateDots } from './update-dots.js';
 import { bodyOf } from './update-available.jsx';
@@ -242,14 +243,18 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   const close = useCallback(() => setSheet(null), []);
   const closeReach = useCallback(() => setReach(null), []);
   // S10.11 — the outside-change review and the conflict pick live in the inspector's empty place; their host rides here
+  // S10.12 — "Convert system folders" (the folder view's banner, `ds.convert`) rides here too
   const truth = (
-    <DsTruthHost
-      cfg={cfg}
-      activePath={activePath}
-      toast={toast}
-      frameFor={frameFor}
-      fetchImpl={fetchImpl}
-    />
+    <>
+      <DsTruthHost
+        cfg={cfg}
+        activePath={activePath}
+        toast={toast}
+        frameFor={frameFor}
+        fetchImpl={fetchImpl}
+      />
+      <DsConvertHost toast={toast} fetchImpl={fetchImpl} />
+    </>
   );
   // S10.14 — "Switch canvases to …?" and "Preview in …" ride the same mount
   const switcher = (

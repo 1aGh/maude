@@ -35,6 +35,7 @@ import { indexRegistry, loadRegistry } from '../ds/registry.ts';
 import { verifyRevision } from '../ds/revision.ts';
 import { diskFs, loadSystem } from '../ds/system.ts';
 import type { DsUsageIndex } from '../index/ds-usage.ts';
+import { runConvertOp } from './ds-convert.ts';
 import { runMakeOp } from './ds-make.ts';
 import { runSwitchOp } from './ds-switch.ts';
 import type { RouteSpec } from './table.ts';
@@ -64,7 +65,8 @@ export type DsOp =
   | 'usage'
   | 'make'
   | 'make-state'
-  | 'switch';
+  | 'switch'
+  | 'convert';
 
 export interface DsOpContext {
   engine: DsEngine;
@@ -610,6 +612,8 @@ export async function runDsOp(
         return await runMakeOp(op, input, c);
       case 'switch':
         return await runSwitchOp(input, c);
+      case 'convert':
+        return await runConvertOp(input, c);
     }
   } catch (err) {
     const a = errorAnswer(err);
@@ -676,6 +680,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'POST', path: '/_api/ds/make', op: 'make' },
   { method: 'POST', path: '/_api/ds/default', op: 'default' },
   { method: 'POST', path: '/_api/ds/switch', op: 'switch' },
+  { method: 'POST', path: '/_api/ds/convert', op: 'convert' },
 ];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {

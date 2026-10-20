@@ -342,3 +342,31 @@ export function settleAsideHeads(designRoot: string, dsAbs: string, system: stri
   }
   return moved;
 }
+
+/**
+ * S10.12 — take head.json away (the system goes back to its folder, phase α): Restore of a
+ * conversion, or a conversion rolled back. Like `writeHead` it moves only what the caller read
+ * (`expect`), and like a pick it never deletes: head.json and every aside copy are MOVED into
+ * `toDir` (per-Mac runtime: `_trash/…` or the conversion's own snapshot under `_history/…`).
+ * The revisions stay where they are, unreferenced. Returns what moved (relative to `<ds.path>`).
+ */
+export function moveHeadAside(dsAbs: string, expect: Pointers, toDir: string): string[] {
+  const cur = readHead(dsAbs);
+  if (cur.state !== 'ok')
+    throw new DsHeadError(
+      cur.state === 'absent' ? 'ds-not-converted' : 'ds-head-invalid',
+      cur.state === 'absent' ? 'this system is not converted' : `head.json is ${cur.state}`
+    );
+  if (cur.doc.head !== expect.head || cur.doc.base !== expect.base)
+    throw new DsHeadError('ds-head-moved', 'the system was published or kept since it was read');
+  mkdirSync(toDir, { recursive: true });
+  renameSync(path.join(dsAbs, HEAD_REL), path.join(toDir, 'head.json'));
+  const moved = [HEAD_REL];
+  for (const a of asideHeads(dsAbs)) {
+    const from = path.join(dsAbs, a.file);
+    if (!existsSync(from)) continue;
+    renameSync(from, path.join(toDir, path.basename(a.file)));
+    moved.push(a.file);
+  }
+  return moved;
+}

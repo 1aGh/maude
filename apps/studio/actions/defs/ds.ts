@@ -75,4 +75,9 @@ export const DS_ACTIONS: ActionDef[] = [
   // and stores nothing, so anyone who can open the project may use it.
   row('ds.switch', 'Switch canvases to another system…'),
   row('ds.preview', 'Preview in another system…', VIEW),
+  // S10.12 — convert system folders (13 · 25 ds-multi-migrate, 29 ds-edge-migrate). The banner on today's folder view
+  // opens the dialog; its Convert is one all-or-nothing run. Restore (the system's version history) puts a system back
+  // to its folder. Each needs a system in hand, so neither is a ⌘K row. Can edit on the whole project.
+  row('ds.convert', 'Turn into a Design system canvas'),
+  row('ds.convert-restore', 'Restore the system folder'),
 ];

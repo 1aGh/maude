@@ -1521,6 +1521,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/ds/make', method: 'POST' },
     agent: cli('maude design ds done <ds> [--no-default]'),
   },
+  // S10.12 — convert `system/<ds>/` folders (ds/convert.ts): one all-or-nothing run (a copy of what it modifies under
+  // `_history/_ds-convert/`), R0 = the working files, head.json last; the files a 1.x peer reads keep their bytes.
+  // `--dry-run` lists what each folder becomes (`maude.ds-convert/1`). Restore moves head.json and the Design system
+  // canvas to the trash; the revisions stay.
+  'ds.convert': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/ds/convert', method: 'POST' },
+    agent: cli('maude design ds convert [<ds>…] [--dry-run]'),
+  },
+  'ds.convert-restore': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/convert', method: 'POST' },
+    agent: cli('maude design ds convert <ds> --restore'),
+  },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',
