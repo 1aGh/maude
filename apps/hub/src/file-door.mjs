@@ -45,11 +45,17 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  readFileSync,
   renameSync,
   rmSync,
+  statSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { contentAddressedAsset, isAssetCreate } from '../../studio/access/scope.ts';
+import {
+  contentAddressedAsset,
+  isAssetCreate,
+  PER_USE_PHOTO_RE,
+} from '../../studio/access/scope.ts';
 import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
@@ -251,6 +257,15 @@ export function parseFileDoorPath(pathname) {
   return rel;
 }
 
+/** A per-use photo edit's landed bytes (≤ 64 KiB — a PhotoEdit); undefined when unreadable or larger. */
+function readLanded(tmp) {
+  try {
+    return statSync(tmp).size <= 64 * 1024 ? readFileSync(tmp) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function respond(response, status, message) {
   const body = JSON.stringify({ error: message });
   response
@@ -427,6 +442,9 @@ export async function handleFileDoor(ctx) {
   // Set when a canvas-only session creates a new asset: the bytes must hash to
   // its name (checked again once they are hashed, below).
   let mustContentAddress = false;
+  // Set when a canvas-only session creates a per-use photo edit (S8.15): the landed bytes must
+  // hash to its name, so `writes()` is asked again with them once they are on disk.
+  let mustHashToName = false;
   if (access.claimDecides) {
     // The closure decides (V2-1.7 G2): create-only new assets, a photo sidecar
     // whose every referrer this session edits. Anything else — another
@@ -438,10 +456,14 @@ export async function handleFileDoor(ctx) {
     // A new asset is named by its bytes (`assets/<sha8>.<ext>`, V2-1.16 L20):
     // a chosen name would be refused when another canvas holds it and written
     // when it is free — an existence oracle (V2-5 sweep-fix, lead decision).
-    mustContentAddress = isAssetCreate(landing, { exists });
+    mustHashToName = PER_USE_PHOTO_RE.test(landing);
+    mustContentAddress = !mustHashToName && isAssetCreate(landing, { exists });
+    const admitted = mustHashToName
+      ? !exists && access.mayCreatePerUse(landing)
+      : access.writes(landing, { exists });
     if (
       method === 'DELETE' ||
-      !access.writes(landing, { exists }) ||
+      !admitted ||
       (mustContentAddress && !contentAddressedAsset(landing, null))
     ) {
       respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
@@ -556,7 +578,10 @@ export async function handleFileDoor(ctx) {
     respond(response, 400, 'content hash does not match the bytes sent');
     return true;
   }
-  if (mustContentAddress && !contentAddressedAsset(landing, r.sha256)) {
+  if (
+    (mustContentAddress && !contentAddressedAsset(landing, r.sha256)) ||
+    (mustHashToName && !access.writes(landing, { exists: false, body: readLanded(r.tmp) }))
+  ) {
     rmSync(r.tmp, { force: true });
     respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
     return true;

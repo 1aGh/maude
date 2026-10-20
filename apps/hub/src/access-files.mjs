@@ -34,6 +34,7 @@ import { join } from 'node:path';
 
 import { closureFor, createClosureCache } from '../../studio/access/closure.ts';
 import {
+  mayCreatePerUse,
   resolveAccess,
   seesDoc,
   sees as seesRel,
@@ -210,9 +211,17 @@ export function fileAccessForClaim(
      * May this session write `rel`? Only meaningful when `claimDecides`; a
      * project session keeps its door's own gates (U7).
      */
-    writes(rel, { exists }) {
+    writes(rel, { exists, body }) {
       if (mode !== 'canvas' || typeof rel !== 'string') return false;
-      return writesRel(access, closure(), rel, { exists: !!exists });
+      return writesRel(access, closure(), rel, { exists: !!exists, body });
+    },
+    /**
+     * S8.15 — before a per-use photo edit's body has landed: may this session create `rel` at
+     * all? The door asks `writes()` again with the landed bytes (their hash must be the name).
+     */
+    mayCreatePerUse(rel) {
+      if (mode !== 'canvas' || typeof rel !== 'string') return false;
+      return mayCreatePerUse(access, closure(), rel);
     },
     /** May this session download `rel`'s bytes? (A19 per canvas; project: the gate's.) */
     exports(rel) {

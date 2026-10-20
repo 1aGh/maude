@@ -219,11 +219,7 @@ export function writes(
   const perUse = PER_USE_PHOTO_RE.exec(rel);
   if (perUse) {
     if (o.exists || !bodyHashesTo(o.body, perUse[2] as string)) return false;
-    for (const [asset, users] of closure.assetUsers) {
-      if (assetBase(asset) !== perUse[1]) continue;
-      for (const u of users) if (access.can('edit', u)) return true;
-    }
-    return false;
+    return mayCreatePerUse(access, closure, rel);
   }
   const photo = PHOTO_SIDECAR_RE.exec(rel);
   if (photo) {
@@ -244,6 +240,23 @@ export function writes(
     access.grants.some((g) => access.can('edit', g.c))
   ) {
     return true;
+  }
+  return false;
+}
+
+/**
+ * The half of a per-use create `writes()` can judge before the bytes are read (S8.15 — a door
+ * that streams its body asks this first, then `writes()` with the bytes once they landed): is
+ * `rel` a per-use edit of an asset that a canvas this session may edit references?
+ */
+export function mayCreatePerUse(access: Access, closure: Closure | null, rel: string): boolean {
+  const perUse = PER_USE_PHOTO_RE.exec(rel);
+  if (!perUse) return false;
+  if (access.can('edit', null)) return true;
+  if (!closure || access.grants.length === 0) return false;
+  for (const [asset, users] of closure.assetUsers) {
+    if (assetBase(asset) !== perUse[1]) continue;
+    for (const u of users) if (access.can('edit', u)) return true;
   }
   return false;
 }
