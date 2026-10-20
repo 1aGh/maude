@@ -109,6 +109,7 @@ const FILTERED = [
   // presence of a canvas it sees (routes/asset-state.ts refuses a canvas-only session everything else)
   '/_api/export-estimate',
   '/_api/export-jobs/retry',
+  '/_api/export-preflight',
   // A6b-3 — S9.19 who has access (the hub narrows it to the session), S9.24 the conflicts THIS Mac lost, S10.3 a system is seen only through its DS canvas (routes/ds.ts: every other system answers like one that does not exist)
   '/_api/share/me',
   '/_api/share/people',

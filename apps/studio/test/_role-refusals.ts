@@ -71,6 +71,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/export-estimate', refused: ['view'] },
   // S8.4 — Retry is the export class too
   { method: 'POST', route: '/_api/export-jobs/retry', refused: ['view'] },
+  // S8.7 — the Print preflight is the export class too
+  { method: 'POST', route: '/_api/export-preflight', refused: ['view'] },
   // annotate — stickies, marker, arrows (D5: Can comment may not annotate)
   { method: 'POST', route: '/_api/annotations/ops', refused: ['view', 'comment'] },
   { method: 'PUT', route: '/_api/annotations', refused: ['view', 'comment'] },

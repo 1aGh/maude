@@ -92,7 +92,11 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
  * items. The spec declares `readOnly: 'allowed'` itself (so the path is not in READ_ONLY_ALLOWED_WRITES
  * twice); this set says WHICH capability that is: `export`, never the table's default `session`.
  */
-export const EXPORT_TABLE_WRITES: ReadonlySet<string> = new Set(['/_api/export-jobs/retry']);
+export const EXPORT_TABLE_WRITES: ReadonlySet<string> = new Set([
+  '/_api/export-jobs/retry',
+  // S8.7 — the Print preflight (paper, the back, safe margin, fonts) is numbers and names about an export
+  '/_api/export-preflight',
+]);
 
 /** Stickies, marker, arrows, stickers, sections (V2-1.7 §5.2 `annotate`). */
 export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
