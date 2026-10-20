@@ -153,6 +153,7 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
       focused: !!p.focused,
       ai: p.ai ?? null,
       canvasCount: typeof ix?.counts?.canvases === 'number' ? ix.counts.canvases : null,
+      byKind: ix?.counts?.byKind && typeof ix.counts.byKind === 'object' ? ix.counts.byKind : {},
       stale: !!ix?.stale,
       formatGate: p.formatGate ?? null,
       hub,
@@ -227,6 +228,140 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
     groups,
     projectCount: localRows.length + cloudRows.length,
   };
+}
+
+// ── where the sentence lands (S6.4 — the chip under the question) ─────────────────────────────
+
+/** The chip's last choice: a project that does not exist yet. Signed in AND online it is a cloud
+ *  project in the making ("a new project"); otherwise it stays on this Mac, and says so. */
+export const newProjectWord = ({ signedIn, online }) =>
+  signedIn && online ? 'a new project' : 'a project on this Mac';
+
+/**
+ * The projects a sentence can start a canvas in: projects on this Mac (a managed cloud copy is one of
+ * them), cloud projects not here yet (the person can edit them; offline they are greyed — there is no
+ * copy to open), then "a new project". A project that is not where it was, and a cloud project the
+ * person can only comment on or view, are not choices.
+ */
+export function targetChoices({ model, signedIn, online }) {
+  const local = [];
+  const cloud = [];
+  for (const g of model?.groups ?? []) {
+    for (const r of g.rows) {
+      if (r.kind === 'local') {
+        if (r.status === 'gone') continue;
+        local.push({
+          key: `local:${r.pid}`,
+          kind: 'local',
+          pid: r.pid,
+          profile: r.profile,
+          name: r.name,
+          canvases: r.canvasCount,
+          byKind: r.byKind ?? {},
+          hint: null,
+          disabled: false,
+        });
+      } else if (r.kind === 'cloud') {
+        if (r.role === 'observer' || r.role === 'viewer') continue;
+        cloud.push({
+          key: `cloud:${r.profile}:${r.projectId}`,
+          kind: 'cloud',
+          profile: r.profile,
+          projectId: r.projectId,
+          name: r.name,
+          canvases: null,
+          byKind: {},
+          hint: 'not on this Mac yet',
+          disabled: !online,
+        });
+      }
+    }
+  }
+  return [
+    ...local,
+    ...cloud,
+    {
+      key: 'new',
+      kind: 'new',
+      name: newProjectWord({ signedIn, online }),
+      canvases: 0,
+      byKind: {},
+      hint: null,
+      disabled: false,
+    },
+  ];
+}
+
+/** The key the chip starts on: the project opened most recently (Rust's MRU, then the newest canvas
+ *  opened), else the first on this Mac, else "a new project". */
+export function defaultTarget(items, { shell = null, model = null } = {}) {
+  const usable = items.filter((i) => i.kind === 'local' && !i.disabled);
+  for (const pid of shell?.recent ?? []) {
+    const hit = usable.find((i) => i.pid === pid);
+    if (hit) return hit.key;
+  }
+  for (const r of model?.recent ?? []) {
+    const hit = usable.find((i) => i.pid === r.pid);
+    if (hit) return hit.key;
+  }
+  return usable[0]?.key ?? 'new';
+}
+
+// ── Shared with you (V2-1.1 §5.7 `shared[]`) ──────────────────────────────────────────────────
+const WEEK = 7 * 24 * 3_600_000;
+
+/** Every signed-in profile's `shared[]` as rows, newest grant first. `meta` is canvas 11's line:
+ *  "Liga ČAAF 2027 · Jonas's · 1 h ago". A canvas share is named by its canvas, a project share by
+ *  its project. */
+export function sharedRows(clouds, now = Date.now()) {
+  const rows = [];
+  for (const listing of clouds ?? []) {
+    if (!listing?.signedIn || typeof listing.profile !== 'string') continue;
+    for (const s of listing.shared ?? []) {
+      if (!s || typeof s.projectId !== 'string') continue;
+      const when = typeof s.grantedAt === 'number' ? s.grantedAt : null;
+      rows.push({
+        key: `${listing.profile}:${s.projectId}:${s.canvas?.path ?? ''}`,
+        profile: listing.profile,
+        projectId: s.projectId,
+        projectName: s.projectName || s.projectId,
+        ownerName: s.ownerName ?? null,
+        grantedBy: s.grantedBy ?? null,
+        canvasPath: s.canvas?.path ?? null,
+        title: s.canvas?.name || s.projectName || s.projectId,
+        role: s.role ?? 'observer',
+        roleWord: cloudRoleWord(s.role),
+        grantedAt: when,
+        meta: [
+          s.projectName || s.projectId,
+          s.ownerName ? `${s.ownerName}'s` : null,
+          when != null ? relativeTime(when, now) : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      });
+    }
+  }
+  return rows.sort((a, b) => (b.grantedAt ?? 0) - (a.grantedAt ?? 0));
+}
+
+/** "3 new this week": granted in the last 7 days and not yet opened on this Mac (`seen` = row keys). */
+export const newThisWeek = (rows, seen, now = Date.now()) =>
+  rows.filter((r) => r.grantedAt != null && now - r.grantedAt < WEEK && !seen.has(r.key)).length;
+
+export const sharedAside = (n) =>
+  `canvases from other people's projects${n > 0 ? ` · ${n} new this week` : ''}`;
+
+// ── the person's face (a circle — never the project's square) ──────────────────────────────────
+const FACE_TONES = ['lilac', 'yellow', 'sky', 'green', 'coral'];
+
+/** An account's initial and a tone that stays put for it (hashed from the profile id). */
+export function accountFace({ id = '', label = '', email = '' } = {}) {
+  const pick = (s) => (typeof s === 'string' ? s.match(/[\p{L}\p{N}]/u)?.[0] : null);
+  const initial = (pick(label) ?? pick(email) ?? '·').toUpperCase();
+  let h = 0;
+  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { initial, tone: FACE_TONES[h % FACE_TONES.length] };
 }
 
 function firstCover(ix) {

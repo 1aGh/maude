@@ -41,6 +41,11 @@ import {
  *     window: a `create-empty` intent makes one canvas in the target tab and a reload makes
  *     no second; an unknown kind is refused before anything is parked. (The `create-canvas`
  *     step — a sentence, a fake ACP agent — rides S6.8's fake-ACP lane.)
+ * 11. S6.4: Home's question. "What shall we make?" says which project the canvas lands in (the
+ *     chip lists both fixtures and "a new project"); a starter FILLS the prompt and sends nothing;
+ *     "Start with an empty canvas ⌘N" makes ONE blank canvas in the chosen project's tab; a
+ *     sentence typed and sent (↵) opens that tab with the intent parked — the sentence is in no
+ *     URL (the AI run itself is S6.3's, on the fake-ACP lane).
  *
  * Fixtures: wdio.home.conf.ts → fixtures/seed-home-index.ts.
  */
@@ -464,5 +469,56 @@ export default function C() {
     await onServer(label(BETA));
     await browser.pause(2_000);
     expect(canvases()).toBe(before + 1);
+  });
+  it('11 · Home’s question: the chip names the project, a starter fills without sending, the empty canvas makes one canvas, ↵ parks the sentence off the URL', async () => {
+    const canvases = () =>
+      (readdirSync(join(BETA.root, '.design'), { recursive: true }) as string[]).filter(
+        (f) => /\.(tsx|jsx)$/.test(f) && !f.split('/').some((seg) => seg.startsWith('_'))
+      ).length;
+    await newHomeTab();
+    await onHome();
+    const input = await $(tid('home-ask-input'));
+    await input.waitForDisplayed({ timeout: 30_000, timeoutMsg: 'Home has no question' });
+    const chip = await $(tid('home-target-chip'));
+    expect(await chip.getText()).toContain('Starts a new canvas in');
+    // the menu lists the projects on this Mac and "a new project" (here: not signed in)
+    await chip.click();
+    await (await $(tid('home-target-menu'))).waitForDisplayed({ timeout: 5_000 });
+    expect(await $(tid(`home-target-item-local:${ALPHA.pid}`)).isExisting()).toBe(true);
+    expect(await $(tid('home-target-item-new')).getText()).toContain('a project on this Mac');
+    await (await $(tid(`home-target-item-local:${BETA.pid}`))).click();
+    expect(await chip.getText()).toContain('in');
+    // a starter fills the prompt and sends nothing
+    const tabs = await labels();
+    const before = canvases();
+    await (await $('[data-testid^="home-starter-"]')).click();
+    expect((await input.getValue()).length).toBeGreaterThan(8);
+    await browser.pause(750);
+    expect(await labels()).toEqual(tabs);
+    expect(canvases()).toBe(before);
+    await capture('11-home-question');
+    // "Start with an empty canvas ⌘N": the target tab makes ONE blank canvas
+    await (await $(tid('home-empty-canvas'))).click();
+    await homeStaysAnd(label(BETA));
+    await onServer(label(BETA));
+    await browser.waitUntil(async () => canvases() === before + 1, {
+      timeout: 30_000,
+      timeoutMsg: `the empty canvas made ${canvases() - before} canvases`,
+    });
+    // ↵ on a sentence: the target tab opens, and no URL carries the sentence
+    const sentence = 'A poster for my open studio on Thursday, in warm colours';
+    await newHomeTab();
+    await onHome();
+    await (await $(tid('home-target-chip'))).click();
+    await (await $(tid(`home-target-item-local:${BETA.pid}`))).click();
+    await (await $(tid('home-ask-input'))).setValue(sentence);
+    await browser.keys('Enter');
+    await homeStaysAnd(label(BETA));
+    for (const h of await handles()) {
+      await browser.switchToWindow(h);
+      expect(await browser.getUrl()).not.toContain(encodeURIComponent(sentence));
+      expect(await browser.getUrl()).not.toContain('poster');
+    }
+    await capture('11-home-sentence-sent');
   });
 });

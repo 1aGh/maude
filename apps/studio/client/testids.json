@@ -10576,6 +10576,12 @@
       "file": "apps/studio/client/home/home-app.jsx",
       "symbol": "HomeApp"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/home/Shelves.jsx",
+        "symbol": "ProjectsEmpty"
+      }
+    ],
     "region": "home",
     "consumers": [],
     "v2": "new"
@@ -10648,6 +10654,227 @@
     "consumers": [
       "test:home-page"
     ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-ask-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Home's question field (S6.4, \"What shall we make?\"): one sentence; ↵ sends it as an intent to the chosen project, Shift+↵ is a new line.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-ask-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The spark button beside the question: sends the sentence (off while the field is empty, a request is running, or this Mac is offline).",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-ask-offline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line that replaces \"↵ to send\" while this Mac is offline: \"AI is back when this Mac is online.\" (the empty canvas still works).",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-target-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Starts a new canvas in <project>\" under the question; opens the target menu.",
+    "producer": {
+      "file": "apps/studio/client/home/TargetChip.jsx",
+      "symbol": "TargetChip"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-target-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chip's menu: projects on this Mac and in the cloud (greyed \"not on this Mac yet\" offline) and \"a new project\".",
+    "producer": {
+      "file": "apps/studio/client/home/TargetChip.jsx",
+      "symbol": "TargetChip"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-target-item-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One choice in the target menu (`<key>` = `local:<pid>` | `cloud:<profile>:<projectId>` | `new`).",
+    "producer": {
+      "file": "apps/studio/client/home/TargetChip.jsx",
+      "symbol": "TargetChip"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-starter-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One of the three starters under the question (`<id>` from home-starters.js, or `brand`): a click fills the prompt and does not send; `brand` is the import-brand intent.",
+    "producer": {
+      "file": "apps/studio/client/home/Starters.jsx",
+      "symbol": "Starters"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-empty-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Start with an empty canvas ⌘N\" under the starters: the way in without AI — the `create-empty` intent in the chosen project.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-askbar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The slim ask bar that stays on top once the question has scrolled away (11 pn-home).",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-askbar-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The slim bar's field (shares the question's sentence and target).",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-askbar-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The slim bar's send button.",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-askbar-target",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The slim bar's \"in <project>\" chip (the same menu as `home-target-chip`).",
+    "producer": {
+      "file": "apps/studio/client/home/TargetChip.jsx",
+      "symbol": "TargetChip"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-askbar-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The slim bar's \"Start with an empty canvas ⌘N\".",
+    "producer": {
+      "file": "apps/studio/client/home/HomeAsk.jsx",
+      "symbol": "HomeAsk"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-projects-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Your projects\" shelf with nothing on it (05 es-home-cloud / es-home-local): ghost cards beside the empty block.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "ProjectsEmpty"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-shared",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Shared with you\" shelf (signed in): rows of canvases and projects other people shared, or the ghost-card empty.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-shared-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Nothing shared with you yet.\" — ghost cards and a line, deliberately no button.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-shared-row-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One shared row (`<slug>` = the shared canvas' path slug, or `project` for a project-level share): opens like a cloud row, landing on the canvas.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": ["test:home-ask-send"],
     "v2": "new"
   },
   {

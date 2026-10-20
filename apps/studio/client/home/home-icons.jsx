@@ -28,6 +28,9 @@ const GLYPHS = {
     </>
   ),
   pin: <path d="M6 2.5h4l-.5 4 2.5 2.5H4l2.5-2.5zM8 9v4.5" />,
+  offline: (
+    <path d="M4.5 12.5a3 3 0 0 1-.4-5.97 4 4 0 0 1 7.6-.9 3.2 3.2 0 0 1-.2 6.87zM2.5 2.5l11 11" />
+  ),
 };
 
 export function HIcon({ name, size = 16 }) {
