@@ -143,7 +143,7 @@ export function roleOfCaps(caps: Readonly<ModeCaps>): Role {
  *  hold the person's draw-time choices (annotations/ui/tool-state.ts; the swatch tray is retired, S4.8). */
 export type SlotPopover = 'shape-kinds' | 'sticky-colours' | 'marker-tips' | 'more';
 /** Shell-rendered panels a slot opens (V2-4.5b: `tool-panel-open`). */
-export type SlotPanel = 'stickers' | 'components' | 'templates' | 'assets';
+export type SlotPanel = 'stickers' | 'components' | 'templates' | 'assets' | 'sizes';
 /** The work package that builds a tool this task does not: its slot is in the data but not rendered. */
 export type PendingPackage = 'S2' | 'S3';
 /** Today's "+ Insert" kinds a momentary slot adds at the default size (`insert-request`). */

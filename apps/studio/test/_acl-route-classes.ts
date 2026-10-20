@@ -149,6 +149,8 @@ const CANVAS = [
   '/_api/comp-media',
   '/_api/ds/canvas',
   '/_api/ds/components',
+  // S7.20 the F size picker's catalogue (`file`, minRole edit)
+  '/_api/kinds/presets',
   '/_api/edit-instance',
   '/_api/sync/conflicts/resolve',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both

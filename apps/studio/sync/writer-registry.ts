@@ -485,6 +485,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/present-meta-route.test.ts',
   },
   '/_api/ds/components': { class: 'read' }, // S2.16 routes/edit.ts: what the Component picker lists (minRole edit)
+  '/_api/kinds/presets': { class: 'read' }, // S7.20 routes/kinds.ts: what the F size picker lists (minRole edit)
   '/_api/edit-instance': { class: 'read' }, // S2.17 routes/edit.ts: what an object is (instance of a component?) — read from the TSX, anyone who sees the canvas
   '/_api/comp-media': { class: 'read' }, // S7.4 routes/video.ts: the comp's words / speech / beats, derived from the cut
   // S9.19 — routes/share.ts: the desktop's door to the linked hub's /api/access/*. Who has access

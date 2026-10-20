@@ -61,6 +61,7 @@ import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
+import { INSERT_PRESET_ACTION, SizeGhost } from './size-ghost.tsx';
 import { StickyName } from './sticky-name.tsx';
 import { OrderBadges } from './tab-order.tsx';
 import {
@@ -104,6 +105,8 @@ export const EDITING_ACTIONS = [
   CROP_ACTION,
   // S2.19 — ⌘/ on a selection (run by ask-bubble.tsx, which listens for its own run-action id)
   ASK_SELECTION_ACTION,
+  // S7.20 — a size-picker pick, ⌘K / Edit › Advanced ▸ New artboard › Video (run by size-ghost.tsx)
+  INSERT_PRESET_ACTION,
 ] as const;
 
 /** The reading-order badges, drawn while the keyboard is the last thing used. */
@@ -267,6 +270,8 @@ export function EditingLayer() {
       <TextInPlace readOnly={isReadOnlyCanvas()} />
       {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
       <DrawTools readOnly={isReadOnlyCanvas()} />
+      {/* S7.20 — F over empty canvas opens the size picker (shell); its hover outline, its pick */}
+      <SizeGhost readOnly={isReadOnlyCanvas()} />
       <CornerDots readOnly={isReadOnlyCanvas()} />
       {/* S2.14 — the Pen (P), double-click a path to edit its points, Combine shapes */}
       <PenLayer readOnly={isReadOnlyCanvas()} />

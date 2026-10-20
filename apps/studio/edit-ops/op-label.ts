@@ -6,6 +6,7 @@
 // params and its targets' names; an op without a row falls back to its registry label, never to "Edit canvas".
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
+import { presetById } from '../kinds/presets.ts';
 import type { ElementRef } from './types.ts';
 
 type Say = (n: string, p: Record<string, unknown>, count: number) => string;
@@ -71,6 +72,10 @@ const ROWS: Readonly<Record<string, Say>> = {
     return kind === 'frame' ? 'Drew a frame' : kind ? `Drew a ${kind}` : 'Drew a shape';
   },
   'artboard.draw': () => 'Drew an artboard',
+  'artboard.insert-preset': (_n, p) => {
+    const preset = presetById(p.presetId);
+    return preset ? `Added ${preset.label}` : 'Added an artboard';
+  },
   'object.set-corner-radius': (n) => `Rounded the corners of ${n}`,
   'object.insert-path': () => 'Drew a path',
   'path.edit': () => 'Edited a path',

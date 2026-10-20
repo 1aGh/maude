@@ -320,11 +320,14 @@ export interface CanvasToShell {
   };
   'toolbar-rect': { mode: CanvasModeV2; rect: Rect | null };
   'tool-panel-open': {
-    panel: 'stickers' | 'components' | 'templates' | 'assets';
+    panel: 'stickers' | 'components' | 'templates' | 'assets' | 'sizes';
     anchor: Rect | null;
     /** S4.3: the id of the sticker being replaced (Replace… on a selected sticker opens the gallery in replace mode) */
     replace?: Id;
   };
+  // S7.20: the canvas wrote a size-picker pick (`artboard.insert-preset`) at `world`; the shell closes the picker and
+  // remembers the pick in Recent. Only after a write that went through.
+  'size-place': { presetId: string; world: { x: number; y: number } };
   // S4.8 — a change to what the annotation tools remember per person (sticky colour, Marker ink / thickness /
   // tip, Highlighter hue / nib): the shell writes prefs.json and tells every canvas (`annotation-prefs`).
   // Only fields that are members of their palette survive `parse` + the receivers' sanitiser.
@@ -470,6 +473,11 @@ export interface ShellToCanvas {
     variant?: string;
     glyph?: string;
     mode: 'ghost' | 'selection';
+  };
+  // S7.20: the F size picker's hover — where the artboard of this preset would land, dashed and labelled
+  // ("FB event cover 1920 × 1005"); `null` = the pointer left the tiles. The canvas picks the place.
+  'size-ghost': {
+    preset: { id: string; label: string; sizeText: string; w: number; h: number } | null;
   };
   // S1.3: the Canvases panel's artboard jump list — ease (glide) or cut the camera to an artboard and
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
@@ -1500,10 +1508,16 @@ const c2s: C2S = {
     status: 'live',
     owner: 'tool-palette (V2-4.5c); shell tool panels (V2-4.5c)',
     parse: p({
-      panel: lit('stickers', 'components', 'templates', 'assets'),
+      panel: lit('stickers', 'components', 'templates', 'assets', 'sizes'),
       anchor: nul(rect),
       replace: opt(str),
     }),
+  },
+  'size-place': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/size-ghost (S7.20); client/v2/kinds',
+    parse: p({ presetId: shortStr(40), world: shape({ x: num, y: num }) }),
   },
   // S3.2b — Present: the canvas posts its zoom for the pill (present/present-zoom.ts). S3.9 — canvas-lib's
   // ViewportZoomReporter posts it too; the shell's ZoomOnly readout (Preview) listens.
@@ -1820,6 +1834,22 @@ const s2c: S2C = {
       variant: opt(dsSlug),
       glyph: opt(dsSlug),
       mode: lit('ghost', 'selection'),
+    }),
+  },
+  'size-ghost': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/size-ghost (S7.20)',
+    parse: p({
+      preset: nul(
+        shape({
+          id: shortStr(40),
+          label: shortStr(80),
+          sizeText: shortStr(40),
+          w: num,
+          h: num,
+        })
+      ),
     }),
   },
   'insert-annotation-media': {
