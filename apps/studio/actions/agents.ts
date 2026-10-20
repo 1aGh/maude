@@ -531,6 +531,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.set-print': TSX(
     'Edit the DCArtboard’s print prop ({ paper, orientation, bleedMm, marginsMm, sizeMm: [w, h] for a custom trim }) and set its width and height props to the trim plus 2 × bleed in px (mm × 96 ÷ 25.4, rounded) — A6 with 3 mm bleed is 419 × 581; a different paper clears sizeMm — see canvas-tsx.md § Artboard props that Maude 2 adds'
   ),
+  // S7.25 — Change kind makes a copy: the original keeps every byte; the print is the copy with kind, print, px size and ONE scaling wrapper.
+  'artboard.convert-kind': TSX(
+    'Copy the DCArtboard right after itself with a new id and label, set kind="print", print={{ paper, orientation, bleedMm }} and width/height to the paper plus 2 × bleed in px, drop safeZones, and put the copy’s children in one <div style={{ position: \'relative\', flex: \'none\', width, height, zoom }}> that scales the design to the paper’s width; optionally artboardMeta.<copy>.madeFrom = { artboard, label } in the .meta.json — see canvas-tsx.md § Change an artboard’s kind'
+  ),
+  // S7.25 — the one verb of a warning row: each is an ordinary edit, so an agent makes the same edit.
+  'warning.fix': TSX(
+    'Make the edit the warning’s verb names: Move inside (translate the layer inside the safe margin), Allow longer (artboardMeta.<id>.maxFrames up to 18000 in the .meta.json), Fix size (width/height = paper + 2 × bleed in px), Fit to width (max-width: 100% on the layer), Replace… (a larger picture), Show (nothing to write) — see canvas-tsx.md § Change an artboard’s kind, and the warnings; GET /_api/kinds/warnings?canvas= lists them'
+  ),
   'artboard.set-print-guides': TSX(
     'Set showGuides: true or false inside the DCArtboard’s print prop to show or hide its bleed, trim and margin guides whatever View says; remove the key to follow View › Advanced › Print guides again — see canvas-tsx.md § Artboard props that Maude 2 adds'
   ),

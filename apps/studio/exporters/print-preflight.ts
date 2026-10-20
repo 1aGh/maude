@@ -42,6 +42,8 @@ export interface RectsManifest {
     h: number;
     tag?: string;
     text?: string;
+    /** S7.25 — a picture's own pixel width (`<img>.naturalWidth`), for the effective-ppi warning */
+    naturalW?: number;
   }>;
 }
 

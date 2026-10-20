@@ -42,12 +42,15 @@ export function useArtboardWrites(el, ctx) {
 }
 
 /** Size (a fixed size, a video) or Width (a web page): a preset of the one catalogue, or Custom. */
-export function SizeSelectRow({ k, f, resize }) {
+export function SizeSelectRow({ k, f, resize, onConvert }) {
   const options = presetOptions(f.kind);
   const value = presetValue(f);
   const pick = (v) => {
     const o = options.find((x) => x.value === v);
-    if (o) resize(o.width, o.height ?? null);
+    if (!o) return;
+    // S7.25: a paper in a fixed size's select is Change kind — it asks first (ConvertDialog), it never resizes
+    if (o.convert && o.paper) onConvert?.(o.paper);
+    else resize(o.width, o.height ?? null);
   };
   return (
     <Row k={k} name="ab-preset">

@@ -78,7 +78,7 @@ export function artboardLabels(source: string): Map<string, string> {
 
 /** The attribute text of an opening tag from `from` up to its closing `>`: string- and brace-aware (a
  *  `>` inside a quote or a `{…}` expression, however nested, does not end the tag). Null when unclosed. */
-function openingTagAttrs(source: string, from: number): string | null {
+export function openingTagAttrs(source: string, from: number): string | null {
   let depth = 0;
   let quote: string | null = null;
   for (let i = from; i < source.length; i++) {
@@ -96,7 +96,7 @@ function openingTagAttrs(source: string, from: number): string | null {
 }
 
 /** `attrs` with every `{…}` expression (nested) blanked, string props kept. */
-function stripBraces(attrs: string): string {
+export function stripBraces(attrs: string): string {
   let out = '';
   let depth = 0;
   let quote: string | null = null;

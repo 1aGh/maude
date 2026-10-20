@@ -35,6 +35,7 @@ import {
   parsePresentPatch,
   readExportPresets,
   readMarkers,
+  readMadeFrom,
   readMaxFrames,
   readPosters,
   readPresentState,
@@ -151,7 +152,8 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             patch.poster !== undefined ||
             patch.snap !== undefined ||
             patch.maxFrames !== undefined ||
-            patch.markers !== undefined;
+            patch.markers !== undefined ||
+            patch.madeFrom !== undefined;
           let nextText = currentText;
           let next = current;
           if (writes) {
@@ -175,6 +177,7 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             snap: readSnaps(next),
             maxFrames: readMaxFrames(next),
             markers: readMarkers(next),
+            madeFrom: readMadeFrom(next),
             etag: metaEtag(nextText),
           });
         });

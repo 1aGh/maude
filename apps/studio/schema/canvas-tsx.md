@@ -281,6 +281,39 @@ These props are literal values on `<DCArtboard>`. Maude 1.x ignores them and sti
 Write a custom size with `customPrintProp([w, h])`, or hand-write the same shape. All of them follow DDR-181:
 artboard intent lives in the JSX.
 
+## Change an artboard's kind, and the warnings: the same result by hand (S7.25)
+
+**Change kind makes a copy** (`artboard.convert-kind`: a fixed size → a print). The post is not rewritten; the print is made from a copy
+beside it.
+
+1. Copy the whole `<DCArtboard>` right after the original with a new `id` (`<id>-a6`, then `-a6-2`…), a new `label`
+   (`<label> · A6`) and no `data-cd-id` / `data-cd-locked` inside (as in "Duplicate an artboard").
+2. On the copy set `kind="print"`, `print={{ paper: 'a6', orientation, bleedMm: 3 }}` (portrait for a design taller than wide) and
+   `width` / `height` to the trim plus 2 × bleed in px (A6 with 3 mm bleed: `419 × 581`); remove a `safeZones` prop (print has its own safe
+   margin). Keep `background`.
+3. Put the copy's children in ONE wrapper that scales the design to the paper's width, text staying text:
+   `<div style={{ position: 'relative', flex: 'none', width: <old width>, height: <old height>, zoom: <new width ÷ old width> }}>…</div>`.
+   The extra height is the artboard's own `background`. A design taller than the paper scales to its height instead and gets
+   `marginLeft: <(paper width − scaled width) ÷ 2 ÷ zoom>`.
+4. Optional provenance: `artboardMeta.<copy id>.madeFrom = { artboard: "<id>", label: "<label>" }` in the canvas `.meta.json`
+   (`PATCH /_api/present-meta { file, madeFrom: { "<copy id>": { artboard, label } } }`). It only feeds the inspector's "Made from"
+   row; a Maude 1.x peer keeps it on its own rewrites.
+
+With "Keep the post; make the A6 from a copy" turned off, do steps 2 and 3 on the artboard itself instead of a copy.
+
+**Warnings** (the mark beside an artboard's label and the top rows of its inspector; shown, never blocking). Each has one verb, and the
+verb is an ordinary edit — do it by hand the same way:
+
+| Warning | When | The verb, by hand |
+| --- | --- | --- |
+| `crosses-cut` / `layers-at-cut` | a layer of a print artboard sits across the trim line (a layer that runs on to the artboard's edge is bleed art and is left alone) | **Move inside**: move the layer (inline `translate`, or its `left` / `top`) until it is inside the safe margin; with several, **Show** selects them |
+| `soft-image` | a picture has fewer pixels than its place needs (`naturalWidth ÷ placed inches` under 200 ppi; print PDFs are made at 300 dpi) | **Replace…** the picture with a larger file |
+| `longer-than-export` | a video is past 3 600 frames (2 min at 30 fps) | **Allow longer**: `artboardMeta.<id>.maxFrames` (an integer up to 18 000) in the canvas `.meta.json` |
+| `not-paper-size` | a print artboard's `width` / `height` are not the paper plus 2 × bleed (e.g. `1144` for A4 landscape, which is `1145 × 816`) | **Fix size**: write the paper's px size (`print/units.ts`) |
+| `wider-than-web` | a layer on a web page is wider than the page | **Fit to width**: `max-width: 100%` on the layer |
+
+`GET /_api/kinds/warnings?canvas=<rel>` lists them for a whole canvas (from a render, so a layer's rect is measured).
+
 ## Draw a path; combine shapes: the same result by hand (S2.14)
 
 P (the Pen) draws a path point by point; one finished path is one write (`object.insert-path`), and each later

@@ -57,6 +57,8 @@ const ROWS: Readonly<Record<string, Say>> = {
     const hit = safeZonePreset(p.preset);
     return hit ? `Safe zones: ${hit.label}` : 'Removed safe zones';
   },
+  'artboard.convert-kind': (n, p) =>
+    `Changed ${n} to ${typeof p.paper === 'string' ? p.paper.toUpperCase() : 'print'} print`,
   'artboard.set-print': (n, p) => {
     if (typeof p.paper === 'string') return `Set ${n} to ${p.paper.toUpperCase()}`;
     if (Array.isArray(p.sizeMm)) return `Resized ${n} to ${p.sizeMm[0]} × ${p.sizeMm[1]} mm`;

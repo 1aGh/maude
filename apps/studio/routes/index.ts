@@ -204,6 +204,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       designRoot: deps.edit.designRoot,
       designRel: deps.edit.designRel,
       access: deps.edit.access,
+      // S7.25 — GET /_api/kinds/warnings and /convert-plan measure a canvas's layers with the Print preflight's render (one at a time, remembered per file version)
+      ...(deps.export?.preflight?.rects ? { rects: deps.export.preflight.rects } : {}),
     }),
     ...createTrashRoutes(
       deps.trash ?? {

@@ -38544,5 +38544,261 @@
       "apps/studio/test/video-export-content.test.ts"
     ],
     "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "convert-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The dim layer behind the Change kind dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: \"Make “Oznámení události” an A6 print?\" — Change kind asks first: what converts, where the extra height goes, what to check, and that the original stays (the A6 is made from a copy).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The dialog's question.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-lead",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The first paragraph: size in mm with bleed, how the design scales, where the extra height goes and its fill.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-check",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The \"Check after\" list (a live region): the warnings the new artboard would have, or one quiet line while looking / when it cannot look.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-check-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: One thing to check after converting (`data-code` = the warning code).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: \"Instagram safe zones turn off — print has its own safe margin.\" — only when the post had safe zones.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-keep",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The switch \"Keep the post; make the A6 from a copy\" (on by default; off changes the artboard itself).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: A refusal (held by AI, locked, stale, no edit role) as one sentence, inside the dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: Cancel (or esc): changes nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "convert-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The primary, \"Make A6 print\": one `artboard.convert-kind` edit-op request.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/ConvertDialog.jsx",
+      "symbol": "ConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "insp-warning-<code>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.25: One warning row at the top of an artboard's inspector (`data-warning` = its id): the sentence and ONE verb. Codes: crosses-cut, layers-at-cut, soft-image, longer-than-export, not-paper-size, wider-than-web.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/warnings.jsx",
+      "symbol": "WarningRows"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "insp-warning-fix-<code>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.25: The row's one verb: Move inside · Show · Replace… · Allow longer · Fix size · Fit to width (registry `warning.fix`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/warnings.jsx",
+      "symbol": "WarningRows"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "insp-made-from",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The \"Made from\" row of an artboard Change kind made — the source artboard's name.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/warnings.jsx",
+      "symbol": "MadeFromRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "insp-made-from-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: \"A copy. The original is unchanged.\" under the Made from row.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/warnings.jsx",
+      "symbol": "MadeFromRow"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-convert-dialog.test.tsx"
+    ],
+    "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "artboard-warn-mark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.25: The warning mark beside an artboard's label (\"2 things to check\", `data-count`); never exported.",
+    "producer": {
+      "file": "apps/studio/artboard-warn-mark.tsx",
+      "symbol": "ArtboardWarnMark"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/e2e/kinds-convert.e2e.mjs"
+    ],
+    "v2": "new in v2 (S7.25)"
   }
 ]

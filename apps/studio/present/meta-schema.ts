@@ -36,6 +36,7 @@ export const PATCH_KEYS: readonly string[] = [
   'snap',
   'maxFrames',
   'markers',
+  'madeFrom',
   'expected',
 ];
 const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
@@ -93,6 +94,8 @@ export interface PresentPatch {
   maxFrames?: Record<string, number | null>;
   /** S7.16 — artboardId → its ruler markers, the WHOLE list (ascending by frame, one per frame); null or [] takes them all away. */
   markers?: Record<string, Marker[] | null>;
+  /** S7.25 — artboardId → the artboard it was made from (Change kind's copy); null forgets it. */
+  madeFrom?: Record<string, { artboard: string; label: string } | null>;
   expected?: string;
 }
 
@@ -222,6 +225,20 @@ export function readMarkers(meta: unknown): Record<string, Marker[]> {
     }
     const list = [...byFrame.values()].sort((a, b) => a.frame - b.frame).slice(0, MAX_MARKERS);
     if (list.length) out[id] = list;
+  }
+  return out;
+}
+
+/** S7.25 — what a `.meta.json` says about where each artboard was made from (`artboardMeta[id].madeFrom`). Never throws. */
+export function readMadeFrom(meta: unknown): Record<string, { artboard: string; label: string }> {
+  const out: Record<string, { artboard: string; label: string }> = {};
+  const m = isObj(meta) ? meta : {};
+  if (!isObj(m.artboardMeta)) return out;
+  for (const [id, entry] of Object.entries(m.artboardMeta)) {
+    if (!isId(id) || !isObj(entry) || !isObj(entry.madeFrom)) continue;
+    const { artboard, label } = entry.madeFrom;
+    if (isId(artboard) && typeof label === 'string' && label.length <= 200)
+      out[id] = { artboard, label };
   }
   return out;
 }
@@ -383,6 +400,28 @@ export function parsePresentPatch(body: unknown): ParseResult {
     }
     patch.markers = out;
   }
+  if (body.madeFrom !== undefined) {
+    if (!isObj(body.madeFrom) || Object.keys(body.madeFrom).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'madeFrom' };
+    const out: Record<string, { artboard: string; label: string } | null> = {};
+    for (const [id, v] of Object.entries(body.madeFrom)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'madeFrom' };
+      if (v === null) {
+        out[id] = null;
+        continue;
+      }
+      if (
+        !isObj(v) ||
+        Object.keys(v).length !== 2 ||
+        !isId(v.artboard) ||
+        typeof v.label !== 'string' ||
+        v.label.length > 200
+      )
+        return { ok: false, error: 'bad-field', field: `madeFrom.${id}` };
+      out[id] = { artboard: v.artboard, label: v.label };
+    }
+    patch.madeFrom = out;
+  }
   return { ok: true, patch };
 }
 
@@ -434,6 +473,7 @@ export function applyPresentPatch(
   for (const [id, v] of Object.entries(patch.snap ?? {})) if (v !== null) written.push(id);
   for (const [id, v] of Object.entries(patch.maxFrames ?? {})) if (v !== null) written.push(id);
   for (const [id, v] of Object.entries(patch.markers ?? {})) if (v?.length) written.push(id);
+  for (const [id, v] of Object.entries(patch.madeFrom ?? {})) if (v !== null) written.push(id);
   if (known) {
     const unknown = [...new Set(written.filter((id) => !known.has(id)))];
     if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
@@ -517,6 +557,18 @@ export function applyPresentPatch(
         ? (map[id] as Record<string, unknown>)
         : {};
       const e = withKey(entry, 'markers', v?.length ? v.map((x) => ({ ...x })) : undefined);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  // S7.25 — where a Change-kind copy was made from: the same entry, the same keep-everything-else rule.
+  if (patch.madeFrom && Object.keys(patch.madeFrom).length) {
+    let map: Record<string, unknown> = isObj(next.artboardMeta) ? next.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.madeFrom)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'madeFrom', v === null ? undefined : { ...v });
       map = withKey(map, id, Object.keys(e).length ? e : undefined);
     }
     next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);

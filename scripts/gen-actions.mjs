@@ -58,16 +58,22 @@ function die(msg) {
 /** Format `text` as Biome would format the file at `rel` (Markdown is written as generated). */
 function biome(rel, text) {
   if (/\.mdx?$/.test(rel)) return text;
-  const r = spawnSync(
-    join(ROOT, 'node_modules/.bin/biome'),
-    ['format', `--stdin-file-path=${rel}`],
-    {
+  // Biome's stdin formatter has been seen to hang with its stdin already closed while other biome
+  // processes run on the machine (2026-10-20: three hours, twice). A bounded run, retried, never waits forever.
+  let r;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    r = spawnSync(join(ROOT, 'node_modules/.bin/biome'), ['format', `--stdin-file-path=${rel}`], {
       cwd: ROOT,
       input: text,
       encoding: 'utf8',
       maxBuffer: 32 * 1024 * 1024,
-    }
-  );
+      timeout: 60_000,
+      killSignal: 'SIGKILL',
+    });
+    if (!r.error && r.signal == null) break;
+  }
+  if (r.error || r.signal != null)
+    die(`biome did not finish formatting ${rel} in three tries (${r.error?.code ?? r.signal})`);
   if (r.status !== 0) die(`biome could not format ${rel}:\n${(r.stderr || r.stdout).slice(-1500)}`);
   return r.stdout;
 }

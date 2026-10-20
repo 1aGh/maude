@@ -19,6 +19,7 @@ import { CLEAR_LINK_OP } from './clear-link.ts';
 import { CLIP_OPS } from './clip/index.ts';
 import { shapeCombineOps } from './combine.ts';
 import { objectConstrain } from './constraints.ts';
+import { artboardConvertKind } from './convert-kind.ts';
 import { objectSetCornerRadius } from './corner-radius.ts';
 import { imageCrop } from './crop.ts';
 import { componentDetach } from './detach-instance.ts';
@@ -102,6 +103,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   artboardDuplicateAtWidth,
   // S7.22 — Safe zones: which platform's own interface covers the artboard (the `safeZones` prop)
   artboardSetSafeZones,
+  // S7.25 — Change kind makes a copy: a fixed size becomes a print beside the original (or in place)
+  artboardConvertKind,
   // S7.23 — the print inspector: paper, millimetres, bleed, margin and the artboard's own guides switch
   artboardSetPrint,
   artboardSetPrintGuides,

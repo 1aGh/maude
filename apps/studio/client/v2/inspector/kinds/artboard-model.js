@@ -86,19 +86,35 @@ function catalogueOptions(groups, labelOf) {
  * @returns {Array<{ value: string, label: string, width: number, height?: number, paper?: string }>}
  */
 export function presetOptions(kind) {
-  if (kind === 'print')
-    return PAPER_PRESETS.map((p) => ({
-      value: `paper:${p.id}`,
-      label: `${p.label} · ${p.width} × ${p.height} ${p.unit}`,
-      width: 0,
-      paper: p.id,
-    }));
+  if (kind === 'print') return paperOptions();
   if (kind === 'video') return catalogueOptions(['video'], (p) => p.label);
   if (kind === 'web')
     return [...WIDTH_PRESETS]
       .sort((a, b) => b.w - a.w)
       .map((p) => ({ value: `screen:${p.w}`, label: `${p.label} · ${p.w}`, width: p.w }));
-  return catalogueOptions(['app', 'social'], (p) => p.name);
+  // S7.25: a fixed size also lists the papers — picking one is Change kind (a dialog, then a copy), never a quiet resize
+  return [
+    ...catalogueOptions(['app', 'social'], (p) => p.name),
+    ...paperOptions().map((o) => ({ ...o, convert: true })),
+  ];
+}
+
+/** The paper ladder as Size options (the Print inspector's Paper, and a fixed size's Change kind choices). */
+function paperOptions() {
+  return PAPER_PRESETS.map((p) => ({
+    value: `paper:${p.id}`,
+    label: `${p.label} · ${p.width} × ${p.height} ${p.unit}`,
+    width: 0,
+    paper: p.id,
+  }));
+}
+
+/** "post" for a size from the Social group, "artboard" for any other: the word Change kind's toast calls the original. */
+export function sourceWord(facts) {
+  const hit = PRESET_GROUPS.filter((g) => g.id === 'social')
+    .flatMap((g) => g.presets)
+    .some((p) => p.widthPx === facts.w && p.heightPx === facts.h);
+  return hit ? 'post' : 'artboard';
 }
 
 /** The preset the artboard is, as an option value; '' = Custom. */

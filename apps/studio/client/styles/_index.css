@@ -90,6 +90,7 @@
 @import url("../v2/kinds/size-picker.css");
 /* S7.24 — the kind filter chips (client/v2/kinds/KindChips.jsx) in the Canvases panel (and Layers). */
 @import url("../v2/kinds/kind-filter.css");
+@import url("../v2/kinds/convert.css");
 /* V2-4.8b — callouts: the old top banners (sync diverged / rejected, role, update, repo changed) as one stack. */
 @import url("../v2/shell/callouts.css");
 /* S2.20 — Menu › Edit › Undo history… (client/v2/undo/undo-history.jsx). */
@@ -150,6 +151,7 @@
 @import url("../v2/inspector/inspector.css");
 /* S2.3 — the section bodies: rows, token chips, the Gap menu, constraints (client/v2/inspector/sections/). */
 @import url("../v2/inspector/sections/sections.css");
+@import url("../v2/inspector/sections/warnings.css");
 /* S7.10 — the clip / title inspector's Motion grid, text field and chips (client/v2/inspector/kinds/clip.css). */
 @import url("../v2/inspector/kinds/clip.css");
 /* S8.19c — the Inspector's box for a picture that is waiting or missing, and the relink sheet (client/v2/assets/). */

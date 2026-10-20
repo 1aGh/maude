@@ -112,9 +112,16 @@ import {
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import {
+  ArtboardWarnMark,
+  madeFromLabel,
+  useArtboardWarnings,
+  warningsAttr,
+} from './artboard-warn-mark.tsx';
 import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
 import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
+import { summaryWords } from './kinds/warnings.ts';
 import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
 import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
 import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
@@ -2849,6 +2856,16 @@ export function DCArtboard({
   // Guides (print bleed/trim/margins, layout grids) describe the DESIGN, so
   // they are drawn over it, not over the frame with its label strip.
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  // S7.25 — the one warning style: this artboard checks itself (print · web · video) and marks its label
+  const warnings = useArtboardWarnings({
+    id,
+    kind: resolvedKind,
+    width: typeof width === 'number' ? width : undefined,
+    height: typeof height === 'number' ? height : undefined,
+    fixed: !!fixed,
+    print,
+    bodyRef,
+  });
   const [surface, setSurface] = useState<{ dx: number; dy: number; w: number; h: number } | null>(
     null
   );
@@ -2931,6 +2948,9 @@ export function DCArtboard({
     'data-dc-safe-zones': typeof safeZones === 'string' && safeZones ? safeZones : undefined,
     // S7.23 — read-back for the Inspector's Advanced › Guides row (same "stamp the resolved prop" shape as print).
     'data-dc-guides': guides ? JSON.stringify(guides) : undefined,
+    // S7.25 — the Inspector's top rows (the warnings) and "Made from" (Change kind's copy), read back like print
+    'data-dc-warnings': warningsAttr(warnings),
+    'data-dc-made-from': madeFromLabel(id) ?? undefined,
   };
 
   if (!ctx || !rect) {
@@ -3073,11 +3093,11 @@ export function DCArtboard({
             // redundant with the Inspector's Kind picker), so a non-digital kind
             // must still reach the artboard's own accessible name or it's
             // invisible to AT users entirely.
-            aria-label={
+            aria-label={`${
               resolvedKind !== 'digital'
                 ? `Artboard ${label}, ${resolvedKind}`
                 : `Artboard ${label}`
-            }
+            }${warnings.length ? `, ${summaryWords(warnings.length)}` : ''}`}
           >
             {resolvedKind !== 'digital' ? (
               <span className="dc-artboard-kind-chip" aria-hidden="true">
@@ -3085,6 +3105,7 @@ export function DCArtboard({
               </span>
             ) : null}
             {label}
+            <ArtboardWarnMark count={warnings.length} />
           </button>
         )}
         {hasVideo ? (
@@ -3189,6 +3210,8 @@ export interface CanvasRectsElement {
   h: number;
   tag: string;
   text: string;
+  /** S7.25 — a picture's own pixel width, for the effective-ppi warning (absent for anything else) */
+  naturalW?: number;
 }
 
 export interface CanvasRectsManifest {
@@ -3304,6 +3327,9 @@ function buildCanvasRectsManifest(): CanvasRectsManifest {
       ...toWorld(rect),
       tag: el.tagName.toLowerCase(),
       text: shortText(el, 120),
+      ...(el instanceof HTMLImageElement && el.naturalWidth > 0
+        ? { naturalW: el.naturalWidth }
+        : {}),
     });
   }
 

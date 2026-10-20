@@ -3550,6 +3550,7 @@
     "keydown:studio/client/home/TargetChip.jsx#TargetChip/listener": "v2 code (added after the freeze)",
     "keydown:studio/client/hooks/use-action-keys.jsx#useActionKeys/listener": "v2 code (added after the freeze)",
     "testid:studio/artboard-growth-tag.tsx#canvas/artboard-growth-tag": "v2 code (added after the freeze)",
+    "testid:studio/artboard-warn-mark.tsx#other/artboard-warn-mark": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-cloud-open-projectid": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-cloud-row-projectid": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-link-dialog": "v2 code (added after the freeze)",

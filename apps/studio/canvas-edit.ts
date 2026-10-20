@@ -6612,3 +6612,38 @@ export function readLinks(source: string, path: string): LinkRow[] {
   }
   return out;
 }
+
+/**
+ * S7.25 — wrap everything inside `<DCArtboard id="…">…</DCArtboard>` in one element: `open` goes right after the
+ * artboard's opening tag, `close` right before its closing tag, and nothing else in the file moves (the children keep
+ * their own bytes, so an element id or a lock inside survives). Change kind uses it to put a design inside a scaling
+ * `<div>`. An artboard with no children (self-closing) is refused: there is nothing to wrap. Pure; reparse-gated.
+ */
+export function applyWrapArtboardChildren(
+  canvasAbsPath: string,
+  source: string,
+  artboardId: string,
+  open: string,
+  close: string
+): { source: string } {
+  const fail = (m: string) => new CanvasEditError(m, { canvas: canvasAbsPath, id: artboardId });
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0)
+    throw fail(`oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`);
+  const target = collectJsxByTag(parsed.program, 'DCArtboard').find(
+    (a) => getStringAttr(a.openingElement, 'id') === artboardId
+  );
+  if (!target) throw fail(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`);
+  if (target.openingElement?.selfClosing || !target.closingElement)
+    throw fail('That artboard has nothing inside it to scale.');
+  const s = new MagicString(source);
+  s.appendLeft(target.openingElement.end as number, `\n${open}`);
+  s.prependRight(target.closingElement.start as number, `${close}\n`);
+  const out = s.toString();
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0)
+    throw fail(
+      `wrap-artboard-children produced invalid source (${check.errors[0]?.message ?? 'parse error'})`
+    );
+  return { source: out };
+}

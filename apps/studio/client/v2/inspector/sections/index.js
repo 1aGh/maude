@@ -33,6 +33,7 @@ import { offPosition } from './position.jsx';
 import { offSafeZones } from './safe-zones.jsx';
 import { offSize } from './size.jsx';
 import { offType } from './type.jsx';
+import { offWarnings } from './warnings.jsx';
 
 /** Tests only: take the bodies back out of the registry (it is process-wide). */
 export function unregisterSections() {
@@ -52,6 +53,7 @@ export function unregisterSections() {
   offInspectorExport();
   offExportSlot();
   offSafeZones();
+  offWarnings();
   offFormats();
   offPlaceFreely();
   offConvert();
