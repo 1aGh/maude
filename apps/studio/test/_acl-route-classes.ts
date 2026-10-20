@@ -247,6 +247,8 @@ const PROJECT = [
   '/_api/ds/default',
   // S10.14 — move canvases to another design system
   '/_api/ds/switch',
+  // S10.12 — convert system folders / Restore one (ds/convert.ts)
+  '/_api/ds/convert',
   '/_api/share/invites',
   '/_api/share/invites/:id/resend',
   '/_api/share/invites/:id/revoke',
