@@ -371,6 +371,29 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'artboardMeta.<id>.maxFrames: an integer up to 18000 in the canvas .meta.json (3600 without it)'
     ),
   },
+  // S7.16 — ruler markers are part of the cut: a list in the canvas .meta.json, which the agent reads and writes
+  'timeline.marker.add': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'artboardMeta.<id>.markers: a list of { frame, name } in the canvas .meta.json (an integer frame ≥ 0, a plain-text name up to 60 characters, one per frame, at most 200)'
+    ),
+  },
+  'timeline.marker.remove': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'Remove the entry from artboardMeta.<id>.markers in the canvas .meta.json (an empty list takes them all away)'
+    ),
+  },
+  // moving the playhead is the person's own view; the agent reads the markers from the meta
+  'timeline.marker.jump': PREF(
+    'where the playhead is (the markers themselves are in the canvas meta)'
+  ),
   'video.poster.set': {
     effect: 'project',
     minRole: 'edit',
@@ -1098,6 +1121,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.next-keyframe': PREF('playback'),
   // S7.18 — "+ track": which empty tracks the timeline draws is the person's own view; the lanes follow the clips
   'timeline.add-track': PREF('which empty tracks the timeline draws (the lanes follow the clips)'),
+  // S7.16 — folding a track is the person's own view of a long video; the comp is untouched
+  'timeline.fold-track': PREF('which tracks of a long video are put away (the comp is untouched)'),
   // S7.9 — the timeline's edit gestures (one `clip.*` op each) and the 17-row clip menu. An agent writes the
   // same literal props in the canvas .tsx; `comment` and `generate` have a verb of their own.
   'timeline.trim': VIDEO_OP(

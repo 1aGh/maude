@@ -5,6 +5,7 @@
 //   artboardMeta[id].snap       "beat" | "off" — Snap to the beat in the Timeline
 //   artboardMeta[id].maxFrames  integer ≤ 18 000 — C22 "Allow longer" for this artboard
 //   artboardMeta[id].madeFrom   { artboard, label } — change-kind provenance (the copy's source)
+//   artboardMeta[id].markers    [{ frame, name }] — ruler markers of a video ("Výkop", "TD 1"), ≤ 200, S7.16
 //
 // Never under `layout`, never inside `layout.artboards[]` (R6: v1's `patchCanvasMeta` drops both);
 // a v1 peer keeps the top-level `artboardMeta` key on its own rewrites (probes H/I/J). Same two
@@ -18,7 +19,7 @@
 
 /** The artboard id grammar of the schema's `$defs/artboardId`. */
 export const ARTBOARD_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-export const S7_ARTBOARD_KEYS = ['poster', 'snap', 'maxFrames', 'madeFrom'] as const;
+export const S7_ARTBOARD_KEYS = ['poster', 'snap', 'maxFrames', 'madeFrom', 'markers'] as const;
 export type S7ArtboardKey = (typeof S7_ARTBOARD_KEYS)[number];
 
 /** C22: one export goes up to 2 min at 30 fps unless the artboard allows longer. */
@@ -30,6 +31,9 @@ export const DEFAULT_POSTER_FRACTION = 0.35;
 export const SNAP_VALUES = ['beat', 'off'] as const;
 export type SnapMode = (typeof SNAP_VALUES)[number];
 export const MAX_MADE_FROM_LABEL = 200;
+/** S7.16 — ruler markers: at most this many per video, each name plain text up to this long (present/meta-schema.ts holds the same numbers). */
+export const MAX_MARKERS = 200;
+export const MAX_MARKER_NAME = 60;
 const MAX_IDS = 2000;
 
 export interface MadeFrom {
@@ -37,7 +41,13 @@ export interface MadeFrom {
   label: string;
 }
 
+export interface Marker {
+  frame: number;
+  name: string;
+}
+
 export interface ArtboardVideoMeta {
+  markers?: Marker[];
   poster?: number;
   snap?: SnapMode;
   maxFrames?: number;
@@ -59,6 +69,27 @@ const isMaxFrames = (v: unknown): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= MAX_FRAMES_CEILING;
 const isSnap = (v: unknown): v is SnapMode =>
   typeof v === 'string' && (SNAP_VALUES as readonly string[]).includes(v);
+const isMarkerName = (v: unknown): v is string => {
+  if (typeof v !== 'string' || v.length > MAX_MARKER_NAME) return false;
+  for (let i = 0; i < v.length; i++) {
+    const c = v.charCodeAt(i);
+    if (c < 32 || c === 127 || c === 60 || c === 62) return false; // control characters and < >
+  }
+  return true;
+};
+/** A strict marker list: ≤ MAX_MARKERS, exactly { frame, name }, one per frame. null = not a valid list. */
+function asMarkers(v: unknown): Marker[] | null {
+  if (!Array.isArray(v) || v.length > MAX_MARKERS) return null;
+  const out: Marker[] = [];
+  const seen = new Set<number>();
+  for (const x of v) {
+    if (!isObj(x) || Object.keys(x).length !== 2) return null;
+    if (!isPoster(x.frame) || seen.has(x.frame) || !isMarkerName(x.name)) return null;
+    seen.add(x.frame);
+    out.push({ frame: x.frame, name: x.name });
+  }
+  return out.sort((a, b) => a.frame - b.frame);
+}
 function asMadeFrom(v: unknown): MadeFrom | null {
   if (!isObj(v) || !isId(v.artboard)) return null;
   if (typeof v.label !== 'string' || v.label.length > MAX_MADE_FROM_LABEL) return null;
@@ -76,6 +107,12 @@ export function readArtboardVideoMeta(meta: unknown, artboardId: string): Artboa
   if (isMaxFrames(entry.maxFrames)) out.maxFrames = entry.maxFrames;
   const mf = asMadeFrom(entry.madeFrom);
   if (mf) out.madeFrom = mf;
+  // tolerant: keep the members that are valid, in frame order (a peer's half-bad list still draws what it can)
+  if (Array.isArray(entry.markers)) {
+    const good = entry.markers.filter((x) => isObj(x) && isPoster(x.frame) && isMarkerName(x.name));
+    const list = asMarkers(good.slice(0, MAX_MARKERS)) ?? [];
+    if (list.length) out.markers = list;
+  }
   return out;
 }
 
@@ -121,6 +158,12 @@ export function parseArtboardMetaPatch(body: unknown): PatchParse {
       if (k === 'poster' && !isPoster(v)) return { ok: false, error: 'bad-field', field };
       if (k === 'snap' && !isSnap(v)) return { ok: false, error: 'bad-field', field };
       if (k === 'maxFrames' && !isMaxFrames(v)) return { ok: false, error: 'bad-field', field };
+      if (k === 'markers') {
+        const list = asMarkers(v);
+        if (!list) return { ok: false, error: 'bad-field', field };
+        one.markers = list;
+        continue;
+      }
       if (k === 'madeFrom') {
         const mf = asMadeFrom(v);
         if (!mf || Object.keys(v as object).length !== 2)
@@ -178,7 +221,13 @@ export function applyArtboardMetaPatch(
       entry = withKey(
         entry,
         k,
-        v === null ? undefined : k === 'madeFrom' ? { ...(v as MadeFrom) } : v
+        v === null
+          ? undefined
+          : k === 'madeFrom'
+            ? { ...(v as MadeFrom) }
+            : k === 'markers'
+              ? (v as Marker[]).map((m) => ({ ...m }))
+              : v
       );
     }
     map = withKey(map, id, Object.keys(entry).length ? entry : undefined);

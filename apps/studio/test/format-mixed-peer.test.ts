@@ -152,7 +152,15 @@ describe('mixed v1/v2 peers — meta lane (R6)', () => {
     const r = applyArtboardMetaPatch(
       { ...JSON.parse(m0), artboardMeta: { b1: { exports: [{ format: 'png', scale: 2 }] } } },
       {
-        b0: { poster: 120, snap: 'beat', maxFrames: 5400 },
+        b0: {
+          poster: 120,
+          snap: 'beat',
+          maxFrames: 5400,
+          markers: [
+            { frame: 420, name: 'Výkop' },
+            { frame: 1320, name: 'TD 1' },
+          ],
+        },
         b1: { madeFrom: { artboard: 'b0', label: 'Reels' } },
       },
       new Set(['b0', 'b1'])
@@ -171,6 +179,10 @@ describe('mixed v1/v2 peers — meta lane (R6)', () => {
         poster: 120,
         snap: 'beat',
         maxFrames: 5400,
+        markers: [
+          { frame: 420, name: 'Výkop' },
+          { frame: 1320, name: 'TD 1' },
+        ],
       });
       expect(readArtboardVideoMeta(m, 'b1').madeFrom).toEqual({ artboard: 'b0', label: 'Reels' });
     });

@@ -22,6 +22,10 @@ export const MAX_IDS = 2000;
 export const MAX_NOTE = 20000;
 /** C22: the longest `maxFrames` a video artboard may store (the exporter's ceiling, kinds/meta.ts holds the same number). */
 export const MAX_FRAMES_CEILING = 18_000;
+/** S7.16: ruler markers of a video artboard (`artboardMeta[id].markers`, "Výkop · TD 1"): at most this many per video. */
+export const MAX_MARKERS = 200;
+/** S7.16: a marker's name, plain text. */
+export const MAX_MARKER_NAME = 60;
 /** The route body's whole vocabulary. */
 export const PATCH_KEYS: readonly string[] = [
   'file',
@@ -31,6 +35,7 @@ export const PATCH_KEYS: readonly string[] = [
   'poster',
   'snap',
   'maxFrames',
+  'markers',
   'expected',
 ];
 const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
@@ -56,6 +61,24 @@ export const EXPORT_SCALE_MAX = 4;
 export const MAX_EXPORT_SIZES = 8;
 const EXPORT_SIZE_KEYS: readonly string[] = ['format', 'scale'];
 
+/** S7.16 — one ruler marker: a comp frame and a short plain-text name. */
+export interface Marker {
+  frame: number;
+  name: string;
+}
+const MARKER_KEYS: readonly string[] = ['frame', 'name'];
+/** Plain text: no control characters (newlines, NUL…) and no markup brackets. */
+const isMarkerName = (v: unknown): v is string => {
+  if (typeof v !== 'string' || v.length > MAX_MARKER_NAME) return false;
+  for (let i = 0; i < v.length; i++) {
+    const c = v.charCodeAt(i);
+    if (c < 32 || c === 127 || c === 60 || c === 62) return false; // control characters and < >
+  }
+  return true;
+};
+const isMarkerFrame = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 2 ** 31 - 1;
+
 export interface PresentPatch {
   file: string;
   present?: { order?: string[] | null; skip?: string[] | null } | null;
@@ -68,6 +91,8 @@ export interface PresentPatch {
   snap?: Record<string, 'beat' | 'off' | null>;
   /** S7.18 — artboardId → the longest one export of it may be (C22 "Allow longer", 1..18 000 frames); null = the 3 600 default. */
   maxFrames?: Record<string, number | null>;
+  /** S7.16 — artboardId → its ruler markers, the WHOLE list (ascending by frame, one per frame); null or [] takes them all away. */
+  markers?: Record<string, Marker[] | null>;
   expected?: string;
 }
 
@@ -178,6 +203,25 @@ export function readMaxFrames(meta: unknown): Record<string, number> {
     const n = entry.maxFrames;
     if (typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_FRAMES_CEILING)
       out[id] = n;
+  }
+  return out;
+}
+
+/** S7.16 — what a `.meta.json` says about each video artboard's ruler markers (`artboardMeta[id].markers`). Tolerant: a
+ *  malformed member is dropped, the rest kept in frame order, at most MAX_MARKERS. Never throws. */
+export function readMarkers(meta: unknown): Record<string, Marker[]> {
+  const out: Record<string, Marker[]> = {};
+  const m = isObj(meta) ? meta : {};
+  if (!isObj(m.artboardMeta)) return out;
+  for (const [id, entry] of Object.entries(m.artboardMeta)) {
+    if (!isId(id) || !isObj(entry) || !Array.isArray(entry.markers)) continue;
+    const byFrame = new Map<number, Marker>();
+    for (const x of entry.markers) {
+      if (isObj(x) && isMarkerFrame(x.frame) && isMarkerName(x.name))
+        byFrame.set(x.frame, { frame: x.frame, name: x.name });
+    }
+    const list = [...byFrame.values()].sort((a, b) => a.frame - b.frame).slice(0, MAX_MARKERS);
+    if (list.length) out[id] = list;
   }
   return out;
 }
@@ -308,6 +352,37 @@ export function parsePresentPatch(body: unknown): ParseResult {
     }
     patch.maxFrames = out;
   }
+  if (body.markers !== undefined) {
+    if (!isObj(body.markers) || Object.keys(body.markers).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'markers' };
+    const out: Record<string, Marker[] | null> = {};
+    for (const [id, v] of Object.entries(body.markers)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'markers' };
+      if (v === null) {
+        out[id] = null;
+        continue;
+      }
+      if (!Array.isArray(v) || v.length > MAX_MARKERS)
+        return { ok: false, error: 'bad-field', field: `markers.${id}` };
+      const list: Marker[] = [];
+      const seen = new Set<number>();
+      for (let i = 0; i < v.length; i++) {
+        const at = `markers.${id}.${i}`;
+        const x = v[i];
+        if (!isObj(x)) return { ok: false, error: 'bad-field', field: at };
+        for (const k of Object.keys(x))
+          if (!MARKER_KEYS.includes(k))
+            return { ok: false, error: 'unknown-key', field: `${at}.${k}` };
+        if (!isMarkerFrame(x.frame) || seen.has(x.frame))
+          return { ok: false, error: 'bad-field', field: `${at}.frame` };
+        if (!isMarkerName(x.name)) return { ok: false, error: 'bad-field', field: `${at}.name` };
+        seen.add(x.frame);
+        list.push({ frame: x.frame, name: x.name });
+      }
+      out[id] = list.sort((a, b) => a.frame - b.frame);
+    }
+    patch.markers = out;
+  }
   return { ok: true, patch };
 }
 
@@ -358,6 +433,7 @@ export function applyPresentPatch(
   for (const [id, v] of Object.entries(patch.poster ?? {})) if (v !== null) written.push(id);
   for (const [id, v] of Object.entries(patch.snap ?? {})) if (v !== null) written.push(id);
   for (const [id, v] of Object.entries(patch.maxFrames ?? {})) if (v !== null) written.push(id);
+  for (const [id, v] of Object.entries(patch.markers ?? {})) if (v?.length) written.push(id);
   if (known) {
     const unknown = [...new Set(written.filter((id) => !known.has(id)))];
     if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
@@ -429,6 +505,18 @@ export function applyPresentPatch(
         ? (map[id] as Record<string, unknown>)
         : {};
       const e = withKey(entry, 'maxFrames', v === null ? undefined : v);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  // S7.16 — a video artboard's ruler markers: the same entry, the same keep-everything-else rule.
+  if (patch.markers && Object.keys(patch.markers).length) {
+    let map: Record<string, unknown> = isObj(next.artboardMeta) ? next.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.markers)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'markers', v?.length ? v.map((x) => ({ ...x })) : undefined);
       map = withKey(map, id, Object.keys(e).length ? e : undefined);
     }
     next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);

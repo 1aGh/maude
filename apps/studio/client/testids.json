@@ -37842,6 +37842,134 @@
     "v2": "new in v2 (S7.13)"
   },
   {
+    "hook": "timeline-prep-chip-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.16: The percent on a clip whose file is still being prepared (an ellipsis while the share is not known).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-long.test.tsx"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "timeline-prep-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.16: \"3 clips still preparing\" in the Timeline header.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-long.test.tsx"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "timeline-track-fold-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.16: A track's name as a button: folds it to \"Text · 18\" and shows it again (a per-viewer view).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-long.test.tsx"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "insp-footage",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.16: The clip Inspector's footage block (File, Status, the safe line) for a clip whose file is waiting or missing; data-state says which.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/footage-rows.jsx",
+      "symbol": "FootageRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/footage-state.test.ts"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "insp-footage-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.16: The file name of footage that is not here.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/footage-rows.jsx",
+      "symbol": "FootageRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/footage-state.test.ts"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "insp-footage-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.16: \"Waiting for Jonas's Mac\" / \"Missing — no device has it\".",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/footage-rows.jsx",
+      "symbol": "FootageRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/footage-state.test.ts"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "insp-footage-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.16: \"Your edit is safe. It plays once the file arrives.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/footage-rows.jsx",
+      "symbol": "FootageRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/footage-state.test.ts"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
+    "hook": "timeline-marker-<frame>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.16: A ruler marker's flag (\"Výkop\", \"TD 1\") at its frame; a click puts the playhead there. Part of the cut: artboardMeta[id].markers.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-markers.test.tsx"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
     "hook": "video-links",
     "kind": "testid",
     "pattern": false,

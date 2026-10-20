@@ -298,4 +298,80 @@
   .tl-audio-block.is-selected {
     box-shadow: 0 0 0 1px var(--accent);
   }
+
+  /* S7.16 (07 · ve-footage, ve-long) — footage not here yet, footage still preparing, long videos */
+  .tl-seq-block[data-footage="waiting"],
+  .tl-seq-block[data-footage="missing"] {
+    border-style: dashed;
+    color: var(--fg-2);
+  }
+  /* quiet: waiting is not an error, so it keeps the clip's colour and only goes dashed and dim; missing is the one that warns */
+  .tl-seq-block[data-footage="waiting"] {
+    opacity: 0.78;
+  }
+  .tl-seq-block[data-footage="missing"] {
+    border-color: var(--status-warn);
+  }
+  .tl-chip-prep {
+    position: relative;
+    z-index: 1;
+    margin-left: var(--space-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-prep-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  /* a block too narrow to read: no name; the hover line is its title */
+  .tl-seq-block[data-names="off"] .tl-seq-name {
+    display: none;
+  }
+  /* the track name is a button where a track can fold ("Text · 18"); the caption strip itself stays click-through */
+  .tl-track-fold {
+    pointer-events: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .tl-track-fold:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .tl-track[data-folded="1"] .tl-track-cap {
+    min-height: 20px;
+  }
+
+  /* S7.16 — ruler markers ("Výkop", "TD 1"): a flag at the moment, clicking it puts the playhead there */
+  .tl-marker-flag {
+    position: absolute;
+    top: 0;
+    z-index: 2;
+    max-width: 96px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    line-height: 14px;
+    cursor: pointer;
+  }
+  .tl-marker-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tl-marker-flag:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
 }

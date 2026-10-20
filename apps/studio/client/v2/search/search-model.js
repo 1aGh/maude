@@ -34,6 +34,8 @@ export const GROUPS = Object.freeze([
   },
   { id: 'canvases', title: 'Canvases' },
   { id: 'artboards', title: 'Artboards' },
+  // S7.16 (07 · ve-long): the clips of the video on the timeline, by name — the provider is timeline/clip-search.js
+  { id: 'clips', title: 'Clips' },
   { id: 'actions', title: 'Actions' },
   // S11.18 (06 ad-search): when a search finds hidden tools, the ordinary actions that matched too sit apart
   { id: 'also', title: 'Also' },
