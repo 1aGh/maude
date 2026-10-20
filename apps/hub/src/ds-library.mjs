@@ -18,10 +18,15 @@
 //     `/v1/ds/`, another system, another project, a symlinked file and a missing file give
 //     ONE answer, the same 404 body (U1: invisible = absent).
 //
-// WHAT THE GRANT IS — the credential a non-member presents — is not decided here (the
-// contract delegates it to V2-1.7 / V2-1.16, which do not define it yet). This module takes
-// it as a seam, `verifyGrant(token) → { system, fetcher } | null`, and the hub wires
-// `null` until the lead decides: until then a non-member is refused (401), never admitted.
+// WHAT THE GRANT IS — the credential a non-member presents — lives in `ds-grants.mjs`
+// (S10.18a-2, option A: a hub-minted token for one system, stored hashed, revocable). This
+// module takes it as a seam, `verifyGrant(token) → { system, fetcher } | null`; the hub wires
+// the grant store's verifier, which answers null while MAUDE_DS_LIBRARY_GRANTS is off — so a
+// non-member is refused (401), never admitted, until Michal turns a cell on.
+//
+// GUESSING. A bearer that is neither a member's nor a live grant is a 401, and repeated 401s
+// are limited per remote address and per bearer (`DS_GRANT_DOOR_LIMITS`): past the limit the
+// door answers 429 before it looks at the grant at all. A member is never limited here.
 //
 // WHAT A GRANT HOLDER LEARNS. The pointer and the log's own words: per entry `rev`,
 // `parent`, `action`, `at`, `by` and `summary`. Not `drafts`, not the library record, not
@@ -32,7 +37,7 @@
 // days, plus this project, where the library is edited. Kept in the hub's data dir — on a
 // cell with an ephemeral disk it restarts from 1 after a rollout (a display count only).
 
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   closeSync,
   constants,
@@ -83,6 +88,44 @@ const UNAUTHENTICATED = Object.freeze({
   code: 'unauthenticated',
 });
 const METHOD_NOT_ALLOWED = Object.freeze({ error: 'method not allowed', code: 'method' });
+const RATE_LIMITED = Object.freeze({
+  error: 'too many tries — wait a few minutes',
+  code: 'rate-limited',
+});
+
+/**
+ * Repeated 401s at this door, per remote address and per bearer, in a sliding window.
+ * Generous for a linking project (it checks every 30 min, S10.18b) and fatal to a guesser.
+ */
+export const DS_GRANT_DOOR_LIMITS = Object.freeze({
+  perAddress: 30,
+  perBearer: 10,
+  windowMs: 15 * 60 * 1000,
+});
+const MAX_TRACKED_KEYS = 10_000;
+
+/** Failures per key in a sliding window — memory only (a restart forgives; the secret is 256 bits). */
+function createFailureWindow({ windowMs }) {
+  const hits = new Map();
+  const recent = (key, t) => (hits.get(key) ?? []).filter((at) => at > t - windowMs);
+  return {
+    count(key, t) {
+      const list = recent(key, t);
+      if (list.length === 0) hits.delete(key);
+      else hits.set(key, list);
+      return list.length;
+    },
+    add(key, t) {
+      const list = recent(key, t);
+      list.push(t);
+      if (!hits.has(key) && hits.size >= MAX_TRACKED_KEYS) {
+        for (const [k, v] of hits) if (!v.some((at) => at > t - windowMs)) hits.delete(k);
+        if (hits.size >= MAX_TRACKED_KEYS) hits.delete(hits.keys().next().value);
+      }
+      hits.set(key, list);
+    },
+  };
+}
 
 const LOG_ENTRY_KEYS = ['rev', 'parent', 'action', 'at', 'summary'];
 
@@ -241,6 +284,10 @@ export function createDsLibraryUsage({ file = null, now = () => Date.now() } = {
  *        a non-member's library read grant: the ONE system it names and who fetches (the
  *        linking project). Null (the default) admits no non-member.
  * @param {ReturnType<typeof createDsLibraryUsage>} [deps.usage]
+ * @param {(request: object) => string | null} [deps.clientIp]  the caller's address (the hub's
+ *        trusted-proxy rule); default the socket's
+ * @param {typeof DS_GRANT_DOOR_LIMITS | null} [deps.limits]  null = off (`rateLimit: false`)
+ * @param {() => number} [deps.now]
  */
 export function createDsLibraryRoutes({
   projectId,
@@ -249,7 +296,37 @@ export function createDsLibraryRoutes({
   auth,
   verifyGrant = null,
   usage = createDsLibraryUsage(),
+  clientIp = (request) => request?.socket?.remoteAddress ?? null,
+  limits = DS_GRANT_DOOR_LIMITS,
+  now = () => Date.now(),
 }) {
+  const failures = limits ? createFailureWindow({ windowMs: limits.windowMs }) : null;
+  const bearerKey = (token) => `b:${createHash('sha256').update(token).digest('hex')}`;
+  const addressKey = (request) => {
+    let ip = null;
+    try {
+      ip = clientIp(request);
+    } catch {
+      ip = null;
+    }
+    return `a:${ip || 'unknown'}`;
+  };
+  /** Past the limit for this address or this bearer? */
+  function limited(request, token) {
+    if (!failures) return false;
+    const t = now();
+    return (
+      failures.count(addressKey(request), t) >= limits.perAddress ||
+      failures.count(bearerKey(token), t) >= limits.perBearer
+    );
+  }
+  function failed(request, token) {
+    if (!failures) return;
+    const t = now();
+    failures.add(addressKey(request), t);
+    failures.add(bearerKey(token), t);
+  }
+
   /** Is this hub serving libraries at all? `/health` and the row ask the same thing. */
   function enabled() {
     return typeof designRoot() === 'string';
@@ -266,9 +343,17 @@ export function createDsLibraryRoutes({
 
   /**
    * Who is asking: `{ kind: 'member', who }`, `{ kind: 'grant', system, fetcher }`, `null`
-   * (a member session that may not read here) or `undefined` (no credential that verifies).
+   * (a member session that may not read here), `undefined` (no credential that verifies) or
+   * `'limited'` (a bearer from an address, or a bearer, past the 401 limit).
    */
   function reader(request) {
+    const r = identify(request);
+    const token = r === undefined ? presentedBearer(request) : null;
+    if (token) failed(request, token);
+    return r;
+  }
+
+  function identify(request) {
     const who = auth(request);
     if (who) {
       const access = who.access;
@@ -278,7 +363,9 @@ export function createDsLibraryRoutes({
       return { kind: 'member', who };
     }
     const token = presentedBearer(request);
-    if (!token || typeof verifyGrant !== 'function') return undefined;
+    if (!token) return undefined;
+    if (limited(request, token)) return 'limited';
+    if (typeof verifyGrant !== 'function') return undefined;
     let grant = null;
     try {
       grant = verifyGrant(token);
@@ -316,6 +403,10 @@ export function createDsLibraryRoutes({
     const rawSystem = /^\/api\/projects\/[^/]+\/v1\/ds\/([^/]{1,192})(?:\/|$)/.exec(path)?.[1];
     const askedSystem = rawSystem ? decodeSystem(rawSystem) : null;
     const r = reader(request);
+    if (r === 'limited') {
+      respondJson(429, { ...RATE_LIMITED });
+      return true;
+    }
     if (r === undefined) {
       respondJson(401, { ...UNAUTHENTICATED });
       return true;
