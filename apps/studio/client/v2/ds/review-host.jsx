@@ -11,6 +11,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { canvasDsSystem } from '../../canvas-url.js';
+import { loadReach } from './reach-data.js';
+import { DsReachView } from './reach-view.jsx';
 import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
 import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
@@ -143,6 +145,22 @@ export async function cancelReview({ ds }, fetchImpl = globalThis.fetch) {
       };
 }
 
+/** What the reach view calls the token: the inspector's own label, bounded; never markup (React escapes it). */
+const reachName = (req) =>
+  typeof req?.name === 'string' && req.name.trim() ? req.name.trim().slice(0, 80) : '';
+
+/** The swatch line of a reach request: names are text, values are colours only if `safeColour` says so. */
+function reachSwatch(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const t = (v) => (typeof v === 'string' && v.length <= 120 ? v : null);
+  return {
+    before: t(raw.before),
+    after: t(raw.after),
+    beforeName: t(raw.beforeName),
+    afterName: t(raw.afterName),
+  };
+}
+
 /** The system a request names: the canvas it came from (or the open one) decides, never the request's own `ds`. */
 export function systemOf(req, cfg, activePath) {
   const at = typeof req?.canvas === 'string' && req.canvas ? req.canvas : activePath;
@@ -167,6 +185,8 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
     fetchImpl,
   });
   const [sheet, setSheet] = useState(null);
+  // S10.9 — "Used in 5 canvases · Show": the reach view (reach-view.jsx), with the same review list beside it
+  const [reach, setReach] = useState(null);
   const live = useRef({ cfg, activePath, toast, fetchImpl });
   live.current = { cfg, activePath, toast, fetchImpl };
   const say = (m) => live.current.toast?.(m);
@@ -178,6 +198,23 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         const { cfg: c, activePath: at } = live.current;
         const ds = systemOf(req, c, at);
         if (!ds) return say('This canvas follows no design system that can be updated yet.');
+        if (req.kind === 'reach') {
+          const [r, rev] = await Promise.all([
+            loadReach({ ds, css: req.css, component: req.component, name: reachName(req) }, f()),
+            loadDsReview(ds, f()),
+          ]);
+          if (!r.ok) return say(r.message);
+          setSheet(null);
+          setReach({
+            ds,
+            name: reachName(req) || 'This',
+            swatch: reachSwatch(req.swatch),
+            model: r.model,
+            review: rev.ok ? rev.review : null,
+            places: rev.ok ? rev.places : {},
+          });
+          return;
+        }
         if (req.kind === 'cancel') {
           const r = await cancelReview({ ds }, f());
           return say(r.ok ? CANCELLED : r.message);
@@ -196,12 +233,14 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         }
         const loaded = await loadDsReview(ds, f());
         if (!loaded.ok) return say(loaded.message);
+        setReach(null);
         setSheet({ ds, ...loaded });
       }),
     []
   );
 
   const close = useCallback(() => setSheet(null), []);
+  const closeReach = useCallback(() => setReach(null), []);
   // S10.11 — the outside-change review and the conflict pick live in the inspector's empty place; their host rides here
   const truth = (
     <DsTruthHost
@@ -216,6 +255,44 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   const switcher = (
     <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
   );
+  if (reach) {
+    return (
+      <>
+        {truth}
+        {switcher}
+        <DsReachView
+          key={`${reach.ds}:${reach.name}`}
+          ds={reach.ds}
+          cfg={cfg}
+          name={reach.name}
+          swatch={reach.swatch}
+          reach={reach.model}
+          review={reach.review}
+          places={reach.places}
+          scope={scope}
+          onClose={closeReach}
+          onUpdate={async (rows) => {
+            const r = await publishReview(
+              { ds: reach.ds, expectHead: reach.review.expectHead },
+              rows,
+              f()
+            );
+            if (!r.ok) return r;
+            say(updatedWords(r.updated, r.leftOut));
+            setReach(null);
+            return { ok: true };
+          }}
+          onCancel={async () => {
+            const r = await cancelReview({ ds: reach.ds }, f());
+            if (!r.ok) return r;
+            say(CANCELLED);
+            setReach(null);
+            return { ok: true };
+          }}
+        />
+      </>
+    );
+  }
   if (!sheet)
     return (
       <>

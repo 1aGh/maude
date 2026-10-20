@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "2dfeaa9c6534",
+  "manifestVersion": "323922264e4e",
   "actions": [
     {
       "id": "search.open",
@@ -5527,6 +5527,17 @@
       "agent": {
         "path": "cli",
         "verb": "maude design screenshot --url \"<canvas-url>&dsMode=dark\" --full --out <png>"
+      }
+    },
+    {
+      "id": "ds.show-reach",
+      "label": "Show where it lands",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds usage <ds> --css <--token> --json"
       }
     },
     {

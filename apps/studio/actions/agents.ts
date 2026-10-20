@@ -1555,4 +1555,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),
   },
+  // S10.9 — the rings are a picture; the places behind them are the usage index, which the verb reads
+  // (`--json` carries the canvases, artboards and element ids the view rings).
+  'ds.show-reach': {
+    effect: 'none',
+    agent: cli('maude design ds usage <ds> --css <--token> --json'),
+  },
 };

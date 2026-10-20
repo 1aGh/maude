@@ -27535,6 +27535,486 @@
     "v2": "new"
   },
   {
+    "hook": "ds-reach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the reach view (\"One colour, everywhere it lands\") — a full-screen dialog over the canvas; Esc and Close go back and change nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the reach view's title.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the line under the title (\"Accent goes from Azure to Deeper azure. Lines run from the swatch…\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: Close — back to the canvas, nothing changed.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-lines",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the SVG that carries the lines from the swatch to each frame.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: one line from the swatch to a frame's tag. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-token",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the swatch island (the token, before → after, \"Used in 5 canvases · showing\", the whole tag).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-used",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: \"Used in 5 canvases · showing\" on the swatch island.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-hide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: Hide — the same as Close.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the whole view's tag, \"4 patterns · 21 places\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-frames",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the frames (one per artboard that uses the token, busiest first, at most four).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: one frame — a live render of one artboard (`data-key` canvas#artboard, `data-artboard`). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-places",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: a frame's tag, \"14 places\". Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-iframe",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the canvas frame itself (`?dsPreview=<ds>@pending`, embed: read-only, no comments). Repeats. Not DOM-reachable from the shell (canvas origin).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-rings",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the layer of rings over one frame (`data-count` = how many are drawn). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: one ringed place. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: \"Onboarding and Landing page are in the review too\" — the canvases past the frames.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-capped",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: \"The first 500 places are ringed.\" — shown only past the ring cap.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the quiet line under the view (\"The review is the same list…\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "DsReachView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-review",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the review list that opens once the rings are drawn — the same decision as \"Update N canvases\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-review-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: \"Update canvases with the new Accent?\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-head-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the checkbox of \"Update every canvas\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-head",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: \"4 of 5 canvases\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the canvases to update.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: one canvas in the list (`data-path`, `data-off`, `data-locked`). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: a canvas's checkbox. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: a refusal in words, under the list; the view stays open.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: Cancel — drops what waits; no canvas changes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reach-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: the primary button, \"Update 4 canvases\" — sends the ticks; one action, one ⌘Z.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/reach-view.jsx",
+      "symbol": "ReachReview"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-show",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.9: \"Show\" on the inspector's \"Used in 5 canvases\" line — runs ds.show-reach, the reach view.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-reach-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-update-available",
     "kind": "testid",
     "pattern": false,

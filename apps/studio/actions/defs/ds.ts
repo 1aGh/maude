@@ -38,6 +38,10 @@ export const DS_ACTIONS: ActionDef[] = [
   // and previewing it in Light or Dark read the canvas and write nothing.
   row('ds.open', 'Design system', VIEW),
   row('ds.set-theme-preview', 'Show the system in Light or Dark', VIEW),
+  // S10.9 — "Used in 5 canvases · Show" (13 · ds-edit-reach): draws every place a token or master lands, ringed, in
+  // live renders of the canvases. It reads the usage index and writes nothing, so anyone who can open the project
+  // may look. Reached from the selected token, so not a ⌘K row.
+  row('ds.show-reach', 'Show where it lands', VIEW),
   // S10.8 — the entries into the review (contracts/S10-ds-review-entry.md). All three are reached from a
   // surface that names the thing (the inspector's "Update … for every canvas…", "Go to …", the Update
   // button of an out-of-date instance), so none is a ⌘K row. The second is for anyone who can open the

@@ -718,6 +718,51 @@ function scopeCss(css, value, opts = {}) {
       });
       // ds-update-dots:end
 
+      // ds-rects:begin
+      // S10.9 (13 · ds-edit-reach) — the reach view frames this canvas and asks where some elements are drawn
+      // (`ds-rects {seq, artboard, ids}`: the `data-cd-id`s the usage index names, inside `artboard` when given).
+      // The answer is where each one sits in THIS document's own pixels, plus the document's size: the studio
+      // scales both the same way and rings the elements over the frame, so no camera maths crosses the wall.
+      // Parent only; an id is compared as a plain attribute value (never built into a selector); at most 500.
+      const RECT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+      function answerRects(m) {
+        const seq = typeof m.seq === 'number' && Number.isInteger(m.seq) && m.seq >= 0 && m.seq <= 1000000 ? m.seq : null;
+        if (seq === null) return;
+        const want = new Set((Array.isArray(m.ids) ? m.ids.slice(0, 500) : []).filter((x) => typeof x === 'string' && RECT_ID.test(x)));
+        const boardId = typeof m.artboard === 'string' && RECT_ID.test(m.artboard) ? m.artboard : null;
+        let scope = document;
+        let label;
+        if (boardId) {
+          scope = null;
+          for (const b of document.querySelectorAll('[data-dc-screen]')) {
+            if (b.getAttribute('data-dc-screen') === boardId) { scope = b; break; }
+          }
+          const l = scope && scope.getAttribute('data-dc-label');
+          if (typeof l === 'string' && l && l.length <= 120) label = l;
+        }
+        const rects = [];
+        if (scope && want.size > 0) {
+          for (const el of scope.querySelectorAll('[data-cd-id]')) {
+            if (rects.length >= 500) break;
+            const id = el.getAttribute('data-cd-id');
+            if (!want.has(id)) continue;
+            const r = el.getBoundingClientRect();
+            if (!(r.width > 0 && r.height > 0)) continue;
+            rects.push({ id: id, x: r.left, y: r.top, w: r.width, h: r.height });
+          }
+        }
+        const out = { dgn: 'ds-rects-result', seq: seq, view: { w: window.innerWidth, h: window.innerHeight }, rects: rects };
+        if (label !== undefined) out.label = label;
+        window.parent.postMessage(out, '*');
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-rects') return;
+        answerRects(m);
+      });
+      // ds-rects:end
+
       // text-patches:begin
       function applyTextPatches(patches) {
         for (const patch of patches.slice(0, 500)) {
