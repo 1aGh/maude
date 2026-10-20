@@ -2078,46 +2078,9 @@ function ShellTimelinePanel() {
       }}
       onRetime={(clipRef, patch) => {
         if (!activePath || activePath === SYSTEM_TAB) return;
-        // DDR-150 P2 / Task 3 — the panel hands a { stableId, index }
-        // clipRef; stableId addressing wins (multi-comp-safe), the row
-        // index stays as the legacy fallback when the enumerator is
-        // unavailable.
-        const artboardId = timelineArtboardId || undefined;
-        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-        fetch(ccUrl)
-          .then((r) => r.json().catch(() => ({})))
-          .then((cc) => {
-            const clip = resolveClipRef(cc, clipRef);
-            const legacyIndex = clipRef && typeof clipRef === 'object' ? clipRef.index : clipRef;
-            const body = clip?.stableId
-              ? {
-                  canvas: activePath,
-                  artboardId,
-                  stableId: clip.stableId,
-                  contentHash: clip.contentHash,
-                  ...patch,
-                }
-              : { canvas: activePath, index: legacyIndex, ...patch };
-            return fetch('/_api/retime-sequence', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(body),
-            });
-          })
-          .then((r) => r.json())
-          .then((j) => {
-            if (!j?.ok) {
-              console.warn('[retime]', j?.error || 'failed');
-              timelineOpFailed('Retime refused', j?.error);
-            } else {
-              shellToast(patch.from != null ? 'Clip moved.' : 'Clip trimmed.', true);
-              if (j?.seq != null)
-                pushTlUndo(activePath, j.seq, patch.from != null ? 'move clip' : 'trim clip');
-            }
-            // The file watcher reloads the canvas → re-announce → the
-            // source-fetch effect re-parses the new timing.
-          })
-          .catch(() => {});
+        // S7.9 — a trim or a move is one `clip.retime` edit op: one write, one undo step (the clip is
+        // addressed by stableId + fingerprint, read fresh by the verb pipe).
+        timelineClipVerb(clipRef, 'retime', patch);
       }}
       onRemove={timelineRemoveClip}
       onReplace={(clipRef) => {
@@ -2258,42 +2221,8 @@ function ShellTimelinePanel() {
       }}
       onReorderMove={(movedRef2, targetRef, position) => {
         if (!activePath || activePath === SYSTEM_TAB) return;
-        // Task 6 — the magnetic drag commit: a real series MOVE (any
-        // distance), addressed by stableId pair + fingerprints.
-        const artboardId = timelineArtboardId || undefined;
-        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-        fetch(ccUrl)
-          .then((r) => r.json().catch(() => ({})))
-          .then((cc) => {
-            const moved = resolveClipRef(cc, movedRef2);
-            const ref = resolveClipRef(cc, targetRef);
-            if (!moved?.stableId || !ref?.stableId) return null;
-            return fetch('/_api/reorder-sequence', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
-                canvas: activePath,
-                artboardId,
-                stableId: moved.stableId,
-                contentHash: moved.contentHash,
-                refStableId: ref.stableId,
-                refContentHash: ref.contentHash,
-                position,
-                mode: 'move',
-              }),
-            });
-          })
-          .then((r) => (r ? r.json() : null))
-          .then((j) => {
-            if (j && !j.ok) {
-              console.warn('[reorder-move]', j.error || 'failed');
-              timelineOpFailed('Reorder refused', j.error);
-            } else if (j?.ok) {
-              shellToast('Clip moved.', true);
-              if (j.seq != null) pushTlUndo(activePath, j.seq, 'move clip');
-            }
-          })
-          .catch(() => shellToast('Reorder failed: network error'));
+        // S7.9 — the magnetic drag commit is one `clip.move` edit op (a real series MOVE, any distance).
+        timelineClipVerb(movedRef2, 'move', { refRef: targetRef, position });
       }}
       onDropMedia={(files, pos) => {
         if (!activePath || activePath === SYSTEM_TAB) return;
@@ -2302,9 +2231,7 @@ function ShellTimelinePanel() {
         // overlay-audio insert; multiple files insert in order. Audio
         // files always land in the audio band. Without a position, the
         // legacy append path.
-        const artboardId = timelineArtboardId || undefined;
         const fps = timelineFps;
-        const canvas = activePath;
         const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
         (async () => {
           // Dogfood fix — dropping media on the timeline of a canvas with
@@ -2343,29 +2270,36 @@ function ShellTimelinePanel() {
             // storyline beats (server-side ensure). Falls through to a
             // fresh "New Cut" canvas only when no artboard opted in.
             let upgraded = false;
+            const sized = [];
             for (const c of clips) {
               const probedSec = await probeMediaDuration(c.src).catch(() => null);
-              const body = {
-                canvas,
-                lane: c.mediaKind === 'audio' && upgraded ? 'audio' : 'storyline',
-                durationInFrames: durationFramesForDrop(fps, probedSec),
-                mediaTag: c.mediaKind === 'audio' ? 'Audio' : 'Video',
-                src: c.src,
-              };
-              if (body.lane === 'audio') body.from = 0;
-              const r = await fetch('/_api/insert-sequence', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(body),
-              }).catch(() => null);
-              const j = r ? await r.json().catch(() => null) : null;
-              if (j?.ok) {
-                upgraded = true;
-                if (j.seq != null) pushTlUndo(canvas, j.seq, 'add clip');
-              } else if (!upgraded) {
-                break; // no eligible artboard — New Cut fallback below
-              } else {
-                timelineOpFailed('Insert refused', j?.error);
+              sized.push({ c, durationInFrames: durationFramesForDrop(fps, probedSec) });
+            }
+            const asItem = (x) => ({
+              mediaTag: x.c.mediaKind === 'audio' ? 'Audio' : 'Video',
+              src: x.c.src,
+              durationInFrames: x.durationInFrames,
+            });
+            // The first clip always opens the storyline; later audio goes to the audio band. S7.9: the whole
+            // drop is ONE `clip.insert` per band (one write, one undo step), not one write per file.
+            const story = sized.filter((x) => x.c.mediaKind !== 'audio' || x === sized[0]);
+            const beds = sized.filter((x) => !story.includes(x));
+            const jStory = await timelineClipVerb(
+              null,
+              'insert',
+              { lane: 'storyline', items: story.map(asItem) },
+              { quiet: true }
+            );
+            if (jStory?.ok) {
+              upgraded = true; // else: no eligible artboard — New Cut fallback below
+              if (beds.length) {
+                const jBeds = await timelineClipVerb(
+                  null,
+                  'insert',
+                  { lane: 'audio', from: 0, items: beds.map(asItem) },
+                  { quiet: true }
+                );
+                if (!jBeds?.ok) timelineOpFailed('Drop refused', jBeds?.message || jBeds?.error);
               }
             }
             if (upgraded) {
@@ -2396,7 +2330,14 @@ function ShellTimelinePanel() {
             shellToast('New cut failed: too many "New Cut" canvases — rename some.');
             return;
           }
-          let slot = pos?.lane === 'storyline' ? pos.index : undefined;
+          // S7.9 — upload and size every file first, then add each band's files in ONE `clip.insert`:
+          // dropping three clips is one gesture, one write, one undo step.
+          const groups = new Map();
+          const add = (where, item) => {
+            const key = JSON.stringify(where);
+            if (!groups.has(key)) groups.set(key, { ...where, items: [] });
+            groups.get(key).items.push(item);
+          };
           for (const file of list) {
             const mediaTag = file.type.startsWith('video/')
               ? 'Video'
@@ -2428,60 +2369,49 @@ function ShellTimelinePanel() {
             // inherent duration, so they keep the fallback.
             const probedSec =
               mediaTag === 'Video' ? await probeMediaDuration(up.path).catch(() => null) : null;
-            const body = { canvas, artboardId, mediaTag, src: up.path };
+            const item = { mediaTag, src: up.path };
             if (pos && (isAudio || pos.lane === 'audio')) {
-              body.lane = 'audio';
-              body.from = Math.max(0, pos.frame ?? 0);
               // Default: stretch toward the end of the cut.
-              body.durationInFrames = Math.max(fps, timelineTotal - body.from);
+              const from = Math.max(0, pos.frame ?? 0);
+              add(
+                { lane: 'audio', from },
+                { ...item, durationInFrames: Math.max(fps, timelineTotal - from) }
+              );
             } else if (pos?.lane === 'storyline' && !isAudio) {
-              body.lane = 'storyline';
-              if (slot != null) {
-                body.index = slot;
-                slot += 1; // multiple files insert in order
-              }
-              body.durationInFrames = durationFramesForDrop(fps, probedSec);
+              add(
+                { lane: 'storyline', ...(pos.index != null ? { index: pos.index } : {}) },
+                { ...item, durationInFrames: durationFramesForDrop(fps, probedSec) }
+              );
             } else if (pos?.lane === 'overlay' && !isAudio) {
+              const dur = durationFramesForDrop(fps, probedSec);
               if ((timelineSequences || []).length === 0) {
                 // First clip of a greenfield comp = the BASE layer →
                 // storyline, wherever it was dropped.
-                body.lane = 'storyline';
+                add({ lane: 'storyline' }, { ...item, durationInFrames: dur });
               } else {
-                body.lane = 'overlay';
-                body.from = Math.max(0, pos.frame ?? 0);
+                add(
+                  { lane: 'overlay', from: Math.max(0, pos.frame ?? 0) },
+                  { ...item, durationInFrames: dur }
+                );
               }
-              body.durationInFrames = durationFramesForDrop(fps, probedSec);
             } else if (!isAudio) {
               // Default container rule: a video/image drop ANYWHERE on the
               // timeline lands in the storyline (append = hard cut at the
               // end; the caret gives it an index). The old lane-less
               // append refused hard-cut series ("no transition to clone").
-              body.lane = 'storyline';
-              body.durationInFrames = durationFramesForDrop(fps, probedSec);
+              add(
+                { lane: 'storyline' },
+                { ...item, durationInFrames: durationFramesForDrop(fps, probedSec) }
+              );
             } else {
               // Audio without a caret → audio band, from the start.
-              body.lane = 'audio';
-              body.from = 0;
-              body.durationInFrames = Math.max(fps, timelineTotal);
-            }
-            try {
-              const r = await fetch('/_api/insert-sequence', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(body),
-              });
-              const j = await r.json().catch(() => null);
-              if (j && !j.ok) {
-                console.warn('[insert-clip]', j.error || 'failed');
-                timelineOpFailed('Insert refused', j.error);
-              } else if (j?.ok) {
-                shellToast('Clip added to the timeline.', true);
-                if (j.seq != null) pushTlUndo(canvas, j.seq, 'add clip');
-              }
-            } catch {
-              shellToast('Insert failed: network error');
+              add(
+                { lane: 'audio', from: 0 },
+                { ...item, durationInFrames: Math.max(fps, timelineTotal) }
+              );
             }
           }
+          for (const g of groups.values()) await timelineClipVerb(null, 'insert', g);
         })();
       }}
       height={timelineHeight}

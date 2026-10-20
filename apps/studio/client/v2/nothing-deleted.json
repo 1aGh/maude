@@ -3630,6 +3630,7 @@
     "testid:studio/editing/draw-tools.tsx#canvas/edit-draw-input": "v2 code (added after the freeze)",
     "testid:studio/editing/draw-tools.tsx#canvas/edit-draw-line": "v2 code (added after the freeze)",
     "testid:studio/editing/draw-tools.tsx#canvas/edit-draw-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/drop-chip.tsx#canvas/edit-drop-chip": "v2 code (added after the freeze)",
     "testid:studio/editing/focus-model.tsx#canvas/edit-focus-ring": "v2 code (added after the freeze)",
     "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-band": "v2 code (added after the freeze)",
     "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-bands": "v2 code (added after the freeze)",
