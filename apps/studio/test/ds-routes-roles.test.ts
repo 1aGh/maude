@@ -73,6 +73,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/make', { ds: 'forge', action: 'make', label: 'Forge' }],
   // S10.13 — the project's default system (config.json)
   ['/_api/ds/default', { ds: DS }],
+  // S10.12 — convert system folders (the dry run is refused too: it lists every system)
+  ['/_api/ds/convert', { systems: [DS], dryRun: true }],
 ];
 
 describe('ds routes — roles (Q15)', () => {
@@ -143,6 +145,7 @@ describe('ds routes — roles (Q15)', () => {
       '/_api/ds/outside',
       '/_api/ds/pick',
       '/_api/ds/trash',
+      '/_api/ds/convert',
     ]) {
       const body = WRITES.find(([r]) => r === route)?.[1];
       const r = await call(specs, 'POST', route, body);
