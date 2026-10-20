@@ -443,29 +443,8 @@ export function compSpeech(
   return out;
 }
 
-/** Linear gain multiplier for `frame`: 1 outside speech, `10^(db/20)` inside it, a linear-in-dB
- *  ramp over `attackFrames` before each region and `releaseFrames` after it. A pure function of the
- *  frame (DDR-148) — `speech` must be sorted, as `compSpeech` returns it. */
-export function duckGain(
-  frame: number,
-  speech: ReadonlyArray<readonly [number, number]>,
-  o: { db: number; attackFrames: number; releaseFrames: number }
-): number {
-  const db = Math.min(0, o.db);
-  if (db === 0) return 1;
-  let depth = 0; // 0..1 of the full attenuation, the deepest over all regions
-  for (const [s, e] of speech) {
-    if (s - o.attackFrames > frame) break; // sorted: every later region starts later still
-    let k: number;
-    if (frame >= s && frame <= e) k = 1;
-    else if (frame < s)
-      k = o.attackFrames > 0 ? (frame - (s - o.attackFrames)) / o.attackFrames : 0;
-    else k = o.releaseFrames > 0 ? 1 - (frame - e) / o.releaseFrames : 0;
-    if (k > depth) depth = k;
-    if (depth >= 1) break;
-  }
-  return depth <= 0 ? 1 : 10 ** ((db * depth) / 20);
-}
+// duckGain (pure, frame → gain) lives in ./framing.ts: the canvas's <Duck> runs it every frame.
+export { duckGain } from './framing.ts';
 
 // ---------------------------------------------------------------------------
 // compBeats
@@ -494,57 +473,6 @@ export function compBeats(c: CompClips, grids: Record<string, BeatGrid>): number
 export { type TranscriptCut, transcriptCut } from './transcript-cut.ts';
 
 // ---------------------------------------------------------------------------
-// framing (§5.3, §5.8)
+// framing (§5.3, §5.8) — pure, shared with the canvas's <Reframe> / <Place> (S7.5): ./framing.ts.
 
-/** "W:H" reduced by the greatest common divisor — the key of `<Reframe formats>` / `<Place formats>`. */
-export function aspectKey(w: number, h: number): string {
-  let x = Math.round(Math.abs(w));
-  let y = Math.round(Math.abs(h));
-  if (!x || !y) return `${w}:${h}`;
-  const gcd = (p: number, q: number): number => (q ? gcd(q, p % q) : p);
-  const g = gcd(x, y);
-  x /= g;
-  y /= g;
-  return `${x}:${y}`;
-}
-
-/**
- * The output-aspect window cut from the source: the largest window of that aspect that fits, scaled
- * by 1/zoom (zoom < 1 counts as 1), centred on the focus point (fractions of the source frame) and
- * clamped to the source. Pixels of the SOURCE.
- */
-export function reframeWindow(
-  focus: readonly [number, number],
-  src: { w: number; h: number },
-  out: { w: number; h: number },
-  zoom: number
-): { x: number; y: number; w: number; h: number } {
-  const aspect = out.w / out.h;
-  let w: number;
-  let h: number;
-  if (src.w / src.h > aspect) {
-    h = src.h;
-    w = h * aspect;
-  } else {
-    w = src.w;
-    h = w / aspect;
-  }
-  const z = zoom >= 1 ? zoom : 1;
-  w /= z;
-  h /= z;
-  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-  const x = clamp(clamp(focus[0], 0, 1) * src.w - w / 2, 0, src.w - w);
-  const y = clamp(clamp(focus[1], 0, 1) * src.h - h / 2, 0, src.h - h);
-  return { x, y, w, h };
-}
-
-/** `<Place at formats>` (S7 Q5): the title's centre anchor in output pixels — `formats["W:H"]`
- *  when the output has that aspect, else `at`; fractions are clamped to the frame. */
-export function placeAt(
-  spec: { at: readonly [number, number]; formats?: Record<string, readonly [number, number]> },
-  out: { w: number; h: number }
-): { x: number; y: number } {
-  const p = spec.formats?.[aspectKey(out.w, out.h)] ?? spec.at;
-  const clamp = (v: number) => Math.min(1, Math.max(0, v));
-  return { x: clamp(p[0]) * out.w, y: clamp(p[1]) * out.h };
-}
+export { aspectKey, focusAt, placeAt, reframeWindow } from './framing.ts';

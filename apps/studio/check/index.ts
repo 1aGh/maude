@@ -49,6 +49,7 @@ import { presentIdIssues } from '../present/meta-schema.ts';
 import { validateBeats, validateTranscript } from '../video/schema.ts';
 import { checkIdsAdapter } from './ids.ts';
 import { validateMeta } from './meta.ts';
+import { videoVocabFindings } from './video.ts';
 
 export type CheckKind =
   | 'canvas-tsx'
@@ -260,6 +261,9 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       );
     else seen.set(ab.id, line);
   }
+  // S7.5 — the comp vocabulary's rules (V2-1.10 §5.7): one <Captions>, <Duck> wraps one <Audio>,
+  // <Reframe> keys sorted / in range / no follow, `fixes` a JSON literal, no derived props.
+  for (const f of videoVocabFindings(rel, text, parsed.program)) r.errors.push(f);
   const ids = checkIdsAdapter(text, {
     against: opts.against ?? undefined,
     path: rel,
