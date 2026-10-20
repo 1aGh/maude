@@ -212,6 +212,7 @@ function ChatThread({
   suggestOn,
   onSetSuggestOn,
   unavailable = false,
+  viewer = false,
   notConnected = null,
   onConnected,
 }) {
@@ -509,6 +510,10 @@ function ChatThread({
                 showRateLimitBanner && usage.rateLimit?.status !== 'allowed_warning'
               }
               onDismissRateLimitBanner={dismissRateLimitBanner}
+              // S10.16c — the gates a DS host's "send" meets: this chat in front · connected · not a viewer
+              active={!hidden}
+              unavailable={unavailable}
+              viewer={viewer}
             />
             {/* S5.12 — everything that used to sit in the field's toolbar, under one quiet row. */}
             <ChatAdvanced
@@ -1019,6 +1024,7 @@ export default function ChatPanel({
                 suggestOn={suggestOn}
                 onSetSuggestOn={onSetSuggestOn}
                 unavailable={status.available === false}
+                viewer={readOnly}
                 notConnected={
                   id === activeChatId ? (
                     <NotConnected

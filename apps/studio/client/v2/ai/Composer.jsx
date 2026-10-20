@@ -6,6 +6,7 @@ import {
   ThreadPrimitive,
   useComposer,
   useComposerRuntime,
+  useThread,
 } from '@assistant-ui/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -16,7 +17,6 @@ import {
   normalizeName,
   STATIC_COMMANDS,
 } from '../../panels/slash-commands.js';
-import { subscribeAskAI } from '../search/search-env.js';
 import { Spark } from './icons.jsx';
 import {
   chipNodes,
@@ -30,6 +30,7 @@ import { AttachChips } from './AChip.jsx';
 import { AttachMenu } from './AttachMenu.jsx';
 import { Consent } from './Consent.jsx';
 import { ScopeChip } from './ScopeChip.jsx';
+import { useAskAI } from './use-ask-ai.js';
 import { useAskSelection } from './use-ask-selection.js';
 
 export function prettyCanvas(path) {
@@ -398,9 +399,13 @@ export function Composer({
   usage,
   showRateLimitBanner,
   onDismissRateLimitBanner,
+  active = true,
+  unavailable = false,
+  viewer = false,
 }) {
   const { all, existsSet } = useSlashCommands(conn);
   const composerRuntime = useComposerRuntime();
+  const running = useThread((t) => t.isRunning);
   const text = useComposer((c) => c.text);
 
   const match = matchLeadingCommand(text);
@@ -460,8 +465,9 @@ export function Composer({
     }
   }, [menuOpen, conn, chatId, picksRef]);
 
-  // V2-4.6 — ⌘K "Ask AI": the query lands in the composer; the person still sends it.
-  useEffect(() => subscribeAskAI((t) => composerRuntime.setText(t)), [composerRuntime]);
+  // V2-4.6 — ⌘K "Ask AI": the query lands in the composer; the person still sends it. S10.16c: the DS hosts'
+  // `askAI(text, { send: true, origin: 'ds-…' })` is the one ask that also sends (use-ask-ai.js; this file never does).
+  useAskAI({ composerRuntime, active, unavailable, viewer, running });
 
   // S2.19 — ⌘/ on a selection (AskSelectionHost): the bubble's words + an `elements` scope; the send is in the hook
   // (this file never sends — the ⌘K contract above).
