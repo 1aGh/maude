@@ -1,18 +1,31 @@
-// S11.19 G1: Canvases > Advanced widened to the folder path's width and clipped
-// the switches out of the 228 px panel. A grid track defaults to `auto`, so the
-// nowrap mono path inflated it. The body must pin its one column to minmax(0, 1fr).
+// S11.19 G1/G2: an Advanced body widened to its widest nowrap child and clipped the rest out of the
+// panel (Canvases › Advanced: the folder path pushed the switches out of the 228 px panel; Version
+// history › Advanced: the project and branch values and the notes ran past the 264 px panel).
+// A grid track defaults to `auto`, so the child's min-content inflated it. Each body pins its one
+// column to minmax(0, 1fr).
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const css = readFileSync(join(import.meta.dir, '../client/v2/left-panel/left-panel.css'), 'utf8');
+const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
 
-describe('left panel Advanced body (G1)', () => {
-  test('.lp-adv-body pins its column so a long path cannot widen the panel', () => {
-    const m = css.match(/\.lp-adv-body\s*\{([^}]*)\}/);
-    expect(m).not.toBeNull();
-    const body = m ? m[1] : '';
-    expect(body).toMatch(/display:\s*grid/);
-    expect(body).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+function body(css: string, selector: string): string {
+  const esc = selector.replace(/[.]/g, '\\.');
+  const m = css.match(new RegExp(`${esc}\\s*\\{([^}]*)\\}`));
+  expect(m).not.toBeNull();
+  return m ? m[1] : '';
+}
+
+describe('Advanced bodies pin their column (G1, G2)', () => {
+  test('.lp-adv-body (Canvases and Layers › Advanced)', () => {
+    const b = body(read('client/v2/left-panel/left-panel.css'), '.lp-adv-body');
+    expect(b).toMatch(/display:\s*grid/);
+    expect(b).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  });
+
+  test('.v2-fold-body (every other panel fold: Version history, Inspector, …)', () => {
+    const b = body(read('client/v2/fold/fold.css'), '.v2-fold-body');
+    expect(b).toMatch(/display:\s*grid/);
+    expect(b).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   });
 });
