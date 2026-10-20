@@ -24,7 +24,25 @@ export function tileLabel(asset) {
   return used ? `${asset.name}. ${used}` : asset.name;
 }
 
-export function AssetTile({ asset, url, picked, canDrag, onPick, onMenu, caption = false }) {
+/** "Uploading IMG_2231.jpg" · "Uploading IMG_2231.jpg, 64%" — a screen reader hears the bar too. */
+export function uploadWords(name, up) {
+  if (!up) return '';
+  return typeof up.progress === 'number'
+    ? `Uploading ${name}, ${Math.round(up.progress * 100)}%`
+    : `Uploading ${name}`;
+}
+
+// `uploading`: { progress?: 0..1 } while this Mac still owes the cloud this file (S8.14) — a thin bar along the foot.
+export function AssetTile({
+  asset,
+  url,
+  picked,
+  canDrag,
+  onPick,
+  onMenu,
+  caption = false,
+  uploading = null,
+}) {
   const used = usageWords(asset);
   const isImage = asset.kind === 'image';
   return (
@@ -35,7 +53,9 @@ export function AssetTile({ asset, url, picked, canDrag, onPick, onMenu, caption
       data-asset={asset.path}
       data-kind={asset.kind}
       aria-pressed={picked}
-      aria-label={tileLabel(asset)}
+      aria-label={
+        uploading ? `${tileLabel(asset)}. ${uploadWords(asset.name, uploading)}` : tileLabel(asset)
+      }
       onClick={(e) => onPick(asset.path, e)}
       onContextMenu={(e) => {
         onPick(asset.path, e, true);
@@ -52,6 +72,22 @@ export function AssetTile({ asset, url, picked, canDrag, onPick, onMenu, caption
       ) : (
         <img className="lp-thumb" src={url} alt="" loading="lazy" draggable={false} />
       )}
+      {uploading && !caption ? (
+        <span
+          className="lp-tile-up"
+          data-testid="assets-tile-up"
+          data-known={typeof uploading.progress === 'number' ? 'true' : 'false'}
+          aria-hidden="true"
+        >
+          <b
+            style={
+              typeof uploading.progress === 'number'
+                ? { width: `${Math.round(uploading.progress * 100)}%` }
+                : undefined
+            }
+          />
+        </span>
+      ) : null}
       {caption ? (
         // the wide Browse view names every picture under it; the hover tip would cover the next row
         <span className="lp-tile-cap" aria-hidden="true">

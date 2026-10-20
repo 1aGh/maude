@@ -3,7 +3,8 @@
 //
 //   placeAsset({ asset | assets, target: { canvas, artboardId, frameId?, occurrence? }, mode?, natural?, alt?, from? })
 //
-//   mode  'fill' (default for a frame) · 'loose' (default for an artboard) · 'fill-in-order' · 'grid'
+//   mode  'fill' (default for a frame) · 'loose' (default for an artboard) · 'fill-in-order' · 'grid' · 'auto'
+//         ('auto': the studio picks — empty frames fill in order, else a tidy grid, else loose; S8.14)
 //
 // It is `POST /_api/edit-op { op: 'image.place' }` — the same writer the canvas's own drop and the Figma paste end in
 // (edit-ops/image-fit.ts): one request, one file write, one undo step. `frameId` names a frame (or a picture) inside
@@ -21,13 +22,13 @@ const SAID = {
   invalid: 'Not placed. That picture does not fit there; try another.',
 };
 
-export const PLACE_MODES = Object.freeze(['fill', 'loose', 'fill-in-order', 'grid']);
+export const PLACE_MODES = Object.freeze(['fill', 'loose', 'fill-in-order', 'grid', 'auto']);
 
 /**
  * @param {{
  *   asset?: string, assets?: string[],
  *   target: { canvas: string, artboardId: string, frameId?: string, occurrence?: number },
- *   mode?: 'fill' | 'loose' | 'fill-in-order' | 'grid',
+ *   mode?: 'fill' | 'loose' | 'fill-in-order' | 'grid' | 'auto',
  *   natural?: { w: number, h: number }, alt?: string, from?: { name?: string }
  * }} req
  * @param {{ fetch?: typeof fetch, record?: (payload: { op: 'edit-op', writeId: string, label: string }) => void }} [opts]

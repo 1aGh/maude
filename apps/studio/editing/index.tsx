@@ -29,6 +29,7 @@ import { CornerDots } from './corner-dots.tsx';
 import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
+import { FinderDrop } from './finder-drop.tsx';
 import { KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
@@ -280,6 +281,8 @@ export function EditingLayer() {
       <PlaceGhost readOnly={isReadOnlyCanvas()} />
       {/* S2.15 — a tile dropped on a frame, crop mode (double-click a picture), and the bar under a Figma paste */}
       <ImageDrop readOnly={isReadOnlyCanvas()} />
+      {/* S8.14 — photos dragged from Finder onto an artboard: the hint, the import, ONE image.place, selected at once */}
+      <FinderDrop readOnly={isReadOnlyCanvas()} />
       <CropMode readOnly={isReadOnlyCanvas()} />
       {editChrome ? <PasteBar readOnly={isReadOnlyCanvas()} /> : null}
       {/* S2.20 — an Undo history row lights what it would undo */}
