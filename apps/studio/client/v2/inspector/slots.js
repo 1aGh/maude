@@ -86,6 +86,9 @@ export const slotsVersion = () => version;
  * EMPTY registry ("a section with no registered body is not drawn") would otherwise depend on which other test
  * files ran first in the same process: `bun test` shares one module registry, so any file that imported a
  * section module earlier leaves its bodies registered.
+ * Restoring keeps whatever registered WHILE stashed and was not taken back: a section module first imported
+ * during the stash registers once, at import, and the module cache never runs that again — dropping it here left
+ * every later file in the process with no Position / Size / Layout bodies.
  * @returns {() => void} restore
  */
 export function stashSlots() {
@@ -93,8 +96,15 @@ export function stashSlots() {
   bySection.clear();
   notify();
   return () => {
+    const during = new Map(bySection);
     bySection.clear();
     for (const [k, v] of saved) bySection.set(k, v);
+    for (const [k, v] of during) {
+      const list = bySection.get(k) ?? [];
+      for (const e of v) if (!list.includes(e)) list.push(e);
+      list.sort((a, b) => a.order - b.order || a.seq - b.seq);
+      bySection.set(k, list);
+    }
     notify();
   };
 }
