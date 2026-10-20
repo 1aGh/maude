@@ -102,4 +102,8 @@ export const DS_ACTIONS: ActionDef[] = [
     search: ROW,
   },
   row('ds.handoff-tokens', 'Hand off tokens'),
+  // S10.15a — Bring it up to the schema (13 · ds-multi-schema): the amber dot / a switch to or from a level-11
+  // system opens the sheet (S10.15b); its primary button applies a proven stage as one action. A system's own
+  // row, never ⌘K. Can edit on the whole project.
+  row('ds.upgrade', 'Bring it up to the schema'),
 ];

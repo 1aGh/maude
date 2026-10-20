@@ -39,6 +39,7 @@ import { runConvertOp } from './ds-convert.ts';
 import { runEdgeOp } from './ds-edges.ts';
 import { runMakeOp } from './ds-make.ts';
 import { runSwitchOp } from './ds-switch.ts';
+import { runUpgradeOp } from './ds-upgrade.ts';
 import type { RouteSpec } from './table.ts';
 
 export const DS_FORMATS = {
@@ -71,7 +72,8 @@ export type DsOp =
   | 'fix-contrast'
   | 'add-colour'
   | 'nearest'
-  | 'off-system';
+  | 'off-system'
+  | 'upgrade';
 
 export interface DsOpContext {
   engine: DsEngine;
@@ -625,6 +627,8 @@ export async function runDsOp(
         return await runEdgeOp(op, systemFor(c, input.ds), input, c);
       case 'off-system':
         return await runEdgeOp(op, null, input, c);
+      case 'upgrade':
+        return await runUpgradeOp(input, c);
     }
   } catch (err) {
     const a = errorAnswer(err);
@@ -696,6 +700,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'GET', path: '/_api/ds/off-system', op: 'off-system' },
   { method: 'POST', path: '/_api/ds/fix-contrast', op: 'fix-contrast' },
   { method: 'POST', path: '/_api/ds/add-colour', op: 'add-colour' },
+  { method: 'POST', path: '/_api/ds/upgrade', op: 'upgrade' },
 ];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {

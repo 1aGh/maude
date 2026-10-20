@@ -6,8 +6,10 @@
 #   ds-upgrade.sh <ds> --analyse              # the check + the mechanical plan (read-only)
 #   ds-upgrade.sh <ds> --plan-mechanical      # the plan JSON alone (read-only)
 #   ds-upgrade.sh <ds> --validate <plan.json> # invariants V1–V4, V8 (13 = refused, nothing written)
-#   ds-upgrade.sh <ds> --stage <plan.json>    # result into <designRoot>/_state/ds-upgrade/<ds>/<stamp>/
-#   ds-upgrade.sh <ds> --apply <plan.json>    # validate, then write the tokens CSS (permission card)
+#   ds-upgrade.sh <ds> --stage <plan.json>    # throwaway before/ + after/ copies, plan applied to after/
+#   ds-upgrade.sh <ds> --prove <stage>        # two headless studios + the ΔE gate → review.json
+#   ds-upgrade.sh <ds> --apply <stage>        # ONE action through the project's studio (permission card)
+#   ds-upgrade.sh <ds> --discard <stage>      # the throwaway copies and the record go
 #   ds-upgrade.sh --root <project>            # default: $CLAUDE_PROJECT_DIR, else the current directory
 #
 # The plan's judgement items (new role values, collisions, component map) come from the AI run
@@ -20,7 +22,7 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 
 case "$1" in
-  --help|-h) sed -n '2,14p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  --help|-h) sed -n '2,17p' "$0" | sed 's/^# \?//'; exit 0 ;;
 esac
 
 exec bun run "$SCRIPT_DIR/_ds-upgrade.mjs" "$@"

@@ -78,7 +78,61 @@ describe('ds-upgrade (system half)', () => {
   test('V3: a new colour that is a literal (a new hue) is refused', () => {
     const bad = { ...scrim, values: { light: 'oklch(0 0 0 / 0.5)', dark: 'var(--bg-0)' } };
     const plan = mergeJudged(planMechanical(model, idx), [bad]);
-    expect(validatePlan(model, idx, plan).map((r) => r.invariant)).toEqual(['V3']);
+    // …and it is a new hue that is neither flagged nor picked (V4, S10.15a)
+    expect(validatePlan(model, idx, plan).map((r) => r.invariant)).toEqual(['V3', 'V4']);
+  });
+
+  // S10.15a — V4: a literal colour (a new hue) appears only in a picked option, flagged newHue,
+  // of a kind the system lacks entirely.
+  const opt = (l: number) => ({
+    tokens: {
+      '--palette-1': { light: `oklch(${l} 0.15 30)`, dark: `oklch(${l - 0.2} 0.15 30)` },
+    },
+  });
+  const palette = {
+    id: 'palette',
+    kind: 'add-role' as const,
+    status: 'needs-pick' as const,
+    options: [opt(0.7), opt(0.75), opt(0.8)],
+    picked: 1,
+    newHue: true,
+  };
+  const v4 = (item: Record<string, unknown>, m = model) =>
+    validatePlan(m, idx, mergeJudged(mergeJudged(planMechanical(m, idx), [scrim]), [item as never]))
+      .filter((r) => r.invariant === 'V4')
+      .map((r) => r.item);
+
+  test('V4: a picked new hue of a kind the system lacks passes and lands in the CSS', () => {
+    expect(v4(palette)).toEqual([]);
+    const plan = mergeJudged(planMechanical(model, idx), [scrim, palette]);
+    expect(validatePlan(model, idx, plan)).toEqual([]);
+    expect(applySystemPlan(model, plan)).toContain('--palette-1: oklch(0.75 0.15 30);');
+  });
+
+  test('V4: a planted literal new hue without newHue + a pick is refused', () => {
+    const planted = {
+      id: 'role:--palette-1',
+      kind: 'add-role' as const,
+      status: 'judged' as const,
+      values: { light: '#ff5a1f', dark: '#c2410c' },
+    };
+    expect(v4(planted)).toEqual(['role:--palette-1']);
+    // flagged, but judged straight in (no three options, no pick)
+    expect(v4({ ...planted, newHue: true })).toEqual(['role:--palette-1']);
+    // picked, but not flagged as a new hue
+    expect(v4({ ...palette, newHue: undefined })).toEqual(['palette']);
+    // two options only
+    expect(v4({ ...palette, options: palette.options.slice(0, 2), picked: 0 })).toEqual([
+      'palette',
+    ]);
+  });
+
+  test('V4: a new hue for a kind the system already has is refused', () => {
+    const f = {
+      ...legacy,
+      [CSS]: legacy[CSS].replace('--bg-0:', '--palette-2: oklch(0.6 0.1 200);\n  --bg-0:'),
+    };
+    expect(v4(palette, loadSystem(memFs(f), cfg))).toEqual(['palette']);
   });
 
   test('V1: a result that changes an existing value is refused', () => {

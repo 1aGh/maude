@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "80b868ebbf32",
+  "manifestVersion": "91effebe524d",
   "actions": [
     {
       "id": "search.open",
@@ -6410,6 +6410,23 @@
         "format": "tokens",
         "skill": "design:design-system",
         "how": "the handoff of tokens IS system/<ds>/tokens.json (design tokens, both modes) and colors_and_type.css: read them, or run maude design ds-check <ds> --emit to regenerate tokens.json first"
+      }
+    },
+    {
+      "id": "ds.upgrade",
+      "label": "Bring it up to the schema",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/upgrade",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage>"
       }
     }
   ],

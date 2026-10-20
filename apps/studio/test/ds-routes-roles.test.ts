@@ -80,6 +80,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   // S10.17 — Lighten to 4.5:1 / Add it to the system (waiting edits: Can edit on the DS canvas)
   ['/_api/ds/fix-contrast', { ds: DS, css: '--fg-0' }],
   ['/_api/ds/add-colour', { ds: DS, value: '#3b6fe0', label: 'Badge blue' }],
+  // S10.15a — Bring it up to the schema (even the read-only analyse lists every canvas)
+  ['/_api/ds/upgrade', { ds: DS, step: 'analyse' }],
 ];
 
 describe('ds routes — roles (Q15)', () => {

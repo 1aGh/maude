@@ -387,6 +387,7 @@ const ROUTE: Record<DsOp, { method: 'GET' | 'POST'; path: string }> = {
   'add-colour': { method: 'POST', path: '/_api/ds/add-colour' },
   nearest: { method: 'GET', path: '/_api/ds/nearest' },
   'off-system': { method: 'GET', path: '/_api/ds/off-system' },
+  upgrade: { method: 'POST', path: '/_api/ds/upgrade' },
 };
 
 export interface StudioRef {

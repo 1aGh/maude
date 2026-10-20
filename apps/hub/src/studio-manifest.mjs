@@ -327,6 +327,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/add-colour': { safe: null, unsafe: 'edit' }, // S10.17 — Add it to the system (a waiting new colour)
   '/_api/ds/nearest': { safe: 'read', unsafe: null }, // S10.17 — the closest system colour (trash replacement / suggestion)
   '/_api/ds/off-system': { safe: 'read', unsafe: null }, // S10.17 — hand-picked colours on the changed lines of a canvas
+  '/_api/ds/upgrade': { safe: null, unsafe: 'edit' }, // S10.15a — Bring it up to the schema (stage / prove / apply)
   // S1.18 — entry → path. The studio reads each session's claim per request (S9.9, http.ts
   // `links.scope`): a canvas-only visitor resolves only its granted canvases, every other entry is
   // `unknown` (history/links.ts — no existence oracle). A read: anyone who may view may follow a link.

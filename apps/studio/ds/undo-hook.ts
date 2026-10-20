@@ -16,6 +16,7 @@
 
 import { registerUndoHook, type UndoHook } from '../routes/project-undo.ts';
 import type { DsEngine } from './engine.ts';
+import { DS_UPGRADE_UNDO_HOOK, upgradeUndoHook } from './upgrade-apply.ts';
 
 export const DS_UNDO_HOOK = 'ds';
 
@@ -26,7 +27,20 @@ export function dsUndoHook(engine: Pick<DsEngine, 'revertActions'>): UndoHook {
   };
 }
 
-/** Wire the hook (the studio's boot, S10.3's `routes/ds.ts`). Returns the unregister. */
-export function registerDsUndoHook(engine: Pick<DsEngine, 'revertActions'>): () => void {
-  return registerUndoHook(DS_UNDO_HOOK, dsUndoHook(engine));
+/**
+ * Wire the hook (the studio's boot, S10.3's `routes/ds.ts`). Returns the unregister. With the
+ * engine's design root it also wires S10.15a's bring-up hook (`ds/upgrade-apply.ts`): the system
+ * files of a "Brought <system> up to schema v1" action follow its undo / redo.
+ */
+export function registerDsUndoHook(
+  engine: Pick<DsEngine, 'revertActions'> & { designRoot?: string }
+): () => void {
+  const off = registerUndoHook(DS_UNDO_HOOK, dsUndoHook(engine));
+  const offUp = engine.designRoot
+    ? registerUndoHook(DS_UPGRADE_UNDO_HOOK, upgradeUndoHook(engine.designRoot))
+    : () => {};
+  return () => {
+    off();
+    offUp();
+  };
 }
