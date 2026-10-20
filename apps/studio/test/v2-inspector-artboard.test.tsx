@@ -124,7 +124,10 @@ async function seat() {
   const web = await import('../client/v2/inspector/kinds/artboard-web.jsx');
   const fixed = await import('../client/v2/inspector/kinds/artboard-fixed.jsx');
   const video = await import('../client/v2/inspector/kinds/artboard-video.jsx');
+  // S7.23: paper has its own rows (artboard-print.jsx)
+  const print = await import('../client/v2/inspector/kinds/artboard-print.jsx');
   art.offArtboardSections();
+  print.offArtboardPrint();
   web.offArtboardWeb();
   fixed.offArtboardFixed();
   video.offArtboardVideo();
@@ -133,6 +136,7 @@ async function seat() {
   seated.push(web.registerArtboardWebSlots());
   seated.push(fixed.registerArtboardFixedSlots());
   seated.push(video.registerArtboardVideoSlots());
+  seated.push(print.registerArtboardPrintSlots());
   seated.push(
     registerSlot('export', { id: 'export.presets', order: 100, Body: exp.ExportSlotBody })
   );
@@ -159,6 +163,11 @@ async function frame(el: Record<string, unknown> = {}, over: Record<string, unkn
     />
   );
 }
+// the fold's open state is remembered per Mac (and per test process): open it only when it is closed
+const openAdvanced = async (host: HTMLElement) => {
+  const t = must(q(host, 'fold-inspector-toggle'), 'Advanced');
+  if (t.getAttribute('aria-expanded') !== 'true') await click(t, 'Advanced');
+};
 const field = (host: HTMLElement, id: string) =>
   must(q(host, id)?.querySelector('input') ?? null, `input in ${id}`);
 
@@ -309,12 +318,13 @@ describe('what an edit sends', () => {
   });
 
   test('Kind: Fixed size clears the explicit prop; Web page frees a Fixed height too', async () => {
-    // paper keeps its Kind row in the Artboard section until S7.23; the others have it under Advanced
+    // S7.23: paper keeps its Kind row under Advanced, like the other three kinds
     const host = await frame({ attrs: { 'data-dc-kind': 'print' } });
+    await openAdvanced(host);
     await pick(q(host, 'insp-ab-kind'), 'digital');
     expect(calls[0]).toEqual(['kind', 'desktop', null, null]);
     const fixed = await frame({ attrs: { 'data-dc-kind': 'digital', 'data-dc-fixed': 'true' } });
-    await click(q(fixed, 'fold-inspector-toggle'), 'Advanced');
+    await openAdvanced(fixed);
     await pick(q(fixed, 'insp-ab-kind'), 'web');
     expect(calls).toEqual([
       ['kind', 'desktop', 'web', null],
@@ -340,18 +350,8 @@ describe('what an edit sends', () => {
     ]);
   });
 
-  test('print: orientation and bleed write the print prop together with the resolved size', async () => {
-    const host = await frame({
-      attrs: { 'data-dc-kind': 'print', 'data-dc-print': JSON.stringify({ paper: 'a4' }) },
-    });
-    await click(
-      q(host, 'insp-row-ab-orientation')?.querySelectorAll('button')[1] ?? null,
-      'landscape'
-    );
-    const names = calls.map((c) => c[0]);
-    expect(names).toEqual(['resize', 'print']);
-    expect((calls[1] as Call)[2]).toMatchObject({ paper: 'a4', orientation: 'landscape' });
-  });
+  // S7.23: paper's orientation, bleed and size are ONE `artboard.set-print` edit-op now (print prop + px size in a
+  // single write) — what each row sends is pinned in v2-inspector-print.test.tsx.
 });
 
 describe('Theme under Advanced (A-artboard-theme)', () => {

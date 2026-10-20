@@ -267,15 +267,18 @@ is an ordinary edit of the files (Version history still has the board).
 
 ## Artboard props that Maude 2 adds (S7)
 
-Both props are literal values on `<DCArtboard>`. Maude 1.x ignores them and still draws the artboard correctly
+These props are literal values on `<DCArtboard>`. Maude 1.x ignores them and still draws the artboard correctly
 (V2-1.12 R1–R3).
 
 | Prop | Shape | What a 1.x peer sees |
 | --- | --- | --- |
 | `print={{ …, sizeMm: [w, h] }}` (custom print size) | `sizeMm` is the trim in mm, width × height, each side 10–5000. `paper` is still a preset id: the **smallest preset that holds the trim** (`kinds/print-custom.ts` `nearestLargerPreset`), never `"custom"`. `orientation` is the one that makes the preset hold it. `bleedMm` is always written. The JSX `width`/`height` are the trim plus 2 × bleed in px, as for every print artboard. Example: `print={{ paper: 'dl', orientation: 'portrait', sizeMm: [99, 210], bleedMm: 3 }}`. | The preset's name in its Paper select and the same guides, because the guides come from the artboard's px size less the bleed. Its prop reader drops the array, and `paper: "custom"` would make it throw. |
 | `safeZones="<preset>"` (e.g. `"instagram-reels"`) | One preset id from `kinds/safe-zones.ts` (S7.22). "Show on canvas" is per-person runtime state in `_canvas-state/<slug>.view.json` `overlays.safeZones`, never in the file. The bands are never exported. | Nothing. The prop is unknown to it and has no effect on rendering. |
+| `print={{ …, showGuides: true }}` (S7.23, this artboard's own Print guides switch) | A boolean **inside** the `print` prop. `true` / `false` wins over View › Advanced › Print guides, either way (Gate 0 C25); no key follows View. Whether the *View default* is on is per-person runtime state (`_canvas-state/<slug>.view.json` `overlays.print`), never in the file. Display only: no exporter reads it. | Nothing: it keeps the key when it rewrites `print`, and its overlay follows View. |
+| `print` ↔ `width` / `height` (S7.23, the print inspector's one write) | The artboard's `width` and `height` are the **trim plus 2 × bleed**, in whole px: `round(mm × 96 ÷ 25.4)` for the trim and for the bleed (`print/units.ts`). A6 with 3 mm bleed is `419 × 581`. Change paper, `sizeMm`, orientation or `bleedMm` and write the new px size in the same edit. `marginsMm` is `{ top, right, bottom, left }` in mm (default 5 each) and moves no px. | The same artboard, drawn at the px size in the file. |
+| `guides={{ columns, rows, grid }}` (S7.23, Advanced › Guides) | `columns` / `rows`: `{ count: 1–64, gutter: 0–200, margin: 0–2000 }`; `grid`: `{ size: 2–1000 }`. Drawn on the canvas only when View › Advanced › Guides is on; never exported. | The same guides (the prop is Maude 1.x's own). |
 
-Write a custom size with `customPrintProp([w, h])`, or hand-write the same shape. Both props follow DDR-181:
+Write a custom size with `customPrintProp([w, h])`, or hand-write the same shape. All of them follow DDR-181:
 artboard intent lives in the JSX.
 
 ## Draw a path; combine shapes: the same result by hand (S2.14)

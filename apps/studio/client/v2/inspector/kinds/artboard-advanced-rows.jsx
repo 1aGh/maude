@@ -1,7 +1,8 @@
 // client/v2/inspector/kinds/artboard-advanced-rows.jsx — S7.21: what a web page, a fixed size and a video keep under
 // Advanced ("Every number, under Advanced." — 08).
 //
-//   Exact size     W × H, for a web page and a video (a fixed size shows them above; paper has its own, S7.23)
+//   Exact size     W × H, for a web page and a video (a fixed size shows them above; paper has its own, S7.23:
+//                  artboard-print-advanced.jsx)
 //   Clip content   on — an artboard always clips to its edge
 //   Kind           the same four words as the chip; switching still writes the kind prop (S7.25 asks first when it
 //                  converts something)
@@ -17,8 +18,9 @@ import { KIND_OPTIONS } from './artboard-model.js';
 import { SizePairRow, handlersOf, useArtboardWrites } from './artboard-rows.jsx';
 import { useVideoFacts } from './video-facts.js';
 
-/** Kinds whose rows live in artboard-{web,fixed,video}.jsx; paper keeps all of these in its own body. */
-const OWN_ROWS = new Set(['web', 'digital', 'video']);
+/** Kinds whose rows live in artboard-{web,fixed,video,print}.jsx. Paper's exact numbers are its own Advanced rows
+ *  (client/v2/kinds/advanced-rows.js, S7.23); here it keeps Clip content and Kind. */
+const OWN_ROWS = new Set(['web', 'digital', 'video', 'print']);
 
 export function ArtboardAdvancedRows({ el, ctx }) {
   const { f, id, can, resize, commitHeight } = useArtboardWrites(el, ctx);
@@ -46,7 +48,7 @@ export function ArtboardAdvancedRows({ el, ctx }) {
 
   return (
     <div className="insp-adv-kind" data-testid="insp-adv-kind">
-      {f.kind !== 'digital' ? (
+      {f.kind !== 'digital' && f.kind !== 'print' ? (
         <SizePairRow f={f} can={can} resize={resize} commitHeight={commitHeight} />
       ) : null}
       <Row k="Clip content" name="ab-clip">
@@ -65,7 +67,7 @@ export function ArtboardAdvancedRows({ el, ctx }) {
           onChange={setKind}
         />
       </Row>
-      {advancedFacts(f, video).map(([k, v]) => (
+      {(f.kind === 'print' ? [] : advancedFacts(f, video)).map(([k, v]) => (
         <Row key={k} k={k} name={`ab-fact-${k}`}>
           <span className="insp-ro" data-testid={`insp-ab-fact-${k}`}>
             {v}

@@ -484,6 +484,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.set-safe-zones': TSX(
     'Set the DCArtboard’s safeZones prop to one preset id — instagram-story, instagram-reels, instagram-grid, tiktok, youtube-shorts or facebook-event-cover — or remove the prop for none; whether the bands are drawn is the person’s own view state, not the file — see canvas-tsx.md § Artboard props that Maude 2 adds'
   ),
+  // S7.23 — the print inspector: `print` is design intent AND the artboard's width/height are its trim plus bleed in px, so an
+  // agent keeps the two in step (print/units.ts: px = round(mm × 96 ÷ 25.4), artboard = trim + 2 × bleed).
+  'artboard.set-print': TSX(
+    'Edit the DCArtboard’s print prop ({ paper, orientation, bleedMm, marginsMm, sizeMm: [w, h] for a custom trim }) and set its width and height props to the trim plus 2 × bleed in px (mm × 96 ÷ 25.4, rounded) — A6 with 3 mm bleed is 419 × 581; a different paper clears sizeMm — see canvas-tsx.md § Artboard props that Maude 2 adds'
+  ),
+  'artboard.set-print-guides': TSX(
+    'Set showGuides: true or false inside the DCArtboard’s print prop to show or hide its bleed, trim and margin guides whatever View says; remove the key to follow View › Advanced › Print guides again — see canvas-tsx.md § Artboard props that Maude 2 adds'
+  ),
+  'artboard.set-guides': TSX(
+    'Set the DCArtboard’s guides prop — { columns: { count, gutter, margin }, rows: { … }, grid: { size } } — or remove the prop; the guides are drawn on the canvas only and never exported — see canvas-tsx.md § Artboard props that Maude 2 adds'
+  ),
   'artboard.rename': TSX('Set the DCArtboard’s label prop (up to 80 characters; accents are kept)'),
   'artboard.reset-position': TSX(
     'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'
