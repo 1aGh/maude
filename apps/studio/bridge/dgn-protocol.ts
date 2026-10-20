@@ -294,6 +294,12 @@ export interface CanvasToShell {
     from?: string;
   };
   /**
+   * S7.7 — the ONE selected whole artboard, for the timeline island: which (`artboardId`), what kind (`video` ⇒ the
+   * island rises from it), its name and where it is (`rect`, iframe viewport px; re-sent while a video is selected so
+   * the island follows pan and zoom). `{ artboardId: null }` = no whole artboard is selected now. `label` is untrusted.
+   */
+  'artboard-anchor': { artboardId: Id | null; kind?: string; label?: string; rect?: Rect | null };
+  /**
    * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
    * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
    * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
@@ -1450,6 +1456,13 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/empty (S11.2)',
     parse: p({ artboardId: nul(str), rect: nul(rect), label: opt(str), from: opt(str) }),
+  },
+  // S7.7 — the canvas says which artboard is selected and where; the shell's timeline island rises from a video.
+  'artboard-anchor': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline (S7.7)',
+    parse: p({ artboardId: nul(str), kind: opt(str), label: opt(str), rect: opt(nul(rect)) }),
   },
   'ask-selection': {
     gate: 'active',

@@ -28,6 +28,7 @@ import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { cycleRegion } from '../v2/shell/f6-cycle.js';
 import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
+import { timelineStore } from '../v2/timeline/timeline-store.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 
@@ -213,9 +214,10 @@ export const SHELL_KEY_HANDLERS = {
     e.preventDefault();
     d.setSettingsOpen(true);
   },
-  'view.timeline-keep-open': (d, { event: e }) => {
+  // S7.7 — ⇧⌘T keeps the timeline island open / hides it (the store owns the rule; the host mirrors it into `timelineOpen`).
+  'view.timeline-keep-open': (_d, { event: e }) => {
     e.preventDefault();
-    d.toggleTimeline();
+    timelineStore.toggleKeep();
   },
   // Cmd+C — Phase 4.1 removed the shell-side comment-drop chord; v1 only logs the deprecation and
   // falls through to the native copy.

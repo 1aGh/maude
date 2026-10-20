@@ -1,0 +1,37 @@
+// client/v2/timeline/anchor-lane.js — S7.7: the shell's side of the canvas's `artboard-anchor`.
+//
+// Only the ACTIVE canvas's frame is believed (a background or synced canvas is untrusted, DDR-054), and the
+// message is validated by the dgn table before any of it is read. What passes goes to the timeline store;
+// the canvas's label is untrusted text and is clipped here. Pure (the window, the frame and the store are
+// injected) so the rule is a unit test.
+
+import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
+import { SYSTEM_TAB } from '../../shell/constants.js';
+
+const LABEL_MAX = 120;
+
+/**
+ * @param {{ canvasOrigin: () => string, activePath: () => string|null,
+ *   frameOf: (path: string) => { contentWindow: Window|null }|undefined,
+ *   store: { anchor: (m: object) => void } }} deps
+ */
+export function createAnchorLane(deps) {
+  const activeWin = () => {
+    const p = deps.activePath();
+    return p && p !== SYSTEM_TAB ? (deps.frameOf(p)?.contentWindow ?? null) : null;
+  };
+  return {
+    /** The window `message` handler. */
+    onMessage(e) {
+      if (e?.data?.dgn !== 'artboard-anchor') return;
+      const m = acceptFromCanvas(e, { canvasOrigin: deps.canvasOrigin(), active: activeWin() });
+      if (!m) return;
+      deps.store.anchor({
+        artboardId: m.artboardId,
+        kind: m.kind,
+        label: typeof m.label === 'string' ? m.label.slice(0, LABEL_MAX) : undefined,
+        rect: m.rect,
+      });
+    },
+  };
+}

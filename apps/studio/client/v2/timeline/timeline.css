@@ -1,0 +1,115 @@
+/* client/v2/timeline/timeline.css — S7.7: the timeline island (07 Video Editing · `.ve-tl`, lifted).
+ *
+ * A floating panel in the shell's own material (`.st-body--float .island`, `--island-bg-strong`: a large
+ * island over a busy canvas), 900 wide and centred under the selected video artboard with a notch pointing
+ * at it, or edge to edge. Tokens only — no hex, no raw durations; reduced motion collapses --dur-panel to
+ * 1 ms, so the slide becomes a cut. */
+
+@layer components {
+  /* the click-through frame the island is placed in (the canvas is the whole window body, V2-4.1) */
+  .tl-host {
+    position: fixed;
+    inset: 0;
+    z-index: 12;
+    pointer-events: none;
+  }
+
+  .tl-island {
+    position: absolute;
+    bottom: 80px; /* above the canvas toolbar (07: bottom 80) */
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--island-bg-strong, var(--bg-1));
+    pointer-events: auto;
+    animation: tl-island-in var(--dur-panel) var(--ease-out) both;
+  }
+  .st-body--float .tl-island {
+    background: var(--island-bg-strong);
+  }
+  .tl-island.is-leaving {
+    pointer-events: none;
+    animation: tl-island-out var(--dur-panel) var(--ease-out) both;
+  }
+  @keyframes tl-island-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--space-6)) scale(0.98);
+    }
+  }
+  @keyframes tl-island-out {
+    to {
+      opacity: 0;
+      transform: translateY(var(--space-6)) scale(0.98);
+    }
+  }
+
+  /* the v1 body inside: the island is the surface now, the dock's own paint steps aside */
+  .tl-island .tl-panel {
+    background: transparent;
+    border-top: 0;
+    border-radius: inherit;
+  }
+
+  /* the notch points up at the artboard this timeline edits (compact only) */
+  .tl-notch {
+    position: absolute;
+    top: -7px;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    translate: -50% 0;
+    rotate: 45deg;
+    border-radius: var(--radius-xs) 0 0 0;
+    background: var(--island-bg-strong);
+    box-shadow:
+      inset 1px 1px 0 var(--border-strong),
+      -2px -2px 6px color-mix(in oklab, var(--fg-0) 8%, transparent);
+    clip-path: polygon(-40% -40%, 140% -40%, -40% 140%);
+    pointer-events: none;
+  }
+
+  /* header additions: Kept open · Expand / Compact */
+  .tl-kept {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  .tl-kept + .tl-size {
+    margin-left: var(--space-2);
+  }
+  .tl-size {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  .tl-size:hover {
+    background: var(--bg-3);
+  }
+  .tl-size:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* the empty comp (05 · es-timeline): the kit's block where the tracks would be */
+  .tl-kit {
+    align-items: flex-start;
+    padding: var(--space-4);
+  }
+}

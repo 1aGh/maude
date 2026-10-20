@@ -613,54 +613,60 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `timeline-panel` | testid | The Timeline (video) panel root. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e-mp:surface, e2e:timeline-manual-cut | moves — map in Phase 4 |
-| `timeline-resize-handle` | testid | Drag handle that resizes the Timeline panel height. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-playpause` | testid | Play/pause button. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-loop` | testid | Loop toggle. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-mute` | testid | Mute toggle. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-volume` | testid | Volume slider. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-artboard` | testid | Artboard (comp) picker. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-readout` | testid | Current-time readout. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e-mp:surface | moves — map in Phase 4 |
-| `timeline-split` | testid | Split-at-playhead button. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-add-title` | testid | Add-title-clip button. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e-mp:surface | moves — map in Phase 4 |
-| `timeline-add-image` | testid | Add-image-clip button. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-placeholder-add` | testid | Add an AI placeholder clip at the end of the storyline. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-comment-tool` | testid | Timeline comment tool toggle. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-long-badge` | testid | Badge warning that the comp is long (slow export). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-zoom` | testid | Timeline zoom control. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
-| `timeline-empty` | testid | Empty state (no video comp on the canvas). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | runner:video-timeline-badge/web-desktop.sh, spec:video-timeline-badge | moves — map in Phase 4 |
-| `timeline-track` | testid | The scrollable track area. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
-| `timeline-storyline` | testid | The storyline (main clip) row. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
-| `timeline-playhead` | testid | The playhead. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-drop-caret` | testid | Insertion caret shown while dragging a clip (two render sites). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-newlayer-zone` | testid | Drop zone below the lanes that creates a new layer. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-trim-in-tip` | testid | Tooltip while trimming a clip in-point. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-trim-tip` | testid | Tooltip while retiming/trimming a clip. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-move-tip` | testid | Tooltip while moving a clip. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-comments-strip` | testid | The strip of comment markers above the track. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-comment-<id>` | testid (pattern) | One comment marker on the strip. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-comment-composer` | testid | Timeline comment composer. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-comment-submit` | testid | Timeline comment submit. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-comment-popover` | testid | Popover showing a timeline comment. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-seq-<i>` | testid (pattern) | Storyline clip block `<i>` (0-based); `title` includes "drag to move". | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e-mp:surface, e2e:timeline-manual-cut, test:timeline-drag-commit | moves — map in Phase 4 |
-| `timeline-speed-chip-<i>` | testid (pattern) | Speed chip on clip `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-mute-chip-<i>` | testid (pattern) | Muted chip on clip `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-kf-<i>-<k>` | testid (pattern) | Keyframe marker `<k>` on clip `<i>` (click seeks to it). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-clip-pin-<id>` | testid (pattern) | Comment pin on a clip (`<id>` = comment id). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-beat-expand-<i>` | testid (pattern) | Show/collapse the layers of beat `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-resize-<i>` | testid (pattern) | Right-edge handle: drag to retime clip `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e-mp:surface | moves — map in Phase 4 |
-| `timeline-trim-in-<i>` | testid (pattern) | Left-edge handle: drag to trim the in-point of clip `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-replace-<i>` | testid (pattern) | Replace-media button on clip `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-seam-add-<k>` | testid (pattern) | Add-transition button at seam `<k>` (between clips). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-seam-<k>` | testid (pattern) | Transition chip at seam `<k>` (click to edit). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-audio-<i>` | testid (pattern) | Audio row `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-audio-replace-<i>` | testid (pattern) | Replace-audio button on audio row `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-row-<i>` | testid (pattern) | Overlay/audio lane row `<i>` (three render sites). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-lane-chip-<i>` | testid (pattern) | Lane label chip on row `<i>` (drag up/down to reorder layers). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-expand-<i>` | testid (pattern) | Show/collapse the layers of row `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-layer-<i>-<li>` | testid (pattern) | Layer `<li>` of lane `<i>` (two render sites). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-layer-block-<i>-<li>` | testid (pattern) | The draggable block of layer `<li>` in lane `<i>`. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
-| `timeline-layer-replace-<i>-<li>` | testid (pattern) | Replace-media button on a layer block. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-panel` | testid | The Timeline (video) panel root. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e-mp:surface, e2e:timeline-manual-cut | moves — map in Phase 4 |
+| `timeline-resize-handle` | testid | Drag handle that resizes the Timeline panel height. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-playpause` | testid | Play/pause button. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-loop` | testid | Loop toggle. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-mute` | testid | Mute toggle. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-volume` | testid | Volume slider. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-artboard` | testid | Artboard (comp) picker. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-readout` | testid | Current-time readout. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e-mp:surface | moves — map in Phase 4 |
+| `timeline-split` | testid | Split-at-playhead button. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-add-title` | testid | Add-title-clip button. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e-mp:surface | moves — map in Phase 4 |
+| `timeline-add-image` | testid | Add-image-clip button. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-placeholder-add` | testid | Add an AI placeholder clip at the end of the storyline. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-comment-tool` | testid | Timeline comment tool toggle. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-long-badge` | testid | Badge warning that the comp is long (slow export). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-zoom` | testid | Timeline zoom control. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
+| `timeline-empty` | testid | Empty state (no video comp on the canvas). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | runner:video-timeline-badge/web-desktop.sh, spec:video-timeline-badge | moves — map in Phase 4 |
+| `timeline-track` | testid | The scrollable track area. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
+| `timeline-storyline` | testid | The storyline (main clip) row. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
+| `timeline-playhead` | testid | The playhead. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-drop-caret` | testid | Insertion caret shown while dragging a clip (two render sites). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-newlayer-zone` | testid | Drop zone below the lanes that creates a new layer. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-trim-in-tip` | testid | Tooltip while trimming a clip in-point. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-trim-tip` | testid | Tooltip while retiming/trimming a clip. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-move-tip` | testid | Tooltip while moving a clip. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-comments-strip` | testid | The strip of comment markers above the track. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-comment-<id>` | testid (pattern) | One comment marker on the strip. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-comment-composer` | testid | Timeline comment composer. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-comment-submit` | testid | Timeline comment submit. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-comment-popover` | testid | Popover showing a timeline comment. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-seq-<i>` | testid (pattern) | Storyline clip block `<i>` (0-based); `title` includes "drag to move". | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e-mp:surface, e2e:timeline-manual-cut, test:timeline-drag-commit | moves — map in Phase 4 |
+| `timeline-speed-chip-<i>` | testid (pattern) | Speed chip on clip `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-mute-chip-<i>` | testid (pattern) | Muted chip on clip `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-kf-<i>-<k>` | testid (pattern) | Keyframe marker `<k>` on clip `<i>` (click seeks to it). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-clip-pin-<id>` | testid (pattern) | Comment pin on a clip (`<id>` = comment id). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-beat-expand-<i>` | testid (pattern) | Show/collapse the layers of beat `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-resize-<i>` | testid (pattern) | Right-edge handle: drag to retime clip `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e-mp:surface | moves — map in Phase 4 |
+| `timeline-trim-in-<i>` | testid (pattern) | Left-edge handle: drag to trim the in-point of clip `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-replace-<i>` | testid (pattern) | Replace-media button on clip `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-seam-add-<k>` | testid (pattern) | Add-transition button at seam `<k>` (between clips). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-seam-<k>` | testid (pattern) | Transition chip at seam `<k>` (click to edit). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-audio-<i>` | testid (pattern) | Audio row `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-audio-replace-<i>` | testid (pattern) | Replace-audio button on audio row `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-row-<i>` | testid (pattern) | Overlay/audio lane row `<i>` (three render sites). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-lane-chip-<i>` | testid (pattern) | Lane label chip on row `<i>` (drag up/down to reorder layers). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-expand-<i>` | testid (pattern) | Show/collapse the layers of row `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-layer-<i>-<li>` | testid (pattern) | Layer `<li>` of lane `<i>` (two render sites). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-layer-block-<i>-<li>` | testid (pattern) | The draggable block of layer `<li>` in lane `<i>`. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-layer-replace-<i>-<li>` | testid (pattern) | Replace-media button on a layer block. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | — | moves — map in Phase 4 |
+| `timeline-island` | testid | The timeline island (S7.7): the floating panel tied to the selected video artboard. `data-size` is `compact` or `full`, `data-artboard` the video it edits; it carries `data-occludes="bottom"` once settled so Fit leaves room. | `client/v2/timeline/island.jsx` · `TimelineIsland` | test:timeline-island | new |
+| `timeline-notch` | testid | The notch on the compact island's top edge, pointing at the centre of the video artboard it belongs to (S7.7). | `client/v2/timeline/island.jsx` · `TimelineIsland` | test:timeline-island | new |
+| `timeline-size` | testid | Expand / Compact in the island's header (S7.7); no key. `aria-label` is the current action. | `client/v2/timeline/island-controls.jsx` · `SizeButton` | test:timeline-island | new |
+| `timeline-kept` | testid | "Kept open" in the island's header while the shortcut holds it open (S7.7). | `client/v2/timeline/island-controls.jsx` · `KeptStatus` | test:timeline-island | new |
+| `timeline-empty-kit` | testid | The S11 kit block on a video artboard with no clips (05 es-timeline): the situation and the one next step (S7.7). | `client/v2/timeline/timeline-empty.jsx` · `TimelineEmpty` | test:timeline-island | new |
+| `timeline-empty-ask` | testid | The one AI chip on an empty timeline, "Cut 15 s from those clips": pre-fills the chat, never sends; only where footage exists (S7.7). | `client/v2/timeline/timeline-empty.jsx` · `TimelineEmpty` | test:timeline-island | new |
 | `timeline-inspector` | testid | The clip inspector beside the timeline. | `client/panels/ClipInspector.jsx` · `ClipInspector` | e2e-mp:surface | moves — map in Phase 4 |
 | `timeline-inspector-tab-<tab>` | testid (pattern) | Clip inspector tab; `<tab>` = tab label lower-cased. | `client/panels/ClipInspector.jsx` · `TabBar` | — | moves — map in Phase 4 |
 | `timeline-speed-<speed>` | testid (pattern) | Speed preset button; `<speed>` with `.` → `_` (e.g. `timeline-speed-0_5`). | `client/panels/ClipInspector.jsx` · `ClipInspector` | — | moves — map in Phase 4 |
@@ -672,9 +678,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `timeline-transition-grid` | testid | Grid of transition presets. | `client/panels/ClipInspector.jsx` · `ClipInspector` | — | moves — map in Phase 4 |
 | `timeline-transition-<p>` | testid (pattern) | One transition preset (`<p>` = preset id). | `client/panels/ClipInspector.jsx` · `ClipInspector` | — | moves — map in Phase 4 |
 | `timeline-transition-remove` | testid | Remove-transition button. | `client/panels/ClipInspector.jsx` · `ClipInspector` | — | moves — map in Phase 4 |
-| `.tl-panel` | selector | Timeline panel root (same element as `timeline-panel`). | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | runner:video-timeline-badge/web-desktop.sh, spec:video-timeline-badge | moves — map in Phase 4 |
-| `.tl-seq-block` | selector | A storyline clip block; `.is-selected` = selected. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e-mp:surface, e2e:timeline-manual-cut | moves — map in Phase 4 |
-| `.tl-beat` | selector | A beat in the storyline. | `client/panels/TimelinePanel.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
+| `.tl-panel` | selector | Timeline panel root (same element as `timeline-panel`). | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | runner:video-timeline-badge/web-desktop.sh, spec:video-timeline-badge | moves — map in Phase 4 |
+| `.tl-seq-block` | selector | A storyline clip block; `.is-selected` = selected. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e-mp:surface, e2e:timeline-manual-cut | moves — map in Phase 4 |
+| `.tl-beat` | selector | A beat in the storyline. | `client/v2/timeline/Timeline.jsx` · `TimelinePanel` | e2e:timeline-manual-cut | moves — map in Phase 4 |
 | `.tlci-x` | selector | Close button of the clip inspector. | `client/panels/ClipInspector.jsx` · `ClipInspector` | e2e-mp:surface | moves — map in Phase 4 |
 
 ### git/history

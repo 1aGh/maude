@@ -18,7 +18,7 @@ afterAll(() => {
 
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import TimelinePanel from '../client/panels/TimelinePanel.jsx';
+import TimelinePanel from '../client/v2/timeline/Timeline.jsx';
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

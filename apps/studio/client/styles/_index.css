@@ -140,3 +140,5 @@
 @import url("../v2/present/follow.css");
 /* S9.22 — the Comments panel (filters, canvas groups, rows; client/v2/comments/). */
 @import url("../v2/comments/comments.css");
+/* S7.7 — the timeline island: placement, notch, Kept open / Expand, the empty block (client/v2/timeline/). */
+@import url("../v2/timeline/timeline.css");

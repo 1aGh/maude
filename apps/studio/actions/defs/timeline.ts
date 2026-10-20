@@ -96,6 +96,20 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
     exec: 'shell',
     keys: [kb('0', 'timeline', { ...T, when: { notFacts: ['selectFocused', 'rangeFocused'] } })],
   },
+  // S7.7 — the island's size (07 · the Expand / Compact button in its header). No key (CONTRACT §2: size is a
+  // button, not a key); ⌘K and the agent surface reach them.
+  {
+    id: 'timeline.expand',
+    label: 'Expand the timeline',
+    kind: 'command',
+    exec: 'shell',
+  },
+  {
+    id: 'timeline.compact',
+    label: 'Make the timeline compact',
+    kind: 'command',
+    exec: 'shell',
+  },
   {
     id: 'timeline.comment-mode',
     label: 'Comment on the timeline',

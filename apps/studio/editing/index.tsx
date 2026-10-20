@@ -18,6 +18,7 @@ import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { AiScopeOutline } from './ai-scope-outline.tsx';
 import { AlignBar } from './align-bar.tsx';
+import { ArtboardAnchorReporter } from './anchor-reporter.tsx';
 import { AriaLive } from './aria-live.tsx';
 import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
@@ -291,6 +292,8 @@ export function EditingLayer() {
       {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
       {/* S11.2 — tells the shell what is empty: the artboard count and the selected empty artboard */}
       <EmptyArtboardReporter />
+      {/* S7.7 — tells the shell which artboard is selected and where: the timeline island rises from a video */}
+      <ArtboardAnchorReporter />
       <ArtboardHandles />
       {editChrome ? <StickyName /> : null}
       {editChrome ? <MinimapContext /> : null}

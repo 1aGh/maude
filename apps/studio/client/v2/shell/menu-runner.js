@@ -47,6 +47,7 @@ import { requestShareFocus } from '../share/share-model.js';
 import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
+import { timelineStore } from '../timeline/timeline-store.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
 export const ARTBOARD_PRESET = {
@@ -318,7 +319,10 @@ export function createMenuHandlers(d) {
     ),
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),
-    'view.timeline-keep-open': () => d.onToggleTimeline(),
+    // S7.7 — the timeline island: ⇧⌘T keeps it open / hides it; Expand / Compact are its size (no key).
+    'view.timeline-keep-open': () => timelineStore.toggleKeep(),
+    'timeline.expand': () => timelineStore.expand(),
+    'timeline.compact': () => timelineStore.compact(),
     'view.annotations': () => d.onToggleAnnotations(),
     'view.minimap': () => d.onToggleMinimap(),
     'view.zoom-controls': () => d.onToggleZoomCtl(),

@@ -74,7 +74,9 @@ import BrandUploadPanel from './panels/BrandUploadPanel.jsx';
 import FigmaImportPanel from './panels/FigmaImportPanel.jsx';
 import { FilePreview, prefetchPreviewImage, sanitizeDisplayText } from './panels/file-preview.jsx';
 import SetupChecklistDialog, { useSetupReadiness } from './panels/SetupChecklist.jsx';
-import TimelinePanel from './panels/TimelinePanel.jsx';
+import TimelinePanel from './v2/timeline/Timeline.jsx';
+import TimelineHost from './v2/timeline/TimelineHost.jsx';
+import { useTimelineKept } from './v2/timeline/timeline-store.js';
 import { parseCompTimeline } from './panels/timeline-parse.js';
 import {
   activeComp,
@@ -1457,6 +1459,7 @@ function ShellState({ children }) {
       setSettingsOpen,
       setShareDialog,
       setShortcutsOpen,
+      setCanvasActiveArtboard,
       setOrderNotesOpen,
       setShowHidden,
       setTheme,
@@ -1641,7 +1644,6 @@ function ShellProjectPill() {
       setLayersOpen,
       assetsOpen,
       startTour,
-      timelineOpen,
       toggleRightPanel,
       toggleTimeline,
       syncStatus,
@@ -1868,6 +1870,7 @@ function ShellProjectPill() {
   // V2-4.8a: the megaphone's unseen dot, as a word on the Help row; and no "Back to Home" in a hub that
   // serves one project (no dashboard to go back to — the v1 link was absent there too).
   const unseenNews = whatsNew.unseen.length;
+  const timelineKept = useTimelineKept(); // S7.7 — ⇧⌘T's check mark is "kept open", not "the island is up"
   const noDashboard = isCloudTab && !cfg.cloud.dashboardUrl;
   // …and who you are, with the way to stop being them: the account row carries the account's email.
   const cloudUser = isCloudTab ? cfg.cloud.user || null : null;
@@ -1899,7 +1902,7 @@ function ShellProjectPill() {
         'view.layers-panel': layersMode === 'separate',
         'view.assets': assetsOpen,
         'view.inspector-on-select': autoOpenInspector,
-        'view.timeline-keep-open': timelineOpen,
+        'view.timeline-keep-open': timelineKept,
         'view.inspector': inspectorOpen,
         'view.comments': commentsPanelOpen,
         'view.exports': exportCenter.panelOpen,
@@ -1923,7 +1926,7 @@ function ShellProjectPill() {
       layersMode,
       assetsOpen,
       autoOpenInspector,
-      timelineOpen,
+      timelineKept,
       inspectorOpen,
       commentsPanelOpen,
       exportCenter.panelOpen,
@@ -2899,7 +2902,6 @@ function ShellTree() {
       tabs,
       wsConnected,
       theme,
-      timelineOpen,
       togglePanel,
       tourBus,
       tourSteps,
@@ -3090,6 +3092,10 @@ function ShellTree() {
           />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
           <EmptyHost />
+          {/* S7.7 — the timeline is an island tied to the selected video artboard (it was a bottom dock, DDR-148). */}
+          <TimelineHost>
+            <ShellTimelinePanel />
+          </TimelineHost>
           {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}
           <IntentHost />
           {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}
@@ -3187,9 +3193,6 @@ function ShellTree() {
             onShow={panelLayout.show}
           />
         </div>
-        {/* DDR-148 — Timeline is a BOTTOM dock (full-width strip below the stage,
-            above the status bar) — video timelines are horizontal. */}
-        {timelineOpen && <ShellTimelinePanel />}
       </div>
       {/* S3.2b — the only chrome Present shows: the controls (Artboards) or the pill (the canvas). It replaces
           the v1 `st-present-exit` button; the pill keeps that class. */}
