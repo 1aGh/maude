@@ -12,6 +12,10 @@
 //   marks    `marks` = exact words in the name · `closeMarks` = the name's tokens a typo stood for ·
 //            `metaMarks` = the words found in the meta (exact or typo). Ranges index the UNFOLDED text.
 //   weak     no word of the query was there exactly — every one was a typo (⌘K shows such a row quiet).
+//   seen     S8.20 — an asset row may carry what AI saw in the picture (`seen`: caption, tags, text; only with the
+//            person's consent, describe/). A word found there scores 1, like meta, after name and meta; a typo of
+//            it 0.5 and `close`. `seenMarks` = where, per field (caption / text ranges, tag indexes), and
+//            `seenOnly` = at least one word was found ONLY there ("Seen in the picture", not "In the name").
 //   order    score ↓, then openedAt ↓, then name.
 
 export function fold(s: string): string {
@@ -80,11 +84,26 @@ export function withinOneEdit(a: string, b: string): boolean {
   return true;
 }
 
+/** S8.20 — what AI saw in a picture (validated, describe/validate.ts). */
+export interface SeenFields {
+  caption?: string;
+  tags?: readonly string[];
+  text?: string;
+}
+
 export interface MatchInput {
   key: string;
   name: string;
   meta?: string;
   openedAt?: number;
+  seen?: SeenFields;
+}
+
+export interface SeenMarks {
+  caption: Range[];
+  text: Range[];
+  /** indexes into `seen.tags` */
+  tags: number[];
 }
 
 export type Range = [number, number];
@@ -97,6 +116,9 @@ export interface MatchHit<T extends MatchInput> {
   closeMarks: Range[];
   metaMarks: Range[];
   weak: boolean;
+  /** S8.20 — only on a row that carries `seen` */
+  seenMarks?: SeenMarks;
+  seenOnly?: boolean;
 }
 
 /** The letter/digit runs of an already-folded text, with where each starts. */
@@ -144,6 +166,9 @@ export function scoreRow<T extends MatchInput>(row: T, qWords: string[]): MatchH
     m.map[a] as number,
     m.map[b] as number,
   ];
+  const seen = row.seen ? seenOf(row.seen) : null;
+  const seenMarks: SeenMarks = { caption: [], text: [], tags: [] };
+  let seenOnly = false;
   for (const w of qWords) {
     const at = name.text.indexOf(w);
     if (at >= 0) {
@@ -160,6 +185,12 @@ export function scoreRow<T extends MatchInput>(row: T, qWords: string[]): MatchH
       metaMarks.push(toOriginal(meta, [inMeta, inMeta + w.length]));
       continue;
     }
+    if (seen && seenExact(seen, w, seenMarks, toOriginal)) {
+      score += 1;
+      exact++;
+      seenOnly = true;
+      continue;
+    }
     if (w.length >= 4 && !/\d/.test(w)) {
       const inName = nearToken(w, nameTokens);
       const viaMeta = inName ? null : nearToken(w, metaTokens);
@@ -168,6 +199,12 @@ export function scoreRow<T extends MatchInput>(row: T, qWords: string[]): MatchH
         close = true;
         if (inName) closeMarks.push(toOriginal(name, inName));
         else if (viaMeta) metaMarks.push(toOriginal(meta, viaMeta));
+        continue;
+      }
+      if (seen && seenNear(seen, w, seenMarks, toOriginal)) {
+        score += 0.5;
+        close = true;
+        seenOnly = true;
         continue;
       }
     }
@@ -182,7 +219,69 @@ export function scoreRow<T extends MatchInput>(row: T, qWords: string[]): MatchH
     closeMarks: mergeRanges(closeMarks),
     metaMarks: mergeRanges(metaMarks),
     weak: qWords.length > 0 && exact === 0,
+    ...(seen
+      ? {
+          seenMarks: {
+            caption: mergeRanges(seenMarks.caption),
+            text: mergeRanges(seenMarks.text),
+            tags: [...new Set(seenMarks.tags)].sort((a, b) => a - b),
+          },
+          seenOnly,
+        }
+      : {}),
   };
+}
+
+type Folded = { text: string; map: number[] };
+type ToOriginal = (m: { map: number[] }, r: Range) => Range;
+interface SeenFolded {
+  caption: Folded;
+  text: Folded;
+  tags: Folded[];
+}
+
+function seenOf(s: SeenFields): SeenFolded {
+  return {
+    caption: foldMapped(s.caption ?? ''),
+    text: foldMapped(s.text ?? ''),
+    tags: (s.tags ?? []).map((t) => foldMapped(t)),
+  };
+}
+
+/** A word contained in the caption, a tag or the text; marks every field it is in. */
+function seenExact(s: SeenFolded, w: string, out: SeenMarks, toOriginal: ToOriginal): boolean {
+  let found = false;
+  for (const f of ['caption', 'text'] as const) {
+    const at = s[f].text.indexOf(w);
+    if (at >= 0) {
+      out[f].push(toOriginal(s[f], [at, at + w.length]));
+      found = true;
+    }
+  }
+  s.tags.forEach((t, i) => {
+    if (t.text.includes(w)) {
+      out.tags.push(i);
+      found = true;
+    }
+  });
+  return found;
+}
+
+/** A typo of a word (≥ 4 letters) against the caption's, the text's and the tags' tokens. */
+function seenNear(s: SeenFolded, w: string, out: SeenMarks, toOriginal: ToOriginal): boolean {
+  for (const f of ['caption', 'text'] as const) {
+    const r = nearToken(w, tokensAt(s[f].text));
+    if (r) {
+      out[f].push(toOriginal(s[f], r));
+      return true;
+    }
+  }
+  const i = s.tags.findIndex((t) => nearToken(w, tokensAt(t.text)));
+  if (i >= 0) {
+    out.tags.push(i);
+    return true;
+  }
+  return false;
 }
 
 /** Match rows against a query: every word must match; ranked; capped. */
