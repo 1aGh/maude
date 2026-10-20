@@ -9,6 +9,7 @@
 // usage), so a section renders "the system as edited" with no route and no props. Tests pass
 // `model` / `mode` directly.
 
+import { useSectionOutline } from './outline.tsx';
 import { BrandSection } from './section-brand.tsx';
 import { ColourSection } from './section-colour.tsx';
 import { ComponentsSection } from './section-components.tsx';
@@ -23,6 +24,7 @@ import './board.css';
 // the parent's `ds.set-theme-preview` message and `?dsMode=` — wired once, when the canvas loads
 listenForThemePreview();
 
+export { DSDirection } from './directions.tsx';
 export { DsBar, DsBarView, waitingWords } from './ds-bar.tsx';
 export { Specimen } from './specimen.tsx';
 export { __registerBoardModel, setBoardMode } from './state.ts';
@@ -51,6 +53,9 @@ export function DSSection({
   const stored = useBoardMode();
   const m = model ?? registered;
   const Body = BODY[kind];
+  // S10.16b — while a system is being made, a section that has not been drawn yet is a quiet outline
+  const outline = useSectionOutline(kind, m);
+  if (outline) return outline;
   if (!m || !Body) {
     return (
       <div className="ds-board ds-empty-board" data-ds-section={kind}>

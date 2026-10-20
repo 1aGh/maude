@@ -127,7 +127,7 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:setup-ds',
     description: 'Create or re-bootstrap a named design system.',
-    argHint: '<name> ["<brief>"] [--force | --upgrade-schema] …',
+    argHint: '<name> ["<brief>"] …',
   },
   {
     name: 'design:smoke',

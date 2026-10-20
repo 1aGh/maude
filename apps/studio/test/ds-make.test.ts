@@ -124,7 +124,7 @@ describe('make — a system with nothing in it yet', () => {
     expect(p.read(`system/${NEW}/design-system.tsx`)).toContain('<DSSection kind="patterns" />');
     const meta = p.meta(`system/${NEW}/design-system.tsx`);
     expect(meta.designSystem).toBe(NEW);
-    expect((meta.layout as { artboards: unknown[] }).artboards).toHaveLength(7);
+    expect((meta.layout as { artboards: unknown[] }).artboards).toHaveLength(10); // 7 sections + the 3 ds-dir-* directions (S10.16b)
     const h = readHead(abs(p, ''));
     expect(h.state).toBe('ok');
     if (h.state === 'ok') {

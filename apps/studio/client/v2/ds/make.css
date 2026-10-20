@@ -1,0 +1,239 @@
+/* client/v2/ds/make.css — S10.16b: making a design system (13 · ds-make-inputs … ds-make-done).
+   The sheet reuses the .dsr-* dialog of review.css. Tokens only; no motion of its own. */
+.dsm-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.dsm-f {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.dsm-l {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--type-sm);
+  font-weight: var(--w-medium);
+  color: var(--fg-0);
+}
+.dsm-l b {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-3);
+  color: var(--fg-1);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+}
+.dsm-l em {
+  font-style: normal;
+  font-weight: var(--w-regular);
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.dsm-ta {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-2);
+  color: var(--fg-0);
+  font: inherit;
+  font-size: var(--type-sm);
+  line-height: var(--lh-sm);
+}
+.dsm-srcs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.dsm-srcb {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.dsm-src {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "ic t" "ic n";
+  column-gap: var(--space-2);
+  align-items: center;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-2);
+  color: var(--fg-1);
+}
+.dsm-src > svg {
+  grid-area: ic;
+}
+.dsm-src > b {
+  grid-area: t;
+  font-size: var(--type-sm);
+  font-weight: var(--w-medium);
+  color: var(--fg-0);
+}
+.dsm-src > em,
+.dsm-src > .dsm-site {
+  grid-area: n;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.dsm-src[data-on="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.dsm-src[data-on="true"] > em {
+  color: var(--fg-1);
+}
+.dsm-src-x {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.dsm-site {
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--type-xs);
+  color: var(--fg-0);
+}
+.dsm-site::placeholder {
+  color: var(--fg-2);
+}
+.dsm-srcb:focus-visible .dsm-src,
+.dsm-src:focus-within {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: 1px;
+}
+.dsm-seg {
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+.dsm-fine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.dsm-fine svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* the ready card (13 · ds-make-done): an island at the top of the canvas, one action */
+.dsm-ready {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(720px, calc(100vw - 32px));
+  padding: var(--space-2) var(--space-3);
+}
+.dsm-ready-ic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft, var(--accent));
+}
+.dsm-ready-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--type-sm);
+  color: var(--fg-0);
+}
+.dsm-ready-t em {
+  font-style: normal;
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.dsm-ready-t em[data-tone="warn"] {
+  color: var(--status-warn-text, var(--fg-1));
+}
+
+/* the direction bar in the inspector (13 · ds-make-mix) */
+.ds-dirbar-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ds-dirbar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-2);
+}
+.ds-dirbar-grp {
+  display: flex;
+  flex-direction: column;
+}
+.ds-dirbar-gl {
+  margin: var(--space-1) var(--space-2) 0;
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+}
+.ds-dirbar-it {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: var(--type-sm);
+  color: var(--fg-0);
+  cursor: pointer;
+}
+.ds-dirbar-it:hover,
+.ds-dirbar-it:focus-visible {
+  background: var(--bg-3);
+}
+.ds-dirbar-it[aria-checked="true"] {
+  color: var(--accent-text, var(--accent));
+  font-weight: var(--w-medium);
+}
+.ds-dirbar-it[aria-checked="true"]::before {
+  content: "✓";
+}

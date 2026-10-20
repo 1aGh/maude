@@ -420,8 +420,8 @@ export function createDsMake(engine: DsEngine, opts: MakeOptions = {}) {
       put('preview/_components.css', '');
       // A NEW canvas is a file on disk the local home / file plane observes into existence (exactly
       // what `createCanvas` does) — the kernel's `proposeFiles` only edits canvases it already knows.
-      const meta = { title: label, ...designSystemCanvasMeta(inp.ds) };
-      put(DS_CANVAS, designSystemCanvasSource(inp.ds, label));
+      const meta = { title: label, ...designSystemCanvasMeta(inp.ds, [], { directions: true }) };
+      put(DS_CANVAS, designSystemCanvasSource(inp.ds, label, [], { directions: true }));
       put(DS_META, `${JSON.stringify(meta, null, 2)}\n`);
       writeHead(abs, newHead(inp.ds, { head: null, base: null }), 'absent');
       return { action: 'make', rev: null, actionId: null, system: inp.ds, path: rel };
