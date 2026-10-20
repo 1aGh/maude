@@ -310,6 +310,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off'
     )
   ),
+  'video.music.volume': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set the literal volume (0..1) of the music <Audio>; 1 removes the prop'
+    )
+  ),
   'video.cut-to-beat': VIDEO_OP(cli('maude design cut-to-beat')),
   'video.snap': {
     effect: 'project',

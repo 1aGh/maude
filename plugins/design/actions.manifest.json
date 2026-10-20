@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "edeb84044ed7",
+  "manifestVersion": "e681d3ca0d98",
   "actions": [
     {
       "id": "search.open",
@@ -3366,6 +3366,25 @@
         "format": "canvas-tsx",
         "skill": "design:video-comp",
         "how": "Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off"
+      }
+    },
+    {
+      "id": "video.music.volume",
+      "label": "Music volume",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set the literal volume (0..1) of the music <Audio>; 1 removes the prop"
       }
     },
     {

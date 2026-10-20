@@ -38,6 +38,8 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   row('video.transcript.find-speech', 'Find speech', 'Transcript panel'),
   row('video.music.beats', 'Find the beat', 'Inspector › Music'),
   row('video.music.duck', 'Lower under speech', 'Inspector › Music'),
+  // S7.12 — the Music inspector's Volume (a clip or a loose bed; `clip.audio` only reaches clips)
+  row('video.music.volume', 'Music volume', 'Inspector › Music'),
   row('video.cut-to-beat', 'Cut to the beat', 'Inspector › Music'),
   row('video.snap', 'Snap to the beat', 'Timeline'),
   row('video.reframe', 'Re-frame', 'Timeline › Re-frame'),
