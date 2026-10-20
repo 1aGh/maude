@@ -26362,5 +26362,304 @@
   {"hook": "ds-update-do", "kind": "testid", "pattern": false, "meaning": "S10.8: Update — gives this instance the current look (`ds.instance-update`).", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
   {"hook": "ds-update-detach", "kind": "testid", "pattern": false, "meaning": "S10.8: Detach — S2's `component.detach` on this instance.", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
   {"hook": "ds-update-error", "kind": "testid", "pattern": false, "meaning": "S10.8: a refusal of Update in words (AI holds it, locked, viewer).", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-bar-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).", "producer": {"file": "apps/studio/ds/board/ds-bar.tsx", "symbol": "DsBarView"}, "region": "canvas", "consumers": ["e2e:ds-review"], "sourceConsumers": ["apps/studio/test/ds-frames-wiring.test.tsx"], "v2": "new"}
+  {"hook": "ds-bar-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).", "producer": {"file": "apps/studio/ds/board/ds-bar.tsx", "symbol": "DsBarView"}, "region": "canvas", "consumers": ["e2e:ds-review"], "sourceConsumers": ["apps/studio/test/ds-frames-wiring.test.tsx"], "v2": "new"},
+  {
+    "hook": "diag-sync-details",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sync details root (Menu › Diagnostics › Sync, 06 ad-syncd) — replaces the v1 Sync panel mount in the sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The header \"Sync · <project>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-need-word",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The header status word \"<n> need you\" (absent when nothing needs the person).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-needs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Needs you · <n>\" section: held source conflicts and the unfinished AI edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-conflict-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One held source conflict card: Keep mine · Use theirs · Keep both + Compare.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-keep-mine-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Keep mine — registry `sync.keep-mine` (`POST /_api/project/conflict` choice mine).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-use-theirs-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Use theirs — registry `sync.use-theirs` (choice theirs).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-keep-both-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Keep both — registry `sync.keep-both`: theirs becomes the canvas, this Mac's version a new canvas \"<name> this Mac\" (choice keep-both).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-conflict-note-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The sentence after a pick on that card.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-compare-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare — opens the two versions' differing lines (Yours / Cloud) under the card.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "Compare"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-compare-lines-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The differing lines Compare shows.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "Compare"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The unfinished AI edit card (\"AI stopped halfway on …\").",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-publish-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Publish — registry `sync.publish-ai-edit` (`POST /_api/project/ai-action` publish).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-discard-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Discard — registry `sync.discard-ai-edit` (ai-action discard).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-moving",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Moving now\": the asset transfer in flight with its bar.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-cancel-transfer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The transfer's ✕ — registry `sync.cancel-transfer` (`POST /_api/sync/cancel-assets`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-counts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Counts section (Project files · Assets · Held · rate-limited · failed).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-count-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One count row: `files`, `assets` or `held`.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-rate-limited",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The rate-limited sentence under Counts (the cloud asked this Mac to slow down).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-held-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One held breaker with its files (nothing was removed).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The files that need a look (stuck, only on this Mac, …) and the failed count.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-signin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Sync stopped — the sign-in to the cloud ran out.\" card (desktop only).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-signin-again",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign in again — registry `sync.sign-in-again` (opens the sign-in dialog).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": ["test:v2-sync-details"],
+    "v2": "new"
+  }
 ]

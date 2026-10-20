@@ -413,4 +413,85 @@
   .dg-sync .gp-x {
     display: none;
   }
+
+  /* ── S11.12 Sync details (06 ad-syncd) ── */
+  .sd {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+  }
+  .sd-sub {
+    margin: var(--space-2, 8px) 0 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .sd-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .sd-cd {
+    color: var(--fg-1);
+  }
+  .sd-acts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    margin-top: var(--space-1, 4px);
+  }
+  .sd-link {
+    appearance: none;
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+  .sd-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .sd-diff {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 240px;
+    overflow: auto;
+    font-size: var(--type-xs, 12px);
+  }
+  .sd-diff li {
+    display: flex;
+    gap: var(--space-2, 8px);
+  }
+  .sd-side {
+    flex: none;
+    width: 3.5em;
+    color: var(--fg-2);
+  }
+  .sd-xfer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .sd-xfer .dg-bar {
+    flex: 1;
+  }
+  .sd-xfer-n {
+    min-width: 3em;
+    text-align: right;
+    color: var(--fg-2);
+  }
+  .sd-held,
+  .sd-failed {
+    margin: 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-1);
+  }
 }
