@@ -174,6 +174,12 @@ export function canvasRows(view, { activeCanvas, labels, entryOf } = {}) {
 
 export const TAG_WORKING = 'AI is working';
 export const TAG_NEEDS_YOU = 'Waiting for you';
+/** S7.14 — an AI cut placing shots: "AI is cutting · 7 of 14", built from the progress NUMBERS only. */
+export const TAG_CUTTING = 'AI is cutting';
+export const cuttingTag = (p) =>
+  p?.kind === 'place' && Number.isFinite(p.done) && Number.isFinite(p.total)
+    ? `${TAG_CUTTING} · ${p.done} of ${p.total}`
+    : null;
 
 /**
  * `{artboards: Record<artboardId, {state, who, tag, waiting}>}` for the open canvas (V2-1.15 §5.8, S5.11 P3).
@@ -181,6 +187,7 @@ export const TAG_NEEDS_YOU = 'Waiting for you';
  *   who      'you' for your AI, else the other person's actor id — the canvas draws their face from it
  *   tag      a fixed phrase: "AI is working", "Tereza's AI", "Waiting for you", "Waiting for Tereza". Built here
  *            from the state and the NAME only — the run's label, question and progress line never reach it
+ *            (S7.14: an AI cut's tag carries its progress NUMBERS, "AI is cutting · 7 of 14", never text)
  *   waiting  the number of tickets on the artboard (the tag reads "· N waiting")
  * One entry per artboard; the holder wins. A run that is only waiting has no ring of its own.
  */
@@ -201,7 +208,9 @@ export function ringsFor(view, { activeCanvas, entryOf } = {}) {
       out[l.artboard] = {
         state: needs ? 'needs-you' : 'running',
         who: 'you',
-        tag: needs ? TAG_NEEDS_YOU : TAG_WORKING,
+        tag: needs
+          ? TAG_NEEDS_YOU
+          : (l.artboard === r.progress?.artboard && cuttingTag(r.progress)) || TAG_WORKING,
         waiting: 0,
       };
     }
