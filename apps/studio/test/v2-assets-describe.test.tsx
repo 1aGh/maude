@@ -121,11 +121,13 @@ const click = async (el: Element | null | undefined) => {
   await settle();
 };
 async function search(host: HTMLElement, text: string) {
+  // the repo's typing helper (v2-figma-sheet / v2-inspector tests): React's own onChange with the new value
   const input = q(host, 'assets-search') as HTMLInputElement;
+  const key = Object.keys(input).find((k) => k.startsWith('__reactProps$')) as string;
+  const props = (input as unknown as Record<string, { onChange: (e: unknown) => void }>)[key];
   await act(async () => {
-    const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    set?.call(input, text);
-    input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    input.value = text;
+    props.onChange({ target: input, currentTarget: input });
   });
   await settle();
 }

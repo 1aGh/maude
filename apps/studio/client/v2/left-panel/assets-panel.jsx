@@ -527,6 +527,12 @@ export function AssetsPanel({
   // S8.20 — describing is the person's own (a viewer too): "AI connected" is the shell's, not the role's
   const aiOn = env.canAskAI?.() === true;
   const offer = offerOf(describe.status, aiOn);
+  // 05 · es-search-more, verbatim from the S11 copy table
+  const noHitsWords = copy('es-search-more.assets-search-none', {
+    q: query,
+    project: env.projectName || 'this project',
+    count: assets?.length ?? 0,
+  });
   const answerDescribe = (on) => {
     setDescribeAsk(false);
     void describe.consent(on);
@@ -697,12 +703,9 @@ export function AssetsPanel({
             {offer === 'turn-on' ? (
               // 05 · es-search-more: the one next step is the opt-in, on the person's own account
               <>
-                <AskButton onClick={() => setDescribeAsk(true)}>
-                  Let AI describe your pictures
-                </AskButton>
+                <AskButton onClick={() => setDescribeAsk(true)}>{noHitsWords.action}</AskButton>
                 <p className="lp-empty-b lp-empty-fine" data-testid="assets-nohits-describe">
-                  So search finds what's in them. Once for {env.projectName || 'this project'}, on
-                  your Claude account.
+                  {noHitsWords.fine}
                 </p>
               </>
             ) : null}
