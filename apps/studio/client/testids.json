@@ -27555,6 +27555,230 @@
     "v2": "new"
   },
   {
+    "hook": "ds-convert-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: the dim backdrop behind \"Convert system folders\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: the \"Convert system folders\" dialog (13 · 25 / 29); `data-kind` = one (a folder up close) or many (a list).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: the dialog title — \"Convert N system folders?\" / \"Convert system/<ds> into its Design system canvas?\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-lead",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: what the folders become; ends \"The files stay exactly where they are.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-map",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: one folder (29): the sections its specimen pages fold into, plus Own artboards.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: several folders (25): one row each.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: one folder of the list (`data-ds` = the system): name, path + use, Design system canvas or Draft.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: why a folder cannot be converted (then Convert is off — one run converts all or none).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-fine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: the fine print — the default stays, Bring it up, Restore in Version history.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: the server's refusal in words, after Convert.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: Cancel — closes, writes nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: Convert — one all-or-nothing run over exactly the folders shown.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-banner",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12 (S10 Q6): the banner on today's folder view of a system not yet on a canvas, \"Turn this folder into a Design system canvas\". Hidden for Can view.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-convert-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.12: the banner's Convert… — opens the dialog (`ds.convert`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/convert-dialog.jsx",
+      "symbol": "DsConvertBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-convert-dialog.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-update-available",
     "kind": "testid",
     "pattern": false,
