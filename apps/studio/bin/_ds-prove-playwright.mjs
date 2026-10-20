@@ -41,12 +41,45 @@ const shellUrl = (origin, c) => {
 async function open(page, url) {
   await page.goto(url, { waitUntil: 'load', timeout: TIMEOUT });
   await page.evaluate(() => document.fonts.ready);
-  await page
-    .locator('[data-dc-screen]')
-    .first()
-    .waitFor({ state: 'attached', timeout: TIMEOUT })
-    .catch(() => {});
-  await page.waitForLoadState('networkidle', { timeout: TIMEOUT }).catch(() => {});
+  // Ready = an artboard is there, or the shell said why not, or it mounted a canvas that has no
+  // artboard (a specimen): that one is given a moment, then taken as it is — never the whole timeout.
+  const started = Date.now();
+  let mountedAt = 0;
+  while (Date.now() - started < TIMEOUT) {
+    const s = await page
+      .evaluate(() => ({
+        board: !!document.querySelector('[data-dc-screen]'),
+        err: !!document.getElementById('canvas-mount-error')?.textContent?.trim(),
+        mounted:
+          !!window.__maudeCanvasRuntime ||
+          (document.getElementById('canvas-root')?.childElementCount ?? 0) > 0,
+      }))
+      .catch(() => null);
+    if (s?.board || s?.err) break;
+    if (s?.mounted) {
+      mountedAt ||= Date.now();
+      if (Date.now() - mountedAt > 1500) break;
+    }
+    await page.waitForTimeout(80);
+  }
+  // Not `networkidle`: it waits out 500 ms of quiet per page (and the whole timeout when anything
+  // polls), which was most of the 6 s an artboard cost. What a render needs is its fonts and its
+  // images decoded; both sides wait for exactly the same things.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    const pending = [...document.images].filter((i) => !i.complete);
+    await Promise.all(
+      pending.map(
+        (i) =>
+          new Promise((r) => {
+            i.addEventListener('load', r, { once: true });
+            i.addEventListener('error', r, { once: true });
+            setTimeout(r, 4000);
+          })
+      )
+    );
+    await Promise.all([...document.images].map((i) => i.decode?.().catch(() => {})));
+  });
   return page.evaluate(() => {
     const err = document.getElementById('canvas-mount-error')?.textContent?.trim() || null;
     const world = document.querySelector('.dc-world');
@@ -182,69 +215,84 @@ async function diffInPage(page, a, b, deltaE) {
   );
 }
 
-const browser = await launchChromium();
-const out = { canvases: [] };
-try {
-  const ctx = await browser.newContext({
-    serviceWorkers: 'block',
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1,
-    reducedMotion: 'reduce',
-  });
-  const pa = await ctx.newPage();
-  const pb = await ctx.newPage();
-  const pd = await ctx.newPage();
-  await pd.setContent('<!doctype html><title>ds prove diff</title>');
-  let done = 0;
-  for (const c of job.canvases) {
-    const row = { path: c.path, artboards: [] };
-    out.canvases.push(row);
-    try {
-      const [A, B] = await Promise.all([
-        open(pa, shellUrl(job.before, c)),
-        open(pb, shellUrl(job.after, c)),
-      ]);
-      if (A.err || B.err) {
-        row.error = A.err ? 'before' : 'after';
-        row.detail = String(A.err || B.err).slice(0, 300);
+/** One canvas on one worker's pages → its row. Never throws: a canvas that cannot render is a row with an error. */
+async function proveCanvas(c, { pa, pb, pd }) {
+  const row = { path: c.path, artboards: [] };
+  try {
+    const [A, B] = await Promise.all([
+      open(pa, shellUrl(job.before, c)),
+      open(pb, shellUrl(job.after, c)),
+    ]);
+    if (A.err || B.err) {
+      row.error = A.err ? 'before' : 'after';
+      row.detail = String(A.err || B.err).slice(0, 300);
+      return row;
+    }
+    const bIds = new Set(B.boards.map((x) => x.id));
+    for (const board of A.boards) {
+      if (!bIds.has(board.id)) {
+        row.artboards.push({ id: board.id, theme: null, fail: true, reason: 'missing' });
         continue;
       }
-      const bIds = new Set(B.boards.map((x) => x.id));
-      for (const board of A.boards) {
-        if (!bIds.has(board.id)) {
-          row.artboards.push({ id: board.id, theme: null, fail: true, reason: 'missing' });
+      const themes = board.themes.length ? board.themes : [null];
+      for (const theme of themes) {
+        const sa = await shot(pa, board.id, theme);
+        const sb = sa && (await shot(pb, board.id, theme, sa));
+        if (!sa || !sb) {
+          row.artboards.push({ id: board.id, theme, fail: true, reason: 'missing' });
           continue;
         }
-        const themes = board.themes.length ? board.themes : [null];
-        for (const theme of themes) {
-          const sa = await shot(pa, board.id, theme);
-          const sb = sa && (await shot(pb, board.id, theme, sa));
-          if (!sa || !sb) {
-            row.artboards.push({ id: board.id, theme, fail: true, reason: 'missing' });
-            continue;
-          }
-          const sized = sa.width === sb.width && sa.height === sb.height;
-          const d = await diffInPage(pd, sa.png, sb.png, DELTA_E);
-          const fail = !sized || d.changed / Math.max(1, d.area) > RATIO;
-          row.artboards.push({
-            id: board.id,
-            theme,
-            width: sa.width,
-            height: sa.height,
-            changed: d.changed,
-            area: d.area,
-            fail,
-            ...(sized ? {} : { reason: 'size' }),
-          });
-        }
+        const sized = sa.width === sb.width && sa.height === sb.height;
+        const d = await diffInPage(pd, sa.png, sb.png, DELTA_E);
+        const fail = !sized || d.changed / Math.max(1, d.area) > RATIO;
+        row.artboards.push({
+          id: board.id,
+          theme,
+          width: sa.width,
+          height: sa.height,
+          changed: d.changed,
+          area: d.area,
+          fail,
+          ...(sized ? {} : { reason: 'size' }),
+        });
       }
-    } catch (e) {
-      row.error = 'render';
-      row.detail = String(e?.message ?? e).slice(0, 300);
     }
-    done++;
-    console.log(`MAUDE_PROGRESS ${JSON.stringify({ current: done, total: job.canvases.length })}`);
+  } catch (e) {
+    row.error = 'render';
+    row.detail = String(e?.message ?? e).slice(0, 300);
   }
+  return row;
+}
+
+// Canvases are independent, so a few workers prove them side by side, each on a context of its own
+// (a canvas's render is a page, not the machine). The order of `out.canvases` is the job's.
+const WORKERS = Math.max(1, Math.min(Number(job.workers ?? 3), job.canvases.length || 1));
+const browser = await launchChromium();
+const out = { canvases: job.canvases.map((c) => ({ path: c.path, artboards: [] })) };
+try {
+  let next = 0;
+  let done = 0;
+  const worker = async () => {
+    const ctx = await browser.newContext({
+      serviceWorkers: 'block',
+      viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: 1,
+      reducedMotion: 'reduce',
+    });
+    const pages = { pa: await ctx.newPage(), pb: await ctx.newPage(), pd: await ctx.newPage() };
+    await pages.pd.setContent('<!doctype html><title>ds prove diff</title>');
+    for (;;) {
+      const i = next++;
+      if (i >= job.canvases.length) break;
+      out.canvases[i] = await proveCanvas(job.canvases[i], pages);
+      done++;
+      console.log(
+        `MAUDE_PROGRESS ${JSON.stringify({ current: done, total: job.canvases.length })}`
+      );
+    }
+    await ctx.close();
+  };
+  await Promise.all(Array.from({ length: WORKERS }, worker));
 } finally {
   await browser.close();
 }

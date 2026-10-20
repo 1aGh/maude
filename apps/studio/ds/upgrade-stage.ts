@@ -60,6 +60,7 @@ export type UpgradeCode =
   | 'ds-upgrade-no-stage'
   | 'ds-upgrade-not-proved'
   | 'ds-upgrade-proof-failed'
+  | 'ds-upgrade-cancelled'
   | 'ds-upgrade-stale'
   | 'ds-upgrade-usage'
   | 'ds-kernel-unavailable'
@@ -367,7 +368,14 @@ export function discardStage(designRoot: string, ds: string, stamp: string): { d
   if (dir && existsSync(dir)) rmSync(assertThrowaway(dir), { recursive: true, force: true });
   if (existsSync(stateDir)) {
     // the record folder holds only what this module wrote; remove those names, then the folder
-    for (const n of ['stage.json', 'plan.json', 'diff.json', 'review.json'])
+    for (const n of [
+      'stage.json',
+      'plan.json',
+      'diff.json',
+      'review.json',
+      'progress.json',
+      'cancel.json',
+    ])
       rmSync(join(stateDir, n), { force: true });
     try {
       rmdirSync(stateDir);

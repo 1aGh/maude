@@ -7,6 +7,11 @@
 // `discard {stage}`. `plan` is the judged items (or a whole plan); `stage` is the stamp a stage
 // answered with.
 //
+// S10.15b adds the two the sheet in the app needs: `status` (what the system is and every live stage of
+// it: staged, being proved with its progress, or proved with its review) and `cancel {stage}` (stops
+// a proof in flight; the stage is then `discard`ed). Both are read-and-signal steps — the stage's own
+// record folder carries the state, so they work whichever process runs the proof.
+//
 // Permissions (S10 Q15, rule 12): every step needs Can edit on the WHOLE project — the plan lists
 // every canvas of the system, and apply rewrites them.
 
@@ -20,6 +25,7 @@ import {
   validatePlan,
 } from '../ds/upgrade.ts';
 import { applyStage } from '../ds/upgrade-apply.ts';
+import { cancelStage, listStages } from '../ds/upgrade-progress.ts';
 import { proveStage } from '../ds/upgrade-prove.ts';
 import { DsUpgradeError, discardStage, stageUpgrade, systemOf } from '../ds/upgrade-stage.ts';
 import type { DsOpAnswer, DsOpContext } from './ds.ts';
@@ -32,6 +38,8 @@ export const UPGRADE_STEPS = [
   'prove',
   'apply',
   'discard',
+  'status',
+  'cancel',
 ] as const;
 export type UpgradeStep = (typeof UPGRADE_STEPS)[number];
 
@@ -103,6 +111,21 @@ export async function runUpgradeOp(
     }
     case 'discard':
       return { status: 200, body: discardStage(designRoot, ds, stamp()) };
+    case 'status': {
+      const cfg = systemOf(designRoot, ds);
+      const model = loadSystem(diskFs(designRoot), cfg);
+      return {
+        status: 200,
+        body: {
+          ds,
+          converted: model.converted,
+          schema: typeof cfg.schema === 'number' ? cfg.schema : null,
+          stages: listStages(designRoot, ds),
+        },
+      };
+    }
+    case 'cancel':
+      return { status: 200, body: cancelStage(designRoot, ds, stamp()) };
   }
   return { status: 400, body: { error: 'unknown step', code: 'usage' } };
 }

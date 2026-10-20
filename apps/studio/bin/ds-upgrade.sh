@@ -10,6 +10,8 @@
 #   ds-upgrade.sh <ds> --prove <stage>        # two headless studios + the ΔE gate → review.json
 #   ds-upgrade.sh <ds> --apply <stage>        # ONE action through the project's studio (permission card)
 #   ds-upgrade.sh <ds> --discard <stage>      # the throwaway copies and the record go
+#   ds-upgrade.sh <ds> --status               # the live stages: staged, being proved (progress), proved (review)
+#   ds-upgrade.sh <ds> --cancel <stage>       # stops a proof in flight (then --discard)
 #   ds-upgrade.sh --root <project>            # default: $CLAUDE_PROJECT_DIR, else the current directory
 #
 # The plan's judgement items (new role values, collisions, component map) come from the AI run
@@ -22,7 +24,7 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 
 case "$1" in
-  --help|-h) sed -n '2,17p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  --help|-h) sed -n '2,16p' "$0" | sed 's/^# \?//'; exit 0 ;;
 esac
 
 exec bun run "$SCRIPT_DIR/_ds-upgrade.mjs" "$@"
