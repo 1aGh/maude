@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { trackKey } from '../client/v2/timeline/advanced/advanced-store.js';
 import { bindClips, clipSearchRows } from '../client/v2/timeline/clip-search.js';
 import { createFoldStore, FOLD_WORDS, foldAtFollowed } from '../client/v2/timeline/fold.js';
+import { defaultLabel, jumpTarget, sortedMarkers } from '../client/v2/timeline/markers.js';
 import { clipTip, NAME_MIN_PX, nameVisible } from '../client/v2/timeline/zoom.js';
 
 const memory = (initial: string | null = null) => {
@@ -158,5 +159,40 @@ describe('⌘K finds a clip by name', () => {
     clipSearchRows()[0].run();
     expect(first).toEqual([]);
     expect(second).toEqual([CLIPS[0]]);
+  });
+});
+
+describe('markers (the pure half)', () => {
+  const M = [
+    { t: 202, label: 'TD 2' },
+    { t: 14, label: 'Výkop' },
+    { t: 44, label: 'TD 1' },
+    { t: 98, label: 'Poločas' },
+  ];
+
+  test('time order; bad ones dropped; two at one moment keep the later write', () => {
+    expect(sortedMarkers(M).map((m) => m.label)).toEqual(['Výkop', 'TD 1', 'Poločas', 'TD 2']);
+    expect(sortedMarkers([{ t: -1, label: 'x' }, { t: Number.NaN, label: 'y' }, null])).toEqual([]);
+    expect(
+      sortedMarkers([
+        { t: 5, label: 'a' },
+        { t: 5, label: 'b' },
+      ])
+    ).toEqual([{ t: 5, label: 'b' }]);
+  });
+
+  test('jump goes to the next and the previous; standing on one jumps past it', () => {
+    expect(jumpTarget(M, 0, 1)?.label).toBe('Výkop');
+    expect(jumpTarget(M, 14, 1)?.label).toBe('TD 1');
+    expect(jumpTarget(M, 133, -1)?.label).toBe('Poločas');
+    expect(jumpTarget(M, 98, -1)?.label).toBe('TD 1');
+    expect(jumpTarget(M, 202, 1)).toBeNull();
+    expect(jumpTarget(M, 14, -1)).toBeNull();
+    expect(jumpTarget([], 3, 1)).toBeNull();
+  });
+
+  test('the default name counts', () => {
+    expect(defaultLabel(M)).toBe('Marker 5');
+    expect(defaultLabel([])).toBe('Marker 1');
   });
 });
