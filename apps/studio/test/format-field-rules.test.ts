@@ -30,6 +30,7 @@ const S7 = {
   snap: 'beat',
   maxFrames: 5400,
   madeFrom: { artboard: 'feed', label: 'Feed' },
+  markers: [{ frame: 420, name: 'Výkop' }],
 };
 const base = () => ({ title: 'Recap', layout: { artboards: [{ id: 'reels', x: 0, y: 0 }] } });
 

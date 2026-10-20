@@ -287,4 +287,20 @@ describe('PATCH /_api/present-meta in a cell — every role below edit is refuse
     expect(ok.status).toBe(200);
     expect(JSON.parse(readFileSync(metaAbs, 'utf8')).present).toEqual({ order: ['b'] });
   });
+
+  // S7.16 — a ruler marker is part of the cut: Can edit and up writes it, whatever the Timeline shows
+  test('markers: view and comment are refused with nothing written; an edit role writes them', async () => {
+    const body = { file: FILE, markers: { b: [{ frame: 420, name: 'Výkop' }] } };
+    const before = readFileSync(metaAbs, 'utf8');
+    for (const role of ['view', 'comment']) {
+      const res = await patch(base, body, HEADERS[role]);
+      expect(res.status).toBe(403);
+      expect(readFileSync(metaAbs, 'utf8')).toBe(before);
+    }
+    const ok = await patch(base, body, HEADERS.edit);
+    expect(ok.status).toBe(200);
+    expect(JSON.parse(readFileSync(metaAbs, 'utf8')).artboardMeta.b.markers).toEqual([
+      { frame: 420, name: 'Výkop' },
+    ]);
+  });
 });

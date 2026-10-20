@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "800c8de9a213",
+  "manifestVersion": "dc543dca0a77",
   "actions": [
     {
       "id": "search.open",
@@ -2987,6 +2987,46 @@
         "path": "human",
         "because": "view-pref",
         "note": "which tracks of a long video are put away (the comp is untouched)"
+      }
+    },
+    {
+      "id": "timeline.marker.add",
+      "label": "Add a marker here",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "artboardMeta.<id>.markers: a list of { frame, name } in the canvas .meta.json (an integer frame ≥ 0, a plain-text name up to 60 characters, one per frame, at most 200)"
+      }
+    },
+    {
+      "id": "timeline.marker.remove",
+      "label": "Remove the marker here",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "Remove the entry from artboardMeta.<id>.markers in the canvas .meta.json (an empty list takes them all away)"
+      }
+    },
+    {
+      "id": "timeline.marker.jump",
+      "label": "Jump to the next marker",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "where the playhead is (the markers themselves are in the canvas meta)"
       }
     },
     {

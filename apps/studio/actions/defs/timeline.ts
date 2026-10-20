@@ -193,6 +193,38 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
       keywords: ['fold', 'collapse', 'hide', 'track', 'text', 'graphics', 'lane'],
     },
   },
+  // S7.16 (07 · ve-long) — ruler markers ("Výkop", "TD 1"): part of the cut, in the canvas meta
+  // (`artboardMeta[id].markers`), so Add and Remove are Can edit (the server refuses below that); Jump only moves
+  // the playhead. No keys — ⌘K and the flags on the ruler reach them.
+  {
+    id: 'timeline.marker.add',
+    label: 'Add a marker here',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: {
+      where: 'Timeline › Markers',
+      keywords: ['marker', 'flag', 'chapter', 'bookmark', 'moment', 'name'],
+    },
+  },
+  {
+    id: 'timeline.marker.remove',
+    label: 'Remove the marker here',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: { where: 'Timeline › Markers', keywords: ['marker', 'flag', 'delete', 'remove'] },
+  },
+  {
+    id: 'timeline.marker.jump',
+    label: 'Jump to the next marker',
+    kind: 'command',
+    exec: 'shell',
+    search: {
+      where: 'Timeline › Markers',
+      keywords: ['marker', 'next', 'previous', 'jump', 'chapter', 'flag'],
+    },
+  },
   {
     id: 'timeline.comment-mode',
     label: 'Comment on the timeline',

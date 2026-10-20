@@ -74,6 +74,7 @@ const NOTE_KEYS: Record<string, string> = {
   note: 'Note',
   poster: 'Cover',
   maxFrames: 'Frame limit',
+  markers: 'Markers',
   madeBy: 'Made by',
 };
 
