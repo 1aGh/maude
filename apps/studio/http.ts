@@ -184,6 +184,7 @@ import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitCommitFiles, gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import { createHandoffs } from './handoff/run.ts';
 import { trashArtboardRestorer } from './history/restore-artboard-action.ts';
 import {
   cssOverridesFor,
@@ -227,8 +228,10 @@ import {
   type ExportRouteDeps,
   gateSpecV2,
   generateDepsFor,
+  type HandoffRouteDeps,
   heldByAiRefusal,
   planExportV2,
+  resolveQueuedHandoff,
   riderPatch,
   runStageHooks,
   type ShareRouteDeps,
@@ -1798,6 +1801,44 @@ export function createHttp(
     accepted: cloudExports.accepted,
   });
   cloudExports.resume();
+  // S8.10 — Handoff to production: one AI run whose write scope is the target file only. Offline or
+  // before Connect it waits as `export.handoff` and starts by itself (routes/handoff.ts, handoff/run.ts).
+  // Every closure is lazy: the index is built further down.
+  const handoffRoute: HandoffRouteDeps = {
+    designRoot: ctx.paths.designRoot,
+    designRel: ctx.paths.designRel,
+    repoRoot: ctx.paths.repoRoot,
+    access: (req) => accessOf(req),
+    readCanvas: (rel) => {
+      try {
+        return readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+      } catch {
+        return null;
+      }
+    },
+    config: () => {
+      try {
+        return JSON.parse(readFileSync(join(ctx.paths.designRoot, 'config.json'), 'utf8'));
+      } catch {
+        return null;
+      }
+    },
+    designSystems: () => (ctx.cfg.designSystems ?? []).map((d) => d.name),
+    dsOf: (rel) => projectIndex.canvas(rel)?.ds ?? null,
+    // S8 Q12 — the cell route `/r/<name>.json` is the L4 lane's; until it serves, no cloud line
+    registryUrl: () => null,
+    aiConnected: () => aiConnectedFact.read(),
+    handoffs: null as unknown as HandoffRouteDeps['handoffs'],
+  };
+  handoffRoute.handoffs = createHandoffs({
+    repoRoot: ctx.paths.repoRoot,
+    designRel: ctx.paths.designRel,
+    outbox,
+    gates: outboxGates,
+    runs: () => runs,
+    resolve: (payload) => resolveQueuedHandoff(handoffRoute, payload),
+  });
+  outboxSenders['export.handoff'] = handoffRoute.handoffs.sender;
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
   // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
@@ -2233,6 +2274,8 @@ export function createHttp(
       saveAsset: (bytes) => api.saveAsset(bytes),
       emit: (g) => ctx.bus.emit('generate:takes', g),
     }),
+    // S8.10 — /_api/handoff* (routes/handoff.ts): built with the outbox above (its sender is the same).
+    handoff: handoffRoute,
     // S9.19 — /_api/share/*: the desktop's door to the linked hub's access API.
     share: shareDeps,
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
