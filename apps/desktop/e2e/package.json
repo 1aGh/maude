@@ -18,6 +18,7 @@
     "e2e:relaunch": "wdio run ./wdio.relaunch.conf.ts",
     "e2e:home": "wdio run ./wdio.home.conf.ts",
     "e2e:ds-review": "wdio run ./wdio.ds-review.conf.ts",
+    "e2e:share-roles": "wdio run ./wdio.share-roles.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",
     "e2e:acp-cold-start": "wdio run ./wdio.acp-cold-start.conf.ts",
     "e2e:parity": "wdio run ./wdio.parity.conf.ts",
