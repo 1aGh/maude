@@ -46,6 +46,15 @@ import {
   sourceSecond,
   type WordsAtATime,
 } from './video/framing.ts';
+import {
+  isTitleMotion,
+  motionAt,
+  TITLE_MOTION_FRAMES,
+  TITLE_MOTION_MAX_FRAMES,
+  type TitleMotionId,
+  typedChars,
+  wordMotionAt,
+} from './video/title-motion.ts';
 
 /** `data-cd-id` (and any other `data-*`) from the props, for the root element: the inspector selects
  *  the component by it. */
@@ -347,6 +356,103 @@ export function Place(props: PlaceProps): ReactNode {
         top: p.y,
         transform: 'translate(-50%, -50%)',
       }}
+    >
+      {props.children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// <TitleMotion>
+
+export interface TitleMotionProps {
+  /** none · fade · slide-up · pop · type-on · per-word (video/title-motion.ts) */
+  preset?: TitleMotionId;
+  /** the entrance's length in frames (12 when absent) */
+  frames?: number;
+  children?: ReactNode;
+  [data: `data-${string}`]: unknown;
+}
+
+/**
+ * A title's entrance (S7.10, 07 ve-text "Motion"): wraps the title's content inside its `<Sequence>`, so the
+ * frame it reads is the frame since the title began. Every preset is a pure function of that frame (DDR-148).
+ * `type-on` and `per-word` need text; given anything else they fade instead of guessing at markup.
+ */
+export function TitleMotion(props: TitleMotionProps): ReactNode {
+  const frame = useCurrentFrame();
+  const preset: TitleMotionId = isTitleMotion(props.preset) ? props.preset : 'none';
+  const frames =
+    typeof props.frames === 'number' && Number.isFinite(props.frames) && props.frames > 0
+      ? Math.min(TITLE_MOTION_MAX_FRAMES, Math.round(props.frames))
+      : TITLE_MOTION_FRAMES;
+  const own = dataAttrs(props as Record<string, unknown>);
+  // the text a character / word preset plays: the children when they are a string, or the one element
+  // whose children are (a title is usually `<div style=…>{"Title"}</div>`)
+  const only = Children.count(props.children) === 1 ? Children.toArray(props.children)[0] : null;
+  const holder =
+    isValidElement(only) && typeof (only.props as { children?: unknown }).children === 'string'
+      ? (only as ReactElement<{ children: string }>)
+      : null;
+  const text =
+    typeof props.children === 'string' ? props.children : holder ? holder.props.children : null;
+  const put = (node: ReactNode): ReactNode =>
+    holder ? cloneElement(holder, undefined, node) : node;
+  if (preset === 'type-on' && text !== null) {
+    const n = typedChars(text.length, frame, frames);
+    return (
+      <div {...own} data-maude-motion={preset}>
+        {put(
+          <>
+            {text.slice(0, n)}
+            <span style={{ visibility: 'hidden' }}>{text.slice(n)}</span>
+          </>
+        )}
+      </div>
+    );
+  }
+  if (preset === 'per-word' && text !== null) {
+    const words = text.split(/(\s+)/);
+    const real = words.filter((w) => w.trim()).length;
+    let k = 0;
+    return (
+      <div {...own} data-maude-motion={preset}>
+        {put(
+          words.map((w, at) => {
+            if (!w.trim()) return w;
+            const m = wordMotionAt(k++, real, frame, frames);
+            return (
+              <span
+                // biome-ignore lint/suspicious/noArrayIndexKey: the words never reorder
+                key={at}
+                style={{
+                  display: 'inline-block',
+                  opacity: m.opacity,
+                  transform: `translateY(${m.y}px)`,
+                }}
+              >
+                {w}
+              </span>
+            );
+          })
+        )}
+      </div>
+    );
+  }
+  const m = motionAt(
+    preset === 'type-on' || preset === 'per-word' ? 'fade' : preset,
+    frame,
+    frames
+  );
+  return (
+    <div
+      {...own}
+      data-maude-motion={preset}
+      style={
+        preset === 'none'
+          ? undefined
+          : { opacity: m.opacity, transform: `translateY(${m.y}px) scale(${m.scale})` }
+      }
     >
       {props.children}
     </div>

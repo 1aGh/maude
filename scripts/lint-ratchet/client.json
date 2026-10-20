@@ -71,9 +71,6 @@
     "apps/studio/client/panels/BrandUploadPanel.jsx": {
       "lint/a11y/noStaticElementInteractions": 1
     },
-    "apps/studio/client/panels/ClipInspector.jsx": {
-      "lint/a11y/noLabelWithoutControl": 8
-    },
     "apps/studio/client/panels/CreateProject.jsx": {
       "lint/a11y/useSemanticElements": 3
     },

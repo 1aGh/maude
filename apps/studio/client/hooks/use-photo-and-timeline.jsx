@@ -482,6 +482,10 @@ export function usePhotoAndTimeline({
         contentHash: cm.contentHash,
         // Phase 2 — authoritative parametric props for the clip inspector.
         mediaProps: cm.mediaProps ?? null,
+        // S7.10 — what the clip inspector reads back: the title's text and entrance, the picture's fit
+        text: cm.text ?? null,
+        titleMotion: cm.titleMotion ?? null,
+        fit: cm.fit ?? null,
         // Task 21 — AI placeholder slate (✨ row + Generate flow).
         placeholder: cm.placeholder ?? null,
         mediaTag: cm.mediaTag ?? s.mediaTag,

@@ -2301,6 +2301,35 @@ function hashSpan(source: string, start: number, end: number): string {
   return Bun.hash(source.slice(start, end)).toString(16).padStart(16, '0').slice(0, 12);
 }
 
+/** S7.10 — `<TitleMotion preset="slide-up" frames={20}>` inside a clip's span (literal props only). */
+function titleMotionOf(span: string): { preset: string; frames: number | null } | null {
+  const tag = /<TitleMotion\b[^>]*>/.exec(span)?.[0];
+  if (!tag) return null;
+  const preset = /\bpreset="([a-z-]+)"/.exec(tag)?.[1];
+  if (!preset) return null;
+  const frames = /\bframes=\{(\d+)\}/.exec(tag)?.[1];
+  return { preset, frames: frames ? Number(frames) : null };
+}
+
+/** S7.10 — the text `applySetClipText` would rewrite (same pattern), or null. */
+function literalTextOf(span: string): string | null {
+  const m = span.match(/\{("(?:[^"\\]|\\.)*")\}/);
+  if (!m?.[1]) return null;
+  try {
+    const v = JSON.parse(m[1]);
+    return typeof v === 'string' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** S7.10 — the `fit` literal of the clip's `<Reframe>`. */
+function fitOf(span: string): 'fill' | 'fit' | 'blur' | null {
+  const tag = /<Reframe\b[^>]*>/.exec(span)?.[0];
+  const fit = tag ? /\bfit="(fill|fit|blur)"/.exec(tag)?.[1] : undefined;
+  return (fit as 'fill' | 'fit' | 'blur' | undefined) ?? null;
+}
+
 /** One clip (timeline row) + everything an op needs to address + label it. */
 export interface ClipInfo {
   /** Durable identity: `name:<Sequence name>` → `mclip:<sentinel>` → `<comp>#<indexInComp>`. */
@@ -2342,6 +2371,14 @@ export interface ClipInfo {
     /** Crop/reposition wrapper marker (`data-mframe="scale,x,y"`). */
     framing: { scale: number; x: number; y: number } | null;
   } | null;
+  /** S7.10 — the title's entrance (`<TitleMotion preset frames>` around its content), read as literal text
+   *  like `data-mframe`; null when the clip has none. The clip inspector's Motion row shows it. */
+  titleMotion: { preset: string; frames: number | null } | null;
+  /** S7.10 — the clip's editable text: its first `{"…"}` literal (a Title overlay's child, an AI slate's prompt) —
+   *  what `clip.set-text` rewrites, so the inspector's Text row starts from what is there. */
+  text: string | null;
+  /** S7.10 — the picture's `fit` on the clip's `<Reframe>` (Fill · Fit · Blur behind); null = not set. */
+  fit: 'fill' | 'fit' | 'blur' | null;
   /** The clip's stacked layers (mp4 background + title/lower-third + …) for the
    *  expandable timeline rows. Empty for a pure inline card. */
   layers: ClipLayer[];
@@ -2581,6 +2618,9 @@ export function enumerateClips(
       mediaShared: m ? m.shared : false,
       clipCdId: cdIdOf.get(c.node) ?? null,
       mediaProps,
+      text: literalTextOf(source.slice(c.start, c.end)),
+      titleMotion: titleMotionOf(source.slice(c.start, c.end)),
+      fit: fitOf(source.slice(c.start, c.end)),
       placeholder: (() => {
         // Direct <AIPlaceholder> child → a slate clip (Task 21). The prompt is
         // authored as `prompt={"…"}` (JSON.stringify — DDR-150 P1), so read

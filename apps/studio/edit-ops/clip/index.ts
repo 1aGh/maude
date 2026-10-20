@@ -41,6 +41,7 @@ import { CLIP_GESTURE_OPS } from './gestures.ts';
 import { applyPlace, placePatch } from './place.ts';
 import { applyReframe, reframePatch } from './reframe.ts';
 import { applyTakeSwap } from './take-swap.ts';
+import { applyTitleMotion, titleMotionPatch } from './title-motion.ts';
 
 export interface ClipTarget {
   /** designRoot-relative canvas (the appliers use it for messages + the parser's file name) */
@@ -237,6 +238,18 @@ export const CLIP_EDIT_VERBS: ReadonlyMap<string, string> = new Map(
   CLIP_VERB_OPS.filter((o) => o.id !== 'clip.remove').map((o) => [o.id.slice('clip.'.length), o.id])
 );
 
+/** The picker's tiles (and the v1 grid's names) → the `@remotion/transitions` presentation each plays. */
+export const TRANSITION_TILES: Readonly<Record<string, string>> = Object.freeze({
+  cut: 'none',
+  none: 'none',
+  fade: 'fade',
+  slide: 'slide',
+  wipe: 'wipe',
+  flip: 'flip',
+  clock: 'clock-wipe',
+  'clock-wipe': 'clock-wipe',
+});
+
 /** The artboard a whole-comp op names (`params.artboard`), or undefined for the file's only comp. */
 const artboardOf = (req: ResolvedEditOp) =>
   typeof req.params.artboard === 'string' ? req.params.artboard : undefined;
@@ -378,6 +391,53 @@ export const VIDEO_OPS: readonly EditOp[] = [
         placePatch(t.file, req.params, t.stableId)
       );
       return { source: r.source, detail: { placed: r.placed } };
+    },
+  },
+  {
+    // A title's entrance (S7.10, 07 ve-text): <TitleMotion preset frames> around its content
+    id: 'video.title.motion',
+    scope: 'artboard',
+    artboards: heldArtboards,
+    apply(source, req) {
+      const t = clipTarget(req);
+      const r = applyTitleMotion(
+        t.file,
+        source,
+        t.artboard,
+        t.stableId,
+        t.hash,
+        titleMotionPatch(t.file, req.params, t.stableId)
+      );
+      return { source: r.source, detail: { motion: r.motion } };
+    },
+  },
+  {
+    // A join's transition (S7.10, 07 ve-transition): the six tiles of the picker and its Length — Cut · Fade ·
+    // Slide · Wipe · Flip · Clock wipe. `stableId` is the TRANSITION's own id, as for clip.transition.
+    id: 'video.transition.set',
+    scope: 'artboard',
+    artboards: heldArtboards,
+    apply(source, req) {
+      const t = clipTarget(req);
+      const p = req.params;
+      const opts: { presentation?: string; durationInFrames?: number } = {};
+      if (p.presentation !== undefined) {
+        const key =
+          typeof p.presentation === 'string' && Object.hasOwn(TRANSITION_TILES, p.presentation)
+            ? TRANSITION_TILES[p.presentation]
+            : undefined;
+        if (!key) bad(t.file, 'A join takes Cut, Fade, Slide, Wipe, Flip or Clock wipe.');
+        opts.presentation = key;
+      }
+      if (p.durationInFrames !== undefined) {
+        const n = Number(p.durationInFrames);
+        if (!Number.isFinite(n) || n < 1 || n > 600)
+          bad(t.file, 'A transition is 1 to 600 frames.');
+        opts.durationInFrames = Math.round(n);
+      }
+      if (opts.presentation === undefined && opts.durationInFrames === undefined)
+        bad(t.file, 'There is nothing to change in this transition.');
+      return applyEditTransition(t.file, source, t.artboard, t.stableId, t.hash, opts);
     },
   },
   {

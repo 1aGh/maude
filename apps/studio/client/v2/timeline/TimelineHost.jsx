@@ -27,6 +27,7 @@ import { bindFollowed, playbackStore } from './playhead.js';
 import { bindPosterSource, loadPoster, posterOf, usePosterVersion } from './poster.js';
 import { TimelineIslandContext } from './island-context.js';
 import { TimelineIsland } from './island.jsx';
+import { timelineSelection, useTimelineSelection } from './selection.js';
 import { timelineStore, useTimelineView } from './timeline-store.js';
 import { TimelineEmpty } from './timeline-empty.jsx';
 
@@ -42,6 +43,7 @@ export default function TimelineHost({ children }) {
       iframesRef,
       postToActiveCanvas,
       setCanvasActiveArtboard,
+      setInspectorOpen,
       setTimelineFrame,
       setTimelineOpen,
       setTimelinePlaying,
@@ -56,6 +58,12 @@ export default function TimelineHost({ children }) {
   } = useShellStore();
   const tlKeyRef = photoAndTimeline?.tlKeyRef;
   const view = useTimelineView();
+  // S7.10 — a clip selected on the Timeline is edited in the right-hand inspector: it comes up when a different
+  // clip is picked (a person who closed it keeps it closed until the next pick, like the canvas's own auto-open)
+  const pickedClip = useTimelineSelection()?.stableId ?? null;
+  useEffect(() => {
+    if (pickedClip) setInspectorOpen?.(true);
+  }, [pickedClip, setInspectorOpen]);
   const { hidden: panelsHidden } = usePanelLayout();
   const present = view.visible && !panelsHidden;
 
@@ -75,6 +83,8 @@ export default function TimelineHost({ children }) {
       onSpaceTap: () => {
         if (deps.current.follows) playToggle(deps.current);
       },
+      // S7.10 — a canvas selection takes the right-hand inspector back from the selected clip
+      onCanvasSelect: () => timelineSelection.release(),
       canvasOrigin: () => live.current.canvasOrigin || window.location.origin,
       activePath: () => live.current.activePath,
       frameOf: (p) => live.current.iframesRef?.current?.get(p),
@@ -212,10 +222,24 @@ export default function TimelineHost({ children }) {
       poster,
       fileDrag,
       dropRect,
+      // S7.10 — what the clip inspector, the join picker and the Music hint need to know about their surroundings
+      canvas: activePath ?? null,
+      canEdit: !viewerMode,
+      canAsk,
       onToggleSize: () => timelineStore.toggleSize(),
       empty: <TimelineEmpty artboard={artboardLabel} canAsk={canAsk} />,
     }),
-    [view.size, view.kept, poster, artboardLabel, canAsk, fileDrag, dropRect]
+    [
+      view.size,
+      view.kept,
+      poster,
+      artboardLabel,
+      canAsk,
+      fileDrag,
+      dropRect,
+      activePath,
+      viewerMode,
+    ]
   );
 
   // ── where it goes: the window, and the canvas frame the artboard's rect is measured in ──
