@@ -14,6 +14,17 @@ import { applyAdvanced } from './advanced/model.js';
 import { annotationsState } from './annotations-policy.js';
 import { SCOPE_IDS } from './export-copy.js';
 import { batchPart, isBatch } from './sections/batch-model.js';
+import {
+  captionsFor,
+  formatsFor,
+  mergeRows,
+  reached,
+  scaleOf,
+  TEMPORAL,
+  tickedIds,
+  toggleTick,
+  videoCtx,
+} from './sections/video-model.js';
 
 // ── formats and scopes ───────────────────────────────────────────────────────────────────────────
 export const RASTER = new Set(['png', 'jpg']);
@@ -121,6 +132,10 @@ export function buildSpec(state, ctx = {}) {
     if (elements.length) spec.selection = { elements };
     else if (artboards.length) spec.selection = { artboards: artboards.slice(0, 256) };
   }
+  // S8.6 — the ticked video formats ARE the selection (the artboard and its linked formats), so the server
+  // runs exactly what the sheet shows and Export again replays it
+  if (state.scope === 'selection' && TEMPORAL.has(state.format) && ctx.video?.ids?.length)
+    spec.selection = { artboards: ctx.video.ids.slice(0, 256) };
   if (state.region && (state.scope === 'selection' || state.scope === 'canvas'))
     spec.region = state.region;
   if (state.unit && state.region) spec.unit = state.unit;
@@ -134,6 +149,17 @@ export function buildSpec(state, ctx = {}) {
   // and the rest ride in `state.adv`, laid over this below)
   const printPdf = ctx.kind === 'print' && state.format === 'pdf' && state.printPdf !== false;
   if (printPdf) options.print = { bleed: true, marks: 'crop' };
+  // S8.6 — a video: 1080p is the artboard's own size, 4K twice that; captions are Off unless asked (C19);
+  // Allow longer is the person's word, the cap it lifts to is the server's. Sound only: m4a or wav.
+  if (TEMPORAL.has(state.format) && !ctx.batch) {
+    if (state.format !== 'audio') options.size = { scale: scaleOf(state.vq) };
+    const video = {};
+    if (state.captions === true && state.format !== 'gif') video.captions = true;
+    if (ctx.video?.linked) video.linked = true;
+    if (state.allowLonger === true) video.allowLonger = true;
+    if (Object.keys(video).length) options.video = video;
+    if (state.format === 'audio') options.audio = { codec: state.audioCodec ?? 'm4a' };
+  }
   if (state.annotations && !annotationsState(state.format, { kinds: ctx.kinds }).off)
     options.annotations = true;
   // S8.3 — many kinds at once: each kind's own format row; the picks, not the sheet's 1× / 2×, size it
@@ -280,11 +306,13 @@ export function useEstimate(spec, { enabled = true } = {}) {
 /** The artboard kinds the estimate says the spec reaches. */
 export const kindsOf = (est) => new Set(Object.keys(est?.byKind ?? {}));
 
-/** Which section the sheet shows: only web artboards → web; only print artboards → print; else the image one. */
+/** Which section the sheet shows: only web artboards → web; only print → print; only video → video; else the image one. */
 export function sectionKind(est) {
   const kinds = [...kindsOf(est)];
   if (kinds.length > 0 && kinds.every((k) => k === 'web')) return 'web';
   if (kinds.length > 0 && kinds.every((k) => k === 'print')) return 'print';
+  // S8.6 — only video artboards → the video part
+  if (kinds.length > 0 && kinds.every((k) => k === 'video')) return 'video';
   return 'image';
 }
 
@@ -311,9 +339,23 @@ export function useExportSpec(request, ctx) {
   // again for that spec so its numbers are the ones the picks make
   const [kindsSeen, setKindsSeen] = useState([]);
   const batch = isBatch(kindsSeen, state.scope, state.format);
+  // S8.6 — the video artboards the estimate has named (kept as they come: unticking one must not drop it),
+  // the formats on offer for them, and the ticks. A tick is the person's; the default is the format's own.
+  const [videoRows, setVideoRows] = useState([]);
+  const base = ctx.artboards?.length
+    ? ctx.artboards
+    : ctx.activeArtboardId
+      ? [ctx.activeArtboardId]
+      : [];
+  const formats = useMemo(
+    () => formatsFor({ scope: state.scope, canvas: canvasRel(ctx), base, rows: videoRows }),
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `base` and `ctx` are read through their keys
+    [state.scope, videoRows, base.join('\u0000'), ctx.activePath, ctx.designRel]
+  );
+  const vctx = useMemo(() => videoCtx(formats, state.videoTicks), [formats, state.videoTicks]);
   const draft = useMemo(
-    () => buildSpec(state, { ...ctx, kinds: kindsSeen, batch }),
-    [state, ctx, kindsSeen, batch]
+    () => buildSpec(state, { ...ctx, kinds: kindsSeen, batch, video: vctx }),
+    [state, ctx, kindsSeen, batch, vctx]
   );
   const est = useEstimate(draft, { enabled: ctx.estimate !== false });
   const seen = [...kindsOf(est)].sort().join('\u0000');
@@ -321,8 +363,18 @@ export function useExportSpec(request, ctx) {
   useEffect(() => {
     if (est && seen !== [...kindsSeen].sort().join('\u0000')) setKindsSeen([...kindsOf(est)]);
   }, [seen]);
+  useEffect(() => {
+    if (est?.video?.length) setVideoRows((prev) => mergeRows(prev, est.video));
+  }, [est]);
   const section = batch ? 'batch' : sectionKind(est);
-  const kind = section === 'web' ? 'web' : section === 'print' ? 'print' : 'digital';
+  const kind =
+    section === 'web'
+      ? 'web'
+      : section === 'print'
+        ? 'print'
+        : section === 'video'
+          ? 'video'
+          : 'digital';
   // S8.7 — a print page opens on its own Print PDF (the kind's first offer) unless a format was asked for
   // biome-ignore lint/correctness/useExhaustiveDependencies: only the section and whether a format was named matter
   useEffect(() => {
@@ -333,12 +385,54 @@ export function useExportSpec(request, ctx) {
         printPdf: true,
         scope: scopeForFormat('pdf', s.scope),
       }));
+    // S8.6 — a video opens on MP4
+    if (section === 'video' && !state.picked && !TEMPORAL.has(state.format))
+      setState((s) => ({ ...s, format: 'mp4', scope: scopeForFormat('mp4', s.scope) }));
   }, [section, state.picked]);
   const spec = useMemo(
-    () => buildSpec(state, { ...ctx, kind, kinds: kindsSeen, batch }),
-    [state, ctx, kind, kindsSeen, batch]
+    () => buildSpec(state, { ...ctx, kind, kinds: kindsSeen, batch, video: vctx }),
+    [state, ctx, kind, kindsSeen, batch, vctx]
   );
-  return { state, set, setFormat, setScope, spec, est, kind, section, batch, kinds: kindsSeen };
+  const onTick = useCallback(
+    (id) => setState((s) => ({ ...s, videoTicks: toggleTick(formats, s.videoTicks, id) })),
+    [formats]
+  );
+  // what the video part draws: the formats and their ticks, and the rows this export reaches
+  const video = useMemo(() => {
+    const ticked = tickedIds(formats, state.videoTicks);
+    const rows = reached(est?.video?.length ? est.video : videoRows, ticked, state.scope);
+    return {
+      formats,
+      ticked,
+      onTick,
+      rows,
+      selected: Math.max(1, base.length),
+      captionsAvailable: captionsFor(canvasRel(ctx), base, videoRows),
+    };
+  }, [
+    formats,
+    state.videoTicks,
+    state.scope,
+    est,
+    videoRows,
+    onTick,
+    base.length,
+    ctx.activePath,
+    ctx.designRel,
+  ]);
+  return {
+    state,
+    set,
+    setFormat,
+    setScope,
+    spec,
+    est,
+    kind,
+    section,
+    batch,
+    kinds: kindsSeen,
+    video,
+  };
 }
 
 // ── the other people in the project (Share vs Export hint) ───────────────────────────────────────
