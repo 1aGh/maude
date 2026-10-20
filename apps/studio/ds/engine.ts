@@ -106,7 +106,15 @@ export type EngineErrorCode =
   | 'ds-trash-tier1'
   | 'ds-not-trashed'
   | 'ds-kernel-unavailable'
-  | 'ds-kernel-rejected';
+  | 'ds-kernel-rejected'
+  // S10.16a (making a system)
+  | 'ds-making'
+  | 'ds-not-making'
+  | 'ds-exists'
+  | 'ds-unknown-direction'
+  | 'ds-unknown-group'
+  | 'ds-nothing-made'
+  | 'ds-make-invalid';
 
 const STATUS: Partial<Record<EngineErrorCode, number>> = {
   'ds-unknown-system': 404,
@@ -118,6 +126,10 @@ const STATUS: Partial<Record<EngineErrorCode, number>> = {
   'ds-revision-invalid': 422,
   'ds-head-invalid': 422,
   'ds-kernel-unavailable': 503,
+  'ds-unknown-direction': 404,
+  'ds-unknown-group': 422,
+  'ds-nothing-made': 422,
+  'ds-make-invalid': 422,
 };
 
 export class DsEngineError extends Error {
@@ -302,7 +314,7 @@ function setOwn(o: Record<string, unknown>, k: string, v: unknown): void {
 
 /** One lock per system folder, shared by every engine in this process. */
 const locks = new Map<string, Promise<unknown>>();
-function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+export function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = locks.get(key) ?? Promise.resolve();
   const run = prev.then(fn, fn);
   const tail = run.catch(() => {});
@@ -564,6 +576,9 @@ export function createDsEngine(opts: EngineOptions) {
     if (h.state === 'absent') throw fail('ds-not-converted', `${ds} is not converted`);
     if (h.state !== 'ok')
       throw fail('ds-head-invalid', `${ds}: head.json is ${h.state} (${h.detail})`);
+    // S10.16a: a system still being made has no revision to review, publish or keep (head = base = null)
+    if (h.doc.head === null && h.doc.base === null)
+      throw fail('ds-making', `${ds} is still being made — finish it first`);
     const baseBody = loadRevision(s, h.doc.base);
     if (!baseBody)
       throw fail('ds-revision-missing', `${ds}: the base revision has not arrived on this Mac yet`);
@@ -687,6 +702,7 @@ export function createDsEngine(opts: EngineOptions) {
     try {
       L = load(ds);
     } catch (err) {
+      if (err instanceof DsEngineError && err.code === 'ds-making') return common;
       if (
         err instanceof DsEngineError &&
         (err.code === 'ds-revision-missing' || err.code === 'ds-revision-invalid')
@@ -1545,6 +1561,9 @@ export function createDsEngine(opts: EngineOptions) {
 
   return {
     designRoot,
+    /** the Plane-A port now (null = no home answers) and the clock — `ds/make.ts` reuses both */
+    kernel: kernelNow,
+    now,
     systems,
     state,
     review,

@@ -207,7 +207,8 @@ export function emitTokensJson(
     system: cfg.name,
     themes: cfg.themes,
     defaultTheme: cfg.themeDefault,
-    source: 'css',
+    // a converted system's tokens.json is the app's own (engine / generate.ts write `canvas`)
+    source: model.converted ? 'canvas' : 'css',
     ...keptRoot,
   };
   if (cfg.rootClass) rootExt.rootClass = cfg.rootClass;
