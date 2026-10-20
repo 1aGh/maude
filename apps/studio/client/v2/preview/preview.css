@@ -113,6 +113,38 @@
     padding: var(--space-1, 4px);
     animation: st-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
   }
+  /* S9.21c (10 co-browser-view) — "Open in the Mac app", bottom right, in a browser on a cloud cell only. */
+  .st-openapp.island {
+    position: absolute;
+    z-index: 30;
+    right: var(--float-gap, 16px);
+    bottom: var(--float-gap, 16px);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    height: 40px;
+    padding: 0 var(--space-3, 12px) 0 var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-medium, 500);
+    color: var(--fg-0);
+    text-decoration: none;
+    animation: st-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+    transition: opacity var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  .st-body:not(.st-body--float) .st-openapp {
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .st-openapp:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .st-openapp[data-state="out"] {
+    opacity: 0;
+    pointer-events: none;
+    animation: none;
+  }
   .st-zoomonly[data-state="out"] {
     opacity: 0;
     pointer-events: none;

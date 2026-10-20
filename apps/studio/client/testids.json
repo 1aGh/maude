@@ -17660,6 +17660,19 @@
     "v2": "new"
   },
   {
+    "hook": "preview-open-app",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open in the Mac app\", Preview's bottom-right island in a browser on a cloud cell (10 co-browser-view): a plain link to the open canvas' `maude://open` link; `data-occludes=\"bottom\"`. Absent in the desktop app and on a local studio.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/open-in-app.jsx",
+      "symbol": "OpenInApp"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "ext-link-scrim",
     "kind": "testid",
     "pattern": false,

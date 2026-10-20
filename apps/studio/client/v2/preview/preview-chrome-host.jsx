@@ -7,6 +7,9 @@
 //
 // `PreviewChrome` is the pure render (mode + caps + names in, islands out); `ShellPreviewChrome` collects
 // the inputs from the shell and holds the islands on screen for the exit fade (the same frames in reverse).
+//
+// S9.21c (10 co-browser-view) — in a browser on a cloud cell Preview has a third island, "Open in the Mac app"
+// (bottom right, open-in-app.jsx): a view-only link boots here, and that is its way into the app.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
@@ -18,20 +21,24 @@ import { basename, displayName } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { capsFor } from '../shell/canvas-mode.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
+import { isNativeApp } from '../../github.js';
 import { ExternalLinkConfirmHost, externalLinks } from './external-link-confirm.jsx';
 import { createLinkFollow } from './link-follow.js';
+import { OpenInApp, openInAppLink } from './open-in-app.jsx';
 import { PreviewBar, previewHint } from './preview-bar.jsx';
 import { clearPreviewBack, runPreviewBack, setPreviewBack } from './preview-back.js';
 import { previewHistory } from './preview-history.js';
 import { useViewportZoom, ZoomOnly } from './zoom-only.jsx';
 
-/** The two islands, in Preview only. `state` is `in` while entering/showing, `out` for the exit fade. */
-export function PreviewChrome({ mode, caps, name, zoom, back, onBack, state = 'in' }) {
+/** The islands, in Preview only. `state` is `in` while entering/showing, `out` for the exit fade.
+ *  `openApp` — the browser's "Open in the Mac app" link (`openInAppLink`), absent everywhere else. */
+export function PreviewChrome({ mode, caps, name, zoom, back, onBack, openApp, state = 'in' }) {
   if (mode !== 'preview') return null;
   return (
     <>
       <PreviewBar name={name} hint={previewHint(caps)} back={back} onBack={onBack} state={state} />
       <ZoomOnly zoom={zoom} state={state} />
+      <OpenInApp href={openApp} state={state} />
     </>
   );
 }
@@ -168,7 +175,7 @@ function useLinkFollow({ live, previewing, cfg }) {
 export function ShellPreviewChrome() {
   const {
     shellCore: { activePath, cfg, iframesRef, viewerMode },
-    tabs: { openTab },
+    tabs: { openTab, shareLinksFor },
   } = useShellStore();
   const previewing = usePreviewMode();
   const leaving = useExitHold(previewing, panelMs());
@@ -187,6 +194,11 @@ export function ShellPreviewChrome() {
   });
   if (!canvasOpen || (!previewing && !leaving)) return null;
   const caps = capsFor({ canEdit: !viewerMode, role: cfg?.cloud?.role });
+  const openApp = openInAppLink({
+    native: isNativeApp(),
+    cloud: !!cfg?.cloud,
+    appLink: shareLinksFor?.(activePath)?.app,
+  });
   return (
     <>
       <PreviewChrome
@@ -196,6 +208,7 @@ export function ShellPreviewChrome() {
         zoom={zoom}
         back={link.backName}
         onBack={link.onBack}
+        openApp={openApp}
         state={previewing ? 'in' : 'out'}
       />
       <ExternalLinkConfirmHost active={previewing} />
