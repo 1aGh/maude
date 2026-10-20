@@ -596,6 +596,12 @@ export function usePhotoAndTimeline({
     setPrintGuidesVisible((v) => {
       const next = !v;
       postToActiveCanvas({ dgn: 'view-chrome', print: next });
+      // S7.23 (C25): the Print inspector shows View's default until an artboard has its own switch — tell it
+      globalThis.window?.dispatchEvent?.(
+        new CustomEvent('maude:print-guides-default', {
+          detail: { canvas: activePath, visible: next },
+        })
+      );
       fetch('/_api/canvas-meta', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

@@ -749,6 +749,34 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
+  // S7.23 — the print inspector (08 ak-print-letak): paper, millimetres, orientation, bleed and safe margin are ONE edit-op
+  // (`edit-ops/print.ts`) that rewrites the `print` prop and the artboard's px size together; the artboard's own Print guides
+  // switch (C25) is the second. Both take values, so neither is a ⌘K row: their home is the Print artboard's inspector.
+  {
+    id: 'artboard.set-print',
+    label: 'Set paper, size, bleed or margin',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.set-print-guides',
+    label: 'Print guides on this artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  // S7.23 — Advanced › Guides: columns, rows or a grid drawn on one artboard (View-only chrome, never exported).
+  {
+    id: 'artboard.set-guides',
+    label: 'Set layout guides',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
   {
     id: 'artboard.rename',
     label: 'Rename artboard',
