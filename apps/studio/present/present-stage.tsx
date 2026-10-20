@@ -31,7 +31,7 @@ import {
 } from '../use-collab.tsx';
 import { cameraFor, type Fit, fitForKind, scrolled } from './fit.ts';
 import { createFollower, type FollowView, newPresentSid } from './follow.ts';
-import { type PresentMeta, presentRun, startIndex } from './order.ts';
+import { formatIdsOf, onlyIds, type PresentMeta, presentRun, startIndex } from './order.ts';
 import { usePointerDot } from './pointer-dot.tsx';
 import {
   type ClipRef,
@@ -131,6 +131,8 @@ export interface StageDeps {
   onLocalStep?(): void;
   /** S3.3 — the clip on the presented artboard (present-media.ts). Absent: nothing plays. */
   media?: StageMedia;
+  /** S7.19 — the artboards that share `id`'s cut (`PresentSpec.only === 'formats'`); null = `id` is no video. */
+  formatIds?(id: string): string[] | null;
 }
 
 export interface StageState {
@@ -141,7 +143,7 @@ export interface StageState {
 }
 
 export interface PresentStage {
-  start(from?: string | null): void;
+  start(from?: string | null, only?: 'formats' | null): void;
   stop(): void;
   step(to: number | 'next' | 'prev'): void;
   /** The artboards, the host or the meta changed under a running stage: re-fit without a tween. */
@@ -151,6 +153,8 @@ export interface PresentStage {
   goTo(artboardId: string, index: number): void;
   /** S3.7a — the audience window: keys and clicks do nothing, and the pointer is hidden. */
   setLocked(locked: boolean): void;
+  /** S7.19 — the artboards this Present is limited to (`only: 'formats'`), or null when it shows them all. */
+  deck(): readonly string[] | null;
   /** Unmount: undo everything at once. */
   dispose(): void;
   state(): StageState;
@@ -244,6 +248,8 @@ export function reportPresentRun(win: Window, artboards: PresentRunCell[]): void
 
 export function createPresentStage(deps: StageDeps): PresentStage {
   let active = false;
+  /** S7.19 — `only: 'formats'`: the artboards this Present is limited to (the video's formats); null = all. */
+  let deckIds: string[] | null = null;
   let index = 0;
   let total = 0;
   let artboardId: string | null = null;
@@ -334,7 +340,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
   };
 
   /** The run right now, from the live rects + meta (a peer or the AI may have changed either). */
-  const currentRun = () => presentRun(deps.getArtboards(), deps.readMeta());
+  const currentRun = () => onlyIds(presentRun(deps.getArtboards(), deps.readMeta()), deckIds);
 
   const stageSize = () => {
     const host = deps.getHost();
@@ -535,8 +541,10 @@ export function createPresentStage(deps: StageDeps): PresentStage {
   };
 
   return {
-    start(from) {
+    start(from, only) {
       if (active) return;
+      deckIds =
+        only === 'formats' && from && from !== 'start' ? (deps.formatIds?.(from) ?? null) : null;
       if (exiting) {
         // Re-entered while the last exit was still settling: land it, then start from where it landed.
         const landed = saved?.camera;
@@ -563,6 +571,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
     stop() {
       if (!active) return;
       active = false;
+      deckIds = null;
       detach?.();
       detach = null;
       applyCursor();
@@ -589,6 +598,8 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       if (i === index && artboardId === run[i]) return;
       show(i, 'cut', true);
     },
+
+    deck: () => deckIds,
 
     setLocked(next) {
       locked = !!next;
@@ -672,6 +683,7 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
   const presenting = !!snap && snap.mode === 'present';
   const active = presenting && snap?.present?.kind === 'artboards';
   const from = snap?.present?.from;
+  const only = snap?.present?.only ?? null;
   const stepN = snap?.step?.n ?? 0;
   const stepTo = snap?.step?.to;
   // S3.7a — publish the position on awareness only while the shell grants it (caps.present).
@@ -721,6 +733,19 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
         return { sid: s.sid, seq: s.seq };
       },
       onLocalStep: () => followRef.current?.localStep(),
+      // S7.19 — the video artboards that mount the same component are one deck (`video/link-groups.ts`)
+      formatIds: (id) => {
+        const reg = (
+          win as unknown as {
+            __maudeVideoComps?: Map<string, { artboardId: string | null; component?: unknown }>;
+          }
+        ).__maudeVideoComps;
+        if (!reg) return null;
+        const items: Array<{ id: string; comp: unknown }> = [];
+        for (const e of reg.values())
+          if (e.artboardId) items.push({ id: e.artboardId, comp: e.component });
+        return formatIdsOf(items, id);
+      },
       media: createPresentMedia({
         win,
         clips: () => {
@@ -756,7 +781,7 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
   useEffect(() => {
     const engine = engineRef.current;
     if (!active || !engine) return;
-    engine.start(from);
+    engine.start(from, only);
     return () => engine.stop();
   }, [active]);
 
@@ -807,9 +832,14 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
   useEffect(() => {
     if (!active || !win) return;
     const world = optsRef.current.worldRef.current;
+    // S7.19: a deck of formats (`only: 'formats'`) reports itself — the shell's format switch reads this list
+    const deck = engineRef.current?.deck() ?? null;
     reportPresentRun(
       win,
-      presentRunReport(opts.artboards, (id) => artboardLabel(world, id))
+      presentRunReport(
+        deck ? opts.artboards.filter((a) => deck.includes(String(a.id))) : opts.artboards,
+        (id) => artboardLabel(world, id)
+      )
     );
   }, [active, opts.artboards]);
 

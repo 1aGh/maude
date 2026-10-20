@@ -56,10 +56,11 @@ export const shellMode = createShellMode();
 
 /** What Present starts from, kept current by the shell core (it owns the selection and the in-view
  *  artboard): `{ selectedArtboard, inViewArtboard }`. Read when Present is entered, never rendered. */
-const presentSource = { selectedArtboard: null, inViewArtboard: null };
+const presentSource = { selectedArtboard: null, inViewArtboard: null, selectedVideo: false };
 export function setPresentSource(next) {
   presentSource.selectedArtboard = next?.selectedArtboard ?? null;
   presentSource.inViewArtboard = next?.inViewArtboard ?? null;
+  presentSource.selectedVideo = next?.selectedVideo === true;
 }
 
 /** Enter Present: 'selection' (⌥⌘↵, a click on Present), 'start' (⇧⌥⌘↵), 'canvas' (pan freely). */

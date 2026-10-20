@@ -209,6 +209,9 @@ export function createShellMode(caps = ALL_CAPS) {
   };
 }
 
+/** The ops the shell's transport may send the presented clip (`present-media-cmd`). */
+const MEDIA_OPS = new Set(['play', 'pause', 'mute', 'unmute', 'captions-on', 'captions-off']);
+
 /** D1 — the shell's `presentMode`, derived from the one store. */
 export const presentingOf = (snap) => snap.mode === 'present';
 
@@ -218,10 +221,18 @@ export const presentingOf = (snap) => snap.mode === 'present';
  *   'start'     — the first artboard in canvas order;
  *   'canvas'    — Present the canvas (pan freely).
  */
-export function presentSpecFor(kind, { selectedArtboard = null, inViewArtboard = null } = {}) {
+export function presentSpecFor(
+  kind,
+  { selectedArtboard = null, inViewArtboard = null, selectedVideo = false } = {}
+) {
   if (kind === 'canvas') return { kind: 'canvas' };
   if (kind === 'start') return { kind: 'artboards', from: 'start' };
-  return presentSpec({ kind: 'artboards', from: selectedArtboard || inViewArtboard || 'start' });
+  // S7.19 (S7-slices Q11): a SELECTED video artboard presents its formats and nothing else
+  return presentSpec({
+    kind: 'artboards',
+    from: selectedArtboard || inViewArtboard || 'start',
+    ...(selectedArtboard && selectedVideo ? { only: 'formats' } : {}),
+  });
 }
 
 /** The mode the canvases are in, clamped by the role (Present passes through). */
@@ -373,7 +384,7 @@ export function createModeLane({ frames, active, flushInsets = () => {} }) {
     },
     /** Present · Artboards: drive the clip on the presented artboard (the transport — S3.3). */
     media(win, op) {
-      if (op !== 'play' && op !== 'pause' && op !== 'mute' && op !== 'unmute') return;
+      if (!MEDIA_OPS.has(op)) return;
       post(win, { dgn: 'present-media-cmd', op });
     },
     get seq() {

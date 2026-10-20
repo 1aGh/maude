@@ -681,8 +681,14 @@ export function useShellCore({}) {
   useEffect(() => {
     const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
     const own = one && typeof one.artboardId === 'string' ? one.artboardId : null;
-    setPresentSource({ selectedArtboard: own, inViewArtboard: canvasActiveArtboard });
-  }, [selected, canvasActiveArtboard]);
+    // S7.19: a selected VIDEO artboard (the canvas announced a comp on it) presents its formats only
+    const selectedVideo = !!own && activeComps.some((c) => c?.artboardId === own);
+    setPresentSource({
+      selectedArtboard: own,
+      inViewArtboard: canvasActiveArtboard,
+      selectedVideo,
+    });
+  }, [selected, canvasActiveArtboard, activeComps]);
   // DDR-148 — parsed sequence/keyframe rows for the Timeline (from raw .tsx).
   const [timelineSequences, setTimelineSequences] = useState([]);
   const [timelineAudio, setTimelineAudio] = useState([]);

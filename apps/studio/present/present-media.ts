@@ -47,7 +47,16 @@ export interface ClipRef {
   ref: { current: PlayerLike | null };
 }
 
-export type MediaOp = 'play' | 'pause' | 'mute' | 'unmute';
+export type MediaOp = 'play' | 'pause' | 'mute' | 'unmute' | 'captions-on' | 'captions-off';
+
+/**
+ * S7.19 (ve-fullscreen) — the captions toggle of the video Present transport. The comp's `<Captions>` carries
+ * `data-maude-captions`; while the attribute below is on the document root a rule hides them. Presentation only:
+ * nothing is written to the canvas, and `stop()` takes the attribute off again.
+ */
+export const CAPTIONS_ATTR = 'data-present-captions';
+const CAPTIONS_STYLE_ID = 'maude-present-captions-css';
+const CAPTIONS_CSS = `:root[${CAPTIONS_ATTR}="off"] [data-maude-captions] { display: none !important; }`;
 
 export interface MediaState {
   playing: boolean;
@@ -377,6 +386,19 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
     },
 
     command(op) {
+      if (op === 'captions-on' || op === 'captions-off') {
+        const doc = deps.win?.document;
+        if (!doc) return;
+        if (!doc.getElementById(CAPTIONS_STYLE_ID)) {
+          const st = doc.createElement('style');
+          st.id = CAPTIONS_STYLE_ID;
+          st.textContent = CAPTIONS_CSS;
+          doc.head.appendChild(st);
+        }
+        if (op === 'captions-off') doc.documentElement.setAttribute(CAPTIONS_ATTR, 'off');
+        else doc.documentElement.removeAttribute(CAPTIONS_ATTR);
+        return;
+      }
       if (op === 'mute' || op === 'unmute') {
         soundOff = op === 'mute';
         if (!cur) return;
@@ -417,6 +439,7 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
       }
       originals.clear();
       soundOff = false;
+      deps.win?.document.documentElement.removeAttribute(CAPTIONS_ATTR);
     },
   };
   return api;

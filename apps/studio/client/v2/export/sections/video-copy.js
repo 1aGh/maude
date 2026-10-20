@@ -24,6 +24,8 @@ export const QUALITIES = [
 
 export const SOUND_MIXED = 'Music, mixed as on the timeline';
 export const SOUND_GIF = 'A GIF has no sound';
+/** 07 ve-export: under Format when more than one format is ticked. */
+export const SOUND_SHARED_NOTE = 'Sound only makes one file — the formats share their sound.';
 export const SOUND_ONLY_NOTE = 'The same mix the video has, with no picture.';
 
 export const SOUND_FILES = [

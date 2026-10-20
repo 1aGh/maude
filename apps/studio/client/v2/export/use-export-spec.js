@@ -17,6 +17,8 @@ import { batchPart, isBatch } from './sections/batch-model.js';
 import {
   captionsFor,
   formatsFor,
+  allowLongerDefault,
+  isPartial,
   mergeRows,
   reached,
   scaleOf,
@@ -136,6 +138,16 @@ export function buildSpec(state, ctx = {}) {
   // runs exactly what the sheet shows and Export again replays it
   if (state.scope === 'selection' && TEMPORAL.has(state.format) && ctx.video?.ids?.length)
     spec.selection = { artboards: ctx.video.ids.slice(0, 256) };
+  // S7.19 (07 ve-export) — "This canvas" with a format unticked: the ticked formats of the canvas, as a selection
+  if (
+    state.scope === 'canvas' &&
+    TEMPORAL.has(state.format) &&
+    ctx.video?.partial &&
+    ctx.video.ids.length
+  ) {
+    spec.scope = 'selection';
+    spec.selection = { artboards: ctx.video.ids.slice(0, 256) };
+  }
   if (state.region && (state.scope === 'selection' || state.scope === 'canvas'))
     spec.region = state.region;
   if (state.unit && state.region) spec.unit = state.unit;
@@ -352,7 +364,10 @@ export function useExportSpec(request, ctx) {
     // biome-ignore lint/correctness/useExhaustiveDependencies: `base` and `ctx` are read through their keys
     [state.scope, videoRows, base.join('\u0000'), ctx.activePath, ctx.designRel]
   );
-  const vctx = useMemo(() => videoCtx(formats, state.videoTicks), [formats, state.videoTicks]);
+  const vctx = useMemo(() => {
+    const v = videoCtx(formats, state.videoTicks);
+    return isPartial(state.scope, formats, v.ids) ? { ...v, partial: true } : v;
+  }, [formats, state.videoTicks, state.scope]);
   const draft = useMemo(
     () => buildSpec(state, { ...ctx, kinds: kindsSeen, batch, video: vctx }),
     [state, ctx, kindsSeen, batch, vctx]
@@ -393,6 +408,15 @@ export function useExportSpec(request, ctx) {
     () => buildSpec(state, { ...ctx, kind, kinds: kindsSeen, batch, video: vctx }),
     [state, ctx, kind, kindsSeen, batch, vctx]
   );
+  // S7.19 — an artboard that stored its own ceiling (Timeline › Allow longer) opens the sheet with Allow longer on;
+  // the person's own choice, either way, wins, and the server still holds the cap
+  const storedKey = allowLongerDefault(canvasRel(ctx), vctx.ids.length ? vctx.ids : base, videoRows)
+    ? 'on'
+    : 'off';
+  useEffect(() => {
+    if (storedKey === 'on')
+      setState((s) => (s.allowLonger === undefined ? { ...s, allowLonger: true } : s));
+  }, [storedKey]);
   const onTick = useCallback(
     (id) => setState((s) => ({ ...s, videoTicks: toggleTick(formats, s.videoTicks, id) })),
     [formats]
@@ -407,7 +431,7 @@ export function useExportSpec(request, ctx) {
       onTick,
       rows,
       selected: Math.max(1, base.length),
-      captionsAvailable: captionsFor(canvasRel(ctx), base, videoRows),
+      captionsAvailable: captionsFor(canvasRel(ctx), ticked.length ? ticked : base, videoRows),
     };
   }, [
     formats,

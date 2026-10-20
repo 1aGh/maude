@@ -16,6 +16,9 @@ export interface PresentSpec {
   kind: (typeof PRESENT_KINDS)[number];
   /** A DCArtboard id, or 'start'. */
   from?: string;
+  /** S7.19 (S7-slices Q11) — Present · Artboards plays only the formats of the video artboard `from` names: the
+   *  artboards that share its cut (the deck IS the video's formats; ‹ › switches format). Absent = every artboard. */
+  only?: 'formats';
 }
 
 /** owner/editor → all true · Can comment (today's `viewer`) → comment only · Can view → none. */
@@ -498,11 +501,18 @@ export function holdsModuleUpdates(
 /** A well-formed Present spec (the shell's own, or one a `mode-request` asked for): `artboards`
  *  keeps its `from` (an id or 'start'); anything else is Present · Canvas. */
 export function presentSpec(raw: unknown): PresentSpec {
-  const r = (raw && typeof raw === 'object' ? raw : {}) as { kind?: unknown; from?: unknown };
+  const r = (raw && typeof raw === 'object' ? raw : {}) as {
+    kind?: unknown;
+    from?: unknown;
+    only?: unknown;
+  };
   if (r.kind !== 'artboards') return { kind: 'canvas' };
-  return typeof r.from === 'string' && r.from && r.from.length <= 200
-    ? { kind: 'artboards', from: r.from }
-    : { kind: 'artboards', from: 'start' };
+  // `only: 'formats'` needs an artboard to take the formats of: with 'start' (or none) it is dropped.
+  if (typeof r.from === 'string' && r.from && r.from.length <= 200)
+    return r.only === 'formats' && r.from !== 'start'
+      ? { kind: 'artboards', from: r.from, only: 'formats' }
+      : { kind: 'artboards', from: r.from };
+  return { kind: 'artboards', from: 'start' };
 }
 
 /** One esc press, after the canvas's own handler dropped the stroke, the menu and the selection. */

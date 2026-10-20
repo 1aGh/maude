@@ -7,6 +7,8 @@
 // (a v1 build, another person, an AI) may have written, so every member is checked and a stale or
 // malformed one is dropped, never thrown on.
 
+import { linkGroups } from '../video/link-groups.ts';
+
 export interface OrderRect {
   id: string;
   x: number;
@@ -123,4 +125,29 @@ export function startIndex(run: PresentRun, from: string | null | undefined): nu
     if (j >= 0) return j;
   }
   return 0;
+}
+
+/**
+ * S7.19 (S7-slices Q11) — the artboards that share `id`'s cut: the video artboards whose `<VideoComp>` mount one
+ * component (`video/link-groups.ts`, the rule the link lines and the Formats list use). An artboard that shares
+ * its cut with none is its own deck of one; an id with no video on it names nothing (null).
+ */
+export function formatIdsOf<K>(
+  items: ReadonlyArray<{ id: string; comp: K | null | undefined }>,
+  id: string
+): string[] | null {
+  if (!items.some((it) => it.id === id)) return null;
+  return linkGroups(items).find((g) => g.ids.includes(id))?.ids ?? [id];
+}
+
+/**
+ * The run with only `ids` in it, in the run's own order (`only: 'formats'`). Nothing to keep (the ids are not in
+ * the run, or none are given) leaves the run as it is, so Present never opens on an empty deck.
+ */
+export function onlyIds(run: PresentRun, ids: readonly string[] | null | undefined): PresentRun {
+  if (!ids || ids.length === 0) return run;
+  const keep = new Set(ids);
+  const kept = run.run.filter((id) => keep.has(id));
+  if (kept.length === 0) return run;
+  return { all: run.all, run: kept, skipped: run.skipped };
 }

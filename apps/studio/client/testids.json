@@ -38192,5 +38192,229 @@
       "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "video-present",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: The full-screen video preview chrome: format switch, esc, transport (Present · Artboards with only: formats).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-formats",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: The format switch, top left: Reels 9:16 / 16:9 / 1:1. Absent for a deck of one.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-format-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.19: One format in the switch. `<id>` = the artboard id; picking it steps Present there (the loop comes along).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-leave",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: \"esc Back to the canvas\", top right: leaves Present.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: The transport bar, bottom. Absent until the clip reports.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: Pause / Play for the presented video.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-loop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: Loop on/off (`aria-pressed`); the Timeline's own loop flag, carried to the next format.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: The video's place in its length, \"0:10 / 0:15\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-scrub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: The scrub: a range over the track; seeks the presented video.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: A loop tick on the scrub: where one of the cut's picture clips begins.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-sound",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: Sound on/off for the presented video (`aria-pressed` true = sound on).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-volume",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: Volume (0-100) of the presented video.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "video-present-captions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: Captions toggle (`aria-pressed`): hides/shows the comp's captions for this Present only.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/video-present.jsx",
+      "symbol": "VideoPresent"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/present-only-formats.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
+  },
+  {
+    "hook": "export-sound-shared",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.19: \"Sound only makes one file — the formats share their sound.\" Under Format when more than one format is ticked.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-export-content.test.ts"
+    ],
+    "v2": "new in v2 (S7.19)"
   }
 ]

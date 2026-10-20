@@ -31,6 +31,7 @@ import {
   SOUND_LABEL,
   SOUND_MIXED,
   SOUND_ONLY_NOTE,
+  SOUND_SHARED_NOTE,
   VIDEO_FORMATS,
 } from './video-copy.js';
 import { lengthState, sizeWords } from './video-model.js';
@@ -171,6 +172,11 @@ export function VideoSection({ state, set, setFormat, other, video }) {
         <Seg label={FORMAT_LABEL} options={options} value={format} onPick={setFormat} />
         {other}
       </Row>
+      {video?.ticked?.length > 1 ? (
+        <p className="ex-sound-shared" data-testid="export-sound-shared">
+          {SOUND_SHARED_NOTE}
+        </p>
+      ) : null}
 
       {picture ? (
         <Row k={QUALITY_LABEL} testid="export-row-quality">
