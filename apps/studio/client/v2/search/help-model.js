@@ -183,21 +183,32 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
   // annotations) are one row on a sheet that says what a key does, not which handler runs it.
   // The row keeps the merged ids in `also`, so "every visible key is on the sheet" still holds.
   const merged = (rows) => {
-    const first = new Map();
-    return rows.filter((r) => {
-      const k = `${r.label}\u0000${r.keys.join(' ')}\u0000${r.alt.join(' ')}`;
-      const kept = first.get(k);
-      if (kept) {
-        kept.also = [...(kept.also ?? []), r.id];
-        return false;
+    const out = [];
+    const at = new Map();
+    for (const r of rows) {
+      // S11.18 — "each key listed once": the same words on the same keys are one row (Remove for objects and
+      // for annotations); the row with the fewer extra chords stands, so a v1 alias never rides along.
+      const k = `${r.label}\u0000${r.keys.join(' ')}`;
+      const i = at.get(k);
+      if (i === undefined) {
+        at.set(k, out.length);
+        out.push(r);
+      } else if (r.alt.length < out[i].alt.length) {
+        out[i] = { ...r, also: [...(out[i].also ?? []), out[i].id] };
+      } else {
+        out[i].also = [...(out[i].also ?? []), r.id];
       }
-      first.set(k, r);
-      return true;
-    });
+    }
+    return out;
   };
   const groups = HELP_GROUPS.map((g) => ({
     id: g.id,
-    label: g.label,
+    // S11.18 (? sheet W6): the AI chat's key is the desktop's; a browser's "Panels and AI" would promise a row it lacks
+    label:
+      g.id === 'panels-ai' &&
+      !(byGroup.get(g.id) ?? []).some((r) => r.id === 'ai.chat' || r.id === 'ai.ask-selection')
+        ? 'Panels'
+        : g.label,
     ...(g.note ? { note: g.note } : {}),
     rows: merged((byGroup.get(g.id) ?? []).sort((a, b) => a.order - b.order)),
   })).filter((g) => g.rows.length > 0);

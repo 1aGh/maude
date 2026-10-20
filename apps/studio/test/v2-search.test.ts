@@ -158,7 +158,7 @@ describe('the list', () => {
     expect(resultsCount(7)).toBe('7 results');
   });
 
-  test('group order: canvases, artboards, actions, tools, settings', () => {
+  test('group order: canvases, artboards, actions, also, tools, settings', () => {
     const remote = remoteRows({
       q: 'size',
       rows: [
@@ -184,7 +184,7 @@ describe('the list', () => {
     });
     const res = assemble({ query: 'size', local: LOCAL, remote, canAskAI: true });
     const ids = res.groups.map((g) => g.id);
-    const order = ['canvases', 'artboards', 'actions', 'tools', 'settings'];
+    const order = ['canvases', 'artboards', 'actions', 'also', 'tools', 'settings'];
     expect(ids).toEqual(order.filter((g) => ids.includes(g)));
     expect(ids.slice(0, 2)).toEqual(['canvases', 'artboards']);
   });

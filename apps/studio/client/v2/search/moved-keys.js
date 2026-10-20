@@ -16,15 +16,20 @@ export const MOVED_LOCAL = Object.freeze([
   { was: 'Changes ⇧⌘G', now: 'Version history {key}', to: 'history.open' },
   { was: 'Assistant ⇧⌘A', now: 'Ask AI {key} — ⇧⌘A now selects all annotations', to: 'ai.chat' },
   { was: 'Files tree T', now: 'Hide panels {key} — T is Text', to: 'view.panels' },
-  { was: 'Hidden files H', now: 'Canvases › Advanced — H is Hand' },
-  { was: 'Design system S', now: '⌘K “design system” — S is Section' },
+  { was: 'Hidden files H', now: 'Canvases › Advanced — H is Hand', to: 'view.hidden-files' },
+  { was: 'Design system S', now: '⌘K “design system” — S is Section', to: 'view.design-system' },
   { was: 'New board N', now: 'New canvas {key} — N is Sticky, in Preview', to: 'canvas.new' },
   { was: 'Search / and ⌘F', now: '{key}', to: 'search.open' },
   {
     was: 'Arrow, Highlighter',
     now: 'Preview’s toolbar — Arrow A; Highlighter is Marker’s second tip',
+    to: 'tool.highlighter',
   },
-  { was: 'Section, Eraser', now: 'Preview’s toolbar — Section S; Eraser is a Marker option' },
+  {
+    was: 'Section, Eraser',
+    now: 'Preview’s toolbar — Section S; Eraser is a Marker option',
+    to: 'tool.eraser',
+  },
   { was: 'Insert', now: 'Edit’s toolbar — Image I · Component ⇧I' },
   // — CONTRACT §2 —
   { was: 'Browse tool', now: 'Preview mode — Hand + click uses the design' },
@@ -51,7 +56,14 @@ export function movedKeys(keyOf = () => '', { local = MOVED_LOCAL, registry = MO
     to: m.to,
   }));
   const wanted = new Set(fromRegistry.map((r) => r.was));
-  return [...fromRegistry, ...local.filter((r) => !wanted.has(r.was))].map((r) => {
+  const extra = local.filter((r) => !wanted.has(r.was));
+  // S11.18 — an old key is listed once. Where the canvas (06 ad-search) words the same move differently from
+  // the registry — same destination, another spelling of the old key — the canvas's row is the one drawn.
+  const drawn = new Set(extra.map((r) => r.to).filter(Boolean));
+  const kept = fromRegistry.filter(
+    (r) => !(r.to && drawn.has(r.to) && !local.some((l) => l.was === r.was))
+  );
+  return [...kept, ...extra].map((r) => {
     const key = r.to ? keyOf(r.to) : '';
     const now = r.now
       .replace(/\s*\{key\}/, key ? ` ${key}` : '')

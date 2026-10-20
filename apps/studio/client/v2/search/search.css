@@ -213,6 +213,9 @@
   .so-overlay--v2 .so-overlay-hd {
     align-items: center;
   }
+  .so-overlay--v2 .so-title {
+    margin: 0;
+  }
   .so-find {
     flex: 1;
     display: flex;
@@ -257,11 +260,25 @@
   /* A bare `1fr` track is `minmax(auto, 1fr)`: a long key list (the Step back row) stretched the grid to
      2707px inside an 830px sheet and pushed two columns off-screen. `minmax(0, 1fr)` + `min-width: 0` on
      the items keeps three columns inside the sheet and lets the combos wrap instead. */
+  /* S11.18 (? sheet W2): groups FLOW down three columns — a grid left holes under the short groups and ran
+     the long ones off the sheet. A group never splits across two columns. */
   .so-columns--3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: block;
+    column-count: 3;
+    column-gap: var(--space-7);
   }
   .so-columns > .so-section {
     min-width: 0;
+    break-inside: avoid;
+    margin-bottom: var(--space-6);
+  }
+  /* the count and "close with esc" stay in view while the sheet scrolls: the end of the list is never a clip */
+  .so-overlay--v2 .so-overlay-ft {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-1);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-subtle);
   }
   /* The label keeps a floor (a word never breaks mid-letter); the combos take what is left and wrap. */
   .so-overlay--v2 .so-pair {
@@ -374,7 +391,9 @@
     color: var(--fg-3);
   }
   @media (max-width: 760px) {
-    .so-columns--3,
+    .so-columns--3 {
+      column-count: 1;
+    }
     .so-moved {
       grid-template-columns: 1fr;
     }
