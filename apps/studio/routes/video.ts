@@ -25,9 +25,11 @@ import { currentAccess, notInScopeResponse, toDesignRel } from '../access/reques
 import { CanvasEditError } from '../canvas-edit.ts';
 import {
   type CaptionFix,
+  type CaptionsProps,
   type CompClips,
   type CompWord,
   captionFixesOf,
+  captionsOf,
   compBeats,
   compClips,
   compSpeech,
@@ -65,6 +67,17 @@ export interface CompMedia {
   speech: Array<[number, number]>;
   beats: number[];
   unresolved: string[];
+  /** S7.11: the source words of each clip's source (the Transcript panel strikes the ones no clip covers) */
+  transcripts: Record<
+    string,
+    {
+      durationSec?: number;
+      lang?: string;
+      words: Array<{ id: string; t0: number; t1: number; text: string; p?: number; flags?: string[] }>;
+    }
+  >;
+  /** S7.11: the comp's <Captions> props (null = no captions yet) */
+  captions: CaptionsProps | null;
 }
 
 /** `canvas` (repo- or designRoot-relative) → the canvas under the design root, or null. Runtime
@@ -154,6 +167,24 @@ export function createVideoRoutes(deps: VideoRouteDeps): RouteSpec[] {
         speech,
         beats: compBeats(c, grids),
         unresolved: c.unresolved,
+        transcripts: Object.fromEntries(
+          Object.entries(transcripts).map(([src, t]) => [
+            src,
+            {
+              ...(t.durationSec !== undefined ? { durationSec: t.durationSec } : {}),
+              ...(t.lang !== undefined ? { lang: t.lang } : {}),
+              words: t.words.map((w) => ({
+                id: w.id,
+                t0: w.t0,
+                t1: w.t1,
+                text: w.text,
+                ...(w.p !== undefined ? { p: w.p } : {}),
+                ...(w.flags?.length ? { flags: [...w.flags] } : {}),
+              })),
+            },
+          ])
+        ),
+        captions: captionsOf(source),
       },
       sidecars: sigs.join(';'),
     };

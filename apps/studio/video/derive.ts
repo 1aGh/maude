@@ -386,6 +386,45 @@ export function captionFixesOf(source: string): CaptionFix[] {
   return out;
 }
 
+/** The comp's one `<Captions>` as the file says it (S7.11: the Captions inspector and the Transcript
+ *  panel read it; the writer is `video.captions.add`). Null when there is none. */
+export interface CaptionsProps {
+  words: 1 | 3 | 'line';
+  position: 'top' | 'middle' | 'bottom';
+  font: string | null;
+  highlight: string | null;
+  maxChars: number | null;
+  fixes: CaptionFix[];
+}
+
+function stringProp(tag: string, name: string): string | null {
+  const m = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*"([^"]*)"\\s*\\})`).exec(
+    tag
+  );
+  return m ? (m[1] ?? m[2] ?? m[3] ?? null) : null;
+}
+
+export function captionsOf(source: string): CaptionsProps | null {
+  const at = source.search(/<Captions\b/);
+  if (at < 0) return null;
+  const tag = openingTag(source, at);
+  const n = literalProp(tag, 'words');
+  const word = stringProp(tag, 'words');
+  const words: CaptionsProps['words'] = n === 1 || n === 3 ? n : word === '1' ? 1 : word === '3' ? 3 : 'line';
+  const pos = stringProp(tag, 'position');
+  const position: CaptionsProps['position'] =
+    pos === 'top' || pos === 'middle' ? pos : 'bottom';
+  const max = literalProp(tag, 'maxChars');
+  return {
+    words,
+    position,
+    font: stringProp(tag, 'font'),
+    highlight: stringProp(tag, 'highlight'),
+    maxChars: max !== null && Number.isInteger(max) ? max : null,
+    fixes: captionFixesOf(source),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // compSpeech + duckGain
 
