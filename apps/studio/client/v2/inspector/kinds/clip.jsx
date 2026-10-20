@@ -16,6 +16,7 @@ import { NumberField, Select, SliderField, Toggle } from '../../../inspector-con
 import { TITLE_MOTION_FRAMES } from '../../../../video/title-motion.ts';
 import { AdvancedFold } from '../../fold/advanced-fold.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
+import { FootageRows, footageAdvanced, useClipFootage } from '../../timeline/footage-rows.jsx';
 import { reframeUi } from '../../timeline/reframe-island.jsx';
 import { registerKind, singleOf } from './index.js';
 import { registerSlot } from '../slots.js';
@@ -165,6 +166,7 @@ function ClipRows({ el, ctx }) {
   const ph = t.seq.placeholder;
   return (
     <div data-testid="timeline-inspector">
+      <FootageRows t={t} />
       <LengthRow t={t} />
       <SpeedRow t={t} />
       {hasSound(t.seq) ? <VolumeRow t={t} /> : null}
@@ -193,8 +195,9 @@ function TitleRows({ el, ctx }) {
 /** `in`/`out` are the file's own seconds; Muted and Detach audio are the v1 Audio tab's other two controls. */
 function ClipAdvanced({ el, ctx, open, onToggle }) {
   const t = el?.timeline;
+  const footage = useClipFootage(t); // S7.16 — a clip whose file is not here also says so in Advanced
   if (!t) return null;
-  const facts = srcInOut(t.seq, t.fps);
+  const facts = [...srcInOut(t.seq, t.fps), ...footageAdvanced(t, footage)];
   return (
     <AdvancedFold panel="inspector" hint={advancedHint(t)} open={open} onToggle={onToggle}>
       <div className="insp-adv insp-adv--clip" data-testid="insp-adv-clip">

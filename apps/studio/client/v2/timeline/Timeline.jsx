@@ -54,6 +54,17 @@ import { deriveTracks } from './tracks.js';
 import { isBand } from './transport.js';
 import { KeptStatus, SharedStatus, SizeButton } from './island-controls.jsx';
 import { ReframeHost } from './reframe-island.jsx';
+import { bindClips } from './clip-search.js';
+import { FOLD_WORDS, FOLDABLE, trackFold, useFoldVersion } from './fold.js';
+import {
+  clipNameWithState,
+  FOOTAGE_WORDS,
+  footageForSrc,
+  preparingChip,
+  preparingCount,
+  useFootageAnswers,
+} from './footage-state.js';
+import { clipTip, nameVisible } from './zoom.js';
 import { ClipMenu } from './edit/clip-menu.jsx';
 import { ArtboardDropCatcher, DropLanding, fileCount } from './edit/drop.jsx';
 import { landingOf, MoveLanding } from './edit/move.jsx';
@@ -297,6 +308,7 @@ export default function TimelinePanel({
   // one export of this video may be (C22). The fold is the shared `timeline` Advanced fold.
   const advOpen = useAdvancedOpen();
   const haveRef = useRef([]);
+  const trackInfoRef = useRef({ counts: {}, labels: {} }); // S7.16 — what `timeline.fold-track` folds
   const adv = useAdvanced();
   useCapVersion();
   const capFile = island?.canvas ?? null;
@@ -304,7 +316,9 @@ export default function TimelinePanel({
   useEffect(() => {
     if (capFile && capId) void loadMaxFrames(capFile, capId);
     bindCapTarget(() =>
-      capFile && capId ? { file: capFile, artboardId: capId, have: haveRef.current } : null
+      capFile && capId
+        ? { file: capFile, artboardId: capId, have: haveRef.current, ...trackInfoRef.current }
+        : null
     );
     return () => bindCapTarget(null);
   }, [capFile, capId]);
@@ -891,20 +905,84 @@ export default function TimelinePanel({
   // testid and drag is unchanged.
   const trackOfIdx = new Map();
   const trackOfBed = new Map();
+  const trackOfCount = new Map(); // S7.16 — how many things each track holds
   const drawnTracks = deriveTracks({ sequences, audio, extra: extraTracks });
   haveRef.current = drawnTracks.map((t) => t.id);
+  trackInfoRef.current = {
+    counts: Object.fromEntries(drawnTracks.map((t) => [t.id, t.members.length])),
+    labels: Object.fromEntries(drawnTracks.map((t) => [t.id, t.label])),
+  };
   for (const t of drawnTracks) {
     for (const m of t.members) (m.kind === 'seq' ? trackOfIdx : trackOfBed).set(m.index, t.id);
+    trackOfCount.set(t.id, t.members.length);
   }
-  const trackShell = (id, label, children, hint) => (
-    <div className="tl-track" data-track={id} data-testid={`timeline-track-${id}`} key={id}>
-      <div className="tl-track-cap">
-        <span className="tl-track-name">{label}</span>
-        {hint ? <span className="tl-track-hint">{hint}</span> : null}
-      </div>
-      {children}
-    </div>
+  // S7.16 (07 · ve-long) — a track you do not need folds to "Text · 18": one line, no rows. A view (per viewer).
+  useFoldVersion();
+  useFootageAnswers(); // S7.16 — a waiting clip turns to here by itself when the file arrives
+  const foldKey = trackKey(capFile, capId);
+  const preparing = preparingCount(
+    sequences.map((q) => (q.mediaSrc ? footageForSrc(island?.canvas, q.mediaSrc) : null))
   );
+  // S7.16 — ⌘K finds a clip by name: the clips of this video, and what picking one does (select it, playhead on it)
+  const goToClipRef = useRef(null);
+  goToClipRef.current = (c) => {
+    onSeek?.(c.from);
+    onSelect?.(c.id);
+  };
+  useEffect(() => {
+    bindClips(
+      comp
+        ? {
+            fps,
+            go: (c) => goToClipRef.current?.(c),
+            clips: sequences
+              .map((q, qi) => ({ q, qi }))
+              .filter(({ q }) => q.stableId && !q.loose)
+              .map(({ q, qi }) => ({
+                id: q.stableId,
+                name: displayNameOf(q, qi),
+                from: q.from,
+                frames: q.duration,
+                src: q.mediaSrc ?? null,
+              })),
+          }
+        : null
+    );
+  }, [comp, sequences, fps]);
+  useEffect(() => () => bindClips(null), []);
+  const trackShell = (id, label, children, hint) => {
+    const count = trackOfCount.get(id) ?? 0;
+    const foldable = FOLDABLE.includes(id) && count > 1;
+    const folded = foldable && trackFold.isFolded(foldKey, id);
+    return (
+      <div
+        className="tl-track"
+        data-track={id}
+        data-folded={folded ? '1' : undefined}
+        data-testid={`timeline-track-${id}`}
+        key={id}
+      >
+        <div className="tl-track-cap">
+          {foldable ? (
+            <button
+              type="button"
+              className="tl-track-name tl-track-fold"
+              data-testid={`timeline-track-fold-${id}`}
+              aria-expanded={!folded}
+              title={folded ? FOLD_WORDS.unfold(label) : FOLD_WORDS.fold(label)}
+              onClick={() => trackFold.toggle(foldKey, id)}
+            >
+              {folded ? FOLD_WORDS.line(label, count) : label}
+            </button>
+          ) : (
+            <span className="tl-track-name">{label}</span>
+          )}
+          {hint && !folded ? <span className="tl-track-hint">{hint}</span> : null}
+        </div>
+        {folded ? null : children}
+      </div>
+    );
+  };
 
   // -------------------------------------------------------------------------
   // Task 7 — real media visuals. Async extraction (never blocks the scrub);
@@ -1300,6 +1378,18 @@ export default function TimelinePanel({
     const left = x(blockFrom) + dragOffset + (trimming ? x(trimDelta) : 0);
     const width = Math.max(2, x(dur - trimDelta));
     const mp = seq.mediaProps || null;
+    // S7.16 (07 · ve-footage, ve-long) — footage not here yet / still preparing, and the name of a block too narrow to read
+    const footage = seq.mediaSrc ? footageForSrc(island?.canvas, seq.mediaSrc) : null;
+    const prepChip = preparingChip(footage);
+    const namesOff = !nameVisible(width) && !isResizing && !moving;
+    const tip = namesOff
+      ? clipTip({
+          name: clipNameWithState(displayLabel, footage),
+          src: seq.mediaSrc,
+          frames: dur,
+          fps,
+        })
+      : null;
     return (
       <Fragment key={`b${i}`}>
         <button
@@ -1309,10 +1399,14 @@ export default function TimelinePanel({
           data-clip-id={seq.stableId || undefined}
           data-kind={rowKind(seq)}
           data-hidden={seq.hidden ? '1' : undefined}
+          data-footage={footage?.kind}
+          aria-description={footage?.line}
+          data-names={namesOff ? 'off' : undefined}
           title={
-            seq.series
+            tip ??
+            (seq.series
               ? `${seq.label} · ${blockFrom}–${blockFrom + dur}f (${dur}f) · series beat — trim the right edge to retime`
-              : `${seq.label} · ${blockFrom}–${blockFrom + dur}f (${dur}f) · drag to move (Alt = no snap)`
+              : `${seq.label} · ${blockFrom}–${blockFrom + dur}f (${dur}f) · drag to move (Alt = no snap)`)
           }
           aria-label={
             seq.series
@@ -1400,10 +1494,15 @@ export default function TimelinePanel({
             {rowKindGlyph(seq)}
           </span>
           <span className="tl-seq-name">
-            {displayLabel}
+            {clipNameWithState(displayLabel, footage)}
             {isResizing ? ` · ${dur}f` : ''}
             {moving ? ` · @${blockFrom}f` : ''}
           </span>
+          {prepChip ? (
+            <span className="tl-chip tl-chip-prep" data-testid={`timeline-prep-chip-${i}`}>
+              {prepChip}
+            </span>
+          ) : null}
           {(advOpen ? seq.keyframes : []).map((kf, k) => {
             const l = ((kf.from - seq.from) / Math.max(1, seq.duration)) * 100;
             const w = ((kf.to - kf.from) / Math.max(1, seq.duration)) * 100;
@@ -1903,6 +2002,12 @@ export default function TimelinePanel({
           >
             ⚠ {clock(totalFrames, fps)}
           </button>
+        ) : null}
+        {comp && preparing > 0 ? (
+          <span className="tl-prep-status" data-testid="timeline-prep-status">
+            <TIcon name="loop" size={12} />
+            {FOOTAGE_WORDS.preparing(preparing)}
+          </span>
         ) : null}
         {comp ? (
           <span className="tl-meta">
