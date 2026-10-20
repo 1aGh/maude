@@ -21,6 +21,7 @@ import path, { dirname, resolve, sep } from 'node:path';
 import { canvasArtifacts } from '../canvas-artifacts.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
+import { videoDepsFor } from '../video/inject.ts';
 import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
 
 /** Relative import specifiers (side-effect, `from`, literal dynamic `import()`), in source order. */
@@ -108,6 +109,13 @@ export function localDepsFromSource(
     if (seen.has(p)) continue;
     const root = resolve(designRoot);
     if (p !== root && !p.startsWith(root + sep)) continue;
+    seen.add(p);
+    deps.push(p);
+  }
+  // S7.5 (V2-1.10 §5.3): the transcripts a canvas-lib <Captions>/<Duck> reads at build are inputs —
+  // a new or changed `assets/<sha8>.transcript.json` rebuilds the canvases whose comps play it.
+  for (const p of videoDepsFor(source, canvasAbsPath, designRoot)) {
+    if (seen.has(p)) continue;
     seen.add(p);
     deps.push(p);
   }

@@ -189,6 +189,11 @@ import { UndoStackProvider, useUndoSinks, useUndoStackOptional } from './use-und
 import { VideoComp } from './video-comp.tsx';
 
 export type { CompSnapshot, VideoCompMeta, VideoCompProps } from './video-comp.tsx';
+// S7.5 — the comp vocabulary (V2-1.10 §5.3): literal-prop components; the build injects their
+// derived data (`__words`, `__speech`, video/inject.ts). A 1.x build lacks these exports, so a
+// canvas that uses them says "This canvas uses Maude 2" there (V2-1.12 §5.8).
+export type { CaptionsProps, DuckProps, PlaceProps, ReframeProps } from './video-vocab.tsx';
+export { Captions, Duck, Place, Reframe } from './video-vocab.tsx';
 export { VideoComp };
 
 /** The viewport's zoom keys, resolved from the registry (V2-3.11) — `useViewportController`'s keydown. */

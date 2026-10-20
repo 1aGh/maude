@@ -33,6 +33,7 @@ import type { LocatorMap } from './locator.ts';
 import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 import { RUNTIME_PACKAGES } from './runtime-bundle.ts';
+import { injectCompMedia } from './video/inject.ts';
 
 // Sanity-check the dev-server-bundled canvas-lib once per process boot. If the
 // install is corrupt (file missing), surface that before the first canvas build
@@ -308,6 +309,12 @@ export async function buildCanvasModule(
 ): Promise<CanvasBundleResult> {
   // Pass 1: inject data-cd-id, capture the locator.
   const pass1 = transpileCanvasSource(canvasAbsPath, source);
+  // S7.5 (V2-1.10 §5.3) — the comp vocabulary's derived data (`__words` on <Captions>, `__speech`
+  // on <Duck>), computed from the comp's clips on disk × their transcripts. Never written to the
+  // file; the transcripts are freshness deps (`videoDepsFor`, access/closure.ts).
+  const withMedia = injectCompMedia(canvasAbsPath, source, pass1.withIds, {
+    designRoot: options.restrictImportsTo ?? options.designRoot,
+  }).code;
 
   // Sanity-check the dev-server-bundled canvas-lib once per process — if the
   // install is corrupt, fail loud before Bun.build collapses plugin throws.
@@ -398,7 +405,7 @@ export async function buildCanvasModule(
         name: 'canvas-virtual-source',
         setup(builder) {
           builder.onLoad({ filter: filterForExactPath(canvasAbsPath) }, () => ({
-            contents: pass1.withIds,
+            contents: withMedia,
             loader: 'tsx',
           }));
         },
