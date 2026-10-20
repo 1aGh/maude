@@ -393,7 +393,8 @@ describe('cell child — the proxy vouches the role per request', () => {
     await expectViewer(
       base,
       { 'x-maude-role': 'viewer' },
-      new Set(['/_api/design/init', '/_api/generate/prefs'])
+      // S11.17 — `/_api/diagnostics*` is pruned in a cell (workspace-mode FORBIDDEN_ROUTE_PREFIXES)
+      new Set(['/_api/design/init', '/_api/generate/prefs', '/_api/diagnostics/disk-retry'])
     );
   }, 60000);
   // S9.9 — Can view (`observer`) arrives: the viewer's refusals PLUS comment and export
@@ -408,7 +409,13 @@ describe('cell child — the proxy vouches the role per request', () => {
       ),
     };
     // `/_api/export` is the desktop's project export — a cell does not serve it to anyone.
-    const notServed = new Set(['/_api/design/init', '/_api/generate/prefs', '/_api/export']);
+    // S11.17 — `/_api/diagnostics*` is pruned in a cell (workspace-mode FORBIDDEN_ROUTE_PREFIXES)
+    const notServed = new Set([
+      '/_api/design/init',
+      '/_api/generate/prefs',
+      '/_api/export',
+      '/_api/diagnostics/disk-retry',
+    ]);
     const wrong: string[] = [];
     for (const row of ROWS) {
       const got = refused(await send(base, row, headers));
