@@ -141,11 +141,11 @@ describe('Sync details — the cards', () => {
       status: base({ aiAction: { state: 'held', label: 'Cut the trailer', canvases: ['a'] } }),
       fetchImpl: f,
     });
-    expect(q('diag-sync-ai')?.textContent).toContain('AI stopped halfway on Cut the trailer.');
-    expect(q('diag-sync-ai')?.textContent).toContain('It changed 1 canvas');
-    await click('diag-sync-publish-ai');
+    expect(q('sync-ai-held')?.textContent).toContain('AI stopped halfway on Cut the trailer.');
+    expect(q('sync-ai-held')?.textContent).toContain('It changed 1 canvas');
+    await click('sync-ai-publish');
     expect(calls.at(-1)).toEqual({ url: '/_api/project/ai-action', body: { choice: 'publish' } });
-    await click('diag-sync-discard-ai');
+    await click('sync-ai-discard');
     expect(calls.at(-1)?.body).toEqual({ choice: 'discard' });
   });
 
@@ -167,7 +167,7 @@ describe('Sync details — the cards', () => {
     });
     expect(q('diag-sync-moving')?.textContent).toContain('combine-40yd.mov');
     expect(q('diag-sync-moving')?.textContent).toContain('62%');
-    await click('diag-sync-cancel-transfer');
+    await click('sync-assets-cancel');
     expect(calls.at(-1)?.url).toBe('/_api/sync/cancel-assets');
     expect(q('diag-sync-moving')).toBeNull();
   });
@@ -210,12 +210,65 @@ describe('Sync details — the cards', () => {
     expect(q('diag-sync-signin')?.textContent).toContain(
       'Sync stopped — the sign-in to the cloud ran out.'
     );
-    await click('diag-sync-signin-again');
+    await click('sync-signin-again');
     expect(seen).toEqual(['https://alligators.cloud.maude.sh']);
     expect(syncDetailsModel(refused, { native: true, refused: true, cloud: {} }).signIn).toBe(
       false
     );
     expect(syncDetailsModel(refused, { native: false, refused: true }).signIn).toBe(false);
+  });
+});
+
+describe('Sync details — the v1 hooks it re-emits (S11.12b)', () => {
+  // The e2e scenarios (team-project, multiplayer surface, cloud-attach) drive these ids; S11.12 replaced
+  // the v1 panel that emitted them, so the details carry them (testids are an API).
+  test('the root is sync-panel and none of the five S11.12 duplicates exist', async () => {
+    const { f } = fakeFetch(() => ({ ok: true }));
+    await mount({
+      status: base({
+        state: 'auth-rejected',
+        docs: { synced: 0, pending: 0, rejected: 3 },
+        aiAction: { state: 'held', label: 'Cut the trailer', canvases: ['a'] },
+        assets: { total: 5, done: 1, pushed: 1, skipped: 0, failedCount: 0, finished: false },
+      }),
+      native: true,
+      fetchImpl: f,
+    });
+    expect(q('sync-panel')?.getAttribute('data-testid')).toBe('sync-panel');
+    expect(q('sync-panel')?.contains(q('sync-ai-held'))).toBe(true);
+    for (const old of [
+      'diag-sync-details',
+      'diag-sync-ai',
+      'diag-sync-publish-ai',
+      'diag-sync-discard-ai',
+      'diag-sync-cancel-transfer',
+      'diag-sync-signin-again',
+    ])
+      expect({ old, there: q(old) !== null }).toEqual({ old, there: false });
+    for (const kept of [
+      'sync-ai-publish',
+      'sync-ai-discard',
+      'sync-assets-cancel',
+      'sync-signin-again',
+    ])
+      expect({ kept, there: q(kept) !== null }).toEqual({ kept, there: true });
+  });
+
+  test('the files that need a look sit in sync-delivery-attention', async () => {
+    await mount({
+      status: base({
+        files: {
+          synced: 3,
+          pulled: 0,
+          conflicts: 0,
+          failed: 0,
+          progress: { tracked: 3, delivered: 2, remaining: 1, phase: 'converged' },
+          delivery: { 'ui/held.png': 'stuck', 'ui/ok.png': 'everywhere' },
+        },
+      }),
+    });
+    expect(q('sync-delivery-attention')?.textContent).toContain('held.png');
+    expect(q('sync-delivery-attention')?.textContent).not.toContain('ok.png');
   });
 });
 

@@ -25,17 +25,25 @@ const SYNC_ACTIONS = readFileSync(
   'utf8'
 );
 
-describe('the Sync panel exists only where a hub link exists', () => {
-  test('sync is a dock panel with a right-side default', () => {
+describe('the dock no longer has a Sync panel (S11.12b); Sync details is the way in', () => {
+  test('sync stays a dock id with a right-side default, so a remembered panel side still parses', () => {
     expect(APP).toContain("{ id: 'sync', label: 'Sync' }");
     expect(APP).toMatch(/sync: 'right'/);
   });
 
-  test('panelAvailable gates sync on a live syncStatus — solo projects get no tab', () => {
-    // V2-4.9 moved the rule into the pure client/v2/shell/panel-availability.js (shared with the shell
-    // parity table); the hook hands it the live sync status.
-    expect(APP).toContain("if (id === 'sync') return !!hasSync;");
-    expect(APP).toContain('hasSync: !!syncStatus');
+  test('panelAvailable never offers it — and the dock hook mounts no SyncPanel', () => {
+    // V2-4.9 put the rule in the pure client/v2/shell/panel-availability.js (shared with the shell parity
+    // table); S11.12b retired the panel itself. SyncPanel.jsx / SourceConflictPanel.jsx stay as files
+    // (their routes are the server's), mounted nowhere.
+    expect(APP).toContain("if (id === 'sync') return false;");
+    expect(APP).not.toContain('hasSync');
+    const hook = readFileSync(
+      join(STUDIO, 'client', 'hooks', 'use-palette-and-panels.jsx'),
+      'utf8'
+    );
+    expect(hook).not.toMatch(/<SyncPanel\b/);
+    expect(hook).not.toContain("panels/SyncPanel.jsx'");
+    expect(hook).not.toMatch(/<SourceConflictPanel\b/);
   });
 
   test('the status-bar chip is gone — Details and Menu › Diagnostics › Sync are the way in (V2-4.8b)', () => {

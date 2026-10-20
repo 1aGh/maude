@@ -454,8 +454,9 @@ describe('the Diagnostics sheet', () => {
     const calls = await mountSheet({ view: 'sync' });
     // S11.12 — the v1 panel is no longer mounted here; Resync now / Download all stay in the
     // menu's Diagnostics › Advanced rows (sync.resync / sync.download-all)
-    expect(q('diag-sync-details')).toBeTruthy();
-    expect(q('sync-panel')).toBeNull();
+    expect(q('sync-panel')).toBeTruthy();
+    expect(q('sync-resync')).toBeNull(); // Resync lives on the menu row, not in a panel header
+    expect(document.querySelector('.sp-note, [data-testid="sync-assets"]')).toBeNull(); // not the v1 body
     expect(q('diag-sync-title')?.textContent).toBe('Sync · Alligators');
     expect(q('diag-get-latest-row')).toBeTruthy();
     await click('diag-get-latest');
@@ -514,7 +515,6 @@ describe('the Diagnostics sheet', () => {
     });
     expect(q('diag-sync-solo')?.textContent).toContain('nothing to sync');
     expect(q('sync-panel')).toBeNull();
-    expect(q('diag-sync-details')).toBeNull();
   });
 });
 

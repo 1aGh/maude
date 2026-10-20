@@ -68,7 +68,7 @@ export function menuStatuses({
   report,
   info,
   unreachable = false,
-  cloud = null,
+  cloud,
 } = {}) {
   const out = {
     'diag.sync': syncWord(syncStatus, { project, aiHeld: syncStatus?.aiAction?.state === 'held' }),

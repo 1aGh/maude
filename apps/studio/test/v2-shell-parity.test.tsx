@@ -342,7 +342,7 @@ describe('the left panel and the right islands', () => {
     expect(panelAvailable('assistant', { native: false })).toBe(false);
     expect(panelAvailable('inspector', { viewerMode: true })).toBe(true);
     expect(panelAvailable('layers', { layersMode: 'inspector' })).toBe(false);
-    expect(panelAvailable('sync', { hasSync: false })).toBe(false);
+    expect(panelAvailable('sync', {})).toBe(false); // the dock's Sync panel is retired (S11.12b)
   });
 
   test('the dock hook asks the same rule the table does', () => {
