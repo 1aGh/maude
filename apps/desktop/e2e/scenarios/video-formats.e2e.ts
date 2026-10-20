@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -62,12 +63,7 @@ async function canvasText(testid: string): Promise<string | null> {
 }
 
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 
 const key = (init: Record<string, unknown>) =>
@@ -89,7 +85,7 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
 
   it('select the video: the inspector lists its formats and the island comes out under it', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-formats');
+    const row = await canvasRow('canvas-row-ui-videoformats');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();
@@ -178,13 +174,11 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     const win = await $('[data-testid="reframe-window"]');
     const at = await win.getLocation();
     const size = await win.getSize();
-    await browser
-      .action('pointer')
-      .move({ x: Math.round(at.x + size.width / 2), y: Math.round(at.y + size.height / 2) })
-      .down()
-      .move({ duration: 150, x: 30, y: 0, origin: 'pointer' })
-      .up()
-      .perform();
+    const cx = at.x + size.width / 2;
+    const cy = at.y + size.height / 2;
+    await pointerDown(cx, cy);
+    for (const dx of [10, 20, 30]) await pointerMove(cx + dx, cy);
+    await pointerUp(cx + 30, cy);
     await browser.waitUntil(async () => /<Reframe[^>]*formats=\{\{"9:16":\[\[/.test(onDisk()), {
       timeout: 15_000,
       timeoutMsg: 'the drag never wrote a keyframe for this format',

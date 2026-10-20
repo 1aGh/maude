@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -50,12 +51,7 @@ async function artboardBox(id: string): Promise<Box | null> {
 }
 
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 
 const key = (init: Record<string, unknown>) =>
@@ -74,7 +70,7 @@ describe('video-present — a video presents its formats only; the export sheet 
 
   it('select the Reels video and give it a 16:9 beside it (one write)', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-formats');
+    const row = await canvasRow('canvas-row-ui-videoformats');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();

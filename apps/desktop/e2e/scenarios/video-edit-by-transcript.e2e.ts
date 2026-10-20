@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -68,18 +69,13 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
 
   it('select the video: the island comes out under it', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-transcript');
+    const row = await canvasRow('canvas-row-ui-videotranscript');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await browser
-      .action('pointer')
-      .move({ x: Math.round(box.x + 12), y: Math.round(box.y - 10) })
-      .down()
-      .up()
-      .perform();
+    await pointerClick(box.x + 12, box.y - 10);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
   });
 

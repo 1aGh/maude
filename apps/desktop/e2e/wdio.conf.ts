@@ -9,9 +9,9 @@
  * Run: `pnpm test:e2e:desktop:build` (one-time / on source change) then
  *      `pnpm test:e2e:desktop`.
  */
-import { existsSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -66,6 +66,14 @@ const DEDICATED: Record<string, string> = {
   // S10.9: the reach view ("Used in 5 canvases · Show"), against a project whose canvases use the Accent.
   'ds-reach.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-reach',
   'ds-edges.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-edges',
+  // S10.12: the advanced DS surfaces, seeded.
+  'ds-advanced.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-advanced',
+  // S10.13: the DS library, against a stand-in hub (fixtures/ds-library-hub.ts).
+  'ds-library.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-library',
+  // S10.7: switching the project's DS, against seeded design systems.
+  'ds-switch.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-switch',
+  // S8: the handoff sheet, against its own seeded world.
+  'handoff.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:handoff',
   // S10.11: an outside DS change + a conflict pick, seeded.
   'ds-review-outside.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-outside',
   // S6.11: an invite link landing on Home, against a loopback cloud stub.
@@ -159,7 +167,15 @@ if (process.env.MAUDE_CANVAS_ORIGIN_SPLIT === undefined) {
 // file while an app may be running — and only ever inside the
 // `com.maude.app.e2e` bundle-id dirs. MAUDE_E2E_KEEP_STATE=1 opts out.
 export const E2E_BUNDLE_ID = 'com.maude.app.e2e';
+// …and nothing under the person's real `~/.config/maude` may be read or written: `ui-prefs.ts` keeps the Advanced
+// folds, panel layout and theme in `$XDG_CONFIG_HOME/maude/prefs.json`, so a default-lane run used to open every fold
+// in the PERSON's prefs and carry them into the next spec (a fold one spec opened was open — its toggle then CLOSED
+// it — in the next). A throwaway config home, shared by the launcher and its workers through the environment; a lane
+// config that names its own (`??=`) keeps it.
+process.env.XDG_CONFIG_HOME ??= mkdtempSync(join(tmpdir(), 'maude-e2e-xdg-'));
 export function resetE2eAppState(): void {
+  const prefs = join(process.env.XDG_CONFIG_HOME as string, 'maude', 'prefs.json');
+  if (prefs.includes('maude-e2e-')) rmSync(prefs, { force: true });
   const home = homedir();
   const targets = [
     join(home, 'Library', 'WebKit', E2E_BUNDLE_ID, 'WebsiteDataStore'),

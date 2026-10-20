@@ -103,7 +103,7 @@ describe('Asset details and the Generated group (S8.21)', () => {
     expect(await runs[0].getText()).toContain('night touchdown');
     expect(await runs[0].getText()).toContain('2 takes');
     const tiles = await runs[0].$$('[data-testid="assets-tile"]');
-    expect(await Promise.all(tiles.map((t) => t.getAttribute('data-asset')))).toEqual(
+    expect(await tiles.map((t) => t.getAttribute('data-asset'))).toEqual(
       TAKES.map((t) => `assets/${t}.png`)
     );
     expect(
@@ -172,11 +172,13 @@ describe('Asset details and the Generated group (S8.21)', () => {
     await (await tile('assets/pic.png')).click();
     await browser.keys(['Meta', 'i']);
     await (await $('[data-testid="assets-details"]')).waitForExist({ timeout: 5000 });
-    await browser.waitUntil(
-      async () => (await $$('[data-testid="assets-details-use"]')).length > 0,
-      { timeout: 10_000, timeoutMsg: 'the details never named where pic.png is used' }
-    );
-    const use = (await $$('[data-testid="assets-details-use"]'))[0];
+    // the fixture's Export and VideoFormats canvases use pic.png too: the row that is THIS canvas's artboard is the one under test
+    const mine = () => $('[data-testid="assets-details-use"][data-board="smoke"]');
+    await browser.waitUntil(async () => (await mine()).isExisting(), {
+      timeout: 10_000,
+      timeoutMsg: 'the details never named where pic.png is used',
+    });
+    const use = await mine();
     expect(await use.getAttribute('data-board')).toBe('smoke');
     await use.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 10_000 });

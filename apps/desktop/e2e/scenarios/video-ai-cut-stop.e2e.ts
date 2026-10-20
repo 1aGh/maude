@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { pointerClick } from '../helpers/pointer';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -96,12 +97,7 @@ async function artboardBox(id: string): Promise<Box | null> {
   }, id) as Promise<Box | null>;
 }
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 const key = (init: Record<string, unknown>) =>
   browser.execute((k) => {
@@ -137,7 +133,7 @@ describe('video-ai-cut-stop — reel-place × 7, Stop, one action, one ⌘Z', ()
 
   it('a run on the video, seven shots land one by one; your playhead stays put', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-ai-cut');
+    const row = await canvasRow('canvas-row-ui-videoaicut');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();

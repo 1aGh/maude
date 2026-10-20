@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -54,12 +55,7 @@ const key = (init: Record<string, unknown>) =>
 
 /** A real pointer click at window coordinates (the canvas iframe is not reachable by selectors). */
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 
 describe('video-timeline-summon — the timeline comes with a video artboard', () => {
@@ -82,7 +78,10 @@ describe('video-timeline-summon — the timeline comes with a video artboard', (
     expect(box).not.toBeNull();
     // the artboard's label strip sits just above its body: a click there selects the whole artboard
     await clickAt((box as Box).x + 12, (box as Box).y - 10);
-    await island().waitForExist({ timeout: 15_000, timeoutMsg: 'the timeline island never came out' });
+    await island().waitForExist({
+      timeout: 15_000,
+      timeoutMsg: 'the timeline island never came out',
+    });
     expect(await island().getAttribute('data-size')).toBe('compact');
     expect(await island().getAttribute('data-artboard')).toBe('clip');
     const notch = await $('[data-testid="timeline-notch"]');
@@ -93,10 +92,13 @@ describe('video-timeline-summon — the timeline comes with a video artboard', (
     // the notch points at the artboard's centre (within the artboard's width; the camera is wherever it is)
     expect(Math.abs(n.x + s.width / 2 - (b.x + b.w / 2))).toBeLessThan(Math.max(8, b.w / 2));
     // once it has settled it tells Fit how much room it takes (V2-4.1)
-    await browser.waitUntil(async () => (await island().getAttribute('data-occludes')) === 'bottom', {
-      timeout: 5000,
-      timeoutMsg: 'the island never published its occluded inset',
-    });
+    await browser.waitUntil(
+      async () => (await island().getAttribute('data-occludes')) === 'bottom',
+      {
+        timeout: 5000,
+        timeoutMsg: 'the island never published its occluded inset',
+      }
+    );
     await capture('timeline-compact');
   });
 
@@ -127,10 +129,13 @@ describe('video-timeline-summon — the timeline comes with a video artboard', (
 
   it('selecting anything that is not a video slides it back', async () => {
     const box = await artboardBox('clip');
+    // the video is still selected from the cases above and the person hid its island with ⇧⌘T: a click on a thing
+    // that is already selected is no new selection, so clear it first, then select the video afresh
+    await clickAt((box as Box).x + (box as Box).w + 250, (box as Box).y - 150);
     await clickAt((box as Box).x + 12, (box as Box).y - 10);
     await island().waitForExist({ timeout: 15_000 });
-    // empty canvas, far from the artboard: the selection clears
-    await clickAt(30, 200);
+    // empty canvas, away from the artboard (the left panel floats over the frame's own left edge): the selection clears
+    await clickAt((box as Box).x + (box as Box).w + 250, (box as Box).y - 150);
     await island().waitForExist({ reverse: true, timeout: 5000, timeoutMsg: 'it never slid back' });
     await capture('timeline-away');
   });

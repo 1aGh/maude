@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -58,12 +59,7 @@ async function artboardBox(id: string): Promise<Box | null> {
 }
 
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 
 const key = (init: Record<string, unknown>) =>
@@ -85,7 +81,7 @@ describe('video-music — a music bed with its beat: ticks, Music inspector, Low
 
   it('select the video: the island comes out under it and the Music track draws the beat', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-music');
+    const row = await canvasRow('canvas-row-ui-videomusic');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();
