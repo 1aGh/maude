@@ -9,6 +9,12 @@
 // 'history'`). The history ledger records no byte counts, so bytes are always `table` today.
 
 import type { ExportHistoryEntry } from './jobs.ts';
+import {
+  CLOUD_VIDEO_FORMATS,
+  type RenderWhere,
+  renderSuggestion,
+  type SuggestWhy,
+} from './remote.ts';
 import type { SkipReason, SpecArtboard, SpecCanvas, SpecUnit } from './scope.ts';
 import type { ExportFormatV2, ExportSpecV2 } from './spec-v2.ts';
 
@@ -26,6 +32,12 @@ export interface EstimateResult {
   byKind: Record<string, { artboards: number; files: number; format: ExportFormatV2 }>;
   skipped: Array<{ name: string; reason: SkipReason }>;
   basis: { bytes: 'history' | 'table'; seconds: 'history' | 'table' };
+  /**
+   * S8.5 — the cloud-or-this-Mac question (09 ex-offline). Additive: `cloud` = the cloud is on offer
+   * for this spec on this Mac (a video, a cloud door, sRGB and today's version); `suggest` = what
+   * "Suggest each time" ticks (the cloud for 4K and long videos), with why.
+   */
+  render: { cloud: boolean; suggest: RenderWhere; why: SuggestWhy };
 }
 
 export interface EstimateFacts {
@@ -39,6 +51,10 @@ export interface EstimateFacts {
   history: readonly ExportHistoryEntry[];
   /** where `lane: 'auto'` would render: the local spine, or the render service */
   renderLane: 'local' | 'remote' | 'none';
+  /** S8.5 — a cloud door on this Mac (exporters/remote.ts `createCloudExports().available()`) */
+  cloud?: boolean;
+  /** S8.5 — a canvas's longest comp in seconds (`compSecondsFromSource`); null = unknown */
+  videoSeconds?: (canvasRel: string) => number | null;
 }
 
 /** Fallback artboard size when the index does not know it (CSS px). */
@@ -203,6 +219,23 @@ export function estimateSpec(
       ? 'cloud'
       : 'this-mac';
 
+  // S8.5 — the video's shorter output side and its longest comp, for "Suggest each time"
+  let shortSide: number | null = null;
+  let videoSeconds: number | null = null;
+  for (const unit of resolved.units) {
+    if (!CLOUD_VIDEO_FORMATS.has(unit.format)) continue;
+    const s = deviceScale(unit);
+    for (const b of unit.artboards)
+      if (b.w && b.h) shortSide = Math.max(shortSide ?? 0, Math.min(b.w, b.h) * s);
+    const secs = unit.canvas ? (facts.videoSeconds?.(unit.canvas) ?? null) : null;
+    if (secs !== null) videoSeconds = Math.max(videoSeconds ?? 0, secs);
+  }
+  const render = renderSuggestion(spec, {
+    cloud: !!facts.cloud && facts.renderLane === 'local',
+    shortSide,
+    seconds: videoSeconds,
+  });
+
   return {
     counts,
     files,
@@ -212,5 +245,6 @@ export function estimateSpec(
     byKind,
     skipped: [...resolved.skipped],
     basis: { bytes: 'table', seconds: secondsBasis },
+    render,
   };
 }

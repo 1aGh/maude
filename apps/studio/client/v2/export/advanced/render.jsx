@@ -4,6 +4,7 @@
 // state. A workspace without the render service always owes this answer here too (nothing-deleted
 // A-render-service-note): the same note the sheet shows under Scope, with what it means for the export.
 
+import { readLanePref, writeLanePref } from '../../../export-lane.js';
 import { LANE_NONE_NOTE } from '../export-copy.js';
 import { Row } from '../parts.jsx';
 import {
@@ -28,9 +29,13 @@ export function RenderPart({ spec, exportLane, video, setAdv }) {
             <Select
               label={RENDER_VIDEO}
               testid="export-adv-lane"
-              value={spec.options?.lane ?? 'auto'}
+              value={spec.options?.lane ?? readLanePref()}
               options={LANES}
-              onChange={(lane) => setAdv({ lane })}
+              onChange={(lane) => {
+                // S8.5 — "Suggest each time · always the cloud · always this Mac" is a standing choice
+                writeLanePref(lane);
+                setAdv({ lane });
+              }}
             />
           </Row>
           <Note>{RENDER_NOTE_VIDEO}</Note>

@@ -31,6 +31,7 @@ import {
   preflightPrint,
   type RectsManifest,
 } from '../exporters/print-preflight.ts';
+import { type CloudExports, chooseRenderLane } from '../exporters/remote.ts';
 import {
   resolveSpecV2,
   type SkipReason,
@@ -62,6 +63,10 @@ export interface ExportRouteDeps {
   history(): readonly ExportHistoryEntry[];
   /** where `lane: 'auto'` renders (workspace-mode.ts `resolveRenderLane`) */
   renderLane(): 'local' | 'remote' | 'none';
+  /** S8.5 — is a cloud render door on offer on this Mac (exporters/remote.ts `CloudExports`)? */
+  cloudRender?(): boolean;
+  /** S8.5 — a canvas's longest comp in seconds, for "Suggest each time" (null = unknown) */
+  videoSeconds?(canvasRel: string): number | null;
   /**
    * S8.7 — `POST /_api/export-preflight`: the absolute design root (fonts are read under it) and the
    * canvas geometry source (a headless render of the canvas; null/absent = unmeasured, never an error)
@@ -176,6 +181,37 @@ function notYet(
  * queue runs (`EnqueueArgs.group`). `first` names the first unit's format + scope, which the
  * queue's lane and timeout read.
  */
+/**
+ * S8.5 — the cloud half of `POST /_api/export-jobs` on a desktop: a video the person sent to the
+ * cloud becomes an outbox `export.cloud` record whose id IS the job id (V2-1.14 §5.6). Answers 202
+ * `{jobId, queued, words}`, or null when this export renders on this Mac (every image and PDF, any
+ * spec without `lane: 'cloud'`, no cloud door, P3, a past version, a workspace cell).
+ */
+export function cloudExportResponse(
+  group: GroupPlan,
+  deps: {
+    cloud: Pick<CloudExports, 'available' | 'start'> | null;
+    renderLane: 'local' | 'remote' | 'none';
+    label: string;
+    actor: string;
+    device: string;
+    project: { id: string | null; hub: string | null };
+  }
+): Response | null {
+  if (deps.renderLane !== 'local' || !deps.cloud) return null;
+  if (chooseRenderLane(group.spec, { cloud: deps.cloud.available() }) !== 'cloud') return null;
+  const r = deps.cloud.start({
+    spec: group.spec,
+    label: deps.label,
+    actor: deps.actor,
+    device: deps.device,
+    project: deps.project,
+  });
+  if (!r.ok)
+    return json(503, { error: r.words ?? 'The export could not be queued.', reason: r.code });
+  return json(202, { jobId: r.jobId, queued: true, runsOn: 'cloud', words: r.words });
+}
+
 export function planExportV2(
   raw: unknown,
   deps: ExportRouteDeps,
@@ -257,6 +293,10 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
             canvasOnly: g.access.canvasOnly,
             history: deps.history(),
             renderLane: deps.renderLane(),
+            cloud: deps.cloudRender?.() ?? false,
+            ...(deps.videoSeconds
+              ? { videoSeconds: (rel: string) => deps.videoSeconds?.(rel) ?? null }
+              : {}),
           })
         );
       },

@@ -21,6 +21,7 @@ import {
   stateWord,
   whereOf,
 } from './exports-model.js';
+import { isQueuedCloud, RENDER_HERE } from './cloud-queue.js';
 
 // Per-job anchor for the ETA: the FIRST progress sample the client sees. For a video export that is
 // the first frame-step frame — after the (progress-less) renderMediaOnWeb attempt — so the rate is
@@ -164,6 +165,16 @@ export function JobRow({ job, selected = false, native = false, busy = false, on
             onClick={() => on.retry(job)}
           >
             {retry}
+          </button>
+        ) : isQueuedCloud(job) && on?.renderHere ? (
+          <button
+            type="button"
+            className="btn btn--sm ex-retry"
+            data-testid={`export-job-here-${job.id}`}
+            disabled={busy}
+            onClick={() => on.renderHere(job)}
+          >
+            {RENDER_HERE}
           </button>
         ) : (
           <StateWord job={job} />

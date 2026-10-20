@@ -52,6 +52,9 @@ import { ImageSection } from './sections/image.jsx';
 import { PrintSection } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { WebSection } from './sections/web.jsx';
+import { RenderRow } from './sections/render-row.jsx';
+import { useOnline } from './cloud-queue.js';
+import { readLanePref, renderChoice, withRenderLane } from '../../export-lane.js';
 import { usePreflight } from './preflight/use-preflight.js';
 import { ShareHint } from './share-hint.jsx';
 import {
@@ -180,6 +183,21 @@ export function ExportSheet({
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, msg }
+  // S8.5 — a video's Render row: cloud or this Mac (Suggest each time / always, export-lane.js)
+  const online = useOnline();
+  const [pickedLane, setPickedLane] = useState(null);
+  const lanePref = state.adv?.lane ?? readLanePref();
+  const render = useMemo(
+    () =>
+      renderChoice({
+        pref: lanePref,
+        render: est?.render ?? null,
+        online,
+        picked: pickedLane,
+        seconds: est?.seconds ?? null,
+      }),
+    [lanePref, est, online, pickedLane]
+  );
   const [otherOpen, setOtherOpen] = useState(false);
   const [recent, setRecent] = useState([]);
   const primary = useRef(null);
@@ -257,7 +275,7 @@ export function ExportSheet({
       return;
     }
     runExport({
-      body: { v: 2, spec: waitForAi ? { ...spec, wait: 'ai' } : spec },
+      body: { v: 2, spec: withRenderLane(waitForAi ? { ...spec, wait: 'ai' } : spec, render) },
       format: state.format,
       // a held export is a server job; the browser lane captures NOW, which is the other choice
       legacy: waitForAi ? null : browserLaneRequest(state, { ...ctx, kind }),
@@ -434,6 +452,7 @@ export function ExportSheet({
                 preflight={preflight}
                 onShowOnCanvas={showOnCanvas}
               />
+              <RenderRow choice={render} onPick={setPickedLane} />
             </div>
             <AdvancedSection
               state={state}
