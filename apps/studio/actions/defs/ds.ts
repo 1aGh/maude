@@ -50,4 +50,7 @@ export const DS_ACTIONS: ActionDef[] = [
   // ("Update N canvases", S10.8) is what reaches canvases. Reached from the selected token, so not ⌘K rows.
   row('ds.set-token', 'Change a token'),
   row('ds.set-dark-follows', 'Dark follows Light'),
+  // S10.10 — edit a component master on the Design system canvas (13 · ds-edit-master): Corners · Fill · Text ·
+  // Height from the inspector. One waiting edit per property; Update canvases (ds.publish) is what reaches canvases.
+  row('ds.set-master', 'Change a component'),
 ];

@@ -9,16 +9,20 @@ import { type ModelToken, parseSystem } from '../generate.ts';
 import { indexRegistry, loadRegistry, type RegistryIndex } from '../registry.ts';
 import { diskFs, loadSystem, type SystemConfig } from '../system.ts';
 import { formsOf } from '../value-types.ts';
+import { lookOf, type StateRule, stateRulesOf, statesOf } from './component-states.ts';
 import {
   type BoardComponent,
   type BoardLogo,
   type BoardModel,
   type BoardToken,
+  type ComponentPatch,
   humanize,
   modesOf,
   type PendingView,
   type SectionKind,
   safeCssName,
+  safeCssValue,
+  safeSelector,
   type TokenKind,
 } from './types.ts';
 
@@ -150,6 +154,26 @@ const classMap = (v: unknown): Array<{ name: string; class: string | null }> =>
     ? Object.entries(v).map(([name, c]) => ({ name, class: typeof c === 'string' ? c : null }))
     : [];
 
+/** At most this many state rules go into a board (it is inlined into the canvas module). */
+const STATE_RULES_MAX = 120;
+const PATCHES_MAX = 40;
+
+/** A master's waiting edits as plain declarations; anything a person or agent wrote that isn't one is dropped. */
+function patchesOf(entry: unknown): ComponentPatch[] {
+  const out: ComponentPatch[] = [];
+  if (!isObj(entry)) return out;
+  for (const [selector, props] of Object.entries(entry)) {
+    if (!safeSelector(selector) || !isObj(props)) continue;
+    for (const [prop, e] of Object.entries(props)) {
+      if (out.length >= PATCHES_MAX) return out;
+      const value = isObj(e) ? e.value : undefined;
+      if (/^[a-z][a-z-]{0,48}$/.test(prop) && safeCssValue(value))
+        out.push({ selector, prop, value: value.trim() });
+    }
+  }
+  return out;
+}
+
 const countCanvases = (m: Record<string, { places?: number; instances?: number }> | undefined) =>
   m ? Object.values(m).filter((u) => ((u?.places ?? u?.instances ?? 0) as number) > 0).length : 0;
 
@@ -265,17 +289,31 @@ export function buildBoardModel(
   const raw = loaded.componentsJson.data;
   const comps: BoardComponent[] = [];
   const list = isObj(raw) && isObj(raw.components) ? raw.components : {};
+  const stateRules: StateRule[] = [];
   for (const [name, def] of Object.entries(list)) {
     if (!isObj(def)) continue;
+    const className = typeof def.class === 'string' ? def.class : null;
+    const variants = classMap(def.variants);
+    const sizes = classMap(def.sizes);
+    // S10.10 — the states its CSS styles, and the rules that draw them
+    const classes = [className, ...variants.map((v) => v.class), ...sizes.map((s) => s.class)];
+    const rules = stateRulesOf(
+      loaded.componentsCss,
+      classes.filter((c): c is string => typeof c === 'string')
+    );
+    for (const r of rules) if (stateRules.length < STATE_RULES_MAX) stateRules.push(r);
     comps.push({
       name,
       label: typeof def.label === 'string' ? def.label : name,
-      className: typeof def.class === 'string' ? def.class : null,
-      variants: classMap(def.variants),
-      sizes: classMap(def.sizes),
+      className,
+      variants,
+      sizes,
       used: usage ? countCanvases(usage.components[name]) : null,
       pending: isObj(pendingComponents[name]),
       specimen: typeof def.specimen === 'string' ? def.specimen : null,
+      states: statesOf(rules),
+      look: lookOf(loaded.componentsCss, className),
+      patches: patchesOf(pendingComponents[name]),
     });
   }
 
@@ -293,6 +331,7 @@ export function buildBoardModel(
       .filter((r) => r.required)
       .map((r) => ({ role: r.role, class: r.class })),
     components: comps,
+    stateRules,
     logos: logosOf(designRoot, sys, loaded.logos),
     pendingCount: Object.keys(pendingTokens).length + Object.keys(pendingComponents).length,
     canvases: usage ? usage.canvases : null,

@@ -29,6 +29,7 @@ import {
 } from '../ds/engine.ts';
 import { type By, readHead } from '../ds/head.ts';
 import type { DsOutsideWatcher } from '../ds/outside.ts';
+import { mapOverrides } from '../ds/override-map.ts';
 import { indexRegistry, loadRegistry } from '../ds/registry.ts';
 import { verifyRevision } from '../ds/revision.ts';
 import { diskFs, loadSystem } from '../ds/system.ts';
@@ -129,6 +130,53 @@ function normRel(raw: unknown): string | null {
   if (p.startsWith('.design/')) p = p.slice('.design/'.length);
   if (p.split('/').some((s) => s === '..' || s === '.' || s === '')) return null;
   return p;
+}
+
+/**
+ * S10.10 — `pending {ds, from: {canvas, elementId, target}}`: an element's overrides become waiting edits. The
+ * source is read HERE (the page names an element, never CSS), through the same visibility the canvas list uses.
+ */
+async function pushFrom(
+  c: DsOpContext,
+  ds: string,
+  input: Record<string, unknown>
+): Promise<DsOpAnswer> {
+  if (input.tokens !== undefined || input.components !== undefined || input.expect !== undefined)
+    bad('from stands alone: it makes its own edits');
+  const from = input.from;
+  if (!isObj(from)) return bad('from is {canvas, elementId, target}');
+  const canvas = normRel(from.canvas);
+  if (!canvas || !/\.tsx$/i.test(canvas)) return bad('canvas is a design-root-relative .tsx path');
+  if (!c.access.seesCanvas(canvas)) throw noCanvas();
+  let source: string;
+  try {
+    source = readFileSync(path.join(c.engine.designRoot, canvas), 'utf8');
+  } catch {
+    throw noCanvas();
+  }
+  const s = c.engine.systems().find((x) => x.name === ds);
+  if (!s) throw unknownSystem(ds);
+  let componentsJson: unknown = null;
+  try {
+    componentsJson = JSON.parse(
+      readFileSync(path.join(c.engine.designRoot, s.path, 'components.json'), 'utf8')
+    );
+  } catch {
+    /* a system with no components.json has no masters; a type role still maps to its class */
+  }
+  const mapped = mapOverrides({
+    source,
+    file: canvas,
+    elementId: typeof from.elementId === 'string' ? from.elementId : '',
+    target: from.target,
+    componentsJson,
+  });
+  const r = await c.engine.mergePending(ds, { components: mapped.components, by: c.by });
+  changed(c, ds);
+  return {
+    status: 200,
+    body: { ...result(r), mapped: { entries: mapped.entries, skipped: mapped.skipped } },
+  };
 }
 
 export function dsCanvasOf(engine: DsEngine, ds: string): string | null {
@@ -444,6 +492,7 @@ export async function runDsOp(
           changed(c, ds);
           return { status: 200, body: result(r) };
         }
+        if (input.from !== undefined) return await pushFrom(c, ds, input);
         if (input.tokens !== undefined && !isObj(input.tokens)) bad('tokens is an object');
         if (input.components !== undefined && !isObj(input.components))
           bad('components is an object');

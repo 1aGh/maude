@@ -97,6 +97,7 @@ export type EngineErrorCode =
   | 'ds-pending-conflict'
   | 'ds-pending-invalid'
   | 'ds-token-locked'
+  | 'ds-nothing-to-push'
   | 'ds-no-canvas'
   | 'ds-not-in-system'
   | 'ds-no-outside'
@@ -113,6 +114,7 @@ const STATUS: Partial<Record<EngineErrorCode, number>> = {
   'ds-unknown-token': 404,
   'ds-pending-invalid': 422,
   'ds-token-locked': 422,
+  'ds-nothing-to-push': 422,
   'ds-revision-invalid': 422,
   'ds-head-invalid': 422,
   'ds-kernel-unavailable': 503,

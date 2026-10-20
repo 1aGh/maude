@@ -703,10 +703,10 @@ function scopeCss(css, value, opts = {}) {
         if (!document.getElementById('maude-ds-update-dots')) {
           const style = document.createElement('style');
           style.id = 'maude-ds-update-dots';
+          // An outline, not a positioned dot: it takes no room, forces no `position` onto the user's element and
+          // moves nothing. Its colour is a variable the host may set; the fallback is the element's own text colour.
           style.textContent =
-            '[data-ds-update]:not([style*="position: absolute"]):not([style*="position: fixed"]){position:relative}' +
-            '[data-ds-update]::after{content:"";position:absolute;top:-4px;right:-4px;width:8px;height:8px;' +
-            'border-radius:50%;background:#2f6bff;box-shadow:0 0 0 2px #fff;pointer-events:none;z-index:2}';
+            '[data-ds-update]{outline:2px dotted var(--maude-update-dot, currentColor);outline-offset:3px}';
           document.head.appendChild(style);
         }
       }

@@ -150,6 +150,8 @@ export function planDsVerb(
         ...(b.tokens !== undefined ? { tokens: b.tokens } : {}),
         ...(b.components !== undefined ? { components: b.components } : {}),
         ...(b.expect !== undefined ? { expect: b.expect } : {}),
+        // S10.10: an element's overrides pushed into the system — {from: {canvas, elementId, target}}
+        ...(b.from !== undefined ? { from: b.from } : {}),
       });
     }
     case 'keep':

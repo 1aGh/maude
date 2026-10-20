@@ -8,6 +8,7 @@ import {
   type BoardMode,
   type BoardModel,
   type BoardToken,
+  boardComponentsCss,
   boardThemeCss,
   SECTIONS,
   type SectionKind,
@@ -41,7 +42,10 @@ export function Frame({
   children: ReactNode;
 }) {
   const theme = themeFor(model, mode);
-  const overlay = boardThemeCss(model);
+  // the components section also draws a master in each state and "as edited" (S10.10)
+  const overlay = [boardThemeCss(model), kind === 'components' ? boardComponentsCss(model) : '']
+    .filter(Boolean)
+    .join('\n');
   // a section is drawn once at its real size (13's SECS); the artboard's content box has no
   // height of its own, so the section carries it
   const size = SECTIONS.find((s) => s.kind === kind);

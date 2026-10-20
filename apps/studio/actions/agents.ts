@@ -1360,6 +1360,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/ds/pending', method: 'POST' },
     agent: cli('maude design ds pending <ds> --set <file.json>'),
   },
+  // S10.10 — a component master edited in place: Corners · Fill · Text · Height are declaration patches in the
+  // master's class rule (`components[<Master>][.<class>][<prop>]: {value}`), waiting like a token until the same
+  // `ds publish`. An agent merges them with the same file; `from` instead pushes an element's own overrides.
+  'ds.set-master': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/pending', method: 'POST' },
+    agent: cli('maude design ds pending <ds> --set <file.json>'),
+  },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',

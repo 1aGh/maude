@@ -112,6 +112,24 @@ export async function publishReview({ ds, expectHead }, rows, fetchImpl = global
   };
 }
 
+/**
+ * ds.review-update: the element's overrides become waiting edits. The page names the element and the target
+ * (a master or a type role) and nothing else — the server reads the canvas and works the CSS out (routes/ds.ts,
+ * ds/override-map.ts), so no CSS crosses from here.
+ */
+export async function pushOverride(
+  { ds, canvas, elementId, target },
+  fetchImpl = globalThis.fetch
+) {
+  const r = await call(fetchImpl, 'POST', '/_api/ds/pending', {
+    ds,
+    from: { canvas, elementId, target },
+  });
+  return r.ok
+    ? { ok: true, entries: Number.isFinite(r.body?.mapped?.entries) ? r.body.mapped.entries : 0 }
+    : { ok: false, message: refusalWords(r.code, REVIEW_WORDS.pushFailed) };
+}
+
 /** Cancel: "puts the swatch back" — what waited is dropped, no canvas changes. */
 export async function cancelReview({ ds }, fetchImpl = globalThis.fetch) {
   const r = await call(fetchImpl, 'POST', '/_api/ds/pending', { ds, cancel: true });
@@ -161,6 +179,18 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         if (req.kind === 'cancel') {
           const r = await cancelReview({ ds }, f());
           return say(r.ok ? CANCELLED : r.message);
+        }
+        if (req.kind === 'push') {
+          const pushed = await pushOverride(
+            {
+              ds,
+              canvas: typeof req.canvas === 'string' && req.canvas ? req.canvas : at,
+              elementId: req.elementId,
+              target: req.target,
+            },
+            f()
+          );
+          if (!pushed.ok) return say(pushed.message);
         }
         const loaded = await loadDsReview(ds, f());
         if (!loaded.ok) return say(loaded.message);
