@@ -67,7 +67,6 @@ import { bootShellMode } from './home/shell-mode.js';
 import EmbedView from './embed-view.jsx';
 import { ShareSheet } from './v2/share/share-sheet.jsx';
 import IdentityBar from './panels/IdentityBar.jsx';
-import OnboardingWizard from './panels/OnboardingWizard.jsx';
 import { ReadinessDialog } from './panels/ReadinessList.jsx';
 import IntroVideoDialog from './panels/IntroVideoDialog.jsx';
 import BrandUploadPanel from './panels/BrandUploadPanel.jsx';
@@ -141,7 +140,6 @@ import {
 } from 'lucide-react';
 import { PhotoKnobs } from './photo-knobs.jsx';
 import {
-  appIsFirstRun,
   cloudSignInPrepare,
   invoke,
   isNativeApp,
@@ -360,7 +358,6 @@ function ShellState({ children }) {
     exportCenter,
     exportDialog,
     figmaImportOpen,
-    firstRun,
     focusedCommentId,
     generateOpen,
     gitLifecycle,
@@ -1402,7 +1399,6 @@ function ShellState({ children }) {
       exportCenter,
       exportDialog,
       figmaImportOpen,
-      firstRun,
       generateOpen,
       gitLifecycle,
       gitStatus,
@@ -2861,7 +2857,6 @@ function ShellTree() {
       exportCenter,
       exportDialog,
       figmaImportOpen,
-      firstRun,
       generateOpen,
       gitLifecycle,
       handleAssistantAttention,
@@ -3046,7 +3041,6 @@ function ShellTree() {
       data-theme={theme}
       onContextMenu={onShellContextMenu}
     >
-      {firstRun && <OnboardingWizard />}
       {/* V2-4.8b — the top banners (sync diverged / rejected, role, update, repo changed, format gate) are
           callouts now, ONE stack. A child of `.maude`, not of `.st-body`: Presentation mode must not hide a
           fail-closed sync warning (DDR-102, phase-28 audit F-1). */}
@@ -3054,8 +3048,8 @@ function ShellTree() {
       <ShellMentionCallouts />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that
           only appears if you happen to open the Sync panel is not consent.
-          Skipped during first-run onboarding so two flows don't stack. */}
-      {!firstRun && <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />}
+          (S6.15: there is no first-run wizard to stack under any more.) */}
+      <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />
       <NotificationHost
         paused={!!tourSteps}
         hiddenGroups={exportCenter.panelOpen ? ['exports'] : []}
@@ -3403,6 +3397,7 @@ function ShellTree() {
           setHelpOpen(false);
           startTour(USAGE_TOUR);
         }}
+        canAddGuides={!viewerMode}
       />
       {/* `activeCanvas` is THIS window's truth. The server's `_active.json` is
           global and sticky — it survives closing every tab and is written by any

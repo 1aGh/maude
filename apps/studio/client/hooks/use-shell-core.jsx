@@ -27,7 +27,7 @@ import {
 import { useTreeExpansion } from '../tree-expansion.js';
 import { isArtboardSelectionOf } from '../selection-scope.js';
 import { setPresentSource, shellMode, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
-import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
+import { isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
@@ -966,27 +966,13 @@ export function useShellCore({}) {
   const exportCenter = useExportCenter({
     enabled: cfg.cloud === null || cfg.exportLane === 'remote',
   });
-  // Phase 29 (E4) — first-run onboarding wizard. The native shell boots a minimal
-  // "welcome" project on first launch; we ask it whether this is a first run and, if
-  // so, show the wizard OVER the (empty) canvas browser. Completing any door switches
-  // the sidecar to a real project (the webview reloads → first-run is then false).
-  const [firstRun, setFirstRun] = useState(false);
-  // Offer the collab "rychlý kurz" once, AFTER onboarding (native app, not first run,
-  // not yet seen). A returning user who already took it isn't re-nudged.
+  // Offer the collab "rychlý kurz" once (native app, not yet seen). A returning user who already took it
+  // isn't re-nudged. (S6.15: the first-run onboarding wizard is gone — first launch boots Home, and a
+  // project window is by definition not a first run — so there is no first-run state any more.)
   const [collabNudge, setCollabNudge] = useState(false);
   useEffect(() => {
-    if (!isNativeApp()) return undefined;
-    let alive = true;
-    appIsFirstRun()
-      .then((v) => {
-        if (!alive) return;
-        setFirstRun(!!v);
-        if (!v && !readBoolStore(COLLAB_TOUR_STORE, false)) setCollabNudge(true);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
+    if (!isNativeApp()) return;
+    if (!readBoolStore(COLLAB_TOUR_STORE, false)) setCollabNudge(true);
   }, []);
   const markCollabSeen = useCallback(() => {
     setCollabNudge(false);
@@ -1275,7 +1261,6 @@ export function useShellCore({}) {
     exportCenter,
     exportDialog,
     figmaImportOpen,
-    firstRun,
     focusedCommentId,
     generateOpen,
     gitLifecycle,
