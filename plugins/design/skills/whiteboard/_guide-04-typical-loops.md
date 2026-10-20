@@ -6,8 +6,8 @@
 
 **Review a design:** `canvas-rects` → `annotate --ops` with one sticky per finding, each `"to": "el:<artboard>/<id>"` so it points at what it means and follows it → `annotate --wrap-section --title "Review"` to gather the notes. The design itself does not change.
 
-**Bring a FigJam board in:** `import-figma --board <url> --into <canvas.tsx>` lands it as one "From FigJam" section (comment threads become stickies carrying `source.author`, widgets become pictures); `read-annotations --in <section id>` reads it back.
+**Bring a FigJam file in:** `import-figma --board <url> --into <canvas.tsx>` lands it as one "From FigJam" section (comment threads become stickies carrying `source.author`, widgets become pictures); `read-annotations --in <section id>` reads it back.
 
-**Make me a plan:** the user names a ritual/template ("retro board", "content calendar for next week", "map out the signup flow") → compose the matching preset above with their REAL content → `annotate --board [--near <artboard>]` → `screenshot`.
+**Make me a plan:** the user names a ritual/template ("retro", "content calendar for next week", "map out the signup flow") → compose the matching preset above with their REAL content → `annotate --board [--near <artboard>]` → `screenshot`.
 
 **Iterate on what's there:** `read-annotations` (narrow it with `--in <section>` / `--type`) to find the target id → `update` to reword/restyle it (only the fields you name change), `move` / `reparent` to relocate it or put it in another section, `reorder` to bring it forward/back — never `delete` + `create`, which loses the id (and whatever references it: comments, bound arrows).

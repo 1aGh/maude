@@ -1,6 +1,6 @@
 ---
 name: source-command-chat
-description: "Open the existing native Studio ACP chat panel. ACP harness support is a separate integration."
+description: "Open the AI chat panel in the running Maude window, or continue an in-app chat from a terminal."
 user-invocable: false
 ---
 

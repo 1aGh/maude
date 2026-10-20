@@ -4,9 +4,9 @@
 |---|---|---|
 | Generate new canvas (for `/design:new`) | See "Generation invocation" below — try Skill, fall back transparently | Required for `/design:new`. Envelope adapts to repo config. |
 | Slider explorer | `Skill(skill: "playground:playground", args: <envelope>)` | Optional, only when feedback mentions playground/explorer/tweak/slider. |
-| Screenshot canvas | `Bash: maude design screenshot --full --out "<out>"` | Helper resolves URL from `_server.json` + `_active.json`. Never call `agent-browser` directly. |
+| Screenshot canvas | `Bash: maude design screenshot --full --out "<out>"` | Helper resolves URL from `_server.json` + the open canvas (`--canvas <rel>` names one). Never call `agent-browser` directly. |
 | Spawn specialist critic | `Agent(subagent_type: "design:design-critic" \| "design:signature-moment-critic" \| ..., ...)` | Subagents run inline (no nested agents). Critics are exposed as `Agent` types from the design plugin. |
-| Server lifecycle | `Bash: curl + nohup` | See "Server lifecycle" section. |
+| Server lifecycle | `Bash: maude design server-up` | Prints the port; starts the studio when none runs. See "Server lifecycle" section. |
 
 ### Generation invocation — Skill with documented fallback
 

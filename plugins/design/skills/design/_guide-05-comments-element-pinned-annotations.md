@@ -1,6 +1,6 @@
 ## Comments — element-pinned annotations
 
-The dev-server UI lets the user drop comments on individual elements (Cmd+Shift+click in canvas, or "+ Comment" in status bar after selecting). Comments persist to `<designRoot>/_comments/<slug>.json` (gitignored, runtime state). They are explicit user feedback that Claude must consume.
+In Preview the person drops a Comment on an object, a spot on an artboard, a moment in a video or a point on a print artboard (the Comment tool, C; ⇧⌘M opens the Comments panel). Comments persist to `<designRoot>/_comments/<slug>.json` (gitignored, runtime state). They are explicit user feedback that Claude must consume.
 
 **Schema per file** (no version field — a record grows by adding top-level keys, which every reader keeps; read it, never write it):
 
@@ -68,6 +68,6 @@ maude design comments add --as-ai ui/<Canvas>.tsx --findings findings.json   # a
 
 `--findings` takes a JSON array (or `{ "findings": [...] }`) of `{ "text", "artboard"?, "t"?, "mm"?: { "x", "y" } }`, at most 50. A write prints ids only. Exit 1 = the studio refused (`read-only`, `not-in-scope`, `not-yours` — you may resolve, reopen and reply to anyone's thread, but edit or delete only your own); exit 3 = no studio is running for the project (open it, or `maude design serve`). Pins in the iframe re-render on the studio's broadcast.
 
-**Comments DO NOT persist across rollback.** `/design:rollback` reverts the canvas HTML, but the comments JSON is independent — open comments stay open after a rollback (they're feedback, not file state).
+**Comments are not part of a version.** Restoring a version (`/design:history restore`, `/design:rollback`) changes the canvas, but the comments are independent — open comments stay open after a restore (they're feedback, not file state).
 
-**Comments do not appear in `_active.json`.** They're keyed by file slug, not by active tab. Multiple files can have open comments simultaneously; the sidebar shows a yellow badge with the open-count next to each file with comments.
+**Comments do not appear in `_active.json`.** They're keyed by file slug, not by the open canvas. Several canvases can have open comments at once; the Canvases panel shows the open count next to each canvas with comments.
