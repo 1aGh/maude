@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SliderField, Toggle } from '../../inspector-controls.jsx';
 import { PhotoKnobs } from '../../photo-knobs.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
+import { bindInspectorActions } from '../inspector/inspector-actions.js';
 import { ApplyEveryUseSheet } from './apply-every-use-sheet.jsx';
 import {
   cutOutOn,
@@ -352,6 +353,18 @@ export function PhotoSection({
       if (live.current) setBgBusy(false);
     }
   }, [editable, onRemoveBackground, bgBusy, asset, change]);
+
+  // ⌘K "Apply to every use…" opens this sheet while the section shows a picture (registry photo.apply-every-use)
+  useEffect(
+    () =>
+      bindInspectorActions({
+        'photo.apply-every-use': () => {
+          setSheet(true);
+          return null;
+        },
+      }),
+    []
+  );
 
   // the Image section's ✦ Remove background opens Photo and asks for the cut-out once
   const asked = useRef(false);

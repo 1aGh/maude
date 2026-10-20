@@ -224,6 +224,15 @@ describe('Only this use changes', () => {
     expect(previews.at(-1)).toEqual([PUNCHY_EVERY, undefined]);
   });
 
+  test('⌘K "Apply to every use…" opens the same sheet', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    await mount();
+    await act(async () => {
+      await runInspectorAction('photo.apply-every-use');
+    });
+    expect($('photo-every-use-sheet')).not.toBeNull();
+  });
+
   test('when the session may not change every canvas, Apply is disabled and says why', async () => {
     answer = { ...answer, canApply: false, reason: 'Ask the owner to change this.' };
     await mount();
