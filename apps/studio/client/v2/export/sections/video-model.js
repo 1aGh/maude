@@ -27,17 +27,29 @@ export function mergeRows(prev, next) {
 }
 
 /**
- * The formats on offer: only for a Selection (the other scopes export every video artboard they reach,
- * so there is nothing to tick). `base` = the selected artboard ids; `rows` = what the estimate knows.
+ * The formats on offer. A Selection: the selected artboards and the formats around them. This canvas (07
+ * ve-export, S7.19): every format of the canvas, once the estimate has said that some video has more than one.
+ * The other scopes export everything they reach, so there is nothing to tick. `base` = the selected artboard
+ * ids; `rows` = what the estimate knows.
  */
 export function formatsFor({ scope, canvas, base, rows }) {
-  if (scope !== 'selection') return [];
-  return videoExportContent(canvas, base, rows).formats;
+  if (scope === 'selection') return videoExportContent(canvas, base, rows).formats;
+  if (scope === 'canvas' && rows.some((r) => Array.isArray(r.formats) && r.formats.length > 1))
+    return videoExportContent(canvas, [], rows).formats;
+  return [];
 }
 
-/** Does the comp have speech to caption? (S7's selector says; the fallback says no.) */
+/** Does the cut have speech to caption? (S7.19: the estimate's rows say; none = no.) */
 export const captionsFor = (canvas, base, rows) =>
   videoExportContent(canvas, base, rows).captions.available === true;
+
+/**
+ * S7.19 — the artboard's own stored ceiling (`artboardMeta[id].maxFrames`, set by Timeline › Allow longer) starts the
+ * sheet with Allow longer ON. The server's rule is unchanged (S8.6: stored is a ceiling, not a switch — `capFor`);
+ * this is only the sheet's default, and the person can turn it off.
+ */
+export const allowLongerDefault = (canvas, ids, rows) =>
+  videoExportContent(canvas, ids, rows).maxFrames !== null;
 
 /** A tick the person set wins; else the format's own default. */
 export function tickedIds(formats, overrides = {}) {
@@ -58,6 +70,13 @@ export function videoCtx(formats, overrides = {}) {
   const linked = formats.some((f) => f.linked && ids.includes(f.artboardId));
   return { ids, linked };
 }
+
+/**
+ * S7.19 — a canvas export with some of its formats unticked is, for the server, a selection of the ticked ones
+ * (the same canvas, `selection.artboards`): the sheet still says "This canvas".
+ */
+export const isPartial = (scope, formats, ids) =>
+  scope === 'canvas' && formats.length > 0 && ids.length < formats.length;
 
 /** The rows the export reaches: the ticked ones for a Selection, else everything the estimate lists. */
 export function reached(rows, ids, scope) {

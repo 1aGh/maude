@@ -3,6 +3,13 @@
  * --dur-panel, which collapses to 1 ms under prefers-reduced-motion. */
 
 @layer shell {
+  /* S7.19 (07 ve-export): the line under Format when more than one format is ticked */
+  .ex-sound-shared {
+    margin: 0;
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.36);
+    color: var(--fg-2);
+  }
   .ex-shapes {
     display: grid;
     grid-template-columns: 1fr 1fr;
