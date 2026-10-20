@@ -4,10 +4,11 @@
 // reloaded) after a pause, and when the window is looked at again. A project without a system asks nothing.
 
 import { useEffect, useRef, useState } from 'react';
+import { DS_STATE_CHANGED } from './door-write.js';
 
 const PAUSE_MS = 600;
 
-/** `{ [system]: { label, level, reasons, converted } }` from a maude.ds-state/1 body. */
+/** `{ [system]: { label, level, reasons, converted, trashed } }` from a maude.ds-state/1 body. */
 export function stateByName(body) {
   const out = {};
   if (body?.format !== 'maude.ds-state' || !Array.isArray(body.systems)) return out;
@@ -18,6 +19,8 @@ export function stateByName(body) {
       level: typeof s.level === 'number' ? s.level : null,
       reasons: Array.isArray(s.reasons) ? s.reasons.filter((r) => typeof r === 'string') : [],
       converted: s.converted === true,
+      // S10.21b — the tokens moved to the trash (the Trash lists them; door-write.js trashedTokenItems)
+      trashed: Array.isArray(s.trashed) ? s.trashed.filter((t) => t && t.kind === 'token') : [],
     };
   }
   return out;
@@ -50,9 +53,12 @@ export function useDsState({ enabled, stamp }) {
       if (document.visibilityState === 'visible') read();
     };
     document.addEventListener('visibilitychange', look);
+    // a DS door wrote (door-write.js): read again now
+    window.addEventListener(DS_STATE_CHANGED, read);
     return () => {
       clearTimeout(t);
       document.removeEventListener('visibilitychange', look);
+      window.removeEventListener(DS_STATE_CHANGED, read);
     };
   }, [enabled, stamp]);
   return state;

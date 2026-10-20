@@ -348,6 +348,43 @@ describe('the row menu', () => {
     ).toEqual(['Open', 'Pin', 'Copy link']);
   });
 
+  // S10.21b — a canvas left out of its design system's update gets Update in its menu (ds.canvas-update)
+  test('a left-out canvas offers Update, which runs ds.canvas-update with its design-root path', async () => {
+    const R0 = 'a'.repeat(64);
+    const R1 = 'b'.repeat(64);
+    const dsCfg = {
+      designRel: D,
+      designSystems: [{ name: 'acme', path: 'system/acme' }],
+      dsConverted: { acme: true },
+      systemHeads: { acme: R1 },
+      canvasDsRevs: { 'ui/ahoj.tsx': R0, 'ui/ahoj2.tsx': R1 },
+    };
+    const ran: Array<[string, unknown]> = [];
+    const { host } = await mount({
+      dsCfg,
+      onDsAction: (id: string, p: unknown) => ran.push([id, p]),
+    });
+    await click(q(host, 'tree-row-menu-ui-ahoj'));
+    expect(
+      Array.from(document.querySelectorAll('[role="menuitem"]')).map((b) => b.textContent)
+    ).toEqual([
+      'Open',
+      'Pin',
+      'Rename',
+      'Duplicate',
+      'Move to…',
+      'Update',
+      'Copy link',
+      'Move to trash',
+    ]);
+    await click(byId('canvas-menu-ds-update'));
+    expect(ran).toEqual([['ds.canvas-update', { canvas: 'ui/ahoj.tsx' }]]);
+    expect(byId('canvas-row-menu')).toBeNull();
+    // a canvas at head has nothing to update
+    await click(q(host, 'tree-row-menu-ui-ahoj2'));
+    expect(byId('canvas-menu-ds-update')).toBeNull();
+  });
+
   test('each row runs its function once and closes the menu', async () => {
     const { host, spy } = await mount();
     const path = `${ROOT}/ahoj.tsx`;

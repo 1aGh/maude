@@ -11254,7 +11254,7 @@
     "hook": "canvases-trash-item",
     "kind": "testid",
     "pattern": false,
-    "meaning": "One parked thing in the Trash list.",
+    "meaning": "One parked thing in the Trash list; `data-kind` is canvas, artboard or token (a design-system token moved to the trash, S10.21b — its Restore is `ds.restore-token`).",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
@@ -15075,7 +15075,7 @@
     "hook": "canvas-menu-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash; with Canvases > Advanced open also reveal, open-editor, open-mac-app, view-code, copy-path or rename-file (S11.9). `move` drills into the folder list.",
+    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash; with Canvases > Advanced open also reveal, open-editor, open-mac-app, view-code, copy-path or rename-file (S11.9); ds-update (Update, `ds.canvas-update`) on a canvas left out of its design system’s update (S10.21b). `move` drills into the folder list.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/row-menu.jsx",
       "symbol": "CanvasRowMenu"

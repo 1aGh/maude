@@ -18,6 +18,12 @@ import { runCheck } from '../client/v2/ds/advanced-host.jsx';
 import { convertSystems, restoreSystemFolder } from '../client/v2/ds/convert-model.js';
 import { setDefaultSystem } from '../client/v2/ds/default-write.js';
 import {
+  canvasUpdateNow,
+  clearTokenNow,
+  restoreTokenNow,
+  trashedTokenItems,
+} from '../client/v2/ds/door-write.js';
+import {
   addColourNow,
   applyNearestNow,
   fixContrastNow,
@@ -43,6 +49,7 @@ import { switchRows } from '../client/v2/ds/switch-model.js';
 import { writeToken } from '../client/v2/ds/token-write.js';
 import { writeOutside, writePick } from '../client/v2/ds/truth-host.jsx';
 import { writeInstanceUpdate } from '../client/v2/ds/update-available.jsx';
+import { fetchDsState } from '../client/v2/ds/use-ds-state.js';
 import { execCheckPlan, planCheckVerb } from '../ds/check-system-verb.ts';
 import { execDsPlan, planDsVerb } from '../ds/ds-verb.ts';
 import type { DsLibrary } from '../ds/library.ts';
@@ -234,12 +241,19 @@ const making = async (w: World, drafts: Record<string, unknown> = { a: DIRECTION
     await post(w, '/_api/ds/make', { action: 'draft', ds: NOVA, direction, tokens });
 };
 
+/** The Trash's token row for `css`, built from the state route as the Trash view builds it. */
+const trashRow = async (f: typeof fetch, css: string) => {
+  const row = trashedTokenItems(await fetchDsState(f)).find((t) => t.css === css);
+  if (!row) throw new Error(`no Trash row for ${css}`);
+  return row;
+};
+
 /** Doors with no client writer. A gap is a finding (named in the hand-back), never silently passed. */
 const NO_CLIENT_WRITER: Record<string, string> = {
-  'ds.canvas-update': 'gap — no client code posts /_api/ds/canvas and menu-runner has no handler',
-  'ds.canvas-leave': 'gap — no client code posts /_api/ds/canvas and menu-runner has no handler',
-  'ds.restore-token': 'gap — the Trash "Restore" is not wired: nothing posts /_api/ds/restore',
-  'ds.clear-token': 'gap — nothing posts /_api/ds/clear; menu-runner has no handler',
+  // S10.21b wired canvas-update (row menu), restore-token and clear-token (Trash) through door-write.js
+  'ds.canvas-leave':
+    'open question (S10.21b hand-back) — no canvas or contract row places a standalone "Keep this version"; ' +
+    'the review sheet’s untick (ds.publish --leave-out) is the person’s door today',
   'ds.draft': 'by design — the AI writes directions (S10.16a); the person picks one',
 };
 
@@ -262,7 +276,7 @@ const CASES: Record<string, Case> = {
     verb: ['pending', DS, '--cancel'],
   },
   // A Dark value set by hand: it no longer follows (the field the registry's agent text names). The Light edit on a
-  // token whose Dark follows is the finding pinned below — the page derives Dark, the agent's file does not.
+  // token whose Dark follows is in "Dark follows" below — the engine derives Dark for a Light-only file.
   'ds.set-token': {
     ui: (f) =>
       writeToken({ ds: DS, css: '--x-line-fine', edit: { theme: 'dark', value: '#444444' } }, f),
@@ -358,7 +372,8 @@ const CASES: Record<string, Case> = {
         by: PERSON,
       });
     },
-    ui: async () => null,
+    // the row menu's Update (canvases-panel.jsx) posts the design-root-relative path
+    ui: (f) => canvasUpdateNow({ canvas: 'ui/Landing.tsx' }, f),
     verb: ['canvas', 'update', '.design/ui/Landing.tsx'],
   },
   'ds.canvas-leave': {
@@ -378,7 +393,8 @@ const CASES: Record<string, Case> = {
         replacement: '--x-line-mid',
       });
     },
-    ui: async () => null,
+    // the Trash's row, read the way the Trash reads it (GET /_api/ds/state → trashedTokenItems)
+    ui: async (f) => restoreTokenNow(await trashRow(f, '--x-line-fine'), f),
     verb: ['restore', DS, '--x-line-fine'],
   },
   'ds.clear-token': {
@@ -389,7 +405,7 @@ const CASES: Record<string, Case> = {
         replacement: '--x-line-mid',
       });
     },
-    ui: async () => null,
+    ui: async (f) => clearTokenNow(await trashRow(f, '--x-line-fine'), f),
     verb: ['clear', DS, '--x-line-fine'],
   },
   'ds.make': {
@@ -514,16 +530,10 @@ const CASES: Record<string, Case> = {
 
 /** The no-writer doors post the route body the registry's `server` names, built from the same words. */
 const ROUTE_BODY: Record<string, (w: World) => { route: string; body: unknown }> = {
-  'ds.canvas-update': () => ({
-    route: '/_api/ds/canvas',
-    body: { canvas: 'ui/Landing.tsx', action: 'update' },
-  }),
   'ds.canvas-leave': () => ({
     route: '/_api/ds/canvas',
     body: { canvas: 'ui/Home.tsx', action: 'leave' },
   }),
-  'ds.restore-token': () => ({ route: '/_api/ds/restore', body: { ds: DS, css: '--x-line-fine' } }),
-  'ds.clear-token': () => ({ route: '/_api/ds/clear', body: { ds: DS, css: '--x-line-fine' } }),
   'ds.draft': () => ({
     route: '/_api/ds/make',
     body: { action: 'draft', ds: NOVA, direction: 'a', tokens: DIRECTION_A },
@@ -664,24 +674,10 @@ describe('every ds.* action: the button ≡ the agent (S10.21, rule 14)', () => 
   });
 });
 
-describe('findings (pinned: each flips to equality when its question is answered)', () => {
-  test('ds.set-token on Light, Dark following: the page derives Dark, the file the agent text describes does not', async () => {
-    const A: World = { p: await makeProject() };
-    const B: World = { p: await makeProject() };
-    const s = studio(A);
-    const r = await writeToken(
-      { ds: DS, css: '--x-line-fine', edit: { theme: 'light', value: '#cccccc' } },
-      s.fetchImpl
-    );
-    expect(r.ok).toBe(true);
-    const sent = s.last.sent as { tokens: Record<string, Record<string, string>> };
-    expect(Object.keys(sent.tokens['--x-line-fine']).sort()).toEqual(['dark', 'light']);
-    // the agent, per agents.ts `ds.set-token`: `tokens[<css>]: <theme>: <value>` — Light only
-    const file = {
-      tokens: { '--x-line-fine': { light: '#cccccc' } },
-      expect: { '--x-line-fine': null },
-    };
-    const v = await execDsPlan(
+describe('Dark follows: the engine derives it, so the page and the agent land the same file (S10.21b)', () => {
+  /** The agent's plain file on B (`maude design ds pending <ds> --set f.json`). */
+  const agentSets = (B: World, file: unknown) =>
+    execDsPlan(
       planDsVerb(['pending', DS, '--set', 'f.json'], () => JSON.stringify(file)),
       {
         root: B.p.root,
@@ -689,9 +685,66 @@ describe('findings (pinned: each flips to equality when its question is answered
         by: PERSON,
       }
     );
+  const waiting = (w: World, css: string): Record<string, unknown> | null =>
+    JSON.parse(w.p.read(`${DS_PATH}/design-system.meta.json`) as string)?.dsPending?.tokens?.[
+      css
+    ] ?? null;
+
+  test('ds.set-token on Light, Dark following: the page and a Light-only file land the same Dark', async () => {
+    const A: World = { p: await makeProject() };
+    const B: World = { p: await makeProject() };
+    const before = snapshot(A.p);
+    const s = studio(A);
+    const r = await writeToken(
+      { ds: DS, css: '--x-line-fine', edit: { theme: 'light', value: '#cccccc' } },
+      s.fetchImpl
+    );
+    expect(r.ok).toBe(true);
+    // the page still sends both (decision v2-S10.21b-page-sends-both): the engine keeps a Dark it is given
+    const sent = s.last.sent as { tokens: Record<string, Record<string, string>> };
+    expect(Object.keys(sent.tokens['--x-line-fine']).sort()).toEqual(['dark', 'light']);
+    // the agent, per agents.ts `ds.set-token`: `tokens[<css>]: <theme>: <value>` — Light only
+    const v = await agentSets(B, {
+      tokens: { '--x-line-fine': { light: '#cccccc' } },
+      expect: { '--x-line-fine': null },
+    });
     expect(v.status).toBe(200);
-    // the engine does not follow on the server for a plain pending edit (ds/edges.ts does, for fix-contrast)
-    expect(snapshot(B.p)).not.toEqual(snapshot(A.p));
+    expect(snapshot(B.p)).toEqual(snapshot(A.p));
+    expect(snapshot(A.p)).not.toEqual(before);
+  });
+
+  test('ds.set-dark-follows back on: the page and `darkFollows: true` land the same Dark', async () => {
+    const A: World = { p: await makeProject() };
+    const B: World = { p: await makeProject() };
+    for (const w of [A, B])
+      await w.p.engine.mergePending(DS, {
+        tokens: { '--x-line-fine': { dark: '#202020', darkFollows: false } },
+        by: PERSON,
+      });
+    const before = snapshot(A.p);
+    expect(snapshot(B.p)).toEqual(before);
+    const r = await writeToken(
+      { ds: DS, css: '--x-line-fine', edit: { follows: true } },
+      studio(A).fetchImpl
+    );
+    expect(r.ok).toBe(true);
+    const v = await agentSets(B, {
+      tokens: { '--x-line-fine': { darkFollows: true } },
+      expect: { '--x-line-fine': waiting(B, '--x-line-fine')?.at ?? null },
+    });
+    expect(v.status).toBe(200);
+    expect(snapshot(B.p)).toEqual(snapshot(A.p));
+    expect(snapshot(A.p)).not.toEqual(before);
+  });
+
+  test('a Dark the entry names itself is kept, never re-derived', async () => {
+    const B: World = { p: await makeProject() };
+    const v = await agentSets(B, {
+      tokens: { '--x-line-fine': { light: '#cccccc', dark: '#010101' } },
+      expect: { '--x-line-fine': null },
+    });
+    expect(v.status).toBe(200);
+    expect(waiting(B, '--x-line-fine')?.dark).toBe('#010101');
   });
 });
 

@@ -46,6 +46,7 @@ import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
 import { requestDsLibrary } from '../ds/library-bus.js';
 import { requestDsUpgrade } from '../ds/upgrade-bus.js';
 import { requestDsConvert, restoreSystemFolder } from '../ds/convert-model.js';
+import { runDsDoorAction } from '../ds/door-write.js';
 import { runMasterAction } from '../ds/master-write.js';
 import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
@@ -404,6 +405,17 @@ export function createMenuHandlers(d) {
       const r = await setDefaultSystem(String(p?.ds ?? ''), { label: p?.label });
       d.toast?.(r.message, r.ok);
     },
+    // S10.21b — a left-out canvas's Update (its row menu), a token's Restore and Clear out (the Trash): one writer each
+    // (door-write.js), the one the rows call
+    ...Object.fromEntries(
+      ['ds.canvas-update', 'ds.restore-token', 'ds.clear-token'].map((id) => [
+        id,
+        async (p) => {
+          const r = await runDsDoorAction(id, p);
+          d.toast?.(r.message, r.ok);
+        },
+      ])
+    ),
     'view.advanced-close-all': () => {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');

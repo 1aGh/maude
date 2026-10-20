@@ -35,6 +35,8 @@ import {
 import path from 'node:path';
 
 import { atomicWrite } from '../sync/atomic-write.ts';
+import { modesOf } from './board/types.ts';
+import { followedDark } from './contrast.ts';
 import { canvasSystemFor } from './ds-resolver.ts';
 import {
   type ComponentEdit,
@@ -1058,6 +1060,37 @@ export function createDsEngine(opts: EngineOptions) {
       throw fail('ds-pending-invalid', `${css}: a label`);
   }
 
+  /**
+   * S10.21b — Dark follows, here (decision v2-S10.21-dark-follows-in-engine): an entry that moves Light on a token whose
+   * Dark follows gets the followed Dark, so an agent's Light-only file lands what the token editor sends. Mirrors
+   * `ds/edges.ts` `entryFor` and `token-write.js` `buildEntry`: the pair "as it is now" is the waiting value over the
+   * working file's, Dark falling back to Light; a Dark the entry names wins; `darkFollows: true` alone re-follows from
+   * the Light on screen; and `darkFollows` is kept only when it differs from the file.
+   */
+  function followIn(L: Loaded, css: string, have: PendingToken | undefined, entry: PendingToken) {
+    const { light, dark } = modesOf(L.s.themes, L.s.themeDefault);
+    if (!dark || entry.trash) return;
+    const file = L.workModel.tokens[css] ?? L.baseModel.tokens[css];
+    const fileFollows = file?.data?.darkFollows !== false;
+    const wait = have && !have.trash ? have : undefined;
+    const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+    const now = (t: string) => str(wait?.[t]) ?? file?.values?.[t] ?? file?.values?.[light];
+    const said =
+      typeof entry.darkFollows === 'boolean'
+        ? entry.darkFollows
+        : typeof wait?.darkFollows === 'boolean'
+          ? wait.darkFollows
+          : fileFollows;
+    const d = followedDark({
+      follows: said,
+      nextLight: str(entry[light]) ?? (entry.darkFollows === true ? now(light) : undefined),
+      ownDark: str(entry[dark]),
+      prev: { light: now(light), dark: now(dark) },
+    });
+    if (d) entry[dark] = d;
+    if (entry.darkFollows === fileFollows) delete entry.darkFollows;
+  }
+
   async function mergePendingLocked(ds: string, inp: PendingInput): Promise<DsResult> {
     const L = load(ds);
     if (L.head.library) throw fail('ds-library', 'a linked library is view only here');
@@ -1099,7 +1132,11 @@ export function createDsEngine(opts: EngineOptions) {
         )
           throw fail('ds-pending-invalid', `${String(repl).slice(0, 80)} can't replace ${css}`);
       }
-      const entry: PendingToken = { ...e, by: inp.by, at };
+      // the followed Dark goes in before `by`/`at`, where the page's own entry carries it
+      const entry: PendingToken = { ...e };
+      followIn(L, css, have, entry);
+      entry.by = inp.by;
+      entry.at = at;
       const values = themeValuesOf(entry, L.s.themes);
       // an entry equal to base's value is dropped (§5.9)
       if (

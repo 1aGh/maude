@@ -82,8 +82,9 @@ describe('ds conflict pick', () => {
 
   test('equal values auto-resolve: no conflict, and Keep drops the entry', async () => {
     const p = await makeProject();
+    // the waiting entry names Dark as the file has it: a Light-only entry would move a following Dark (S10.21b)
     await p.engine.mergePending(DS, {
-      tokens: { '--accent': { light: 'oklch(0.45 0.15 180)' } },
+      tokens: { '--accent': { light: 'oklch(0.45 0.15 180)', dark: 'oklch(0.65 0.2 255)' } },
       by: PERSON,
     });
     await p.outside(CSS, fileAccent);

@@ -395,3 +395,95 @@ describe('S1.8 Trash view — it re-reads', () => {
     expect(q(host, 'n')?.textContent).toBe('0');
   });
 });
+
+// S10.21b — design-system tokens moved to the trash are rows too (S10 §2.2 "Token tombstones in Trash"):
+// Restore is ds.restore-token, an owner's Clear out… clears them with the rest (ds.clear-token).
+describe('S10.21b Trash view — design-system tokens', () => {
+  const STATE = {
+    format: 'maude.ds-state',
+    v: 1,
+    systems: [
+      {
+        name: 'acme',
+        label: 'Acme site system',
+        converted: true,
+        trashed: [
+          {
+            kind: 'token',
+            system: 'acme',
+            css: '--x-line-fine',
+            label: 'Linka — jemná',
+            replacement: '--x-line-mid',
+            at: new Date(NOW - 60_000 * 30).toISOString(),
+            by: { kind: 'person', name: 'Jonas' },
+          },
+        ],
+      },
+    ],
+  };
+  async function mountWithTokens(props: Record<string, unknown> = {}) {
+    const { trashedTokenItems } = await import('../client/v2/ds/door-write.js');
+    const { stateByName } = await import('../client/v2/ds/use-ds-state.js');
+    return mountView({ tokens: trashedTokenItems(stateByName(STATE)), ...props });
+  }
+
+  test('a token row says what it is, whose system, who and when; the head counts it', async () => {
+    install({ 'GET /_api/trash': shared(), 'GET /_api/sync/trash': { body: KEPT } });
+    const host = await mountWithTokens();
+    const row = host.querySelector('[data-kind="token"]') as HTMLElement;
+    expect(row.getAttribute('data-id')).toBe('ds-token:acme:--x-line-fine');
+    expect(row.querySelector('.lp-name')?.textContent).toBe('Linka — jemná');
+    expect(row.querySelector('[data-testid="canvases-trash-sub"]')?.textContent).toBe(
+      'token of Acme site system · Jonas, 14:30'
+    );
+    expect(q(host, 'canvases-trash-count')?.textContent).toBe('3 canvases · 1 artboard · 1 token');
+  });
+
+  test('Restore on a token posts /_api/ds/restore with its system and name, and says so', async () => {
+    install({
+      'GET /_api/trash': shared(),
+      'GET /_api/sync/trash': { body: KEPT },
+      'POST /_api/ds/restore': { body: { format: 'maude.ds-result', action: 'publish' } },
+    });
+    const host = await mountWithTokens();
+    const row = host.querySelector('[data-kind="token"]') as HTMLElement;
+    await click(row.querySelector('[data-testid="canvases-trash-restore"]'));
+    expect(posts().map((c) => [c.url, JSON.parse(c.body ?? '{}')])).toEqual([
+      ['/_api/ds/restore', { ds: 'acme', css: '--x-line-fine' }],
+    ]);
+    expect(q(host, 'canvases-trash-note')?.textContent).toBe('Restored “Linka — jemná”.');
+  });
+
+  test('an owner’s Clear out… names the token and clears it after the shared Trash', async () => {
+    install({
+      'GET /_api/trash': shared(),
+      'GET /_api/sync/trash': { body: KEPT },
+      'POST /_api/trash/clear': { body: { ok: true, cleared: ITEMS.map((i) => i.id) } },
+      'POST /_api/ds/clear': { body: { format: 'maude.ds-result', action: 'publish' } },
+    });
+    const host = await mountWithTokens();
+    await click(q(host, 'canvases-trash-clear'));
+    expect(q(host, 'canvases-trash-ask-body')?.textContent).toBe(
+      '3 canvases, 1 artboard and 1 token go for good. Restore can’t bring them back after this.'
+    );
+    await click(q(host, 'canvases-trash-clear-yes'));
+    expect(posts().map((c) => c.url)).toEqual(['/_api/trash/clear', '/_api/ds/clear']);
+    expect(JSON.parse(posts()[1]?.body ?? '{}')).toEqual({ ds: 'acme', css: '--x-line-fine' });
+    expect(q(host, 'canvases-trash-note')?.textContent).toBe('Cleared out 5.');
+  });
+
+  test('only tokens: Clear out… posts no shared clear; a 403 says only an owner clears out', async () => {
+    install({
+      'GET /_api/trash': shared({ items: [] }),
+      'GET /_api/sync/trash': { body: KEPT },
+      'POST /_api/ds/clear': { status: 403, body: { code: 'forbidden' } },
+    });
+    const host = await mountWithTokens();
+    await click(q(host, 'canvases-trash-clear'));
+    await click(q(host, 'canvases-trash-clear-yes'));
+    expect(posts().map((c) => c.url)).toEqual(['/_api/ds/clear']);
+    expect(q(host, 'canvases-trash-note')?.textContent).toBe(
+      'Only an owner clears out the trash. Nothing was changed.'
+    );
+  });
+});

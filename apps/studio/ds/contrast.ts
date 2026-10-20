@@ -420,3 +420,19 @@ export function followDark(
   const like = prev.dark ?? prev.light ?? nextLight;
   return /^\s*oklch\(/i.test(like) ? oklchText(out) : oklchToHex(out);
 }
+
+/**
+ * The follow RULE (S10.21b) — one source for the token editor (`client/v2/ds/token-write.js`), the contrast fix
+ * (`ds/edges.ts`) and the engine's pending door (`ds/engine.ts` `mergePending`): when Dark follows and Light gets a
+ * new value, Dark moves with it (`followDark` on the pair as it is now). A Dark the edit names itself wins. null =
+ * Dark is left as it is (it does not follow, no new Light, Dark given, or a side is not a plain colour).
+ */
+export function followedDark(inp: {
+  follows: boolean;
+  nextLight: string | undefined;
+  ownDark: string | undefined;
+  prev: { light?: string | null; dark?: string | null };
+}): string | null {
+  if (!inp.follows || inp.nextLight === undefined || inp.ownDark !== undefined) return null;
+  return followDark(inp.prev, inp.nextLight);
+}
