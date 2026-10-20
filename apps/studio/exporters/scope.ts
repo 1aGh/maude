@@ -399,7 +399,8 @@ export async function resolveScope(args: ResolveScopeArgs): Promise<Target[]> {
     // the right artboard, not `:first-of-type` (item 5 root cause).
     if (hints.artboardId) {
       // S8.7 — a print front + its back: one target per id, so the PDF adapter writes page 1, page 2
-      const ids = hints.artboardIds?.[0] === hints.artboardId ? hints.artboardIds : [hints.artboardId];
+      const ids =
+        hints.artboardIds?.[0] === hints.artboardId ? hints.artboardIds : [hints.artboardId];
       return ids.map((id) => ({
         kind: 'element' as const,
         cssPath: `[data-dc-screen="${cssAttrEscape(id)}"]`,

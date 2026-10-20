@@ -27,6 +27,11 @@ import { estimateSpec } from '../exporters/estimate.ts';
 import { isFormat } from '../exporters/index.ts';
 import type { ExportHistoryEntry, RetryResult } from '../exporters/jobs.ts';
 import {
+  type PreflightTarget,
+  preflightPrint,
+  type RectsManifest,
+} from '../exporters/print-preflight.ts';
+import {
   resolveSpecV2,
   type SkipReason,
   type SpecCanvas,
@@ -57,6 +62,14 @@ export interface ExportRouteDeps {
   history(): readonly ExportHistoryEntry[];
   /** where `lane: 'auto'` renders (workspace-mode.ts `resolveRenderLane`) */
   renderLane(): 'local' | 'remote' | 'none';
+  /**
+   * S8.7 — `POST /_api/export-preflight`: the absolute design root (fonts are read under it) and the
+   * canvas geometry source (a headless render of the canvas; null/absent = unmeasured, never an error)
+   */
+  preflight?: {
+    designRoot: string;
+    rects?(canvasRel: string): Promise<RectsManifest | null>;
+  };
   /** S8.4 — run a group job's failed items again; `session` = who asks (the job queue's owner check) */
   retry(
     id: string,
@@ -244,6 +257,56 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
             canvasOnly: g.access.canvasOnly,
             history: deps.history(),
             renderLane: deps.renderLane(),
+          })
+        );
+      },
+    },
+    {
+      // S8.7 — what the sheet checks before a Print PDF: paper, the back, safe margin, fonts. Numbers and
+      // names only; the EXPORT class (Can view refused), the same CSRF + rebinding gates, writes nothing.
+      method: 'POST',
+      path: '/_api/export-preflight',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async (req) => {
+        const a = deps.access(req);
+        if (!a.can('export', null) && a.grants.length === 0) return capabilityRefusal();
+        if (Number(req.headers.get('content-length')) > MAX_BODY)
+          return json(413, { error: 'too-large' });
+        const text = await req.text();
+        if (text.length > MAX_BODY) return json(413, { error: 'too-large' });
+        let body: unknown;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          return json(400, { error: 'bad-json' });
+        }
+        const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+        if (!b || Object.keys(b).some((k) => k !== 'spec'))
+          return json(400, { error: 'bad-spec', field: 'body', message: 'body must be {spec}' });
+        const g = gateSpecV2(b.spec, deps, req);
+        if (!g.ok) return g.response;
+        if (!deps.preflight)
+          return json(200, await preflightPrint({ designRoot: '', targets: [] }));
+        const byRel = new Map(g.visible.map((c) => [c.rel, c]));
+        const seen = new Set<string>();
+        const targets: PreflightTarget[] = [];
+        for (const u of g.units) {
+          const c = u.canvas ? byRel.get(u.canvas) : null;
+          if (!c) continue;
+          for (const board of u.artboards) {
+            const key = `${c.rel}\u0000${board.id}`;
+            if (board.kind !== 'print' || seen.has(key)) continue;
+            seen.add(key);
+            targets.push({ canvas: c.rel, board, all: c.artboards });
+          }
+        }
+        return json(
+          200,
+          await preflightPrint({
+            designRoot: deps.preflight.designRoot,
+            targets,
+            ...(deps.preflight.rects ? { rects: deps.preflight.rects } : {}),
           })
         );
       },
