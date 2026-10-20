@@ -233,16 +233,13 @@ describe('planExportV2 — the v2 half of /_api/export(-jobs)', () => {
 
   test('what cannot run yet is refused with its field, never silently dropped', async () => {
     // S8.1b lifted `at` and Display P3 for PNG/JPG on this Mac — what still refuses them (a workspace
-    // lane, another format) is test/export-past-version-p3.test.ts
+    // lane, another format) is test/export-past-version-p3.test.ts. (`audio` stood in here for "a format
+    // with no engine yet" until S8.6 gave it one — every format in the spec has an engine now.)
     for (const [spec, field] of [
       [{ v: 2, scope: 'canvas', format: 'pdf', at: { sha: 'abc1234' } }, 'at'],
       [
         { v: 2, scope: 'canvas', format: 'svg', options: { colorProfile: 'display-p3' } },
         'options.colorProfile',
-      ],
-      [
-        { v: 2, scope: 'canvas', format: 'audio', byKind: { digital: { format: 'audio' } } },
-        'format',
       ],
     ] as const) {
       const p = planExportV2(spec, deps(OWNER));

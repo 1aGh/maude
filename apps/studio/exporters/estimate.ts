@@ -11,6 +11,7 @@
 import type { ExportHistoryEntry } from './jobs.ts';
 import type { SkipReason, SpecArtboard, SpecCanvas, SpecUnit } from './scope.ts';
 import type { ExportFormatV2, ExportSpecV2 } from './spec-v2.ts';
+import { type VideoFactsReader, type VideoInfo, videoInfo } from './video-cap.ts';
 
 export interface EstimateResult {
   counts: {
@@ -25,6 +26,8 @@ export interface EstimateResult {
   lane: 'this-mac' | 'cloud';
   byKind: Record<string, { artboards: number; files: number; format: ExportFormatV2 }>;
   skipped: Array<{ name: string; reason: SkipReason }>;
+  /** S8.6 — one row per video artboard reached: its length against the cap that export would be held to */
+  video: VideoInfo[];
   basis: { bytes: 'history' | 'table'; seconds: 'history' | 'table' };
 }
 
@@ -39,6 +42,8 @@ export interface EstimateFacts {
   history: readonly ExportHistoryEntry[];
   /** where `lane: 'auto'` would render: the local spine, or the render service */
   renderLane: 'local' | 'remote' | 'none';
+  /** S8.6 — what the canvases say about a video artboard (length, stored `maxFrames`); absent = unknown */
+  video?: VideoFactsReader;
 }
 
 /** Fallback artboard size when the index does not know it (CSS px). */
@@ -211,6 +216,7 @@ export function estimateSpec(
     lane,
     byKind,
     skipped: [...resolved.skipped],
+    video: videoInfo(resolved.units, facts.video ?? null),
     basis: { bytes: 'table', seconds: secondsBasis },
   };
 }

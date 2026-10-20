@@ -34,7 +34,8 @@ export type ExportFormatName =
   | 'zip'
   | 'mp4'
   | 'webm'
-  | 'gif';
+  | 'gif'
+  | 'audio';
 
 /** Mirrors `scope.ts`'s `Scope`. */
 export type ExportScopeName =
@@ -73,6 +74,8 @@ export const VALID_SCOPES_BY_FORMAT: Readonly<
   mp4: ['artboard'],
   webm: ['artboard'],
   gif: ['artboard'],
+  // S8.6 — Sound only: the mix of one video artboard, so one artboard at a time like the video it comes from.
+  audio: ['artboard'],
 });
 
 /** The scope a picker should select when the format changes. */

@@ -592,6 +592,8 @@ export function engineOptionsFor(
   if (format === 'jpg') out.quality = o.jpgQuality ?? 85;
   if (o.background) out.background = o.background;
   if (o.video?.fps) out.fps = o.video.fps;
+  // S8.6 — Sound only: m4a (the video's own sound, re-wrapped) or wav
+  if (format === 'audio') out.audioCodec = o.audio?.codec ?? 'm4a';
   if (o.colorProfile) out.colorProfile = o.colorProfile;
   // S8.7 — a Print PDF: the spec's `print` is the engine's `pdfPrint` (boxes + marks) and `text` its text mode.
   // Bleed on → the page keeps its bleed strip; marks sit outside it. Only a PDF has either.
