@@ -139,7 +139,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('cut-to-beat', 'project'),
   // S7.14 (V2-1.10 §5.7). `reel-place` writes ONE shot of a cut onto the video canvas (the AI's own write:
   // inside a run the studio stages it); exit 4 when every shot is placed.
-  d('reel-place', 'project', { note: 'one shot per call onto one canvas; fast check before the write' }),
+  d('reel-place', 'project', {
+    note: 'one shot per call onto one canvas; fast check before the write',
+  }),
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),
@@ -156,6 +158,11 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('import-figma', 'external', { note: 'network; --explode' }),
   d('import-brand', 'external', { note: 'network with --url (S8.18): reads a website' }),
   d('photo-bg-remove', 'external', { note: 'first-use ~40 MB model-weight fetch (§5.3 †)' }),
+  // S12.13 (V2-1.17 §5.9, S12-slices Q1). Every form, `--status` too (a flag never lowers a verb):
+  // a batch spends the person's Claude account; it refuses without their consent (exit 3).
+  d('describe', 'external', {
+    note: "spends the person's Claude account (the asset-describer agent); refuses without consent",
+  }),
   d('init', 'destructive', { note: '--force overwrites (§5.3 †)' }),
   // ds-upgrade: the read-only steps are their own sub-verbs, so a prefix rule can name them; the
   // dispatcher refuses a step flag after a sub-verb, so `analyse x --apply p` can't escalate.

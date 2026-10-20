@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3472c7974641",
+  "manifestVersion": "f287ee2226ec",
   "actions": [
     {
       "id": "search.open",
@@ -7160,6 +7160,12 @@
     {
       "scope": "design",
       "verb": "design photo-bg-remove",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design describe",
       "effect": "external",
       "tier": "prompt"
     },

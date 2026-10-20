@@ -180,6 +180,10 @@ const BIN_VERBS = new Set([
   // S8.11. `assets [--usage <asset>] [--not-used]` — the project's assets, where each is used, and
   // which are not (V2-1.17 §5.5). Read-only; the studio's index, else a static build.
   'assets',
+  // S12.13 (V2-1.17 §5.9). `describe [--batch N] [--status] [--stop]` — search in pictures: the
+  // asset-describer agent (Read only, an OS temp dir of tiles) through the person's own `claude`,
+  // under the studio's consent and budget. Refuses without consent; spends their account.
+  'describe',
   // V2-2.15. `ds-check` is the design-system schema checker (contract V2-1.13 §5.8): system
   // levels 0 / 10 / 11, canvas S-rules (12), `--json`, `--cheatsheet`, `--hook`. Read-only unless
   // `--emit` (tokens.json) or `--fix=mechanical` (canvas autofixes; 13 = a refused write).

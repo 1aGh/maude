@@ -6,8 +6,8 @@
 //   2. Each picture goes as the renderer's downscaled JPEG (`prepare`, by default the Assets tile the thumbnail renderer
 //      already made — 480 px) into a fresh OS temp dir, named `<sha256>.jpg`. NO project path, file name or folder ever
 //      reaches the describer: it gets `{ dir, items: [{ sha256, file }] }` and nothing else.
-//   3. `describer(batch)` is the seam. S12.13 plugs in the `asset-describer` agent (headless `claude`, Read only, cwd =
-//      that temp dir). Until then there is none and describing waits ("AI not connected"). Tests and the e2e use
+//   3. `describer(batch)` is the seam. S12.13's `asset-describer` agent fills it (describe/claude.ts: headless `claude`,
+//      Read only, cwd = that temp dir); without a `claude` describing waits ("AI not connected"). Tests and the e2e use
 //      `stubDescriber` (also behind `MAUDE_DESCRIBE_STUB=1`, the way generation's stub sits behind MAUDE_GENERATE_STUB).
 //   4. validate.ts checks every word of the answer; what passes is stored per picture on THIS Mac, outside the project:
 //      `~/.maude/index/v1/projects/<pid>/describe/<s0s1>/<sha256>.json` (`maude.describe` v1). Never synced, versioned,
@@ -35,6 +35,7 @@ import {
   releaseSlot,
   spend,
 } from './budget.ts';
+import { realDescriber } from './claude.ts';
 import { type Consent, readConsent, setConsent, setStopped } from './consent.ts';
 import {
   type Described,
@@ -181,9 +182,11 @@ export function stubDescriber(
   });
 }
 
-/** The studio's describer until S12.13: the stub only under MAUDE_DESCRIBE_STUB=1 (read per call), else none. */
+/** The studio's describer (and `maude design describe`'s): the stub under MAUDE_DESCRIBE_STUB=1 (read per call), else
+ *  S12.13's asset-describer agent through the person's own `claude` (describe/claude.ts), or none without one. Consent
+ *  is the service's to check — no describer is called while it is off. */
 export function envDescriber(): Describer | null {
-  return process.env.MAUDE_DESCRIBE_STUB === '1' ? stubDescriber() : null;
+  return process.env.MAUDE_DESCRIBE_STUB === '1' ? stubDescriber() : realDescriber();
 }
 
 const defaultPrepare = (pid: string) => (row: { sha256: string }) =>

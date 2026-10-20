@@ -221,7 +221,14 @@ if (doSmoke) {
     ];
     // Probe a representative verb from each track. `--help`/no-op so we exercise
     // resolution (pkgRoot + runtime + import) without needing real inputs.
-    const probes = helpers.filter((h) => h.track !== 'other').slice(0, 12);
+    const first = helpers.filter((h) => h.track !== 'other').slice(0, 12);
+    // …plus the verbs a release must always reach, wherever they sort (S12.13: `describe` spawns
+    // the person's `claude` from inside the bundle, so a missing closure must fail here).
+    const ALWAYS_PROBE = ['describe'];
+    const probes = [
+      ...first,
+      ...helpers.filter((h) => ALWAYS_PROBE.includes(h.verb) && !first.includes(h)),
+    ];
     for (const h of probes) {
       let output = '';
       try {
