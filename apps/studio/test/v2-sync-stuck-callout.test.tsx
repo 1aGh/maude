@@ -209,7 +209,8 @@ describe('the host: the words, the fold, the verb', () => {
       syncStatus: stuck({}, { rateLimited: { until: Date.now() + 40_000, waiting: 3 } }),
     });
     await click(q('callout-sync-stuck-action'));
-    expect(calls).toEqual(['POST /_api/sync/resync']);
+    // S11.17's recovery store polls GET /_api/diagnostics/disk from the same host — only the writes matter here.
+    expect(calls.filter((c) => !c.startsWith('GET '))).toEqual(['POST /_api/sync/resync']);
     expect(q('callout-sync-stuck-action')?.textContent).toBe('Trying…');
     expect((q('callout-sync-stuck-action') as HTMLButtonElement).disabled).toBe(true);
     await act(async () => {
