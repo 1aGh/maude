@@ -405,6 +405,7 @@
   }
   .lp-adv-body {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     max-height: 40vh;
     overflow-y: auto;
@@ -423,6 +424,8 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    flex: none;
+    white-space: nowrap;
   }
   .lp-adv-v {
     display: inline-flex;
@@ -432,6 +435,7 @@
   }
   /* The open canvas's path (V2-4.8b): mono, one line, the head of a long path clipped. */
   .lp-adv-path {
+    display: block;
     min-width: 0;
     font-family: var(--font-mono);
     overflow: hidden;
@@ -1001,6 +1005,8 @@
   }
   .lp-adv-footl {
     min-width: 0;
+    flex: 0 1 auto;
+    white-space: normal;
     flex-wrap: wrap;
     gap: var(--space-1);
   }
