@@ -27,6 +27,7 @@ import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { type CloudPlanDeps, createCloudPlanRoutes } from './cloud-plan.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
+import { type ConnectionsRouteDeps, createConnectionsRoutes } from './connections.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
@@ -115,6 +116,8 @@ export interface RouteDeps {
   cloudMove: CloudMoveDeps;
   /** S9.20b — `GET /_api/cloud/plan`: the account's plan words' facts (main origin, device token) */
   cloudPlan?: CloudPlanDeps;
+  /** S11.14 — `GET /_api/connections/hub` (main origin): the linked team server's Advanced details */
+  connections?: ConnectionsRouteDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
   assetState?: AssetStateRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
@@ -187,6 +190,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.settings ? createSettingsRoutes(deps.settings) : []),
     ...createCloudMoveRoutes(deps.cloudMove),
     ...(deps.cloudPlan ? createCloudPlanRoutes(deps.cloudPlan) : []),
+    ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),

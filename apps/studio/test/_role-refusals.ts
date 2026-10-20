@@ -161,6 +161,17 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // history.fetch moves remote refs only: the role matrix allows it for a viewer, so the fold hides it and
   // the server refuses no one (no `minRole` on the action, so no role is below it).
   { method: 'POST', route: '/_api/git/fetch', refused: [] },
+  // S11.14 — Settings › Connections: attach and the Figma Test are `edit` (the default class); the hub
+  // credential (Replace…) and unlink are session writes, the person's own sign-in — no role is refused.
+  {
+    method: 'POST',
+    route: '/_api/cloud/attach',
+    refused: ['view', 'comment'],
+    body: { project: 'p' },
+  },
+  { method: 'POST', route: '/_api/figma/probe', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/hub/link', refused: [] },
+  { method: 'POST', route: '/_api/cloud/detach', refused: [] },
   // S11.6 — the code view: source text is a download (Can view refused; test/canvas-source-route.test.ts).
   { method: 'GET', route: '/_api/canvas-source', refused: ['view'] },
   { method: 'GET', route: '/_api/canvas-errors', refused: ['view'] },

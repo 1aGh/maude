@@ -55,6 +55,45 @@ export const APP_ACTIONS: ActionDef[] = [
     visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
     search: { keywords: ['teams', 'debate', 'review', 'experimental'] },
   },
+  // S11.14 — Settings › Connections (06 ad-edge-hub). The sections are the desktop server's, so these are
+  // too. From ⌘K each opens the row it belongs to: a credential is typed, a link changed, where the row's
+  // words are — never from a search box.
+  {
+    // A new access token for the team server this folder syncs with, through `POST /_api/hub/link`.
+    id: 'connections.replace-hub-token',
+    label: 'Replace the team server’s access token…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'] },
+    search: { keywords: ['hub', 'token', 'team server', 'self-hosted', 'credential', 'access'] },
+  },
+  {
+    // D14 — spends the stored Figma token on one call (`POST /_api/figma/probe`) and says who it is.
+    id: 'connections.figma-test',
+    label: 'Test the Figma connection',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: { keywords: ['figma', 'token', 'import', 'check'] },
+  },
+  {
+    // D11 — attach this folder to one of the account's cloud projects (`POST /_api/cloud/attach`).
+    id: 'connections.cloud-project-connect',
+    label: 'Connect this folder to a cloud project…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: { keywords: ['cloud', 'link', 'attach', 'sync', 'workspace'] },
+  },
+  {
+    // D11 — drop the link and its stored sign-in (`POST /_api/cloud/detach`, the in-app `unlink`).
+    id: 'connections.cloud-project-disconnect',
+    label: 'Disconnect this folder from its server…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'] },
+    search: { keywords: ['cloud', 'unlink', 'detach', 'stop syncing', 'sign out'] },
+  },
   {
     // V2-4.2 / V2-3.8: this project signs in as someone else. The shell moves the project onto a
     // profile of its own (`cloud_sign_in_prepare`) and reloads signed out; the person then signs in

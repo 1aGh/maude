@@ -716,6 +716,34 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'settings.reset-all': PREF(
     'puts this Mac’s Maude preferences back to a fresh Mac’s; keys and sign-ins stay'
   ),
+  // S11.14 — Settings › Connections. A credential or a link is the person's: an agent never types a
+  // token or picks an account. The routes are the existing ones; their classes are access/request.ts's
+  // (`/_api/hub/link` + `/_api/cloud/detach` are session writes, attach + probe are `edit`).
+  'connections.replace-hub-token': {
+    effect: 'external',
+    server: { route: '/_api/hub/link', method: 'POST' },
+    agent: human('hub-link', 'the person pastes the new token; it is never handed to an agent'),
+  },
+  'connections.figma-test': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/figma/probe', method: 'POST' },
+    agent: human(
+      'accounts',
+      'spends the person’s Figma token; an agent imports with `maude design import-figma`'
+    ),
+  },
+  'connections.cloud-project-connect': {
+    effect: 'shared',
+    minRole: 'edit',
+    server: { route: '/_api/cloud/attach', method: 'POST' },
+    agent: human('hub-link', 'links this folder to a cloud project under the person’s account'),
+  },
+  'connections.cloud-project-disconnect': {
+    effect: 'shared',
+    server: { route: '/_api/cloud/detach', method: 'POST' },
+    agent: human('hub-link', 'unlinks this folder and forgets its stored sign-in'),
+  },
   'settings.use-own-plugin-copy': PREF(
     'prefs.json ownPluginCopy: the AI chat loads your own plugin copy'
   ),

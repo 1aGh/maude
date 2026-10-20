@@ -46,6 +46,8 @@ const NONE = [
   '/_api/cloud/status',
   // S9.20b — the account's plan (state, days left, plan name): about the account, not the project
   '/_api/cloud/plan',
+  // S11.14 — the linked team server's Advanced details: about this Mac's sign-in, not the project
+  '/_api/connections/hub',
   '/_api/cloud/signin/start',
   '/_api/cloud/signin/poll',
   '/_api/cloud/signout',
