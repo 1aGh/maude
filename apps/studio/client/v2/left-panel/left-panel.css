@@ -115,6 +115,99 @@
     background: var(--accent-muted);
     color: var(--fg-0);
   }
+  /* S10.13 — a system row of two lines, its ⋯ menu, the amber dot, "Design systems · 2 in use", the empty row */
+  .lp-ds-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .lp-ds--two {
+    align-items: center;
+    padding-block: var(--space-1);
+  }
+  .lp-ds-two {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .lp-ds-two .lp-name {
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .lp-ds-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .lp-ds-warn {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--status-warn);
+  }
+  .lp-ds-more {
+    appearance: none;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin-left: -26px;
+    margin-right: 4px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--fg-2);
+    font-family: var(--font-body);
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .lp-ds-wrap:hover .lp-ds-more,
+  .lp-ds-more:focus-visible,
+  .lp-ds-more[aria-expanded="true"] {
+    opacity: 1;
+  }
+  .lp-ds-more:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-ds-more:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-ds-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: var(--space-1) var(--space-3) 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .lp-ds-head em {
+    font-style: normal;
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .lp-ds-make {
+    color: var(--accent-text);
+  }
+  .lp-dd-note {
+    margin-left: auto;
+    padding-left: var(--space-3);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lp-ds-more {
+      transition-duration: 1ms;
+    }
+  }
+
   .lp-trashrow {
     flex: none;
     margin: var(--space-1) var(--space-2) 0;
@@ -928,5 +1021,4 @@
     align-items: center;
     gap: var(--space-2);
   }
-
 }

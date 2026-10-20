@@ -7,6 +7,13 @@ import { copyShareLink } from '../v2/share/link-dialog.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { copyPresentationLink } from '../v2/present/copy-link.js';
 import { bindCopyPng, runCopyPng } from '../v2/export/copy-png.js';
+import {
+  folderOfCanvas,
+  newCanvasDesignSystem,
+  setNewCanvasDsProvider,
+} from '../v2/ds/new-canvas-default.js';
+import { useDsSearchSystems } from '../v2/ds/use-ds-search.js';
+import { dsSearchRows } from '../v2/search/search-ds.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -291,7 +298,29 @@ export function usePaletteAndPanels({
     designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
   };
   useEffect(() => bindCopyPng(() => copyPngRef.current), []);
+  // S10.13 — a canvas made now starts on its folder's one system (13 · ds-multi-menu); a project with a single
+  // system needs no answer, so nothing is sent and the server uses the default.
+  useEffect(
+    () =>
+      setNewCanvasDsProvider(() => {
+        if ((cfg?.designSystems?.length ?? 0) < 2) return null;
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
+          /^\/+|\/+$/g,
+          ''
+        );
+        return newCanvasDesignSystem({
+          folder:
+            activePath && activePath !== SYSTEM_TAB ? folderOfCanvas(activePath, designRel) : null,
+          canvasDesignSystems: cfg?.canvasDesignSystems,
+          designSystems: cfg?.designSystems,
+          defaultDs: cfg?.defaultDesignSystem,
+          designRel,
+        });
+      }),
+    [cfg, activePath]
+  );
 
+  const dsSystems = useDsSearchSystems(cfg);
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
@@ -377,6 +406,13 @@ export function usePaletteAndPanels({
         readOnly: viewerMode,
         run: (section) => setSettingsOpen(section),
       }),
+      // S10.13 — the Design system and everything in it by name (a converted system opens its canvas, an
+      // older one its v1 view)
+      ...dsSearchRows({
+        systems: dsSystems,
+        run: (p) =>
+          cfg.dsConverted?.[p.ds] === true ? menuRunner.run('ds.go-to', p) : openSystem(p.ds),
+      }),
     ].map((r) => ({ ...r, onlyWhenSearched: true }));
     // V2-4.4a — ⌘K "Trash" and "Refresh tree" (CONTRACT §1 C10, §2 ⇧⌘R). Neither is a menu row; both are
     // the left panel's. Same runner as the panel's own controls.
@@ -420,6 +456,8 @@ export function usePaletteAndPanels({
     cloudLinkedHub,
     localProjectName,
     cfg.designRel,
+    cfg.dsConverted,
+    dsSystems,
     refreshTree,
   ]);
 
@@ -558,6 +596,8 @@ export function usePaletteAndPanels({
           treeLoadFailures={treeLoadFailures}
           onShare={showShare}
           onOpenSystem={openSystem}
+          dsCfg={cfg}
+          onDsAction={(id, params) => menuRunner.run(id, params)}
           wsConnected={wsConnected}
           search={search}
           setSearch={setSearch}

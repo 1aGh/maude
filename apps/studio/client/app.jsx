@@ -1785,6 +1785,8 @@ function ShellProjectPill() {
     onDsGoTo: (params) => {
       const plan = dsGoToPlan(params, cfg, activePath);
       if (!plan) return shellToast('There is no design system to go to.');
+      // S10.13 — a system not yet on a canvas opens today's v1 view (S10 Q6)
+      if (!plan.converted) return openSystem(plan.ds);
       openTab(plan.file);
       const posts = dsGoToPosts(plan);
       for (const ms of OPEN_LADDER_MS)

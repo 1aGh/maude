@@ -5,6 +5,7 @@
 // Design system canvas is pinned above every canvas).
 
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../../shell/dock.jsx';
+import { decorateRows, pinnedChrome } from '../ds/pinned-rows.js';
 
 /** The tabs the left slot offers, in order. Layers is a left tab only while it is "a panel" (View ›
  *  Advanced › Layers as a panel — the default); otherwise it lives in the Inspector and the strip is
@@ -20,14 +21,24 @@ export function leftTabs({ layersMode = 'separate', sides = null } = {}) {
 
 /** The pinned Design system rows: one per system the project holds (the DESIGN SYSTEM group's
  *  `dsFolders`). One system reads "Design system"; several are each named after their system
- *  (CONTRACT §7, A12). No system → nothing is pinned. */
-export function dsPinnedRows(groups) {
+ *  (CONTRACT §7, A12). No system → nothing is pinned.
+ *
+ *  S10.13: with `info` (client/v2/ds/pinned-rows.js) each row also carries its second line (`sub`), its
+ *  canvas count, the default flag and the amber dot. Without it the rows are what V2-4.4a pinned. */
+export function dsPinnedRows(groups, info = null) {
   const g = (groups || []).find((x) => x.label === 'Design system');
   const folders = g?.dsFolders || [];
-  return folders.map((f) => ({
+  const rows = folders.map((f) => ({
     dsName: f.name,
     label: folders.length === 1 ? 'Design system' : f.name,
   }));
+  return info && Array.isArray(info.designSystems) ? decorateRows(rows, groups, info) : rows;
+}
+
+/** Everything the pinned strip draws: the rows, "Design systems · 2 in use" over them, and the empty row. */
+export function dsPinnedModel(groups, info = {}) {
+  const rows = dsPinnedRows(groups, info);
+  return { rows, ...pinnedChrome(rows, !!info.canMake) };
 }
 
 /** What the Trash row shows after its name: the count, or nothing while empty / not loaded. */

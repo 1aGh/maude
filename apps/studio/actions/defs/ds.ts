@@ -61,4 +61,8 @@ export const DS_ACTIONS: ActionDef[] = [
   row('ds.use-direction', 'Use this direction'),
   row('ds.mix', 'Mix directions'),
   row('ds.make-done', 'Finish the design system'),
+  // S10.13 — the pinned system rows. "Use for new canvases" is a row of a system's own menu (it writes the
+  // project's default system); "Make a design system" is the empty row's door — it opens the three-input sheet
+  // (S10.16b), and the same id is Home's starter (S6). Neither is a ⌘K row: each needs the system / sheet in hand.
+  row('ds.set-default', 'Use for new canvases'),
 ];

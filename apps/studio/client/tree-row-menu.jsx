@@ -178,6 +178,7 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
           }}
         >
           <span className="st-dd-lead">{item.label}</span>
+          {item.note ? <span className="lp-dd-note">{item.note}</span> : null}
         </button>
       ))}
     </div>

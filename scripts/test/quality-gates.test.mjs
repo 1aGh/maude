@@ -63,3 +63,19 @@ test('every plugins/ test file is run by a quality.yml step', () => {
   );
   assert.deepEqual(unrun, [], 'add a `bun test <dir>` step to quality.yml for these');
 });
+
+// S10.13 (S10 Q4) — both in-repo design systems stay at schema level 0. S2.8-style token work edits
+// colors_and_type.css; one that skips `ds-check --emit` turns `manifest-stale` (level 10) red — here, in the
+// PR, instead of at the next release. The local `tokens` gate and the CI step name the same two systems.
+test('quality.yml checks the two in-repo design systems at level 0', () => {
+  assert.match(
+    text,
+    /run:\s*node cli\/bin\/maude\.mjs design ds-check maude maude-v2\s*$/m,
+    'quality.yml needs a step: node cli/bin/maude.mjs design ds-check maude maude-v2'
+  );
+});
+
+test('the local `tokens` gate runs the same check', () => {
+  const cfg = JSON.parse(readFileSync(join(ROOT, '.ai', 'workflows.config.json'), 'utf8'));
+  assert.match(cfg.quality.tokens, /design ds-check maude maude-v2/);
+});

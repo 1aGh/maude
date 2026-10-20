@@ -20,6 +20,7 @@ import path from 'node:path';
 import type { Access } from '../access/scope.ts';
 import { buildBoardModel } from '../ds/board/build-model.ts';
 import { checkSystem } from '../ds/check.ts';
+import { setDefaultSystem } from '../ds/default.ts';
 import {
   type DsEngine,
   DsEngineError,
@@ -56,6 +57,7 @@ export type DsOp =
   | 'trash'
   | 'restore'
   | 'clear'
+  | 'default'
   | 'revision'
   | 'revisions'
   | 'usage'
@@ -542,6 +544,25 @@ export async function runDsOp(
         changed(c, ds);
         return { status: 200, body: result(r) };
       }
+      case 'default': {
+        // S10.13 — "Default for new canvases": the project's config, so Can edit on the whole project
+        const ds = systemFor(c, input.ds);
+        if (!c.access.can('edit', null)) return forbidden();
+        const r = setDefaultSystem(c.engine.designRoot, ds);
+        if (r.changed) changed(c, ds);
+        return {
+          status: 200,
+          body: {
+            format: DS_FORMATS.result,
+            v: 1,
+            action: 'default',
+            rev: null,
+            actionId: null,
+            default: r.default,
+            previous: r.previous,
+          },
+        };
+      }
       case 'canvas': {
         const canvas = normRel(input.canvas);
         if (!canvas) bad('canvas is a design-root-relative .tsx path');
@@ -649,6 +670,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'POST', path: '/_api/ds/restore', op: 'restore' },
   { method: 'POST', path: '/_api/ds/clear', op: 'clear' },
   { method: 'POST', path: '/_api/ds/make', op: 'make' },
+  { method: 'POST', path: '/_api/ds/default', op: 'default' },
 ];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {

@@ -143,9 +143,16 @@ describe('ds.go-to — the plan', () => {
   test('a component opens the Design system canvas on its components section and selects the master', () => {
     const plan = dsGoToPlan({ component: 'Button' }, CFG, 'ui/Home.tsx');
     expect(plan).toEqual({
+      // S10.13: the plan names the system and says whether its canvas exists (a system not yet on a canvas
+      // opens today's v1 view instead — S10 Q6)
+      ds: 'studio',
+      converted: true,
       file: 'system/studio/design-system.tsx',
       artboard: 'ds-components',
       selector: '[data-ds-master="Button"]',
+    });
+    expect(dsGoToPlan({ component: 'Button' }, { ...CFG, dsConverted: {} })).toMatchObject({
+      converted: false,
     });
     expect(dsGoToPosts(plan)).toEqual([
       { dgn: 'run-action', v: 1, id: 'view.zoom-to-artboard', params: { id: 'ds-components' } },

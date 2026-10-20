@@ -1504,6 +1504,15 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     undo: 'step',
     server: { route: '/_api/edit-op', method: 'POST' },
   },
+  // S10.13 — the project's default system (config.json), and the empty row's door: the sheet is the person's
+  // three inputs; an agent makes a system with the verb (S10.16a builds the sub-verb).
+  'ds.set-default': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/ds/default', method: 'POST' },
+    agent: cli('maude design ds default <ds>'),
+  },
   'ds.set-theme-preview': {
     effect: 'none',
     agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),

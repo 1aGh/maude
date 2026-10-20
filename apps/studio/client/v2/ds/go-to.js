@@ -21,7 +21,7 @@ const COMPONENT = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
  * @param {{ ds?: string, section?: string, token?: string, component?: string }} params
  * @param {any} cfg  the shell config (designSystems, canvasDesignSystems)
  * @param {string | null} activePath  the canvas open now: the system it follows is the default
- * @returns {{ file: string, artboard: string | null, selector: string | null } | null}
+ * @returns {{ ds: string, converted: boolean, file: string, artboard: string | null, selector: string | null } | null}
  */
 export function dsGoToPlan(params, cfg, activePath = null) {
   const p = params && typeof params === 'object' ? params : {};
@@ -42,6 +42,9 @@ export function dsGoToPlan(params, cfg, activePath = null) {
         ? 'components'
         : null;
   return {
+    // S10.13 — an unconverted system has no Design system canvas to open (Q6): the shell shows today's v1 view
+    ds: entry.name,
+    converted: cfg?.dsConverted?.[entry.name] === true,
     file: `${entry.path.replace(/\/+$/, '')}/design-system.tsx`,
     artboard: section ? `ds-${section}` : null,
     // names that passed the patterns above: nothing here can close the attribute selector

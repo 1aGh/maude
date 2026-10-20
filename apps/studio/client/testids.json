@@ -11127,7 +11127,7 @@
     "hook": "canvases-ds-row",
     "kind": "testid",
     "pattern": false,
-    "meaning": "A pinned Design system row (one per system; `data-ds` carries the system). Click opens the design-system view (the old S key).",
+    "meaning": "A pinned Design system row (one per system; `data-ds` carries the system, `data-default` marks the default). Click opens the system’s Design system canvas, or today’s view for a system not yet on a canvas.",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
       "symbol": "DsPinnedRows"
@@ -11135,6 +11135,84 @@
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "canvases-ds-row-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The second line of a pinned system row: \"Default · 87 canvases\", \"6 canvases · 2026/combine\", \"Draft · no canvas uses it\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-row-warn",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The amber dot on a pinned system row: made before the schema, or missing more than the functional roles (title says which).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-row-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ⋯ button of a pinned system row (`data-ds`): Open · Use for new canvases · Switch… · Preview in… · Check the system.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-head",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Design systems · 2 in use\" line over the pinned rows, drawn once more than one system is in use.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-make",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The empty row of a project with no design system: \"Make a design system\" (runs ds.make).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-uses-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inspector’s \"Uses <design system>\" as a button: opens that system’s Design system canvas (ds.go-to). `data-ds` carries the system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/uses-link.jsx",
+      "symbol": "UsesLink"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
   },
   {
     "hook": "canvases-trash-row",

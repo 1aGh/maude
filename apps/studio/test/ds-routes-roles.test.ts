@@ -71,6 +71,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/restore', { ds: DS, css: '--accent' }],
   ['/_api/ds/clear', { ds: DS, css: '--accent' }],
   ['/_api/ds/make', { ds: 'forge', action: 'make', label: 'Forge' }],
+  // S10.13 — the project's default system (config.json)
+  ['/_api/ds/default', { ds: DS }],
 ];
 
 describe('ds routes — roles (Q15)', () => {

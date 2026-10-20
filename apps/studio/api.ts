@@ -3863,6 +3863,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     kind?: unknown;
     group?: unknown;
     fromPrompt?: unknown;
+    // S10.13 — the system a new canvas starts on (its folder's one system, client/v2/ds/new-canvas-default.js)
+    designSystem?: unknown;
     // DDR-150 P4 Task 12 — video-comp assemble payload (kind === 'video-comp').
     clips?: unknown;
     fps?: unknown;
@@ -3879,6 +3881,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     kind?: unknown;
     group?: unknown;
     fromPrompt?: unknown;
+    designSystem?: unknown;
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
@@ -3993,7 +3996,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
     const rel = path.posix.join(group, `${v.name}.tsx`);
     const slug = fileSlug(rel);
-    const dsName = cfg.defaultDesignSystem || 'project';
+    // S10.13 — a system the person asked for counts only when the project holds it (else the default)
+    const askedDs = typeof input.designSystem === 'string' ? input.designSystem : '';
+    const dsName =
+      askedDs && cfg.designSystems?.some((d) => d.name === askedDs)
+        ? askedDs
+        : cfg.defaultDesignSystem || 'project';
     const platform = 'desktop';
     let tsx: string;
     if (kind === 'video-comp') {

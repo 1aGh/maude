@@ -656,8 +656,8 @@
       "drawnAt": "13 · ds-advanced",
       "v2": {
         "action": "view.design-system",
-        "testid": null,
-        "where": "Canvases panel > Design system (the pinned row); ⌘K > Design system"
+        "testid": "canvases-ds-row",
+        "where": "Canvases panel > Design system (the pinned row, its ⋯ menu; one row per system); ⌘K > Design system; the inspector's \"Uses …\" link"
       }
     },
     {
@@ -2701,6 +2701,15 @@
     "item:studio/client/tree/tree.jsx#Sidebar.rowMenuRootItems/rename-file": "action:canvas.rename",
     "item:studio/client/tree/tree.jsx#Sidebar.rowMenuRootItems/rename-folder": "D5",
     "item:studio/client/tree/tree.jsx#Sidebar.rowMenuRootItems/share": "action:share.open",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/delete-file": "D5",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/delete-folder": "D5",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/duplicate-canvas": "action:canvas.duplicate",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/move-to": "action:canvas.move",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/new-folder-here": "D5",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/rename-canvas": "action:canvas.rename",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/rename-file": "action:canvas.rename",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/rename-folder": "D5",
+    "item:studio/client/tree/tree.jsx#Sidebar.treeMenuRootItems/share": "action:share.open",
     "item:studio/context-menu.tsx#DEFAULT_REGISTRY/add-comment": "D6",
     "item:studio/context-menu.tsx#DEFAULT_REGISTRY/copy-css": "A-copy-css",
     "item:studio/context-menu.tsx#DEFAULT_REGISTRY/copy-id": "A-copy-data-cd-id",

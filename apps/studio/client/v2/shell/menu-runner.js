@@ -39,6 +39,7 @@ import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { requestDsReview } from '../ds/review-bus.js';
+import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
 import { runMasterAction } from '../ds/master-write.js';
 import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
@@ -310,6 +311,13 @@ export function createMenuHandlers(d) {
     'ds.set-master': async (p) => d.toast?.((await runMasterAction(p)).message),
     // S10.8 — Go to the design system / a token / a master (the shell opens the tab and selects it)
     'ds.go-to': (p) => d.onDsGoTo?.(p),
+    // S10.13 — the pinned rows: open the Design system canvas, make a system, "Use for new canvases"
+    'ds.open': (p) => d.onDsGoTo?.(p),
+    'ds.make': (p) => requestDsMake(p, { toast: d.toast }),
+    'ds.set-default': async (p) => {
+      const r = await setDefaultSystem(String(p?.ds ?? ''), { label: p?.label });
+      d.toast?.(r.message, r.ok);
+    },
     'view.advanced-close-all': () => {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
