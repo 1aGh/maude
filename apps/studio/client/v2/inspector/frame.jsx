@@ -25,6 +25,8 @@ import { useInstanceSelection } from './kinds/instance.jsx';
 import '../ds/kinds/token.jsx';
 // S10.10 — and so is a component master (client/v2/ds/kinds/master.jsx)
 import '../ds/kinds/master.jsx';
+// S10.16b — and so is a direction the AI drafted for a system being made (client/v2/ds/direction-bar.jsx)
+import '../ds/direction-bar.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { sectionsFor } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
