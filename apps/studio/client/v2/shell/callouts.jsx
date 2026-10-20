@@ -5,9 +5,37 @@
 // `children` is the slot for a persistent notice that is not dismissible and not derived from a payload
 // (the format-gate strip, V2-1.12).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
+
+/** Is a modal dialog open anywhere in the document? (`aria-modal="true"` is what every sheet and dialog sets.) */
+export function anyModalOpen(doc = globalThis.document) {
+  return Boolean(doc?.querySelector?.('[aria-modal="true"]'));
+}
+
+/**
+ * S11.18 (a11y): while a sheet or dialog is open the callouts behind it are `inert` — their buttons are not
+ * tab stops, not clickable and not read out under the sheet (the Diagnostics sheet sits above the stack).
+ */
+function useModalOpen() {
+  const [open, setOpen] = useState(() => anyModalOpen());
+  useEffect(() => {
+    const doc = globalThis.document;
+    if (!doc?.body || typeof MutationObserver === 'undefined') return undefined;
+    const look = () => setOpen(anyModalOpen(doc));
+    look();
+    const mo = new MutationObserver(look);
+    mo.observe(doc.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-modal'],
+    });
+    return () => mo.disconnect();
+  }, []);
+  return open;
+}
 
 async function copyList(lines) {
   try {
@@ -116,8 +144,9 @@ export function Callout({ item, onAction, onDismiss, busy = false }) {
 }
 
 export function CalloutStack({ items = [], onAction, onDismiss, busyKey = null, children = null }) {
+  const modalOpen = useModalOpen();
   return (
-    <div className="st-callouts" data-testid="callouts">
+    <div className="st-callouts" data-testid="callouts" inert={modalOpen}>
       {children}
       {items.map((item) => (
         <Callout

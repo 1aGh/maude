@@ -104,6 +104,25 @@ describe('Settings: a disabled row keeps its note readable', () => {
   });
 });
 
+describe('callouts sit out while a sheet is open', () => {
+  test('a modal anywhere in the document is what makes the stack inert', async () => {
+    const { anyModalOpen } = await import('../client/v2/shell/callouts.jsx');
+    const none = { querySelector: () => null };
+    const one = {
+      querySelector: (sel: string) => (sel === '[aria-modal="true"]' ? ({} as object) : null),
+    };
+    expect(anyModalOpen(none as never)).toBe(false);
+    expect(anyModalOpen(one as never)).toBe(true);
+    expect(anyModalOpen(undefined as never)).toBe(false);
+  });
+
+  test('the stack carries the inert attribute from that state', () => {
+    expect(read('client/v2/shell/callouts.jsx')).toMatch(
+      /data-testid="callouts" inert=\{modalOpen\}/
+    );
+  });
+});
+
 describe('the "?" sheet', () => {
   test('its title is an h2, above the h3 group titles', () => {
     const src = read('client/dialogs/shortcuts-overlay.jsx');
