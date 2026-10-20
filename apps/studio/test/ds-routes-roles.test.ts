@@ -70,6 +70,7 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/trash', { ds: DS, css: '--accent', replacement: '--fg-0' }],
   ['/_api/ds/restore', { ds: DS, css: '--accent' }],
   ['/_api/ds/clear', { ds: DS, css: '--accent' }],
+  ['/_api/ds/make', { ds: 'forge', action: 'make', label: 'Forge' }],
 ];
 
 describe('ds routes — roles (Q15)', () => {
@@ -80,6 +81,7 @@ describe('ds routes — roles (Q15)', () => {
     expect(specs.map((s) => `${s.method} ${s.path}`).sort()).toEqual(
       [
         'GET /_api/ds/board',
+        'GET /_api/ds/make-state',
         'GET /_api/ds/revision',
         'GET /_api/ds/revisions',
         'GET /_api/ds/state',
