@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "e2e6304abac9",
+  "manifestVersion": "02e4f07d2e82",
   "actions": [
     {
       "id": "search.open",
@@ -3653,44 +3653,6 @@
         "format": "canvas-tsx",
         "skill": "design:video-comp",
         "how": "Add { easing: Easing.bezier(a, b, c, d) } as the options of the k-th interpolate(frame, …) in the clip’s component; import Easing from remotion"
-      }
-    },
-    {
-      "id": "video.format.add",
-      "label": "Add a format",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "project",
-      "minRole": "edit",
-      "undo": "step",
-      "server": {
-        "route": "/_api/edit-op",
-        "method": "POST"
-      },
-      "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:video-comp",
-        "how": "Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)"
-      }
-    },
-    {
-      "id": "video.format.unlink",
-      "label": "Make an unlinked copy",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "project",
-      "minRole": "edit",
-      "undo": "step",
-      "server": {
-        "route": "/_api/edit-op",
-        "method": "POST"
-      },
-      "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:video-comp",
-        "how": "Copy the comp under a new name and point this artboard’s <VideoComp component> at it"
       }
     },
     {

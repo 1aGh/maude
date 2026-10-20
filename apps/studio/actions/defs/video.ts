@@ -97,8 +97,6 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   },
   // S7.18 — bound: Timeline › Advanced › the keyframe's curve (a handle drag / arrow key writes it)
   row('video.easing.set', 'Keyframe curve', 'Timeline › Advanced'),
-  row('video.format.add', 'Add a format', 'Inspector › Formats'),
-  row('video.format.unlink', 'Make an unlinked copy', 'Inspector › Formats'),
   row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),
   row('video.fit', 'Fit the picture', 'Inspector › Clip'),
   row('video.place', 'Place the title', 'Inspector › Formats'),
