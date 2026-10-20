@@ -48,6 +48,8 @@ export interface FakeHub {
   capabilities: string[] | null;
   /** a status to answer for every request (redirects, outages) */
   status: number | null;
+  /** "used by N projects" on the head answer (the hub tells members, so a grant holder sees none) — S10.18c */
+  usedBy: number | null;
 }
 
 export function fakeHub(o: { head?: string | null; capabilities?: string[] | null } = {}): FakeHub {
@@ -60,6 +62,7 @@ export function fakeHub(o: { head?: string | null; capabilities?: string[] | nul
     ]),
     capabilities: o.capabilities === undefined ? ['ledger', 'ds-library'] : o.capabilities,
     status: null,
+    usedBy: null,
     fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input instanceof Request ? input.url : input);
       const h = new Headers(init?.headers);
@@ -81,6 +84,7 @@ export function fakeHub(o: { head?: string | null; capabilities?: string[] | nul
       if (u.pathname === `${base}/head`)
         return Response.json({
           head: hub.head,
+          ...(hub.usedBy === null ? {} : { usedBy: hub.usedBy }),
           log: hub.head
             ? [
                 {

@@ -393,6 +393,8 @@ export interface LibraryReview {
   by: By | null;
   at: string | null;
   summary: string | null;
+  /** "Used by N projects" — only when the hub said it (it tells members, not link holders) */
+  usedBy: number | null;
   canvases: ReturnType<DsEngine['review']>['canvases'];
 }
 
@@ -432,6 +434,8 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
   const configAbs = path.join(designRoot, 'config.json');
   /** system → when this process last asked the hub (the 30-min throttle; memory only) */
   const lastCheck = new Map<string, number>();
+  /** system → "used by N projects" as the hub last said it (members only; memory only — S10.18c's card) */
+  const usedBy = new Map<string, number | null>();
 
   /* ------------------------------------------------------------ the hub */
 
@@ -722,10 +726,12 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
           system: ds,
           library: L.lib,
           waiting: L.lib.upstreamHead !== null && L.lib.upstreamHead !== L.doc.head,
+          usedBy: usedBy.get(ds) ?? null,
           checked: false,
         };
       const up = await upstreamHead(L.lib, tokenOf(L.lib));
       lastCheck.set(ds, now());
+      usedBy.set(ds, up.usedBy);
       let lib = L.lib;
       if (up.head && up.head !== L.lib.upstreamHead) {
         lib = { ...L.lib, upstreamHead: up.head, checkedAt: iso() };
@@ -739,6 +745,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
         system: ds,
         library: lib,
         waiting: lib.upstreamHead !== null && lib.upstreamHead !== L.doc.head,
+        usedBy: up.usedBy,
         checked: true,
       };
     });
@@ -767,6 +774,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
     const token = tokenOf(L.lib);
     const up = await upstreamHead(L.lib, token);
     lastCheck.set(ds, now());
+    usedBy.set(ds, up.usedBy);
     if (!up.head || up.head === L.doc.head)
       throw fail('ds-library-up-to-date', 'Nothing new in the library.');
     const rev = await upstreamRevision(L.lib, token, up.head);
@@ -805,6 +813,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
       by: R.entry?.by ?? null,
       at: R.entry?.at ?? null,
       summary: R.entry?.summary ?? null,
+      usedBy: R.up.usedBy,
       canvases: engine.review(ds).canvases,
     };
   }

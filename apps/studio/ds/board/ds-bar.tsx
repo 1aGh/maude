@@ -13,6 +13,9 @@ import type { BoardMode, BoardModel } from './types.ts';
 export const waitingWords = (n: number): string | null =>
   n <= 0 ? null : `${n} ${n === 1 ? 'change' : 'changes'} waiting`;
 
+/** S10.18c: a linked team library is read here and edited at home (13 · ds-many-linked). */
+export const VIEW_ONLY_WORDS = 'Linked library — view only';
+
 export function DsBarView({
   model,
   mode,
@@ -24,7 +27,9 @@ export function DsBarView({
   onMode: (m: BoardMode) => void;
   onReview?: () => void;
 }) {
-  const waiting = waitingWords(model.pendingCount);
+  const linked = !!model.library;
+  // a linked library takes no edits here: nothing waits, so there is nothing to Review…
+  const waiting = linked ? null : waitingWords(model.pendingCount);
   const colours = model.tokens.filter((t) => t.section === 'colour').length;
   const hasDark = model.themes.dark !== null;
   return (
@@ -47,6 +52,14 @@ export function DsBarView({
       </fieldset>
       {mode === 'dark' ? (
         <span className="ds-bar-p">{colours} colours in their dark values</span>
+      ) : null}
+      {linked ? (
+        <>
+          <span className="ds-bar-sep" />
+          <span className="ds-bar-p" data-testid="ds-bar-library">
+            {VIEW_ONLY_WORDS}
+          </span>
+        </>
       ) : null}
       {waiting ? (
         <>

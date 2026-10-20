@@ -106,4 +106,19 @@ export const DS_ACTIONS: ActionDef[] = [
   // system opens the sheet (S10.15b); its primary button applies a proven stage as one action. A system's own
   // row, never ⌘K. Can edit on the whole project.
   row('ds.upgrade', 'Bring it up to the schema'),
+  // S10.18c — a team library (13 · ds-many-library, ds-many-linked): link one (the link dialog), take its update (the
+  // review "Update from <system>? N changes", then this project's own), unlink it (the copy becomes an own system).
+  // Update and Unlink act on the system the card names, so neither is a ⌘K row. Link has no system in hand yet and
+  // no other door (the link arrives from the library's owner), so it IS a ⌘K row. Can edit on the whole project
+  // (S10 Q15) — the review included, since it reaches another project's hub with this Mac's grant.
+  {
+    id: 'ds.library-link',
+    label: 'Link a team library',
+    kind: 'command',
+    exec: 'shell',
+    visible: EDIT,
+    search: { keywords: ['team', 'library', 'share', 'shared', 'brand kit', 'design system'] },
+  },
+  row('ds.library-update', 'Update from the library'),
+  row('ds.library-unlink', 'Unlink the library'),
 ];

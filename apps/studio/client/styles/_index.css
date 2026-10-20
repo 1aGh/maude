@@ -110,6 +110,8 @@
 @import url("../v2/ds/truth.css");
 /* S10.19 — Design system › Advanced and the Check the system card (inspector, Design system canvas). */
 @import url("../v2/ds/advanced.css");
+/* S10.18c — a linked team library: its card, "Update from …?" and the "Linked from …" banner. */
+@import url("../v2/ds/library.css");
 /* S10.14 — "Switch canvases to …?" and the "Preview in …" menu and banner. */
 @import url("../v2/ds/switch.css");
 /* S10.15b — "Bring <system> up to the schema?" and the amber dot as its door. */

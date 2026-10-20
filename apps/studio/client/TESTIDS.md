@@ -2155,6 +2155,42 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-convert-go` | testid | S10.12: Convert — one all-or-nothing run over exactly the folders shown. | `client/v2/ds/convert-dialog.jsx` · `DsConvertDialog` | test:v2-ds-convert-dialog.test | new |
 | `ds-convert-banner` | testid | S10.12 (S10 Q6): the banner on today's folder view of a system not yet on a canvas, "Turn this folder into a Design system canvas". Hidden for Can view. | `client/v2/ds/convert-dialog.jsx` · `DsConvertBanner` | test:v2-ds-convert-dialog.test | new |
 | `ds-convert-open` | testid | S10.12: the banner's Convert… — opens the dialog (`ds.convert`). | `client/v2/ds/convert-dialog.jsx` · `DsConvertBanner` | test:v2-ds-convert-dialog.test | new |
+| `ds-library-card` | testid | S10.18c: the linked team library's card in the inspector's empty place (13 · 19 / 20); `data-system`, `data-waiting`. | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test | new |
+| `ds-library-kind` | testid | S10.18c: "Team library · <hub host>". | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test | new |
+| `ds-library-name` | testid | S10.18c: the linked system's name on the card. | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test | new |
+| `ds-library-used` | testid | S10.18c: "Used by N projects" — only when the hub said so (it tells members, not link holders). | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test | new |
+| `ds-library-waiting` | testid | S10.18c: "N updates waiting" or "Up to date". | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test | new |
+| `ds-library-nogrant` | testid | S10.18c: "Only <who linked it> can update this library from their Mac." — a peer with no grant on this Mac; never an address. | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test | new |
+| `ds-library-note` | testid | S10.18c: the card's quiet line when the hub does not answer or no longer opens. | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | — | new |
+| `ds-library-update` | testid | S10.18c: "Update…" on the card — opens "Update from <system>? N changes" (registry `ds.library-update`). | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test · e2e:ds-library | new |
+| `ds-library-unlink` | testid | S10.18c: "Unlink…" on the card — asks first (registry `ds.library-unlink`). | `client/v2/ds/library-card.jsx` · `DsLibraryCard` | test:v2-ds-library-host.test · e2e:ds-library | new |
+| `ds-library-scrim` | testid | S10.18c: the dim backdrop behind "Update from <system>? N changes". | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | — | new |
+| `ds-library-dialog` | testid | S10.18c: the "Update from <system>? N changes" dialog (13 · 19); the next step is this project's own review sheet. | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | test:v2-ds-library-host.test · e2e:ds-library | new |
+| `ds-library-title` | testid | S10.18c: "Update from <system>? N changes". | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | test:v2-ds-library-host.test | new |
+| `ds-library-changes` | testid | S10.18c: the list of what the library changed (at most 8 lines, then "and N more"). | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | — | new |
+| `ds-library-change` | testid | S10.18c: one change of the library — name and `before → after`, as text. | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | test:v2-ds-library-host.test | new |
+| `ds-library-more` | testid | S10.18c: "and N more" under the change list. | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | — | new |
+| `ds-library-fine` | testid | S10.18c: "By Tereza, yesterday. The next step lists every canvas here with a tick. Updating keeps a version…". | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | test:v2-ds-library-host.test | new |
+| `ds-library-error` | testid | S10.18c: a refusal of the review, in words. | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | — | new |
+| `ds-library-cancel` | testid | S10.18c: Cancel on "Update from <system>?" — nothing changes. | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | test:v2-ds-library-host.test | new |
+| `ds-library-go` | testid | S10.18c: Update on "Update from <system>?" — goes on to the review sheet. | `client/v2/ds/library-card.jsx` · `DsLibraryDialog` | test:v2-ds-library-host.test · e2e:ds-library | new |
+| `ds-library-unlink-scrim` | testid | S10.18c: the dim backdrop behind "Unlink <system>?". | `client/v2/ds/library-card.jsx` · `DsLibraryUnlink` | — | new |
+| `ds-library-unlink-ask` | testid | S10.18c: the "Unlink <system>?" question. | `client/v2/ds/library-card.jsx` · `DsLibraryUnlink` | test:v2-ds-library-host.test | new |
+| `ds-library-unlink-error` | testid | S10.18c: a refusal of Unlink, in words. | `client/v2/ds/library-card.jsx` · `DsLibraryUnlink` | — | new |
+| `ds-library-unlink-cancel` | testid | S10.18c: Cancel on "Unlink <system>?". | `client/v2/ds/library-card.jsx` · `DsLibraryUnlink` | test:v2-ds-library-host.test | new |
+| `ds-library-unlink-go` | testid | S10.18c: Unlink on "Unlink <system>?" — the copy becomes an own system. | `client/v2/ds/library-card.jsx` · `DsLibraryUnlink` | test:v2-ds-library-host.test | new |
+| `ds-library-banner` | testid | S10.18c: "Linked from <home>." — the view-only banner on a linked system's canvas (13 · 20); `data-ds`. | `client/v2/ds/library-card.jsx` · `DsLibraryBanner` | test:v2-ds-library-host.test · e2e:ds-library | new |
+| `ds-library-banner-title` | testid | S10.18c: "Linked from <home>." | `client/v2/ds/library-card.jsx` · `DsLibraryBanner` | test:v2-ds-library-host.test | new |
+| `ds-library-banner-sub` | testid | S10.18c: "View only here — every update arrives as a review." | `client/v2/ds/library-card.jsx` · `DsLibraryBanner` | test:v2-ds-library-host.test | new |
+| `ds-library-open` | testid | S10.18c: "Open in <home>" on the banner — only for a home this app may open. | `client/v2/ds/library-card.jsx` · `DsLibraryBanner` | test:v2-ds-library-host.test | new |
+| `ds-library-link-scrim` | testid | S10.18c: the dim backdrop behind "Link a team library". | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | — | new |
+| `ds-library-link` | testid | S10.18c: the "Link a team library" dialog (registry `ds.library-link`). | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | test:v2-ds-library-host.test | new |
+| `ds-library-link-url` | testid | S10.18c: the library link field. | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | test:v2-ds-library-host.test | new |
+| `ds-library-link-grant` | testid | S10.18c: the access key field (only when the link came with one); never echoed. | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | — | new |
+| `ds-library-link-error` | testid | S10.18c: a refusal of Link, in words. | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | test:v2-ds-library-host.test | new |
+| `ds-library-link-cancel` | testid | S10.18c: Cancel on "Link a team library". | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | — | new |
+| `ds-library-link-go` | testid | S10.18c: Link on "Link a team library"; disabled until a link is typed. | `client/v2/ds/library-card.jsx` · `DsLibraryLink` | test:v2-ds-library-host.test | new |
+| `ds-bar-library` | testid | S10.18c: "Linked library — view only" in the Design system canvas's bar; Review… is not drawn beside it. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-library-board-bar.test | new |
 | `ds-update-available` | testid | S10.8: Inspector › the "Update available" block on an instance in a canvas that was left out of an update. | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 | `ds-update-what` | testid | S10.8: what the canvas is missing, one line ("Corners 2 → 6, by You, 10 min ago. 2026/combine was left out of that update."). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 | `ds-update-do` | testid | S10.8: Update — gives this instance the current look (`ds.instance-update`). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
