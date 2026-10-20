@@ -1,0 +1,13 @@
+S12.15 — red-first proof of the dry self-test (2026-10-20, branch s12-15)
+
+1. The `trash` grader (graders.mjs) was broken to always pass:
+     `true || (wasTrashed && live && !listed && o.text(path) !== null)`
+   scripts/v2-test-lane.sh -- bun test test/agent-journeys/journeys.test.ts
+   → (fail) 0 pass 1 fail: "S1 fault back-from-trash → trash red — trash stayed green on its fault"
+2. Restored (git checkout graders.mjs) → 1 pass 0 fail, 14 expect() calls (9.2 s).
+
+Every grader of every journey has its own planted fault (run.mjs lints that a grader without a
+fault is a red check), so the same holds for each of the 27 graders: dry-results.txt lists
+"fault <id> → <grader> red" once per grader.
+Not proven by --dry: that the live kernel / studio write exactly the rows and files the dry
+recipes plant — only `run.mjs live` (a real model) proves that. See README.md.

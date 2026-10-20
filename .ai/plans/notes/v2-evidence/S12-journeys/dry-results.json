@@ -1,0 +1,231 @@
+{
+  "at": "2026-10-20T09:03:38.893Z",
+  "ok": true,
+  "checks": [
+    {
+      "name": "S1 journey shape",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S1 lane plans (terminal + AI chat)",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S1 good run grades green",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S1 fault created-by-ai → history red",
+      "pass": true,
+      "why": "history stayed green on its fault"
+    },
+    {
+      "name": "S1 fault renamed → moved red",
+      "pass": true,
+      "why": "moved stayed green on its fault"
+    },
+    {
+      "name": "S1 fault version-restored → history red",
+      "pass": true,
+      "why": "history stayed green on its fault"
+    },
+    {
+      "name": "S1 fault restored-content → text red",
+      "pass": true,
+      "why": "text stayed green on its fault"
+    },
+    {
+      "name": "S1 fault back-from-trash → trash red",
+      "pass": true,
+      "why": "trash stayed green on its fault"
+    },
+    {
+      "name": "S1 fault no-hard-delete → no-tool red",
+      "pass": true,
+      "why": "no-tool stayed green on its fault"
+    },
+    {
+      "name": "S2 journey shape",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S2 lane plans (terminal + AI chat)",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S2 good run grades green",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S2 fault edited → text red",
+      "pass": true,
+      "why": "text stayed green on its fault"
+    },
+    {
+      "name": "S2 fault ids-kept → ids-kept red",
+      "pass": true,
+      "why": "ids-kept stayed green on its fault"
+    },
+    {
+      "name": "S2 fault linked → link red",
+      "pass": true,
+      "why": "link stayed green on its fault"
+    },
+    {
+      "name": "S2 fault ai-version → history red",
+      "pass": true,
+      "why": "history stayed green on its fault"
+    },
+    {
+      "name": "S3 journey shape",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S3 lane plans (terminal + AI chat)",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S3 good run grades green",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S3 fault order → present red",
+      "pass": true,
+      "why": "present stayed green on its fault"
+    },
+    {
+      "name": "S3 fault notes → present red",
+      "pass": true,
+      "why": "present stayed green on its fault"
+    },
+    {
+      "name": "S3 fault presenting → ui-open red",
+      "pass": true,
+      "why": "ui-open stayed green on its fault"
+    },
+    {
+      "name": "S3 fault canvas-untouched → untouched red",
+      "pass": true,
+      "why": "untouched stayed green on its fault"
+    },
+    {
+      "name": "S4 journey shape",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S4 lane plans (terminal + AI chat)",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S4 good run grades green",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S4 fault sticky-resolved → sticky red",
+      "pass": true,
+      "why": "sticky stayed green on its fault"
+    },
+    {
+      "name": "S4 fault sticker → sticker red",
+      "pass": true,
+      "why": "sticker stayed green on its fault"
+    },
+    {
+      "name": "S4 fault through-the-verb → no-tool red",
+      "pass": true,
+      "why": "no-tool stayed green on its fault"
+    },
+    {
+      "name": "S4 fault canvas-untouched → untouched red",
+      "pass": true,
+      "why": "untouched stayed green on its fault"
+    },
+    {
+      "name": "S5 journey shape",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S5 lane plans (terminal + AI chat)",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S5 good run grades green",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S5 fault busy-denied → denied red",
+      "pass": true,
+      "why": "denied stayed green on its fault"
+    },
+    {
+      "name": "S5 fault busy-untouched → untouched red",
+      "pass": true,
+      "why": "untouched stayed green on its fault"
+    },
+    {
+      "name": "S5 fault free-part-done → text red",
+      "pass": true,
+      "why": "text stayed green on its fault"
+    },
+    {
+      "name": "S5 fault one-undo-step → one-undo-step red",
+      "pass": true,
+      "why": "one-undo-step stayed green on its fault"
+    },
+    {
+      "name": "S9 journey shape",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S9 lane plans (terminal + AI chat)",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S9 good run grades green",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "name": "S9 fault replied-and-resolved → comments red",
+      "pass": true,
+      "why": "comments stayed green on its fault"
+    },
+    {
+      "name": "S9 fault implemented → text red",
+      "pass": true,
+      "why": "text stayed green on its fault"
+    },
+    {
+      "name": "S9 fault ids-kept → ids-kept red",
+      "pass": true,
+      "why": "ids-kept stayed green on its fault"
+    },
+    {
+      "name": "S9 fault comments-through-the-verb → no-tool red",
+      "pass": true,
+      "why": "no-tool stayed green on its fault"
+    },
+    {
+      "name": "S9 fault ai-version → history red",
+      "pass": true,
+      "why": "history stayed green on its fault"
+    }
+  ]
+}

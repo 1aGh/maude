@@ -56,7 +56,9 @@ export function harnessEnv(base = process.env, machineFile = null) {
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_FORCE_SOURCE: '1',
     MAUDE_MACHINE_FILE:
-      machineFile ?? join(mkdtempSync(join(tmpdir(), 'maude-journey-machine-')), 'machine.json'),
+      machineFile ??
+      base.MAUDE_MACHINE_FILE ??
+      join(mkdtempSync(join(tmpdir(), 'maude-journey-machine-')), 'machine.json'),
   };
 }
 

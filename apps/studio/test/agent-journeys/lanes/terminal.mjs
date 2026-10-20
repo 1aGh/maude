@@ -69,8 +69,9 @@ export function planTerminal(
     '{"mcpServers":{}}',
     '--plugin-dir',
     join(REPO, 'plugins', 'design'),
+    // one argv per rule (a variadic flag): a rule like `Bash(maude design open:*)` holds spaces
     '--allowedTools',
-    MAUDE_DEFAULT_ALLOWED_TOOLS.join(' '),
+    ...MAUDE_DEFAULT_ALLOWED_TOOLS,
     '--permission-mode',
     'acceptEdits',
     '--max-budget-usd',

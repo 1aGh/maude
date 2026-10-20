@@ -86,12 +86,16 @@ function checkPlans(j, project) {
   const env = harnessEnv({ PATH: process.env.PATH }, '/dev/null');
   const t = planTerminal(j, { project, trialDir: join(OUT, '_plan'), env });
   const a = planAcp(j, { project });
-  const allow = MAUDE_DEFAULT_ALLOWED_TOOLS.join(' ');
+  const allow = JSON.stringify([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
   if (t.turns.length !== j.turns.length || a.turns.length !== j.turns.length)
     why.push('a lane drops a turn');
   if (!t.turns.every((x) => x.args.includes(join(REPO, 'plugins', 'design'))))
     why.push('terminal: no --plugin-dir plugins/design');
-  if (!t.turns.every((x) => x.args[x.args.indexOf('--allowedTools') + 1] === allow))
+  const allowOf = (args) => {
+    const i = args.indexOf('--allowedTools');
+    return JSON.stringify(args.slice(i + 1, args.indexOf('--permission-mode')));
+  };
+  if (!t.turns.every((x) => allowOf(x.args) === allow))
     why.push('terminal: allow list ≠ MAUDE_DEFAULT_ALLOWED_TOOLS');
   if (t.env.NO_OPEN !== '1' || t.env.MAUDE_NO_AUTOBUILD !== '1' || !t.env.MAUDE_MACHINE_FILE)
     why.push('terminal: env lacks NO_OPEN / MAUDE_NO_AUTOBUILD / MAUDE_MACHINE_FILE');

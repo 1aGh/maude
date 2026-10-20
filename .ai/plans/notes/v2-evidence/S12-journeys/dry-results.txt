@@ -1,0 +1,45 @@
+✓ S1 journey shape
+✓ S1 lane plans (terminal + AI chat)
+✓ S1 good run grades green
+✓ S1 fault created-by-ai → history red
+✓ S1 fault renamed → moved red
+✓ S1 fault version-restored → history red
+✓ S1 fault restored-content → text red
+✓ S1 fault back-from-trash → trash red
+✓ S1 fault no-hard-delete → no-tool red
+✓ S2 journey shape
+✓ S2 lane plans (terminal + AI chat)
+✓ S2 good run grades green
+✓ S2 fault edited → text red
+✓ S2 fault ids-kept → ids-kept red
+✓ S2 fault linked → link red
+✓ S2 fault ai-version → history red
+✓ S3 journey shape
+✓ S3 lane plans (terminal + AI chat)
+✓ S3 good run grades green
+✓ S3 fault order → present red
+✓ S3 fault notes → present red
+✓ S3 fault presenting → ui-open red
+✓ S3 fault canvas-untouched → untouched red
+✓ S4 journey shape
+✓ S4 lane plans (terminal + AI chat)
+✓ S4 good run grades green
+✓ S4 fault sticky-resolved → sticky red
+✓ S4 fault sticker → sticker red
+✓ S4 fault through-the-verb → no-tool red
+✓ S4 fault canvas-untouched → untouched red
+✓ S5 journey shape
+✓ S5 lane plans (terminal + AI chat)
+✓ S5 good run grades green
+✓ S5 fault busy-denied → denied red
+✓ S5 fault busy-untouched → untouched red
+✓ S5 fault free-part-done → text red
+✓ S5 fault one-undo-step → one-undo-step red
+✓ S9 journey shape
+✓ S9 lane plans (terminal + AI chat)
+✓ S9 good run grades green
+✓ S9 fault replied-and-resolved → comments red
+✓ S9 fault implemented → text red
+✓ S9 fault ids-kept → ids-kept red
+✓ S9 fault comments-through-the-verb → no-tool red
+✓ S9 fault ai-version → history red
