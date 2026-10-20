@@ -11573,10 +11573,10 @@
     "hook": "assets-details",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The plain details card for the picked tile (name, kind, size, where it is used). S8.21 replaces it with the per-kind sheet.",
+    "meaning": "The asset's details, in place of the list (⌘I): a photo, Made by AI, footage or sound (`data-kind` photo | made | footage | clip | sound; `data-state` loading | ready | gone | error). S8.21 replaced the plain card.",
     "producer": {
-      "file": "apps/studio/client/v2/assets/details-card.jsx",
-      "symbol": "AssetDetailsCard"
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
     },
     "region": "sidebar/tree",
     "consumers": [],
@@ -11586,20 +11586,280 @@
     "hook": "assets-details-close",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Close on the details card.",
+    "meaning": "\"‹ Assets\" at the head of the details: goes back to the list.",
     "producer": {
-      "file": "apps/studio/client/v2/assets/details-card.jsx",
-      "symbol": "AssetDetailsCard"
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
     },
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
   },
   {
+    "hook": "assets-details-pic",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The big picture, clip or audio player in the details.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The details' title: the file name, or for Made by AI what was asked for.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-made",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Made by AI\" chip on the picture (said once).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-prompt",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Made by AI: the prompt.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-madewith",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Made by AI: \"Google · Nano Banana Pro · 5 Oct\".",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-licence",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Made by AI: the one licence line from the provider.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Size (photo, clip) or Length (sound), measured from the file.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-added",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "When the file arrived (not drawn for Made by AI, which says when it was made).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-edits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What was changed: every use, or how many uses have their own look.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-saw",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Footage: what AI saw, read from the clip's `.footage.json` (never written here).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-tags",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Footage: AI's tags.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-moments",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Footage: the good moments (0:01–0:04 run).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Place in <artboard> ↵\" in a picture's details (hidden for a viewer and for clips and sounds).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-used-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Used in 4 canvases\" over the list of places.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One place the asset is used (`data-canvas`, `data-board`): opens that artboard, or the canvas when no artboard shows it.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The details' Advanced fold (`assets.details`): mono, paths and the command live only here.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details-advanced.jsx",
+      "symbol": "DetailsAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-adv-<row>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Advanced row: `<row>` is stored | original | edits | cutout | in. Original is drawn only on the Mac that imported the file.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details-advanced.jsx",
+      "symbol": "DetailsAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-copy-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Copy on an Advanced row (`stored`) or on the command (`command`).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details-advanced.jsx",
+      "symbol": "DetailsAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-details-command",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Import the same way from Terminal\" and the command, only when this Mac remembers the original.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details-advanced.jsx",
+      "symbol": "DetailsAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-gen-run",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One generation run inside the Generated group: its prompt, \"4 takes · fal · 5 Oct\", then its takes in the order they were made.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "assets-group-<kind>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The group heading in the Assets tab: `<kind>` is image | video | audio (a button — \"Photos 120 ›\" widens into the Browse view, S8.13) or `added` (S8.14: \"Just added\", the files that arrived in this window, first in the tab — a plain heading, not a button).",
+    "meaning": "The group heading in the Assets tab: `<kind>` is image | video | audio (a button — \"Photos 120 ›\" widens into the Browse view, S8.13) or `added` (S8.14: \"Just added\", the files that arrived in this window, first in the tab — a plain heading, not a button) or `generated` (S8.21: \"Generated\", the media that has a `.gen.json`, one block per run, after Just added — a plain heading).",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
       "symbol": "AssetsPanel"

@@ -36,6 +36,7 @@ export const FOLD_PANELS = Object.freeze([
   'timeline',
   'export',
   'ds',
+  'assets.details', // S8.21 — Asset details › Advanced
 ]);
 
 /**

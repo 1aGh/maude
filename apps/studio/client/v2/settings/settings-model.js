@@ -445,6 +445,7 @@ export const FOLD_LABELS = Object.freeze({
   timeline: 'Timeline › Advanced',
   export: 'Export › Advanced',
   ds: 'Design system › Advanced',
+  'assets.details': 'Assets › Details › Advanced',
 });
 
 /** The per-fold switch list: the panels that carry a fold, plus any id this Mac has remembered. */

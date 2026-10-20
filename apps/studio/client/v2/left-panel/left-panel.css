@@ -647,45 +647,319 @@
     outline-offset: -4px;
     border-radius: var(--radius-sm);
   }
-  /* S8.12 — plain details (⌘I); S8.21 replaces the card */
-  .lp-details {
-    flex: none;
-    margin: 0 var(--space-2) var(--space-2);
-    padding: var(--space-2);
-    border-radius: var(--radius-sm);
-    background: var(--bg-3);
+  /* S8.21 — an asset's details (⌘I): opens in place of the list; ← Assets goes back (12 · ia-asset-details, ia-advanced) */
+  .lp-dt {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: 0 var(--space-3) var(--space-3);
     font-size: var(--type-xs);
+    line-height: var(--lh-xs);
     color: var(--fg-1);
   }
-  .lp-details-head {
+  .lp-dt-hd {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin: 0 calc(var(--space-1) * -1);
+  }
+  .lp-dt-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-back:hover {
+    background: var(--bg-2);
+  }
+  .lp-dt-back:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-dt-back svg {
+    rotate: 180deg;
+  }
+  .lp-dt-heroed {
+    position: relative;
+    flex: none;
+  }
+  .lp-dt-pic {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .lp-dt-snd {
+    display: flex;
+    align-items: center;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .lp-dt-snd audio {
+    width: 100%;
+  }
+  .lp-dt-made {
+    position: absolute;
+    left: var(--space-2);
+    bottom: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--type-xs);
+    color: var(--spark);
+  }
+  .lp-dt-name {
+    margin: 0;
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .lp-dt-row {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: var(--space-2);
+    align-items: baseline;
+  }
+  .lp-dt-k {
+    color: var(--fg-2);
+  }
+  .lp-dt-v {
+    min-width: 0;
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .lp-dt-quote {
+    display: block;
+    max-height: 9em;
+    overflow-y: auto;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-variant-numeric: normal;
+  }
+  .lp-dt-chips {
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-1);
   }
-  .lp-details-name {
+  .lp-dt-chip {
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .lp-dt-fine {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--fg-2);
+  }
+  .lp-dt-place {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 28px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    cursor: pointer;
+  }
+  .lp-dt-place:focus-visible {
+    outline: 2px solid var(--fg-0);
+    outline-offset: 2px;
+  }
+  .lp-dt-kbd {
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs, 3px);
+    box-shadow: inset 0 0 0 0.5px var(--accent-fg);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+  }
+  .lp-dt-sec {
+    margin: var(--space-1) 0 0;
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .lp-dt-uses {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lp-dt-use {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    text-align: left;
+    cursor: pointer;
+  }
+  .lp-dt-use:hover {
+    background: var(--bg-2);
+  }
+  .lp-dt-use:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-dt-use-t {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+  }
+  .lp-dt-use-b {
+    color: var(--fg-2);
+  }
+  /* Advanced is the only place mono lives (CONTRACT §5) */
+  .lp-dt-adv {
+    margin-top: auto;
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .lp-dt-adv-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 28px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .lp-dt-adv-btn:hover {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .lp-dt-adv-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lp-dt-adv-ch {
+    display: inline-grid;
+  }
+  .lp-dt-adv[data-open] .lp-dt-adv-ch {
+    transform: rotate(90deg);
+  }
+  .lp-dt-adv-hint {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  .lp-dt-adv-body {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-1) 0 0;
+  }
+  .lp-dt-arow {
+    display: grid;
+    grid-template-columns: 78px 1fr auto;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: 2px var(--space-1);
+  }
+  .lp-dt-ak {
+    color: var(--fg-2);
+  }
+  .lp-dt-av {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+  }
+  .lp-dt-copy {
+    padding: 1px var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--bg-3);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-copy:hover {
+    background: var(--bg-2);
+  }
+  .lp-dt-cmd {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .lp-dt-cmd-h {
+    color: var(--fg-2);
+  }
+  .lp-dt-cmd-l {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  /* S8.21 — Generated: one block per generation run */
+  .lp-run {
+    display: grid;
+    gap: var(--space-1);
+    margin-bottom: var(--space-2);
+  }
+  .lp-run-t {
+    display: flex;
+    flex-direction: column;
+    margin: 0 var(--space-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .lp-run-p {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--fg-0);
-    font-size: var(--type-sm);
+    color: var(--fg-1);
   }
-  .lp-details-meta,
-  .lp-details-used {
-    margin: var(--space-1) 0 0;
+  .lp-run-m {
+    color: var(--fg-2);
   }
-  .lp-details-list {
-    margin: var(--space-1) 0 0;
-    padding-left: var(--space-3);
-  }
-  .lp-details-link {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-    font: inherit;
-    cursor: pointer;
+  @media (prefers-reduced-motion: no-preference) {
+    .lp-dt-adv-ch {
+      transition: transform var(--dur-fast, 120ms) var(--ease-out, ease-out);
+    }
   }
   .lp-foot {
     flex: none;

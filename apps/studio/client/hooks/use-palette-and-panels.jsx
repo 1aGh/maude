@@ -1,6 +1,6 @@
 // hooks/use-palette-and-panels.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../v2/share/link-dialog.js';
@@ -466,6 +466,18 @@ export function usePaletteAndPanels({
     refreshTree,
   ]);
 
+  // Open a canvas and select an artboard in it — ⌘K's result rows and the Assets details' "Used in" rows (S8.21) go the same way.
+  const openCanvasAt = useCallback(
+    (path, artboardId) => {
+      openTab(path);
+      // the canvas mounts a moment later; select the artboard the way a tree click settles one
+      if (artboardId)
+        for (const delay of [400, 1200, 2800])
+          setTimeout(() => postToActiveCanvas({ dgn: 'select-by-id', artboardId }), delay);
+    },
+    [openTab, postToActiveCanvas]
+  );
+
   // V2-4.6 — what ⌘K needs from the shell besides rows: open a canvas (and its artboard), hand a query to
   // the AI chat (desktop only — the chat panel is native), where the design root is.
   useEffect(
@@ -480,23 +492,9 @@ export function usePaletteAndPanels({
           openPanelExclusive('assistant');
           sendToAskAI(text);
         },
-        openCanvas: (path, artboardId) => {
-          openTab(path);
-          // the canvas mounts a moment later; select the artboard the way a tree click settles one
-          if (artboardId)
-            for (const delay of [400, 1200, 2800])
-              setTimeout(() => postToActiveCanvas({ dgn: 'select-by-id', artboardId }), delay);
-        },
+        openCanvas: openCanvasAt,
       }),
-    [
-      cfg.designRel,
-      cfg?.cloud?.projectName,
-      project,
-      viewerMode,
-      openPanelExclusive,
-      openTab,
-      postToActiveCanvas,
-    ]
+    [cfg.designRel, cfg?.cloud?.projectName, project, viewerMode, openPanelExclusive, openCanvasAt]
   );
 
   // Native menu items whose registry action runs in the webview (`menu://action {id}`,
@@ -655,6 +653,8 @@ export function usePaletteAndPanels({
             return t ? labelOfArtboard(activePath, t.artboardId) || null : null;
           })()}
           onRecord={recordSourceEdit}
+          // S8.21 — "Used in" in an asset's details opens that artboard
+          onOpenCanvas={openCanvasAt}
         />
       );
     // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).
