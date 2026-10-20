@@ -488,6 +488,10 @@ export interface ShellToCanvas {
     glyph?: string;
     mode: 'ghost' | 'selection';
   };
+  // S7.9 (07 ve-drop): footage is being dragged over the window while a video artboard is followed — that artboard
+  // shows the chip "Or drop here — adds at the end" (`on: false` = the drag ended or left). The shell owns the drop
+  // (a catcher over the artboard's rect), so the canvas only draws.
+  'timeline-drop-hint': { artboardId: Id; on: boolean };
   // S7.20: the F size picker's hover — where the artboard of this preset would land, dashed and labelled
   // ("FB event cover 1920 × 1005"); `null` = the pointer left the tiles. The canvas picks the place.
   'size-ghost': {
@@ -1872,6 +1876,13 @@ const s2c: S2C = {
       glyph: opt(dsSlug),
       mode: lit('ghost', 'selection'),
     }),
+  },
+  // S7.9 — the drop chip on the followed video artboard while footage is in flight (editing/drop-chip.tsx).
+  'timeline-drop-hint': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/drop-chip (S7.9)',
+    parse: p({ artboardId: str, on: bool }),
   },
   'size-ghost': {
     gate: 'parent',
