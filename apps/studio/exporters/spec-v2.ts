@@ -31,7 +31,15 @@ export interface ExportOptionsV2 {
   jpgQuality?: number;
   background?: 'artboard' | 'transparent' | 'white';
   annotations?: boolean;
-  print?: { bleed?: boolean; marks?: 'none' | 'crop'; back?: boolean };
+  print?: {
+    bleed?: boolean;
+    marks?: 'none' | 'crop';
+    back?: boolean;
+    /** S8.7 — registration marks beside the crop marks (A-crop-and-registration-marks) */
+    registration?: boolean;
+    /** S8.7 — what happens to the text (A-pdf-quality-and-text-outlines): keep · embed · outline */
+    text?: 'keep' | 'embed' | 'outline';
+  };
   video?: {
     fps?: number;
     quality?: 'draft' | 'standard' | 'high';
@@ -205,12 +213,16 @@ function options(v: unknown, at: string): ExportOptionsV2 {
   if (v.print !== undefined) {
     const p = v.print;
     if (!isObj(p)) throw new Bad(`${at}.print`, 'print must be an object');
-    keysOnly(p, ['bleed', 'marks', 'back'], `${at}.print`);
+    keysOnly(p, ['bleed', 'marks', 'back', 'registration', 'text'], `${at}.print`);
     out.print = {};
     if (p.bleed !== undefined) out.print.bleed = bool(p.bleed, `${at}.print.bleed`);
     if (p.marks !== undefined)
       out.print.marks = oneOf(p.marks, `${at}.print.marks`, ['none', 'crop']);
     if (p.back !== undefined) out.print.back = bool(p.back, `${at}.print.back`);
+    if (p.registration !== undefined)
+      out.print.registration = bool(p.registration, `${at}.print.registration`);
+    if (p.text !== undefined)
+      out.print.text = oneOf(p.text, `${at}.print.text`, ['keep', 'embed', 'outline']);
   }
   if (v.video !== undefined) {
     const p = v.video;

@@ -15,6 +15,7 @@ import path from 'node:path';
 
 import { isRuntimeStateRel } from '../sync/file-membership.ts';
 import { isScopeValidForFormat } from './format-scopes.ts';
+import { findBack } from './print-back.ts';
 import type { ExportFormatV2, ExportOptionsV2, ExportSpecV2 } from './spec-v2.ts';
 
 /** The user-facing scope choices from the export dialog. */
@@ -116,6 +117,11 @@ export interface ExportScopeHints {
   canvasFile?: string | null;
   /** Every selector of a multi-selection, for `selection-bounds`. */
   selectionAll?: string[];
+  /**
+   * S8.7 — artboard ids exported as ONE PDF, a page each in this order (a print front + its back).
+   * Only `artboard` scope reads it; the first is the unit's own artboard.
+   */
+  artboardIds?: string[];
   /** S8.1 — a world rectangle for `canvas-whole` / `selection-bounds` (ExportSpec v2 `region`). */
   regionRect?: { x: number; y: number; w: number; h: number };
   /** S8.1 — `project-raw` limited to this designRoot-relative folder (the Folder scope's zip). */
@@ -166,6 +172,11 @@ function readHints(options: Record<string, unknown> | undefined): ExportScopeHin
         )
         .slice(0, MAX_SELECTION_ALL)
     : undefined;
+  const artboardIds = Array.isArray(options.artboardIds)
+    ? (options.artboardIds as unknown[])
+        .filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 128)
+        .slice(0, MAX_ARTBOARD_IDS)
+    : undefined;
   const rr = options.regionRect as Record<string, unknown> | undefined;
   const regionRect =
     rr &&
@@ -185,11 +196,13 @@ function readHints(options: Record<string, unknown> | undefined): ExportScopeHin
     !isRuntimeStateRel(options.folder)
       ? options.folder
       : undefined;
-  return { selection, artboardId, canvasFile, selectionAll, regionRect, folder };
+  return { selection, artboardId, canvasFile, selectionAll, artboardIds, regionRect, folder };
 }
 
 /** Caps on `options.selectionAll` (security review, issue #125). */
 export const MAX_SELECTION_ALL = 256;
+/** A print front and its back; the cap keeps a member-supplied bag from fanning out captures. */
+const MAX_ARTBOARD_IDS = 4;
 const MAX_SELECTOR_LEN = 1024;
 
 /**
@@ -385,15 +398,15 @@ export async function resolveScope(args: ResolveScopeArgs): Promise<Target[]> {
     // by id so EVERY format (PDF included — its shim doesn't widen) renders
     // the right artboard, not `:first-of-type` (item 5 root cause).
     if (hints.artboardId) {
-      return [
-        {
-          kind: 'element',
-          cssPath: `[data-dc-screen="${cssAttrEscape(hints.artboardId)}"]`,
-          canvasSlug: slug,
-          file: activeFile,
-          widen: false,
-        },
-      ];
+      // S8.7 — a print front + its back: one target per id, so the PDF adapter writes page 1, page 2
+      const ids = hints.artboardIds?.[0] === hints.artboardId ? hints.artboardIds : [hints.artboardId];
+      return ids.map((id) => ({
+        kind: 'element' as const,
+        cssPath: `[data-dc-screen="${cssAttrEscape(id)}"]`,
+        canvasSlug: slug,
+        file: activeFile,
+        widen: false,
+      }));
     }
     // Fallback: we only have a descendant selector → pass it through and let
     // the adapter widen to the closest `[data-dc-screen]` ancestor.
@@ -484,6 +497,8 @@ export interface SpecUnit {
   kind: string | null;
   /** v2 options after the per-kind merge (sizes, names) */
   v2: ExportOptionsV2;
+  /** S8.7 — the print artboard that is page 2 of this unit's PDF (`print.back`); absent = one page */
+  back?: SpecArtboard;
   /** degradation lines the export still succeeds with (`annotations-print`) */
   degraded: string[];
 }
@@ -577,6 +592,18 @@ export function engineOptionsFor(
   if (o.background) out.background = o.background;
   if (o.video?.fps) out.fps = o.video.fps;
   if (o.colorProfile) out.colorProfile = o.colorProfile;
+  // S8.7 — a Print PDF: the spec's `print` is the engine's `pdfPrint` (boxes + marks) and `text` its text mode.
+  // Bleed on → the page keeps its bleed strip; marks sit outside it. Only a PDF has either.
+  if (format === 'pdf' && o.print) {
+    const marks: Record<string, boolean> = {};
+    if (o.print.marks === 'crop') marks.crop = true;
+    if (o.print.registration === true) marks.registration = true;
+    out.pdfPrint = {
+      ...(o.print.bleed !== undefined ? { includeBleed: o.print.bleed } : {}),
+      marks,
+    };
+    if (o.print.text === 'embed' || o.print.text === 'outline') out.text = o.print.text;
+  }
   return out;
 }
 
@@ -627,6 +654,7 @@ export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolut
       artboards: u.artboards,
       kind: u.kind,
       v2: u.v2,
+      ...(u.back ? { back: u.back } : {}),
       degraded,
       options: {
         ...engineOptionsFor(u.format, u.v2),
@@ -741,6 +769,10 @@ export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolut
         skipped.push({ name: b.label ?? b.id, reason: 'format-unit' });
         continue;
       }
+      // S8.7 — "Add the back": page 2 of the print PDF is the front's paired artboard, unless the person
+      // selected it too (then it is its own file, as asked)
+      const back = format === 'pdf' && v2.print?.back === true ? findBack(b, c.artboards) : null;
+      const backUnit = back && !boardIds.includes(back.id) ? (byId.get(back.id) ?? null) : null;
       push({
         format,
         scope: 'artboard',
@@ -748,7 +780,12 @@ export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolut
         artboards: [b],
         kind: b.kind,
         v2,
-        hints: { canvasFile, artboardId: b.id },
+        ...(backUnit ? { back: backUnit } : {}),
+        hints: {
+          canvasFile,
+          artboardId: b.id,
+          ...(backUnit ? { artboardIds: [b.id, backUnit.id] } : {}),
+        },
       });
     }
     for (const id of elementIds) {
