@@ -51,6 +51,13 @@ export function pathTestIdSlug(p) {
     .replace(/^-+|-+$/g, '');
 }
 
+// The Layers tree is whatever the open canvas last posted, tagged with that canvas. A tree posted by
+// another canvas is not this canvas's (a blank canvas posts none, and kept listing the previous canvas's
+// `div`): no tree until this one posts its own.
+export function layersTreeOf(tree, canvas) {
+  return tree && canvas && tree.canvas === canvas ? tree : null;
+}
+
 // A layers tree's identity: its element ids in document order. Two trees with
 // the same signature are the same DOM as far as positional ids go.
 export function layersTreeSig(nodes) {

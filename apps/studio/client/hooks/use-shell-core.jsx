@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  layersTreeOf,
   notifyDesktop,
   readBoolStore,
   readInitialTheme,
@@ -214,7 +215,10 @@ export function useShellCore({}) {
   const layersBusyRef = useRef(false);
   const layersBusyTimerRef = useRef(null);
   // Phase 12 Task 4 — Layers tree for the active artboard (posted by canvas-shell).
-  const [layersTree, setLayersTree] = useState(null);
+  // The tree is tagged with the canvas that posted it; a canvas that has posted none (a blank one, a new tab)
+  // shows no tree, never the previous canvas's (layersTreeOf).
+  const [layersTreeRaw, setLayersTree] = useState(null);
+  const layersTree = layersTreeOf(layersTreeRaw, activePath);
   // feature-4 T7a — Layers-panel component map ({ [cdId]: { component, root,
   // usages } }) for purple instance rows. Fetched from the read-only main-origin
   // /_api/component-map on canvas/tree changes, throttled: the map only changes

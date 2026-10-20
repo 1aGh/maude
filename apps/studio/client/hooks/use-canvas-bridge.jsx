@@ -491,7 +491,12 @@ export function useCanvasBridge({
         layersSlot.set(slot);
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.
-        setLayersTree({ artboardId: m.artboardId, nodes: Array.isArray(m.tree) ? m.tree : [] });
+        setLayersTree({
+          artboardId: m.artboardId,
+          nodes: Array.isArray(m.tree) ? m.tree : [],
+          // the frame is the active one (acceptFromCanvas), so the tree is the open canvas's
+          canvas: activePath,
+        });
         const sig = layersTreeSig(m.tree);
         lastLayersTreeRef.current = { tree: m.tree, sig, artboardId: m.artboardId ?? null };
         // fresh tree (correct ids) landed — drags OK again
@@ -1156,7 +1161,17 @@ export function useCanvasBridge({
         // one is not enough. Only from the frame IN VIEW, like every branch
         // that changes what the user sees (review F5).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin) setLoadingPath((p) => (p === m.file ? null : p));
+        if (e.source === activeWin) {
+          setLoadingPath((p) => (p === m.file ? null : p));
+          // G6 (gate B) — `canvas-failed` is the shell saying the module would not build (a file that does
+          // not parse: a missing closing tag). Dropping the loading card was ALL this did, and it also
+          // cancelled the 15 s cap that raises the load-failure card, so the stage was left empty with no
+          // card (a canvas that threw while drawing had one, via `render-error`). Raise the card now; the
+          // page it names is the open canvas (the frame is the proof, not the `file` it claims), and the
+          // next `loaded` (Reload canvas) retires it.
+          if (m.dgn === 'canvas-failed' && activePath)
+            setCanvasError({ path: activePath, kind: 'compile' });
+        }
       } else if (m.dgn === 'loaded' && m.file) {
         // The shell document ran — push current comments + carry over the
         // focused pin. For a TSX/JSX canvas this is NOT "drawn": the module
@@ -2007,7 +2022,8 @@ export function useCanvasBridge({
       structuralWrite(
         '/_api/insert-artboard',
         { id, label, width, height },
-        { label: 'insert artboard' }
+        // plain words (G4, gate B): the toast reads "Couldn't add an artboard — <why>."
+        { label: 'add an artboard' }
       );
     },
     [structuralWrite]

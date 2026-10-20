@@ -93,7 +93,10 @@ export default function GeneralSection({
       </Group>
 
       {/* S8.20 — Search in pictures: off at once, on through the one sheet; absent where the studio does not describe */}
-      <DescribeSettingsRow project={getPaletteEnv().projectName} Row={PrefToggleRow} />
+      {/* (not before /_config answers: `cloud === undefined` mounts and fetches nothing local) */}
+      {cloud !== undefined ? (
+        <DescribeSettingsRow project={getPaletteEnv().projectName} Row={PrefToggleRow} />
+      ) : null}
 
       <Group title="Layout" testid="settings-layout">
         <LayoutTab
