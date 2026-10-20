@@ -298,6 +298,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'file-plane',
     rows: 'per system: revisions + tokens.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas), head.json last; Restore moves head.json + the canvas to _trash — Plane B only, all or nothing (ds/convert.ts, S10.12)',
   },
+  '/_api/ds/library': {
+    class: 'lane',
+    via: "update: ONE kernel action (proposeFiles: the left-out canvases' metas, dsRev = the old head) for the Plane-A half; the verified upstream revision, the working files and head.json ride the file plane, head.json last. link / unlink / check: Plane B only (config + a NEW design-system.tsx like createCanvas; head.json) (ds/library.ts, S10.18b)",
+    test: 'test/ds-library.test.ts',
+  },
   '/_api/ds/fix-contrast': {
     class: 'lane',
     via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles) — the lightness fix is a waiting edit (ds/edges.ts, S10.17)',

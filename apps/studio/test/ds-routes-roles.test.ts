@@ -82,6 +82,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/add-colour', { ds: DS, value: '#3b6fe0', label: 'Badge blue' }],
   // S10.15a — Bring it up to the schema (even the read-only analyse lists every canvas)
   ['/_api/ds/upgrade', { ds: DS, step: 'analyse' }],
+  // S10.18b — team libraries (every action, the review included, is whole-project edit)
+  ['/_api/ds/library', { ds: DS, action: 'check' }],
 ];
 
 describe('ds routes — roles (Q15)', () => {

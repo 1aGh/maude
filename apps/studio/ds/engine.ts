@@ -1199,7 +1199,7 @@ export function createDsEngine(opts: EngineOptions) {
     void inp;
     return withLock(dsAbs(system(ds)), async () => {
       const L = load(ds);
-      if (L.head.library) throw fail('ds-library', 'a linked library is view only here');
+      // a linked library's outside edit offers ONLY Undo (V2-1.6 §5.14): the library's values come back
       if (!L.outsideFiles.length) throw fail('ds-no-outside', 'no outside change waits');
       const base = filesOf(L.baseBody);
       for (const k of L.outsideFiles) {

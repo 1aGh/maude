@@ -298,6 +298,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     '/_api/ds/switch',
     // S10.12 — convert system folders / Restore one (ds/convert.ts)
     '/_api/ds/convert',
+    // S10.18b — team libraries: link / check / update / unlink (whole-project edit)
+    '/_api/ds/library',
     // S10.17 — Lighten to 4.5:1 / Add it to the system
     '/_api/ds/fix-contrast',
     '/_api/ds/add-colour',

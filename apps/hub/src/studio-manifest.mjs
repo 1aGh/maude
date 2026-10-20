@@ -332,6 +332,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/default': { safe: null, unsafe: 'edit' }, // S10.13 — the project's default design system
   '/_api/ds/switch': { safe: null, unsafe: 'edit' }, // S10.14 — move canvases to another design system
   '/_api/ds/convert': { safe: null, unsafe: 'edit' }, // S10.12 — system folders → Design system canvases; Restore
+  '/_api/ds/library': { safe: null, unsafe: 'edit' }, // S10.18b — team libraries: link / check / update / unlink
   '/_api/ds/fix-contrast': { safe: null, unsafe: 'edit' }, // S10.17 — Lighten to 4.5:1 (one waiting edit)
   '/_api/ds/add-colour': { safe: null, unsafe: 'edit' }, // S10.17 — Add it to the system (a waiting new colour)
   '/_api/ds/nearest': { safe: 'read', unsafe: null }, // S10.17 — the closest system colour (trash replacement / suggestion)
