@@ -167,8 +167,9 @@ describe('the one route table (V2-2.5)', () => {
     );
     // …and an exact route it would answer — e.g. a param under an exact legacy path's parent.
     const shadow = plant({ path: '/_api/diagnostics/:part' }); // `/_api/diagnostics/report` is exact
-    expect(checkRouteTable({ ...t, specs: [...t.specs, shadow] })).toEqual([
-      'POST /_api/diagnostics/:part: matches the exact route /_api/diagnostics/report',
-    ]);
+    // S11.17 added more exact /_api/diagnostics/* routes, so the planted param shadows each of them.
+    expect(checkRouteTable({ ...t, specs: [...t.specs, shadow] })).toContain(
+      'POST /_api/diagnostics/:part: matches the exact route /_api/diagnostics/report'
+    );
   });
 });

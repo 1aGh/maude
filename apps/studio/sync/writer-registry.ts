@@ -502,6 +502,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/share/links/:id': { class: 'local' },
   // S9.21 — Ask to edit: the hub's access request (nothing in the folder)
   '/_api/share/requests': { class: 'local' },
+  // S11.14 — Settings › Connections › the team hub row (token last 4 + tokenless /health version; reads only)
+  '/_api/connections/hub': { class: 'read' },
   '/_api/project/migrate': {
     class: 'migration',
     via: 'the migrate engine rewrites files after the hub format flip (V2-1.12 §5.10 I7, all-or-nothing with its own snapshot); peers receive the rewritten files through the file plane / watcher import like any outside edit',
