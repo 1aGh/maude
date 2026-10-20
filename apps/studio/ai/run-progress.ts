@@ -17,6 +17,7 @@ import { compBeats, compClips } from '../video/derive.ts';
 import { type PlaceProgress, placeProgress } from '../video/reel-place.ts';
 import { type BeatGrid, readBeats, sidecarRelFor } from '../video/schema.ts';
 import type { RunProgress, RunRecord } from './run-lifecycle.ts';
+import { footageSecOf, leftOutOf, watchOf } from './watch-progress.ts';
 
 export const MAX_EDLS = 64;
 export const EDL_MAX_BYTES = 1024 * 1024;
@@ -85,11 +86,17 @@ export function createRunProgress(o: { designRoot: string }) {
     }
   };
 
-  /** The run's place progress, or null when none of its artboards holds a shot of any cut. */
-  return function progressOf(rec: RunRecord): RunProgress | null {
+  /** The cut the run is placing, or null when none of its artboards holds a shot of any cut. */
+  function placeOf(rec: RunRecord): { progress: RunProgress; edl: Edl } | null {
     const cuts = edls();
     if (!cuts.length) return null;
-    let best: { p: PlaceProgress; canvas: string; artboard: string; mtime: number } | null = null;
+    let best: {
+      p: PlaceProgress;
+      canvas: string;
+      artboard: string;
+      mtime: number;
+      edl: Edl;
+    } | null = null;
     for (const t of runTargets(rec)) {
       const source = readText(t.canvas, CANVAS_MAX_BYTES);
       if (source === null) continue;
@@ -115,10 +122,33 @@ export function createRunProgress(o: { designRoot: string }) {
           const p = placeProgress(c, cut.edl, beats);
           if (!p) continue;
           if (!best || p.done > best.p.done || (p.done === best.p.done && cut.mtime > best.mtime))
-            best = { p, canvas: t.canvas, artboard, mtime: cut.mtime };
+            best = { p, canvas: t.canvas, artboard, mtime: cut.mtime, edl: cut.edl };
         }
       }
     }
-    return best ? { ...best.p, canvas: best.canvas, artboard: best.artboard } : null;
+    return best
+      ? { progress: { ...best.p, canvas: best.canvas, artboard: best.artboard }, edl: best.edl }
+      : null;
+  }
+
+  /**
+   * The run's progress: the cut it is placing (`place`), else the footage it is watching (`watch`, S7.15 — the
+   * clips its ask attached), else none. A placing run also says how many clips it watched and which the cut
+   * leaves out, so "Watched all 12. Left out 3" stays true while and after the shots land.
+   */
+  return function progressOf(rec: RunRecord): RunProgress | null {
+    const place = placeOf(rec);
+    const clips = rec.attached ?? [];
+    if (place) {
+      if (!clips.length) return place.progress;
+      return {
+        ...place.progress,
+        watched: clips.length,
+        ...(footageSecOf(clips) ? { footageSec: footageSecOf(clips) } : {}),
+        leftOut: leftOutOf(clips, o.designRoot, place.edl),
+      };
+    }
+    if (!clips.length) return null;
+    return watchOf(clips, o.designRoot, { live: rec.state !== 'ended' });
   };
 }

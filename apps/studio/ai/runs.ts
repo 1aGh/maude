@@ -47,6 +47,7 @@ import {
   reduceRun,
   runView,
 } from './run-lifecycle.ts';
+import { attachedClips } from './watch-progress.ts';
 
 export const RENEW_MS = 10_000;
 export const HOOK_LAPSE_MS = 120_000;
@@ -79,6 +80,8 @@ export interface AskInput {
   continuationOf?: string;
   copyOf?: LeaseKey;
   agent?: string;
+  /** S7.15 — the footage the ask attached, when it is not in `prompt` (Keep going carries the stopped run's) */
+  attached?: RunRecord['attached'];
   /** lease nothing up front: each edit claims what it reaches (terminal Claude, /design:edit) */
   lazy?: boolean;
 }
@@ -156,6 +159,7 @@ export function createRunRegistry(opts: RegistryOptions) {
   /** the last fence this registry saw per key (§5.6 provisional claims) */
   const lastFence = new Map<string, number>();
   let timer: ReturnType<typeof setInterval> | null = null;
+  let progressTimer: ReturnType<typeof setInterval> | null = null;
   const bannerFiles = new Set<string>();
 
   // ── persistence ───────────────────────────────────────────────────────────────────────────
@@ -533,6 +537,8 @@ export function createRunRegistry(opts: RegistryOptions) {
     }
     const askId = input.askId && ASK_ID_RE.test(input.askId) ? input.askId : newId('a');
     const chatId = input.chatId ?? null;
+    // S7.15 — the footage this ask attached, read once from its text; the prompt itself is dropped later
+    const attached = input.attached?.length ? input.attached : attachedClips(input.prompt);
     const ahead = chatId
       ? [...records.values()].find((r) => r.chatId === chatId && isLive(r))
       : undefined;
@@ -549,6 +555,7 @@ export function createRunRegistry(opts: RegistryOptions) {
       device,
       label: cleanLabel(input.label),
       ...(input.prompt ? { prompt: input.prompt } : {}),
+      ...(attached.length ? { attached } : {}),
       scope: keyedScope(input.scope),
       ...(input.copyOf ? { copyOf: input.copyOf } : {}),
       state: 'waiting',
@@ -850,6 +857,7 @@ export function createRunRegistry(opts: RegistryOptions) {
       scope: r.scope,
       resumeOf: r.runId,
       agent: r.agent,
+      attached: r.attached,
     });
   }
 
@@ -937,12 +945,18 @@ export function createRunRegistry(opts: RegistryOptions) {
       timer = setInterval(() => void renewNow(), RENEW_MS);
       timer.unref?.();
     }
+    if (opts.autoRenew !== false && opts.progressOf && !progressTimer) {
+      progressTimer = setInterval(progressTick, PROGRESS_TICK_MS);
+      progressTimer.unref?.();
+    }
     return { interrupted: live.map((r) => r.runId) };
   }
 
   function close() {
     if (timer) clearInterval(timer);
     timer = null;
+    if (progressTimer) clearInterval(progressTimer);
+    progressTimer = null;
     home.close?.();
   }
 
@@ -961,6 +975,27 @@ export function createRunRegistry(opts: RegistryOptions) {
       endedProgress.set(r.runId, p);
     }
     return p ? { ...v, progress: p } : v;
+  }
+  // S7.15 — a run that watches footage moves when a sidecar lands, which touches no run record: a light tick
+  // re-derives the progress of live runs that attached footage and says the registry moved when it changed
+  // (the chat's `{t:'run'}` frame and the runs list follow `ai:runs`). Runs with no attachments cost nothing.
+  const PROGRESS_TICK_MS = 1500;
+  const lastProgress = new Map<string, string>();
+  function progressTick(): boolean {
+    if (!opts.progressOf) return false;
+    let moved = false;
+    for (const r of records.values()) {
+      if (!isLive(r) || !r.attached?.length) {
+        lastProgress.delete(r.runId);
+        continue;
+      }
+      const j = JSON.stringify(safeProgress(r));
+      if (lastProgress.get(r.runId) === j) continue;
+      lastProgress.set(r.runId, j);
+      moved = true;
+    }
+    if (moved) changed();
+    return moved;
   }
   function safeProgress(r: RunRecord): RunProgress | null {
     try {
@@ -1059,6 +1094,7 @@ export function createRunRegistry(opts: RegistryOptions) {
     // the home
     view,
     renewNow,
+    progressTick,
     pull,
     poke: (homeSeqNow: number) => {
       if (homeSeqNow !== homeSeq) void pull();
