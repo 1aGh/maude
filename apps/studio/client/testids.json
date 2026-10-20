@@ -34235,6 +34235,22 @@
     "v2": "new in v2 (S7.10)"
   },
   {
+    "hook": "insp-title-font",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11b: the Title inspector's Font — the design system's font tokens, written as var(--font-…) in the title's style (video.title.style); Default takes it off.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/title-rows.jsx",
+      "symbol": "StyleRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/title-style.test.ts"
+    ],
+    "v2": "new in v2 (S7.11b)"
+  },
+  {
     "hook": "timeline-transition-picker",
     "kind": "testid",
     "pattern": false,

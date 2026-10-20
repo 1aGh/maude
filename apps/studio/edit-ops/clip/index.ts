@@ -42,6 +42,7 @@ import { applyPlace, placePatch } from './place.ts';
 import { applyReframe, reframePatch } from './reframe.ts';
 import { applyTakeSwap } from './take-swap.ts';
 import { applyTitleMotion, titleMotionPatch } from './title-motion.ts';
+import { applyTitleStyle, titleStylePatch } from './title-style.ts';
 
 export interface ClipTarget {
   /** designRoot-relative canvas (the appliers use it for messages + the parser's file name) */
@@ -420,6 +421,24 @@ export const VIDEO_OPS: readonly EditOp[] = [
         titleMotionPatch(t.file, req.params, t.stableId)
       );
       return { source: r.source, detail: { motion: r.motion } };
+    },
+  },
+  {
+    // A title's font and colour (S7.11b, 07 ve-text): fontFamily / color in the style of the element holding its words
+    id: 'video.title.style',
+    scope: 'artboard',
+    artboards: heldArtboards,
+    apply(source, req) {
+      const t = clipTarget(req);
+      const r = applyTitleStyle(
+        t.file,
+        source,
+        t.artboard,
+        t.stableId,
+        t.hash,
+        titleStylePatch(t.file, req.params, t.stableId)
+      );
+      return { source: r.source, detail: { styled: r.source !== source } };
     },
   },
   {
