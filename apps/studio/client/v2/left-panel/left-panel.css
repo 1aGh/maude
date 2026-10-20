@@ -405,6 +405,7 @@
   }
   .lp-adv-body {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     max-height: 40vh;
     overflow-y: auto;
