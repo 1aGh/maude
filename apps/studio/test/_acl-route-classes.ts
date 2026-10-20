@@ -87,6 +87,9 @@ const FILTERED = [
   '/_comments-all',
   '/_api/index',
   '/_api/assets',
+  // S8.21 — an asset's details and the Generated runs: judged per asset like /_api/assets
+  '/_api/asset-details',
+  '/_api/asset-generated',
   '/_api/ai',
   '/_api/ai/runs',
   '/_api/outbox',

@@ -728,7 +728,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'assets.details': {
     effect: 'none',
     minRole: 'view',
-    server: { route: '/_api/asset-details', method: 'GET' },
+    // a read for every role (GET /_api/asset-details): no per-role refusal row, so no `server` key (as S10.9's ds.show-reach)
     agent: cli('maude design assets --usage <asset> --details'),
   },
   // S8.13 — Move to trash on an asset: the picture and its sidecars go to `_trash/` together (the manifest says where each
@@ -1142,7 +1142,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   // S8.10 — Handoff to production writes code into the project (one AI run, its target file only; the server
   // refuses below Can edit). An agent runs the same verb (`--target web`), or /design:to-rn and /design:to-lottie.
-  'handoff.open': { effect: 'project', agent: cli('maude design handoff') },
+  // Opening the sheet changes nothing (fromCanvas ⇒ effect none, V2-1.3 inv. 3); the sheet's Hand off is the write (POST /_api/handoff, Can edit).
+  'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
   'export.rerun-last': {
     effect: 'project',
     agent: cli('maude design exports again <id>'),

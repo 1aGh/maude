@@ -72,7 +72,7 @@ export { canvasPathsOfIndex } from './availability.ts';
 // S2.9b — the `annotations` rider of the legacy `/_api/canvas-meta` PATCH (one action, one ⌘Z)
 export { riderPatch } from './canvas-meta-rider.ts';
 // S8.1 — the v2 half of http.ts's legacy `/_api/export(-jobs)` routes shares the estimate's gate.
-export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
+export { cloudExportResponse, type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 // S8.16 — the Generate-with-N-takes deps over the live registry, key store and generation queue.
 export { generateDepsFor } from './generate.ts';
 // S8.10 — the queued handoff's release reads the same target + review the route does.

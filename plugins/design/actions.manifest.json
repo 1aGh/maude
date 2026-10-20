@@ -1894,10 +1894,6 @@
       "exec": "shell",
       "effect": "none",
       "minRole": "view",
-      "server": {
-        "route": "/_api/asset-details",
-        "method": "GET"
-      },
       "agent": {
         "path": "cli",
         "verb": "maude design assets --usage <asset> --details"
@@ -3673,7 +3669,7 @@
       "kind": "command",
       "exec": "shell",
       "fromCanvas": true,
-      "effect": "project",
+      "effect": "none",
       "agent": {
         "path": "cli",
         "verb": "maude design handoff"

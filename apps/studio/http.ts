@@ -219,8 +219,8 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, EDIT8_RE, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { cloudExportResponse } from './routes/export.ts';
 import {
+  cloudExportResponse,
   allSpecs,
   announceAction,
   assetStateDepsFor,
