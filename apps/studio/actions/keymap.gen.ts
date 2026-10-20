@@ -146,11 +146,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '⇧←',
         layer: 'selection',
-        when: {
-          focus: ['canvas'],
-          selection: ['object', 'artboard'],
-          notFacts: ['selectionHasTakes'],
-        },
+        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
         alias: true,
       },
       {
@@ -165,49 +161,29 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '⇧→',
         layer: 'selection',
-        when: {
-          focus: ['canvas'],
-          selection: ['object', 'artboard'],
-          notFacts: ['selectionHasTakes'],
-        },
+        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
         alias: true,
       },
       {
         chord: '↑',
         layer: 'selection',
-        when: {
-          focus: ['canvas'],
-          selection: ['object', 'artboard'],
-          notFacts: ['selectionHasTakes'],
-        },
+        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
       },
       {
         chord: '⇧↑',
         layer: 'selection',
-        when: {
-          focus: ['canvas'],
-          selection: ['object', 'artboard'],
-          notFacts: ['selectionHasTakes'],
-        },
+        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
         alias: true,
       },
       {
         chord: '↓',
         layer: 'selection',
-        when: {
-          focus: ['canvas'],
-          selection: ['object', 'artboard'],
-          notFacts: ['selectionHasTakes'],
-        },
+        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
       },
       {
         chord: '⇧↓',
         layer: 'selection',
-        when: {
-          focus: ['canvas'],
-          selection: ['object', 'artboard'],
-          notFacts: ['selectionHasTakes'],
-        },
+        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
         alias: true,
       },
     ],

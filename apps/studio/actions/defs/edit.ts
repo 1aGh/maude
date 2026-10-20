@@ -273,11 +273,14 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Nudge',
     kind: 'command',
     exec: 'canvas',
-    // S8.16: a selected picture with other takes gives ← → to `image.next-take` / `image.prev-take`
+    // S8.16: a selected picture with other takes gives bare ← → to `image.next-take` / `image.prev-take`;
+    // ⇧← ⇧→ (10 px) and ↑ ↓ still nudge it.
     keys: ['←', '→', '↑', '↓'].flatMap((a) =>
-      mods(a, '⇧', 'selection', {
-        when: { ...OBJ, selection: ['object', 'artboard'], notFacts: ['selectionHasTakes'] },
-      })
+      mods(a, '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } }).map((b) =>
+        b.chord === '←' || b.chord === '→'
+          ? { ...b, when: { ...b.when, notFacts: ['selectionHasTakes' as const] } }
+          : b
+      )
     ),
   },
   // S2.6 (ed-obj-order) — the object menu's rows. Edit-mode chords on an OBJECT selection (the same
