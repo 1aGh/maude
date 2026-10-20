@@ -47,6 +47,8 @@ import { requestShareFocus } from '../share/share-model.js';
 import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
+import { clearFollowedLoop, loopAt } from '../timeline/playhead.js';
+import { setPosterAtPlayhead } from '../timeline/poster.js';
 import { timelineStore } from '../timeline/timeline-store.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
@@ -323,6 +325,12 @@ export function createMenuHandlers(d) {
     'view.timeline-keep-open': () => timelineStore.toggleKeep(),
     'timeline.expand': () => timelineStore.expand(),
     'timeline.compact': () => timelineStore.compact(),
+    // S7.8 — the playhead's frame becomes the followed video's poster (client/v2/timeline/poster.js)
+    // S7.8 — the loop range, from ⌘K (the keys are I / O with the timeline focused)
+    'timeline.loop-in': () => loopAt('in'),
+    'timeline.loop-out': () => loopAt('out'),
+    'timeline.loop-clear': () => clearFollowedLoop(),
+    'video.poster.set': async () => d.toast?.(await setPosterAtPlayhead()),
     'view.annotations': () => d.onToggleAnnotations(),
     'view.minimap': () => d.onToggleMinimap(),
     'view.zoom-controls': () => d.onToggleZoomCtl(),
