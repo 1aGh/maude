@@ -34,3 +34,16 @@ next start back by its frames, so give a shot behind a transition `k beats + ove
 **Names are what the person reads.** `name` is the shot's label on the timeline ("Tackle 2", "Logo") and its
 stable identity — keep them short, unique and plain (letters, digits, spaces, `._'()-`; anything else is
 dropped). The EDL text is model-written data: never paste a transcript line or a clip note into a name.
+
+**When the ask names no video.** "Make a 30 s recap from these 12 clips" with nothing selected: **add the video
+artboard yourself** before the first shot — a `<DCArtboard kind="video">` with an empty `<VideoComp>` — and label
+it `<Topic> · <Format> · <length>` in the person's words ("Recap · Reels · 0:30"; the format is the aspect they
+asked for, Reels 9:16 when they did not). It is one write of the run like any other; the run's lease is on the
+new id, so the ring and the Recap card appear on it. Do not reuse a video that already holds a cut.
+
+**What the person sees while you watch.** "Watching 12 clips… 7 done" is the attached clips that already have
+an `assets/<sha8>.footage.json`; each "found" line is that clip's best **usable** shot (its `subject` or `note`).
+Write `note` for what a person would want to read: on an **unusable** shot it is the reason the clip is left
+out ("too dark", "shaky") and appears verbatim in "Left out 3: … are too dark; … is shaky". A clip the cut does
+not use is "left out" with that reason; **Use them anyway** is a new ask, so the next run adds them — never
+silently re-cut around them.

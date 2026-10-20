@@ -1,0 +1,168 @@
+/* @layer components — S7.15: the AI cut's chat cards (07 · ve-ai-watch, ve-ai-cut, ve-ai-scrub, ve-ai-proposal).
+   The footage line under your ask, the "Watching 12 clips… 7 done" grid with what AI liked, and the clips left
+   out. Tokens only; the one moving thing (a tile's tick) follows --dur-* and collapses under reduced motion. */
+@layer components {
+  .ai-vatt {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-1) 0;
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .ai-vatt-m {
+    color: var(--fg-2);
+  }
+  .ai-vatt-stack {
+    position: relative;
+    flex: none;
+    width: 40px;
+    height: 24px;
+  }
+  .ai-vatt-stack > span {
+    position: absolute;
+    width: 30px;
+    height: 20px;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: 0 0 0 1px var(--bg-3);
+  }
+  .ai-vatt-stack > span:nth-child(2) {
+    left: 5px;
+    top: 2px;
+  }
+  .ai-vatt-stack > span:nth-child(3) {
+    left: 10px;
+    top: 4px;
+  }
+  .ai-vatt-stack video,
+  .ai-vwatch-c video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+
+  .ai-vcard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: var(--space-1) 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .ai-vcard-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ai-vcard-t svg {
+    color: var(--spark);
+  }
+  .ai-vwatch {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ai-vwatch-c {
+    position: relative;
+    height: 32px;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .ai-vwatch-c--wait {
+    opacity: 0.4;
+  }
+  .ai-vwatch-st {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--status-success-text);
+  }
+  .ai-vwatch-st--now {
+    color: var(--spark);
+  }
+  .ai-vfound {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .ai-vfound > span {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .ai-vfound b {
+    min-width: 46px;
+    font-weight: var(--w-medium);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ai-vmsg {
+    margin: var(--space-1) 0;
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    color: var(--fg-0);
+  }
+  .ai-vleft {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    margin: var(--space-1) 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .ai-vlink {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: var(--w-medium);
+    color: var(--accent-text);
+    cursor: pointer;
+  }
+  .ai-vlink:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+  .ai-vlink:disabled {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ai-vlink:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+}

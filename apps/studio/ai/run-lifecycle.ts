@@ -90,6 +90,8 @@ export interface RunRecord {
   homeRunId?: string;
   /** studio-local: keys an edit/check denied `artboard-busy` — continued at the end (§5.5) */
   busyDenied?: LeaseKey[];
+  /** studio-local (S7.15): the footage the ask attached (`assets/<sha8>.<ext>` + the name it was given) */
+  attached?: Array<{ asset: string; name: string; durationSec?: number }>;
 }
 
 export type RunEvent =
@@ -287,6 +289,16 @@ export interface RunProgress {
     onBeat: boolean;
     stableId: string;
   } | null;
+  /** S7.15 — watch: every attached clip and where the watching has got to */
+  clips?: Array<{ asset: string; name: string; state: 'done' | 'now' | 'wait' }>;
+  /** S7.15 — watch: each watched clip's best usable shot, `at` in SOURCE seconds */
+  found?: Array<{ asset: string; name: string; at: number; line: string }>;
+  /** S7.15 — the length of all the attached footage, when every clip said its own */
+  footageSec?: number;
+  /** S7.15 — place: how many clips were attached (the "Watched all 12" count) */
+  watched?: number;
+  /** S7.15 — place: watched clips the cut does not use, with the note of their best unusable shot */
+  leftOut?: Array<{ asset: string; name: string; why?: string }>;
 }
 
 /** What YOUR shell reads (`GET /_api/ai/runs` `mine`): the record minus the queued prompt. */

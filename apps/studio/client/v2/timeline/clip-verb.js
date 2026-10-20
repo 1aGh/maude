@@ -48,6 +48,8 @@ export const CLIP_VERB_LABELS = {
   'video.captions.add': 'edit captions',
   // S7.18 — a keyframe's curve (Advanced › Easing)
   'video.easing.set': 'set curve',
+  // S7.15 — Other takes: another shot of the same source at the same length (07 · ve-ai-adjust)
+  'video.take.swap': 'swap a take',
 };
 
 const REFUSAL_WORD = {
@@ -61,6 +63,7 @@ const REFUSAL_WORD = {
   'video.title.style': 'Style',
   'video.transition.set': 'Transition',
   'video.easing.set': 'Curve',
+  'video.take.swap': 'Swap',
 };
 
 /** The title of the notice a refused verb raises: "Trim refused", never "retime refused". */
