@@ -360,4 +360,119 @@
     color: var(--fg-1);
     cursor: pointer;
   }
+
+  /* ── S11.14 Connections (06 ad-edge-hub): one row per connection, each with its own Advanced ── */
+  .v2s-conns {
+    display: flex;
+    flex-direction: column;
+  }
+  .v2s-conn {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .v2s-conn-r {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .v2s-conn-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .v2s-conn-t {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .v2s-conn-s {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-conn-s--ok::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: var(--space-1);
+    border-radius: 50%;
+    background: var(--status-success);
+    vertical-align: middle;
+  }
+  .v2s-conn-a {
+    flex: none;
+    display: inline-flex;
+    gap: var(--space-2);
+  }
+  .v2s-conn-fold,
+  .v2s-conn-list,
+  .v2s-conn-keys,
+  .v2s-conn > .v2s-conn-replace,
+  .v2s-conn > .v2s-hint,
+  .v2s-conn > .v2s-conn-err,
+  .v2s-conn-more {
+    margin: var(--space-2) 0 0 calc(28px + var(--space-3));
+  }
+  .v2s-conn-body {
+    margin-left: calc(28px + var(--space-3));
+  }
+  .v2s-conn-body > .v2s-conn-list {
+    margin-left: 0;
+  }
+  .v2s-conn-h {
+    margin: 0 0 var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2s-conn-li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .v2s-conn-k {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-xs);
+  }
+  .v2s-conn-kk {
+    flex: none;
+    width: 120px;
+    color: var(--fg-2);
+  }
+  .v2s-conn-kv {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg-1);
+  }
+  .v2s-conn-kv--mono {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    overflow-wrap: anywhere;
+  }
+  .v2s-conn-inline,
+  .v2s-conn-replace {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+  .v2s-conn-err {
+    margin: var(--space-1) 0 0;
+    font-size: var(--type-xs);
+    color: var(--status-error);
+  }
 }

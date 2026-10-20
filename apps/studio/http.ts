@@ -2190,6 +2190,8 @@ export function createHttp(
     },
     // S9.20b — GET /_api/cloud/plan (routes/cloud-plan.ts): main origin only, the device token.
     cloudPlan: { cloud: cloudApi },
+    // S11.14 — GET /_api/connections/hub (routes/connections.ts): main origin only, the hub credential.
+    connections: { designRoot: ctx.paths.designRoot },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted

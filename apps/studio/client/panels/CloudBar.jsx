@@ -403,6 +403,133 @@ function Icon({ name, size = 15 }) {
   );
 }
 
+/**
+ * The Maude Cloud device-code sheet (S11.14: lifted out of CloudBar so Settings › Connections draws
+ * the same one). `openFailed` is the last open's result ('' | 'refused' | 'failed'), owned by the
+ * caller because the caller's sign-in made the first open; `onOpenResult` takes a re-open's.
+ */
+export function CloudDeviceDialog({ device, cloudUrl, openFailed, onOpenResult, onCancel }) {
+  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const copy = (text, mark) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(
+      () => {
+        mark(true);
+        setTimeout(() => mark(false), 1500);
+      },
+      () => {}
+    );
+  };
+  const copyCode = () => copy(device?.userCode, setCopied);
+  const copyLink = () => copy(device?.verificationUrl, setCopiedLink);
+  return (
+    <div
+      className="gi-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sign in to Maude Cloud"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onCancel();
+      }}
+    >
+      <div className="gi-scrim" aria-hidden="true" onClick={onCancel} />
+      <div className="gi-dialog gi-dialog--code" data-testid="cloud-device-dialog">
+        <div className="gi-dc-head">
+          <span className="gi-dc-marks">
+            <Spark size={26} />
+          </span>
+          <h2>Sign in to Maude Cloud</h2>
+          {/* Says what to DO, not what supposedly already happened. The old
+                copy claimed the browser had opened — a claim this surface
+                cannot make, since the shell's open is best-effort and the
+                person is the one who finds out it didn't. */}
+          <p>Confirm this code on your Maude Cloud dashboard to connect.</p>
+        </div>
+        <div className="gi-code">
+          <span className="gi-code-val" data-testid="cloud-user-code">
+            {device.userCode}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost gi-code-copy"
+            onClick={copyCode}
+            aria-label="Copy the code"
+          >
+            <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        {/* The manual path, always present — never conditional on whether the
+              open "worked". It is the only thing standing between an older
+              shell / a drifted self-host origin / a blocked popup and a dead
+              end. The address already carries the code (`/activate?code=…`),
+              so following it is one click, not a re-type. */}
+        {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloudUrl) && (
+          <div className="gi-dc-link">
+            <span className="gi-dc-link-lbl">
+              {openFailed === 'failed'
+                ? 'Maude couldn’t open your browser. Open this address yourself:'
+                : 'If your browser didn’t open, go to:'}
+            </span>
+            <div className="gi-dc-link-row">
+              <a
+                className="gi-dc-url gi-dc-link-a"
+                href={device.verificationUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+                data-testid="cloud-signin-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openExternal(device.verificationUrl).then(onOpenResult);
+                }}
+              >
+                {device.verificationUrl}
+              </a>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={copyLink}
+                aria-label="Copy the link"
+              >
+                <Icon name="copy" size={14} /> {copiedLink ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+          </div>
+        )}
+        {openFailed === 'refused' && (
+          // A REFUSAL is not "your browser didn't open" — it is Maude saying
+          // that address isn't Maude Cloud. Saying so, and NOT offering to
+          // help open it, is the whole difference (attacker re-review NEW-2).
+          <div className="gi-dl-warn" data-testid="cloud-signin-refused">
+            <strong>Maude wouldn’t open that address.</strong>
+            <span>It isn’t a Maude Cloud address. Sign in on your dashboard instead.</span>
+          </div>
+        )}
+        {device.verificationUrl && !isDisplayableUrl(device.verificationUrl, cloudUrl) && (
+          // An address we won't put behind a link or a copy button. Naming it
+          // is the point — silently dropping it would look like a bug.
+          <div className="gi-dl-warn" data-testid="cloud-signin-badurl">
+            <strong>Maude Cloud sent an address that doesn’t look right.</strong>
+            <span>
+              Nothing was opened. Sign in on your dashboard directly instead of following it.
+            </span>
+          </div>
+        )}
+        <div className="gi-dc-status" aria-live="polite">
+          <span className="gi-pulse" aria-hidden="true" />
+          <span>Waiting for you to confirm in the browser…</span>
+        </div>
+        <div className="gi-dc-foot">
+          <button type="button" className="btn btn--ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <span className="gi-dc-foot-note">Nothing is stored until you confirm.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // `onLinkedHub` lifts the resolved link state to the app shell (DDR-218): the
 // GitPanel's cloud-managed posture turns on the same `linkedHub.credentialed`
 // fact this panel's Connected row does, and CloudBar owns every action that
@@ -442,8 +569,6 @@ export default function CloudBar({
   // already-wired `sync:status` bus, so no polling and no second fetch.
   const [connected, setConnected] = useState(null); // { project, sync }
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [openFailed, setOpenFailed] = useState(''); // '' | 'refused' | 'failed'
   const [cloudUrl, setCloudUrl] = useState('https://cloud.maude.sh');
   // `resolved` gates the deep-link dialog: rendering the decision before the
@@ -745,23 +870,6 @@ export default function CloudBar({
     announce();
   }
 
-  // One clipboard write, one 1.5 s "Copied" flash. The code and the link are the
-  // same gesture, so they share the mechanism — and both swallow a refusal
-  // (no clipboard permission) silently: the value is on screen either way.
-  function copyToClipboard(text, mark) {
-    if (!text) return;
-    navigator.clipboard?.writeText(text).then(
-      () => {
-        mark(true);
-        setTimeout(() => mark(false), 1500);
-      },
-      () => {}
-    );
-  }
-
-  const copyCode = () => copyToClipboard(device?.userCode, setCopied);
-  const copyLink = () => copyToClipboard(device?.verificationUrl, setCopiedLink);
-
   if (state === 'loading') return null;
 
   const hint = pending
@@ -778,113 +886,16 @@ export default function CloudBar({
   // a demoted Connect. Silence is reserved for the two cases we can vouch for.
   const reassured = hint === 'linked' || hint === 'match';
 
-  // The device-code sign-in sheet — the rail and the settings row open the same one.
+  // The device-code sign-in sheet — the rail and the settings row open the same one (S11.14: the
+  // same component Settings › Connections draws, `CloudDeviceDialog`).
   const deviceDialog = device ? (
-    <div
-      className="gi-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Sign in to Maude Cloud"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') cancelSignIn();
-      }}
-    >
-      <div className="gi-scrim" aria-hidden="true" onClick={cancelSignIn} />
-      <div className="gi-dialog gi-dialog--code" data-testid="cloud-device-dialog">
-        <div className="gi-dc-head">
-          <span className="gi-dc-marks">
-            <Spark size={26} />
-          </span>
-          <h2>Sign in to Maude Cloud</h2>
-          {/* Says what to DO, not what supposedly already happened. The old
-                  copy claimed the browser had opened — a claim this surface
-                  cannot make, since the shell's open is best-effort and the
-                  person is the one who finds out it didn't. */}
-          <p>Confirm this code on your Maude Cloud dashboard to connect.</p>
-        </div>
-        <div className="gi-code">
-          <span className="gi-code-val" data-testid="cloud-user-code">
-            {device.userCode}
-          </span>
-          <button
-            type="button"
-            className="btn btn--ghost gi-code-copy"
-            onClick={copyCode}
-            aria-label="Copy the code"
-          >
-            <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-        {/* The manual path, always present — never conditional on whether the
-                open "worked". It is the only thing standing between an older
-                shell / a drifted self-host origin / a blocked popup and a dead
-                end. The address already carries the code (`/activate?code=…`),
-                so following it is one click, not a re-type. */}
-        {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloudUrl) && (
-          <div className="gi-dc-link">
-            <span className="gi-dc-link-lbl">
-              {openFailed === 'failed'
-                ? 'Maude couldn’t open your browser. Open this address yourself:'
-                : 'If your browser didn’t open, go to:'}
-            </span>
-            <div className="gi-dc-link-row">
-              <a
-                className="gi-dc-url gi-dc-link-a"
-                href={device.verificationUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-                data-testid="cloud-signin-link"
-                onClick={(e) => {
-                  e.preventDefault();
-                  openExternal(device.verificationUrl).then((s) =>
-                    setOpenFailed(s === 'ok' ? '' : s)
-                  );
-                }}
-              >
-                {device.verificationUrl}
-              </a>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={copyLink}
-                aria-label="Copy the link"
-              >
-                <Icon name="copy" size={14} /> {copiedLink ? 'Copied' : 'Copy link'}
-              </button>
-            </div>
-          </div>
-        )}
-        {openFailed === 'refused' && (
-          // A REFUSAL is not "your browser didn't open" — it is Maude saying
-          // that address isn't Maude Cloud. Saying so, and NOT offering to
-          // help open it, is the whole difference (attacker re-review NEW-2).
-          <div className="gi-dl-warn" data-testid="cloud-signin-refused">
-            <strong>Maude wouldn’t open that address.</strong>
-            <span>It isn’t a Maude Cloud address. Sign in on your dashboard instead.</span>
-          </div>
-        )}
-        {device.verificationUrl && !isDisplayableUrl(device.verificationUrl, cloudUrl) && (
-          // An address we won't put behind a link or a copy button. Naming it
-          // is the point — silently dropping it would look like a bug.
-          <div className="gi-dl-warn" data-testid="cloud-signin-badurl">
-            <strong>Maude Cloud sent an address that doesn’t look right.</strong>
-            <span>
-              Nothing was opened. Sign in on your dashboard directly instead of following it.
-            </span>
-          </div>
-        )}
-        <div className="gi-dc-status" aria-live="polite">
-          <span className="gi-pulse" aria-hidden="true" />
-          <span>Waiting for you to confirm in the browser…</span>
-        </div>
-        <div className="gi-dc-foot">
-          <button type="button" className="btn btn--ghost" onClick={cancelSignIn}>
-            Cancel
-          </button>
-          <span className="gi-dc-foot-note">Nothing is stored until you confirm.</span>
-        </div>
-      </div>
-    </div>
+    <CloudDeviceDialog
+      device={device}
+      cloudUrl={cloudUrl}
+      openFailed={openFailed}
+      onOpenResult={(s) => setOpenFailed(s === 'ok' ? '' : s)}
+      onCancel={cancelSignIn}
+    />
   ) : null;
 
   // The cloud projects, one row each — the rail's menu and Settings › Connections draw the same rows

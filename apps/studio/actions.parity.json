@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 145,
+  "humanMax": 149,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -159,6 +159,12 @@
       "from": 144,
       "by": "decision:maude/v2-S6.4-open-remote-human",
       "why": "S6.4 registers cloud.open-remote (Open on a cloud project or a share that is not on this Mac yet, V2-1.1 §5.9): it makes the person's own copy of someone else's cloud project, then opens a tab — the hub link, human 'hub-link' like sync.download-all. The agent works inside one project and never reaches the cross-project Home. One human row (lead ack needed)."
+    },
+    {
+      "to": 149,
+      "from": 145,
+      "by": "decision:maude/v2-S11.14-connections-actions-human",
+      "why": "S11.14 registers Settings › Connections' four capabilities on their existing routes: Replace the team server's access token (POST /_api/hub/link) and Connect / Disconnect this folder to a cloud project (POST /_api/cloud/attach|detach) are human 'hub-link' — the `link` / `unlink` verbs are themselves human-tier (verbs.ts), an agent never types a credential; the Figma Test (POST /_api/figma/probe) is human 'accounts' — it spends the person's token, and the agent's Figma door is `maude design import-figma`. Four human rows; lead ack needed."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. V2-5 A5 integration: measured 113 human actions in the merged registry (107 on feat + trash.clear from S1.7b + four ai.attach-* from S5.10 + present.presenter-view from S3.6b); every other A5 slice adds no human row. V2-5 A6a integration: measured 118 human actions in the merged registry (113 on feat + artboard.ask-ai S2.10 + element.set-id S2.2b/lead + edit.undo-history S2.20 + history.filter S1.12b − view.trash S1.17 (cli) + tab.overview + tab.rename S1.22b); every other A6a slice adds no human row."

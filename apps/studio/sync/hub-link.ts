@@ -217,4 +217,7 @@ export function deleteHubCredential(normUrl: string): void {
   renameSync(tmp, path);
 }
 
+/** S11.14 — the same tokenless probe, for Settings › Connections › the hub's version. */
+export const probeHubHealth = probeHealth;
+
 export const __testing = { probeHealth };

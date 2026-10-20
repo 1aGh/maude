@@ -75,15 +75,21 @@
     "pattern": false,
     "meaning": "Signed-in cloud account control: the account menu button in the sidebar cloud rail (`CloudBar`). V2-4.8a: the menubar's account chip is gone; a cloud tab's account is the email on project menu › File › \"Sign in as another account…\".",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "menubar",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
     "v2": "moves",
-    "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted."
+    "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted.",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-signout",
@@ -3831,16 +3837,22 @@
     "hook": "cloud-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Maude Cloud rail at the bottom of the sidebar (local, non-cloud shell only).",
+    "meaning": "Connections › Maude Cloud: the account’s own words — the cloud projects on this Mac, the Connect outcome note, an error. (The CloudBar rail’s root keeps the same hook.)",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
-    "v2": "moves"
+    "v2": "moves",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-signin",
@@ -3848,14 +3860,20 @@
     "pattern": false,
     "meaning": "Cloud rail \"Sign in\" button (signed out).",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
-    "v2": "moves"
+    "v2": "moves",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-connect-note",
@@ -3863,14 +3881,20 @@
     "pattern": false,
     "meaning": "Cloud rail status note (`role=\"status\"`, `title` carries detail).",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
-    "v2": "moves"
+    "v2": "moves",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-project-<id>",
@@ -3878,14 +3902,20 @@
     "pattern": true,
     "meaning": "A cloud project item in the account menu (three render forms: view-only, connected, connectable).",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
-    "v2": "moves"
+    "v2": "moves",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-disconnect-<id>",
@@ -3893,12 +3923,18 @@
     "pattern": true,
     "meaning": "Disconnect this folder from cloud project `<id>`.",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "moves"
+    "v2": "moves",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-device-dialog",
@@ -3911,7 +3947,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudDeviceDialog"
+      }
+    ]
   },
   {
     "hook": "cloud-user-code",
@@ -11801,25 +11843,37 @@
     "pattern": false,
     "meaning": "Settings: the Figma connection card.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "figma-connect-input",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Settings: Figma token input.",
+    "meaning": "Connections › Figma: the personal access token field (a password field; under the row’s Advanced once a token is stored).",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "figma-connect-save",
@@ -11827,12 +11881,18 @@
     "pattern": false,
     "meaning": "Settings: save the Figma token.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "figma-disconnect",
@@ -11840,12 +11900,18 @@
     "pattern": false,
     "meaning": "Settings: disconnect Figma.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "figma-connected-as",
@@ -11853,12 +11919,18 @@
     "pattern": false,
     "meaning": "Settings: \"connected as …\" status line.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "figma-connect-error",
@@ -11866,12 +11938,18 @@
     "pattern": false,
     "meaning": "Settings: Figma connection error line.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "sync-settings",
@@ -12221,25 +12299,37 @@
     "pattern": false,
     "meaning": "Connections › Maude Cloud › the cloud projects on this Mac (Connect · Disconnect · View in the browser rows).",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "settings-hub-address",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Connections › Maude Cloud › the linked workspace’s address; the access token stays in the keychain and is never shown.",
+    "meaning": "Connections › the linked connection’s Advanced (your team’s own server, or Maude Cloud): the workspace address and its access token, drawn as its last four characters at most (`•••• •••• a91f`).",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-sign-out",
@@ -12247,12 +12337,18 @@
     "pattern": false,
     "meaning": "Connections › Maude Cloud › Sign out.",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-host",
@@ -12286,25 +12382,37 @@
     "pattern": false,
     "meaning": "Connections › GitHub row (sign-in state).",
     "producer": {
-      "file": "apps/studio/client/panels/IdentityBar.jsx",
-      "symbol": "IdentityBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/IdentityBar.jsx",
+        "symbol": "IdentityBar"
+      }
+    ]
   },
   {
     "hook": "settings-github-signin",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Connections › GitHub › Sign in.",
+    "meaning": "Connections › GitHub › Connect.",
     "producer": {
-      "file": "apps/studio/client/panels/IdentityBar.jsx",
-      "symbol": "IdentityBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/IdentityBar.jsx",
+        "symbol": "IdentityBar"
+      }
+    ]
   },
   {
     "hook": "settings-github-signout",
@@ -12312,12 +12420,18 @@
     "pattern": false,
     "meaning": "Connections › GitHub › Disconnect.",
     "producer": {
-      "file": "apps/studio/client/panels/IdentityBar.jsx",
-      "symbol": "IdentityBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/IdentityBar.jsx",
+        "symbol": "IdentityBar"
+      }
+    ]
   },
   {
     "hook": "settings-ai-keys",
@@ -12349,14 +12463,20 @@
     "hook": "figma-test",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Connections › Figma › Test connection.",
+    "meaning": "Connections › Figma › Test (D14): one call with the stored token, then “Connected as …”.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "FigmaConnectCard"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/SettingsPanel.jsx",
+        "symbol": "FigmaConnectCard"
+      }
+    ]
   },
   {
     "hook": "settings-app-version",
@@ -26362,5 +26482,140 @@
   {"hook": "ds-update-do", "kind": "testid", "pattern": false, "meaning": "S10.8: Update — gives this instance the current look (`ds.instance-update`).", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
   {"hook": "ds-update-detach", "kind": "testid", "pattern": false, "meaning": "S10.8: Detach — S2's `component.detach` on this instance.", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
   {"hook": "ds-update-error", "kind": "testid", "pattern": false, "meaning": "S10.8: a refusal of Update in words (AI holds it, locked, viewer).", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-bar-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).", "producer": {"file": "apps/studio/ds/board/ds-bar.tsx", "symbol": "DsBarView"}, "region": "canvas", "consumers": ["e2e:ds-review"], "sourceConsumers": ["apps/studio/test/ds-frames-wiring.test.tsx"], "v2": "new"}
+  {"hook": "ds-bar-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).", "producer": {"file": "apps/studio/ds/board/ds-bar.tsx", "symbol": "DsBarView"}, "region": "canvas", "consumers": ["e2e:ds-review"], "sourceConsumers": ["apps/studio/test/ds-frames-wiring.test.tsx"], "v2": "new"},
+  {
+    "hook": "settings-connections",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Settings › Connections: the five connection rows (06 ad-edge-hub).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-conn-<row>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One connection row (`<row>` = cloud · hub · github · ai · figma); the cloud, GitHub, AI and Figma rows keep their older hooks (`settings-cloud`, `settings-github`, `settings-ai-keys`, `figma-connect-card`), so only `settings-conn-hub` is emitted under this name. Its Advanced is the fold `connections.<row>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connection-row.jsx",
+      "symbol": "ConnectionRow"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-conn-<row>-status",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That connection’s status line: “Signed in as …”, “Connected · saved 1 min ago”, “2 keys · Gemini, ElevenLabs”, “Connected · for imports”.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connection-row.jsx",
+      "symbol": "ConnectionRow"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-hub-sign-out",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › your team’s own server › Sign out: unlinks this folder and forgets its stored sign-in (`connections.cloud-project-disconnect`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-hub-token",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › the linked connection › Advanced › Access token: the mask and at most the last four characters — never the token.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-hub-token-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Access token › Replace… (`connections.replace-hub-token`): opens the password field.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-hub-token-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The new access token (a password field, cleared after the save).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-hub-token-save",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Saves the new token through `POST /_api/hub/link`.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  },
+  {
+    "hook": "settings-hub-version",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › your team’s own server › Advanced › Hub version (a tokenless `/health` read).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-s11-14-connections"
+    ],
+    "v2": "new in v2 (S11.14)"
+  }
 ]

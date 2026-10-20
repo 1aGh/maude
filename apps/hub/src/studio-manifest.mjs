@@ -409,6 +409,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/cloud/signin/start': REFUSED,
   '/_api/cloud/signout': REFUSED,
   '/_api/cloud/status': REFUSED,
+  '/_api/connections/hub': REFUSED, // S11.14: the desktop's hub credential (last 4) — a cell has none
   '/_api/github/clone': REFUSED,
   '/_api/github/create-project': REFUSED,
   '/_api/github/create-repo': REFUSED,

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "514622eb7528",
+  "manifestVersion": "f85341e9c376",
   "actions": [
     {
       "id": "search.open",
@@ -3250,6 +3250,72 @@
         "path": "human",
         "because": "view-pref",
         "note": "prefs.json experimentalTeams: agent teams at the next AI session"
+      }
+    },
+    {
+      "id": "connections.replace-hub-token",
+      "label": "Replace the team server’s access token…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "server": {
+        "route": "/_api/hub/link",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "the person pastes the new token; it is never handed to an agent"
+      }
+    },
+    {
+      "id": "connections.figma-test",
+      "label": "Test the Figma connection",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/figma/probe",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "spends the person’s Figma token; an agent imports with `maude design import-figma`"
+      }
+    },
+    {
+      "id": "connections.cloud-project-connect",
+      "label": "Connect this folder to a cloud project…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/cloud/attach",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "links this folder to a cloud project under the person’s account"
+      }
+    },
+    {
+      "id": "connections.cloud-project-disconnect",
+      "label": "Disconnect this folder from its server…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "server": {
+        "route": "/_api/cloud/detach",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "unlinks this folder and forgets its stored sign-in"
       }
     },
     {

@@ -116,6 +116,89 @@ function Avatar({ identity, size = 26 }) {
 //              It owns no create dialog and no menu listener (the host answers those once).
 // Sign-in reaches every instance through the shell's own `github://signed-in`; sign-out has no such
 // event, so it is announced on the window.
+/**
+ * GitHub's device-flow code sheet (S11.14: lifted out of IdentityBar so Settings › Connections draws
+ * the same one). `onClose` dismisses it; the sign-in itself keeps waiting in the shell.
+ */
+export function GitHubDeviceDialog({ device, onClose }) {
+  const [copied, setCopied] = useState(false);
+  function copyCode() {
+    if (!device?.user_code) return;
+    navigator.clipboard?.writeText(device.user_code).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {}
+    );
+  }
+  return (
+    <div
+      className="gi-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sign in with GitHub"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div className="gi-scrim" aria-hidden="true" onClick={() => onClose()} />
+      <div className="gi-dialog gi-dialog--code">
+        <div className="gi-dc-head">
+          <span className="gi-dc-marks">
+            <GitHubMark size={26} />
+          </span>
+          <h2>Sign in with GitHub</h2>
+          <p>Maude opened GitHub in your browser. Enter this code to connect your account.</p>
+        </div>
+        <ol className="gi-dc-steps">
+          <li>
+            <span className="gi-dc-step-n">1</span>
+            <span className="gi-dc-step-tx">
+              Go to{' '}
+              <span className="gi-dc-url">
+                {(device.verification_uri || 'github.com/login/device').replace(/^https?:\/\//, '')}
+              </span>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm gi-dc-open"
+                onClick={() => openVerification().catch(() => {})}
+              >
+                <Icon name="external" size={14} /> Open it again
+              </button>
+            </span>
+          </li>
+          <li>
+            <span className="gi-dc-step-n">2</span>
+            <span className="gi-dc-step-tx">Enter this code to connect Maude</span>
+          </li>
+        </ol>
+        <div className="gi-code">
+          <span className="gi-code-val">{device.user_code}</span>
+          <button
+            type="button"
+            className="btn btn--ghost gi-code-copy"
+            onClick={copyCode}
+            aria-label="Copy the code"
+          >
+            <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <div className="gi-dc-status" aria-live="polite">
+          <span className="gi-pulse" aria-hidden="true" />
+          <span>Waiting for you to authorize in your browser…</span>
+        </div>
+        <div className="gi-dc-foot">
+          <button type="button" className="btn btn--ghost" onClick={() => onClose()}>
+            Cancel
+          </button>
+          <span className="gi-dc-foot-note">Nothing is stored until you authorize.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const GITHUB_SIGNED_OUT_EVENT = 'maude:github-signed-out';
 
 export default function IdentityBar({ variant = 'rail' }) {
@@ -127,7 +210,6 @@ export default function IdentityBar({ variant = 'rail' }) {
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState(null); // null | 'new' | 'get' | 'share'
-  const [copied, setCopied] = useState(false);
   const unlistenRef = useRef(null);
   const railRef = useRef(null);
   const stateRef = useRef(state);
@@ -267,17 +349,6 @@ export default function IdentityBar({ variant = 'rail' }) {
     } catch {
       /* no window — nobody to tell */
     }
-  }
-
-  function copyCode() {
-    if (!device?.user_code) return;
-    navigator.clipboard?.writeText(device.user_code).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      },
-      () => {}
-    );
   }
 
   if (!native) {
@@ -437,74 +508,7 @@ export default function IdentityBar({ variant = 'rail' }) {
         </>
       )}
 
-      {device && (
-        <div
-          className="gi-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Sign in with GitHub"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setDevice(null);
-          }}
-        >
-          <div className="gi-scrim" aria-hidden="true" onClick={() => setDevice(null)} />
-          <div className="gi-dialog gi-dialog--code">
-            <div className="gi-dc-head">
-              <span className="gi-dc-marks">
-                <GitHubMark size={26} />
-              </span>
-              <h2>Sign in with GitHub</h2>
-              <p>Maude opened GitHub in your browser. Enter this code to connect your account.</p>
-            </div>
-            <ol className="gi-dc-steps">
-              <li>
-                <span className="gi-dc-step-n">1</span>
-                <span className="gi-dc-step-tx">
-                  Go to{' '}
-                  <span className="gi-dc-url">
-                    {(device.verification_uri || 'github.com/login/device').replace(
-                      /^https?:\/\//,
-                      ''
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm gi-dc-open"
-                    onClick={() => openVerification().catch(() => {})}
-                  >
-                    <Icon name="external" size={14} /> Open it again
-                  </button>
-                </span>
-              </li>
-              <li>
-                <span className="gi-dc-step-n">2</span>
-                <span className="gi-dc-step-tx">Enter this code to connect Maude</span>
-              </li>
-            </ol>
-            <div className="gi-code">
-              <span className="gi-code-val">{device.user_code}</span>
-              <button
-                type="button"
-                className="btn btn--ghost gi-code-copy"
-                onClick={copyCode}
-                aria-label="Copy the code"
-              >
-                <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            <div className="gi-dc-status" aria-live="polite">
-              <span className="gi-pulse" aria-hidden="true" />
-              <span>Waiting for you to authorize in your browser…</span>
-            </div>
-            <div className="gi-dc-foot">
-              <button type="button" className="btn btn--ghost" onClick={() => setDevice(null)}>
-                Cancel
-              </button>
-              <span className="gi-dc-foot-note">Nothing is stored until you authorize.</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {device && <GitHubDeviceDialog device={device} onClose={() => setDevice(null)} />}
 
       {view && variant !== 'settings' && (
         <CreateProject
