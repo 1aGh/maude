@@ -18,7 +18,16 @@ import {
 import { compMediaStore } from '../client/v2/transcript/comp-media-store.js';
 import { buildTranscriptModel, flatItems } from '../client/v2/transcript/transcript-model.js';
 import { compClips } from '../video/derive.ts';
-import { A, FILE, install, mediaOf, source, type Video, video, WORDS } from './_captions-harness.ts';
+import {
+  A,
+  FILE,
+  install,
+  mediaOf,
+  source,
+  type Video,
+  video,
+  WORDS,
+} from './_captions-harness.ts';
 
 let off = () => {};
 afterEach(() => off());
@@ -81,7 +90,7 @@ describe('Captions from speech (video.captions.add)', () => {
     expect(transcriptUi.get().open).toBe(true);
   });
 
-  test('a refusal is said in the refuser\'s words, and nothing else happens', async () => {
+  test("a refusal is said in the refuser's words, and nothing else happens", async () => {
     const v = video({ transcripts: { [A]: { words: WORDS } } });
     v.answer = () => ({ ok: false, message: 'An AI run is editing this video.' });
     off = install(v);

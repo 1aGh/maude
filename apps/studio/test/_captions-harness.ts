@@ -2,10 +2,10 @@
 // The "pipe" applies the REAL edit ops (applyCaptions / applyCutSourceRange) to the source, and the
 // comp-media answer is derived with the REAL derive.ts — so what the tests see is what the studio would.
 
+import { transcriptDoor, transcriptUi } from '../client/v2/transcript/captions-api.js';
+import { compMediaStore } from '../client/v2/transcript/comp-media-store.js';
 import { applyCaptions, captionsPatch } from '../edit-ops/clip/captions.ts';
 import { applyCutSourceRange } from '../edit-ops/clip/cut-source-range.ts';
-import { compMediaStore } from '../client/v2/transcript/comp-media-store.js';
-import { transcriptDoor, transcriptUi } from '../client/v2/transcript/captions-api.js';
 import { captionsOf, compClips, compSpeech, compWords } from '../video/derive.ts';
 
 export const FILE = 'ui/Reel.tsx';
@@ -91,7 +91,12 @@ export function install(v: Video) {
   compMediaStore.reset();
   transcriptUi.reset();
   const realFetch = globalThis.fetch;
-  globalThis.fetch = (async () => Response.json(mediaOf(v))) as unknown as typeof fetch;
+  globalThis.fetch = (async (url: string) => {
+    const u = String(url);
+    if (u.includes('/_api/comp-media')) return Response.json(mediaOf(v));
+    if (u.endsWith('.css')) return new Response(':root{--bg-1:#fff}', { status: 200 });
+    return Response.json({ ok: true });
+  }) as unknown as typeof fetch;
   const off = transcriptDoor.set({
     target: () => ({ canvas: FILE, artboard: 'reel' }),
     canEdit: () => true,

@@ -81,9 +81,9 @@ describe('style (video.captions.style)', () => {
   test('words at a time, position, font and highlight are the props of the one <Captions>', async () => {
     const { v } = await ready();
     expect((await styleCaptions({ words: 3, position: 'top' })).ok).toBe(true);
-    expect((await styleCaptions({ font: 'var(--font-display)', highlight: 'var(--accent)' })).ok).toBe(
-      true
-    );
+    expect(
+      (await styleCaptions({ font: 'var(--font-display)', highlight: 'var(--accent)' })).ok
+    ).toBe(true);
     expect(captionsOf(v.source)).toEqual({
       words: 3,
       position: 'top',

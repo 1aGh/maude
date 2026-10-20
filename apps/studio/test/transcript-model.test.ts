@@ -65,7 +65,14 @@ function media(over: Record<string, unknown> = {}) {
     beats: [],
     unresolved: [],
     transcripts: { [SRC]: { durationSec: 12, lang: 'cs', words: WORDS } },
-    captions: { words: 'line', position: 'bottom', font: null, highlight: null, maxChars: null, fixes: [] },
+    captions: {
+      words: 'line',
+      position: 'bottom',
+      font: null,
+      highlight: null,
+      maxChars: null,
+      fixes: [],
+    },
     ...over,
   };
 }
@@ -120,7 +127,11 @@ describe('buildTranscriptModel — what the panel shows', () => {
   test('a source with no transcript is missing, never invented; music is not asked for', () => {
     const m = buildTranscriptModel(
       media({
-        clips: [...media().clips, { ...clip('loose:x', 0, 0, 30), src: 'assets/aaaa1111.mp4' }, { ...clip('loose:m', 0, 0, 30), track: 'music', src: 'assets/bbbb2222.mp3' }],
+        clips: [
+          ...media().clips,
+          { ...clip('loose:x', 0, 0, 30), src: 'assets/aaaa1111.mp4' },
+          { ...clip('loose:m', 0, 0, 30), track: 'music', src: 'assets/bbbb2222.mp3' },
+        ],
       })
     );
     expect(m.missing).toEqual(['assets/aaaa1111.mp4']);
@@ -192,7 +203,7 @@ describe('captionFixes — typing over a word (Q4: this video only)', () => {
     expect(captionFixes(one, item('jsem'), 'jsem')).toEqual([]);
   });
 
-  test('other words\' fixes are kept; an empty word hides it (text: null)', () => {
+  test("other words' fixes are kept; an empty word hides it (text: null)", () => {
     const other = [{ src: SRC, at: 5.0, text: 'x' }];
     expect(captionFixes(other, item('bez'), '   ')).toEqual([
       { src: SRC, at: 5.0, text: 'x' },

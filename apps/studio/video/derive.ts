@@ -410,10 +410,10 @@ export function captionsOf(source: string): CaptionsProps | null {
   const tag = openingTag(source, at);
   const n = literalProp(tag, 'words');
   const word = stringProp(tag, 'words');
-  const words: CaptionsProps['words'] = n === 1 || n === 3 ? n : word === '1' ? 1 : word === '3' ? 3 : 'line';
+  const words: CaptionsProps['words'] =
+    n === 1 || n === 3 ? n : word === '1' ? 1 : word === '3' ? 3 : 'line';
   const pos = stringProp(tag, 'position');
-  const position: CaptionsProps['position'] =
-    pos === 'top' || pos === 'middle' ? pos : 'bottom';
+  const position: CaptionsProps['position'] = pos === 'top' || pos === 'middle' ? pos : 'bottom';
   const max = literalProp(tag, 'maxChars');
   return {
     words,

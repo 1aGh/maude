@@ -26,6 +26,7 @@ import { FitFillAsk, useFitFill } from './fit-fill.jsx';
 import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
 import { TransitionPicker } from './joins/transition-picker.jsx';
 import { MusicHint } from './music-hint.jsx';
+import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
 import { timelineSelection } from './selection.js';
 import { useTimelineIsland } from './island-context.js';
 import { usePlayback } from './playhead.js';
@@ -927,7 +928,8 @@ export default function TimelinePanel({
   });
   useEffect(() => {
     if (!selSeq || selSeq.loose || !onClipVerb) {
-      timelineSelection.set(null);
+      // S7.11 — a caption word is selected through the lane, not through a clip: a refetch must not clear it
+      if (timelineSelection.get()?.kind !== 'caption') timelineSelection.set(null);
       return;
     }
     const i = selIndex;
@@ -1712,6 +1714,7 @@ export default function TimelinePanel({
                 <LIc as={Type} />
               </button>
             ) : null}
+            {island ? <CaptionsTool /> : null}
             {onAddImage ? (
               <button
                 type="button"
@@ -1978,7 +1981,20 @@ export default function TimelinePanel({
                       );
                     });
                   return [
-                    trackShell('text', 'Text', overlayRows(overlayOf('text'))),
+                    trackShell('text', 'Text', [
+                      ...overlayRows(overlayOf('text')),
+                      // S7.11 — the captions are the Text track's second lane (derived from the words)
+                      <CaptionLane
+                        key="captions"
+                        canvas={island?.canvas ?? null}
+                        artboardId={comp?.artboardId ?? null}
+                        fps={fps}
+                        frame={clamped}
+                        x={x}
+                        axisPx={axisPx}
+                        onSeek={onSeek}
+                      />,
+                    ]),
                     trackShell('gfx', 'Graphics', overlayRows(overlayOf('gfx'))),
                     overlayOf('video2').length
                       ? trackShell('video2', 'Video 2', overlayRows(overlayOf('video2')))

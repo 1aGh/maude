@@ -1,0 +1,262 @@
+/* client/v2/transcript/transcript.css — S7.11: the Transcript panel and the caption lane (07 · ve-captions, ve-text).
+ *
+ * The panel is an island in the left slot (Q17): while it is up the Canvases panel steps aside and comes back
+ * on close (`:has`, so the dock needs no new state). Tokens only; the one animation is a fade over --dur-panel,
+ * which reduced motion collapses to 1 ms. */
+
+@layer shell {
+  .st-body--float > .tx-panel {
+    position: absolute;
+    z-index: 22;
+    left: var(--float-gap, 16px);
+    top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
+    width: 304px;
+    max-height: calc(
+      100% -
+      var(--float-gap, 16px) *
+      2 -
+      var(--pill-h, 40px) -
+      var(--pill-gap, 12px) -
+      300px
+    );
+    min-height: 120px;
+    overflow-y: auto;
+    animation: tx-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  .st-body:not(.st-body--float) > .tx-panel {
+    position: absolute;
+    z-index: 22;
+    left: var(--space-3, 12px);
+    top: var(--space-3, 12px);
+    width: 304px;
+    max-height: 60%;
+    overflow-y: auto;
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  @keyframes tx-in {
+    from {
+      opacity: 0;
+    }
+  }
+  /* the Canvases / Layers / Assets slot returns when the transcript closes */
+  .st-body--float:has(> .tx-panel) > .st-dockslot--left,
+  .st-body--float:has(> .tx-panel) > .st-grip--l {
+    display: none;
+  }
+
+  .tx-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px);
+    outline: none;
+  }
+  .tx-panel:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .tx-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-0);
+  }
+  .tx-src {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-regular, 400);
+    color: var(--fg-2);
+  }
+  .tx-src + .tx-x {
+    margin-left: 0;
+  }
+  .tx-x {
+    margin-left: auto;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-1);
+    font-size: var(--type-base, 13px);
+    line-height: 1;
+    cursor: pointer;
+  }
+  .tx-x:hover {
+    background: var(--bg-3);
+  }
+  .tx-p {
+    font-size: var(--type-base, 13px);
+    line-height: var(--lh-base, 1.5);
+    color: var(--fg-0);
+    user-select: none;
+    cursor: text;
+  }
+  .tx-sec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+  }
+  .tx-sec-h {
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-medium, 500);
+    color: var(--fg-2);
+  }
+  .tx-t {
+    display: block;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .tx-w {
+    padding: 0 2px;
+    border-radius: var(--radius-xs, 4px);
+  }
+  .tx-w[data-playing] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .tx-w[data-selected] {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .tx-w[data-state="struck"] {
+    background: color-mix(in oklab, var(--status-error) 14%, transparent);
+    color: var(--status-error-text);
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+  }
+  .tx-w[data-state="struck"][data-selected] {
+    background: color-mix(in oklab, var(--status-error) 30%, transparent);
+  }
+  .tx-w[data-state="hidden"] {
+    color: var(--fg-2);
+    text-decoration: line-through dotted;
+  }
+  .tx-w[data-state="noise"] {
+    color: var(--fg-2);
+    font-style: italic;
+  }
+  .tx-w[data-low] {
+    text-decoration: underline dotted var(--fg-2);
+    text-underline-offset: 3px;
+  }
+  .tx-w[data-fixed]:not([data-selected]) {
+    box-shadow: inset 0 -1.5px 0 var(--accent);
+  }
+  .tx-edit {
+    min-width: 3ch;
+    padding: 0 2px;
+    border: 0;
+    border-radius: var(--radius-xs, 4px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font: inherit;
+    box-shadow: 0 0 0 2px var(--accent);
+    outline: none;
+  }
+  .tx-tip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    align-self: flex-start;
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--fg-0);
+    color: var(--bg-2);
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-medium, 500);
+  }
+  .tx-quiet,
+  .tx-ask p {
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.45);
+    color: var(--fg-1);
+  }
+  .tx-ask {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+  }
+  .tx-link {
+    align-self: flex-start;
+    margin-left: var(--space-2, 8px);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    cursor: pointer;
+  }
+  .tx-link:hover {
+    text-decoration: underline;
+  }
+  .tx-foot {
+    padding-top: var(--space-2, 8px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.45);
+    color: var(--fg-2);
+  }
+  .tx-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* ── the caption lane on the Text track (second lane under the titles) ───────────────────────────────── */
+  .tl-row--captions {
+    height: 24px;
+  }
+  .tl-row--captions .tl-row-track {
+    position: relative;
+    height: 100%;
+  }
+  .tl-cap {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2px;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-xs, 4px);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .tl-cap[data-hl] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-weight: var(--w-semibold, 600);
+  }
+  .tl-cap[data-sel] {
+    box-shadow: 0 0 0 2px var(--accent);
+    z-index: 2;
+  }
+  .tl-cap[data-low] {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
+  .tl-cap-tool[data-busy] {
+    opacity: 0.6;
+  }
+}

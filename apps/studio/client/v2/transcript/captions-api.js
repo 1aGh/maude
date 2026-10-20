@@ -235,7 +235,8 @@ export async function cutSelection() {
   }
   await reread(d);
   const from = d.nameOf?.(plan.src) || 'the clip';
-  const tip = cutTipText(plan, from) + (plan.inPause ? '' : '. Cut inside a phrase — play it back to check');
+  const tip =
+    cutTipText(plan, from) + (plan.inPause ? '' : '. Cut inside a phrase — play it back to check');
   setUi({ selection: [], anchor: null, tip, notice: null });
   d.toast(`Cut ${plan.removedSec.toFixed(1)} s.`, true, undoAction(d));
   return { ok: true, plan };

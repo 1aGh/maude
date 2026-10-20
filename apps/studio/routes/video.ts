@@ -73,7 +73,14 @@ export interface CompMedia {
     {
       durationSec?: number;
       lang?: string;
-      words: Array<{ id: string; t0: number; t1: number; text: string; p?: number; flags?: string[] }>;
+      words: Array<{
+        id: string;
+        t0: number;
+        t1: number;
+        text: string;
+        p?: number;
+        flags?: string[];
+      }>;
     }
   >;
   /** S7.11: the comp's <Captions> props (null = no captions yet) */
