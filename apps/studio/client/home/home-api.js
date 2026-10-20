@@ -123,6 +123,14 @@ export const signInOpenBrowser = (userCode, state) =>
   shellInvoke('home_cloud_sign_in_open', { userCode, state });
 /** After the Home server stored the credential: Rust records the account → the profile it landed in. */
 export const signInDone = (profile) => shellInvoke('home_cloud_signed_in', { profile });
+// S6.11 — an invite (contract S6-S9 §5.3). The invite id is a bearer secret: it rides only in these POST
+// bodies (never a URL, a log or the DOM), and the Home server sends it only to the control plane.
+/** → 200 `{ok, projectName, fromName, email, role, canvas?, thread?}` · 404 `{reason:'gone', error}` · 429. */
+export const invitePeek = (id) => post('/_home/invite/peek', { id });
+/** → 200 `{ok, code, landing}` · 401 signed-out · 403 `{reason:'other-account', email}` · 404 gone · 426. */
+export const inviteAccept = (id, profile) => post('/_home/invite/accept', { id, profile });
+/** The invite id a `maude://invite/<id>` link parked for Home (deep_link.rs), once; null when none. */
+export const takePendingInvite = () => shellInvoke('take_pending_invite');
 /** The What's New feed and this Mac's one seen mark (S6.6, `/_home/whats-new`). */
 export const getWhatsNew = () => homeFetch('/_home/whats-new');
 export const markWhatsNewSeen = (seen) => post('/_home/whats-new', { seen });

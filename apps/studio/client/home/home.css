@@ -808,6 +808,61 @@
     justify-content: flex-end;
     gap: var(--space-2);
   }
+  /* S6.11: the invite sheet (02 ob-edge-accounts) — this window's account → the invite's, in a new tab. */
+  .island.home-inv {
+    width: min(460px, 100%);
+  }
+  .home-inv-acc {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+  }
+  .home-inv-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .home-inv-face {
+    width: 32px;
+    height: 32px;
+    font-size: var(--type-sm);
+  }
+  .home-inv-t {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: var(--type-sm);
+  }
+  .home-inv-t strong {
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-inv-t span {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-inv-arrow {
+    display: inline-flex;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .home-link-dialog p.home-inv-fine {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .home-link-dialog p.home-inv-wait {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
   /* V2-3.9: the New project… sheet's name field. */
   .home-create-name {
     width: 100%;

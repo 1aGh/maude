@@ -45,6 +45,8 @@ import { useCloudSignIn } from '../v2/signin/use-signin.js';
 import { useWhatsNewLine } from '../v2/signin/use-whats-new-line.js';
 import { WhatsNewDialog, WhatsNewLine } from '../v2/signin/WhatsNewLine.jsx';
 import { HomeAsk } from './HomeAsk.jsx';
+import { InviteSheet } from './InviteSheet.jsx';
+import { useInviteFlow } from './invite-flow.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
   accountFace,
@@ -337,11 +339,16 @@ export function HomeApp() {
   const [toast, setToast] = useState(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const closeToast = useCallback(() => setToast(null), []);
+  // S6.11 — the invite controller reads the sign-in through this ref (it is made after the sign-in)
+  const inviteRef = useRef(null);
   const signin = useCloudSignIn({
     native: data.native,
-    // Home reads the new account's listing, then says how much arrived with it
-    onSignedIn: async ({ profile }) => {
+    // Home reads the new account's listing, then says how much arrived with it — unless the sign-in was
+    // for an invite (or the cloud redeemed one during it): then the project opens instead (S6.11)
+    onSignedIn: async (done) => {
+      const { profile } = done;
       await data.reload();
+      if (await inviteRef.current?.afterSignIn(done)) return;
       const r = await getCloud(profile);
       const n = Array.isArray(r.json?.projects) ? r.json.projects.length : 0;
       setToast(signedInToast(n));
@@ -474,6 +481,20 @@ export function HomeApp() {
     const root = await managedProjectOpen(prep.json);
     if (typeof root === 'string' && root) await openProject({ root }, target, intent);
   }, []);
+
+  // S6.11 — an invite (`maude://invite/<id>`): the profile that holds its address accepts it and lands on the
+  // canvas and thread; another account (or nobody) gets the sheet, whose Open signs that address in, in a new
+  // profile of its own (invite-flow.js).
+  const invite = useInviteFlow({
+    native: data.native,
+    clouds: data.clouds,
+    cloudsReady: data.cloudsReady,
+    signin,
+    openPrepared,
+    reload: data.reload,
+    onNotice: setNotice,
+  });
+  inviteRef.current = invite;
 
   const openCloud = useCallback(
     async (row, target) => {
@@ -946,6 +967,15 @@ export function HomeApp() {
 
       {whatsNew.reading ? (
         <WhatsNewDialog entries={whatsNew.entries} onClose={whatsNew.close} />
+      ) : null}
+      {invite.sheet ? (
+        <InviteSheet
+          sheet={invite.sheet}
+          waiting={invite.sheet.busy && signin.state.phase === 'waiting'}
+          onOpen={invite.open}
+          onCancel={invite.cancel}
+          onReopen={signin.reopen}
+        />
       ) : null}
       {toast ? <SignInToast text={toast} onDone={closeToast} /> : null}
     </div>

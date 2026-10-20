@@ -782,7 +782,7 @@ describe('home-api', () => {
           'shellInvoke',
           'shellListen',
         ].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|signInPrepare|signInOpenBrowser|signInDone)$/.test(
+        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|takePendingInvite|signInPrepare|signInOpenBrowser|signInDone)$/.test(
           name
         )
     );
@@ -798,6 +798,8 @@ describe('home-api', () => {
         'getIndex',
         'getRecentSearches',
         'getWhatsNew',
+        'inviteAccept',
+        'invitePeek',
         'markWhatsNewSeen',
         'prepareCloud',
         'prepareCloudLink',

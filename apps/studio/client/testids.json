@@ -10685,6 +10685,111 @@
     "v2": "new"
   },
   {
+    "hook": "invite-sheet",
+    "kind": "testid",
+    "meaning": "S6.11 (02 ob-edge-accounts): \"Open the invite as <address>?\" on Home — the invite's address is not an account this Mac is signed in with (`data-mode` other-account), or nobody is signed in (`signed-out`). `data-state` idle or waiting.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-title",
+    "kind": "testid",
+    "meaning": "The sheet's question, \"Open the invite as <the invite's address>?\" (the address from the peek, never from the link).",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-body",
+    "kind": "testid",
+    "meaning": "Who invited that address to which project, and which account this window is signed in with.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-open",
+    "kind": "testid",
+    "meaning": "Open: a sign-in for the invite in a NEW profile (`home_cloud_sign_in_prepare({forInvite})`), then the project opens in its own tab; other tabs keep their accounts.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-cancel",
+    "kind": "testid",
+    "meaning": "Cancel on the invite sheet (Escape and the scrim answer the same); a running sign-in for the invite stops.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-waiting",
+    "kind": "testid",
+    "meaning": "\"Waiting for your browser…\" while the invite's sign-in runs.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-reopen",
+    "kind": "testid",
+    "meaning": "\"Open the page again\" — the invite's sign-in page, in the browser again.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "home-create-cancel",
     "kind": "testid",
     "meaning": "Cancel in the New project sheet (Escape and the scrim answer the same).",
