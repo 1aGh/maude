@@ -273,8 +273,11 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Nudge',
     kind: 'command',
     exec: 'canvas',
+    // S8.16: a selected picture with other takes gives ← → to `image.next-take` / `image.prev-take`
     keys: ['←', '→', '↑', '↓'].flatMap((a) =>
-      mods(a, '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } })
+      mods(a, '⇧', 'selection', {
+        when: { ...OBJ, selection: ['object', 'artboard'], notFacts: ['selectionHasTakes'] },
+      })
     ),
   },
   // S2.6 (ed-obj-order) — the object menu's rows. Edit-mode chords on an OBJECT selection (the same
@@ -552,6 +555,27 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
     search: { keywords: ['replace', 'swap', 'picture', 'image', 'photo'] },
+  },
+  // S8.16 (ia-gen-placed) — a generated picture keeps its takes: ← → swap the next / previous one in, in place (the
+  // `image.replace` edit-op, one undo step each). Only while the one selected picture has other takes
+  // (`selectionHasTakes`); a press inside the canvas reaches the shell as `take-step` (bridge/dgn-protocol.ts).
+  {
+    id: 'image.next-take',
+    label: 'Next take',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS },
+    keys: [kb('→', 'selection', { when: { focus: ['chrome'], facts: ['selectionHasTakes'] } })],
+    search: { hidden: true },
+  },
+  {
+    id: 'image.prev-take',
+    label: 'Previous take',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS },
+    keys: [kb('←', 'selection', { when: { focus: ['chrome'], facts: ['selectionHasTakes'] } })],
+    search: { hidden: true },
   },
   // S8.15 (ia-photo-inspector, ia-photo-steps) — a photo edit changes this one use; Apply to every use is the
   // explicit choice (a sheet that names each canvas). Both are the Photo section's controls; the look and the

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f50c17ffc37a",
+  "manifestVersion": "08f898119293",
   "actions": [
     {
       "id": "search.open",
@@ -1271,6 +1271,40 @@
       }
     },
     {
+      "id": "image.next-take",
+      "label": "Next take",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design generate --take next"
+      }
+    },
+    {
+      "id": "image.prev-take",
+      "label": "Previous take",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design generate --take prev"
+      }
+    },
+    {
       "id": "photo.use-edit",
       "label": "Edit this use of the photo",
       "kind": "command",
@@ -1824,6 +1858,23 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Same as image.place: add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> to the selected frame, or first inside the selected artboard (position: \"absolute\", left: \"0\", top: \"0\"). Which files exist and where they are used: `maude design assets`. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset, mode: \"fill\" | \"loose\", artboard?}}"
+      }
+    },
+    {
+      "id": "assets.generate",
+      "label": "Generate an image…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/generate-takes",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design generate"
       }
     },
     {

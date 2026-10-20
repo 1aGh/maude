@@ -667,6 +667,29 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Same as image.place: add <img src="assets/<sha8>.<ext>" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> to the selected frame, or first inside the selected artboard (position: "absolute", left: "0", top: "0"). Which files exist and where they are used: `maude design assets`. Over HTTP: POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset, mode: "fill" | "loose", artboard?}}'
     ),
   },
+  // S8.16 — N takes in the selected artboard's shape, behind a single-use consent quote; the client places the best.
+  'assets.generate': {
+    effect: 'external',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/generate-takes', method: 'POST' },
+    agent: cli('maude design generate'),
+  },
+  // S8.16 — ← → between a generated picture's takes: image.replace aimed at the neighbour take (GET /_api/generate-takes/of).
+  'image.next-take': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: cli('maude design generate --take next'),
+  },
+  'image.prev-take': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: cli('maude design generate --take prev'),
+  },
   'assets.details': {
     effect: 'none',
     agent: cli('maude design assets --usage <asset>'),

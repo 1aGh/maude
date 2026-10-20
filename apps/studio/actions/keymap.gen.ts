@@ -137,45 +137,77 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '←',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
       },
       {
         chord: '⇧←',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
         alias: true,
       },
       {
         chord: '→',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
       },
       {
         chord: '⇧→',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
         alias: true,
       },
       {
         chord: '↑',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
       },
       {
         chord: '⇧↑',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
         alias: true,
       },
       {
         chord: '↓',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
       },
       {
         chord: '⇧↓',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
         alias: true,
       },
     ],
