@@ -253,6 +253,8 @@ export interface CanvasToShell {
   'timeline-comps': { comps: TimelineComp[] };
   'timeline-frame': { id?: Id; frame: number };
   'timeline-ended': { id?: Id };
+  /** S7.8 — the Player started / stopped (its own play and pause events): the shell's transport follows the truth. */
+  'timeline-playing': { id?: Id; playing: boolean };
   // keys forwarded from the iframe (V2-1.3 / V2-2.4 — supersedes toggle-palette / shell-shortcut)
   key: { v: 1; chord: string; hint?: { artboardId?: Id } };
   // mode / tools
@@ -1410,6 +1412,13 @@ const c2s: C2S = {
     parse: p({ ...tlId, frame: num }),
   },
   'timeline-ended': { gate: 'active', status: 'live', owner: BR, parse: p(tlId) },
+  // S7.8 — a click on the artboard's own play button (or any Player play / pause) tells the shell.
+  'timeline-playing': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline (S7.8)',
+    parse: p({ ...tlId, playing: bool }),
+  },
   key: {
     gate: 'active',
     status: 'live',

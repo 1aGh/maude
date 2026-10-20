@@ -1054,6 +1054,16 @@ export function useCanvasBridge({
         // artboard's Player must not fight it for the readout (multi-comp canvas).
         if (m.id && timelineCompIdRef.current && m.id !== timelineCompIdRef.current) return;
         if (Number.isFinite(m.frame)) setTimelineFrame(Math.max(0, Math.round(m.frame)));
+      } else if (m.dgn === 'timeline-playing' && typeof m.playing === 'boolean') {
+        // S7.8 — the Player's own play / pause (the artboard's play button, Space, a scrub): the shell's
+        // transport follows what the Player is actually doing.
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
+        if (e.source !== activeWin) return;
+        if (m.id && timelineCompIdRef.current && m.id !== timelineCompIdRef.current) return;
+        setTimelinePlaying(m.playing);
       } else if (m.dgn === 'timeline-ended') {
         // The Player stopped itself at the last frame (loop off) — resync the
         // shell's Play/Pause button, which otherwise has no way to learn
