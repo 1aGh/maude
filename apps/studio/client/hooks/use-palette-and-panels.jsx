@@ -606,6 +606,11 @@ export function usePaletteAndPanels({
           readOnly={viewerMode}
           // S2.15 — ↵ on a picture tile places it on the selected artboard / frame
           placeTarget={placeTargetOf(selected, activePath)}
+          // S8.12 — "Place in MVP zápasu": the selected artboard's name
+          placeLabel={(() => {
+            const t = placeTargetOf(selected, activePath);
+            return t ? labelOfArtboard(activePath, t.artboardId) || null : null;
+          })()}
           onRecord={recordSourceEdit}
         />
       );

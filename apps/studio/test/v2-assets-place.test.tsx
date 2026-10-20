@@ -1,11 +1,12 @@
 // S2.15 — the Assets tab places pictures: a picture tile drags onto a frame (its payload is a path), ↵ on it puts it on the
-// selected artboard (one image.place, one undo record), the panel says what to do when nothing is selected, and a viewer
+// selected artboard (S8.12: ↵ is the registry action `assets.place`, which reaches the tab through assets-bus.js) (one image.place, one undo record), the panel says what to do when nothing is selected, and a viewer
 // can do neither. The writer is test/edit-ops-image.test.ts; the contract is test/v2-place-asset.test.ts.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
+import { runAssetsAction } from '../client/v2/assets/assets-bus.js';
 import { ASSET_DRAG_MIME } from '../client/v2/assets/tile-drag.js';
 import { parseAssetDrag } from '../editing/asset-drag.ts';
 
@@ -59,6 +60,16 @@ const tiles = (host: HTMLElement) => [
   ...host.querySelectorAll<HTMLElement>('[data-testid="assets-tile"]'),
 ];
 
+/** Pick the first tile, then run what the shell's ↵ runs (`assets.place`). */
+async function pressEnterOnFirstTile(host: HTMLElement) {
+  await act(async () => {
+    tiles(host)[0]?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  });
+  await act(async () => {
+    runAssetsAction('assets.place');
+  });
+}
+
 describe('Assets tab — drag and ↵ (S2.15)', () => {
   test('a picture tile is draggable and carries its path; a video tile is not', async () => {
     const host = await mount();
@@ -83,11 +94,7 @@ describe('Assets tab — drag and ↵ (S2.15)', () => {
       placeTarget: { canvas: '.design/ui/Post.tsx', artboardId: 'post' },
       onRecord: (p: unknown) => recs.push(p),
     });
-    await act(async () => {
-      tiles(host)[0]?.dispatchEvent(
-        new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
-    });
+    await pressEnterOnFirstTile(host);
     await act(async () => new Promise((r) => setTimeout(r, 20)));
     const placed = calls.filter((c) => c.url === '/_api/edit-op');
     expect(placed.length).toBe(1);
@@ -104,11 +111,7 @@ describe('Assets tab — drag and ↵ (S2.15)', () => {
 
   test('with nothing selected it says what to do and writes nothing', async () => {
     const host = await mount({ placeTarget: null });
-    await act(async () => {
-      tiles(host)[0]?.dispatchEvent(
-        new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
-    });
+    await pressEnterOnFirstTile(host);
     expect(host.querySelector('[role="alert"]')?.textContent).toBe(
       'Select an artboard first, then press ↵ on a picture.'
     );
@@ -118,11 +121,7 @@ describe('Assets tab — drag and ↵ (S2.15)', () => {
   test('a viewer can neither drag nor place', async () => {
     const host = await mount({ readOnly: true, placeTarget: { canvas: 'x', artboardId: 'a' } });
     expect(tiles(host)[0]?.getAttribute('draggable')).not.toBe('true');
-    await act(async () => {
-      tiles(host)[0]?.dispatchEvent(
-        new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
-    });
+    await pressEnterOnFirstTile(host);
     expect(calls.some((c) => c.url === '/_api/edit-op')).toBe(false);
   });
 });

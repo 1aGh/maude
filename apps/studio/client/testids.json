@@ -11258,10 +11258,75 @@
     "hook": "assets-tile",
     "kind": "testid",
     "pattern": false,
-    "meaning": "One asset tile in the Assets tab (`aria-pressed` when picked).",
+    "meaning": "One asset tile in the Assets tab (`aria-pressed` when picked; `data-asset` is its `assets/<name>` path, `data-kind` image | video | audio). Hover and focus show its name and where it is used; right-click opens `assets-tile-menu`.",
     "producer": {
-      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
-      "symbol": "AssetsPanel"
+      "file": "apps/studio/client/v2/assets/tile.jsx",
+      "symbol": "AssetTile"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-tile-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The menu a right-click on an Assets tile opens (S8.12): Place, Show details. A viewer and a video or sound tile get Show details only.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tile-menu.jsx",
+      "symbol": "AssetTileMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-menu-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tile menu's Place row (`assets.place`, ↵): the picture onto the selected artboard. Hidden for a viewer.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tile-menu.jsx",
+      "symbol": "AssetTileMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-menu-details",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tile menu's Show details row (`assets.details`, ⌘I).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tile-menu.jsx",
+      "symbol": "AssetTileMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-details",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The plain details card for the picked tile (name, kind, size, where it is used). S8.21 replaces it with the per-kind sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details-card.jsx",
+      "symbol": "AssetDetailsCard"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-details-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Close on the details card.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details-card.jsx",
+      "symbol": "AssetDetailsCard"
     },
     "region": "sidebar/tree",
     "consumers": [],

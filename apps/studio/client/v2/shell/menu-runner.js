@@ -23,6 +23,7 @@ import { requestViewCode, runErrorOp } from '../code/code-bus.js';
 import { createAccessHandlers } from '../access/access-client.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { runFillAsk } from '../empty/fill-ask.js';
+import { runAssetsAction } from '../assets/assets-bus.js';
 import { runCopyPng } from '../export/copy-png.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
@@ -259,6 +260,9 @@ export function createMenuHandlers(d) {
       panelLayout.show();
       d.toggleRightPanel('assets');
     },
+    // S8.12 — the picked tile's Place / Show details (the key and the tile menu run the same two functions)
+    'assets.place': () => runAssetsAction('assets.place'),
+    'assets.details': () => runAssetsAction('assets.details'),
     'view.layers-panel': () => d.onToggleLayersMode(),
     'view.trash': () => {
       panelLayout.show();

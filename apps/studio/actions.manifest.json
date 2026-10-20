@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f85341e9c376",
+  "manifestVersion": "e66895bbe7b8",
   "actions": [
     {
       "id": "search.open",
@@ -1716,6 +1716,36 @@
       "agent": {
         "path": "cli",
         "verb": "maude design asset-sweep"
+      }
+    },
+    {
+      "id": "assets.place",
+      "label": "Place",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Same as image.place: add <img src=\"assets/<sha8>.<ext>\" alt=\"\" style={{ display: \"block\", width: \"100%\", height: \"100%\", objectFit: \"cover\" }} /> to the selected frame, or first inside the selected artboard (position: \"absolute\", left: \"0\", top: \"0\"). Which files exist and where they are used: `maude design assets`. Over HTTP: POST /_api/edit-op {op: \"image.place\", targets: [frame?], params: {asset, mode: \"fill\" | \"loose\", artboard?}}"
+      }
+    },
+    {
+      "id": "assets.details",
+      "label": "Show details",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design assets --usage <asset>"
       }
     },
     {

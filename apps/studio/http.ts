@@ -184,12 +184,15 @@ import {
 } from './history/version-lanes.ts';
 import type { GitEntry } from './history/versions.ts';
 import { createHistory } from './history.ts';
+import { assetsResponse } from './index/assets-response.ts';
 import { extractCanvas } from './index/extract.ts';
 import {
   type AttributionCache,
   attributionDir,
   createAttributionCache,
 } from './index/extractors/attribution-cache.ts';
+import { historySourceFromRuntime } from './index/history-source.ts';
+import { kickWhenReady } from './index/scan-kick.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
@@ -2216,6 +2219,14 @@ export function createHttp(
     persist: !isWorkspaceMode(),
     // S10.5 — host the ds-usage index (lazy; persisted on a desktop, memory-only in a cell)
     dsUsage: { persist: !isWorkspaceMode() },
+    // S8.12 — "Not used" reads the retained versions through the sync runtime Version history reads; null (no home
+    // answers yet) leaves the verdict at 'checking', never at "not used"
+    history: () => historySourceFromRuntime(ctx.syncControl?.current?.(), ctx.paths.designRel),
+  });
+  // S8.12 — server.ts attaches the sync runtime after this runs; the history scan starts when a home answers
+  kickWhenReady({
+    ready: () => !!ctx.syncControl?.current?.(),
+    kick: () => projectIndex.startHistoryScan(),
   });
   ctx.bus.on('fs:any', (rel: string) => {
     projectIndex.update([rel]);
@@ -2844,6 +2855,8 @@ export function createHttp(
       // S9.10 (V2-1.16 L8/L9) — a canvas-only session's index is its canvases only: counts,
       // stamp and seq derived from them (U5). Identity for a project role (U7).
       const vis = visOf(req);
+      // S8.12 — the Assets tab's read: rows, usage, the history scan state (index/assets-response.ts)
+      if (url.searchParams.get('part') === 'assets') return assetsResponse(projectIndex, vis);
       if (q !== null)
         return Response.json(filterIndexSearch(projectIndex.search(q, { limit: 200 }), vis), {
           headers: { 'Cache-Control': 'no-store' },

@@ -63,7 +63,9 @@ export type Fact =
   | 'selectFocused'
   | 'rangeFocused'
   // S2.21 — a create tool (F · R · T) is armed in the canvas: ↵ adds one at its default size, not "go inside"
-  | 'toolArmed';
+  | 'toolArmed'
+  // S8.12 — a tile is picked in the Assets tab and keyboard focus is inside it: ↵ places it, ⌘I opens its details
+  | 'assetTileSelected';
 
 /** Declarative predicate — serialisable into the manifest, evaluable in the shell, the iframe and
  *  (role half) the server. Every present field must hold (AND); `any` is an OR of sub-predicates. */
