@@ -20051,7 +20051,9 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-render-error.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-render-error.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -20065,7 +20067,9 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-render-error.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-render-error.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -25910,6 +25914,310 @@
     "region": "settings",
     "consumers": [
       "apps/studio/test/share-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The F size picker's search field (\"Search sizes — “A5”, “story”, “1920”\"); ↑ ↓ move the highlight (the dashed outline follows it on the canvas), Enter places the highlighted size.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-group-<group>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One group of the size picker (`app`, `web`, `social`, `print`, `video`) with its badge (\"Fixed size\", \"Grows as you add\", \"mm, with bleed\", \"Has a timeline\") and three sizes up front.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-all-<group>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A group's \"All N\" / \"Fewer\" toggle (`aria-expanded`); Print's open list ends with Custom size….",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-tile-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One size tile (`<id>` is a `kinds/presets.ts` id, `social-fb-event`, `print-a6`, or `print-custom` for Custom size…); hover or focus shows the dashed outline on the canvas, a click places the artboard with its kind.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-recent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Recent row of the size picker: up to three sizes the person placed lately (prefs.json `recentSizes`, per Mac).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-recent-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Recent chip (`<id>` as on a tile); a click places that size.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-results",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The flat list of tiles a search found (replaces Recent and the groups while the field has text).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under a search that found nothing (\"No size matches “…”. Press F and drag to draw any size.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line when the size list could not be read.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The footer line of the size picker (\"Or press F and drag to draw any size.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "SizePicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Custom size… island (mm): Width · Height · Orientation · Bleed · Safe margin, then Cancel / Add artboard. Writes `print={{ paper: <nearest larger preset>, sizeMm, bleedMm }}`.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom-<field>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A millimetre field of the Custom size… island (`width`, `height`, `bleed`, `margin`).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom-orientation-<o>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The island's Portrait / Landscape segment (`portrait`, `landscape`); `aria-pressed` on the active one; choosing the other swaps the two sides.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The quiet line under the island's fields (which paper it is, what the bleed is for).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The island's one-line refusal (a side that is not a number), `role=\"alert\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel in the Custom size… island: back to the size list.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "size-picker-custom-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Add artboard in the Custom size… island: ONE `artboard.insert-preset` with the mm.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/SizePicker.jsx",
+      "symbol": "CustomPrint"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-picker.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-size-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed outline where the hovered size would land (F size picker).",
+    "producer": {
+      "file": "apps/studio/editing/size-ghost.tsx",
+      "symbol": "SizeGhost"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-ghost.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-size-ghost-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the outline's label, the size's name and \"W × H\" (\"FB event cover 1920 × 1005\").",
+    "producer": {
+      "file": "apps/studio/editing/size-ghost.tsx",
+      "symbol": "SizeGhost"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/size-ghost.test.tsx"
     ],
     "v2": "new"
   }

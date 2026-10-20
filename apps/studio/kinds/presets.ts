@@ -20,6 +20,7 @@
 // decision:maude/v2-S7.20-one-preset-catalogue
 
 import {
+  DEFAULT_SAFE_MARGIN_MM,
   defaultBleedMm,
   getPaperPreset,
   type Orientation,
@@ -388,6 +389,8 @@ export interface CustomPrintInput {
   widthMm: number;
   heightMm: number;
   bleedMm?: number;
+  /** The safe margin, one value for all four sides; absent or the 5 mm default writes nothing. */
+  marginMm?: number;
 }
 
 export type SpecResult = { ok: true; spec: ArtboardSpec } | { ok: false; message: string };
@@ -419,7 +422,15 @@ export function customSpec(input: CustomPrintInput): SpecResult {
   const bleed = input.bleedMm;
   if (bleed !== undefined && !(Number.isFinite(bleed) && bleed >= 0 && bleed <= 20))
     return { ok: false, message: 'Bleed is 0–20 mm.' };
-  const print = customPrintProp(size, bleed === undefined ? {} : { bleedMm: bleed });
+  const margin = input.marginMm;
+  if (margin !== undefined && !(Number.isFinite(margin) && margin >= 0 && margin <= 50))
+    return { ok: false, message: 'The safe margin is 0–50 mm.' };
+  const print = customPrintProp(size, {
+    ...(bleed === undefined ? {} : { bleedMm: bleed }),
+    ...(margin === undefined || margin === DEFAULT_SAFE_MARGIN_MM
+      ? {}
+      : { marginsMm: { top: margin, right: margin, bottom: margin, left: margin } }),
+  });
   const res = resolveCustomPrintArtboard(print);
   return {
     ok: true,

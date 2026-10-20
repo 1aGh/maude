@@ -1,0 +1,371 @@
+/* client/v2/kinds/size-picker.css — S7.20: the F size picker (08 `ak-picker`, `ak-picker-full`).
+ *
+ * Rides the `.st-dialog.st-sticker-picker.st-sticker-picker--anchored` shell the tool panels share (tool-panels.css pins
+ * it to the toolbar) and restyles only what is inside: a 456 px menu — search, Recent chips, five groups of tiles with
+ * a badge each ("Fixed size", "Grows as you add", "mm, with bleed", "Has a timeline"), a footer line, and the mm island
+ * for Custom size…. Copied from canvas 08's `.ak-*` rules; tokens only; weights stop at 600; reduced motion is the
+ * shell's (its animation is none). No scrim: a drag on empty canvas still reaches F's overlay. */
+
+@layer shell {
+  .st-sticker-picker.sz {
+    width: 456px;
+    max-width: calc(100vw - 2 * var(--space-2));
+    padding: var(--space-2);
+    gap: 0;
+    border-radius: var(--radius-lg);
+  }
+  .sz-find {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    margin-bottom: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .sz-find:focus-within {
+    color: var(--fg-0);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+  }
+  .sz-find-in {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .sz-find-in::placeholder {
+    color: var(--fg-2);
+  }
+  .sz-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .sz-note {
+    margin: 0;
+    padding: var(--space-3) var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
+  /* Recent */
+  .sz-recent {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-1) var(--space-2);
+    box-shadow: inset 0 -0.5px 0 var(--border-subtle);
+  }
+  .sz-recent-l {
+    margin-right: var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .sz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-1);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .sz-chip svg {
+    color: var(--fg-2);
+  }
+  .sz-chip:hover {
+    background: var(--bg-4);
+  }
+
+  /* Groups */
+  .sz-g {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+  }
+  .sz-h {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 24px;
+    padding: 0 var(--space-1);
+  }
+  .sz-h-ic {
+    display: grid;
+    color: var(--fg-1);
+  }
+  .sz-h-t {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .sz-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 20px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+    background: var(--bg-3);
+    color: var(--fg-1);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .sz-badge[data-tone="fixed"] {
+    background: var(--bg-4);
+    color: var(--fg-0);
+    box-shadow: none;
+  }
+  .sz-badge[data-tone="grow"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    box-shadow: none;
+  }
+  .sz-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--accent-text);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .sz-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-1);
+  }
+
+  /* Tiles */
+  .sz-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: var(--space-1) var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+  }
+  .sz-tile[data-hl],
+  .sz-tile:focus-visible {
+    background: var(--accent-muted);
+    outline: 0;
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  .sz-tile-pic {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 44px;
+  }
+  .sz-tile-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .sz-tile-size {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .sz-tile[data-hl] .sz-tile-size {
+    color: var(--accent-text);
+  }
+
+  /* The size drawn as a tiny picture: closed box = fixed size; open, fading box = grows; dashed inner line = bleed;
+     play mark = has a timeline. */
+  .sz-shape {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1.5px var(--fg-2);
+    color: var(--fg-2);
+  }
+  .sz-shape[data-k="web"] {
+    border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+    box-shadow:
+      inset 1.5px 0 0 var(--fg-2),
+      inset -1.5px 0 0 var(--fg-2),
+      inset 0 1.5px 0 var(--fg-2);
+    mask-image: linear-gradient(to bottom, var(--fg-0) 40%, transparent);
+  }
+  .sz-shape-more {
+    display: grid;
+    margin-top: -2px;
+    color: var(--accent-text);
+    transform: rotate(180deg);
+  }
+  .sz-shape[data-k="print"]::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px dashed var(--fg-3);
+  }
+  .sz-shape[data-k="video"] svg {
+    color: var(--fg-1);
+  }
+  .sz-shape--custom {
+    width: 28px;
+    height: 34px;
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px dashed var(--fg-3);
+    color: var(--fg-1);
+  }
+  .sz-tile[data-hl] .sz-shape {
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+    background: var(--bg-2);
+    color: var(--accent-text);
+  }
+  .sz-tile[data-hl] .sz-shape[data-k="print"]::after {
+    border-color: var(--accent);
+  }
+  .sz-tile--custom[data-hl] .sz-shape--custom {
+    border-color: var(--accent);
+    box-shadow: none;
+  }
+
+  .sz-foot {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-2) var(--space-1) var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-subtle);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* Custom size… — the mm island */
+  .sz-custom {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+  .sz-custom-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-1);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .sz-custom-r {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 30px;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .sz-mm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 120px;
+    height: 28px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .sz-mm:focus-within {
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
+  }
+  .sz-mm input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .sz-mm em {
+    font-style: normal;
+    color: var(--fg-2);
+  }
+  .sz-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .sz-seg-b {
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .sz-seg-b[aria-pressed="true"] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .sz-custom-n {
+    margin: 0;
+    max-width: 60ch;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .sz-custom-err {
+    color: var(--status-error-text);
+  }
+  .sz-custom-a {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+}

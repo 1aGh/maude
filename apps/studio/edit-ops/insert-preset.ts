@@ -4,7 +4,7 @@
 //
 //   params { presetId: string, at?: { x, y }, custom?: { widthMm, heightMm, bleedMm? } }
 //
-//   presetId   a row of kinds/presets.ts (the one catalogue). `print-custom` takes `custom` (mm) and writes
+//   presetId   a row of kinds/presets.ts (the one catalogue). `print-custom` takes `custom` ({ widthMm, heightMm, bleedMm?, marginMm? }) and writes
 //              `print={{ paper: <nearest larger preset>, orientation, sizeMm: [w, h], bleedMm }}` — never
 //              `paper: "custom"` (Q7, kinds/print-custom.ts).
 //   at         where the artboard lands, in world px (the layout lane, like `artboard.draw`). Absent = the
@@ -75,6 +75,7 @@ function specFor(req: ResolvedEditOp): ArtboardSpec {
       widthMm: Number(c.widthMm),
       heightMm: Number(c.heightMm),
       ...(c.bleedMm === undefined ? {} : { bleedMm: Number(c.bleedMm) }),
+      ...(c.marginMm === undefined ? {} : { marginMm: Number(c.marginMm) }),
     });
     return r.ok ? r.spec : refuse(req, r.message, '');
   }
