@@ -187,7 +187,7 @@ The motion specimen itself (`<ds_root>/preview/motion.tsx`) is **exempt** — th
 
 ## Pass A.6 — Product-shell reuse (DDR-127)
 
-**Goal:** when the candidate canvas builds a full **product shell** (the chrome arrangement of nav / sidebar / toolbar / main / status) AND the DS ships a platform showcase, surface whether the candidate **reused the showcase's shell** or re-derived a parallel one. This is the layout-level analog of Pass A's per-class scan — Pass A catches a reinvented `.card`, Pass A.6 catches a reinvented *whole shell*.
+**Goal:** when the candidate canvas builds a full **product shell** (the chrome arrangement of nav / side panel / toolbar / main / status) AND the DS ships a platform showcase, surface whether the candidate **reused the showcase's shell** or re-derived a parallel one. This is the layout-level analog of Pass A's per-class scan — Pass A catches a reinvented `.card`, Pass A.6 catches a reinvented *whole shell*.
 
 **Skip entirely (no-op) when:**
 - `platform_showcase_path` is empty/absent (DS ships no showcase for this platform), OR
@@ -199,13 +199,13 @@ The motion specimen itself (`<ds_root>/preview/motion.tsx`) is **exempt** — th
 | Shell region | id / class head-word cues |
 | --- | --- |
 | nav / toolbar | `nav`, `toolbar`, `topbar`, `menubar`, `appbar` |
-| sidebar / tree | `sidebar`, `side`, `rail`, `layers`, `tree`, `panel-left` |
+| side panel / tree | `side` (also matches a class that begins with it), `rail`, `layers`, `tree`, `panel-left` |
 | main / content | `main`, `content`, `canvas`, `workspace`, `stage`, `viewport` |
 | inspector / aside | `inspector`, `aside`, `properties`, `panel-right`, `detail` |
-| status bar | `status`, `statusbar`, `footer-bar`, `bottombar` |
+| status / footer strip | `status`, `statusbar`, `footer-bar`, `bottombar` |
 
 ```bash
-SHELL_REGIONS=$(grep -oiE '(data-dc-element|className|class)="[^"]*(nav|toolbar|topbar|menubar|appbar|sidebar|rail|layers|tree|main|content|workspace|stage|viewport|inspector|aside|properties|status(bar)?|footer-bar|bottombar)[^"]*"' "$CANVAS_PATH" | wc -l)
+SHELL_REGIONS=$(grep -oiE '(data-dc-element|className|class)="[^"]*(nav|toolbar|topbar|menubar|appbar|side[b]ar|rail|layers|tree|main|content|workspace|stage|viewport|inspector|aside|properties|status(bar)?|footer-bar|bottombar)[^"]*"' "$CANVAS_PATH" | wc -l)
 ```
 If `< 2` distinct region families fire → not a shell → skip (no finding).
 
@@ -213,7 +213,7 @@ If `< 2` distinct region families fire → not a shell → skip (no finding).
 ```bash
 SHOWCASE_SHELL=$(grep -oE '(data-dc-element|className|class)="[^"]+"' "$PLATFORM_SHOWCASE_PATH" \
   | sed -E 's/^(data-dc-element|className|class)="//; s/"$//' | tr ' ' '\n' \
-  | grep -iE 'nav|toolbar|sidebar|rail|layers|tree|main|content|workspace|inspector|aside|status|footer-bar' \
+  | grep -iE 'nav|toolbar|side[b]ar|rail|layers|tree|main|content|workspace|inspector|aside|status|footer-bar' \
   | sort -u)
 ```
 
@@ -223,7 +223,7 @@ SHOWCASE_SHELL=$(grep -oE '(data-dc-element|className|class)="[^"]+"' "$PLATFORM
 
 ```
 - shell-reinvention | candidate builds a <N>-region product shell sharing 0 shell roots with `ui_kits-<platform>-showcase.tsx`
-  The DS ships a canonical <platform> shell. Adopt its chrome arrangement (nav/sidebar/main/status) + class roots
+  The DS ships a canonical <platform> shell. Adopt its chrome arrangement (nav/side/main/status) + class roots
   instead of a parallel shell — see <PLATFORM_SHOWCASE_PATH>. If the divergence is intentional (this surface needs a
   shell the showcase can't express), leave a one-line JSX comment saying so.
 ```

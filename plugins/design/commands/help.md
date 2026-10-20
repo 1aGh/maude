@@ -81,15 +81,15 @@ Cheat-sheet for the in-canvas chrome — independent of slash commands. Always p
 
 Undo / redo cover drag, marquee batch-move, equal-spacing distribute, align, and whiteboard edits (each gesture is one op batch and one undo step; undo applies its inverse and only reverts fields that still hold your value, never a collaborator's later edit — DDR-242). Viewport + selection are intentionally NOT undoable (Figma convention). Stack is per-canvas-iframe, ring-capped at 50, cleared on external `.meta.json` edit. Comments are not undoable in v0.
 
-### Brief boards — sketch a brief, let Claude fill it in (Phase 22)
+### Brief canvases — sketch a brief, let Claude fill it in (Phase 22)
 
-A **brief board** is an annotation-only canvas you fill with intent, then have `/design:new` read back. The loop:
+A **brief canvas** is a canvas that holds only annotations: you fill it with intent, then have `/design:new` read back. The loop:
 
-1. `/design:new "<name>" --blank` — creates an empty framed board (`kind: "brief-board"`, **zero model cost**) and opens it active.
+1. `/design:new "<name>" --blank` — creates an empty framed brief canvas (`kind: "brief-board"`, **zero model cost**) and opens it active.
 2. Annotate it: pick Sticky (`N`), Text (`T`), or Arrow (`A`) and write what each screen should do (e.g. "hero needs a bigger CTA", "dark mode", "two columns here").
-3. Run `/design:new` again (no args) — Claude reads your notes **verbatim**, generates the matching artboards, and **inserts them into the same board** below your notes. The annotation layer stays floating on top.
+3. Run `/design:new` again (no args) — Claude reads your notes **verbatim**, generates the matching artboards, and **inserts them into the same canvas** below your notes. The annotation layer stays floating on top.
 
-Flags on `/design:new`: `--blank` (create a board), `--from-annotations` (force ingest on any active canvas), `--fresh` (ignore a board's notes and scaffold a separate file). An identical-notes re-run short-circuits (no duplicate artboards). See DDR-085.
+Flags on `/design:new`: `--blank` (create a brief canvas), `--from-annotations` (force ingest on any active canvas), `--fresh` (ignore a brief canvas's notes and scaffold a separate file). An identical-notes re-run short-circuits (no duplicate artboards). See DDR-085.
 
 <!-- BEGIN GENERATED: studio capabilities (scripts/gen-actions.mjs) -->
 ## Studio capabilities
