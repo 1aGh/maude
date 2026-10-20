@@ -20,6 +20,7 @@ import { type GateInput, localGate } from '../access/request.ts';
 import { photoEditHash, resolveAccess } from '../access/scope.ts';
 import type { Context } from '../context.ts';
 import { artboardDuplicate } from '../edit-ops/duplicate-at-width.ts';
+import { photoUseEdit } from '../edit-ops/photo-use.ts';
 import type { ResolvedEditOp } from '../edit-ops/types.ts';
 import { createPhotoStore } from '../photo-store.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -266,5 +267,44 @@ describe('/_api/photo-edit per use (main origin)', () => {
     } finally {
       await killProc(proc);
     }
+  });
+});
+
+// ── photo.use-edit: the attribute half, one undo step ────────────────────────
+describe('photo.use-edit points one use at its edit, or back at every use', () => {
+  const SRC = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+export default function Posts() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="mvp" label="Post 4:5" width={1080} height={1350}>
+        <img data-cd-id="hero" src="assets/${IMG}.png" alt="" />
+        <img data-cd-id="score" src="assets/${IMG}.png" alt="" />
+        <p data-cd-id="title">MVP</p>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+  const run = (source: string, element: string, edit: unknown) => {
+    const out = photoUseEdit.apply(source, {
+      file: 'ui/Posts.tsx',
+      params: { edit },
+      targets: [{ artboard: 'mvp', element }],
+    } as unknown as ResolvedEditOp);
+    return (out as { source: string }).source;
+  };
+
+  test('sets data-photo-edit on that picture only; null removes it; the rest is untouched', () => {
+    const on = run(SRC, 'hero', '0a1b2c3d');
+    expect(on.match(/data-photo-edit="0a1b2c3d"/g)).toHaveLength(1);
+    expect(on).toContain(`<img data-cd-id="score" src="assets/${IMG}.png" alt="" />`);
+    expect(perUsePhotoRefs(on)).toEqual([`assets/${IMG}.0a1b2c3d.photo.json`]);
+    expect(run(on, 'hero', '0a1b2c3d')).toBe(on);
+    expect(run(on, 'hero', null)).toBe(SRC);
+  });
+
+  test('a name outside 8–16 hex, a non-picture: refused', () => {
+    for (const bad of ['../x', 'ABCDEF12', 7, '']) expect(() => run(SRC, 'hero', bad)).toThrow();
+    expect(() => run(SRC, 'title', '0a1b2c3d')).toThrow();
   });
 });

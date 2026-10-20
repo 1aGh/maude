@@ -233,6 +233,26 @@ A source or a style the file computes (`src={photo}`, `style={fit}`) is refused.
 `{op: "image.replace", targets: [picture], params: {asset}}`,
 `{op: "image.crop", targets: [picture], params: {fit?, zoom?, x?, y?}}`.
 
+## Edit one use of a photo: the same result by hand (S8.15)
+
+A photo edit applies to **one use** unless the person picks Apply to every use (contract
+`client/v2/contracts/S8-asset-sidecars.md` §5.1). Two files and one attribute:
+
+| What | Where | Meaning |
+| --- | --- | --- |
+| The every-use edit | `assets/<img8>.photo.json` (a v1 `PhotoEdit`, FormatId `photo-edit`) | How every use of the picture looks, unless a use has its own edit. Unchanged from v1. |
+| A use's own edit | `assets/<img8>.<edit8>.photo.json` (the same `PhotoEdit` shape, no new keys) | `<edit8>` = the first 8 hex of the sha256 of the edit's canonical JSON (keys sorted, no whitespace), 12 or 16 on a collision. Same name ⇒ same bytes: never rewrite one, write a new one. |
+| The pointer | `data-photo-edit="<edit8>"` on the `<img>` / `<image>` / tiled picture whose `src` is `assets/<img8>.<ext>` | This use shows that file. Absent (or the file missing or invalid): the every-use look, else the original. A plain string literal; a copy of the element keeps it; Replace… removes it. |
+
+Render order: the use's own file → the every-use file → the original picture. A 1.x peer never reads the
+attribute and shows the every-use look (`test/photo-sidecar-v1-compat.test.ts`). Over HTTP:
+`PUT /_api/photo-edit?asset=assets/<img8>.<ext>&perUse=1` with the `PhotoEdit` body answers `{ok, edit: "<edit8>", path}`
+(the server names it), then `POST /_api/edit-op {op: "photo.use-edit", targets: [picture], params: {edit: "<edit8>"}}`
+writes the attribute (one undo step); `params: {edit: null}` removes it. `GET /_api/photo-edit?asset=…&edit=<edit8>` reads
+one use's edit; a name outside `/^[0-9a-f]{8,16}$/` is a 400. By hand: write the file with its hash name, then the
+attribute. A canvas-only session may create a use's edit only for a picture its canvas uses, and only bytes that hash
+to the name.
+
 ## Remove an artboard: the same result by hand (S2.10b)
 
 ⌫ on a selected artboard and the artboard menu's "Move to trash" (the op `artboard.trash`,
