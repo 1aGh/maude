@@ -109,6 +109,15 @@ describe('canvas → shell comment relays are scoped to the active canvas', () =
         // usage still needs its own `const activeWin = activePath…`.
         if (/export function acceptCommentBridge\(e, activeWin\)/.test(CODE.slice(0, use)))
           continue;
+        // A lane module (S7.10 anchor-lane.js and its siblings) reads the window through a function built from the
+        // lane's own `deps.activePath()` — app state, never the message — so a call `activeWin()` is declared
+        // when that function is.
+        if (
+          CODE.slice(use, use + 40).startsWith('e.source === activeWin()') ||
+          CODE.slice(use, use + 40).startsWith('e.source !== activeWin()')
+        ) {
+          if (/const activeWin = \(\) => \{\s*\n\s*const p = deps\.activePath\(\);/.test(CODE)) continue;
+        }
         // Nearest branch boundary at or before this usage.
         const open = starts.filter((s) => s < use).pop() ?? 0;
         // `= activePath` is the load-bearing half: a declaration that derives the

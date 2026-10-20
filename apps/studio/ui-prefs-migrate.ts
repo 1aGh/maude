@@ -40,6 +40,7 @@ export type KeyClass =
   | 'dead' // no writer anywhere (reader fallback only, or a comment)
   | 'canvas-origin' // lives on the canvas origin; the shell cannot reach it
   | 'home-origin' // lives on the Home window's origin (V2-3.3); never a 1.x key
+  | 'v2-new' // introduced by v2 (wave B on); a 1.x origin never holds it, so nothing migrates
   | 'marker'; // the v2 migration's own per-origin marker
 
 export interface KeyRule {
@@ -173,6 +174,18 @@ export const KEY_CLASS: Readonly<Record<string, KeyRule>> = {
     class: 'marker',
     note: 'Per-origin "this origin has been through the v2 migration".',
   },
+  'maude-home-shared-seen': {
+    class: 'home-origin',
+    note: 'Home origin (S6): "Shared with you" rows already opened on this Mac; a per-Mac convenience, never a 1.x key.',
+  },
+  'maude-export-video-lane': {
+    class: 'v2-new',
+    note: 'v2 (S8.5b): Advanced › Where it renders › Video, per Mac; new in v2, nothing to migrate.',
+  },
+  'maude-ds-upgrade-': {
+    class: 'v2-new',
+    note: 'Not a storage key: ds/upgrade-stage.ts STAGE_PREFIX names the staged-copy temp dirs; the scanner reads any *_PREFIX const.',
+  },
 };
 
 const FAMILY_PREFIX = 'maude-cloud-role-seen:';
@@ -181,7 +194,13 @@ const FAMILY_PREFIX = 'maude-cloud-role-seen:';
 export function isLegacyKey(key: string): boolean {
   if (key.startsWith(FAMILY_PREFIX)) return true;
   const r = KEY_CLASS[key];
-  return !!r && r.class !== 'marker' && r.class !== 'canvas-origin' && r.class !== 'home-origin';
+  return (
+    !!r &&
+    r.class !== 'marker' &&
+    r.class !== 'canvas-origin' &&
+    r.class !== 'home-origin' &&
+    r.class !== 'v2-new'
+  );
 }
 
 /** What 1.x defaulted to when a field was absent. Equal to ui-prefs.ts `UI_PREFS_DEFAULTS` (tested). */

@@ -112,9 +112,10 @@ describe('class collisions and stacking (CSS wiring)', () => {
 
   test('the "?" sheet’s three columns cannot blow out the container', () => {
     const css = read('../client/v2/search/search.css');
-    expect(css).toMatch(
-      /\.so-columns--3\s*\{\s*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/
-    );
+    // S11.18 (? sheet W2): the groups flow down three CSS columns instead of a grid — a column box never
+    // grows past its share, and a group never splits across two columns.
+    expect(css).toMatch(/\.so-columns--3\s*\{\s*display:\s*block;\s*column-count:\s*3;/);
+    expect(css).toMatch(/\.so-columns > \.so-section\s*\{[^}]*break-inside:\s*avoid/);
     expect(css).toMatch(/\.so-columns > \.so-section\s*\{\s*min-width:\s*0/);
     expect(css).toMatch(/\.so-overlay--v2 \.so-combos\s*\{[^}]*flex-wrap:\s*wrap/);
   });

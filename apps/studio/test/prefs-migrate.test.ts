@@ -117,7 +117,11 @@ describe('KEY_CLASS tripwire', () => {
       k.endsWith(':*') ? ['owner', 'member', 'viewer'].map((r) => k.replace('*', r)) : [k];
     const shellKeys = Object.entries(KEY_CLASS)
       .filter(
-        ([, r]) => r.class !== 'canvas-origin' && r.class !== 'home-origin' && r.class !== 'marker'
+        ([, r]) =>
+          r.class !== 'canvas-origin' &&
+          r.class !== 'home-origin' &&
+          r.class !== 'v2-new' &&
+          r.class !== 'marker'
       )
       .flatMap(([k]) => expand(k));
     expect(Object.keys(LOCAL).sort()).toEqual(shellKeys.sort());

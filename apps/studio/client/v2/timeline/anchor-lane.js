@@ -28,7 +28,8 @@ export function createAnchorLane(deps) {
       // S7.10 — the person picked something on the canvas: the clip selected on the Timeline lets go (one thing is
       // selected at a time). The content of the pick is not read, only that the ACTIVE frame made it.
       if (kind === 'select' || kind === 'select-set' || kind === 'clear-select') {
-        if (deps.onCanvasSelect && e.source && e.source === activeWin()) deps.onCanvasSelect();
+        if (deps.onCanvasSelect && e.origin === deps.canvasOrigin() && e.source && e.source === activeWin())
+          deps.onCanvasSelect();
         return;
       }
       if (kind !== 'artboard-anchor' && kind !== 'space-tap') return;

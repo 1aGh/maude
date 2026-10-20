@@ -369,7 +369,8 @@ describe('the shell side (client/ui-open.js) runs the registry actions', () => {
     // opener — which changes with activePath — is read through a ref refreshed every render.
     const app = readFileSync(join(import.meta.dir, '..', 'client', 'app.jsx'), 'utf8');
     const has = (needle: string) => ({ needle, present: app.includes(needle) });
-    expect(has("import { applyUiOpen } from './ui-open.js';").present).toBe(true);
+    // The import may name other ui-open.js exports beside it (OPEN_LADDER_MS, the artboard-focus ladder).
+    expect(/import \{[^}]*\bapplyUiOpen\b[^}]*\} from '\.\/ui-open\.js';/.test(app)).toBe(true);
     const at = app.indexOf("m.type === 'ui-open'");
     expect(at).toBeGreaterThan(0);
     const arm = app.slice(at, app.indexOf('} else if', at));

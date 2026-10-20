@@ -62,6 +62,9 @@ export function legacyHomes() {
       case 'home-origin':
         home = 'the Home window (not a shell preference)';
         break;
+      case 'v2-new':
+        home = 'this browser (a v2 setting; nothing to carry over)';
+        break;
       case 'marker':
         home = 'this browser (the migration’s own marker)';
         break;
