@@ -7,10 +7,9 @@
 // Pure: no IO.
 
 import MagicString from 'magic-string';
-
-import { isBezier, writeEasing } from '../../video/keyframes.ts';
 import { assertCompSemantics } from '../../canvas-edit.ts';
 import { assertParses } from '../../clip-ops.ts';
+import { isBezier, writeEasing } from '../../video/keyframes.ts';
 import { bad, type Node, parseProgram } from './jsx.ts';
 
 export interface EasingPatch {

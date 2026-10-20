@@ -1,0 +1,263 @@
+/* client/v2/timeline/advanced/advanced.css — S7.18: the Timeline's Advanced at its foot (07 Video Editing ·
+ * ve-advanced, 06 Advanced · ad-timeline). Lifted from the canvases' `.ve-curve`, `.ve-adv-row`, `.ve-code`,
+ * `.ad-tl-*` rules under a `tla-` prefix; tokens only. The fold row itself is the shared `v2-fold`. */
+
+@layer shell {
+  .tla {
+    position: relative;
+    flex: none;
+    padding: 0 var(--space-2);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+
+  /* the foot's right-hand side: the readout and the ruler's Timecode | Frames */
+  .tla-readout {
+    position: absolute;
+    top: 0;
+    right: var(--space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 30px;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .tla-readout-t {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tla-body {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+    max-height: 260px;
+    padding: var(--space-2) var(--space-1) var(--space-3);
+    overflow: auto;
+  }
+  .tla-sec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .tla-h {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .tla-chip {
+    margin-left: auto;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-weight: var(--w-regular);
+  }
+
+  /* mono rows: name left, value right */
+  .tla-row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .tla-k {
+    color: var(--fg-2);
+  }
+  .tla-k--plain {
+    font-family: inherit;
+    font-size: var(--type-xs);
+  }
+  .tla-v {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-0);
+  }
+  .tla-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .tla-note--cap {
+    color: var(--fg-1);
+  }
+  .tla-long {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+  .tla-long[data-kind="warn"] .tla-note--cap,
+  .tla-long[data-kind="past"] .tla-note--cap {
+    color: var(--status-warn-text);
+  }
+  .tla-tracks {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .tla-trackbtns {
+    display: inline-flex;
+    gap: var(--space-1);
+  }
+
+  .tla-acts {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+  }
+  .tla-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+    transition: background var(--dur-soft) var(--ease-out);
+  }
+  .tla-btn:hover:not(:disabled) {
+    background: var(--bg-4);
+  }
+  .tla-btn:disabled {
+    color: var(--fg-3);
+  }
+  .tla-link {
+    padding: 0;
+    color: var(--accent-text);
+    font-size: inherit;
+  }
+  .tla-link:disabled {
+    color: var(--fg-3);
+  }
+
+  /* Timecode | Frames, EDL | Code */
+  .tla-seg {
+    display: inline-flex;
+    margin-left: auto;
+    padding: 1px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .tla-readout .tla-seg {
+    margin-left: 0;
+  }
+  .tla-seg-btn {
+    height: 20px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-xs);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+  }
+  .tla-seg-btn[data-on="true"] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tla-code {
+    margin: 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    white-space: pre;
+    overflow: auto;
+    max-height: 150px;
+  }
+
+  /* the curve */
+  .tla-curve-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .tla-curve {
+    position: relative;
+    height: 150px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .tla-curve svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+  .tla-curve-grid {
+    stroke: var(--border-subtle);
+    stroke-width: 1;
+    fill: none;
+  }
+  .tla-curve-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+  .tla-curve-arm {
+    stroke: var(--fg-2);
+    stroke-width: 1;
+  }
+  .tla-curve-h {
+    fill: var(--bg-2);
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    cursor: grab;
+  }
+  .tla-curve-h:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .tla-curve-lab {
+    position: absolute;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* the long-video badge in the header is a button now: it opens this fold (C22) */
+  .tl-long-badge {
+    background: transparent;
+    cursor: pointer;
+  }
+
+  /* keyframe markers on a clip: drawn only while Advanced is open (a click picks one) */
+  .tl-kf.is-picked {
+    outline: 1.5px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  @media (max-width: 880px) {
+    .tla-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tla-btn {
+      transition-duration: 1ms;
+    }
+  }
+}

@@ -34,7 +34,9 @@ export function componentWindow(
   name: string | null | undefined
 ): { offset: number; text: string } | null {
   if (!name || !IDENT.test(name)) return null;
-  const def = source.search(new RegExp(`\\b(?:const|function)\\s+${name.replace(/\$/g, '\\$')}\\b`));
+  const def = source.search(
+    new RegExp(`\\b(?:const|function)\\s+${name.replace(/\$/g, '\\$')}\\b`)
+  );
   if (def < 0) return null;
   const offset = def + name.length;
   const rest = source.slice(offset);
@@ -261,7 +263,10 @@ export interface KeyframeInfo {
 /** `const y = ` / `y: ` / `opacity=` just before the call, else null. */
 function boundName(source: string, at: number): string | null {
   const before = source.slice(Math.max(0, at - 80), at);
-  const m = /(?:\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=|([A-Za-z_$][\w$]*)\s*[:=]\s*\{?)\s*$/.exec(before);
+  const m =
+    /(?:\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=|([A-Za-z_$][\w$]*)\s*[:=]\s*\{?)\s*$/.exec(
+      before
+    );
   return m ? (m[1] ?? m[2] ?? null) : null;
 }
 
@@ -328,7 +333,10 @@ export function writeEasing(
       };
     // take the property off, with its comma
     if (opt.props.length === 1) {
-      return { ok: true, source: `${source.slice(0, call.args[2].end)}${source.slice(fourth.end)}` };
+      return {
+        ok: true,
+        source: `${source.slice(0, call.args[2].end)}${source.slice(fourth.end)}`,
+      };
     }
     const k = opt.props.indexOf(existing);
     const [cutFrom, cutTo] =
@@ -339,7 +347,10 @@ export function writeEasing(
   }
   if (!bezier) return { ok: true, source };
   if (opt.props.length === 0)
-    return { ok: true, source: `${source.slice(0, opt.open)}{ easing: ${expr} }${source.slice(opt.close + 1)}` };
+    return {
+      ok: true,
+      source: `${source.slice(0, opt.open)}{ easing: ${expr} }${source.slice(opt.close + 1)}`,
+    };
   const at = opt.props[0].start;
   return { ok: true, source: `${source.slice(0, at)}easing: ${expr}, ${source.slice(at)}` };
 }

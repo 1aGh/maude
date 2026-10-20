@@ -20,6 +20,8 @@
 export const PRESENT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const MAX_IDS = 2000;
 export const MAX_NOTE = 20000;
+/** C22: the longest `maxFrames` a video artboard may store (the exporter's ceiling, kinds/meta.ts holds the same number). */
+export const MAX_FRAMES_CEILING = 18_000;
 /** The route body's whole vocabulary. */
 export const PATCH_KEYS: readonly string[] = [
   'file',
@@ -28,6 +30,7 @@ export const PATCH_KEYS: readonly string[] = [
   'exports',
   'poster',
   'snap',
+  'maxFrames',
   'expected',
 ];
 const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
@@ -63,6 +66,8 @@ export interface PresentPatch {
   poster?: Record<string, number | null>;
   /** S7.12 — artboardId → Snap to the beat (`"beat"` · `"off"`); null takes it back to the default (on with a clear beat grid). */
   snap?: Record<string, 'beat' | 'off' | null>;
+  /** S7.18 — artboardId → the longest one export of it may be (C22 "Allow longer", 1..18 000 frames); null = the 3 600 default. */
+  maxFrames?: Record<string, number | null>;
   expected?: string;
 }
 
@@ -159,6 +164,20 @@ export function readSnaps(meta: unknown): Record<string, 'beat' | 'off'> {
   for (const [id, entry] of Object.entries(m.artboardMeta)) {
     if (!isId(id) || !isObj(entry)) continue;
     if (entry.snap === 'beat' || entry.snap === 'off') out[id] = entry.snap;
+  }
+  return out;
+}
+
+/** S7.18 — what a `.meta.json` says about each video artboard's own length limit (`artboardMeta[id].maxFrames`). Never throws. */
+export function readMaxFrames(meta: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  const m = isObj(meta) ? meta : {};
+  if (!isObj(m.artboardMeta)) return out;
+  for (const [id, entry] of Object.entries(m.artboardMeta)) {
+    if (!isId(id) || !isObj(entry)) continue;
+    const n = entry.maxFrames;
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_FRAMES_CEILING)
+      out[id] = n;
   }
   return out;
 }
@@ -274,6 +293,21 @@ export function parsePresentPatch(body: unknown): ParseResult {
     }
     patch.snap = out;
   }
+  if (body.maxFrames !== undefined) {
+    if (!isObj(body.maxFrames) || Object.keys(body.maxFrames).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'maxFrames' };
+    const out: Record<string, number | null> = {};
+    for (const [id, v] of Object.entries(body.maxFrames)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'maxFrames' };
+      if (
+        v !== null &&
+        !(typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= MAX_FRAMES_CEILING)
+      )
+        return { ok: false, error: 'bad-field', field: `maxFrames.${id}` };
+      out[id] = v;
+    }
+    patch.maxFrames = out;
+  }
   return { ok: true, patch };
 }
 
@@ -323,6 +357,7 @@ export function applyPresentPatch(
   for (const [id, v] of Object.entries(patch.exports ?? {})) if (v?.length) written.push(id);
   for (const [id, v] of Object.entries(patch.poster ?? {})) if (v !== null) written.push(id);
   for (const [id, v] of Object.entries(patch.snap ?? {})) if (v !== null) written.push(id);
+  for (const [id, v] of Object.entries(patch.maxFrames ?? {})) if (v !== null) written.push(id);
   if (known) {
     const unknown = [...new Set(written.filter((id) => !known.has(id)))];
     if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
@@ -382,6 +417,18 @@ export function applyPresentPatch(
         ? (map[id] as Record<string, unknown>)
         : {};
       const e = withKey(entry, 'snap', v === null ? undefined : v);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  // S7.18 — a video artboard's own length limit: the same entry, the same keep-everything-else rule.
+  if (patch.maxFrames && Object.keys(patch.maxFrames).length) {
+    let map: Record<string, unknown> = isObj(next.artboardMeta) ? next.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.maxFrames)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'maxFrames', v === null ? undefined : v);
       map = withKey(map, id, Object.keys(e).length ? e : undefined);
     }
     next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);

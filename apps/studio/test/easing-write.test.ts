@@ -3,9 +3,8 @@
 // reads the same windows back (`keyframeInfo`), and the designer's name for it is `cubic-bezier(a, b, c, d)`.
 
 import { describe, expect, test } from 'bun:test';
-
-import { parseCompTimeline } from '../client/panels/timeline-parse.js';
 import { CanvasEditError } from '../canvas-edit.ts';
+import { parseCompTimeline } from '../client/panels/timeline-parse.js';
 import { EDIT_OPS } from '../edit-ops/dispatch.ts';
 import {
   bezierAt,
@@ -54,9 +53,19 @@ const FILE = 'ui/Reel.tsx';
 function run(source: string, params: Record<string, unknown>) {
   const o = EDIT_OPS.find((x) => x.id === 'video.easing.set');
   if (!o) throw new Error('no op video.easing.set');
-  return o.apply(source, { file: FILE, op: o.id, targets: [], params: { artboard: 'reel', ...params } });
+  return o.apply(source, {
+    file: FILE,
+    op: o.id,
+    targets: [],
+    params: { artboard: 'reel', ...params },
+  });
 }
-const write = (source: string, component: string, index: number, b: Parameters<typeof writeEasing>[3]) => {
+const write = (
+  source: string,
+  component: string,
+  index: number,
+  b: Parameters<typeof writeEasing>[3]
+) => {
   const w = writeEasing(source, component, index, b);
   if (!w.ok) throw new Error(`refused: ${w.reason}`);
   return w.source;
@@ -90,7 +99,9 @@ describe('the windows (video/keyframes.ts)', () => {
     const r = parseCompTimeline(COMP, 90);
     const intro = r.sequences[0];
     expect(intro.keyframes).toHaveLength(2);
-    expect(intro.keyframeInfo.map((k: { index: number; prop: string }) => [k.index, k.prop])).toEqual([
+    expect(
+      intro.keyframeInfo.map((k: { index: number; prop: string }) => [k.index, k.prop])
+    ).toEqual([
       [0, 'o'],
       [1, 'y'],
     ]);
@@ -124,12 +135,18 @@ describe('writeEasing', () => {
     // nothing else moved
     expect(out.replace(/easing: Easing\.bezier\(0\.22, 1, 0\.36, 1\), /, '')).toBe(COMP);
     const read = readEasing(out, interpolateCalls(out, 'Intro')[1]);
-    expect(read).toEqual({ kind: 'bezier', bezier: [0.22, 1, 0.36, 1], css: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+    expect(read).toEqual({
+      kind: 'bezier',
+      bezier: [0.22, 1, 0.36, 1],
+      css: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    });
   });
 
   test('a call with three arguments gains { easing }', () => {
     const out = write(COMP, 'Intro', 0, [0.4, 0, 0.2, 1]);
-    expect(out).toContain('interpolate(frame, [0, 14], [0, 1], { easing: Easing.bezier(0.4, 0, 0.2, 1) })');
+    expect(out).toContain(
+      'interpolate(frame, [0, 14], [0, 1], { easing: Easing.bezier(0.4, 0, 0.2, 1) })'
+    );
   });
 
   test('a curve already there is swapped, not stacked', () => {
@@ -145,7 +162,10 @@ describe('writeEasing', () => {
     const alone = write(COMP, 'Intro', 0, EASE_OUT);
     expect(write(alone, 'Intro', 0, null)).toBe(COMP);
     // easing last in the list
-    const last = COMP.replace("{ extrapolateRight: 'clamp' }", "{ extrapolateRight: 'clamp', easing: Easing.bezier(0.1, 0.2, 0.3, 0.4) }");
+    const last = COMP.replace(
+      "{ extrapolateRight: 'clamp' }",
+      "{ extrapolateRight: 'clamp', easing: Easing.bezier(0.1, 0.2, 0.3, 0.4) }"
+    );
     expect(write(last, 'Intro', 1, null)).toBe(COMP);
     // nothing to take off
     expect(write(COMP, 'Intro', 1, null)).toBe(COMP);
@@ -154,16 +174,24 @@ describe('writeEasing', () => {
   test('options that are not a plain object are left alone, with a reason', () => {
     expect(writeEasing(COMP, 'Payoff', 0, EASE_OUT)).toEqual({ ok: false, reason: 'not-literal' });
     expect(writeEasing(COMP, 'Intro', 7, EASE_OUT)).toEqual({ ok: false, reason: 'no-call' });
-    expect(writeEasing(COMP, 'Intro', 0, [3, 0, 0, 1] as never)).toEqual({ ok: false, reason: 'bad-curve' });
+    expect(writeEasing(COMP, 'Intro', 0, [3, 0, 0, 1] as never)).toEqual({
+      ok: false,
+      reason: 'bad-curve',
+    });
   });
 
   test('a curve spelled another way reads as other, and writing over it replaces it', () => {
-    const odd = COMP.replace("{ extrapolateRight: 'clamp' }", '{ easing: Easing.out(Easing.cubic) }');
+    const odd = COMP.replace(
+      "{ extrapolateRight: 'clamp' }",
+      '{ easing: Easing.out(Easing.cubic) }'
+    );
     expect(readEasing(odd, interpolateCalls(odd, 'Intro')[1])).toEqual({
       kind: 'other',
       text: 'Easing.out(Easing.cubic)',
     });
-    expect(write(odd, 'Intro', 1, EASE_OUT)).toContain('{ easing: Easing.bezier(0.22, 1, 0.36, 1) }');
+    expect(write(odd, 'Intro', 1, EASE_OUT)).toContain(
+      '{ easing: Easing.bezier(0.22, 1, 0.36, 1) }'
+    );
   });
 });
 
@@ -175,12 +203,17 @@ describe('the edit op video.easing.set', () => {
 
   test('writes the curve, and adds Easing to the remotion import it already has', () => {
     const out = run(COMP, { component: 'Intro', index: 1, bezier: [0.22, 1, 0.36, 1] }).source;
-    expect(out).toContain("import { AbsoluteFill, interpolate, useCurrentFrame, Easing } from 'remotion';");
+    expect(out).toContain(
+      "import { AbsoluteFill, interpolate, useCurrentFrame, Easing } from 'remotion';"
+    );
     expect(out).toContain('{ easing: Easing.bezier(0.22, 1, 0.36, 1), extrapolateRight');
   });
 
   test('a comp with no remotion import gets one', () => {
-    const bare = COMP.replace("import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';\n", '');
+    const bare = COMP.replace(
+      "import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';\n",
+      ''
+    );
     const out = run(bare, { component: 'Intro', index: 0, bezier: [0.4, 0, 0.2, 1] }).source;
     expect(out).toContain("import { Easing } from 'remotion';");
   });

@@ -22,6 +22,24 @@ import { createPortal } from 'react-dom';
 import { ImagePlus, MessageSquarePlus, Plus, Scissors, Sparkles, Type } from 'lucide-react';
 
 import { isSilentVideo, timelineKindOf } from '../inspector/kinds/clip-model.js';
+import { foldStore } from '../fold/use-fold.js';
+import {
+  AdvancedFoot,
+  advancedStore,
+  trackKey,
+  useAdvanced,
+  useAdvancedOpen,
+} from './advanced/foot.jsx';
+import { clock, frameTick, timecode } from './advanced/model.js';
+import {
+  bindCapTarget,
+  capView,
+  loadMaxFrames,
+  maxFramesOf,
+  saveMaxFrames,
+  CAP_CEILING,
+  useCapVersion,
+} from './advanced/video-cap.js';
 import { FitFillAsk, useFitFill } from './fit-fill.jsx';
 import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
 import { TransitionPicker } from './joins/transition-picker.jsx';
@@ -274,6 +292,25 @@ export default function TimelinePanel({
   const playback = usePlayback();
   const band = compId ? playback.loopFor(compId) : null;
   const poster = Number.isFinite(island?.poster) ? island.poster : null;
+  // S7.18 — Advanced at the foot (frames, keyframes, the cut as code), the asked-for empty tracks, and how long
+  // one export of this video may be (C22). The fold is the shared `timeline` Advanced fold.
+  const advOpen = useAdvancedOpen();
+  const adv = useAdvanced();
+  useCapVersion();
+  const capFile = island?.canvas ?? null;
+  const capId = comp?.artboardId ?? null;
+  useEffect(() => {
+    if (capFile && capId) void loadMaxFrames(capFile, capId);
+    bindCapTarget(() => (capFile && capId ? { file: capFile, artboardId: capId } : null));
+    return () => bindCapTarget(null);
+  }, [capFile, capId]);
+  const cap = capView({
+    frames: totalFrames,
+    fps,
+    stored: capFile && capId ? maxFramesOf(capFile, capId) : null,
+    label: scopedArtboard ?? 'This video',
+  });
+  const extraTracks = adv.tracks[trackKey(capFile, capId)] ?? [];
   // Focus the dock the moment it opens — the transport shortcuts live on the
   // SHELL window and need shell focus (see the pre-restructure history).
   useEffect(() => {
@@ -850,7 +887,8 @@ export default function TimelinePanel({
   // testid and drag is unchanged.
   const trackOfIdx = new Map();
   const trackOfBed = new Map();
-  for (const t of deriveTracks({ sequences, audio })) {
+  const drawnTracks = deriveTracks({ sequences, audio, extra: extraTracks });
+  for (const t of drawnTracks) {
     for (const m of t.members) (m.kind === 'seq' ? trackOfIdx : trackOfBed).set(m.index, t.id);
   }
   const trackShell = (id, label, children, hint) => (
@@ -1360,19 +1398,24 @@ export default function TimelinePanel({
             {isResizing ? ` · ${dur}f` : ''}
             {moving ? ` · @${blockFrom}f` : ''}
           </span>
-          {seq.keyframes.map((kf, k) => {
+          {(advOpen ? seq.keyframes : []).map((kf, k) => {
             const l = ((kf.from - seq.from) / Math.max(1, seq.duration)) * 100;
             const w = ((kf.to - kf.from) / Math.max(1, seq.duration)) * 100;
+            // S7.18 — the markers show with Advanced open; a click picks the keyframe whose curve the foot shows
+            const info = seq.keyframeInfo?.[k];
+            const picked = !!info && adv.kf?.component === seq.label && adv.kf.index === info.index;
             return (
               <span
                 key={k}
-                className="tl-kf"
+                className={`tl-kf${picked ? ' is-picked' : ''}`}
                 data-testid={`timeline-kf-${i}-${k}`}
                 style={{ left: `${clamp(l, 0, 100)}%`, width: `${Math.max(1.5, w)}%` }}
                 title={`seek to keyframe ${kf.from}f (animates ${kf.from}–${kf.to}f)`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (info)
+                    advancedStore.selectKeyframe({ component: seq.label, index: info.index });
                   onSeek?.(kf.from);
                 }}
               />
@@ -1760,9 +1803,19 @@ export default function TimelinePanel({
               data-testid="timeline-readout"
               title={`Frame ${clamped} of ${totalFrames - 1}`}
             >
-              <b>{readoutLabel(clamped, fps, playback.stepping())}</b>
-              <span className="tl-sep">/</span>
-              {mss((totalFrames - 1) / fps)}
+              {advOpen ? (
+                <>
+                  <b>{timecode(clamped, fps)}</b>
+                  <span className="tl-sep">/</span>
+                  {timecode(totalFrames, fps)}
+                </>
+              ) : (
+                <>
+                  <b>{readoutLabel(clamped, fps, playback.stepping())}</b>
+                  <span className="tl-sep">/</span>
+                  {mss((totalFrames - 1) / fps)}
+                </>
+              )}
             </span>
             <span className="tl-spacer" />
             {onSplitAtPlayhead ? (
@@ -1832,17 +1885,18 @@ export default function TimelinePanel({
           <span className="tl-title">Timeline</span>
         )}
         <span className="tl-spacer" />
-        {comp && totalFrames > 900 ? (
-          // Task 1 — long-comp badge. 900 frames is the safe export tier
-          // (frame-step fallback ~2.5 s/frame); the export dialog shows the
-          // full notice, this is the always-visible hint.
-          <span
+        {comp && cap.warn ? (
+          // C22 — past 3 600 frames the video warns, here as everywhere (the Export sheet, the server). The
+          // sentence is the same one; the badge opens Advanced, where Allow longer is.
+          <button
+            type="button"
             className="tl-long-badge"
             data-testid="timeline-long-badge"
-            title={`Long comp: ${totalFrames} frames (≈${Math.round(totalFrames / (fps || 30))}s). Exports over 900 frames can take several minutes on the fallback path — see the export dialog.`}
+            title={cap.line}
+            onClick={() => foldStore.set('timeline', true)}
           >
-            ⚠ {Math.round(totalFrames / (fps || 30))}s
-          </span>
+            ⚠ {clock(totalFrames, fps)}
+          </button>
         ) : null}
         {comp ? (
           <span className="tl-meta">
@@ -1967,14 +2021,18 @@ export default function TimelinePanel({
               ) : null}
               {ticks.map((f) => {
                 const major = f % (fps || 30) === 0;
-                const showLabel = major || step <= 5;
+                const showLabel = (advOpen && adv.mode === 'frames') || major || step <= 5;
                 return (
                   <span
                     key={f}
                     className={`tl-tick${major ? ' is-major' : ''}`}
                     style={{ left: x(f) }}
                   >
-                    {showLabel ? <span className="tl-tick-label">{rulerLabel(f, fps)}</span> : null}
+                    {showLabel ? (
+                      <span className="tl-tick-label">
+                        {advOpen && adv.mode === 'frames' ? frameTick(f) : rulerLabel(f, fps)}
+                      </span>
+                    ) : null}
                   </span>
                 );
               })}
@@ -2071,7 +2129,7 @@ export default function TimelinePanel({
                       />,
                     ]),
                     trackShell('gfx', 'Graphics', overlayRows(overlayOf('gfx'))),
-                    overlayOf('video2').length
+                    overlayOf('video2').length || extraTracks.includes('video2')
                       ? trackShell('video2', 'Video 2', overlayRows(overlayOf('video2')))
                       : null,
                   ];
@@ -2255,7 +2313,9 @@ export default function TimelinePanel({
                         />
                       )
                     ),
-                    music2.length ? trackShell('music2', 'Music 2', music2) : null,
+                    music2.length || extraTracks.includes('music2')
+                      ? trackShell('music2', 'Music 2', music2)
+                      : null,
                   ];
                 })()}
                 {/* Debate verdict: the dead space below the lanes gets a JOB —
@@ -2421,6 +2481,27 @@ export default function TimelinePanel({
           </div>
         </div>
       )}
+      {comp ? (
+        <AdvancedFoot
+          canvas={capFile}
+          artboardId={capId}
+          fps={fps}
+          total={totalFrames}
+          frame={clamped}
+          sequences={sequences}
+          selectedClipId={selectedClipId}
+          canEdit={canEditHere && !!onClipVerb}
+          canRead
+          cap={cap}
+          onCap={(action) =>
+            capFile && capId
+              ? void saveMaxFrames(capFile, capId, action === 'allow' ? CAP_CEILING : null)
+              : undefined
+          }
+          have={drawnTracks.map((t) => t.id)}
+          onWriteEasing={(kf, bezier) => onClipVerb?.(null, 'video.easing.set', { ...kf, bezier })}
+        />
+      ) : null}
       {commentDraft
         ? createPortal(
             <div

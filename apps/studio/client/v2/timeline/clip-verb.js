@@ -41,6 +41,8 @@ export const CLIP_VERB_LABELS = {
   // S7.11 — edit by transcript and the captions (the Transcript panel, the caption lane, the Captions inspector)
   'cut-source-range': 'cut words',
   'video.captions.add': 'edit captions',
+  // S7.18 — a keyframe's curve (Advanced › Easing)
+  'video.easing.set': 'set curve',
 };
 
 const REFUSAL_WORD = {
@@ -51,6 +53,7 @@ const REFUSAL_WORD = {
   'video.fit': 'Framing',
   'video.title.motion': 'Motion',
   'video.transition.set': 'Transition',
+  'video.easing.set': 'Curve',
 };
 
 /** The title of the notice a refused verb raises: "Trim refused", never "retime refused". */
@@ -60,7 +63,7 @@ export function clipVerbRefusal(verb) {
 }
 
 /** Verbs that name no existing clip (a drop adds one). */
-const CLIPLESS_VERBS = new Set(['insert', 'video.captions.add']);
+const CLIPLESS_VERBS = new Set(['insert', 'video.captions.add', 'video.easing.set']);
 
 const mmss = (frame, fps) => {
   const s = Math.max(0, Math.floor(Math.max(0, frame) / Math.max(1, Math.round(fps || 30)) + 1e-9));
@@ -76,6 +79,8 @@ export function clipVerbToast(verb, { name, atFrame, fps, params } = {}) {
   if (verb === 'split' && name != null && Number.isFinite(atFrame))
     return { text: `Split ${name} at ${mmss(atFrame, fps)}.`, undo: true };
   if (verb === 'remove') return { text: 'Clip removed.', undo: false };
+  if (verb === 'video.easing.set')
+    return { text: params?.bezier ? 'Curve set.' : 'Curve taken off.', undo: false };
   if (verb === 'retime')
     return { text: params?.from != null ? 'Clip moved.' : 'Clip trimmed.', undo: false };
   if (verb === 'move') return { text: 'Clip moved.', undo: false };
