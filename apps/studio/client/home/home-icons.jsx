@@ -31,6 +31,33 @@ const GLYPHS = {
   offline: (
     <path d="M4.5 12.5a3 3 0 0 1-.4-5.97 4 4 0 0 1 7.6-.9 3.2 3.2 0 0 1-.2 6.87zM2.5 2.5l11 11" />
   ),
+  // S6.8 — the Advanced options rows (kit FAMILY: server, terminal, insert, submenu)
+  submenu: <path d="M6 4.5l3.5 3.5L6 11.5" />,
+  server: (
+    <>
+      <rect x="2.5" y="2.75" width="11" height="4.25" rx="1.5" />
+      <rect x="2.5" y="9" width="11" height="4.25" rx="1.5" />
+      <path d="M5 4.9h.01M5 11.1h.01" />
+    </>
+  ),
+  terminal: (
+    <>
+      <rect x="2" y="3" width="12" height="10" rx="2.5" />
+      <path d="M5 6.5l2 1.5-2 1.5M8.75 10h2.5" />
+    </>
+  ),
+  insert: (
+    <>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" />
+      <path d="M8 5.5v5M5.5 8h5" />
+    </>
+  ),
+  done: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M5.5 8.25l1.75 1.75 3.25-3.75" />
+    </>
+  ),
 };
 
 export function HIcon({ name, size = 16 }) {

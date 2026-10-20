@@ -37,6 +37,7 @@ function useCondensed(ref) {
  *   starters: object[], online: boolean, native: boolean, busy: boolean,
  *   onSend: (text: string) => Promise<unknown>|unknown, onEmpty: () => void,
  *   onBrand: (starter: object) => void, inputRef?: import('react').RefObject<HTMLTextAreaElement>,
+ *   below?: import('react').ReactNode,
  * }} props
  */
 export function HomeAsk({
@@ -51,6 +52,7 @@ export function HomeAsk({
   onEmpty,
   onBrand,
   inputRef,
+  below = null,
 }) {
   const [prompt, setPrompt] = useState('');
   const own = useRef(null);
@@ -162,8 +164,10 @@ export function HomeAsk({
         >
           Start with an empty canvas <kbd className="kbd">⌘N</kbd>
         </button>
-        {/* S6.8 mounts the sign-in card and the What's New line here. */}
-        <div className="home-below" data-slot="home-below" />
+        {/* S6.8: the sign-in card and the What's New line (home-app passes them as `below`) */}
+        <div className="home-below" data-slot="home-below">
+          {below}
+        </div>
       </div>
 
       {condensed ? (

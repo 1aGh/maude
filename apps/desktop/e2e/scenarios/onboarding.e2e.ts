@@ -1,112 +1,128 @@
+import { readdirSync } from 'node:fs';
+
 import { $, browser, expect } from '@wdio/globals';
 
-import { enterCanvasFrame, exitToTop } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
-import { waitForSidecar } from '../helpers/sidecar';
 import { expandTree } from '../helpers/tree';
+import { activeTab, HOME, labels, waitWindow } from '../helpers/windows';
 
 /**
- * Phase 29 / E4 — the native COLD-START onboarding, driven through the real wizard DOM.
- * Proves a person who installs Maude reaches the studio with ZERO terminal:
- *   1. first launch → the OnboardingWizard renders (not the canvas browser)
- *   2. Door A · Continue with GitHub → device-code modal → signed-in GitHub door
- *   3. Door B · Open a folder → "Set up Maude here" → the studio opens on the empty
- *      project card (S6.2); ↵ in its prompt makes the first canvas from the sentence.
+ * S6.8 — the native FIRST RUN, which is Home (02 Onboarding ob-first-launch · ob-adv-open ·
+ * ob-local-name · ob-local-first; replaces the pre-v2 OnboardingWizard scenario, no
+ * MAUDE_FORCE_ONBOARDING). A person who installs Maude reaches a project with ZERO terminal:
+ *   1. first launch opens Home with the sign-in card — two doors, no wizard, no tour
+ *   2. Advanced options folds out five rows and is closed again on the next launch (not driven here)
+ *   3. Just a local project → "Create a local project" → a name → a project tab on the empty
+ *      project card (S6.2) — the project is in the throwaway Maude folder the config names
+ *   4. the empty card's prompt makes the first canvas from a sentence (S6.3 takes it from there)
  *
- * Only runs under wdio.onboarding.conf.ts, which drops MAUDE_PROJECT_ROOT (→ first-run)
- * and sets the two debug-only stub envs. Under any other config it self-skips.
+ * NOT covered here (needs a debug-only switch in the Rust shell, not part of this slice): the CLOUD
+ * leg — Sign in to cloud.maude.sh against a fake control plane. `home_cloud_sign_in_open` opens the
+ * system browser, and the default profile's credential is `$HOME/.config/maude/cloud.json`, the
+ * developer's own. It needs (a) a `MAUDE_E2E_NO_BROWSER` gate like `MAUDE_E2E_NO_REVEAL` and (b) an
+ * isolated HOME for the run, then a stub `/auth/device/{code,token}` + `/api/home` in the lane's
+ * config. The page-level behaviour (prepare → start → open → poll → done, nudges, timeout, offline)
+ * is held by test/home-first-run.test.tsx.
+ *
+ * Only runs under wdio.onboarding.conf.ts (empty app-state, empty index, a throwaway projects dir).
+ * Under any other config it self-skips; on a Mac that is signed in to Maude Cloud there is no first
+ * run to drive, so it skips there too.
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
-const ONBOARDING = !!process.env.MAUDE_E2E_PICK_DIR;
+const PROJECTS_DIR = process.env.MAUDE_E2E_FIRST_RUN_PROJECTS ?? '';
 
-async function waitForWizard(timeout = 180_000): Promise<void> {
-  await browser.waitUntil(
-    async () => {
-      try {
-        return await (await $(tid('onboarding-wizard'))).isDisplayed();
-      } catch {
-        return false; // mid-boot the JS context can be torn down — keep polling
-      }
-    },
-    { timeout, interval: 500, timeoutMsg: 'first-run onboarding wizard never appeared' }
-  );
+async function onHome(): Promise<void> {
+  await browser.switchToWindow(HOME);
 }
 
-/** Return to the welcome door picker if a prior step left us on a sub-door. */
-async function ensureWelcome(): Promise<void> {
-  const back = await $(tid('ob-back'));
-  if (await back.isDisplayed().catch(() => false)) await back.click();
-  await (await $(tid('ob-door-local'))).waitForDisplayed({ timeout: 10_000 });
-}
-
-describe('native-onboarding (native-desktop)', () => {
+describe('native-first-run (native-desktop)', () => {
   before(async function () {
-    if (!ONBOARDING) this.skip(); // wrong config (no first-run / stubs) — not applicable
-    startReport('native-onboarding (native-desktop) — first-run wizard → studio, zero terminal');
+    if (!PROJECTS_DIR) this.skip(); // wrong config
+    startReport(
+      'native-first-run (native-desktop) — Home first run → local project, zero terminal'
+    );
     await browser.setTimeout({ script: 60_000 });
   });
 
-  it('1 · boots to the first-run onboarding wizard with three doors', async () => {
-    await waitForSidecar();
+  it('1 · a first launch opens Home with the sign-in card, two doors and no wizard', async function () {
+    await waitWindow(HOME);
+    await onHome();
     expect(await isNativeShell()).toBe(true);
-    await waitForWizard();
-    for (const door of ['ob-door-github', 'ob-door-local', 'ob-door-hub']) {
-      expect(await (await $(tid(door))).isDisplayed()).toBe(true);
-    }
-    expect(await (await $(tid('ob-door-github'))).getText()).toContain('GitHub');
-    await capture('01-first-run-wizard-three-doors');
-  });
-
-  it('2 · Door A · Continue with GitHub shows the device code, then signs in', async () => {
-    await (await $(tid('ob-door-github'))).click();
-    // The debug stub emits a deterministic device-code (~2.5 s) before "authorizing".
-    // Best-effort (it's transient): a missed catch must not fail the harder assertion.
+    const card = await $(tid('signin-card'));
     try {
-      await (await $(tid('ob-device-modal'))).waitForDisplayed({ timeout: 8_000 });
-      expect(await (await $(tid('ob-device-code'))).getText()).toContain('E2E-CODE');
-      await capture('02-device-code-modal');
+      await card.waitForDisplayed({ timeout: 60_000 });
     } catch {
-      await capture('02-device-code-missed');
+      await capture('01-no-first-run-card');
+      this.skip(); // this Mac already has a project or a cloud account — not a first run
     }
-    // Hard assertion: it advances to the signed-in GitHub door ("Start a new project").
-    await (await $(tid('ob-github-create'))).waitForDisplayed({ timeout: 20_000 });
-    await capture('03-signed-in-github-door');
+    expect(await (await $(tid('signin-cloud'))).getText()).toContain('Sign in to cloud.maude.sh');
+    expect(await (await $(tid('signin-local'))).getText()).toContain('Just a local project');
+    expect(await card.getAttribute('data-state')).toBe('idle');
+    expect(await (await $(tid('onboarding-wizard'))).isExisting()).toBe(false);
+    await capture('01-first-launch-is-home');
   });
 
-  it('3 · Door B · open a folder → set up Maude → the empty project asks for its first canvas', async () => {
-    await ensureWelcome();
-    await (await $(tid('ob-door-local'))).click();
-    // "Choose a project folder" → the stubbed picker returns an EMPTY temp dir → the
-    // non-Maude-folder branch offers "Set up Maude here".
-    await (await $(tid('ob-local-choose'))).click();
-    const setup = await $(tid('ob-local-setup'));
-    await setup.waitForDisplayed({ timeout: 20_000 });
-    await capture('04-folder-not-a-maude-project');
+  it('2 · Advanced options folds out the five rows', async () => {
+    await (await $(tid('signin-advanced'))).click();
+    await (await $(tid('signin-advanced-menu'))).waitForDisplayed({ timeout: 5_000 });
+    for (const row of ['hub', 'folder-github', 'ai', 'cli', 'figma']) {
+      expect(await (await $(tid(`signin-adv-${row}`))).isDisplayed()).toBe(true);
+    }
+    await capture('02-advanced-options');
+    await (await $(tid('signin-advanced'))).click(); // folded again
+    await (await $(tid('signin-advanced-menu'))).waitForDisplayed({
+      reverse: true,
+      timeout: 5_000,
+    });
+  });
 
-    await setup.click();
-    // scaffoldDesign writes .design/ → open_local_project switches the sidecar → the webview
-    // reloads onto the real project. That respawn is WebDriver-flaky (git-switch-repos
-    // learning), so wait generously.
-    await browser.pause(8_000);
-    await waitForSidecar();
+  it('3 · Just a local project → a name → the project opens as a tab on the empty card', async () => {
+    const before = await labels();
+    await (await $(tid('signin-local'))).click();
+    await (await $(tid('home-create-dialog'))).waitForDisplayed({ timeout: 10_000 });
+    expect(await (await $(tid('home-create-dialog'))).getText()).toContain(
+      'Create a local project'
+    );
+    await (await $(tid('home-create-name'))).setValue('Portfolio 2026');
+    await capture('03-create-a-local-project');
+    await (await $(tid('home-create-submit'))).click();
+    await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
+      timeout: 30_000,
+      interval: 250,
+      timeoutMsg: 'no project tab after Create project',
+    });
+    const created = (await labels()).find((l) => !before.includes(l)) as string;
+    await browser.waitUntil(async () => (await activeTab()) === created, { timeout: 15_000 });
+    // kept in the Maude folder the config names (never ~/Maude)
+    expect(readdirSync(PROJECTS_DIR)).toContain('Portfolio 2026');
 
-    // S6.2 — the wizard is gone (app_is_first_run is now false) and a project with no
-    // canvases shows the 05 es-project-new card, not a seeded canvas (S6.15 retires the
-    // seed): "<Project> has no canvases yet.", the prompt, "Start with an empty canvas ⌘N".
-    // No toolbar: there is nothing to draw on.
-    const card = await $(tid('empty-project'));
-    await card.waitForDisplayed({ timeout: 120_000 });
+    // the new tab boots its own server; a project with no canvases shows the 05 empty card
+    await browser.switchToWindow(created);
+    await browser.waitUntil(
+      async () => {
+        try {
+          return /^http:\/\/(localhost|127\.0\.0\.1):\d+/.test(await browser.getUrl());
+        } catch {
+          return false;
+        }
+      },
+      {
+        timeout: 150_000,
+        interval: 1000,
+        timeoutMsg: 'the new project tab never reached its server',
+      }
+    );
+    await (await $(tid('empty-project'))).waitForDisplayed({ timeout: 120_000 });
     await expect(await $(tid('empty-project-blank'))).toBeDisplayed();
-    await capture('05-empty-project-card');
+    await capture('04-the-empty-project');
+  });
 
-    // ↵ in the prompt makes the first canvas from the sentence (S6.3 takes the sentence on to
-    // draft it). The create call names the canvas from the words, opens it, and the card goes.
+  it('4 · a sentence in the empty card makes the first canvas', async () => {
     const prompt = await $(tid('empty-project-prompt'));
     await prompt.setValue('A one-page portfolio with six projects, calm and light');
     await browser.keys('Enter');
-    await card.waitForDisplayed({ timeout: 30_000, reverse: true });
-    // The server names it from the sentence (C4), so the row is found by prefix, not by name.
+    await (await $(tid('empty-project'))).waitForDisplayed({ timeout: 30_000, reverse: true });
     await browser.waitUntil(
       async () => {
         await expandTree();
@@ -114,17 +130,6 @@ describe('native-onboarding (native-desktop)', () => {
       },
       { timeout: 60_000, interval: 500, timeoutMsg: 'the first canvas never appeared in the list' }
     );
-    await capture('06-first-canvas-from-the-sentence');
-
-    // Soft: the canvas builds for a few seconds after first open. The hard proof is the row
-    // above; this confirms the canvas frame is up.
-    try {
-      await enterCanvasFrame(30_000);
-      await exitToTop();
-      await capture('07-first-canvas-rendered');
-    } catch {
-      await exitToTop().catch(() => undefined);
-      await capture('07-first-canvas-open-state');
-    }
+    await capture('05-first-canvas-from-the-sentence');
   });
 });
