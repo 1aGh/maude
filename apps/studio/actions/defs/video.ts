@@ -97,7 +97,11 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   },
   // S7.18 — bound: Timeline › Advanced › the keyframe's curve (a handle drag / arrow key writes it)
   row('video.easing.set', 'Keyframe curve', 'Timeline › Advanced'),
-  row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),
+  // S7.15 — bound: Timeline › Other takes (the clip inspector's "Other takes…"); ⌘K finds it by the takes words.
+  {
+    ...row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),
+    search: { where: 'Timeline › Other takes', keywords: ['take', 'other takes', 'swap', 'alternate'] },
+  },
   row('video.fit', 'Fit the picture', 'Inspector › Clip'),
   row('video.place', 'Place the title', 'Inspector › Formats'),
   // S7.10 — the Title inspector's Motion grid and the join's picker (07 ve-text, ve-transition)
