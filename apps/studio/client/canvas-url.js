@@ -88,29 +88,34 @@ function dsRenderFor(p, rel, uiDs, cfg, opts) {
   let ds = uiDs;
   let pinned = null;
   let preview = false;
+  let pending = false;
   const pv = typeof opts?.dsPreview === 'string' ? opts.dsPreview : '';
   if (pv) {
     const at = pv.indexOf('@');
     const name = at < 0 ? pv : pv.slice(0, at);
     const id = at < 0 ? null : pv.slice(at + 1);
     const entry = cfg?.designSystems?.find((d) => d.name === name);
+    // S10.9 — `<ds>@pending` is the reach view's frame: the system's CURRENT look, the one the canvases follow
+    // (no revision is named), flagged so the chrome that frames it knows what it asked for.
     // An unknown system or a malformed id is ignored: the override never invents a path.
-    if (entry && (id === null || REV_ID.test(id))) {
+    if (entry && (id === null || id === 'pending' || REV_ID.test(id))) {
       ds = entry;
-      pinned = id;
+      pinned = id === 'pending' ? null : id;
+      pending = id === 'pending';
       preview = true;
     }
   }
   if (!ds?.path || !ds.name) return null;
   // The Design system canvas renders the working files (plus its pending overlay): path-owned.
   if (!preview && rel === `${ds.path}/design-system.tsx`) return null;
+  const tag = (r) => (pending && r ? { ...r, pending: true } : r);
   const working = () => ({
     tokens: ds.tokensCssRel || `${ds.path}/colors_and_type.css`,
     components: `${ds.path}/preview/_components.css`,
   });
   if (cfg?.dsConverted?.[ds.name] !== true) {
     // Previewing an unconverted system: its working files. Otherwise: today's path, untouched.
-    return preview ? { rev: null, ...working(), waiting: null } : null;
+    return preview ? tag({ rev: null, ...working(), waiting: null }) : null;
   }
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
   const head = cfg?.systemHeads?.[ds.name];
@@ -128,15 +133,15 @@ function dsRenderFor(p, rel, uiDs, cfg, opts) {
   if (!rev) {
     // Nothing usable yet: the working files (a preview still points at the previewed system's).
     return preview
-      ? { rev: null, ...working(), waiting }
+      ? tag({ rev: null, ...working(), waiting })
       : { rev: null, tokens: null, components: null, waiting };
   }
-  return {
+  return tag({
     rev,
     tokens: `${ds.path}/revisions/${rev}.tokens.css`,
     components: `${ds.path}/revisions/${rev}.components.css`,
     waiting,
-  };
+  });
 }
 
 /**

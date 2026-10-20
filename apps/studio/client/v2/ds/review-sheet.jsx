@@ -38,7 +38,7 @@ const COLOUR =
 export const safeColour = (v) =>
   typeof v === 'string' && !/url\s*\(/i.test(v) && COLOUR.test(v.trim()) ? v.trim() : null;
 
-function Tick({ state, disabled, label, testid, onToggle, path, folder }) {
+export function Tick({ state, disabled, label, testid, onToggle, path, folder }) {
   return (
     <button
       type="button"
@@ -91,7 +91,7 @@ function Delta({ change, view }) {
   );
 }
 
-function RowView({ row, keeps, onToggle, cover }) {
+export function RowView({ row, keeps, onToggle, cover }) {
   const off = !row.ticked;
   return (
     <span

@@ -1923,6 +1923,36 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-review-error` | testid | S10.8: a refusal in words, under the list; the sheet stays open. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
 | `ds-review-cancel` | testid | S10.8: Cancel — drops what waits; no canvas changes. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
 | `ds-review-update` | testid | S10.8: the primary button, "Update 4 canvases" — sends the ticks; one action, one ⌘Z. | `client/v2/ds/review-sheet.jsx` · `DsReviewSheet` | test:v2-ds-review-sheet.test | new |
+| `ds-reach` | testid | S10.9: the reach view ("One colour, everywhere it lands") — a full-screen dialog over the canvas; Esc and Close go back and change nothing. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-title` | testid | S10.9: the reach view's title. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-sub` | testid | S10.9: the line under the title ("Accent goes from Azure to Deeper azure. Lines run from the swatch…"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-close` | testid | S10.9: Close — back to the canvas, nothing changed. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-lines` | testid | S10.9: the SVG that carries the lines from the swatch to each frame. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-line` | testid | S10.9: one line from the swatch to a frame's tag. Repeats. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-token` | testid | S10.9: the swatch island (the token, before → after, "Used in 5 canvases · showing", the whole tag). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-used` | testid | S10.9: "Used in 5 canvases · showing" on the swatch island. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-hide` | testid | S10.9: Hide — the same as Close. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-tag` | testid | S10.9: the whole view's tag, "4 patterns · 21 places". | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-frames` | testid | S10.9: the frames (one per artboard that uses the token, busiest first, at most four). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-frame` | testid | S10.9: one frame — a live render of one artboard (`data-key` canvas#artboard, `data-artboard`). Repeats. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-places` | testid | S10.9: a frame's tag, "14 places". Repeats. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-iframe` | testid | S10.9: the canvas frame itself (`?dsPreview=<ds>@pending`, embed: read-only, no comments). Repeats. Not DOM-reachable from the shell (canvas origin). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-rings` | testid | S10.9: the layer of rings over one frame (`data-count` = how many are drawn). Repeats. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-ring` | testid | S10.9: one ringed place. Repeats. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-more` | testid | S10.9: "Onboarding and Landing page are in the review too" — the canvases past the frames. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-capped` | testid | S10.9: "The first 500 places are ringed." — shown only past the ring cap. | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-note` | testid | S10.9: the quiet line under the view ("The review is the same list…"). | `client/v2/ds/reach-view.jsx` · `DsReachView` | test:v2-ds-reach-view.test | new |
+| `ds-reach-review` | testid | S10.9: the review list that opens once the rings are drawn — the same decision as "Update N canvases". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-review-title` | testid | S10.9: "Update canvases with the new Accent?". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-head-tick` | testid | S10.9: the checkbox of "Update every canvas". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-head` | testid | S10.9: "4 of 5 canvases". | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-list` | testid | S10.9: the canvases to update. | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-row` | testid | S10.9: one canvas in the list (`data-path`, `data-off`, `data-locked`). Repeats. | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-tick` | testid | S10.9: a canvas's checkbox. Repeats. | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-error` | testid | S10.9: a refusal in words, under the list; the view stays open. | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-cancel` | testid | S10.9: Cancel — drops what waits; no canvas changes. | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-reach-update` | testid | S10.9: the primary button, "Update 4 canvases" — sends the ticks; one action, one ⌘Z. | `client/v2/ds/reach-view.jsx` · `ReachReview` | test:v2-ds-reach-view.test | new |
+| `ds-token-show` | testid | S10.9: "Show" on the inspector's "Used in 5 canvases" line — runs ds.show-reach, the reach view. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-reach-view.test | new |
 | `ds-update-available` | testid | S10.8: Inspector › the "Update available" block on an instance in a canvas that was left out of an update. | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 | `ds-update-what` | testid | S10.8: what the canvas is missing, one line ("Corners 2 → 6, by You, 10 min ago. 2026/combine was left out of that update."). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 | `ds-update-do` | testid | S10.8: Update — gives this instance the current look (`ds.instance-update`). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |

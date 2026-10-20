@@ -79,7 +79,7 @@ function Chip({ model, theme, value }) {
 }
 
 /** The panel for ONE token of one system. Exported for tests with an injected model and writer. */
-export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt }) {
+export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow }) {
   const token = model?.tokens.find((t) => t.css === css) ?? null;
   const themes = model?.themes;
   const hasDark =
@@ -319,6 +319,30 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt }) {
         <Quiet testid="ds-token-used">
           <StIcon name="layers" size={12} /> {used}
           {was ? ` · was ${was}` : ''}
+          {onShow && token.used ? (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="ds-tk-show"
+                data-testid="ds-token-show"
+                onClick={() =>
+                  onShow({
+                    css,
+                    name: token.label,
+                    swatch: {
+                      before: waiting ? (token.values?.[themes.light] ?? null) : null,
+                      after: lightV,
+                      beforeName: was,
+                      afterName: valueName(themes.light) || null,
+                    },
+                  })
+                }
+              >
+                Show
+              </button>
+            </>
+          ) : null}
         </Quiet>
       ) : null}
       {note ? (
@@ -371,6 +395,7 @@ function TokenBody({ el, ctx }) {
       onWrite={writeToken}
       onRefresh={refresh}
       onAdopt={adopt}
+      onShow={(p) => ctx?.onShellAction?.('ds.show-reach', { ds, ...p })}
     />
   );
 }
