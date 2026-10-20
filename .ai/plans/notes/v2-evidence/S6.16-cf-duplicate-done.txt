@@ -1,22 +1,30 @@
 S6.16 evidence — 01/cf-duplicate-done   (11 · The copy lands in line)
 canvas: .design/ui/v2/01 Create Flow.tsx line 524
 words : The copy, reflowed and in line. Laptop lands under Desktop, left edges aligned, the hero reflowed to 1280. Drag it and the gaps measure themselves — equal gaps snap. (Toast: “Duplicated at Laptop — 1280 wide.” + Undo.)
-verdict proposed: built (two named gaps)
+verdict proposed: built (placement: the 01 drawing is stale, the lead decided 14 ed-ab-menu wins)
+S6.16b (2026-10-20, branch s6-16b): the toast with Undo is built, in the SHELL (see IMPLEMENTED BY).
+PLACEMENT NOTE (lead's decision, 2026-10-20): the 01 board draws the copy UNDER the source with left edges aligned; the 01 drawing is stale on placement. The topic canvas 14 ed-ab-menu wins: the copy lands to the RIGHT of the row at its gap (duplicate-rhythm.ts, unchanged).
 
 How to re-check the pins (from the repo root): grep -E "^[0-9a-f]{64}  " <this file> | shasum -a 256 -c
-Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 523 pass · 0 fail · 27 files (2026-10-20, branch s6-16 on feat/maude-v2 435b37e75)
+Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 159 pass · 0 fail · 10 files (the test files of this file and of S6.16-cf-select-tweak.txt; 2026-10-20, branch s6-16b on feat/maude-v2 3a763bdc9 + 644f69d41). Earlier run before S6.16b: 523 pass · 0 fail · 27 files across all seven S6.16 rows.
 
 IMPLEMENTED BY (code, hash-pinned):
 b393a21452b200411170cbab2a4cc5b60c35f138d1a96744f4b963aa9407d2dc  apps/studio/editing/duplicate-rhythm.ts
       ↳ where a copy lands: right of the source at the row’s gap, same top edge
 2e80234713ab3fcbbf268796b404079d917045414e6fda43aa9348e80093ca2f  apps/studio/editing/artboard-actions.ts
-      ↳ writeCopies: select the copy, record the undo; only a refusal toasts
+      ↳ writeCopies: select the copy, record the undo; only a refusal toasts (the canvas never says the success — a canvas notice cannot carry an Undo, decision maude/v2-sec-a-canvas-toast-no-undo; the shell does, below)
+4f93fd08d8eb8264a2e195fdf7791fd20a3fdad387ad179b81494f9bb82247c0  apps/studio/client/v2/create/duplicate-done.js
+      ↳ S6.16b: settleDuplicateAtWidth(body, result, undo) → "Duplicated at Laptop — 1280 wide." (a width that is no preset: "Duplicated at 1000 wide.") + Undo
+d32088f2e349d4389ea42877cf4f3783e9a2191ec9c8f487f3804a47b74d51aa  apps/studio/client/hooks/use-canvas-bridge.jsx
+      ↳ S6.16b: the edit-op handler files the toast after the inspector's own S7.21 toast had its turn; Undo = menuRunner.run('edit.undo'), the shell's own ⌘Z
 d0cfe6f7723b877c81a32ad050ed9ca0ce0d9bb81444a5f51ff2e250249cb6c0  apps/studio/edit-ops/duplicate-at-width.ts
       ↳ ONE action (one ⌘Z) for the copy and its place
 e5102fd7f1811292507bbda4eac278fa98fc46863ba7dae93b1f628febcf45c3  apps/studio/editing/artboard-guides.tsx
       ↳ smart guides and equal gaps while dragging (S2.9)
 
 PINNED BY (tests, hash-pinned):
+659ebb96837fbc0b43485c3b14392dd864ed41f1ecfdb5b49c8be898c05b8dba  apps/studio/test/s6-16b-duplicate-done.test.ts
+      ↳ S6.16b: the exact words (preset and custom) · Undo runs the shell undo · mixed widths / refusal / ⌘D / bad widths say nothing · the bridge wiring (red with it removed, 2026-10-20)
 6a28108a457aec847271a67d4943b9de1922ce829fcaddeced3200a9fed2a738  apps/studio/test/v2-artboard-menu.test.tsx
       ↳ "a row with a 16 px gap: the copy goes right of the source" · "a copy at another width is placed with that width" · "at another width the op and the width ride together"
 c6c4e9967913d314f811db4b8ed5da2eb6cba10d836b9ed57c7ee31be977bc62  apps/studio/test/v2-artboard-duplicate-op.test.ts
@@ -36,5 +44,6 @@ EARLIER EVIDENCE on the topic canvases (rows already verified in the ledger):
   14/ed-ab-arrange → equal-gap snapping while dragging (verified)
 
 GAPS:
-  GAP 1 — placement. The 01 board shows the copy UNDER the source with left edges aligned. Built (and pinned by the tests above, and by 14 ed-ab-menu, the topic canvas for artboard editing) is: RIGHT of the source at the gap its row uses, pushed past any board in the way. The two canvases disagree; precedence says 14 wins, so the 01 picture is the stale one — decision for the lead: fix the 01 board, or build “under”.
-  GAP 2 — the success toast. No toast “Duplicated at Laptop — 1280 wide.” with an Undo action is built: writeCopies (editing/artboard-actions.ts) toasts only a refusal. Missing: one showCanvasToast(...) with an Undo action on the success path (the toast helper has no action slot in the canvas today), words per CONTRACT §4. ⌘Z undoes the copy in one step (pinned).
+  CLOSED (S6.16b) — placement: the 01 board drawing is stale on placement (see PLACEMENT NOTE above). Built and pinned: RIGHT of the source at the gap its row uses, pushed past any board in the way.
+  CLOSED (S6.16b) — the success toast, in the shell. CONTRACT §4 does not carry the sentence; the words are the 01 board's, with the preset name and width filled in. The shell's toast already had an action slot (notifications.tsx Notice.action); the CANVAS notice deliberately has none (canvas-notice-message.ts; sec-a M3: the canvas cannot prove the button is the person's own step), so the shell builds the toast from the edit-op request it forwarded and the server's answer, and Undo is the shell's own edit.undo (the same lane as the inspector's S7.21 "Add a width" toast, which takes its turn first so one write never gets two toasts). It speaks for "Duplicate at another width" with one width (any number of boards); ⌘D, the ⌥-drag drop and the two-width "Tablet and Mobile" stay as they were. ⌘Z undoes the copy in one step (pinned).
+  Limits: Undo is ⌘Z at the moment of the click (the S7.21 posture), so if another step landed in the 10 s the toast shows, Undo takes back that step; the click is the person's own. Not proven live (the e2e step 4 asserts the copy and one ⌘Z, not the toast).

@@ -31,7 +31,12 @@ import { isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
-import { shouldCloseOnDeselect, shouldOpenOnSelect } from '../v2/shell/inspector-follow.js';
+import {
+  createCanvasesFold,
+  shouldCloseOnDeselect,
+  shouldOpenOnSelect,
+} from '../v2/shell/inspector-follow.js';
+import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
 import { registerExportOpener } from '../v2/export/use-export-spec.js';
@@ -922,6 +927,7 @@ export function useShellCore({}) {
   // and only when the preference is on. Idempotent: once the inspector is open,
   // the `anyRightPanelOpen` guard stops it re-firing on the next selection.
   const inspectorAutoOpenedRef = useRef(false);
+  const canvasesFold = useRef(createCanvasesFold());
   const maybeAutoOpenInspectorOnSelect = useCallback(
     (sel) => {
       // V2-4.4b — the rule is v2/shell/inspector-follow.js (pref on, not a viewer — Cloud Phase 25 C2,
@@ -939,8 +945,15 @@ export function useShellCore({}) {
       inspectorAutoOpenedRef.current = true; // V2-4.4b — this appearance is the selection's; it leaves with it
       openRightPanel('inspector');
       setInspectorTab('css');
+      // S6.16b (01 cf-select-tweak) — "the view makes room": the Canvases panel folds to its corner icon.
+      // The panel only; the view never moves (I1). Same side as the Inspector? The exclusive rule above shut it.
+      const canvasesOpen =
+        !!panelStateRef.current.open?.tree && sideOf('tree') !== sideOf('inspector');
+      if (canvasesFold.current.arrive({ canvasesOpen, pinned: panelLayout.get().pinned })) {
+        setSidebarOpen(false);
+      }
     },
-    [openRightPanel, viewerMode]
+    [openRightPanel, sideOf, viewerMode]
   );
   // V2-4.4b — "appears when something is selected and goes away on deselect". Only an Inspector the
   // SELECTION opened goes away with it; one opened on purpose (⇧⌘I, View ▸ Inspector) stays, and closing
@@ -958,6 +971,22 @@ export function useShellCore({}) {
     });
     inspectorAutoOpenedRef.current = false;
     if (close) setInspectorOpen(false);
+  }, [hasSelection]);
+  // S6.16b — the Canvases panel the arrival folded comes back with the end of the selection, unless the person
+  // opened it themselves meanwhile (the effect below ends the claim) or pinned the panels.
+  useEffect(() => {
+    if (sidebarOpen) canvasesFold.current.release();
+  }, [sidebarOpen]);
+  useEffect(() => {
+    if (
+      canvasesFold.current.clear({
+        hasSelection,
+        canvasesOpen: !!panelStateRef.current.open?.tree,
+        pinned: panelLayout.get().pinned,
+      })
+    ) {
+      setSidebarOpen(true);
+    }
   }, [hasSelection]);
   // DDR-148 — the Timeline is a BOTTOM dock, independent of the right rail: it
   // toggles on its own and coexists with Inspector/Changes/Comments/Chat.

@@ -1,18 +1,19 @@
 S6.16 evidence — 01/cf-select-tweak   (4 · Select — the inspector arrives)
 canvas: .design/ui/v2/01 Create Flow.tsx line 384
 words : Select, and the view makes room. The inspector comes with the selection; the Canvases panel folds and the canvas slides left. Width 1280 is typed, so the preset reads Custom.
-verdict proposed: built (two named gaps)
+verdict proposed: built (one decision-backed omission: the canvas does not slide; see GAPS)
+S6.16b (2026-10-20, branch s6-16b): the Canvases panel fold is built; "the canvas slides left" is NOT built, by the I1 decision.
 
 How to re-check the pins (from the repo root): grep -E "^[0-9a-f]{64}  " <this file> | shasum -a 256 -c
-Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 523 pass · 0 fail · 27 files (2026-10-20, branch s6-16 on feat/maude-v2 435b37e75)
+Unit/component run: scripts/v2-test-lane.sh -- bash -c "cd apps/studio && NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 bun test <the test files below, all rows>" → 159 pass · 0 fail · 10 files (the test files of this file and of S6.16-cf-duplicate-done.txt; 2026-10-20, branch s6-16b on feat/maude-v2 3a763bdc9 + 644f69d41). Earlier run before S6.16b: 523 pass · 0 fail · 27 files across all seven S6.16 rows.
 
 IMPLEMENTED BY (code, hash-pinned):
 633b6fe5f50b6dece739878f8cb1f6008b0d1eecff279350f099aa6ccff94bf2  apps/studio/editing/artboard-handles.tsx
       ↳ select an artboard: azure frame, eight handles
-218c6a19f23bccc14a320714cd6a99770848bc3bd18a4f825d04baa28c0806fd  apps/studio/client/v2/shell/inspector-follow.js
-      ↳ the inspector appears on select, leaves on deselect
-9c16acba14eddf7645d8f9abe8b7e6166d36c441e232883050b13a4721d9195c  apps/studio/client/hooks/use-shell-core.jsx
-      ↳ maybeAutoOpenInspectorOnSelect: the call site of the follow rule
+c316900c6005e6e6b45cffbd185b1a520d0959d2a878dfbe736b31cf68f72817  apps/studio/client/v2/shell/inspector-follow.js
+      ↳ the inspector appears on select, leaves on deselect; S6.16b: createCanvasesFold (arrive / release / clear — folds only an open Canvases, never under pinned panels, never undoes a panel the person opened)
+0eddb7176338e0f233940fc5d8302ce22188503838c97630f165ef4f50c23b36  apps/studio/client/hooks/use-shell-core.jsx
+      ↳ maybeAutoOpenInspectorOnSelect: the call site of the follow rule; S6.16b: on arrival the Canvases panel (tree) folds (setSidebarOpen(false)), and comes back when the selection clears (createCanvasesFold claim)
 be80e6a923345d2a86488725648c20cbf589e8cc7d6ec7878fb133e8e6a32e92  apps/studio/client/v2/inspector/kinds/artboard.jsx
       ↳ the artboard inspector
 0dd9b4cb15954088146f1f813ff27f83b7a9116f68320026c64c0bbb23943d9b  apps/studio/client/v2/inspector/kinds/artboard-rows.jsx
@@ -21,6 +22,8 @@ b99c070526519c60e72afd61a619bd12b5cff20289d9a85709527ffb1d13fa8c  apps/studio/cl
       ↳ presetValue / presetOptions
 
 PINNED BY (tests, hash-pinned):
+cf465e9729a3e32189c5cf85c05ff370e23641a443de2720246b54fe6227c633  apps/studio/test/s6-16b-canvases-fold.test.ts
+      ↳ S6.16b: "the Inspector arrives while Canvases is open: it folds, and comes back when the selection clears" · pinned panels never fold · opening it by hand ends the claim · wiring pins in use-shell-core · no view call in the follow rule (red with the wiring removed: 2 of the 3 wiring tests fail, 2026-10-20)
 22ad53e5ce3cc5fc32be20754f47e67af74253caf2093ac3d8f4ee96a479ab65  apps/studio/test/v2-inspector-artboard.test.tsx
       ↳ "a size that is no preset reads Custom" · "W commits the width only" · "Preset: Laptop on a web page is a width"
 88f33c48f946a2f3cde666c81c09e253510174577b6564607f0b06ab5ba23f4d  apps/studio/test/v2-right-islands.test.tsx
@@ -44,6 +47,7 @@ EARLIER EVIDENCE on the topic canvases (rows already verified in the ledger):
   14/ed-inspector  → .ai/plans/notes/v2-evidence/S2.V2/ed-inspector.v2.png (verified)
 
 GAPS:
-  GAP 1 — "the Canvases panel folds". Selecting opens the Inspector as a second floating island; nothing folds the Canvases panel (panel-layout.js folds panels only for Preview, V2-4.3b). Missing: a rule in use-shell-core.jsx / panel-layout.js "inspector arrives ⇒ Canvases folds to its corner icon", plus its undo on deselect.
-  GAP 2 — "the canvas slides left". By contract an inset change alone never moves the camera (apps/studio/bridge/canvas-mode-store.ts, I1; canvas-lib computeFit reads insets only for Fit / reveal). Missing: a camera nudge when the inspector arrives — which would also reverse I1, so it needs a contract decision, not glue.
+  CLOSED (S6.16b) — "the Canvases panel folds". kg search "inspector arrives" / "occluded insets" / "Canvases panel folds" found no decision against a fold (the nearest, V2-4.4b right-islands and S11.9 FOLD_PANELS, are about the right side and the Advanced folds). 14/ed-ab-select, the topic canvas, draws the selected state with Canvases folded to its corner icon (panel-left). Built as a panel-only rule with a claim: arrival folds an OPEN Canvases (tree) panel; the end of the selection brings it back; opening it by hand while the Inspector is up, or pinning panels ("Pin panels to the side"), ends the claim. Not folded when Canvases and the Inspector share a side (the exclusive rule already shut it), when the pref "Open inspector on select" is off, or for a viewer. Live check of the folded corner icon is in the e2e (written, not run).
+  NOT BUILT, BY DECISION — "the canvas slides left". An inset change alone never moves the view: apps/studio/bridge/canvas-mode-store.ts I1, kg decisions maude/v2-2.10-insets-store-window-level ("Fit, jumpTo, the boot fit and reveal honour insets") and maude/v2-4.1-insets-seed-and-boot-refit (the canvas re-fits once, on the FIRST insets, I2). A nudge on every arrival would reverse I1. The 01 sentence overdraws; the panel fold is what ships. If the lead wants the slide, it is a contract decision on I1, not glue.
+  Known wart: the left panel's open state is written to localStorage (SIDEBAR_STORE, use-photo-and-timeline.jsx) on any change, so quitting while a selection holds Canvases folded reopens it folded. One click opens it; not worked around.
   The typed width 1280 reading "Custom" is not built as drawn: 1280 is the Laptop preset and reads Laptop (the 01 note is loose; the test pins that a width that is NO preset reads Custom).
