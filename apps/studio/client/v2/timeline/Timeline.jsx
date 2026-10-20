@@ -56,6 +56,7 @@ import { KeptStatus, SharedStatus, SizeButton } from './island-controls.jsx';
 import { ReframeHost } from './reframe-island.jsx';
 import { bindClips } from './clip-search.js';
 import { FOLD_WORDS, FOLDABLE, trackFold, useFoldVersion } from './fold.js';
+import { bindMarkerSource, loadMarkers, markersOf, useMarkersVersion } from './marker-store.js';
 import {
   clipNameWithState,
   FOOTAGE_WORDS,
@@ -920,6 +921,22 @@ export default function TimelinePanel({
   useFoldVersion();
   useFootageAnswers(); // S7.16 — a waiting clip turns to here by itself when the file arrives
   const foldKey = trackKey(capFile, capId);
+  // S7.16 — ruler markers ("Výkop", "TD 1"): part of the cut, in the video's meta; the flags jump the playhead
+  useMarkersVersion();
+  const markers = capFile && capId ? markersOf(capFile, capId) : [];
+  const markerAt = useRef({ frame: 0, seek: null });
+  markerAt.current = { frame: clamped, seek: onSeek };
+  useEffect(() => {
+    if (!capFile || !capId) return undefined;
+    void loadMarkers(capFile, capId);
+    bindMarkerSource(() => ({
+      file: capFile,
+      artboardId: capId,
+      frame: markerAt.current.frame,
+      seek: markerAt.current.seek,
+    }));
+    return () => bindMarkerSource(null);
+  }, [capFile, capId]);
   const preparing = preparingCount(
     sequences.map((q) => (q.mediaSrc ? footageForSrc(island?.canvas, q.mediaSrc) : null))
   );
@@ -2131,6 +2148,23 @@ export default function TimelinePanel({
                   Poster
                 </span>
               ) : null}
+              {markers.map((m) => (
+                <button
+                  key={`mk${m.frame}`}
+                  type="button"
+                  className="tl-marker-flag"
+                  data-testid={`timeline-marker-${m.frame}`}
+                  style={{ left: x(clamp(m.frame, 0, totalFrames - 1)) }}
+                  title={`${m.name || 'Marker'} · ${fmtTime(m.frame, fps)}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSeek?.(m.frame);
+                  }}
+                >
+                  <span className="tl-marker-name">{m.name}</span>
+                </button>
+              ))}
               {ticks.map((f) => {
                 const major = f % (fps || 30) === 0;
                 const showLabel = (advOpen && adv.mode === 'frames') || major || step <= 5;

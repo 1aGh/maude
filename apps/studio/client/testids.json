@@ -37890,6 +37890,22 @@
     "v2": "new in v2 (S7.16)"
   },
   {
+    "hook": "timeline-marker-<frame>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.16: A ruler marker's flag (\"Výkop\", \"TD 1\") at its frame; a click puts the playhead there. Part of the cut: artboardMeta[id].markers.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-markers.test.tsx"
+    ],
+    "v2": "new in v2 (S7.16)"
+  },
+  {
     "hook": "video-links",
     "kind": "testid",
     "pattern": false,

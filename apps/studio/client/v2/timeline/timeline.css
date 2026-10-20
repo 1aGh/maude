@@ -346,4 +346,32 @@
   .tl-track[data-folded="1"] .tl-track-cap {
     min-height: 20px;
   }
+
+  /* S7.16 — ruler markers ("Výkop", "TD 1"): a flag at the moment, clicking it puts the playhead there */
+  .tl-marker-flag {
+    position: absolute;
+    top: 0;
+    z-index: 2;
+    max-width: 96px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    line-height: 14px;
+    cursor: pointer;
+  }
+  .tl-marker-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tl-marker-flag:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
 }
