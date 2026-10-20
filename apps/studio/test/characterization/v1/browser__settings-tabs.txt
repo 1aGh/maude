@@ -18,13 +18,20 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
           span .v2s-row-t
             span .v2s-row-k "Maude Cloud"
             span .v2s-hint "Sign in under Connections to sync projects."
-          span .v2s-val "Not signed in"
+          span .v2s-val
+            span [data-testid="settings-account-state"] "Not signed in"
         div .v2s-row
           span .v2s-row-t
             span .v2s-row-k "Your account on the web"
             span .v2s-hint "People, billing, your Macs and downloads."
           span .v2s-val
-            button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Open the cloud dashboard"
+            button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Manage on cloud.maude.sh"
+        div .v2s-row
+          span .v2s-row-t
+            span .v2s-row-k "E-mails"
+            span .v2s-hint "Change which e-mails you get — a mention while Maude is closed, for one."
+          span .v2s-val
+            button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
       section .v2s-group [aria-label="Look"]
         h3 .v2s-group-t "Look"
         div .st-provider-card
@@ -169,13 +176,20 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
           span .v2s-row-t
             span .v2s-row-k "Maude Cloud"
             span .v2s-hint "Sign in under Connections to sync projects."
-          span .v2s-val "Not signed in"
+          span .v2s-val
+            span [data-testid="settings-account-state"] "Not signed in"
         div .v2s-row
           span .v2s-row-t
             span .v2s-row-k "Your account on the web"
             span .v2s-hint "People, billing, your Macs and downloads."
           span .v2s-val
-            button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Open the cloud dashboard"
+            button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Manage on cloud.maude.sh"
+        div .v2s-row
+          span .v2s-row-t
+            span .v2s-row-k "E-mails"
+            span .v2s-hint "Change which e-mails you get — a mention while Maude is closed, for one."
+          span .v2s-val
+            button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
       section .v2s-group [aria-label="Look"]
         h3 .v2s-group-t "Look"
         div .st-provider-card
@@ -302,48 +316,64 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"]
-      section .v2s-group [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
-        h3 .v2s-group-t "Maude Cloud"
-        div .cb-settings [data-testid="cloud-bar"]
-          div .cb-settings-row
-            span .cb-settings-t
+      div .v2s-conns [data-testid="settings-connections"]
+        section .v2s-conn [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
               strong "Maude Cloud"
-              span "Where your projects live. Not signed in."
-            button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
-      section .v2s-group [aria-label="Your team’s own server"]
-        h3 .v2s-group-t "Your team’s own server"
-        div .cb-settings-row
-          span .cb-settings-t
-            strong "A server your team runs"
-            span "A self-hosted server, beside the cloud. Sign in with your email and password."
-          button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
-      section .v2s-group [aria-label="GitHub"]
-        h3 .v2s-group-t "GitHub"
-        div .gi-settings [data-testid="settings-github"]
-          div .cb-settings-row
-            span .cb-settings-t
+              span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
+          div .v2s-conn-fold
+            div .v2-fold [data-testid="fold-connections.cloud"]
+              button .v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .v2-fold-ch
+                  svg [aria-hidden="true"]
+        section .v2s-conn [data-testid="settings-conn-hub"] [aria-label="Your team’s own server"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "Your team’s own server"
+              span .v2s-conn-s [data-testid="settings-conn-hub-status"] "A self-hosted server, beside the cloud. Sign in with your email and password."
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
+        section .v2s-conn [data-testid="settings-github"] [aria-label="GitHub"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
               strong "GitHub"
-              span "Signing in with GitHub needs the Maude desktop app."
-      section .v2s-group [aria-label="AI images, video and voice"]
-        h3 .v2s-group-t "AI images, video and voice"
-        div .cb-settings-row [data-testid="settings-ai-keys"]
-          span .cb-settings-t
-            strong "Your own provider keys"
-            span "Kept on this Mac only — never sent anywhere but the provider."
-          button .btn.btn--sm [data-testid="settings-ai-keys-toggle"] [aria-expanded="false"] [type="button"] "Manage"
-      section .v2s-group [aria-label="Figma"]
-        h3 .v2s-group-t "Figma"
-        div .st-provider-card [data-testid="figma-connect-card"]
-          div .st-provider-hd
-            span .st-provider-name "Figma"
-          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
-          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+              span .v2s-conn-s [data-testid="settings-conn-github-status"] "Signing in with GitHub needs the Maude desktop app."
+        section .v2s-conn [data-testid="settings-ai-keys"] [aria-label="AI images, video and voice"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "AI images, video and voice"
+              span .v2s-conn-s [data-testid="settings-conn-ai-status"] "No keys yet"
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="settings-ai-keys-toggle"] [aria-expanded="false"] [type="button"] "Manage"
+          div .v2s-conn-fold
+            div .v2-fold [data-testid="fold-connections.ai"]
+              button .v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .v2-fold-ch
+                  svg [aria-hidden="true"]
+        section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "Figma"
+              span .v2s-conn-s [data-testid="settings-conn-figma-status"] "Not connected"
+          p .v2s-hint "A personal access token with the scope. Kept on this Mac only and never sent anywhere but Figma."
             code "file_content:read"
-          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
-            svg [aria-hidden="true"]
-          div .st-provider-keyrow
-            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
-            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+          button .btn.btn--ghost.btn--sm [type="button"] "Get a token ↗"
+          span .v2s-conn-replace
+            input .input [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .btn.btn--sm [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
 ## tab 2
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
@@ -363,13 +393,20 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
           span .v2s-row-t
             span .v2s-row-k "Maude Cloud"
             span .v2s-hint "Sign in under Connections to sync projects."
-          span .v2s-val "Not signed in"
+          span .v2s-val
+            span [data-testid="settings-account-state"] "Not signed in"
         div .v2s-row
           span .v2s-row-t
             span .v2s-row-k "Your account on the web"
             span .v2s-hint "People, billing, your Macs and downloads."
           span .v2s-val
-            button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Open the cloud dashboard"
+            button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Manage on cloud.maude.sh"
+        div .v2s-row
+          span .v2s-row-t
+            span .v2s-row-k "E-mails"
+            span .v2s-hint "Change which e-mails you get — a mention while Maude is closed, for one."
+          span .v2s-val
+            button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
       section .v2s-group [aria-label="Look"]
         h3 .v2s-group-t "Look"
         div .st-provider-card
@@ -496,48 +533,64 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"] [hidden]
-      section .v2s-group [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
-        h3 .v2s-group-t "Maude Cloud"
-        div .cb-settings [data-testid="cloud-bar"]
-          div .cb-settings-row
-            span .cb-settings-t
+      div .v2s-conns [data-testid="settings-connections"]
+        section .v2s-conn [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
               strong "Maude Cloud"
-              span "Where your projects live. Not signed in."
-            button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
-      section .v2s-group [aria-label="Your team’s own server"]
-        h3 .v2s-group-t "Your team’s own server"
-        div .cb-settings-row
-          span .cb-settings-t
-            strong "A server your team runs"
-            span "A self-hosted server, beside the cloud. Sign in with your email and password."
-          button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
-      section .v2s-group [aria-label="GitHub"]
-        h3 .v2s-group-t "GitHub"
-        div .gi-settings [data-testid="settings-github"]
-          div .cb-settings-row
-            span .cb-settings-t
+              span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
+          div .v2s-conn-fold
+            div .v2-fold [data-testid="fold-connections.cloud"]
+              button .v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .v2-fold-ch
+                  svg [aria-hidden="true"]
+        section .v2s-conn [data-testid="settings-conn-hub"] [aria-label="Your team’s own server"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "Your team’s own server"
+              span .v2s-conn-s [data-testid="settings-conn-hub-status"] "A self-hosted server, beside the cloud. Sign in with your email and password."
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="settings-team-server-add"] [type="button"] "Add a team server…"
+        section .v2s-conn [data-testid="settings-github"] [aria-label="GitHub"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
               strong "GitHub"
-              span "Signing in with GitHub needs the Maude desktop app."
-      section .v2s-group [aria-label="AI images, video and voice"]
-        h3 .v2s-group-t "AI images, video and voice"
-        div .cb-settings-row [data-testid="settings-ai-keys"]
-          span .cb-settings-t
-            strong "Your own provider keys"
-            span "Kept on this Mac only — never sent anywhere but the provider."
-          button .btn.btn--sm [data-testid="settings-ai-keys-toggle"] [aria-expanded="false"] [type="button"] "Manage"
-      section .v2s-group [aria-label="Figma"]
-        h3 .v2s-group-t "Figma"
-        div .st-provider-card [data-testid="figma-connect-card"]
-          div .st-provider-hd
-            span .st-provider-name "Figma"
-          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
-          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+              span .v2s-conn-s [data-testid="settings-conn-github-status"] "Signing in with GitHub needs the Maude desktop app."
+        section .v2s-conn [data-testid="settings-ai-keys"] [aria-label="AI images, video and voice"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "AI images, video and voice"
+              span .v2s-conn-s [data-testid="settings-conn-ai-status"] "No keys yet"
+            span .v2s-conn-a
+              button .btn.btn--sm [data-testid="settings-ai-keys-toggle"] [aria-expanded="false"] [type="button"] "Manage"
+          div .v2s-conn-fold
+            div .v2-fold [data-testid="fold-connections.ai"]
+              button .v2-fold-btn [data-testid="fold-connections.ai-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
+                span .v2-fold-ch
+                  svg [aria-hidden="true"]
+        section .v2s-conn [data-testid="figma-connect-card"] [aria-label="Figma"]
+          div .v2s-conn-r
+            span .v2s-conn-ic [aria-hidden="true"]
+              svg [aria-hidden="true"]
+            span .v2s-conn-t
+              strong "Figma"
+              span .v2s-conn-s [data-testid="settings-conn-figma-status"] "Not connected"
+          p .v2s-hint "A personal access token with the scope. Kept on this Mac only and never sent anywhere but Figma."
             code "file_content:read"
-          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
-            svg [aria-hidden="true"]
-          div .st-provider-keyrow
-            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
-            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+          button .btn.btn--ghost.btn--sm [type="button"] "Get a token ↗"
+          span .v2s-conn-replace
+            input .input [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .btn.btn--sm [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
     section .v2s-panel [data-testid="settings-panel-advanced"] [role="tabpanel"]
       section .v2s-group [aria-label="This Mac"]
         h3 .v2s-group-t "This Mac"
@@ -553,10 +606,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .v2s-inline
               span "Up to date"
               button .btn.btn--sm [data-testid="settings-update-restart"] [type="button"] [disabled] "Restart now"
-        div .v2s-row
+        div .v2s-row [data-testid="settings-server-port"]
           span .v2s-row-t
             span .v2s-row-k "Local server port"
           span .v2s-val.v2s-val--mono "4399"
+        div .v2s-row [data-testid="settings-runtime"]
+          span .v2s-row-t
+            span .v2s-row-k "Runtime"
+          span .v2s-val.v2s-val--mono "Bun <ver> · built in"
         div .v2s-row [data-testid="settings-server-build"]
           span .v2s-row-t
             span .v2s-row-k "Server build"
@@ -564,10 +621,19 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .v2s-row [data-testid="settings-keys-store"]
           span .v2s-row-t
             span .v2s-row-k "Keys are kept in"
-            span .v2s-hint "Your OS keychain, or a private file (mode 0600) when the keychain is off."
-          span .v2s-val.v2s-val--mono "OS keychain · ~/.config/maude/keys.json"
+            span .v2s-hint "Or ~/.config/maude/keys.json (private to you) when the Keychain is off. An update you skip installs when you next quit."
+          span .v2s-val.v2s-val--mono "macOS Keychain"
       section .v2s-group [aria-label="Claude Code"]
         h3 .v2s-group-t "Claude Code"
+        div .v2s-row [data-testid="settings-plugins"]
+          span .v2s-row-t
+            span .v2s-row-k "Plugins"
+          span .v2s-val.v2s-val--mono "design <ver> · flow <ver>"
+        label .v2s-row.v2s-row--switch [data-testid="settings-own-plugin-copy"]
+          span .v2s-row-t
+            span .v2s-row-k "Use my own plugin copy"
+            span .v2s-hint "Load the plugins you installed yourself instead of the ones Maude brings. Takes effect when the AI chat next starts."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
         label .v2s-row.v2s-row--switch [data-testid="settings-claude-autosetup"]
           span .v2s-row-t
             span .v2s-row-k "Install and sign in automatically"
@@ -594,6 +660,13 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .rdy-cmd
               code .rdy-cmd-tx "/design:setup-ds --from-brand"
               button .rdy-copy [aria-label="Copy the brand import command"] [type="button"] "Copy"
+      section .v2s-group [aria-label="Decision memory"]
+        h3 .v2s-group-t "Decision memory"
+        div .v2s-row [data-testid="settings-decision-memory"]
+          span .v2s-row-t
+            span .v2s-row-k "In this project"
+            span .v2s-hint "Design decisions are kept with the project, so the AI remembers why."
+          span .v2s-val.v2s-val--mono "Not set up"
       section .v2s-group [aria-label="Engines — Auto picks for you"]
         h3 .v2s-group-t "Engines — Auto picks for you"
         div [data-testid="settings-transcription"]
@@ -770,14 +843,125 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
                   span .st-model-action
                     button .st-btn [type="button"] [disabled] "Download"
                     span .st-model-action-note "start Ollama first"
+        p .v2s-hint "Without a model, Auto uses ElevenLabs or Groq for subtitles and ffmpeg scene cuts for keyframes."
+      section .v2s-group [aria-label="Privacy"]
+        h3 .v2s-group-t "Privacy"
+        label .v2s-row [data-testid="settings-report-logs"]
+          span .v2s-row-t
+            span .v2s-row-k "Logs in bug reports"
+            span .v2s-hint "Whether a report carries the last lines of Maude’s log. You see them before anything is sent."
+          select .v2s-select [data-testid="settings-report-logs-select"] {value="ask"}
+            option [value="ask"] "Ask each time"
+            option [value="always"] "Always"
+            option [value="never"] "Never"
       section .v2s-group [data-testid="settings-this-project"] [aria-label="This project"]
         h3 .v2s-group-t "This project"
         p .v2s-hint [data-testid="settings-project-unlinked"] "Not linked to a workspace, so there is nothing to sync yet. Connect this project under Connections and its sync switches appear here."
-      section .v2s-group [aria-label="Reset"]
+      section .v2s-group [aria-label="Experimental"]
+        h3 .v2s-group-t "Experimental"
+        label .v2s-row.v2s-row--switch [data-testid="settings-experimental-teams"]
+          span .v2s-row-t
+            span .v2s-row-k "AI reviews argue it out (teams)"
+            span .v2s-hint "Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+      section .v2s-group [data-testid="settings-reset"] [aria-label="Reset"]
         h3 .v2s-group-t "Reset"
+        div .v2s-row [data-testid="settings-reset-panel-layout"]
+          span .v2s-row-t
+            span .v2s-row-k "Reset panel layout"
+            span .v2s-hint "Each panel back on its own side, Layers in its own panel, panels floating over the canvas."
+          span .v2s-val
+            button .btn.btn--sm [data-testid="settings-reset-panel-layout-btn"] [type="button"] "Reset panel layout"
         div .v2s-row [data-testid="settings-reset-folds"]
           span .v2s-row-t
-            span .v2s-row-k "Reset Advanced sections"
-            span .v2s-hint "Fold every panel’s Advanced section again. Each panel remembers its own choice until then."
+            span .v2s-row-k "Close all Advanced sections"
+            span .v2s-hint "Fold every panel’s Advanced section. ⌘K “advanced” opens them all again, once."
           span .v2s-val
-            button .btn.btn--sm [data-testid="settings-reset-folds-btn"] [type="button"] "Reset"
+            button .btn.btn--sm [data-testid="settings-reset-folds-btn"] [type="button"] "Close all"
+        p .v2s-sub [data-testid="settings-fold-list-t"] "Open now, on this Mac"
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-left.canvases"]
+          span .v2s-row-t
+            span .v2s-row-k "Canvases › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-left.layers"]
+          span .v2s-row-t
+            span .v2s-row-k "Layers › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-settings"]
+          span .v2s-row-t
+            span .v2s-row-k "Settings › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-diagnostics"]
+          span .v2s-row-t
+            span .v2s-row-k "Menu › Diagnostics › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-help"]
+          span .v2s-row-t
+            span .v2s-row-k "Keyboard shortcuts › Advanced"
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-inspector"]
+          span .v2s-row-t
+            span .v2s-row-k "Inspector › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-ai.chat"]
+          span .v2s-row-t
+            span .v2s-row-k "AI chat list › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-history"]
+          span .v2s-row-t
+            span .v2s-row-k "Version history › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-code"]
+          span .v2s-row-t
+            span .v2s-row-k "Code › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections"]
+          span .v2s-row-t
+            span .v2s-row-k "Connections › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.cloud"]
+          span .v2s-row-t
+            span .v2s-row-k "Connections › Maude Cloud › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.hub"]
+          span .v2s-row-t
+            span .v2s-row-k "Connections › Your team’s own server › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.github"]
+          span .v2s-row-t
+            span .v2s-row-k "Connections › GitHub › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.ai"]
+          span .v2s-row-t
+            span .v2s-row-k "Connections › AI images, video and voice › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-connections.figma"]
+          span .v2s-row-t
+            span .v2s-row-k "Connections › Figma › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-ai"]
+          span .v2s-row-t
+            span .v2s-row-k "AI chat panel › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-share"]
+          span .v2s-row-t
+            span .v2s-row-k "Share › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-timeline"]
+          span .v2s-row-t
+            span .v2s-row-k "Timeline › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-export"]
+          span .v2s-row-t
+            span .v2s-row-k "Export › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-ds"]
+          span .v2s-row-t
+            span .v2s-row-k "Design system › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        div .v2s-row [data-testid="settings-reset-all"]
+          span .v2s-row-t
+            span .v2s-row-k "Reset all settings…"
+            span .v2s-hint "Your keys, sign-ins and each project’s sync choices are not touched."
+          span .v2s-val
+            button .btn.btn--sm.v2s-warn [data-testid="settings-reset-all-btn"] [aria-haspopup="dialog"] [type="button"] "Reset all settings…"
