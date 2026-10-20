@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ff33b9076f4a",
+  "manifestVersion": "9c41668b8492",
   "actions": [
     {
       "id": "search.open",
@@ -5560,6 +5560,91 @@
       "agent": {
         "path": "cli",
         "verb": "maude design ds pending <ds> --set <file.json>"
+      }
+    },
+    {
+      "id": "ds.make",
+      "label": "Make a design system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/make",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds make <ds> [--label <name>]"
+      }
+    },
+    {
+      "id": "ds.draft",
+      "label": "Write a direction",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/ds/make",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds draft <ds> --direction <x> --tokens <file.json>"
+      }
+    },
+    {
+      "id": "ds.use-direction",
+      "label": "Use this direction",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/ds/make",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds use <ds> <x>"
+      }
+    },
+    {
+      "id": "ds.mix",
+      "label": "Mix directions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/ds/make",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds mix <ds> <x> --take <group>=<y>…"
+      }
+    },
+    {
+      "id": "ds.make-done",
+      "label": "Finish the design system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/make",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds done <ds> [--no-default]"
       }
     }
   ],

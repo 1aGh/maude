@@ -230,6 +230,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ds/revision': { class: 'read' },
   '/_api/ds/revisions': { class: 'read' },
   '/_api/ds/usage': { class: 'read' },
+  '/_api/ds/make-state': { class: 'read' }, // S10.16a section states (ds/make.ts)
   '/_api/ds/publish': {
     class: 'lane',
     via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
@@ -268,6 +269,10 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'lane',
     via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
     test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/make': {
+    class: 'file-plane',
+    rows: 'config.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas) + revisions + head.json, last — Plane B only (ds/make.ts, S10.16a)',
   },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },

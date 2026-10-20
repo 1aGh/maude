@@ -34,6 +34,7 @@ import { indexRegistry, loadRegistry } from '../ds/registry.ts';
 import { verifyRevision } from '../ds/revision.ts';
 import { diskFs, loadSystem } from '../ds/system.ts';
 import type { DsUsageIndex } from '../index/ds-usage.ts';
+import { runMakeOp } from './ds-make.ts';
 import type { RouteSpec } from './table.ts';
 
 export const DS_FORMATS = {
@@ -57,7 +58,9 @@ export type DsOp =
   | 'clear'
   | 'revision'
   | 'revisions'
-  | 'usage';
+  | 'usage'
+  | 'make'
+  | 'make-state';
 
 export interface DsOpContext {
   engine: DsEngine;
@@ -66,6 +69,8 @@ export interface DsOpContext {
   access: Access;
   /** who acts (a person, or Claude Code through the verb) */
   by: By;
+  /** S10.16a: the artboards of a canvas a live AI run holds (section states) */
+  held?: (canvasRel: string) => ReadonlySet<string>;
   /** after an effect: the studio emits `ds:changed {system}` */
   emit?: (event: string, payload: unknown) => void;
 }
@@ -577,6 +582,9 @@ export async function runDsOp(
         changed(c, ds);
         return { status: 200, body: result(r) };
       }
+      case 'make':
+      case 'make-state':
+        return await runMakeOp(op, input, c);
     }
   } catch (err) {
     const a = errorAnswer(err);
@@ -597,6 +605,8 @@ export interface DsRouteDeps {
   /** the person acting (a cell's vouched member, else this machine's git identity) */
   person: (req: Request) => Promise<{ name: string }>;
   emit?: (event: string, payload: unknown) => void;
+  /** S10.16a: the artboards of a canvas a live AI run holds */
+  held?: (canvasRel: string) => ReadonlySet<string>;
 }
 
 const json = (status: number, body: unknown) =>
@@ -629,6 +639,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'GET', path: '/_api/ds/revision', op: 'revision' },
   { method: 'GET', path: '/_api/ds/revisions', op: 'revisions' },
   { method: 'GET', path: '/_api/ds/usage', op: 'usage' },
+  { method: 'GET', path: '/_api/ds/make-state', op: 'make-state' },
   { method: 'POST', path: '/_api/ds/publish', op: 'publish' },
   { method: 'POST', path: '/_api/ds/pending', op: 'pending' },
   { method: 'POST', path: '/_api/ds/outside', op: 'outside' },
@@ -637,6 +648,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'POST', path: '/_api/ds/trash', op: 'trash' },
   { method: 'POST', path: '/_api/ds/restore', op: 'restore' },
   { method: 'POST', path: '/_api/ds/clear', op: 'clear' },
+  { method: 'POST', path: '/_api/ds/make', op: 'make' },
 ];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
@@ -650,6 +662,7 @@ export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
       access: deps.access(req),
       by: await byOf(deps, req),
       ...(deps.emit ? { emit: deps.emit } : {}),
+      ...(deps.held ? { held: deps.held } : {}),
     };
   };
   const answer = (a: DsOpAnswer) =>
