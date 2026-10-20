@@ -41,6 +41,7 @@ import {
 } from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { annotationLayersFor } from '../v2/annotations/annotation-list.jsx';
+import { importsWaitHereFrom } from '../v2/assets/import-offline.js';
 import { placeTargetOf } from '../v2/assets/place-asset.js';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import { VersionHistoryHost } from '../v2/history/history-host.jsx';
@@ -662,6 +663,8 @@ export function usePaletteAndPanels({
           onRecord={recordSourceEdit}
           postToActiveCanvas={postToActiveCanvas}
           toast={shellToast}
+          // S8.22b — read when the files land: a linked project that cannot reach its hub keeps them on this Mac
+          isOffline={() => importsWaitHereFrom({ cfg, cloudLinkedHub, syncStatus, project })}
           // S8.21 — "Used in" in an asset's details opens that artboard
           onOpenCanvas={openCanvasAt}
         />

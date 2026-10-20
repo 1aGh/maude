@@ -231,6 +231,22 @@ describe('assetDetails', () => {
     expect(other?.advanced.command).toBeUndefined();
   });
 
+  test('Added by: the name the origin record keeps, to a session that may hear it, and never the path or an e-mail', () => {
+    const root = project();
+    put(root, 'assets/d34bb59d.jpg');
+    expect(assetDetails('assets/d34bb59d.jpg', base(root))?.addedBy).toBeUndefined();
+    recordAssetOrigin(root, 'assets/d34bb59d.jpg', '/Users/tereza/Pictures/IMG.jpg', 5, 'Tereza');
+    expect(assetDetails('assets/d34bb59d.jpg', base(root))?.addedBy).toBe('Tereza');
+    const other = assetDetails('assets/d34bb59d.jpg', base(root, { includeOriginal: false }));
+    expect(other?.addedBy).toBeUndefined();
+    expect(JSON.stringify(other)).not.toContain('tereza');
+    // a record with a path and no name says nothing
+    const r2 = project();
+    put(r2, 'assets/d34bb59d.jpg');
+    recordAssetOrigin(r2, 'assets/d34bb59d.jpg', '/Users/x/IMG.jpg', 5);
+    expect(assetDetails('assets/d34bb59d.jpg', base(r2))?.addedBy).toBeUndefined();
+  });
+
   test('a name that is not an asset, or is not there, has no details', () => {
     const root = project();
     put(root, 'assets/d34bb59d.photo.json');

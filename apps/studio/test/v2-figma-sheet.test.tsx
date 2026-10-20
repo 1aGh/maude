@@ -114,6 +114,29 @@ describe('Import from Figma sheet', () => {
     await React.act(async () => root.unmount());
   });
 
+  test('S8.22b: Figma access is asked once — the first link opens Connect, the next link only shows the callout', async () => {
+    localStorage.clear();
+    stubFetch({
+      '/_api/figma/status': () => ({ body: { configured: false } }),
+      '/_index-data': () => ({ body: { groups: [] } }),
+    });
+    const root = await mount();
+    await until(() => tid('figma-not-connected'));
+    await React.act(async () => type(tid('figma-import-url') as HTMLInputElement, URL_D));
+    await click('figma-import-preview');
+    expect(tid('figma-import-panel')?.dataset.step).toBe('connect');
+    await click('figma-cancel');
+    expect(tid('figma-import-panel')?.dataset.step).toBe('link');
+    // the same need again (another link, another try): quiet — the callout with Connect… is already there
+    await click('figma-import-preview');
+    expect(tid('figma-import-panel')?.dataset.step).toBe('link');
+    expect(tid('figma-not-connected')).not.toBeNull();
+    await click('figma-connect-open');
+    expect(tid('figma-import-panel')?.dataset.step).toBe('connect');
+    await React.act(async () => root.unmount());
+    localStorage.clear();
+  });
+
   test('a design link: frames as pictures, "Import 2 frames", the folder, the summary', async () => {
     const opened: string[] = [];
     const { bindPaletteEnv } = await import('../client/v2/search/search-env.js');

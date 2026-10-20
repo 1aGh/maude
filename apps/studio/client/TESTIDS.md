@@ -300,6 +300,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-details-licence` | testid | Made by AI: the one licence line from the provider. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-size` | testid | Size (photo, clip) or Length (sound), measured from the file. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-added` | testid | When the file arrived (not drawn for Made by AI, which says when it was made). | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
+| `assets-details-added-by` | testid | Who added the file ("Added by Tereza"), from this Mac's origin record; a display name, never an e-mail. Not drawn when nobody is named. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-edits` | testid | What was changed: every use, or how many uses have their own look. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-saw` | testid | Footage: what AI saw, read from the clip's `.footage.json` (never written here). | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |
 | `assets-details-tags` | testid | Footage: AI's tags. | `client/v2/assets/details.jsx` · `AssetDetails` | — | new |

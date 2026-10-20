@@ -72,6 +72,8 @@ export interface AssetDetails {
   mtimeMs: number;
   madeByAi: MadeByAi | null;
   footage: FootageFacts | null;
+  /** "Added by <name>" — the display name this Mac's origin record keeps, only to a session that may hear the Original */
+  addedBy?: string;
   uses: UseOfAsset[];
   advanced: {
     storedAs: string;
@@ -330,6 +332,7 @@ export function assetDetails(rel: string, o: AssetDetailsOptions): AssetDetails 
     mtimeMs: Math.round(st.mtimeMs),
     madeByAi: madeByAiOf(o.designRoot, rel),
     footage: kind === 'video' ? footageOf(o.designRoot, rel) : null,
+    ...(origin?.by ? { addedBy: origin.by } : {}),
     uses,
     advanced,
   };

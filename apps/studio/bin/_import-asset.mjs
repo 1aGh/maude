@@ -1249,6 +1249,9 @@ function parseArgv(argv) {
       case '--kind':
         out.kind = argv[++i];
         break;
+      case '--added-by':
+        out.addedBy = argv[++i];
+        break;
       case '--json':
         out.json = true;
         break;
@@ -1269,7 +1272,7 @@ const HELP = `import-asset — hardened local-file SVG/PDF/raster ingestion (rea
 
 Usage:
   maude design import-asset <local-path> --root <repo> [--design-root .design]
-                            [--kind svg|pdf|raster|psd|heic] [--json]
+                            [--kind svg|pdf|raster|psd|heic] [--added-by <name>] [--json]
 
 Sanitizes (SVG), rasterizes (PDF, one PNG per page), or content-addresses as-is
 (raster PNG/JPEG — DDR-174 T15's vision-reconstruction source image path), or
@@ -1325,7 +1328,14 @@ async function main() {
     // S8.21 — where it came from, on THIS Mac only (`_canvas-state/asset-origins.json`, never synced): the details'
     // Advanced shows it as "Original". A record that cannot be kept never fails the import.
     for (const r of results) {
-      if (r?.path) recordAssetOrigin(resolve(root, opts.designRoot), r.path, resolve(opts.file));
+      if (r?.path)
+        recordAssetOrigin(
+          resolve(root, opts.designRoot),
+          r.path,
+          resolve(opts.file),
+          Date.now(),
+          opts.addedBy
+        );
     }
     if (opts.json) {
       process.stdout.write(`${JSON.stringify(results)}\n`);

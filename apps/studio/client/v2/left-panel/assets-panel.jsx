@@ -34,6 +34,7 @@ import { GenerateAsk } from '../assets/generate-ask.jsx';
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
+import { toastArrivals } from '../assets/import-toast.js';
 import { AssetTile } from '../assets/tile.jsx';
 import { AssetTileMenu, tileMenuItems } from '../assets/tile-menu.jsx';
 import { ConfirmTrash, NotCountedNote, TidyFoot, tidyModel } from '../assets/tidy.jsx';
@@ -73,11 +74,15 @@ export function groupAssets(assets, { justAdded = false, now, generated = [] } =
   ];
 }
 
+// S8.22b — each result carries the file's name, so the one toast can say which file a line is about
+const uploadNamed = (f, onProgress) =>
+  uploadAsset(f, { onProgress, name: f.name }).then((r) => ({ ...r, name: f.name }));
+
 async function addFilesNative(onProgress) {
   const picked = await pickMediaFiles();
   const sources = (picked || []).map((p) => pickedMediaSource(p, mimeFromExt(p.name)));
   try {
-    return await Promise.all(sources.map((f) => uploadAsset(f, { onProgress })));
+    return await Promise.all(sources.map((f) => uploadNamed(f, onProgress)));
   } finally {
     for (const src of sources) src.release();
   }
@@ -98,7 +103,7 @@ function addFilesBrowser(onProgress) {
     };
     input.addEventListener('change', async () => {
       const files = input.files ? Array.from(input.files) : [];
-      done(await Promise.all(files.map((f) => uploadAsset(f, { onProgress }))));
+      done(await Promise.all(files.map((f) => uploadNamed(f, onProgress))));
     });
     window.addEventListener('focus', () => setTimeout(() => done([]), 400), { once: true });
     input.click();
@@ -120,6 +125,8 @@ export function AssetsPanel({
   // S8.16 — the Generate ask selects what it placed (`select-by-id`) and says so in a toast with Undo
   postToActiveCanvas = undefined,
   toast = undefined,
+  // S8.22b — true while this Mac cannot reach the hub: what is added waits here ("Kept on this Mac")
+  isOffline = undefined,
   // S8.21 — "Used in" in the details opens the canvas (`<designRel>/<canvas>`) and selects the artboard
   onOpenCanvas = undefined,
   fetchImpl = undefined,
@@ -165,6 +172,12 @@ export function AssetsPanel({
       const failed = results.filter((r) => !('path' in r)).length;
       if (failed) setErr(`${failed} of ${results.length} uploads failed`);
       if (results.length) await reload();
+      // S8.22b — the one line per arrival (a second copy, a flat picture from a .psd, a cleaned logo, offline)
+      toastArrivals(
+        toast,
+        results.map((r) => ({ name: r.name, result: r })),
+        { offline: isOffline?.() === true }
+      );
     } catch (e) {
       setErr(e?.message || 'Could not add files.');
     }
@@ -502,8 +515,7 @@ export function AssetsPanel({
     e.preventDefault();
     setDropping(false);
     const files = Array.from(e.dataTransfer.files || []);
-    if (files.length)
-      void upload(() => Promise.all(files.map((f) => uploadAsset(f, { onProgress: setProgress }))));
+    if (files.length) void upload(() => Promise.all(files.map((f) => uploadNamed(f, setProgress))));
   };
 
   return (

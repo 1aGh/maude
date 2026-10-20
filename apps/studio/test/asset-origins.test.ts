@@ -42,6 +42,39 @@ describe('asset origins', () => {
     expect(readAssetOrigin(root, 'assets/00000000.jpg')).toBeNull();
   });
 
+  test('who added it is a display name kept beside the path — never an e-mail, never a control character', () => {
+    const root = project();
+    recordAssetOrigin(root, 'assets/d34bb59d.jpg', '/Users/t/IMG.jpg', 5, 'Tereza');
+    expect(readAssetOrigin(root, 'assets/d34bb59d.jpg')).toEqual({
+      path: '/Users/t/IMG.jpg',
+      importedAt: 5,
+      by: 'Tereza',
+    });
+    // the same copy again, now by someone else: the newest name wins
+    recordAssetOrigin(root, 'assets/d34bb59d.jpg', '/Users/t/IMG.jpg', 6, 'Jonas');
+    expect(readAssetOrigin(root, 'assets/d34bb59d.jpg')?.by).toBe('Jonas');
+    // an e-mail, a control character or a novel is not a name: the import is still remembered, with no name
+    for (const bad of ['tereza@example.com', 'Te\u0000reza', 'x'.repeat(200), '   ']) {
+      const r2 = project();
+      expect(recordAssetOrigin(r2, 'assets/d34bb59d.jpg', '/Users/t/IMG.jpg', 5, bad)).toBe(true);
+      expect(readAssetOrigin(r2, 'assets/d34bb59d.jpg')).toEqual({
+        path: '/Users/t/IMG.jpg',
+        importedAt: 5,
+      });
+    }
+    // a file edited by hand cannot smuggle an e-mail into the answer either
+    const r3 = project();
+    mkdirSync(path.join(r3, '_canvas-state'), { recursive: true });
+    writeFileSync(
+      path.join(r3, ORIGINS_REL),
+      JSON.stringify({
+        v: 1,
+        origins: { d34bb59d: { path: '/Users/t/a.jpg', importedAt: 1, by: 'a@b.cz' } },
+      })
+    );
+    expect(readAssetOrigin(r3, 'assets/d34bb59d.jpg')?.by).toBeUndefined();
+  });
+
   test('the record lives in the per-Mac runtime class on every list that decides what syncs', () => {
     expect(ORIGINS_REL).toBe('_canvas-state/asset-origins.json');
     expect(isRuntimeStateRel(ORIGINS_REL)).toBe(true);
@@ -138,6 +171,41 @@ describe('asset origins', () => {
     // the picture is in assets/; the path is in _canvas-state/ and nowhere else
     expect(readFileSync(path.join(root, ORIGINS_REL), 'utf8')).toContain(src);
     expect(readFileSync(path.join(root, stored?.path as string)).equals(png)).toBe(true);
+  });
+
+  test('`--added-by <name>` keeps the name beside the path; an e-mail there is dropped and never erases a known name', () => {
+    const root = project();
+    const src = path.join(root, 'from-finder.png');
+    writeFileSync(
+      src,
+      Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('named origin')])
+    );
+    const run = (name: string) =>
+      Bun.spawnSync(
+        [
+          'bun',
+          'run',
+          path.join(import.meta.dir, '../bin/_import-asset.mjs'),
+          src,
+          '--root',
+          root,
+          '--design-root',
+          '.',
+          '--kind',
+          'raster',
+          '--added-by',
+          name,
+          '--json',
+        ],
+        { env: { ...process.env, NO_OPEN: '1' } }
+      );
+    const ok = run('Tereza');
+    expect(ok.exitCode).toBe(0);
+    const [stored] = JSON.parse(ok.stdout.toString()) as Array<{ path: string }>;
+    expect(readAssetOrigin(root, stored?.path as string)?.by).toBe('Tereza');
+    const mail = run('tereza@example.com');
+    expect(mail.exitCode).toBe(0);
+    expect(readAssetOrigin(root, stored?.path as string)?.by).toBe('Tereza');
   });
 
   test('home folders are shown as ~', () => {
