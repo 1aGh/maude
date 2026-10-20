@@ -23,6 +23,7 @@
 // pair had). The ledger is seeded from disk once at construction so history
 // survives a server restart even though job state itself doesn't.
 
+import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -165,6 +166,31 @@ export interface EnqueueArgs {
    * unit (the lane and the timeout read them).
    */
   group?: GroupPlan;
+  /**
+   * S8.5b-1 — the client's own job id (the cloud render door's outbox record id, contract S8.5b
+   * §7). It BECOMES this job's id, owner-scoped: the same owner asking again for the same export
+   * gets the job it already has (`already`), anyone else — or the same owner with a different
+   * export — is refused `taken`, never handed that job. Only the door sets it (http.ts honours
+   * `x-maude-door-job` off the local lane); everything else gets a fresh random id.
+   */
+  clientId?: string;
+}
+
+/** S8.5b-1 — a client job id: the outbox record id shape (`i_` + 20 of [a-z0-9], ~100 bits). */
+export const CLIENT_JOB_ID_RE = /^i_[a-z0-9]{20}$/;
+
+/** S8.5b-1 — why a client job id was not taken. `taken` answers a foreign owner like a mismatch. */
+export class ExportJobIdError extends Error {
+  constructor(readonly reason: 'invalid' | 'no-owner' | 'taken') {
+    super(
+      reason === 'taken'
+        ? 'that job id is taken'
+        : reason === 'no-owner'
+          ? 'a client job id needs a session'
+          : 'invalid job id'
+    );
+    this.name = 'ExportJobIdError';
+  }
 }
 
 export type DownloadResult =
@@ -189,7 +215,18 @@ export type RetryResult =
     };
 
 export interface ExportJobQueue {
-  enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> };
+  /**
+   * `already: true` — a replay of a `clientId` this owner already holds (S8.5b-1): nothing new is
+   * queued; `result` is the running job's own, or (finished) a settled rejection nobody awaits.
+   * Throws `ExportQueueFullError`, or `ExportJobIdError` for a refused `clientId`.
+   */
+  enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult>; already?: true };
+  /**
+   * S8.5b-1 (contract §7, T11) — hand a not-yet-finished remote job a fresher render token (the
+   * door mints a new one on every status poll; a 15-min token would expire while queued). Owner-
+   * scoped like every read: another member's id answers false, exactly like a missing one.
+   */
+  refreshRenderToken(id: string, token: string, session?: string): boolean;
   /**
    * S8.4 — run again ONLY the failed (or waiting) items of a group job, named by `items` when
    * given. Returns once the re-run is started; the job goes back to `running` and its items
@@ -430,6 +467,9 @@ export function createExportJobQueue(
   const owners = new Map<string, string>();
   const ownerOf = (id: string): string => owners.get(id) ?? '';
   const ownedBy = (session: string) => (job: ExportJob) => ownerOf(job.id) === session;
+  // S8.5b-1 — the args of every job not yet finished (the render reads `remoteCanvas` off them at
+  // dispatch, so a swapped token reaches the render) and its result (what a replay hands back).
+  const live = new Map<string, { args: EnqueueArgs; result: Promise<ExportResult> }>();
 
   // Seed the ledger from disk ONCE — the only read of the history file. Every
   // later persist derives fresh from `jobs` and overwrites; there is no
@@ -770,14 +810,58 @@ export function createExportJobQueue(
     return { ok: true, items: again.map((i) => i.id) };
   }
 
-  function enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> } {
+  /** S8.5b-1 — what a job asked for, so a replay of its id can be told from a different export. */
+  function requestKeyOf(x: { spec?: unknown; format: unknown; scope: unknown; options: unknown }) {
+    const body =
+      x.spec !== undefined ? { spec: x.spec } : { f: x.format, s: x.scope, o: x.options };
+    return createHash('sha256').update(stableJson(body)).digest('hex');
+  }
+
+  /** S8.5b-1 — a replay of `clientId` by its owner, or null (a new id); throws when refused. */
+  function replayOf(
+    args: EnqueueArgs,
+    owner: string
+  ): { id: string; result: Promise<ExportResult>; already: true } | null {
+    const id = args.clientId as string;
+    if (!CLIENT_JOB_ID_RE.test(id)) throw new ExportJobIdError('invalid');
+    // A cell job always has its member's session; an owner-less id would be anybody's.
+    if (!owner) throw new ExportJobIdError('no-owner');
+    const had = jobs.get(id);
+    if (!had) return null;
+    const same =
+      ownerOf(id) === owner &&
+      requestKeyOf(had) ===
+        requestKeyOf({
+          spec: args.group?.spec,
+          format: args.format,
+          scope: args.scope,
+          options: args.options,
+        });
+    if (!same) throw new ExportJobIdError('taken');
+    const running = live.get(id)?.result;
+    if (running) return { id, result: running, already: true };
+    const settled = Promise.reject(new Error('export already finished'));
+    settled.catch(() => {});
+    return { id, result: settled, already: true };
+  }
+
+  function enqueue(args: EnqueueArgs): {
+    id: string;
+    result: Promise<ExportResult>;
+    already?: true;
+  } {
+    const owner = normalizeSessionKey(args.session ?? currentSession());
+    if (args.clientId !== undefined) {
+      const replay = replayOf(args, owner);
+      if (replay) return replay;
+    }
     let pending = 0;
     for (const job of jobs.values()) {
       if (job.status === 'queued' || job.status === 'running') pending += 1;
     }
     if (pending >= MAX_PENDING) throw new ExportQueueFullError();
 
-    const id = crypto.randomUUID();
+    const id = args.clientId ?? crypto.randomUUID();
     // DDR-230 — where this job renders. `local` is the pre-render-workers
     // spine, byte-identical. In a workspace the browser formats dispatch to
     // the maude-render service (`remote`) or refuse with a remedy (`none`);
@@ -795,7 +879,6 @@ export function createExportJobQueue(
       runsOn: lane === 'local' ? 'this-mac' : 'cloud',
       ...(args.group ? { spec: args.group.spec, items: itemsFor(args.group) } : {}),
     };
-    const owner = normalizeSessionKey(args.session ?? currentSession());
     if (owner) owners.set(id, owner);
     jobs.set(id, job);
     emit(job);
@@ -902,6 +985,12 @@ export function createExportJobQueue(
         release();
       }
     })();
+    live.set(id, { args, result });
+    // Every settle path (lane refusal, AI hold, render) ends here: the job is finished.
+    result.then(
+      () => live.delete(id),
+      () => live.delete(id)
+    );
 
     return { id, result };
   }
@@ -909,6 +998,17 @@ export function createExportJobQueue(
   return {
     enqueue,
     retry,
+    refreshRenderToken(id, token, session = currentSession()) {
+      if (typeof token !== 'string' || token.length === 0 || token.length > 4096) return false;
+      const held = live.get(id);
+      const job = jobs.get(id);
+      if (!held || !job || isFinished(job)) return false;
+      if (ownerOf(id) !== normalizeSessionKey(session)) return false;
+      // Only a job that renders remotely carries a render token; a local one has none to swap.
+      if (!held.args.remoteCanvas) return false;
+      held.args.remoteCanvas = { ...held.args.remoteCanvas, token };
+      return true;
+    },
     get(id, session = currentSession()) {
       const job = jobs.get(id);
       return job && ownerOf(id) === normalizeSessionKey(session) ? job : undefined;
@@ -970,4 +1070,18 @@ export function createExportJobQueue(
       };
     },
   };
+}
+
+/** Key-sorted JSON: two equal requests hash equal whatever order their keys arrived in. */
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(',')}]`;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(o[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(v ?? null);
 }
