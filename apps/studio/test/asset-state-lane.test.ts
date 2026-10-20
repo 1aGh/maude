@@ -200,6 +200,15 @@ describe('dgn asset-state (shell → canvas)', () => {
       )
     ).toBeNull();
   });
+  test('S8.14: upload progress passes only as a finite 0..1', () => {
+    const ok = [{ rel: 'assets/a.png', state: 'uploading', progress: 0.4 }];
+    expect(accept({ dgn: 'asset-state', items: ok })).toEqual({ dgn: 'asset-state', items: ok });
+    for (const progress of [1.5, -0.1, Number.NaN, '0.4']) {
+      expect(
+        accept({ dgn: 'asset-state', items: [{ rel: 'a/b.png', state: 'uploading', progress }] })
+      ).toBeNull();
+    }
+  });
   test('the canvas never receives an e-mail, an unknown state or an oversized list', () => {
     const mail = { name: 'jonas@studyfi.com', kind: 'mac', self: false };
     expect(

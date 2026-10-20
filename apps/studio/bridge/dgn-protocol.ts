@@ -393,6 +393,8 @@ export interface AssetStateItem {
   who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
   /** The hub already has the bytes; this Mac has not pulled them yet ("Syncing…"). */
   syncing?: boolean;
+  /** S8.14: upload progress 0..1 while `state` is 'uploading' (the thin bar on the picture). */
+  progress?: number;
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -661,6 +663,7 @@ const isPlain = (v: unknown): v is Record<string, unknown> =>
 
 const str: V = (v) => (typeof v === 'string' && v.length <= MAX_STR ? v : BAD);
 const num: V = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : BAD);
+const unit: V = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? v : BAD);
 const bool: V = (v) => (typeof v === 'boolean' ? v : BAD);
 /** S3.3 — a time in seconds: finite, 0..86400 (a day), else the whole message is junk. */
 const seconds: V = (v) =>
@@ -974,6 +977,7 @@ const assetStateItem = shape({
   state: lit('here', 'uploading', 'waiting', 'missing'),
   who: opt(assetWho),
   syncing: opt(bool),
+  progress: opt(unit),
 });
 const assetStateList: V = (v) =>
   Array.isArray(v) && v.length <= ASSET_STATE_MAX ? arrOf(assetStateItem)(v) : BAD;
