@@ -298,6 +298,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/revision': { safe: 'read', unsafe: null },
   '/_api/ds/revisions': { safe: 'read', unsafe: null },
   '/_api/ds/usage': { safe: 'read', unsafe: null },
+  '/_api/ds/board': { safe: 'read', unsafe: null }, // S10.7 — the DS canvas model the token inspector reads (GET only)
   '/_api/ds/publish': { safe: null, unsafe: 'edit' },
   '/_api/ds/pending': { safe: null, unsafe: 'edit' },
   '/_api/ds/outside': { safe: null, unsafe: 'edit' },
