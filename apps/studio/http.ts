@@ -192,6 +192,7 @@ import {
   createAttributionCache,
 } from './index/extractors/attribution-cache.ts';
 import { historySourceFromRuntime } from './index/history-source.ts';
+import { kickWhenReady } from './index/scan-kick.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
@@ -2217,6 +2218,11 @@ export function createHttp(
     // S8.12 — "Not used" reads the retained versions through the sync runtime Version history reads; null (no home
     // answers yet) leaves the verdict at 'checking', never at "not used"
     history: () => historySourceFromRuntime(ctx.syncControl?.current?.(), ctx.paths.designRel),
+  });
+  // S8.12 — server.ts attaches the sync runtime after this runs; the history scan starts when a home answers
+  kickWhenReady({
+    ready: () => !!ctx.syncControl?.current?.(),
+    kick: () => projectIndex.startHistoryScan(),
   });
   ctx.bus.on('fs:any', (rel: string) => {
     projectIndex.update([rel]);
