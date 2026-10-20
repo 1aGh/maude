@@ -23,6 +23,7 @@
     "e2e:ds-switch": "wdio run ./wdio.ds-switch.conf.ts",
     "e2e:ds-outside": "wdio run ./wdio.ds-outside.conf.ts",
     "e2e:ds-reach": "wdio run ./wdio.ds-reach.conf.ts",
+    "e2e:ds-edges": "wdio run ./wdio.ds-edges.conf.ts",
     "e2e:share-roles": "wdio run ./wdio.share-roles.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",
     "e2e:acp-cold-start": "wdio run ./wdio.acp-cold-start.conf.ts",
