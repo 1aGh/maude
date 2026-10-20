@@ -9,7 +9,7 @@
  * Run: `pnpm test:e2e:desktop:build` (one-time / on source change) then
  *      `pnpm test:e2e:desktop`.
  */
-import { existsSync, readdirSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -59,6 +59,10 @@ const DEDICATED: Record<string, string> = {
   'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
   // S10.8: a converted acme project seeded with one pending Accent change.
   'ds-review.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-review',
+  // S10.11: an outside DS change + a conflict pick, seeded.
+  'ds-review-outside.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-outside',
+  // S6.11: an invite link landing on Home, against a loopback cloud stub.
+  'invite-landing.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:invite-landing',
   // S9.21c: several accounts on one hub (V2-1.7 §7) — an explicit run file from the V2-8 runner.
   'share-roles.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:share-roles',
 };
@@ -74,11 +78,17 @@ const DEDICATED: Record<string, string> = {
       `[wdio] DEDICATED names a spec that no longer exists: ${missingSpec.join(', ')}`
     );
   }
-  if (confs.length !== Object.keys(DEDICATED).length) {
+  // Every dedicated config's spec must be listed (two configs may share one spec, e.g. ds-review +
+  // ds-review-master seed different worlds for the same scenario file).
+  const unlisted = confs.filter((c) => {
+    const m = readFileSync(join(HERE, c), 'utf8').match(/scenarios['"]?,\s*['"]([\w.-]+\.e2e\.ts)['"]|scenarios\/([\w.-]+\.e2e\.ts)/);
+    const spec = m ? m[1] || m[2] : null;
+    return !spec || !(spec in DEDICATED);
+  });
+  if (unlisted.length > 0) {
     throw new Error(
-      `[wdio] ${confs.length} dedicated config(s) on disk but ${Object.keys(DEDICATED).length} ` +
-        `spec(s) excluded from the default glob. Update DEDICATED in wdio.conf.ts.\n  ` +
-        confs.join('\n  ')
+      `[wdio] dedicated config(s) whose spec is not excluded from the default glob — update DEDICATED in wdio.conf.ts:\n  ` +
+        unlisted.join('\n  ')
     );
   }
 }

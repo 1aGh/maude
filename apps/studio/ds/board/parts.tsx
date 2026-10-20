@@ -4,12 +4,14 @@
 
 import { DSRoot } from '@maude/canvas-lib';
 import type { ReactNode } from 'react';
+import { useBoardMarks } from './state.ts';
 import {
   type BoardMode,
   type BoardModel,
   type BoardToken,
   boardComponentsCss,
   boardThemeCss,
+  marksCss,
   SECTIONS,
   type SectionKind,
   themeFor,
@@ -46,6 +48,8 @@ export function Frame({
   const overlay = [boardThemeCss(model), kind === 'components' ? boardComponentsCss(model) : '']
     .filter(Boolean)
     .join('\n');
+  // S10.11: "Changed outside" / "2 versions" on the swatches the studio says are in review
+  const flags = marksCss(model, useBoardMarks());
   // a section is drawn once at its real size (13's SECS); the artboard's content box has no
   // height of its own, so the section carries it
   const size = SECTIONS.find((s) => s.kind === kind);
@@ -64,6 +68,7 @@ export function Frame({
           {overlay}
         </style>
       ) : null}
+      {flags ? <style data-ds-marks="">{flags}</style> : null}
       {children}
     </DSRoot>
   );
