@@ -98,6 +98,34 @@ export function isSafeOutRel(p: string, designRel = '.design'): boolean {
   return /\.[A-Za-z0-9]{1,8}$/.test(p);
 }
 
+/**
+ * Where a target of each kind may write (gate-b-sec1 A9). `config.json` is a VERSIONED file any Can-edit peer
+ * changes, and the `out` it names becomes the run's one write scope — so a peer's `out` may not aim the person's
+ * own AI run at `package.json`, `src/app/layout.tsx` or a CI file. A target writes inside the design root, or
+ * inside its kind's own folder (the folder of its default `out`, fixed here in code, never read from config),
+ * and always a file of its kind. Decision `maude/v2-gate-b-sec1-handoff-out-folders`.
+ */
+const KIND_FOLDERS: Record<Exclude<HandoffKind, 'web'>, readonly string[]> = {
+  rn: ['src/components/'],
+  lottie: [],
+  tokens: ['src/styles/'],
+};
+const KIND_EXT: Record<Exclude<HandoffKind, 'web'>, RegExp> = {
+  rn: /\.(tsx|jsx|ts|js)$/,
+  lottie: /\.json$/,
+  tokens: /\.css$/,
+};
+
+/** A safe repo-relative `out` that ALSO stays where a target of `kind` may write. */
+export function isAllowedOutFor(kind: HandoffKind, p: string, designRel = '.design'): boolean {
+  if (kind === 'web' || !isSafeOutRel(p, designRel)) return false;
+  if (!KIND_EXT[kind].test(p)) return false;
+  const design = designRel.split('/').filter(Boolean);
+  const segs = p.split('/');
+  const inDesign = design.length > 0 && design.every((d, i) => segs[i] === d);
+  return inDesign || KIND_FOLDERS[kind].some((f) => p.startsWith(f));
+}
+
 /** `handoff.targets[]` from a parsed `config.json`; a bad row is dropped, none left = the defaults. */
 export function targetsFromConfig(config: unknown, designRel = '.design'): HandoffTarget[] {
   const cfg = config as { handoff?: { targets?: unknown }; handoffTargets?: unknown } | null;
@@ -133,7 +161,12 @@ export function targetsFromConfig(config: unknown, designRel = '.design'): Hando
       kind,
       title: clip(r.title, 60) || def.title,
       sub: clip(r.sub, 140) || def.sub,
-      out: kind === 'web' ? null : outRaw && isSafeOutRel(probe, designRel) ? outRaw : def.out,
+      out:
+        kind === 'web'
+          ? null
+          : outRaw && isAllowedOutFor(kind, probe, designRel)
+            ? outRaw
+            : def.out,
     });
     seen.add(id);
   }
@@ -202,7 +235,7 @@ export function outPathFor(
   }
   // the registry item is a versioned sidecar next to the canvas; every other target is checked whole
   if (target.kind === 'web') return /(^|\/)\.\.(\/|$)/.test(rel) ? null : rel;
-  return isSafeOutRel(rel, designRel) ? rel : null;
+  return isAllowedOutFor(target.kind, rel, designRel) ? rel : null;
 }
 
 /** Does this canvas have a frame that moves (what a Lottie animation is made from)? */

@@ -332,7 +332,11 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/default': { safe: null, unsafe: 'edit' }, // S10.13 — the project's default design system
   '/_api/ds/switch': { safe: null, unsafe: 'edit' }, // S10.14 — move canvases to another design system
   '/_api/ds/convert': { safe: null, unsafe: 'edit' }, // S10.12 — system folders → Design system canvases; Restore
-  '/_api/ds/library': { safe: null, unsafe: 'edit' }, // S10.18b — team libraries: link / check / update / unlink
+  // S10.18b — team libraries: link / check / update / unlink. REFUSED in a cell (gate-b-sec1 A5, decision
+  // maude/v2-gate-b-sec1-no-library-in-cell): the cell's grant store is ONE file every member shares (a peer
+  // would update with a grant someone else pasted), and its hub fetches would leave from inside the cloud's
+  // network (SSRF). The studio's route refuses it in a cell too (`not-on-mac`); linking is the desktop's.
+  '/_api/ds/library': REFUSED,
   '/_api/ds/fix-contrast': { safe: null, unsafe: 'edit' }, // S10.17 — Lighten to 4.5:1 (one waiting edit)
   '/_api/ds/add-colour': { safe: null, unsafe: 'edit' }, // S10.17 — Add it to the system (a waiting new colour)
   '/_api/ds/nearest': { safe: 'read', unsafe: null }, // S10.17 — the closest system colour (trash replacement / suggestion)

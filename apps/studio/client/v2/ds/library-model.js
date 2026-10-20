@@ -39,6 +39,11 @@ export const LIBRARY_WORDS = Object.freeze({
   unsupported: 'That hub does not share libraries yet.',
   badLink: 'That is not a library link.',
   needKey: 'The library link needs its access key.',
+  // gate-b-sec1 (A3): head.json syncs, so its library record may be a peer's — this Mac sends nothing until the
+  // person links it again, knowingly (the card names the hub's host)
+  linkAgain: 'Link again',
+  relink: 'This Mac hasn’t linked this library yet. Link it again from its card.',
+  notOnMac: 'Team libraries are linked from the Maude app on a Mac.',
 });
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -90,6 +95,17 @@ export function noGrantLine(linkedBy) {
     : 'Only the person who linked it can update this library from their Mac.';
 }
 
+/**
+ * "Link again" (A3): this Mac holds a credential for the record's hub but did not make this link — the record may
+ * be a peer's edit. The line names the hub's host, so the choice is made knowingly.
+ */
+export function relinkLine(hub) {
+  const host = hostOf(hub);
+  return host
+    ? `This Mac hasn’t linked this library from ${host}. Link it again only if you trust ${host}.`
+    : LIBRARY_WORDS.relink;
+}
+
 /** A library error code → the person's words. */
 export function refusalWords(code, fallback = LIBRARY_WORDS.failed) {
   switch (code) {
@@ -116,6 +132,10 @@ export function refusalWords(code, fallback = LIBRARY_WORDS.failed) {
       return LIBRARY_WORDS.badLink;
     case 'ds-library-no-grant':
       return LIBRARY_WORDS.needKey;
+    case 'ds-library-relink':
+      return LIBRARY_WORDS.relink;
+    case 'not-on-mac':
+      return LIBRARY_WORDS.notOnMac;
     case 'ds-outside-unreviewed':
       return 'Changes made outside the app wait for a review first. Keep or Undo them, then update.';
     case 'ds-exists':
@@ -195,13 +215,16 @@ export function byWhen(by, atWords) {
 
 /**
  * What the card draws for one linked system.
- * `access`: 'unknown' (not asked yet) | 'yes' | 'no' (this Mac holds no grant for the library).
- * @returns {{ ds, title, kind, label, usedBy, waiting, waitingN, line, noGrant, error, canUpdate }}
+ * `access`: 'unknown' (not asked yet) | 'yes' | 'no' (this Mac holds no grant for the library) | 'relink' (it
+ * holds one for that hub, but this Mac did not make this link — A3: nothing is asked until "Link again").
+ * @returns {{ ds, title, kind, label, usedBy, waiting, waitingN, line, noGrant, relink, relinkLine, error, canUpdate }}
  */
 export function cardModel({ row, check = null, review = null, access = 'unknown', error = null }) {
   const waiting = isWaiting(row);
   const n = review ? changeCount(review) : null;
-  const noGrant = access === 'no';
+  const relink = access === 'relink';
+  // a record this Mac did not link is not trusted for a count or an Update either
+  const noGrant = access === 'no' || relink;
   return {
     ds: row.ds,
     label: row.label,
@@ -211,7 +234,9 @@ export function cardModel({ row, check = null, review = null, access = 'unknown'
     waitingN: n,
     line: waiting ? (n === null ? '1 update waiting' : waitingLine(n)) : waitingLine(0),
     noGrant,
-    noGrantLine: noGrant ? noGrantLine(row.library?.linkedBy) : null,
+    noGrantLine: access === 'no' ? noGrantLine(row.library?.linkedBy) : null,
+    relink,
+    relinkLine: relink ? relinkLine(row.library?.hub) : null,
     error: noGrant ? null : error,
     canUpdate: waiting && !noGrant,
   };

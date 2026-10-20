@@ -28,6 +28,7 @@ import { applyStage } from '../ds/upgrade-apply.ts';
 import { cancelStage, listStages } from '../ds/upgrade-progress.ts';
 import { proveStage } from '../ds/upgrade-prove.ts';
 import { DsUpgradeError, discardStage, stageUpgrade, systemOf } from '../ds/upgrade-stage.ts';
+import { isWorkspaceMode } from '../workspace-mode.ts';
 import type { DsOpAnswer, DsOpContext } from './ds.ts';
 
 export const UPGRADE_STEPS = [
@@ -96,6 +97,13 @@ export async function runUpgradeOp(
       return { status: 200, body: { ...stage, dir: undefined, plan } };
     }
     case 'prove':
+      // two headless studios + a browser rendering tenant canvases: never inside a workspace cell (the
+      // containment invariant — workspace-mode.ts), and never with the cell's own secrets (gate-b-sec1)
+      if (isWorkspaceMode())
+        return {
+          status: 409,
+          body: { error: 'Proving an upgrade runs in the Maude app on a Mac.', code: 'not-on-mac' },
+        };
       return { status: 200, body: await proveStage(designRoot, ds, stamp()) };
     case 'apply': {
       const r = await applyStage({

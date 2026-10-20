@@ -26,6 +26,18 @@
 // The grant is a credential: it lives in this Mac's own store, keyed by the hub origin it was issued for, and is
 // sent to that origin only — never in head.json (which syncs to peers), never in a URL. A peer that rewrites
 // `library.hub` in head.json gets no credential sent and no request made (this Mac holds nothing for that origin).
+//
+// THE LINK IS THIS MAC'S TOO (gate-b-sec1, A3). head.json syncs: a peer with Can edit can point its `library`
+// record at ANY hub, project and system — one where THIS Mac holds a grant or a member token (hubs.json) the peer
+// does not. So a credential is used only for a library this Mac linked itself: the same store keeps, per local
+// design root and system, the address the person linked here (`links`, never synced). A record that is not in it
+// — a peer's rewrite, or a copy that arrived by sync — sends nothing and asks nothing: `ds-library-relink`, and
+// the card names the hub's host so "Link again" is a choice the person makes knowingly.
+//
+// IN A CELL (A5) the studio is the hub's own process, shared by every member, behind the cloud's network: a
+// library link there is https to a named host only (no loopback, no IP literal), and the route refuses every
+// library action but Unlink (the hub's manifest refuses the whole route too). See decision
+// `maude/v2-gate-b-sec1-no-library-in-cell`.
 
 import {
   chmodSync,
@@ -34,6 +46,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   unlinkSync,
 } from 'node:fs';
@@ -42,6 +55,7 @@ import path from 'node:path';
 
 import { atomicWrite } from '../sync/atomic-write.ts';
 import { hubHealth } from '../sync/journal-client.ts';
+import { isWorkspaceMode } from '../workspace-mode.ts';
 import { designSystemCanvasMeta, designSystemCanvasSource } from './board/template.ts';
 import {
   COMPONENTS_JSON_KEY,
@@ -88,7 +102,8 @@ export type LibraryErrorCode =
   | 'ds-library-moved'
   | 'ds-library-not-linked'
   | 'ds-library-up-to-date'
-  | 'ds-library-no-grant';
+  | 'ds-library-no-grant'
+  | 'ds-library-relink';
 
 const STATUS: Record<LibraryErrorCode, number> = {
   'ds-library-url': 400,
@@ -102,6 +117,7 @@ const STATUS: Record<LibraryErrorCode, number> = {
   'ds-library-not-linked': 409,
   'ds-library-up-to-date': 409,
   'ds-library-no-grant': 409,
+  'ds-library-relink': 409,
 };
 
 export class DsLibraryError extends Error {
@@ -122,6 +138,13 @@ const SYSTEM_RE = /^[a-z][a-z0-9-]{0,63}$/;
 const PROJECT_RE = /^[A-Za-z0-9._-]{1,128}$/;
 const ID_RE = /^[0-9a-f]{64}$/;
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+/** an IP literal host (v4 dotted, or a bracketed v6) — never a library's home from a cell */
+const IP_LITERAL = /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[[0-9a-f:.]*\])$/i;
+
+export interface UrlRules {
+  /** this process is a workspace cell: https to a named host only */
+  cell?: boolean;
+}
 const API_PATH = /^\/api\/projects\/([^/]+)\/v1\/ds\/([^/]+)(?:\/head)?\/?$/;
 
 export interface LibraryAddress {
@@ -135,7 +158,8 @@ export interface LibraryAddress {
  * `https://<hub>/api/projects/<project>/v1/ds/<system>[/head]` → its parts. https only (http on loopback, a
  * self-hosted hub on this Mac); no user info, no query, no fragment — a credential never rides in a URL.
  */
-export function parseLibraryUrl(raw: unknown): LibraryAddress {
+export function parseLibraryUrl(raw: unknown, rules: UrlRules = {}): LibraryAddress {
+  const cell = rules.cell ?? isWorkspaceMode();
   if (typeof raw !== 'string' || !raw || raw.length > 2048)
     throw fail('ds-library-url', 'The library link is a web address.');
   let u: URL;
@@ -145,8 +169,17 @@ export function parseLibraryUrl(raw: unknown): LibraryAddress {
     throw fail('ds-library-url', 'That is not a library link.');
   }
   const https = u.protocol === 'https:';
-  if (!https && !(u.protocol === 'http:' && LOOPBACK.has(u.hostname)))
+  if (!https && !(u.protocol === 'http:' && LOOPBACK.has(u.hostname) && !cell))
     throw fail('ds-library-url', 'A library link starts with https://.');
+  // a cell sits inside the cloud's network: a link names a public host, never this machine or an address
+  if (
+    cell &&
+    (LOOPBACK.has(u.hostname) ||
+      IP_LITERAL.test(u.hostname) ||
+      !u.hostname.includes('.') ||
+      /\.(?:localhost|internal|local)$/i.test(u.hostname))
+  )
+    throw fail('ds-library-url', 'A library link names its hub’s web address.');
   if (u.username || u.password || u.search || u.hash)
     throw fail('ds-library-url', 'A library link carries no password, query or #part.');
   const m = API_PATH.exec(u.pathname);
@@ -171,10 +204,36 @@ export interface GrantStore {
   get(hub: string, project: string, system: string): string | null;
   set(hub: string, project: string, system: string, grant: string): void;
   delete(hub: string, project: string, system: string): void;
+  /**
+   * The libraries linked ON THIS MAC (A3): local design root + local system → the address the person linked.
+   * Never synced; a head.json `library` record that is not here gets no credential.
+   */
+  linkOf(root: string, ds: string): LibraryAddress | null;
+  setLink(root: string, ds: string, a: LibraryAddress): void;
+  deleteLink(root: string, ds: string): void;
 }
 
 const GRANT_RE = /^[A-Za-z0-9._~+/=-]{8,4096}$/;
 const grantKey = (hub: string, project: string, system: string) => `${hub}|${project}|${system}`;
+/** the design root as the disk names it (a /var ↔ /private/var spelling is one root) */
+function rootKey(root: string): string {
+  try {
+    return realpathSync(root);
+  } catch {
+    return path.resolve(root);
+  }
+}
+const linkKey = (root: string, ds: string) => `${rootKey(root)}|${ds}`;
+const sameAddress = (a: LibraryAddress | null, b: LibraryAddress) =>
+  !!a && a.hub === b.hub && a.project === b.project && a.system === b.system;
+
+function asAddress(v: unknown): LibraryAddress | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  return typeof o.hub === 'string' && typeof o.project === 'string' && typeof o.system === 'string'
+    ? { hub: o.hub, project: o.project, system: o.system }
+    : null;
+}
 
 /** `~/.config/maude/ds-library-grants.json`, mode 0600 (XDG-aware; `MAUDE_DS_LIBRARY_GRANTS_PATH` overrides). */
 export function grantsPath(env: Record<string, string | undefined> = process.env): string {
@@ -184,22 +243,28 @@ export function grantsPath(env: Record<string, string | undefined> = process.env
 }
 
 export function fileGrantStore(file: string = grantsPath()): GrantStore {
-  const read = (): Record<string, string> => {
+  type Doc = { grants: Record<string, string>; links: Record<string, LibraryAddress> };
+  const read = (): Doc => {
+    const out: Doc = { grants: {}, links: {} };
     try {
       const v = JSON.parse(readFileSync(file, 'utf8'));
       const g =
         v && typeof v === 'object' && v.grants && typeof v.grants === 'object' ? v.grants : {};
-      const out: Record<string, string> = {};
       for (const [k, t] of Object.entries(g))
-        if (typeof t === 'string' && GRANT_RE.test(t)) out[k] = t;
-      return out;
+        if (typeof t === 'string' && GRANT_RE.test(t)) setOwn(out.grants, k, t);
+      const l = v && typeof v === 'object' && v.links && typeof v.links === 'object' ? v.links : {};
+      for (const [k, a] of Object.entries(l)) {
+        const addr = asAddress(a);
+        if (addr) setOwn(out.links, k, addr);
+      }
     } catch {
-      return {};
+      /* none yet */
     }
+    return out;
   };
-  const write = (g: Record<string, string>) => {
+  const write = (d: Doc) => {
     mkdirSync(path.dirname(file), { recursive: true });
-    atomicWrite(file, `${JSON.stringify({ grants: g }, null, 2)}\n`);
+    atomicWrite(file, `${JSON.stringify(d, null, 2)}\n`);
     try {
       chmodSync(file, 0o600);
     } catch {
@@ -207,17 +272,29 @@ export function fileGrantStore(file: string = grantsPath()): GrantStore {
     }
   };
   return {
-    get: (h, p, s) => read()[grantKey(h, p, s)] ?? null,
+    get: (h, p, s) => read().grants[grantKey(h, p, s)] ?? null,
     set(h, p, s, grant) {
-      const g = read();
-      g[grantKey(h, p, s)] = grant;
-      write(g);
+      const d = read();
+      setOwn(d.grants, grantKey(h, p, s), grant);
+      write(d);
     },
     delete(h, p, s) {
-      const g = read();
-      if (!(grantKey(h, p, s) in g)) return;
-      delete g[grantKey(h, p, s)];
-      write(g);
+      const d = read();
+      if (!(grantKey(h, p, s) in d.grants)) return;
+      delete d.grants[grantKey(h, p, s)];
+      write(d);
+    },
+    linkOf: (root, ds) => read().links[linkKey(root, ds)] ?? null,
+    setLink(root, ds, a) {
+      const d = read();
+      setOwn(d.links, linkKey(root, ds), { hub: a.hub, project: a.project, system: a.system });
+      write(d);
+    },
+    deleteLink(root, ds) {
+      const d = read();
+      if (!(linkKey(root, ds) in d.links)) return;
+      delete d.links[linkKey(root, ds)];
+      write(d);
     },
   };
 }
@@ -225,10 +302,15 @@ export function fileGrantStore(file: string = grantsPath()): GrantStore {
 /** An in-memory store (tests, and a session that should keep nothing). */
 export function memoryGrantStore(seed: Record<string, string> = {}): GrantStore {
   const g = new Map(Object.entries(seed));
+  const l = new Map<string, LibraryAddress>();
   return {
     get: (h, p, s) => g.get(grantKey(h, p, s)) ?? null,
     set: (h, p, s, t) => void g.set(grantKey(h, p, s), t),
     delete: (h, p, s) => void g.delete(grantKey(h, p, s)),
+    linkOf: (root, ds) => l.get(linkKey(root, ds)) ?? null,
+    setLink: (root, ds, a) =>
+      void l.set(linkKey(root, ds), { hub: a.hub, project: a.project, system: a.system }),
+    deleteLink: (root, ds) => void l.delete(linkKey(root, ds)),
   };
 }
 
@@ -256,14 +338,15 @@ export const displayText = (v: unknown, max: number): string | null => {
 };
 
 /** head.json's `library`, as this module wrote it — or null when it is not one (a peer's edit). */
-export function libraryOf(doc: HeadDoc): LibraryRecord | null {
+export function libraryOf(doc: HeadDoc, rules: UrlRules = {}): LibraryRecord | null {
   const l = doc.library;
   if (!isObj(l)) return null;
   let addr: LibraryAddress;
   try {
     const hub = typeof l.hub === 'string' ? new URL(l.hub).origin : '';
     addr = parseLibraryUrl(
-      `${hub}/api/projects/${encodeURIComponent(String(l.project))}/v1/ds/${encodeURIComponent(String(l.system))}`
+      `${hub}/api/projects/${encodeURIComponent(String(l.project))}/v1/ds/${encodeURIComponent(String(l.system))}`,
+      rules
     );
   } catch {
     return null;
@@ -371,6 +454,8 @@ export interface LibraryOptions {
   /** a member credential this Mac already holds for that hub origin (hubs.json), when no grant is stored */
   memberToken?: (hub: string) => string | null;
   now?: () => number;
+  /** this process is a workspace cell (default: MAUDE_WORKSPACE_MODE=1) — https to a named host only */
+  cell?: boolean;
 }
 
 export interface LinkInput {
@@ -429,6 +514,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
   const designRoot = engine.designRoot;
   const fetchImpl = opts.fetchImpl ?? fetch;
   const grants = opts.grants ?? fileGrantStore();
+  const rules: UrlRules = { cell: opts.cell ?? isWorkspaceMode() };
   const now = opts.now ?? engine.now;
   const iso = () => new Date(now()).toISOString();
   const configAbs = path.join(designRoot, 'config.json');
@@ -442,6 +528,10 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
   function credentialFor(a: LibraryAddress): string | null {
     return grants.get(a.hub, a.project, a.system) ?? opts.memberToken?.(a.hub) ?? null;
   }
+
+  /** Did a person link `ds` to exactly this address on THIS Mac (A3)? */
+  const linkedHere = (ds: string, a: LibraryAddress) =>
+    sameAddress(grants.linkOf(designRoot, ds), a);
 
   async function get(a: LibraryAddress, tail: string, token: string, max: number): Promise<string> {
     const url = `${a.hub}/api/projects/${encodeURIComponent(a.project)}/v1/ds/${encodeURIComponent(a.system)}/${tail}`;
@@ -582,17 +672,27 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
     const h = readHead(abs);
     if (h.state !== 'ok')
       throw new DsEngineError('ds-not-converted', `${ds} is not a linked library`);
-    const lib = libraryOf(h.doc);
+    const lib = libraryOf(h.doc, rules);
     if (!lib) throw fail('ds-library-not-linked', `${ds} is not linked to a team library`);
     return { s, abs, doc: h.doc, lib };
   }
 
-  function tokenOf(lib: LibraryRecord): string {
+  /**
+   * The credential for `ds`'s library — only when a person linked `ds` to that very address on this Mac. No
+   * credential at all: `ds-library-no-grant` (a peer of whoever linked it). A credential, but the record is not
+   * this Mac's link (a peer rewrote head.json, or the copy arrived by sync): `ds-library-relink` — nothing sent.
+   */
+  function tokenOf(ds: string, lib: LibraryRecord): string {
     const t = credentialFor(lib);
     if (!t)
       throw fail(
         'ds-library-no-grant',
         'This Mac has no access to that library yet — open its link again.'
+      );
+    if (!linkedHere(ds, lib))
+      throw fail(
+        'ds-library-relink',
+        `This Mac did not link this library from ${new URL(lib.hub).host} — link it again to use it here.`
       );
     return t;
   }
@@ -684,6 +784,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
       };
       writeHead(abs, doc, 'absent');
       if (grant) grants.set(a.hub, a.project, a.system, grant);
+      grants.setLink(designRoot, a.system, a);
     } catch (err) {
       for (const f of wrote.reverse()) rmSync(f, { force: true });
       if (priorConfig === null) rmSync(configAbs, { force: true });
@@ -708,7 +809,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
   }
 
   function link(inp: LinkInput) {
-    const a = parseLibraryUrl(inp.url);
+    const a = parseLibraryUrl(inp.url, rules);
     return withLock(path.join(designRoot, 'system', a.system), () =>
       withLock(configAbs, () => linkLocked(inp, a))
     );
@@ -729,7 +830,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
           usedBy: usedBy.get(ds) ?? null,
           checked: false,
         };
-      const up = await upstreamHead(L.lib, tokenOf(L.lib));
+      const up = await upstreamHead(L.lib, tokenOf(ds, L.lib));
       lastCheck.set(ds, now());
       usedBy.set(ds, up.usedBy);
       let lib = L.lib;
@@ -756,7 +857,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
     const out: { system: string; waiting: boolean }[] = [];
     for (const s of engine.systems()) {
       const h = readHead(path.join(designRoot, s.path));
-      if (h.state !== 'ok' || !libraryOf(h.doc)) continue;
+      if (h.state !== 'ok' || !libraryOf(h.doc, rules)) continue;
       try {
         const r = await check(s.name);
         out.push({ system: s.name, waiting: r.waiting });
@@ -771,7 +872,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
 
   async function reviewOf(ds: string) {
     const L = linked(ds);
-    const token = tokenOf(L.lib);
+    const token = tokenOf(ds, L.lib);
     const up = await upstreamHead(L.lib, token);
     lastCheck.set(ds, now());
     usedBy.set(ds, up.usedBy);
@@ -971,8 +1072,31 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
       const L = linked(ds);
       writeHead(L.abs, { ...L.doc, library: null }, { head: L.doc.head, base: L.doc.base });
       grants.delete(L.lib.hub, L.lib.project, L.lib.system);
+      grants.deleteLink(designRoot, ds);
       lastCheck.delete(ds);
       return { action: 'unlink', rev: L.doc.head, actionId: null };
+    });
+  }
+
+  /* ------------------------------------------------------------- relink */
+
+  /**
+   * "Link again" (A3): the person, shown the hub's host, makes `ds`'s CURRENT library record this Mac's link —
+   * with an access key when the link came with one. Nothing is asked of the hub here; the next check is.
+   */
+  function relink(ds: string, inp: { grant?: string; by: By }) {
+    void inp.by;
+    return withLock(path.join(designRoot, systemOf(ds).path), async () => {
+      const L = linked(ds);
+      const grant = inp.grant ?? null;
+      if (grant !== null && !GRANT_RE.test(grant))
+        throw fail('ds-library-url', 'That is not a library grant.');
+      if (!grant && !credentialFor(L.lib))
+        throw fail('ds-library-no-grant', 'The library link needs its access key.');
+      if (grant) grants.set(L.lib.hub, L.lib.project, L.lib.system, grant);
+      grants.setLink(designRoot, ds, L.lib);
+      lastCheck.delete(ds);
+      return { action: 'relink', system: ds, library: L.lib };
     });
   }
 
@@ -981,13 +1105,13 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
     const out: { system: string; library: LibraryRecord; head: string | null }[] = [];
     for (const s of engine.systems()) {
       const h = readHead(path.join(designRoot, s.path));
-      const lib = h.state === 'ok' ? libraryOf(h.doc) : null;
+      const lib = h.state === 'ok' ? libraryOf(h.doc, rules) : null;
       if (h.state === 'ok' && lib) out.push({ system: s.name, library: lib, head: h.doc.head });
     }
     return out;
   }
 
-  return { link, check, checkDue, review, update, unlink, linkedSystems };
+  return { link, check, checkDue, review, update, unlink, relink, linkedSystems };
 }
 
 export type DsLibrary = ReturnType<typeof createDsLibrary>;

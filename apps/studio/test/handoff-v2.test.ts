@@ -217,6 +217,47 @@ describe('S8.10 targets come from settings', () => {
     ).toMatchObject({ kind: 'web', title: 'shadcn registry' });
   });
 
+  test('A9: a peer’s out in config.json cannot aim the run at a project file outside the kind’s folder', () => {
+    const planted = targetsFromConfig({
+      handoff: {
+        targets: [
+          { kind: 'rn', id: 'a', out: 'package.json' },
+          { kind: 'rn', id: 'b', out: 'src/app/layout.tsx' },
+          { kind: 'rn', id: 'c', out: 'src/components/{Name}.css' },
+          { kind: 'tokens', id: 'd', out: 'tsconfig.json' },
+          { kind: 'tokens', id: 'e', out: 'src/styles/../../scripts/x.css' },
+          { kind: 'lottie', id: 'f', out: 'src/app/{slug}.json' },
+        ],
+      },
+    });
+    expect(planted.map((t) => t.out)).toEqual([
+      'src/components/{Name}.tsx',
+      'src/components/{Name}.tsx',
+      'src/components/{Name}.tsx',
+      'src/styles/{ds}-tokens.css',
+      'src/styles/{ds}-tokens.css',
+      '{designRel}/assets/{slug}.json',
+    ]);
+    // the kind's own folder and the design root stay configurable
+    const ok = targetsFromConfig({
+      handoff: {
+        targets: [
+          { kind: 'rn', id: 'a', out: 'src/components/native/{Name}.tsx' },
+          { kind: 'tokens', id: 'b', out: '{designRel}/exports/{ds}.css' },
+        ],
+      },
+    });
+    expect(ok.map((t) => t.out)).toEqual([
+      'src/components/native/{Name}.tsx',
+      '{designRel}/exports/{ds}.css',
+    ]);
+    // and a target built by hand is judged the same where the run's scope is computed
+    const s = { canvas: 'ui/Pricing.tsx', ds: 'studio' };
+    expect(
+      outPathFor({ id: 'x', kind: 'rn', title: 'x', sub: '', out: 'package.json' }, s)
+    ).toBeNull();
+  });
+
   test('each kind writes one file: the registry item next to the canvas, the component, the animation, the tokens', () => {
     const [web, rn, lottie, tokens] = DEFAULT_TARGETS as unknown as [never, never, never, never];
     const s = { canvas: 'ui/Pricing.tsx', ds: 'studio' };

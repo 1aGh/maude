@@ -5,15 +5,21 @@
 //   {action: 'update', ds?, dryRun: true}             the review: changes from upstream + this project's canvases
 //   {action: 'update', ds?, expectHead, upstream, canvases?}   take the update as ONE action
 //   {action: 'unlink', ds?}                           the copy becomes an ordinary local system
+//   {action: 'relink', ds?, grant?}                   "Link again": this Mac takes the record as its own link (A3)
 //
 // Every action needs Can edit on the WHOLE project (Q15 — "library"), the review included: it reaches another
 // project's hub with this Mac's grant. A canvas-only session or Can view gets 403, and a system it cannot see
 // is answered like one that does not exist. `ds` may be left out when exactly one linked system exists (the
 // verb's `library update` / `unlink`). The answer format is `maude.ds-library/1` `{library, changes[]}`.
+//
+// In a workspace cell (MAUDE_WORKSPACE_MODE=1) every action but Unlink is refused `not-on-mac` (A5): the cell's
+// grant store is ONE file every member shares, and its fetches would leave from inside the cloud's network. The
+// hub's manifest refuses the route in a cell as well (decision maude/v2-gate-b-sec1-no-library-in-cell).
 
 import type { DsEngine } from '../ds/engine.ts';
 import { createDsLibrary, type DsLibrary, fileGrantStore } from '../ds/library.ts';
 import { getHubToken } from '../sync/hubs-config.ts';
+import { isWorkspaceMode } from '../workspace-mode.ts';
 import type { DsOpAnswer, DsOpContext } from './ds.ts';
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -68,6 +74,11 @@ export async function runLibraryOp(
 ): Promise<DsOpAnswer> {
   // whole-project edit for every action (Q15); hidden ≠ refused, so the server says it
   if (!c.access.can('edit', null)) return forbidden();
+  if (isWorkspaceMode() && input.action !== 'unlink')
+    return {
+      status: 409,
+      body: { error: 'Team libraries are linked from the Maude app on a Mac.', code: 'not-on-mac' },
+    };
   const lib = libraryFor(c);
   try {
     switch (input.action) {
@@ -154,8 +165,24 @@ export async function runLibraryOp(
           changes: [],
         });
       }
+      case 'relink': {
+        const ds = pickSystem(lib, input.ds);
+        if (input.grant !== undefined && typeof input.grant !== 'string')
+          usage('grant is a string');
+        const r = await lib.relink(ds, {
+          ...(typeof input.grant === 'string' && input.grant ? { grant: input.grant } : {}),
+          by: c.by,
+        });
+        return answer({
+          action: 'relink',
+          system: ds,
+          actionId: null,
+          library: r.library,
+          changes: [],
+        });
+      }
       default:
-        return usage('action is link | check | update | unlink');
+        return usage('action is link | check | update | unlink | relink');
     }
   } catch (err) {
     if (err instanceof Usage) return { status: 400, body: { error: err.message, code: 'usage' } };

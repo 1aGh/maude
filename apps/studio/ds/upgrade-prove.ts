@@ -128,11 +128,24 @@ function serverCommand(): string[] {
   return [bun, 'run', serverTs];
 }
 
-function studioEnv(projectRoot: string, machineFile: string): Record<string, string> {
+/**
+ * What a staged studio must never inherit (gate-b-sec1): a credential, or a setting that would make the throwaway
+ * copy a project participant — pair with a cell's hub, push to a linked hub, or act as a workspace cell. The
+ * staged studio renders a STAGED copy; it needs a PATH and a HOME, not this process's secrets.
+ */
+const STAGED_DROP =
+  /^(?:MAUDE_CELL_|MAUDE_LOOPBACK_SYNC_|MAUDE_WORKSPACE_|MAUDE_HUB_|MAUDE_CONTROL_|MAUDE_RENDER_|MAUDE_DS_LIBRARY_GRANTS)|TOKEN|SECRET|PASSWORD|PASSPHRASE|CREDENTIAL|API_KEY|PRIVATE_KEY|AUTH/i;
+
+export function studioEnv(
+  projectRoot: string,
+  machineFile: string,
+  from: Record<string, string | undefined> = process.env
+): Record<string, string> {
   // the staged studio picks its own port, and runs as the studio (never as a bare bun)
   const drop = new Set(['BUN_BE_BUN', 'PORT', 'MDCC_DEV_PORT']);
   const env: Record<string, string> = {};
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !drop.has(k)) env[k] = v;
+  for (const [k, v] of Object.entries(from))
+    if (v !== undefined && !drop.has(k) && !STAGED_DROP.test(k)) env[k] = v;
   return {
     ...env,
     NO_OPEN: '1',
