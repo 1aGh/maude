@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "df87ab836f2a",
+  "manifestVersion": "5b1a3a66cb5b",
   "actions": [
     {
       "id": "search.open",
@@ -5299,6 +5299,23 @@
     {
       "id": "ds.set-dark-follows",
       "label": "Dark follows Light",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --set <file.json>"
+      }
+    },
+    {
+      "id": "ds.set-master",
+      "label": "Change a component",
       "kind": "command",
       "exec": "shell",
       "effect": "project",

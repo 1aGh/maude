@@ -39,6 +39,7 @@ import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { requestDsReview } from '../ds/review-bus.js';
+import { runMasterAction } from '../ds/master-write.js';
 import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { runPreviewBack } from '../preview/preview-back.js';
@@ -299,6 +300,8 @@ export function createMenuHandlers(d) {
     'ds.set-token': async (p) => d.toast?.((await runTokenAction('ds.set-token', p)).message),
     'ds.set-dark-follows': async (p) =>
       d.toast?.((await runTokenAction('ds.set-dark-follows', p)).message),
+    // S10.10 — a component master edited in place: the inspector's panel and this row are one writer (master-write.js)
+    'ds.set-master': async (p) => d.toast?.((await runMasterAction(p)).message),
     // S10.8 — Go to the design system / a token / a master (the shell opens the tab and selects it)
     'ds.go-to': (p) => d.onDsGoTo?.(p),
     'view.advanced-close-all': () => {
