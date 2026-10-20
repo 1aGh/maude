@@ -3359,7 +3359,11 @@ function ShellTree() {
       />
       <BrandUploadPanel open={brandUploadOpen} onClose={() => setBrandUploadOpen(false)} />
       {figmaImportOpen && (
-        <FigmaImportPanel onClose={() => setFigmaImportOpen(false)} onImported={() => loadTree()} />
+        <FigmaImportPanel
+          onClose={() => setFigmaImportOpen(false)}
+          onImported={() => loadTree()}
+          activePath={activePath}
+        />
       )}
       {/* V2-4.9 — the first-run tour offers are callouts now (client/v2/shell/callouts-model.js tourCallout). */}
       <TourOverlay

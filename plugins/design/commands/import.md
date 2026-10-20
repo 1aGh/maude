@@ -46,8 +46,19 @@ REPO="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}
 # Whole file → one folder, one canvas per page (the usual door)
 maude design import-figma --pages "$FIGMA_URL" --root "$REPO" --folder my-app
 
-# One frame subtree → its own canvas
-maude design import-figma --frames "$FIGMA_URL" --root "$REPO"
+# The Import from Figma sheet's two halves (S8.17): list the linked page's frames (ids, Figma
+# sizes, sanitized labels; nothing written), then bring the picked ones in as ONE new canvas —
+# each frame a Fixed size artboard at its Figma px, its picture being Figma's own render (not
+# editable; "<name> (Figma)" when the name is taken; comments as stickies unless --no-comments;
+# --styles also saves colours and text styles as tokens). Default pick: every frame on the page.
+maude design import-figma --list "$FIGMA_URL" --json
+maude design import-figma --frames "$FIGMA_URL" --pick 2:1,2:2 --folder 2026/dresy --root "$REPO"
+
+# Make ONE imported picture editable later (Dev Mode codegen, DDR-219) — same as --explode
+maude design import-figma --editable figma-2-1 --canvas "2026/dresy/Uniformy-2027.tsx" --root "$REPO"
+
+# v1's JSX translation of every frame (editable-but-different) stays behind a bare --editable
+maude design import-figma --frames "$FIGMA_URL" --editable --root "$REPO"
 
 # Paint / text / effect styles → W3C tokens → the existing import-tokens pipeline
 maude design import-figma --tokens "$FIGMA_URL" --root "$REPO"

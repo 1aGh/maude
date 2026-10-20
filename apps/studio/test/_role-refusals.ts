@@ -195,6 +195,25 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     body: { project: 'p' },
   },
   { method: 'POST', route: '/_api/figma/probe', refused: ['view', 'comment'] },
+  // S8.17 — the Import from Figma sheet (test/figma-import-frames-route.test.ts is the handler's own gate)
+  {
+    method: 'POST',
+    route: '/_api/figma/frames',
+    refused: ['view', 'comment'],
+    body: { url: 'https://www.figma.com/design/k8Fq2abcdEFGH/x' },
+  },
+  {
+    method: 'POST',
+    route: '/_api/figma/import-frames',
+    refused: ['view', 'comment'],
+    body: { url: 'https://www.figma.com/design/k8Fq2abcdEFGH/x', frames: ['1:2'] },
+  },
+  {
+    method: 'POST',
+    route: '/_api/figma/explode',
+    refused: ['view', 'comment'],
+    body: { canvas: 'ui/a.tsx', artboard: 'figma-1-2' },
+  },
   { method: 'POST', route: '/_api/hub/link', refused: [] },
   { method: 'POST', route: '/_api/cloud/detach', refused: [] },
   // S11.6 — the code view: source text is a download (Can view refused; test/canvas-source-route.test.ts).

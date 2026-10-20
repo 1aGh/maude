@@ -1066,6 +1066,25 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `figma-import-run` | testid | Import button. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
 | `figma-import-error` | testid | Error line. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
 | `figma-import-summary` | testid | Import summary. | `client/panels/FigmaImportPanel.jsx` · `Summary` | — | stable — re-emit |
+| `figma-connect-open` | testid | Import from Figma: Connect… in the "Figma isn't connected yet." callout (opens the token step in place). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-connect-step` | testid | Import from Figma: the Connect Figma step (three steps + the Access token field). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-connect-token` | testid | Import from Figma: the Access token field (password; cleared once posted). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-connect` | testid | Import from Figma: Connect (posts the token once to /_api/figma/connect). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-reading` | testid | Import from Figma: "Reading the file…" while the frame list loads. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-file` | testid | Import from Figma: the file row (name · page · Connected). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-frames-all` | testid | Import from Figma: Pick all / Pick none. | `client/v2/import/frame-picker.jsx` · `FramePicker` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-frame-<id>` | testid (pattern) | Import from Figma: one frame's check (<id> = the Figma node id, non-alphanumerics as -). | `client/v2/import/frame-picker.jsx` · `FramePicker` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-dest` | testid | Import from Figma: Put them in (the folder › New canvas). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-opt-comments` | testid | Import from Figma: "Comments, as stickies". | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-pictures-line` | testid | Import from Figma: the line saying each frame arrives as Figma's exact picture. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-renamed` | testid | Import from Figma: the line naming the "<name> (Figma)" canvas when the name was taken. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-done` | testid | Import from Figma: Done on the summary. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-cancel` | testid | Import from Figma: Cancel (on the Connect step: back to the link). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-summary-advanced` | testid | Import summary: Advanced · node ids · reason codes. | `client/v2/import/figma-summary.jsx` · `FigmaSummary` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-summary-codes` | testid | Import summary: the node id · reason code lines. | `client/v2/import/figma-summary.jsx` · `FigmaSummary` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-picture` | testid | Inspector: an imported frame's "Figma's exact picture." rows. | `client/v2/import/figma-artboard.jsx` · `FigmaPictureRows` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-make-editable` | testid | Inspector: Make editable (figma.make-editable → POST /_api/figma/explode). | `client/v2/import/figma-artboard.jsx` · `FigmaPictureRows` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-make-editable-note` | testid | Inspector: what to do when Make editable could not run (Dev Mode, the open file). | `client/v2/import/figma-artboard.jsx` · `FigmaPictureRows` | e2e:import-figma | new in v2 (S8.17) |
 | `welcome-artboard-content` | testid | Content of the starter `Welcome` canvas that `scaffoldDesign` writes into a new project (renders inside the canvas iframe). *Retired (S6.15): now nothing: a new project starts empty (Q10); Help › Help and guides › Add the guide canvases to this project (`help-add-guides`) adds the two guides.* | `scaffold-design.ts` · `STARTER_CANVAS_TSX` | — | retired — S6.15 |
 
 ### share

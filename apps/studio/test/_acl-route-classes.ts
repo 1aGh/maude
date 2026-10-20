@@ -339,6 +339,9 @@ const PROJECT = [
   '/_api/figma/probe',
   '/_api/figma/import',
   '/_api/figma/explode',
+  // S8.17 — the Import from Figma sheet: a new canvas in a folder is project business
+  '/_api/figma/frames',
+  '/_api/figma/import-frames',
   '/_api/generate/audio-reuse',
 ];
 

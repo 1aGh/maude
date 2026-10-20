@@ -344,6 +344,11 @@
       "kind": "command",
       "exec": "shell",
       "effect": "external",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/figma/import-frames",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design import-figma"
@@ -1348,6 +1353,11 @@
       "kind": "command",
       "exec": "shell",
       "effect": "external",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/figma/explode",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design import-figma"

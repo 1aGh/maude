@@ -1,0 +1,179 @@
+/* client/v2/import/figma.css — S8.17: the Import from Figma sheet (.fi-*), canvas 12 ia-figma-sheets /
+ * ia-figma-arrived / ia-figjam. The sheet itself is brand.css's popover plane (.bi-sheet, .bi-hd, .bi-body,
+ * .bi-foot, .bi-callout, .bi-fine, .bi-error); this file adds the frame grid, the destination row, the options,
+ * the summary card and the inspector rows. Tokens only; no motion of its own. */
+
+@layer shell {
+  .fi-sheet {
+    width: min(420px, calc(100% - 2 * var(--float-gap, 16px)));
+  }
+  .fi-steps {
+    margin: 0;
+    padding-left: var(--space-5, 20px);
+    display: grid;
+    gap: var(--space-1, 4px);
+    color: var(--fg-1);
+    font-size: var(--type-sm, 13px);
+  }
+  .fi-file {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    margin: 0;
+    padding: var(--space-2, 8px);
+    border: 1px solid var(--border-subtle, var(--border-default));
+    border-radius: var(--radius-md, 10px);
+  }
+  .fi-file-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    color: var(--fg-0);
+    font-size: var(--type-sm, 13px);
+  }
+  .fi-file-t > span {
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
+  .fi-pick-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
+  .fi-frames {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: var(--space-2, 8px);
+    max-height: 280px;
+    overflow: auto;
+  }
+  .fi-frame {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding: var(--space-1, 4px);
+    border: 1px solid var(--border-subtle, var(--border-default));
+    border-radius: var(--radius-sm, 8px);
+    cursor: pointer;
+  }
+  .fi-frame[data-on="true"] {
+    border-color: var(--accent);
+  }
+  .fi-frame-th {
+    height: 64px;
+    display: grid;
+    place-items: center;
+    background: var(--bg-2);
+    border-radius: var(--radius-xs, 4px);
+  }
+  .fi-frame-box {
+    height: 52px;
+    aspect-ratio: var(--fi-ratio, 0.75);
+    max-width: 92%;
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+  }
+  .fi-frame-n {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+    color: var(--fg-0);
+    font-size: var(--type-xs, 12px);
+  }
+  .fi-frame-t {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fi-frame-sz {
+    color: var(--fg-2);
+    font-size: var(--type-2xs, 11px);
+    font-variant-numeric: tabular-nums;
+  }
+  .fi-dest {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .fi-dest-v {
+    flex: 1;
+    min-width: 0;
+  }
+  .fi-opt {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-0);
+  }
+  .fi-sum {
+    display: grid;
+    gap: var(--space-2, 8px);
+  }
+  .fi-sum-t {
+    color: var(--fg-0);
+    font-size: var(--type-sm, 13px);
+  }
+  .fi-sum-rows,
+  .fi-sum-codes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-1, 4px);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .fi-sum-row {
+    display: flex;
+    gap: var(--space-2, 8px);
+  }
+  .fi-sum-m {
+    width: 1.2em;
+    flex: none;
+    text-align: center;
+  }
+  .fi-sum-m--ok {
+    color: var(--ok, var(--accent));
+  }
+  .fi-sum-m--warn {
+    color: var(--warn, var(--fg-0));
+  }
+  .fi-sum-m--skip {
+    color: var(--fg-3);
+  }
+  .fi-sum-codes {
+    max-height: 160px;
+    overflow: auto;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .fi-insp {
+    display: grid;
+    gap: var(--space-2, 8px);
+    padding-top: var(--space-2, 8px);
+  }
+  .fi-insp-callout {
+    margin: 0;
+    padding: var(--space-2, 8px);
+    border-radius: var(--radius-sm, 8px);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-xs, 12px);
+  }
+  .fi-insp-callout strong {
+    color: var(--fg-0);
+  }
+  .fi-wide {
+    width: 100%;
+  }
+}

@@ -34500,5 +34500,309 @@
     "region": "canvas",
     "consumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "figma-connect-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: Connect… in the \"Figma isn't connected yet.\" callout (opens the token step in place).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-connect-step",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: the Connect Figma step (three steps + the Access token field).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-connect-token",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: the Access token field (password; cleared once posted).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: Connect (posts the token once to /_api/figma/connect).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-reading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: \"Reading the file…\" while the frame list loads.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: the file row (name · page · Connected).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-frames-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: Pick all / Pick none.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/frame-picker.jsx",
+      "symbol": "FramePicker"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-frame-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Import from Figma: one frame's check (<id> = the Figma node id, non-alphanumerics as -).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/frame-picker.jsx",
+      "symbol": "FramePicker"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-dest",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: Put them in (the folder › New canvas).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-opt-comments",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: \"Comments, as stickies\".",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-pictures-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: the line saying each frame arrives as Figma's exact picture.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-renamed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: the line naming the \"<name> (Figma)\" canvas when the name was taken.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: Done on the summary.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import from Figma: Cancel (on the Connect step: back to the link).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-sheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-summary-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import summary: Advanced · node ids · reason codes.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-summary.jsx",
+      "symbol": "FigmaSummary"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-summary-codes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import summary: the node id · reason code lines.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-summary.jsx",
+      "symbol": "FigmaSummary"
+    },
+    "region": "onboarding",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-picture",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector: an imported frame's \"Figma's exact picture.\" rows.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-artboard.jsx",
+      "symbol": "FigmaPictureRows"
+    },
+    "region": "inspector",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-make-editable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector: Make editable (figma.make-editable → POST /_api/figma/explode).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-artboard.jsx",
+      "symbol": "FigmaPictureRows"
+    },
+    "region": "inspector",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "figma-make-editable-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector: what to do when Make editable could not run (Dev Mode, the open file).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/figma-artboard.jsx",
+      "symbol": "FigmaPictureRows"
+    },
+    "region": "inspector",
+    "consumers": [
+      "e2e:import-figma"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
   }
 ]
