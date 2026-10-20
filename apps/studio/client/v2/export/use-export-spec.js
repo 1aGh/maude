@@ -68,9 +68,14 @@ export function initialState(request = {}, ctx = {}) {
     region: request.region ?? null,
     unit: request.unit === 'one' || request.unit === 'each' ? request.unit : null,
     at: request.at ?? null,
+    // S8.7 — the person (or the caller) named a format; until then a print page opens on its own Print PDF
+    picked: typeof request.format === 'string',
     nothingSelected: !ctx.hasSelection && asked === null,
   };
 }
+
+/** A print page as a picture is at the print shop's resolution (Advanced › Images inside has the others). */
+export const PRINT_DPI = 300;
 
 /** The scale a raster export uses: the one picked, else the kind's own default (social 1×, web 2×). */
 export const effectiveScale = (state, kind) => state.scale ?? (kind === 'web' ? 2 : 1);
@@ -122,6 +127,13 @@ export function buildSpec(state, ctx = {}) {
   if (state.at) spec.at = state.at;
   const options = {};
   if (RASTER.has(state.format)) options.size = { scale: effectiveScale(state, ctx.kind) };
+  // S8.7 — a print page: a picture of it is at the print shop's 300 dpi, not at screen size
+  if (ctx.kind === 'print' && RASTER.has(state.format) && state.scale == null)
+    options.size = { dpi: PRINT_DPI };
+  // S8.7 — a Print PDF: bleed and crop marks on, the kind's own first offer (Bleed, Crop marks, Add the back
+  // and the rest ride in `state.adv`, laid over this below)
+  const printPdf = ctx.kind === 'print' && state.format === 'pdf' && state.printPdf !== false;
+  if (printPdf) options.print = { bleed: true, marks: 'crop' };
   if (state.annotations && !annotationsState(state.format, { kinds: ctx.kinds }).off)
     options.annotations = true;
   // S8.3 — many kinds at once: each kind's own format row; the picks, not the sheet's 1× / 2×, size it
@@ -137,7 +149,19 @@ export function buildSpec(state, ctx = {}) {
   for (const k of Object.keys(options)) if (options[k] === undefined) delete options[k];
   if (Object.keys(options).length) spec.options = options;
   // S8.3 — Advanced: whatever the fold has touched is laid over the spec
-  return applyAdvanced(spec, state.adv);
+  const out = applyAdvanced(spec, state.adv);
+  // S8.7 — a plain PDF of a print page carries no print geometry, whatever the fold remembers
+  if (
+    ctx.kind === 'print' &&
+    state.format === 'pdf' &&
+    state.printPdf === false &&
+    out.options?.print
+  ) {
+    const { print: _drop, ...rest } = out.options;
+    const { options: _o, ...bare } = out;
+    return Object.keys(rest).length ? { ...bare, options: rest } : bare;
+  }
+  return out;
 }
 
 /**
@@ -256,10 +280,12 @@ export function useEstimate(spec, { enabled = true } = {}) {
 /** The artboard kinds the estimate says the spec reaches. */
 export const kindsOf = (est) => new Set(Object.keys(est?.byKind ?? {}));
 
-/** Which section the sheet shows: a page that is only web artboards, else the image one. */
+/** Which section the sheet shows: only web artboards → web; only print artboards → print; else the image one. */
 export function sectionKind(est) {
   const kinds = [...kindsOf(est)];
-  return kinds.length > 0 && kinds.every((k) => k === 'web') ? 'web' : 'image';
+  if (kinds.length > 0 && kinds.every((k) => k === 'web')) return 'web';
+  if (kinds.length > 0 && kinds.every((k) => k === 'print')) return 'print';
+  return 'image';
 }
 
 /**
@@ -272,7 +298,8 @@ export function useExportSpec(request, ctx) {
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
   const setFormat = useCallback(
-    (format) => setState((s) => ({ ...s, format, scope: scopeForFormat(format, s.scope) })),
+    (format) =>
+      setState((s) => ({ ...s, format, picked: true, scope: scopeForFormat(format, s.scope) })),
     []
   );
   const setScope = useCallback(
@@ -295,7 +322,18 @@ export function useExportSpec(request, ctx) {
     if (est && seen !== [...kindsSeen].sort().join('\u0000')) setKindsSeen([...kindsOf(est)]);
   }, [seen]);
   const section = batch ? 'batch' : sectionKind(est);
-  const kind = section === 'web' ? 'web' : 'digital';
+  const kind = section === 'web' ? 'web' : section === 'print' ? 'print' : 'digital';
+  // S8.7 — a print page opens on its own Print PDF (the kind's first offer) unless a format was asked for
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only the section and whether a format was named matter
+  useEffect(() => {
+    if (section === 'print' && !state.picked && state.format !== 'pdf')
+      setState((s) => ({
+        ...s,
+        format: 'pdf',
+        printPdf: true,
+        scope: scopeForFormat('pdf', s.scope),
+      }));
+  }, [section, state.picked]);
   const spec = useMemo(
     () => buildSpec(state, { ...ctx, kind, kinds: kindsSeen, batch }),
     [state, ctx, kind, kindsSeen, batch]

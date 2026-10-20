@@ -85,6 +85,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/export-estimate': { safe: null, unsafe: 'export' },
   // S8.4 — Retry re-runs a finished export's failed items: the export capability, the owner's jobs
   '/_api/export-jobs/retry': { safe: null, unsafe: 'export' },
+  // S8.7 — the Print preflight: paper, the back, safe margin, fonts. Names and numbers; the export capability
+  '/_api/export-preflight': { safe: null, unsafe: 'export' },
   // DDR-231 T7 — warm-up ping: a proxied render-service /_health GET so the
   // container wakes while the member is still picking options. Read-class.
   '/_api/export-warmup': { safe: 'read', unsafe: null },

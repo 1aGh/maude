@@ -61,6 +61,8 @@ const OPTION_ALIASES = {
   bleed: 'print.bleed',
   marks: 'print.marks',
   back: 'print.back',
+  registration: 'print.registration',
+  text: 'print.text',
   fps: 'video.fps',
   videoQuality: 'video.quality',
   captions: 'video.captions',
@@ -160,7 +162,11 @@ export function planExportRequest(format, flags, repeated = {}) {
     ...(elements.length ? ['--element'] : []),
     ...(kinds.length ? ['--kind'] : []),
   ];
-  const wantsV2 = v2Flags.length > 0 || flags.estimate === true || V2_ONLY_FORMATS.includes(format);
+  const wantsV2 =
+    v2Flags.length > 0 ||
+    flags.estimate === true ||
+    flags.preflight === true ||
+    V2_ONLY_FORMATS.includes(format);
 
   const optionItems = repeated.option ?? [];
   const scope = flags.scope;
@@ -174,7 +180,9 @@ export function planExportRequest(format, flags, repeated = {}) {
         ? v2Flags.join(' ')
         : flags.estimate === true
           ? '--estimate'
-          : `${format} export`;
+          : flags.preflight === true
+            ? '--preflight'
+            : `${format} export`;
       return {
         error: `${why} needs a v2 scope: --scope selection|canvas|folder|project (not "${scope}")`,
       };
@@ -242,7 +250,7 @@ export function collectRepeatedFlag(argv, name) {
  * parser. @returns {{ format: string|undefined, flags: object, optionItems: string[], plan: object }}
  */
 export function planExportArgv(subArgs) {
-  const { positional, flags } = parseArgs(subArgs, { booleans: ['help', 'estimate'] });
+  const { positional, flags } = parseArgs(subArgs, { booleans: ['help', 'estimate', 'preflight'] });
   const format = positional[0];
   const optionItems = collectRepeatedFlag(subArgs, '--option');
   const plan = planExportRequest(format, flags, {
@@ -336,6 +344,39 @@ export function estimateLines(est) {
     );
   for (const s of est.skipped ?? [])
     lines.push(`  skipped ${s.name}: ${SKIP_WORDS[s.reason] ?? s.reason}`);
+  return lines;
+}
+
+const mm = (n) => String(Math.round(n * 10) / 10);
+
+/**
+ * S8.7 — the lines `--preflight` prints (no trailing newline): what a Print PDF is made of before it is made.
+ * The same facts the Export sheet's Print section shows: paper, the back, past-the-safe-margin elements,
+ * fonts that will not embed. Warnings inform; the export still runs.
+ */
+export function preflightLines(reply) {
+  if (!reply?.print) return ['No print artboard in this export — nothing to check.'];
+  const lines = [];
+  for (const b of reply.boards ?? []) {
+    const p = b.paper;
+    const paper = p
+      ? `${p.name ? `${p.name} ` : ''}${mm(p.trimMm[0])} × ${mm(p.trimMm[1])} mm, bleed ${mm(p.bleedMm)} mm, safe margin ${mm(p.marginMm[0])} mm`
+      : 'paper not readable from the canvas';
+    lines.push(`${b.label ?? b.id}: ${paper}`);
+    if (b.back)
+      lines.push(`  back: ${b.back.label ?? b.back.id} (--option back=true adds it as page 2)`);
+  }
+  if (reply.measured === false) lines.push('Safe margin: not measured (no render was available).');
+  for (const f of reply.safeMargin ?? [])
+    lines.push(
+      `Past the safe margin: ${f.label} is ${mm(f.mm)} mm from the cut (the margin is ${mm(f.marginMm)} mm).`
+    );
+  for (const f of reply.fonts ?? [])
+    if (!f.embeddable)
+      lines.push(
+        `Font will not embed: ${f.family} (${f.reason ?? 'unknown'}) - prints as shapes; text=outline avoids it.`
+      );
+  lines.push('Colour: RGB - the print shop converts to CMYK.');
   return lines;
 }
 

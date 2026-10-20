@@ -116,6 +116,7 @@ export const FORBIDDEN_ROUTE_PREFIXES: ReadonlyArray<{
       '/_api/export-assemble',
       '/_api/export-warmup',
       '/_api/export-estimate',
+      '/_api/export-preflight',
     ],
   },
   {

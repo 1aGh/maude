@@ -1367,8 +1367,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": "export-adv-print-dpi",
-        "where": "Menu › File › Export… ⇧⌘E › Other… › PDF › Advanced › Print PDF › Images inside (dpi). Text as outlines is not a spec field yet — the Print section (S8.7) draws it"
+        "testid": "export-adv-print-text",
+        "where": "Menu › File › Export… ⇧⌘E › Other… › PDF › Advanced › Print PDF › Images inside (dpi) and Text (keep as text · check the fonts are embedded · turn text into shapes, print-safe). A print page's sheet warns first when a font will not embed"
       }
     },
     {
@@ -1380,8 +1380,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": "export-adv-crop",
-        "where": "Menu › File › Export… ⇧⌘E › Other… › PDF › Advanced › Print PDF › Crop marks (and Bleed). Registration marks are not a spec field yet — the Print section (S8.7) draws them"
+        "testid": "export-adv-registration",
+        "where": "Menu › File › Export… ⇧⌘E › a print artboard › Print › Bleed and Crop marks (the paper shows them); Advanced › Print PDF › Crop marks and Registration marks"
       }
     },
     {

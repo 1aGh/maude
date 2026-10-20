@@ -30373,5 +30373,421 @@
       "apps/studio/test/v2-ds-truth.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "export-print",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Print section: the paper preview beside the rows, for a spec that reaches only print artboards. `data-pages` = 1 or 2.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The paper column of the Print section: the page, its pages, the caption, the legend.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-pages",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The page thumbnails under the paper (only when the back is page 2).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-page-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One page thumbnail (1 = the front, 2 = the back); a press shows that page.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-caption",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Page 1 of 2 · A6 · 105 × 148 mm\" under the paper.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-legend",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What the marks on the paper mean (Bleed, Cut, Safe).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-format",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Format group of the Print section: Print PDF · PDF · PNG (`data-value` = the picked id).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-format-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One format of the Print section. `<id>` is print-pdf, pdf or png; Other… keeps `export-format-<id>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-row-print",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Print row (Bleed, Crop marks, Add the back); absent for a plain PDF or a PNG.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-bleed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Print › Bleed: colour runs past the cut. Writes the same field as Advanced › Print PDF › Bleed.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-crop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Print › Crop marks. Writes the same field as Advanced › Print PDF › Crop marks.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Print › Add \"<back>\": the paired back artboard as page 2. Absent when no back was found.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-safe-warn",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The safe-margin warning (an element closer to the cut than the margin) with Show on canvas. Informs; never blocks.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-font-warn",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The font warning (a font file that will not embed: the text prints as shapes). Informs; never blocks.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-font-ok",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line that says Text as outlines makes every font safe (shown instead of the font warning when outlines are on).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-row-colour",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Colour row of the Print section.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-colour",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one colour line: \"RGB — the print shop converts to CMYK.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The paper preview. `data-bleed`, `data-marks`, `data-registration` say what is drawn.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper-art",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The art on the paper: trim plus bleed (trim only with Bleed off).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper-tint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tinted bleed frame on the paper.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper-crop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One crop-mark stroke on the paper (eight when crop marks are on).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper-registration",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One registration mark on the paper (four when registration marks are on).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper-margin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dashed safe margin on the paper.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-paper-flag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A ring on the paper round an element past the safe margin.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/preflight/paper.jsx",
+      "symbol": "Paper"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-print-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: Text — keep · check the fonts are embedded · turn text into shapes.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-registration",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: registration marks switch.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

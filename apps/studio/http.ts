@@ -105,6 +105,7 @@ import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
+import { createRectsRunner } from './exporters/rects-runner.ts';
 import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
 import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
@@ -1795,6 +1796,18 @@ export function createHttp(
     renderLane: () => resolveRenderLane(),
     // S8.4 — Retry: only the failed items of one of THIS session's group jobs
     retry: (id, items, session, allow) => exportJobs.retry(id, items, session, allow),
+    // S8.7 — the Print preflight: fonts are read under the design root; the safe margin is measured from the
+    // canvas-rects manifest (a headless render of the canvas, through the capture origin's 307 like every
+    // capture). One render at a time (the browser session is single), a short memory per file version, and a
+    // failure is "unmeasured" — never an error the sheet shows.
+    preflight: {
+      designRoot: ctx.paths.designRoot,
+      rects: createRectsRunner({
+        repoRoot: ctx.paths.repoRoot,
+        designRoot: ctx.paths.designRoot,
+        script: join(BIN_DIR, 'canvas-rects.sh'),
+      }),
+    },
   };
   // S10.3 — the design-system engine (S10.2) over THE kernel port, its one ⌘Z hook, and the
   // outside-change watcher (W = 5 s quiet per system folder, fed by the design-root fs events).

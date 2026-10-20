@@ -198,6 +198,9 @@ const REMOTE_OPTION_KEYS = new Set([
   'raster',
   'pageFit',
   'pdfPrint',
+  // S8.7 — Text as outlines: `options.text` is read by the pdf adapter (parsePdfText) and the render image ships Ghostscript;
+  // dropped here, a cloud Print PDF came back with live Type 3 fonts while the sheet said "shapes"
+  'text',
   'audio',
   'allowUnsupportedMedia',
   'timeoutSec',

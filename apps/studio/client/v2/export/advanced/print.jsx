@@ -11,6 +11,10 @@ import {
   IMAGES_INSIDE,
   PRINT_COLOUR_NOTE,
   PRINT_TITLE,
+  REGISTRATION_MARKS,
+  TEXT_HANDLING,
+  TEXT_NOTE,
+  TEXT_OPTIONS,
 } from './advanced-copy.js';
 import { Note, Select, Switch } from './fields.jsx';
 import { DPI_PRESETS } from './model.js';
@@ -25,6 +29,7 @@ export const printDpiOf = (spec) => {
 export function PrintPart({ spec, setAdv }) {
   const print = printOf(spec);
   const dpi = printDpiOf(spec) ?? 300;
+  const text = print.text ?? 'keep';
   return (
     <section className="ex-advp" data-testid="export-adv-print" aria-label={PRINT_TITLE}>
       <Row k={IMAGES_INSIDE}>
@@ -36,6 +41,16 @@ export function PrintPart({ spec, setAdv }) {
           onChange={(v) => setAdv({ printDpi: Number(v) })}
         />
       </Row>
+      <Row k={TEXT_HANDLING}>
+        <Select
+          label={TEXT_HANDLING}
+          testid="export-adv-print-text"
+          value={text}
+          options={TEXT_OPTIONS}
+          onChange={(v) => setAdv({ text: v })}
+        />
+      </Row>
+      <Note>{TEXT_NOTE}</Note>
       <Row k={BLEED}>
         <Switch
           label={BLEED}
@@ -50,6 +65,14 @@ export function PrintPart({ spec, setAdv }) {
           testid="export-adv-crop"
           checked={print.marks === 'crop'}
           onChange={(crop) => setAdv({ crop })}
+        />
+      </Row>
+      <Row k={REGISTRATION_MARKS}>
+        <Switch
+          label={REGISTRATION_MARKS}
+          testid="export-adv-registration"
+          checked={print.registration === true}
+          onChange={(registration) => setAdv({ registration })}
         />
       </Row>
       <Note>{PRINT_COLOUR_NOTE}</Note>

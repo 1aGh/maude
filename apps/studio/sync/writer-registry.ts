@@ -445,6 +445,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/export-jobs': { class: 'local' },
   '/_api/export-jobs/download': { class: 'local' },
   '/_api/export-jobs/retry': { class: 'local' }, // S8.4 — re-runs a job's failed items; the files stay on this Mac
+  '/_api/export-preflight': { class: 'local' }, // S8.7 — names and numbers about a print export, writes nothing
   '/_api/export-warmup': { class: 'local' },
   '/_api/figma/connect': { class: 'local' },
   '/_api/generate/keyframe-model': { class: 'local' },

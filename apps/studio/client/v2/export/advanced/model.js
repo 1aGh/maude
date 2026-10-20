@@ -91,6 +91,10 @@ export function overridesFor(format, adv) {
     const print = {};
     if (adv.bleed != null) print.bleed = adv.bleed;
     if (adv.crop != null) print.marks = adv.crop ? 'crop' : 'none';
+    // S8.7 — Add the back (page 2), registration marks, and what happens to the text
+    if (adv.back != null) print.back = adv.back;
+    if (adv.registration != null) print.registration = adv.registration;
+    if (adv.text != null && adv.text !== 'keep') print.text = adv.text;
     if (Object.keys(print).length) o.print = print;
   }
   if (VIDEO.has(format)) {

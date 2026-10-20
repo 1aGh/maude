@@ -22,6 +22,16 @@ export const PRINT_TITLE = 'Print PDF';
 export const IMAGES_INSIDE = 'Images inside';
 export const BLEED = 'Bleed';
 export const CROP_MARKS = 'Crop marks';
+// S8.7 — A-crop-and-registration-marks, A-pdf-quality-and-text-outlines (09 ex-advanced, Print PDF column)
+export const REGISTRATION_MARKS = 'Registration marks';
+export const TEXT_HANDLING = 'Text';
+export const TEXT_OPTIONS = [
+  ['keep', 'Keep as text'],
+  ['embed', 'Check the fonts are embedded'],
+  ['outline', 'Turn text into shapes (print-safe)'],
+];
+export const TEXT_NOTE =
+  'Shapes print the same everywhere but can’t be selected. Check fails the export if a font would not embed.';
 export const PRINT_COLOUR_NOTE =
   'RGB — the print shop converts to CMYK. If they ask for a profile, use theirs.';
 
