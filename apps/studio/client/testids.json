@@ -37056,5 +37056,373 @@
       "apps/studio/test/v2-inspector-print.test.tsx"
     ],
     "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "reframe-island",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The Re-frame island over the canvas: the selected clip's whole picture and the window one format cuts out of it (07 ve-reframe).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The island's title: Frame “Touchdown” for.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-format-<w>x<h>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.13: One format on the island's seg (9x16, 16x9, 1x1): the format whose window is shown.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-source",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The clip's whole source picture, drawn at its own aspect, held on the frame under the playhead.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-window",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The draggable window one format cuts out of the picture (a slider: arrow keys move it). data-focus = its centre.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-window-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The format's name on the window (\"Reels 9:16\").",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-scope-<scope>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.13: This format / All formats: whose framing a drag writes (scope = format | all).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: How many keyframes this scope has (\"2 keyframes\"), or that the window is centred.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: Reset: the centre again for this scope. Disabled until something is framed.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-done",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: Done: closes the island.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "reframe-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The island's foot: \"Drag the window to frame it. Each format keeps its own.\" (B3: no subject following).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/reframe-island.jsx",
+      "symbol": "ReframeIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "timeline-shared",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: \"Shared by 3 formats\" in the island's header while other artboards play this same cut (S7.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/island-controls.jsx",
+      "symbol": "SharedStatus"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-formats",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The Formats list in the Video inspector: the artboards that share this cut, \"this one\" first marked.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-fmt-<artboardId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.13: One format in the Formats list: link glyph, name, its size (or \"this one\", or \"its own cut\").",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatLine"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-format-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: + Add a format: opens the sizes this cut does not have yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-format-add-<w>x<h>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.13: One size on offer under + Add a format; picking it is one video.format.add.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-format-unlink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: Make an unlinked copy: this artboard forks the cut and keeps its own (video.format.unlink).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-format-own-cut",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: \"Unlinked copy — its own cut.\" under the Formats list of a forked artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-formats-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: Why a Formats write was refused, in a sentence.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/formats.jsx",
+      "symbol": "FormatsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "insp-clip-reframe",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: Re-frame… under a clip's Framing row: opens the Re-frame island (video.reframe).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "FramingRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/formats-and-reframe-ui.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "video-links",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.13: The canvas layer that draws the link glyphs and the unlinked-copy tags (never exported).",
+    "producer": {
+      "file": "apps/studio/video-links-overlay.tsx",
+      "symbol": "VideoLinksLayer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-links-overlay.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "video-link-<from>-<to>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.13: The link glyph between two linked video artboards (derived from the comps they mount).",
+    "producer": {
+      "file": "apps/studio/video-links-overlay.tsx",
+      "symbol": "VideoLinksLayer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-links-overlay.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "video-unlinked-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.13: \"Unlinked copy — its own cut\" under a video artboard forked from another one's cut.",
+    "producer": {
+      "file": "apps/studio/video-links-overlay.tsx",
+      "symbol": "VideoLinksLayer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-links-overlay.test.tsx"
+    ],
+    "v2": "new in v2 (S7.13)"
   }
 ]

@@ -56,15 +56,36 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   row('video.music.volume', 'Music volume', 'Inspector › Music'),
   row('video.cut-to-beat', 'Cut to the beat', 'Inspector › Music'),
   row('video.snap', 'Snap to the beat', 'Timeline'),
-  row('video.reframe', 'Re-frame', 'Timeline › Re-frame'),
+  // S7.13 — bound: the clip inspector's Framing › Re-frame… opens the island on the selected clip (07 ve-reframe)
+  {
+    ...row('video.reframe', 'Re-frame', 'Timeline › Re-frame'),
+    search: {
+      where: 'Timeline › Re-frame',
+      keywords: ['reframe', 'crop', 'framing', 'vertical', 'focus', 'window'],
+    },
+  },
   // S7.8 — bound: the playhead's frame becomes the poster (`artboardMeta.poster`), from ⌘K and the Poster flag on
   // the ruler. The inspector's Poster section (S7.5+) places the same id.
   {
     ...row('video.poster.set', 'Set as poster frame', 'Timeline'),
     search: { where: 'Timeline › Poster', keywords: ['poster', 'cover', 'thumbnail'] },
   },
-  row('video.format.add', 'Add a format', 'Inspector › Formats'),
-  row('video.format.unlink', 'Make an unlinked copy', 'Inspector › Formats'),
+  // S7.13 — bound: the Video inspector's Formats rows (07 ve-formats). ⌘K reaches them through formats-ui.js: Add a format
+  // opens the size list, Make an unlinked copy runs on the selected video.
+  {
+    ...row('video.format.add', 'Add a format', 'Inspector › Formats'),
+    search: {
+      where: 'Inspector › Formats',
+      keywords: ['format', 'size', '16:9', '9:16', '1:1', 'reels', 'linked', 'aspect'],
+    },
+  },
+  {
+    ...row('video.format.unlink', 'Make an unlinked copy', 'Inspector › Formats'),
+    search: {
+      where: 'Inspector › Formats',
+      keywords: ['unlink', 'copy', 'own cut', 'fork', 'format'],
+    },
+  },
   row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),
   row('video.fit', 'Fit the picture', 'Inspector › Clip'),
   row('video.place', 'Place the title', 'Inspector › Formats'),

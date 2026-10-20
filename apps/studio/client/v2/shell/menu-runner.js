@@ -56,6 +56,8 @@ import { clearFollowedLoop, loopAt } from '../timeline/playhead.js';
 import { setPosterAtPlayhead } from '../timeline/poster.js';
 import { timelineStore } from '../timeline/timeline-store.js';
 import { addCaptionsFromSpeech, transcriptUi } from '../transcript/captions-api.js';
+import { formatsUi } from '../inspector/formats-ui.js';
+import { reframeUi } from '../timeline/reframe-island.jsx';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
 export const ARTBOARD_PRESET = {
@@ -397,6 +399,16 @@ export function createMenuHandlers(d) {
     // S7.11 — Captions from speech (the island's tool) and the Transcript panel (left slot, Q17)
     'video.captions.add': () => void addCaptionsFromSpeech(),
     'video.transcript.open': () => transcriptUi.toggle(),
+    // S7.13 — the Re-frame island (on the selected clip) and the Video inspector's Formats rows (07 ve-reframe, ve-formats)
+    'video.reframe': () => reframeUi.open(),
+    'video.format.add': () => {
+      const said = formatsUi.requestAdd();
+      if (said) d.toast?.(said);
+    },
+    'video.format.unlink': () => {
+      const said = formatsUi.unlink();
+      if (said) d.toast?.(said);
+    },
     'view.annotations': () => d.onToggleAnnotations(),
     'view.minimap': () => d.onToggleMinimap(),
     'view.zoom-controls': () => d.onToggleZoomCtl(),

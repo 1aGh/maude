@@ -18,6 +18,7 @@ export const V2_CODE_PATHS = [
   /(^|\/)apps\/studio\/editing\//, // the S2 editing layer (S2.1 mount)
   /(^|\/)apps\/studio\/safe-zones-overlay\.tsx$/, // S7.22 safe zones (canvas guides chrome)
   /(^|\/)apps\/studio\/artboard-growth-tag\.tsx$/, // S7.21 growth tag (canvas guides chrome)
+  /(^|\/)apps\/studio\/video-links-overlay\.tsx$/, // S7.13 link glyphs between linked formats (canvas guides chrome)
 ];
 /** Late entries in a shared v1 file that are v2 features (named one by one, never by file). */
 export const V2_CODE_IDS = new Set([

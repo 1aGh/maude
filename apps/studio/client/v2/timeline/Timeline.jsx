@@ -34,7 +34,8 @@ import { usePlayback } from './playhead.js';
 import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
 import { deriveTracks } from './tracks.js';
 import { isBand } from './transport.js';
-import { KeptStatus, SizeButton } from './island-controls.jsx';
+import { KeptStatus, SharedStatus, SizeButton } from './island-controls.jsx';
+import { ReframeHost } from './reframe-island.jsx';
 import { ClipMenu } from './edit/clip-menu.jsx';
 import { ArtboardDropCatcher, DropLanding, fileCount } from './edit/drop.jsx';
 import { landingOf, MoveLanding } from './edit/move.jsx';
@@ -1863,6 +1864,7 @@ export default function TimelinePanel({
             onChange={(e) => zoomTo(zoomFromSlider(Number(e.target.value)))}
           />
         ) : null}
+        <SharedStatus canvas={island?.canvas} artboardId={comp?.artboardId} />
         <KeptStatus />
         <SizeButton />
         <button type="button" className="tl-x" aria-label="Close timeline" onClick={onClose}>
@@ -2570,6 +2572,19 @@ export default function TimelinePanel({
             document.body
           )
         : null}
+      {/* S7.13 — Re-frame: the selected clip's window per format (drawn only while opened) */}
+      <ReframeHost
+        seq={selSeq}
+        comp={comp}
+        fps={fps}
+        frame={frame}
+        name={selSeq ? displayNameOf(selSeq, selIndex) : ''}
+        canvas={island?.canvas ?? null}
+        artboardId={comp?.artboardId ?? null}
+        canEdit={canEditHere && !!onClipVerb}
+        url={selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null}
+        run={(params) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.reframe', params)}
+      />
       {fitFill.ask
         ? createPortal(
             <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />,

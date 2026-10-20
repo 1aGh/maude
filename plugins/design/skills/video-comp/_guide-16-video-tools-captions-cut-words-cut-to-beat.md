@@ -42,6 +42,25 @@ cut. To add one, copy the video `DCArtboard` with a new id and size and keep `co
 unlink one, copy the comp under a new name and point that artboard at it. Another take of a clip is
 a new `trimBefore` (output frames) at the same `durationInFrames`.
 
+## Linked formats and Re-frame in the studio are the same edits
+
+The **Formats** rows in a video's inspector (and the Timeline's "Shared by 3 formats") are read from the canvas —
+nothing is stored for a link. **+ Add a format** is the copy above at a size the cut does not have yet (one artboard per
+aspect: `<Reframe formats>` and `<Place formats>` are keyed by the reduced `W:H`, so two linked 16:9s could never be
+framed apart). **Make an unlinked copy** forks the comp as `<Comp>Unlinked` for that artboard; the canvas then tags it
+"Unlinked copy — its own cut" and lists it under the cut it came from. Trim or retitle the shared comp once and every
+linked format follows; each keeps its own framing and title position.
+
+The **Re-frame** island (clip inspector › Framing › Re-frame…, or ⌘K › Re-frame) shows the clip's whole source picture and
+the window one format cuts out of it. Dragging the window at the playhead writes ONE focus keyframe
+`[sourceSec, x, y]` on the clip's `<Reframe>` — into `formats["W:H"]` for **This format**, into the shared `focus` for
+**All formats** — and **Reset** removes that scope's keyframes (the last one gone unwraps the `<Reframe>`). The time is the
+footage's own second (through `trimBefore` and `playbackRate`), so trimming or moving the clip leaves every keyframe on the
+same moment of the footage. An agent does the same by reading frames (`maude design probe-footage` /
+`smart-frames --frames N` over the used source range, about one per second for fast action) and editing `<Reframe>`.
+**Following a subject is not in Maude 2.0** (`<Reframe follow>` is refused by `maude design check`): there is no switch,
+no tracking box and no motion path — frame by hand, the centre is the default.
+
 ## The Transcript panel is the same words and the same ops
 
 In the studio, the **Transcript** panel (the island's Captions from speech tool, a double-click on a caption word, or

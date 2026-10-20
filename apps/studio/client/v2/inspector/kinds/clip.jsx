@@ -16,6 +16,7 @@ import { NumberField, Select, SliderField, Toggle } from '../../../inspector-con
 import { TITLE_MOTION_FRAMES } from '../../../../video/title-motion.ts';
 import { AdvancedFold } from '../../fold/advanced-fold.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
+import { reframeUi } from '../../timeline/reframe-island.jsx';
 import { registerKind, singleOf } from './index.js';
 import { registerSlot } from '../slots.js';
 import {
@@ -131,7 +132,7 @@ function VolumeRow({ t }) {
   );
 }
 
-function FramingRow({ t }) {
+function FramingRow({ t, ctx }) {
   return (
     <Row k="Framing" name="clip-framing">
       <Select
@@ -141,11 +142,24 @@ function FramingRow({ t }) {
         testId="insp-clip-framing"
         onChange={(fit) => t.onOp('fit', { fit })}
       />
+      {/* S7.13 (07 · ve-reframe): where each format looks inside the picture — the Re-frame island */}
+      <button
+        type="button"
+        className="insp-quietlink"
+        data-testid="insp-clip-reframe"
+        onClick={() =>
+          typeof ctx?.onShellAction === 'function'
+            ? ctx.onShellAction('video.reframe')
+            : reframeUi.open()
+        }
+      >
+        Re-frame…
+      </button>
     </Row>
   );
 }
 
-function ClipRows({ el }) {
+function ClipRows({ el, ctx }) {
   const t = el?.timeline;
   if (!t) return null;
   const ph = t.seq.placeholder;
@@ -154,7 +168,7 @@ function ClipRows({ el }) {
       <LengthRow t={t} />
       <SpeedRow t={t} />
       {hasSound(t.seq) ? <VolumeRow t={t} /> : null}
-      {visual(t.seq) ? <FramingRow t={t} /> : null}
+      {visual(t.seq) ? <FramingRow t={t} ctx={ctx} /> : null}
       {ph ? <TextRows t={t} /> : null}
     </div>
   );

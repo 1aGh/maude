@@ -26,6 +26,7 @@ import { offCorners } from './corners.jsx';
 import { offEffects } from './effects.jsx';
 import { offExportSlot } from './export-slot.jsx';
 import { offFill } from './fill.jsx';
+import { offFormats } from './formats.jsx';
 import { offInteraction } from './interaction.jsx';
 import { offLayout } from './layout.jsx';
 import { offPosition } from './position.jsx';
@@ -51,6 +52,7 @@ export function unregisterSections() {
   offInspectorExport();
   offExportSlot();
   offSafeZones();
+  offFormats();
   offPlaceFreely();
   offConvert();
   offArtboardSections();

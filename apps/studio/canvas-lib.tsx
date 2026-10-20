@@ -119,6 +119,7 @@ import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
 import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
 import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
+import { VideoLinksLayer } from './video-links-overlay.tsx';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
 // registry at module load, per that file's own "call registerKindOverlay at
@@ -2533,6 +2534,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
         {children}
         {/* S11.5 — the outlines an all-trashed canvas keeps (world coords, no hit area, shell-told). */}
         <ArtboardGhostsLayer />
+        {/* S7.13 — the link glyphs between linked video artboards, and "Unlinked copy — its own cut" (derived, never exported). */}
+        <VideoLinksLayer />
       </div>
       {showMiniMap ? <DCMiniMap /> : null}
       {/* Plan C F6 — separate bottom-left zoom pill (the design's ZoomHud).

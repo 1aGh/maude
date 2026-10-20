@@ -112,6 +112,8 @@ export function advancedFacts(f, video) {
     rows.push(['durationInFrames', video?.durationInFrames ? String(video.durationInFrames) : '—']);
     rows.push(['codec', 'h264']);
     if (video?.poster != null) rows.push(['poster', `frame ${video.poster}`]);
+    // S7.13 — the cut this video shares with its other formats, and where each keeps its own framing
+    if (video?.linkedTo) rows.push(['linkedTo', video.linkedTo], ['framing', 'per format']);
   } else {
     rows.push(['width', w], ['height', h != null ? `${h}px${f.fixed ? ' · fixed' : ''}` : '—']);
   }

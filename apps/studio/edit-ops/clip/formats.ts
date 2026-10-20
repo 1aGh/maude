@@ -24,7 +24,7 @@ export const MIN_SIDE = 16;
 export const MAX_SIDE = 8192;
 
 /** A numeric prop that is a literal or a top-level numeric const, else null. */
-function sizeOf(source: string, el: Node, name: string): number | null {
+export function sizeOf(source: string, el: Node, name: string): number | null {
   const a = attrNode(el, name);
   const v = a?.value;
   if (!v) return null;
@@ -34,7 +34,7 @@ function sizeOf(source: string, el: Node, name: string): number | null {
   return resolveNum(text, collectConsts(source));
 }
 
-function aspectOf(source: string, a: VideoArtboard): string | null {
+export function aspectOf(source: string, a: VideoArtboard): string | null {
   const w = sizeOf(source, a.artboard, 'width') ?? sizeOf(source, a.videoComp, 'width');
   const h = sizeOf(source, a.artboard, 'height') ?? sizeOf(source, a.videoComp, 'height');
   return w && h ? aspectKey(w, h) : null;
