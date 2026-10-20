@@ -108,7 +108,8 @@ describe('image.place mode auto', () => {
   test('six photos fill six empty frames in order, and every filled slot is reported for the selection', async () => {
     const h = harness();
     const r = good(await h.run('match', { assets: SIX, mode: 'auto' }));
-    SIX.forEach((a, i) => expect(tagOf(h.src(), `cell-${i + 1}`)).toContain(`src="${a}"`));
+    for (const [i, a] of SIX.entries())
+      expect(tagOf(h.src(), `cell-${i + 1}`)).toContain(`src="${a}"`);
     expect(r.created?.map((c) => c.element)).toEqual([1, 2, 3, 4, 5, 6].map((n) => `cell-${n}`));
   });
 
