@@ -25,6 +25,12 @@ export const FOLD_PANELS = Object.freeze([
   'history',
   'code',
   'connections',
+  // S11.14 — each connection carries its own Advanced (06 ad-edge-hub): one id per row.
+  'connections.cloud',
+  'connections.hub',
+  'connections.github',
+  'connections.ai',
+  'connections.figma',
   'ai',
   'share',
   'timeline',

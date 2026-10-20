@@ -27,6 +27,11 @@ export function createSettingsHandlers(d, io = {}) {
   return {
     'settings.reset-panel-layout': () => d.setSettingsOpen?.('advanced'),
     'settings.reset-all': () => d.setSettingsOpen?.('advanced'),
+    // S11.14 — the Connections rows open where their words are; nothing is typed or linked from ⌘K.
+    'connections.replace-hub-token': () => d.setSettingsOpen?.('connections'),
+    'connections.figma-test': () => d.setSettingsOpen?.('connections'),
+    'connections.cloud-project-connect': () => d.setSettingsOpen?.('connections'),
+    'connections.cloud-project-disconnect': () => d.setSettingsOpen?.('connections'),
     'settings.use-own-plugin-copy': flip(
       OWN_PLUGIN_COPY_PREF,
       'Using your own plugin copy. Takes effect when the AI chat next starts.',

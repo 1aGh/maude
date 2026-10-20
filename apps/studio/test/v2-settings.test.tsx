@@ -288,6 +288,9 @@ describe('the desktop sheet renders every Settings row', () => {
     installTauri();
     await mount();
     await goto('connections');
+    // S11.14 — the address and the token live under the linked connection's own Advanced
+    await click(q('fold-connections.hub-toggle'));
+    await settle(40);
     for (const id of [
       'cloud-account',
       'cloud-sign-out',
@@ -305,9 +308,10 @@ describe('the desktop sheet renders every Settings row', () => {
     ])
       expect(q(id), id).toBeTruthy();
     expect(q('cloud-project-p2')?.textContent).toContain('Connect Brand book');
-    // the address is shown; the token never is
+    // the address is shown; the token is a mask (S11.14: its last four at most, from the server)
     expect(q('settings-hub-address')?.textContent).toContain('https://hub.example.test/p/studio');
-    expect(q('settings-hub-address')?.textContent).toContain('never shown');
+    expect(q('settings-hub-address')?.textContent).toContain('•••• •••• ••••');
+    await click(q('fold-connections.hub-toggle')); // the fold is remembered per Mac: leave it shut
   });
 
   test('Connections: “Add a team server…” opens the server form only (D12)', async () => {
@@ -407,7 +411,14 @@ describe('the desktop sheet renders every Settings row', () => {
         const sel = m.testid.includes('<')
           ? `[data-testid^="${m.testid.split('<')[0]}"]`
           : `[data-testid="${m.testid}"]`;
+        // S11.14 — a row under a fold is on screen once that fold is open
+        const fold = (m as { fold?: string }).fold;
+        if (fold && !q(`fold-${fold}-body`)) {
+          await click(q(`fold-${fold}-toggle`));
+          await settle(40);
+        }
         expect(panel.querySelector(sel), `${sec}: ${m.testid}`).toBeTruthy();
+        if (fold) await click(q(`fold-${fold}-toggle`));
       }
     }
   });
@@ -579,10 +590,13 @@ describe('secrets stay where they are', () => {
   test('a Figma token being typed is a password field, and a saved one is never read back', async () => {
     await mount();
     await goto('connections');
+    await click(q('fold-connections.figma-toggle')); // S11.14 — a stored token is replaced under Advanced
+    await settle(40);
     const input = q('figma-connect-input') as HTMLInputElement;
     expect(input.type).toBe('password');
     expect(input.value).toBe('');
     expect(input.placeholder).toContain('stored'); // masked placeholder, not the token
+    await click(q('fold-connections.figma-toggle'));
   });
 
   test('nothing in the sheet reads a token out of a response', async () => {

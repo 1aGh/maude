@@ -109,16 +109,20 @@ export const SETTINGS_ROWS = Object.freeze([
     nd: 'A-figma-token',
     section: 'connections',
     testid: 'figma-connect-card',
-    where: 'Settings › Connections › Figma (token, Test connection, Remove)',
+    where: 'Settings › Connections › Figma (Test, Disconnect; the token under its Advanced)',
     local: true,
   },
   {
     nd: 'A-team-hub-address-and-access-token',
     section: 'connections',
     testid: 'settings-hub-address',
+    // S11.14 — under the Advanced of the row the link belongs to (your team's own server, or Maude Cloud):
+    // the address, the access token as its last four characters, Replace….
     where:
-      'Settings › Connections › Maude Cloud › Advanced (address; the token stays in the keychain)',
+      'Settings › Connections › Your team’s own server › Advanced (address, access token •••• last 4, Replace…)',
     local: true,
+    // drawn only while that row's own Advanced fold is open (a cloud link draws it under `connections.cloud`)
+    fold: 'connections.hub',
   },
   {
     nd: 'A-your-team-s-own-server-email-password',
@@ -432,6 +436,11 @@ export const FOLD_LABELS = Object.freeze({
   history: 'Version history › Advanced',
   code: 'Code › Advanced',
   connections: 'Connections › Advanced',
+  'connections.cloud': 'Connections › Maude Cloud › Advanced',
+  'connections.hub': 'Connections › Your team’s own server › Advanced',
+  'connections.github': 'Connections › GitHub › Advanced',
+  'connections.ai': 'Connections › AI images, video and voice › Advanced',
+  'connections.figma': 'Connections › Figma › Advanced',
   share: 'Share › Advanced',
   timeline: 'Timeline › Advanced',
   export: 'Export › Advanced',
