@@ -23,7 +23,11 @@ import { CanvasesPanel } from '../v2/canvases/canvases-panel.jsx';
 import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-advanced.jsx';
 import { DsPinnedRows, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
 import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
-import { dsPinnedRows } from '../v2/left-panel/left-panel-model.js';
+import { dsPinnedModel } from '../v2/left-panel/left-panel-model.js';
+import { newCanvasDesignSystem } from '../v2/ds/new-canvas-default.js';
+import { systemMenuItems } from '../v2/ds/system-menu.jsx';
+import { useDsState } from '../v2/ds/use-ds-state.js';
+import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { TrashView } from '../v2/left-panel/trash-view.jsx';
 import { useTrash } from '../v2/left-panel/use-trash.js';
 
@@ -855,6 +859,10 @@ export function Sidebar({
   filesReady,
   treeLoadFailures = 0,
   onShare,
+  // S10.13 — the pinned system rows: the shell config (systems, which canvas follows which, the default, which
+  // are converted) and the runner for registry actions (`ds.go-to`, `ds.set-default`, `ds.make`)
+  dsCfg,
+  onDsAction,
 }) {
   const filteredGroups = useMemo(() => {
     if (!search) return groups;
@@ -866,6 +874,41 @@ export function Sidebar({
   // fetch + tree refresh (App-level, alongside createBoard/deleteBoard).
   const treeDrag = useTreeDrag(onMoveCanvas);
 
+  // S10.13 — what the pinned system rows and their menu are drawn from (before the row menu uses them)
+  const dsState = useDsState({ enabled: !!dsCfg, stamp: groups });
+  const dsDesignRel = (dsCfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  const dsModel = useMemo(
+    () =>
+      dsPinnedModel(groups, {
+        // no shell config (a bare panel) = the rows exactly as V2-4.4a pinned them
+        designSystems: dsCfg ? (dsCfg.designSystems ?? []) : undefined,
+        canvasDesignSystems: dsCfg?.canvasDesignSystems ?? {},
+        defaultDs: dsCfg?.defaultDesignSystem ?? null,
+        designRel: dsDesignRel,
+        state: dsState,
+        canMake: !!onDsAction && !readOnly,
+      }),
+    [groups, dsCfg, dsDesignRel, dsState, onDsAction, readOnly]
+  );
+  const pinnedDs = dsModel.rows;
+  // a converted system opens its Design system canvas (ds.go-to); an older one its v1 view (Q6)
+  const openDs = useCallback(
+    (name) => {
+      if (onDsAction && dsCfg?.dsConverted?.[name] === true) onDsAction('ds.go-to', { ds: name });
+      else onOpenSystem(name);
+    },
+    [onDsAction, dsCfg, onOpenSystem]
+  );
+  const openDsCanvasOf = useMemo(() => {
+    const rel =
+      typeof activePath === 'string' && activePath.startsWith(`${dsDesignRel}/`)
+        ? activePath.slice(dsDesignRel.length + 1)
+        : activePath;
+    const hit = (dsCfg?.designSystems ?? []).find(
+      (d) => d.path && rel === `${d.path.replace(/\/+$/, '')}/design-system.tsx`
+    );
+    return hit?.name ?? null;
+  }, [dsCfg, dsDesignRel, activePath]);
   // feature-file-tree-drag-drop-folders (Task 9) — the keyboard path. One
   // shared row-menu instance (only one row's menu is ever open); every
   // non-DS canvas group folder (incl. each group's own root) is a valid
@@ -884,7 +927,28 @@ export function Sidebar({
     return out;
   }, [groups]);
   const menuExtra = rowMenu.state?.extra;
-  const rowMenuRootItems =
+  // S10.13 — a pinned system row's own menu (13 · ds-multi-menu); hidden rows are the registry's pending ones
+  const dsMenuItems =
+    menuExtra?.kind === 'ds'
+      ? systemMenuItems({
+          row: menuExtra.row,
+          rows: pinnedDs,
+          canEdit: !readOnly,
+          has: (id) => ACTIONS_BY_ID.has(id),
+        }).map((it) => ({
+          id: `ds-${it.id}`,
+          label: it.label,
+          note: it.note,
+          disabled: it.disabled,
+          onSelect: () => {
+            rowMenu.close();
+            if (it.id === 'open') openDs(menuExtra.row.dsName);
+            else
+              onDsAction?.(it.action.id, { ...it.action.params, label: menuExtra.row.systemLabel });
+          },
+        }))
+      : [];
+  const treeMenuRootItems =
     menuExtra?.kind === 'file'
       ? [
           {
@@ -991,6 +1055,7 @@ export function Sidebar({
             },
           ]
         : [];
+  const rowMenuRootItems = menuExtra?.kind === 'ds' ? dsMenuItems : treeMenuRootItems;
   const rowMenuDestinations =
     menuExtra?.kind === 'file' || menuExtra?.kind === 'supporting'
       ? destinations.filter((d) => d.path !== menuExtra.dir)
@@ -1040,7 +1105,18 @@ export function Sidebar({
       }
       return;
     }
-    const res = await onNewBoard(name);
+    // S10.13 — a board made in a folder starts on the system that folder's canvases share
+    const designSystem =
+      composerTarget && (dsCfg?.designSystems?.length ?? 0) > 1
+        ? newCanvasDesignSystem({
+            folder: composerTarget.path,
+            canvasDesignSystems: dsCfg.canvasDesignSystems,
+            designSystems: dsCfg.designSystems,
+            defaultDs: dsCfg.defaultDesignSystem,
+            designRel: dsCfg.designRel || '.design',
+          })
+        : undefined;
+    const res = await onNewBoard(name, { designSystem });
     if (res?.ok && composerTarget && res.file) await onMoveCanvas?.(res.file, composerTarget.path);
     setNewBusy(false);
     if (res?.ok) {
@@ -1059,6 +1135,7 @@ export function Sidebar({
     composerMode,
     composerTarget,
     defaultFolderParent,
+    dsCfg,
   ]);
 
   // Mock uses `42 / 42` — total openable canvases, not every listed file.
@@ -1077,7 +1154,6 @@ export function Sidebar({
   }, [filteredGroups]);
 
   // V2-4.4a — the Canvases tab: the Design system pinned on top, Trash as the last row, Advanced under it.
-  const pinnedDs = useMemo(() => dsPinnedRows(groups), [groups]);
   const dsGroup = useMemo(
     () => filteredGroups.find((g) => g.label === 'Design system'),
     [filteredGroups]
@@ -1341,7 +1417,15 @@ export function Sidebar({
           FILES moved under Advanced (CONTRACT §7). While searching the pinned row steps aside (kit)
           and the group's hits show in the list below. */}
           {!search && (
-            <DsPinnedRows rows={pinnedDs} activeDsName={activeDsName} onOpen={onOpenSystem} />
+            <DsPinnedRows
+              rows={pinnedDs}
+              header={dsModel.header}
+              empty={dsModel.empty}
+              activeDsName={activeDsName ?? openDsCanvasOf}
+              onOpen={openDs}
+              onMenu={onDsAction ? (e, row) => rowMenu.openAt(e, { kind: 'ds', row }) : undefined}
+              onMake={() => onDsAction?.('ds.make', {})}
+            />
           )}
           {showHidden ? (
             // Hidden files on = the file view of every group (sidecars, notes, media beside the canvases),

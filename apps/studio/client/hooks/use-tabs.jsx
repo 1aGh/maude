@@ -356,12 +356,17 @@ export function useTabs({
   // active canvas to annotate. Returns {ok} | {ok:false,error} so the Sidebar
   // can surface a validation/duplicate message inline.
   const createBoard = useCallback(
-    async (name) => {
+    // S10.13 — `designSystem`: the system the folder it is made in passes on (new-canvas-default.js)
+    async (name, { designSystem } = {}) => {
       try {
         const r = await fetch('/_api/canvas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, kind: 'brief-board' }),
+          body: JSON.stringify({
+            name,
+            kind: 'brief-board',
+            ...(designSystem ? { designSystem } : {}),
+          }),
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) return { ok: false, error: j.error || `create failed (${r.status})` };

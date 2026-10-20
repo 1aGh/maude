@@ -30,31 +30,97 @@ export function TrashIcon({ size = 14 }) {
 }
 
 /** The project's design system(s), pinned above every canvas. One row per system; clicking opens the
- *  design-system view (CONTRACT §2: "S design-system view → the pinned Design system row"). */
-export function DsPinnedRows({ rows, activeDsName, onOpen }) {
-  if (!rows?.length) return null;
+ *  design-system view (CONTRACT §2: "S design-system view → the pinned Design system row").
+ *
+ *  S10.13 (13 · ds-where-*, ds-multi-panel): a row is two lines — the name and "N canvases · default" —
+ *  with an amber dot for a system that needs bringing up and a ⋯ menu of its own. Several systems in use
+ *  sit under "Design systems · 2 in use". A project with none shows "Make a design system".
+ *    header  { title, note } | null      onMenu(event, row)      the row's ⋯ (omit = no menu)
+ *    empty   { label } | null            onMake()                the empty row's door */
+export function DsPinnedRows({
+  rows,
+  activeDsName,
+  onOpen,
+  header = null,
+  empty = null,
+  onMenu,
+  onMake,
+}) {
+  if (!rows?.length && !empty) return null;
   return (
     <div className="lp-pinned" data-testid="canvases-pinned">
-      {rows.map((r) => {
+      {header ? (
+        <p className="lp-ds-head" data-testid="canvases-ds-head">
+          {header.title}
+          <em>{header.note}</em>
+        </p>
+      ) : null}
+      {(rows || []).map((r) => {
         const on = activeDsName != null && activeDsName === r.dsName;
         return (
-          <button
-            key={r.dsName}
-            type="button"
-            className={`lp-row lp-ds${on ? ' is-sel' : ''}`}
-            data-testid="canvases-ds-row"
-            data-ds={r.dsName}
-            aria-current={on ? 'true' : undefined}
-            title="Open the design system"
-            onClick={() => onOpen(r.dsName)}
-          >
-            <span className="lp-ds-ic">
-              <StIcon name="sliders" size={14} />
-            </span>
-            <span className="lp-name">{r.label}</span>
-          </button>
+          <div key={r.dsName} className="lp-ds-wrap">
+            <button
+              type="button"
+              className={`lp-row lp-ds${on ? ' is-sel' : ''}${r.sub ? ' lp-ds--two' : ''}`}
+              data-testid="canvases-ds-row"
+              data-ds={r.dsName}
+              data-default={r.isDefault ? 'true' : undefined}
+              aria-current={on ? 'true' : undefined}
+              title={r.sub ? `${r.label} — ${r.sub}` : 'Open the design system'}
+              onClick={() => onOpen(r.dsName)}
+            >
+              <span className="lp-ds-ic">
+                <StIcon name="sliders" size={14} />
+              </span>
+              {r.sub ? (
+                <span className="lp-ds-two">
+                  <span className="lp-name">{r.label}</span>
+                  <span className="lp-ds-sub" data-testid="canvases-ds-row-sub">
+                    {r.sub}
+                  </span>
+                </span>
+              ) : (
+                <span className="lp-name">{r.label}</span>
+              )}
+              {r.amber ? (
+                <span
+                  className="lp-ds-warn"
+                  data-testid="canvases-ds-row-warn"
+                  role="img"
+                  aria-label={r.amber.title}
+                  title={r.amber.title}
+                />
+              ) : null}
+            </button>
+            {onMenu ? (
+              <button
+                type="button"
+                className="lp-ds-more"
+                data-testid="canvases-ds-row-menu"
+                data-ds={r.dsName}
+                aria-label={`${r.label} menu`}
+                aria-haspopup="menu"
+                onClick={(e) => onMenu(e, r)}
+              >
+                <span aria-hidden="true">⋯</span>
+              </button>
+            ) : null}
+          </div>
         );
       })}
+      {empty ? (
+        <button
+          type="button"
+          className="lp-row lp-ds lp-ds-make"
+          data-testid="canvases-ds-make"
+          onClick={() => onMake?.()}
+        >
+          <span className="lp-ds-ic">
+            <StIcon name="plus" size={14} />
+          </span>
+          <span className="lp-name">{empty.label}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

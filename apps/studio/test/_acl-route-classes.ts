@@ -240,6 +240,8 @@ const PROJECT = [
   '/_api/ds/trash',
   '/_api/ds/restore',
   '/_api/ds/clear',
+  // S10.13 — the project's default design system (config.json)
+  '/_api/ds/default',
   '/_api/share/invites',
   '/_api/share/invites/:id/resend',
   '/_api/share/invites/:id/revoke',

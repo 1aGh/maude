@@ -25,6 +25,13 @@ import { ACTION_KEYWORDS, SETTINGS_SEARCH } from './search-keywords.js';
 
 /** Group order on screen. Ask AI is not a group: it is the last row (CONTRACT §4, S5). */
 export const GROUPS = Object.freeze([
+  // S10.13 (13 · ds-where-gator): the Design system(s) first, then everything in them by name
+  { id: 'design-system', title: 'Design system' },
+  {
+    id: 'in-design-system',
+    title: 'In the Design system',
+    aside: 'colours, type and components by name',
+  },
   { id: 'canvases', title: 'Canvases' },
   { id: 'artboards', title: 'Artboards' },
   { id: 'actions', title: 'Actions' },
@@ -372,7 +379,9 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
       title: g.title,
       ...(g.id === 'actions' && hidden
         ? { aside: `${hidden} hidden ${hidden === 1 ? 'tool' : 'tools'}` }
-        : {}),
+        : g.aside
+          ? { aside: g.aside }
+          : {}),
       rows,
     });
   }

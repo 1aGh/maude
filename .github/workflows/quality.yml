@@ -166,6 +166,11 @@ jobs:
       - name: Studio token drift (scripts/gen-tokens.mjs)
         run: node scripts/gen-tokens.mjs --check
 
+      # S10.13 (S10 Q4): both in-repo systems stay at schema level 0 — an edit to colors_and_type.css that skips
+      # `ds-check --emit` turns `manifest-stale` (level 10) red here, not at the next release.
+      - name: Design-system schema (maude + maude-v2 at level 0)
+        run: node cli/bin/maude.mjs design ds-check maude maude-v2
+
       - name: Site generated content drift (reference + stats + lib mirrors)
         # The whole generated set, not a subset: site/lib/whats-new.json sat
         # outside this gate and went stale through the v1.0.0 release (the

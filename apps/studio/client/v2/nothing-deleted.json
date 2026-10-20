@@ -656,8 +656,8 @@
       "drawnAt": "13 · ds-advanced",
       "v2": {
         "action": "view.design-system",
-        "testid": null,
-        "where": "Canvases panel > Design system (the pinned row); ⌘K > Design system"
+        "testid": "canvases-ds-row",
+        "where": "Canvases panel > Design system (the pinned row, its ⋯ menu; one row per system); ⌘K > Design system; the inspector's \"Uses …\" link"
       }
     },
     {

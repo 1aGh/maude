@@ -70,6 +70,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/trash', { ds: DS, css: '--accent', replacement: '--fg-0' }],
   ['/_api/ds/restore', { ds: DS, css: '--accent' }],
   ['/_api/ds/clear', { ds: DS, css: '--accent' }],
+  // S10.13 — the project's default system (config.json)
+  ['/_api/ds/default', { ds: DS }],
 ];
 
 describe('ds routes — roles (Q15)', () => {
