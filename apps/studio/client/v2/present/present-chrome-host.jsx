@@ -16,17 +16,33 @@ import { CanvasPill } from './canvas-pill.jsx';
 import { labelOf } from './present-controls-model.js';
 import { PresentControls, PresentTransport } from './present-controls.jsx';
 import { PresenterViewButton } from './presenter-button.jsx';
-import { presenterAvailable, presenterOn, usePresenterDisplays } from './presenter-store.js';
+import {
+  presenterAvailable,
+  presenterOn,
+  usePresenterDisplays,
+  usePresentRun,
+} from './presenter-store.js';
 import { usePresentZoomValue } from './present-zoom-store.js';
+import { VideoPresentHost } from './video-present.jsx';
 
 export function ShellPresentChrome() {
   const {
-    shellCore: { activePath, cfg },
+    shellCore: {
+      activePath,
+      activeComps,
+      cfg,
+      postToActiveCanvas,
+      setTimelineLoop,
+      setTimelineVolume,
+      timelineLoop,
+      timelineVolume,
+    },
     photoAndTimeline: { exitPresent },
   } = useShellStore();
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
   const zoom = usePresentZoomValue();
   const pv = usePresenterDisplays();
+  const deck = usePresentRun();
 
   const indexSnapshot = useCanvasIndex({ stamp: activePath });
   const boards = useMemo(
@@ -40,6 +56,27 @@ export function ShellPresentChrome() {
   // S3.6b: with presenter view up, the Mac shows its own screen (presenter-host.jsx) with its own Previous /
   // Next / End — these controls would only sit on top of it.
   if (presenterOn(pv)) return null;
+  // S7.19 (07 ve-fullscreen): a selected video presents its formats only, with its own chrome
+  if (snap.present?.only === 'formats')
+    return (
+      <VideoPresentHost
+        position={snap.position}
+        run={deck}
+        media={snap.media}
+        canvas={{
+          activePath,
+          comps: activeComps,
+          post: postToActiveCanvas,
+          loop: timelineLoop,
+          setLoop: setTimelineLoop,
+          volume: timelineVolume,
+          setVolume: setTimelineVolume,
+        }}
+        onStep={presentStep}
+        onCommand={presentMediaCmd}
+        onLeave={exitPresent}
+      />
+    );
   return (
     <PresentControls
       position={snap.position}
