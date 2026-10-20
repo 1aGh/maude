@@ -30,6 +30,8 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { resolvedPoster } from './kinds/meta.ts';
+import { VideoPlayChrome } from './video-play-chrome.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Comp meta contract + the module-level seek registry
@@ -550,7 +552,11 @@ export function VideoComp({
   // poster frame ~35% in so a paused comp shows content, not an empty frame 0.
   const play = (autoPlay ?? false) && !capturing;
   const maxFrame = Math.max(0, durationInFrames - 1);
-  const posterFrame = capturing ? 0 : Math.min(maxFrame, Math.round(durationInFrames * 0.35));
+  // S7.8 — the poster frame is `artboardMeta[id].poster` (the picture the artboard rests on, and the export's);
+  // absent = today's 35 % of the length.
+  const posterFrame = capturing
+    ? 0
+    : resolvedPoster(readCanvasArtboardMeta(), compId, Math.max(1, Math.round(durationInFrames)));
   // rca/issue-video-artboard-frame-reset-on-edit — reopen on the Timeline's
   // last known frame for this comp (survives the remount that tore this
   // instance down), not the fixed poster-frame formula. Falls back to
@@ -664,6 +670,49 @@ export function VideoComp({
     };
   }, [compId]);
 
+  // S7.8 — the poster moved (set from the timeline, or by a peer): a video nobody has played or scrubbed
+  // rests on the new picture. One whose playhead was moved keeps its place.
+  useEffect(() => {
+    if (typeof document === 'undefined' || capturing) return undefined;
+    const onMeta = () => {
+      if (liveTimelineFrame.has(compId)) return;
+      try {
+        ref.current?.seekTo(
+          resolvedPoster(
+            readCanvasArtboardMeta(),
+            compId,
+            Math.max(1, Math.round(durationInFrames))
+          )
+        );
+      } catch {
+        /* Player transitional */
+      }
+    };
+    document.addEventListener('maude:meta-refreshed', onMeta);
+    return () => document.removeEventListener('maude:meta-refreshed', onMeta);
+  }, [compId, durationInFrames, capturing]);
+
+  // S7.8 — the Player is the truth about playing: tell the shell on every play / pause, so a click on the
+  // artboard's own button and the Timeline's Space or button can never disagree.
+  useEffect(() => {
+    const p = ref.current;
+    if (!p || capturing) return undefined;
+    const tell = (playing: boolean) => () =>
+      postToShell({ dgn: 'timeline-playing', id: compId, playing });
+    const onPlay = tell(true);
+    const onPause = tell(false);
+    p.addEventListener('play', onPlay);
+    p.addEventListener('pause', onPause);
+    return () => {
+      try {
+        p.removeEventListener('play', onPlay);
+        p.removeEventListener('pause', onPause);
+      } catch {
+        /* unmounted */
+      }
+    };
+  }, [compId, capturing]);
+
   // iframe → shell: with loop off (now the default), the Player stops itself
   // at the last frame — nothing else tells the Timeline panel's Play/Pause
   // button to flip back to Play, so it reads "still playing" forever. Mirror
@@ -690,7 +739,7 @@ export function VideoComp({
       className="dc-video-comp"
       ref={hostRef}
       data-comp-id={compId}
-      style={{ width, height, maxWidth: '100%' }}
+      style={{ width, height, maxWidth: '100%', position: 'relative' }}
     >
       <Player
         ref={ref}
@@ -716,10 +765,23 @@ export function VideoComp({
         acknowledgeRemotionLicense
         style={style}
       />
+      {capturing || presenting ? null : (
+        <VideoPlayChrome
+          playerRef={ref}
+          fps={fps}
+          durationInFrames={Math.max(1, Math.round(durationInFrames))}
+        />
+      )}
     </div>
   );
 }
 VideoComp.displayName = 'VideoComp';
+
+/** `window.__canvas_meta__` (the shell injects the sidecar before mount): what a canvas may read of it. */
+function readCanvasArtboardMeta(): unknown {
+  if (typeof window === 'undefined') return undefined;
+  return (window as unknown as { __canvas_meta__?: unknown }).__canvas_meta__;
+}
 
 function postToShell(payload: Record<string, unknown>): void {
   if (typeof window === 'undefined' || window.parent === window) return;
