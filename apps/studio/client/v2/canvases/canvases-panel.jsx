@@ -20,6 +20,9 @@ import { copy } from '../empty/empty-copy.js';
 import { ArrivingRow } from '../empty/skeleton.jsx';
 import { requestViewCode } from '../code/code-bus.js';
 import { useFold } from '../fold/use-fold.js';
+import { KindChips } from '../kinds/KindChips.jsx';
+import { countByKind, isFilterKind, noCanvasesOfKind } from '../kinds/kind-filter-model.js';
+import { clearKindFilter, useKindFilter } from '../kinds/kind-filter-store.js';
 import { nativeDoors } from '../shell/native-doors.js';
 import { PANEL_NONE_FOOT, PanelNoCanvases } from '../create/empty-project.jsx';
 import { AskButton, Empty } from '../empty/index.js';
@@ -55,6 +58,7 @@ import { useRowSlots } from './row-slots.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
 import { SORT_ASIDE, SORT_BYS, SORT_LABELS, KIND_NOTE } from './sort.js';
 import {
+  allCanvases,
   buildTree,
   designRelOf,
   emptyFolderWords,
@@ -131,6 +135,12 @@ export function CanvasesPanel({
     [groups, meta, designRel, pins.opened, slots.ghosts]
   );
   const isOpen = expansion?.isOpen;
+  // S7.24 — the kind filter chips (one filter for Canvases and Layers, kind-filter-store.js). Counts are over
+  // every canvas of the project, so the chips never change under the filter they set. The Pinned DESIGN SYSTEM
+  // rows sit above this panel (tree.jsx) and are not canvases: the filter never reaches them.
+  const [kindFilter, , pickKindChip] = useKindFilter();
+  const kindCounts = useMemo(() => countByKind(allCanvases(tree)), [tree]);
+  const kind = tree.total > 0 && isFilterKind(kindFilter) ? kindFilter : 'all';
   // S1.3 — which canvases show their artboards: path → boolean, the person's own choice (this session)
   const [jumpOpen, setJumpOpen] = useState(() => new Map());
   // the artboard the person just jumped to counts as "in view" until the selection says otherwise
@@ -152,8 +162,10 @@ export function CanvasesPanel({
         jumpOpen,
         activeArtboard: currentBoard,
         fileNames: showFileNames,
+        kind,
       }),
     [
+      kind,
       tree,
       sort,
       pins.pinSet,
@@ -408,10 +420,16 @@ export function CanvasesPanel({
     focusRow(i);
   }, [pendingRename, rows]);
 
+  // S7.24 — `canvases.filter-kind` (⌘K): the cursor goes to the chip that is on, or to All
+  const focusKindChips = () => {
+    const on = panelRef.current?.querySelector('.kf-chip[data-on]');
+    (on || panelRef.current?.querySelector('.kf-chip'))?.focus();
+  };
   const opRef = useRef(null);
   opRef.current = (o) => {
     if (o.op === 'pin' && o.path) pins.toggle(relOf(o.path, designRel), !!o.pinned);
     else if (o.op === 'sort') openSortMenuFrom(sortButton());
+    else if (o.op === 'filter') focusKindChips();
     else if (o.op === 'rename' && o.path && edit) beginRename(o.path);
   };
   useEffect(() => {
@@ -514,6 +532,8 @@ export function CanvasesPanel({
     searching,
     jump: jumpFootArgs,
     foots: slots.foots,
+    kind,
+    kindMatching: kind === 'all' ? 0 : kindCounts[kind],
   });
   // a11y gate B1: the Sort button is a control, not a treeitem, so it cannot live inside the role=tree element. The
   // head row (name + count) stays a row of the list; the button is drawn over its right end from a sibling lane
@@ -545,36 +565,42 @@ export function CanvasesPanel({
 
   return (
     <div className="cv-panel" ref={panelRef}>
-      {sortLane}
-      {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}
-      <div
-        ref={treeRef}
-        className="st-tree cv-tree"
-        role="tree"
-        aria-label="Project file tree"
-        data-testid="canvas-list"
-        data-rows={rows.length}
-        data-drawn={slice.length}
-        tabIndex={focusIndex < 0 ? 0 : -1}
-        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-        onKeyDown={onKeyDown}
-        onFocus={onFocusIn}
-      >
-        <div className="cv-spacer" style={{ height: layout.height }}>
-          {slice.map((i) => (
-            <PanelRow
-              key={rows[i].key}
-              row={rows[i]}
-              index={i}
-              top={layout.tops[i]}
-              tabStop={i === focusIndex}
-              ctx={ctx}
-              toggleRow={toggleRow}
-            />
-          ))}
+      {tree.total > 0 ? <KindChips counts={kindCounts} on={kind} onPick={pickKindChip} /> : null}
+      <div className="cv-listwrap">
+        {sortLane}
+        {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}
+        <div
+          ref={treeRef}
+          className="st-tree cv-tree"
+          role="tree"
+          aria-label="Project file tree"
+          data-testid="canvas-list"
+          data-rows={rows.length}
+          data-drawn={slice.length}
+          tabIndex={focusIndex < 0 ? 0 : -1}
+          onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+          onKeyDown={onKeyDown}
+          onFocus={onFocusIn}
+        >
+          <div className="cv-spacer" style={{ height: layout.height }}>
+            {slice.map((i) => (
+              <PanelRow
+                key={rows[i].key}
+                row={rows[i]}
+                index={i}
+                top={layout.tops[i]}
+                tabStop={i === focusIndex}
+                ctx={ctx}
+                toggleRow={toggleRow}
+              />
+            ))}
+          </div>
+          {searching && shown === 0 ? <SearchNone query={search.trim()} /> : null}
+          {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
+          {kind !== 'all' && !searching && shown === 0 ? (
+            <KindNone kind={kind} project={projectLabel} total={tree.total} />
+          ) : null}
         </div>
-        {searching && shown === 0 ? <SearchNone query={search.trim()} /> : null}
-        {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
       {children}
       <p
@@ -1059,6 +1085,15 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
                 {slot.meta.word}
               </span>
             ) : null}
+            {row.kindCount ? (
+              <span
+                className="cv-meta cv-meta--count"
+                data-testid={`${idPrefix}-kind-${slug}`}
+                title="Artboards of the kind you are filtering to"
+              >
+                {row.kindCount}
+              </span>
+            ) : null}
             <span className="cv-badges">
               {row.ai ? (
                 <span
@@ -1186,6 +1221,34 @@ function SearchNone({ query }) {
             {copy('es-search-panel.panel-search-none', vars).action}
           </AskButton>
         ) : null
+      }
+    />
+  );
+}
+
+/**
+ * S7.24 — a kind filter that hides every canvas (05 · es-filter, the Canvases side): the kit's block says WHICH
+ * filter is on and Clear filter undoes it in one click. (The canvas draws this block for Layers; the Canvases
+ * words are the same shape, given directly.)
+ */
+function KindNone({ kind, project, total }) {
+  const words = noCanvasesOfKind({ kind, project, total });
+  return (
+    <Empty
+      glyph={kind === 'print' ? 'print' : 'layers'}
+      title={words.title}
+      next={words.next}
+      testid="canvases-kind-none"
+      className="es-e--inpanel"
+      actions={
+        <button
+          type="button"
+          className="cv-empty-action"
+          data-testid="canvases-kind-clear"
+          onClick={clearKindFilter}
+        >
+          {words.action}
+        </button>
       }
     />
   );
