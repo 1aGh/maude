@@ -224,7 +224,7 @@ export function Viewport({
       })}
       {codeShown && (
         <CodeView
-          key={codeCanvas}
+          key={`${codeCanvas}#code`}
           canvas={codeCanvas}
           designRel={designRel}
           artboardId={codeArtboard}
@@ -237,7 +237,12 @@ export function Viewport({
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
-        <CanvasLoading key={loadingPath} path={loadingPath} cloud={!!cfg?.cloud} />
+        //
+        // KEYS: every keyed child of this div shares ONE key space, and several are keyed by the canvas
+        // path (the frame list is its own array; this card, the code view and the render-error host are
+        // not). Each carries a `#<surface>` suffix — two siblings keyed by the bare path made React orphan
+        // a fresh card on every re-render while opening, so the card never left (fix-opening-hang).
+        <CanvasLoading key={`${loadingPath}#loading`} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
       {canvasError && canvasError.path === activePath && !notLocal && !arriving && (
         // issue #115 — what the blank pane used to be. Names which of the two
@@ -286,7 +291,7 @@ export function Viewport({
         // S6.12 — the code compiles and then throws while drawing: S11.7's card over the dimmed last good
         // render, with Go back to 14:05. Silent while this Mac's own AI run draws on it.
         <RenderErrorHost
-          key={canvasTab}
+          key={`${canvasTab}#render-error`}
           canvas={canvasTab}
           entry={renderSignal[canvasTab]}
           designRel={designRel}
