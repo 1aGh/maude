@@ -13,6 +13,7 @@ import { StIcon } from '../../shell/icons.jsx';
 import { ADVANCED_WORDS, FLOW_ROWS, modesLine, usedByLine } from './advanced-model.js';
 import { useDsAdvancedStore } from './advanced-store.js';
 import { CheckCard } from './check-card.jsx';
+import { DsLibrarySlot } from './library-card.jsx';
 import { agoWords } from './update-model.js';
 
 function Row({ k, children, testid }) {
@@ -119,6 +120,8 @@ export function DsAdvanced({ value, actions, now }) {
         <strong>{value.label}</strong>
         <span className="chip">{ADVANCED_WORDS.title}</span>
       </div>
+      {/* S10.18c — the card, when this system is a linked team library */}
+      <DsLibrarySlot />
       {used ? <Row k="Used by">{used}</Row> : null}
       {modes ? <Row k="Modes">{modes}</Row> : null}
       <Row k="Check">

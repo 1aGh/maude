@@ -165,6 +165,8 @@ export interface BoardModel {
   making?: boolean;
   /** S10.16b: the directions the AI drafted, for the `ds-dir-*` artboards */
   directions?: BoardDirection[];
+  /** S10.18c: a linked team library — the board is view only here. `home` is the hub's host (display text). */
+  library?: { home: string } | null;
 }
 
 export type BoardMode = 'light' | 'dark';

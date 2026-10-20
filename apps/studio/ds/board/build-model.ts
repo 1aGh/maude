@@ -6,6 +6,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { classifyName } from '../emit.ts';
 import { type ModelToken, parseSystem } from '../generate.ts';
+import { readHead } from '../head.ts';
 import { indexRegistry, loadRegistry, type RegistryIndex } from '../registry.ts';
 import { diskFs, loadSystem, type SystemConfig } from '../system.ts';
 import { formsOf } from '../value-types.ts';
@@ -339,7 +340,22 @@ export function buildBoardModel(
     canvases: usage ? usage.canvases : null,
     making: made.making,
     directions: made.directions,
+    library: libraryOf(designRoot, sys),
   };
+}
+
+/** S10.18c: `head.json`'s `library` record, as far as the board needs it — the hub's host, nothing else. */
+function libraryOf(designRoot: string, sys: SystemConfig): BoardModel['library'] {
+  const h = readHead(path.join(designRoot, sys.path));
+  if (h.state !== 'ok' || !isObj(h.doc.library)) return null;
+  let home = '';
+  try {
+    const u = new URL(String(h.doc.library.hub));
+    if (/^https?:$/.test(u.protocol)) home = u.host.slice(0, 120);
+  } catch {
+    /* a record without a usable hub is still a linked library */
+  }
+  return { home };
 }
 
 /** Files the model reads, designRoot-relative: the module cache depends on all of them. */

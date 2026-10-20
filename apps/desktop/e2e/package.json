@@ -28,6 +28,7 @@
     "e2e:ds-reach": "wdio run ./wdio.ds-reach.conf.ts",
     "e2e:ds-edges": "wdio run ./wdio.ds-edges.conf.ts",
     "e2e:ds-advanced": "wdio run ./wdio.ds-advanced.conf.ts",
+    "e2e:ds-library": "wdio run ./wdio.ds-library.conf.ts",
     "e2e:handoff": "wdio run ./wdio.handoff.conf.ts",
     "e2e:share-roles": "wdio run ./wdio.share-roles.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",

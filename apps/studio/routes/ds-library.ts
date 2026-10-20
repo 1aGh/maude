@@ -102,6 +102,7 @@ export async function runLibraryOp(
           system: ds,
           library: r.library,
           waiting: r.waiting,
+          usedBy: r.usedBy,
           changes: [],
         });
       }

@@ -38989,5 +38989,571 @@
       "apps/studio/test/timeline-marks.test.ts"
     ],
     "v2": "new in v2 (S7.17)"
+  },
+  {
+    "hook": "ds-library-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the linked team library's card in the inspector's empty place (13 · 19 / 20); `data-system`, `data-waiting`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Team library · <hub host>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the linked system's name on the card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-used",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Used by N projects\" — only when the hub said so (it tells members, not link holders).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"N updates waiting\" or \"Up to date\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-nogrant",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Only <who linked it> can update this library from their Mac.\" — a peer with no grant on this Mac; never an address.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the card's quiet line when the hub does not answer or no longer opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Update…\" on the card — opens \"Update from <system>? N changes\" (registry `ds.library-update`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [
+      "e2e:ds-library"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-unlink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Unlink…\" on the card — asks first (registry `ds.library-unlink`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [
+      "e2e:ds-library"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the dim backdrop behind \"Update from <system>? N changes\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the \"Update from <system>? N changes\" dialog (13 · 19); the next step is this project's own review sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "e2e:ds-library"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Update from <system>? N changes\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-changes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the list of what the library changed (at most 8 lines, then \"and N more\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-change",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: one change of the library — name and `before → after`, as text.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"and N more\" under the change list.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-fine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"By Tereza, yesterday. The next step lists every canvas here with a tick. Updating keeps a version…\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: a refusal of the review, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: Cancel on \"Update from <system>?\" — nothing changes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: Update on \"Update from <system>?\" — goes on to the review sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "e2e:ds-library"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-unlink-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the dim backdrop behind \"Unlink <system>?\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryUnlink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-unlink-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the \"Unlink <system>?\" question.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryUnlink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-unlink-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: a refusal of Unlink, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryUnlink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-unlink-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: Cancel on \"Unlink <system>?\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryUnlink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-unlink-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: Unlink on \"Unlink <system>?\" — the copy becomes an own system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryUnlink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-banner",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Linked from <home>.\" — the view-only banner on a linked system's canvas (13 · 20); `data-ds`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryBanner"
+    },
+    "region": "other",
+    "consumers": [
+      "e2e:ds-library"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-banner-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Linked from <home>.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-banner-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"View only here — every update arrives as a review.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Open in <home>\" on the banner — only for a home this app may open.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the dim backdrop behind \"Link a team library\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the \"Link a team library\" dialog (registry `ds.library-link`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link-url",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the library link field.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link-grant",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: the access key field (only when the link came with one); never echoed.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: a refusal of Link, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: Cancel on \"Link a team library\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-link-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: Link on \"Link a team library\"; disabled until a link is typed.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryLink"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-bar-library",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.18c: \"Linked library — view only\" in the Design system canvas's bar; Review… is not drawn beside it.",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ds-library-board-bar.test.tsx"
+    ],
+    "v2": "new"
   }
 ]
