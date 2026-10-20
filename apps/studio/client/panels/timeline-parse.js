@@ -150,7 +150,14 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
     const openEnd = tagRe.lastIndex;
     if (/Transition$/.test(kind)) {
       const d = attrs.match(/durationInFrames:\s*([^,}\s)]+)/);
-      items.push({ type: 'transition', dur: resolveNum(d?.[1], consts) ?? 0 });
+      // S7.10 — which of the six the join plays (the picker highlights it): fade() · slide() · wipe() · flip() ·
+      // clockWipe(…) · none()
+      const pm = attrs.match(/presentation=\{\s*([A-Za-z]+)\s*\(/);
+      items.push({
+        type: 'transition',
+        dur: resolveNum(d?.[1], consts) ?? 0,
+        presentation: pm ? (pm[1] === 'clockWipe' ? 'clock-wipe' : pm[1]) : null,
+      });
     } else {
       const dm = attrs.match(/durationInFrames=\{([^}]+)\}/);
       const fm = attrs.match(/from=\{([^}]+)\}/);
@@ -198,7 +205,11 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
     if (it.type === 'transition') {
       cursor -= it.dur || 0;
       if (sequences.length > 0)
-        pendingTransition = { afterIndex: sequences.length - 1, dur: it.dur || 0 };
+        pendingTransition = {
+          afterIndex: sequences.length - 1,
+          dur: it.dur || 0,
+          presentation: it.presentation ?? null,
+        };
       continue;
     }
     const from = it.from != null ? it.from : cursor;

@@ -2311,6 +2311,18 @@ function titleMotionOf(span: string): { preset: string; frames: number | null } 
   return { preset, frames: frames ? Number(frames) : null };
 }
 
+/** S7.10 — the text `applySetClipText` would rewrite (same pattern), or null. */
+function literalTextOf(span: string): string | null {
+  const m = span.match(/\{("(?:[^"\\]|\\.)*")\}/);
+  if (!m?.[1]) return null;
+  try {
+    const v = JSON.parse(m[1]);
+    return typeof v === 'string' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /** S7.10 — the `fit` literal of the clip's `<Reframe>`. */
 function fitOf(span: string): 'fill' | 'fit' | 'blur' | null {
   const tag = /<Reframe\b[^>]*>/.exec(span)?.[0];
@@ -2362,6 +2374,9 @@ export interface ClipInfo {
   /** S7.10 — the title's entrance (`<TitleMotion preset frames>` around its content), read as literal text
    *  like `data-mframe`; null when the clip has none. The clip inspector's Motion row shows it. */
   titleMotion: { preset: string; frames: number | null } | null;
+  /** S7.10 — the clip's editable text: its first `{"…"}` literal (a Title overlay's child, an AI slate's prompt) —
+   *  what `clip.set-text` rewrites, so the inspector's Text row starts from what is there. */
+  text: string | null;
   /** S7.10 — the picture's `fit` on the clip's `<Reframe>` (Fill · Fit · Blur behind); null = not set. */
   fit: 'fill' | 'fit' | 'blur' | null;
   /** The clip's stacked layers (mp4 background + title/lower-third + …) for the
@@ -2603,6 +2618,7 @@ export function enumerateClips(
       mediaShared: m ? m.shared : false,
       clipCdId: cdIdOf.get(c.node) ?? null,
       mediaProps,
+      text: literalTextOf(source.slice(c.start, c.end)),
       titleMotion: titleMotionOf(source.slice(c.start, c.end)),
       fit: fitOf(source.slice(c.start, c.end)),
       placeholder: (() => {

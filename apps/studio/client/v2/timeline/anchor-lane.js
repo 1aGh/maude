@@ -14,7 +14,7 @@ const LABEL_MAX = 120;
 /**
  * @param {{ canvasOrigin: () => string, activePath: () => string|null,
  *   frameOf: (path: string) => { contentWindow: Window|null }|undefined,
- *   store: { anchor: (m: object) => void }, onSpaceTap?: () => void }} deps
+ *   store: { anchor: (m: object) => void }, onSpaceTap?: () => void, onCanvasSelect?: () => void }} deps
  */
 export function createAnchorLane(deps) {
   const activeWin = () => {
@@ -25,6 +25,12 @@ export function createAnchorLane(deps) {
     /** The window `message` handler. */
     onMessage(e) {
       const kind = e?.data?.dgn;
+      // S7.10 — the person picked something on the canvas: the clip selected on the Timeline lets go (one thing is
+      // selected at a time). The content of the pick is not read, only that the ACTIVE frame made it.
+      if (kind === 'select' || kind === 'select-set' || kind === 'clear-select') {
+        if (deps.onCanvasSelect && e.source && e.source === activeWin()) deps.onCanvasSelect();
+        return;
+      }
       if (kind !== 'artboard-anchor' && kind !== 'space-tap') return;
       const m = acceptFromCanvas(e, { canvasOrigin: deps.canvasOrigin(), active: activeWin() });
       if (!m) return;

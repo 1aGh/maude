@@ -143,6 +143,20 @@ describe('video.title.motion', () => {
     expect(read(motion(SRC, 'pop'))).toEqual({ preset: 'pop', frames: null });
   });
 
+  test('the enumerator reads the title’s words back (what clip.set-text would rewrite)', () => {
+    const text = (source: string) =>
+      enumerateClips(FILE, source, 'reel').clips.find((c) => c.stableId === 'name:title')?.text ??
+      null;
+    expect(text(SRC)).toBe('PROČ ALLIGATORS');
+    expect(text(motion(SRC, 'pop'))).toBe('PROČ ALLIGATORS');
+    expect(text(src(SRC, 'clip.set-text', { stableId: 'name:title', text: 'Nábor 2027' }))).toBe(
+      'Nábor 2027'
+    );
+    expect(
+      enumerateClips(FILE, SRC, 'reel').clips.find((c) => c.stableId === 'name:one')?.text ?? null
+    ).toBeNull();
+  });
+
   test('the enumerator reads a clip’s picture fit (Fill · Fit · Blur behind) off its <Reframe>', () => {
     const fit = (source: string) =>
       enumerateClips(FILE, source, 'reel').clips.find((c) => c.stableId === 'name:one')?.fit ??
@@ -157,7 +171,10 @@ describe('video.title.motion', () => {
     const a = motion(placed, 'slide-up');
     expect(a).toMatch(/<Place at=\{\[0\.5,0\.8\]\}><TitleMotion preset="slide-up"><div/);
     // …and a Place added AFTER the motion wraps the motion, not the other way round
-    const b = src(motion(SRC, 'slide-up'), 'video.place', { stableId: 'name:title', at: [0.5, 0.8] });
+    const b = src(motion(SRC, 'slide-up'), 'video.place', {
+      stableId: 'name:title',
+      at: [0.5, 0.8],
+    });
     expect(b).toMatch(/<Place at=\{\[0\.5,0\.8\]\}><TitleMotion preset="slide-up">/);
   });
 
@@ -238,7 +255,8 @@ describe('maude design check holds the shape', () => {
 
 describe('video.transition.set', () => {
   const transitionId = () =>
-    enumerateClips(FILE, SRC, 'reel').clips.find((c) => c.kind === 'transition')?.stableId as string;
+    enumerateClips(FILE, SRC, 'reel').clips.find((c) => c.kind === 'transition')
+      ?.stableId as string;
 
   test('the six tiles are today’s six presentations (Cut is the empty one)', () => {
     expect(TRANSITION_TILES.cut).toBe('none');

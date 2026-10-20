@@ -21,7 +21,12 @@ import { createPortal } from 'react-dom';
 
 import { ImagePlus, MessageSquarePlus, Plus, Scissors, Sparkles, Type } from 'lucide-react';
 
-import ClipInspector from '../../panels/ClipInspector.jsx';
+import { isSilentVideo, timelineKindOf } from '../inspector/kinds/clip-model.js';
+import { FitFillAsk, useFitFill } from './fit-fill.jsx';
+import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
+import { TransitionPicker } from './joins/transition-picker.jsx';
+import { MusicHint } from './music-hint.jsx';
+import { timelineSelection } from './selection.js';
 import { useTimelineIsland } from './island-context.js';
 import { usePlayback } from './playhead.js';
 import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
@@ -57,6 +62,16 @@ function rowKind(seq) {
   if (t === 'Img') return 'image';
   if (t === 'Audio') return 'audio';
   return 'jsx';
+}
+/** The name a clip goes by in words ("Oslava", never a content-hash file name): "Clip N" when it has none. */
+function displayNameOf(seq, i) {
+  const raw =
+    ['Video', 'OffthreadVideo', 'Audio', 'Img', 'MaudeVideo', 'MaudeAudio', 'MaudeImg'].includes(
+      seq.label
+    ) && seq.mediaSrc
+      ? String(seq.mediaSrc).split('/').pop()
+      : seq.label;
+  return /^[a-f0-9]{6,16}\.\w+$/i.test(raw || '') ? `Clip ${i + 1}` : raw;
 }
 function rowKindGlyph(seq) {
   const k = rowKind(seq);
@@ -415,10 +430,9 @@ export default function TimelinePanel({
   const [ctxMenu, setCtxMenu] = useState(null);
   // Task 23 — the open comment-thread popover: { id, x, y } | null.
   const [commentPopover, setCommentPopover] = useState(null);
-  // Task 9 — the clip inspector popover: { mode: 'clip'|'transition', index?,
-  // seam?, x, y }. One instance; opened by double-click / context "Adjust…" /
-  // a seam chip click.
-  const [inspector, setInspector] = useState(null);
+  // S7.10 — the join picker (07 · ve-transition): { seam, x, y }, opened by clicking the dot between two clips.
+  // (The v1 clip dialog is gone: a selected clip is edited in the right-hand inspector, kinds/clip.jsx.)
+  const [joinPicker, setJoinPicker] = useState(null);
   // Task 11 — left-edge in-point trim drag: { index, ref, startX, pxf, delta }.
   const [trimInDrag, setTrimInDrag, trimInLive] = useLiveState(null);
   // True after a body-drag actually moved — suppresses the click-to-select.
@@ -867,6 +881,112 @@ export default function TimelinePanel({
     },
     [resolveMediaUrl]
   );
+  // ── S7.10 — the join picker's numbers: who it joins, what it plays now, and the writes ──
+  const picker = (() => {
+    if (!joinPicker) return null;
+    const t = (transitions || [])[joinPicker.seam];
+    const tClip = transitionClips[joinPicker.seam];
+    if (!t || !tClip) return null;
+    const ai = t.afterIndex;
+    const A = sequences[ai];
+    const B = sequences[ai + 1];
+    if (!A || !B) return null;
+    // each shot is held on the frame the join meets it: the outgoing clip's last, the incoming clip's first
+    const shot = (seq, i, end) => {
+      const url = seq.mediaSrc ? resolveUrl(seq.mediaSrc) : null;
+      const at = stillSecond(seq, end, fps);
+      return { url: url && at != null ? `${url}#t=${at}` : url, label: displayNameOf(seq, i) };
+    };
+    const ref = { stableId: tClip.stableId, transition: true };
+    return {
+      title: joinTitle(displayNameOf(A, ai), displayNameOf(B, ai + 1)),
+      tile: tileOfPresentation(t.presentation),
+      frames: t.dur ?? 15,
+      a: shot(A, ai, 'last'),
+      b: shot(B, ai + 1, 'first'),
+      set: (params) => onClipVerb?.(ref, 'video.transition.set', params),
+      remove: () => onClipVerb?.(ref, 'remove-transition', {}),
+    };
+  })();
+
+  // ── S7.10 — the selected clip, for the right-hand inspector and for the "how should it sit?" ask ──
+  const selIndex =
+    selectedClipId == null
+      ? -1
+      : sequences.findIndex((s2) => s2.stableId && s2.stableId === selectedClipId);
+  const selSeq = selIndex >= 0 ? sequences[selIndex] : null;
+  const canEditHere = island ? island.canEdit !== false : true;
+  const fitFill = useFitFill({
+    seq: selSeq,
+    comp,
+    url: selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null,
+    canvas: island?.canvas ?? null,
+    artboardId: comp?.artboardId ?? null,
+    canEdit: canEditHere && !!onClipVerb,
+    runFit: (fit) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.fit', { fit }),
+  });
+  useEffect(() => {
+    if (!selSeq || selSeq.loose || !onClipVerb) {
+      timelineSelection.set(null);
+      return;
+    }
+    const i = selIndex;
+    const ref = refFor(selSeq, i);
+    const k = (transitions || []).findIndex((t2) => t2.afterIndex === i);
+    const tClip = k >= 0 ? transitionClips[k] : null;
+    const kind = timelineKindOf({ ...selSeq, rowKind: rowKind(selSeq) });
+    const joinRef = (j) => ({ stableId: j.stableId, transition: true });
+    timelineSelection.set({
+      kind,
+      canvas: island?.canvas ?? null,
+      artboardId: comp?.artboardId ?? null,
+      fps,
+      stableId: selSeq.stableId,
+      label: displayNameOf(selSeq, i),
+      seq: {
+        from: selSeq.from,
+        duration: selSeq.duration,
+        label: selSeq.label,
+        series: !!selSeq.series,
+        mediaTag: selSeq.mediaTag ?? null,
+        mediaSrc: selSeq.mediaSrc ?? null,
+        mediaProps: selSeq.mediaProps ?? null,
+        placeholder: selSeq.placeholder ?? null,
+        text: selSeq.text ?? null,
+        titleMotion: selSeq.titleMotion ?? null,
+        fit: selSeq.fit ?? null,
+        rowKind: rowKind(selSeq),
+      },
+      transitionAfter:
+        tClip && k >= 0
+          ? {
+              k,
+              stableId: tClip.stableId,
+              dur: transitions[k].dur ?? 15,
+              presentation: transitions[k].presentation ?? null,
+            }
+          : null,
+      onVerb: (verb, params) => onClipVerb(ref, verb, params),
+      onOp: (op, params) => onClipVerb(ref, `video.${op}`, params),
+      onJoin: (j, params) => onClipVerb(joinRef(j), 'video.transition.set', params),
+      onRemoveJoin: (j) => onClipVerb(joinRef(j), 'remove-transition', {}),
+      deselect: () => onSelect?.(null),
+    });
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `refFor` is a pure helper; the rest is listed
+  }, [
+    selSeq,
+    selIndex,
+    transitions,
+    transitionClips,
+    onClipVerb,
+    onSelect,
+    fps,
+    comp?.artboardId,
+    island?.canvas,
+  ]);
+  // the Timeline going away takes its selection with it
+  useEffect(() => () => timelineSelection.set(null), []);
+
   useEffect(() => {
     let alive = true;
     for (const seq of sequences) {
@@ -1126,14 +1246,8 @@ export default function TimelinePanel({
           onDoubleClick={(e) => {
             e.stopPropagation();
             if (seq.loose) return; // read-only row — no clip inspector
-            // Task 9 — double-click opens the clip inspector on the selection.
+            // S7.10 — double-click selects the clip; its inspector is the right-hand panel (it opens with the pick).
             onSelect?.(seq.stableId ?? null);
-            setInspector({
-              mode: 'clip',
-              index: i,
-              x: e.clientX - 120,
-              y: Math.max(60, e.clientY - 320),
-            });
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -1386,12 +1500,7 @@ export default function TimelinePanel({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            setInspector({
-              mode: 'transition',
-              seam: k,
-              x: e.clientX - 120,
-              y: Math.max(60, e.clientY - 260),
-            });
+            setJoinPicker({ seam: k, x: e.clientX, y: e.clientY });
           }}
         >
           ⧓
@@ -2039,7 +2148,14 @@ export default function TimelinePanel({
                       'music',
                       'Music',
                       music,
-                      music.length || music2.length ? null : 'No sound in this video.'
+                      music.length || music2.length || !isSilentVideo(sequences, audio) ? null : (
+                        <MusicHint
+                          artboard={scopedArtboard || undefined}
+                          canAsk={island?.canAsk}
+                          canEdit={canEditHere}
+                          onAddFiles={onDropMedia ? (files) => onDropMedia(files, null) : undefined}
+                        />
+                      )
                     ),
                     music2.length ? trackShell('music2', 'Music 2', music2) : null,
                   ];
@@ -2332,51 +2448,32 @@ export default function TimelinePanel({
             document.body
           )
         : null}
-      {inspector
+      {joinPicker && picker
         ? createPortal(
-            (() => {
-              if (inspector.mode === 'transition') {
-                const tClip = transitionClips[inspector.seam];
-                const tParse = (transitions || [])[inspector.seam];
-                if (!tClip) return null;
-                return (
-                  <ClipInspector
-                    mode="transition"
-                    clipLabel="Transition"
-                    transition={{ dur: tParse?.dur ?? 15 }}
-                    x={inspector.x}
-                    y={inspector.y}
-                    onVerb={(verb, params) =>
-                      onClipVerb?.({ stableId: tClip.stableId, transition: true }, verb, params)
-                    }
-                    onClose={() => setInspector(null)}
-                  />
-                );
-              }
-              const seq = sequences[inspector.index];
-              if (!seq) return null;
-              return (
-                <ClipInspector
-                  mode="clip"
-                  clipLabel={seq.label}
-                  kind={rowKind(seq)}
-                  textValue={
-                    seq.placeholder
-                      ? seq.placeholder.prompt || ''
-                      : rowKind(seq) === 'jsx' && !seq.series
-                        ? ''
-                        : null
-                  }
-                  mediaProps={seq.mediaProps || null}
-                  x={inspector.x}
-                  y={inspector.y}
-                  onVerb={(verb, params) =>
-                    onClipVerb?.(refFor(seq, inspector.index), verb, params)
-                  }
-                  onClose={() => setInspector(null)}
-                />
-              );
-            })(),
+            <TransitionPicker
+              title={picker.title}
+              tile={picker.tile}
+              frames={picker.frames}
+              fps={fps}
+              a={picker.a}
+              b={picker.b}
+              x={joinPicker.x}
+              y={joinPicker.y}
+              canEdit={island ? island.canEdit !== false : true}
+              onPick={(key) => picker.set({ presentation: key })}
+              onLength={(frames) => picker.set({ durationInFrames: frames })}
+              onRemove={() => {
+                picker.remove();
+                setJoinPicker(null);
+              }}
+              onClose={() => setJoinPicker(null)}
+            />,
+            document.body
+          )
+        : null}
+      {fitFill.ask
+        ? createPortal(
+            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />,
             document.body
           )
         : null}
@@ -2434,15 +2531,8 @@ export default function TimelinePanel({
                         at: clamped,
                       }),
                     generate: () => onGeneratePlaceholder(ref),
-                    adjust: () => {
-                      onSelect?.(seq.stableId ?? null);
-                      setInspector({
-                        mode: 'clip',
-                        index: i,
-                        x: ctxMenu.x - 120,
-                        y: Math.max(60, ctxMenu.y - 320),
-                      });
-                    },
+                    // S7.10 — Adjust… selects the clip: the right-hand inspector is where it is adjusted
+                    adjust: () => onSelect?.(seq.stableId ?? null),
                     hide: () => onToggleHide(ref),
                     show: () => onToggleHide(ref),
                     remove: () => onRemove(ref),
