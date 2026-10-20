@@ -28,6 +28,10 @@ describe('Advanced bodies pin their column (G1, G2)', () => {
     // an inline-flex box puts the text in an anonymous flex item, where text-overflow cannot draw "…"
     expect(body(css, '.lp-adv-path')).toMatch(/display:\s*block/);
     expect(body(css, '.lp-adv-k')).toMatch(/white-space:\s*nowrap/);
+    // …but the foot's "N of N shown · updated …" label keeps wrapping, or it pushes Refresh out of the panel
+    const foot = body(css, '.lp-adv-footl');
+    expect(foot).toMatch(/flex:\s*0\s+1\s+auto/);
+    expect(foot).toMatch(/white-space:\s*normal/);
   });
 
   test('.v2-fold-body (every other panel fold: Version history, Inspector, …)', () => {
