@@ -258,7 +258,11 @@ export function createMenuHandlers(d) {
     'comments.filter-mine': () => d.onCommentsFilter('mine'),
     'comments.filter-resolved': () => d.onCommentsFilter('resolved'),
     'comments.filter-all': () => d.onCommentsFilter('all'),
-    'comments.open-thread': (params) => d.onOpenCommentThread(params?.file, params?.id),
+    // S6.11b — a thread landing (shell://navigate) asks for the reply field focused
+    'comments.open-thread': (params) =>
+      params?.reply === true
+        ? d.onOpenCommentThread(params?.file, params?.id, { reply: true })
+        : d.onOpenCommentThread(params?.file, params?.id),
     'view.exports': () => d.onToggleExports(),
     // V2-4.4a — Assets is the left panel's third tab; Layers as a panel is the switch that puts Layers there
     // (or in the Inspector); Trash is the Canvases panel's last row (⌘K, no menu row).
@@ -457,7 +461,7 @@ export const menuRunner = (() => {
       return def?.exec === 'native' && !!NATIVE_COMMANDS[id] && invoke !== null;
     },
     /** @returns true when something ran. `params` reach a shell handler that takes them
-     *  (`comments.open-thread` `{ file?, id }`); every other handler ignores them. */
+     *  (`comments.open-thread` `{ file?, id, reply? }`); every other handler ignores them. */
     run(id, params) {
       if (!handlers) return false;
       const fn = handlers[id];

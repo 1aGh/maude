@@ -132,7 +132,11 @@ describe('S9.17 hunks — a mention notice click opens the thread; the shell hea
     );
     expect(plan?.thread).toBe('c_abc-1');
     expect(opened).toEqual(['ui/poster.tsx']);
-    expect(ran).toEqual([['comments.open-thread', { file: A, id: 'c_abc-1' }]]);
+    // S6.11b: the reply field focused, then one shot: Preview with the Comment tool
+    expect(ran).toEqual([
+      ['comments.open-thread', { file: A, id: 'c_abc-1', reply: true }],
+      ['tool.comment', undefined],
+    ]);
   });
 
   test('a junk thread id is dropped (the canvas still opens); a canvas not here runs nothing', async () => {

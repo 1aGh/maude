@@ -534,6 +534,8 @@ export function CommentsOverlay(): React.ReactNode {
   const selSet = useSelectionSetOptional();
   const [comments, setComments] = useState<OverlayComment[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  // S6.11b — bumped by `comment-focus {reply: true}`; 0 = the thread's own focus rule (the dialog)
+  const [replyFocus, setReplyFocus] = useState(0);
   const [composer, setComposer] = useState<ComposerState | null>(null);
   const file = useMemo(() => deriveFile(), []);
   const [submitting, setSubmitting] = useState(false);
@@ -643,13 +645,21 @@ export function CommentsOverlay(): React.ReactNode {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (e: MessageEvent) => {
-      const m = e.data as { dgn?: string; comments?: unknown; id?: string } | null;
+      const m = e.data as {
+        dgn?: string;
+        comments?: unknown;
+        id?: string;
+        reply?: unknown;
+      } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
       if (m.dgn === 'comments-set' && Array.isArray(m.comments)) {
         setComments(m.comments as OverlayComment[]);
       } else if (m.dgn === 'comment-focus') {
         const id = typeof m.id === 'string' ? m.id : null;
         setFocusedId(id);
+        // S6.11b — a thread landing (invite / mention): the reply field takes the focus
+        if (id && m.reply === true) setReplyFocus((n) => n + 1);
+        else setReplyFocus(0);
         const target = id ? commentsRef.current.find((c) => c.id === id) : undefined;
         mirrorSelection(target);
       }
@@ -965,6 +975,7 @@ export function CommentsOverlay(): React.ReactNode {
             onPatch={(patch) => handlePatch(focused.id, patch)}
             onDelete={() => handleDelete(focused.id)}
             onReply={(body) => handleReply(focused.id, body)}
+            focusReply={replyFocus}
             mine={
               (!isReadOnlyCanvas() || canCommentCanvas()) &&
               !!(me ?? collab?.myName) &&
@@ -1519,6 +1530,7 @@ export function CommentThread({
   onPatch,
   onDelete,
   onReply,
+  focusReply = 0,
   mine = false,
   me,
 }: {
@@ -1528,6 +1540,8 @@ export function CommentThread({
   onPatch: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
   onReply: (body: string) => Promise<boolean>;
+  /** S6.11b — non-zero (bumped per request): put the focus in the reply field, not on the dialog. */
+  focusReply?: number;
   /** The person looking wrote this comment — they may edit its text. */
   mine?: boolean;
   /** The person looking (S4.V4 G5: did they convert this sticky? did someone else reply?). */
@@ -1581,6 +1595,11 @@ export function CommentThread({
       pin?.focus();
     };
   }, [comment.id]);
+  // S6.11b — a thread landing (invite / mention): straight into the reply field. Runs after the
+  // dialog focus above in the same commit; a session that cannot reply has no field — nothing moves.
+  useEffect(() => {
+    if (focusReply > 0) replyRef.current?.focus();
+  }, [focusReply, comment.id]);
 
   // Esc-to-close while focus is anywhere inside the popover.
   useEffect(() => {

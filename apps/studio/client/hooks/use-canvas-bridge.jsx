@@ -46,6 +46,7 @@ import { moveLabel } from '../../edit-ops/op-label.ts';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
 import { VIEW_ONLY_EVENT } from '../v2/access/access-client.js';
+import { commentFocusMessage, replyFocusFor } from '../v2/comments/reply-focus.js';
 import {
   acceptCommentBridge,
   handleCommentBridgeMessage,
@@ -1170,7 +1171,11 @@ export function useCanvasBridge({
           } catch {}
           if (focusedCommentId && list.some((c) => c.id === focusedCommentId)) {
             try {
-              el.contentWindow.postMessage({ dgn: 'comment-focus', id: focusedCommentId }, '*');
+              // S6.11b — a thread landing's reply focus rides the re-send to a just-opened frame
+              el.contentWindow.postMessage(
+                commentFocusMessage(focusedCommentId, replyFocusFor(focusedCommentId)),
+                '*'
+              );
             } catch {}
           }
           // Phase 12.1 (DDR-138) — a reorder just wrote source: the moved
