@@ -6,6 +6,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 
 import { resolveAccess } from '../access/scope.ts';
 import { DsEngineError } from '../ds/engine.ts';
+import { planDsVerb } from '../ds/ds-verb.ts';
 import { mapOverrides } from '../ds/override-map.ts';
 import { createDsRoutes } from '../routes/ds.ts';
 import { cleanup, DS, DS_PATH, makeProject, type Project } from './_ds-engine-fixture.ts';
@@ -242,5 +243,17 @@ describe('POST /_api/ds/pending {from}', () => {
       from: { canvas: 'ui/Home.tsx', elementId: 'b1', target: { kind: 'component', name: 'Button' } },
     });
     expect(r.status).toBe(400);
+  });
+});
+
+describe('the verb is the same door', () => {
+  test('maude design ds pending <ds> --set carries `from` to the route unchanged', () => {
+    const from = {
+      canvas: 'ui/Home.tsx',
+      elementId: 'b1',
+      target: { kind: 'component', name: 'Button' },
+    };
+    const plan = planDsVerb(['pending', DS, '--set', 'p.json'], () => JSON.stringify({ from }));
+    expect(plan.input).toEqual({ ds: DS, from });
   });
 });

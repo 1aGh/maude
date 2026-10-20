@@ -22,6 +22,8 @@ import { kindChipOf, resolveKind } from './kinds/index.js';
 import { useInstanceSelection } from './kinds/instance.jsx';
 // S10.7 — a token of the Design system canvas is a kind of its own (client/v2/ds/kinds/token.jsx)
 import '../ds/kinds/token.jsx';
+// S10.10 — and so is a component master (client/v2/ds/kinds/master.jsx)
+import '../ds/kinds/master.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { sectionsFor } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';

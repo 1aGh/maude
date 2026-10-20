@@ -69,4 +69,11 @@
     font-size: var(--type-xs);
     color: var(--fg-1);
   }
+  /* S10.10 — a component master edited in place: the "N changes waiting" line and its way to the review */
+  .ds-mk-wait {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
 }

@@ -1818,6 +1818,19 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-token-advanced` | testid | S10.7: The token's Advanced fold: Light and Dark as the files write them, and the CSS name. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
 | `ds-token-nosystem` | testid | S10.7: The token's canvas follows no design system: nothing to edit. | `client/v2/ds/kinds/token.jsx` · `TokenBody` | test:v2-ds-token-kind | new |
 | `ds-token-loading` | testid | S10.7: The system is being read, or the studio could not give its model. | `client/v2/ds/kinds/token.jsx` · `TokenBody` | test:v2-ds-token-kind | new |
+| `insp-sec-ds-master` | testid | S10.10: The inspector block for a component master selected on the Design system canvas (kind `ds-master`): `data-master` is the component name. Its rows are `insp-row-ds-corners \| ds-fill \| ds-text \| ds-height`. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-corners` | testid | S10.10: Corners of the master (`border-radius` of its class). Written on blur or Enter as ONE waiting patch; a bare number is px. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-fill` | testid | S10.10: Fill of the master (`background` of its class), a colour or a token: `var(--bg-3)`. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-text` | testid | S10.10: Text colour of the master (`color` of its class). | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-height` | testid | S10.10: Height of the master (`height` of its class); a bare number is px. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-used` | testid | S10.10: "Used in 34 canvases · 4 variants · 4 states · 2 sizes". | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-edited` | testid | S10.10: "As edited" on the master's title while a change of it waits for Update. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-waiting` | testid | S10.10: "1 change waiting." with the way to the review. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-update` | testid | S10.10: "Update canvases…" under the waiting line: asks the shell for the review (`ds.publish`). | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-note` | testid | S10.10: A refusal in words, under the master (not a value; can't edit). | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-noclass` | testid | S10.10: The component declares no class in `components.json`: nothing to change. | `client/v2/ds/kinds/master.jsx` · `MasterPanel` | test:v2-ds-master-kind | new |
+| `ds-master-nosystem` | testid | S10.10: The master's canvas follows no design system: nothing to edit. | `client/v2/ds/kinds/master.jsx` · `MasterBody` | test:v2-ds-master-kind | new |
+| `ds-master-loading` | testid | S10.10: The system is being read, or the studio could not give its model. | `client/v2/ds/kinds/master.jsx` · `MasterBody` | test:v2-ds-master-kind | new |
 
 ## What's New spotlights
 
