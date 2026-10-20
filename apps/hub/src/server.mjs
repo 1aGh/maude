@@ -134,6 +134,7 @@ import {
   handleDocumentsRoute,
 } from './documents.mjs';
 import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-page.mjs';
+import { endedSessionReason } from './ended-sessions.mjs';
 import {
   FILE_DOOR_PREFIX,
   FILE_LIMITS_PATH,
@@ -211,6 +212,7 @@ import {
   isHubOwned,
   PAUSED_MESSAGE,
   servicePage,
+  signInRefusal,
   signInUrl,
 } from './studio-door.mjs';
 import { createStudioProxy, sessionKeyFor } from './studio-proxy.mjs';
@@ -2097,7 +2099,15 @@ export function createHub(config = {}) {
             response.writeHead(302, { location: verdict.to, 'cache-control': 'no-store' });
             response.end();
           } else {
-            respondJson(response, 401, { error: 'sign in to open this project' });
+            // S9.21d — a cookie whose session an access notice ENDED hears why
+            // (link-off / access-withdrawn); any other cookie, today's answer.
+            respondJson(
+              response,
+              401,
+              signInRefusal(
+                endedSessionReason(dataDir, cookieValue(request, BROWSER_SESSION_COOKIE))
+              )
+            );
           }
           bailFromOnRequest();
         }

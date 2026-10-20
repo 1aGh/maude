@@ -6,6 +6,9 @@
 //     /_config, the toolbar returns with the new role); `ended` dims the window behind the access card;
 //     `link-off` is the link card; a request is the owner's toast with Review (opens Share, where the
 //     request block waits).
+//   · S9.21d, a plain browser only (no `window.__TAURI__`): the window's own same-origin answers
+//     (`watchRefusals`) — the cell door's 401 `link-off` / `access-withdrawn` for a session a notice ended is
+//     the link card / the access card. Nothing else in an answer is read.
 //   · `maude:view-only-gesture` — the active read-only canvas saw a drag go nowhere: the dark tip, a few
 //     seconds. Its words are the shell's own (the canvas sends no text, DDR-054).
 //   · the shared Trash (`useTrash`): the open tab's canvas in the trash → the banner + Restore, the dim ghost
@@ -21,10 +24,12 @@ import {
   ACCESS_FRAME_EVENT,
   canvasName,
   canvasRel,
+  REFUSAL_PROBE,
   setTrashedOpen,
   shellAccessFrame,
   VIEW_ONLY_EVENT,
   WORDS,
+  watchRefusals,
 } from './access-client.js';
 import { ViewOnlyTip } from './ask-to-edit.jsx';
 import { LinkOffCard } from './link-off-card.jsx';
@@ -49,6 +54,16 @@ export function accessHostStep(state, frame, { activePath, designRel } = {}) {
   if (n.kind === 'request')
     return { state, toast: { title: n.text, kind: 'info', action: n.action, review: true } };
   return { state, toast: null };
+}
+
+/**
+ * S9.21d — a refused answer's outcome (`doorRefusal`) → the window's state. The browser shell's only source of
+ * "access ended" / "link turned off": notices reach desktop shells only. Pure.
+ */
+export function accessHostRefusal(state, outcome) {
+  if (outcome?.kind === 'link-off') return { ...state, linkOff: true };
+  if (outcome?.kind === 'ended') return { ...state, ended: outcome.reason };
+  return state;
 }
 
 /**
@@ -121,6 +136,37 @@ export function AccessHost({
     };
     window.addEventListener(ACCESS_FRAME_EVENT, on);
     return () => window.removeEventListener(ACCESS_FRAME_EVENT, on);
+  }, []);
+
+  // S9.21d — a plain browser hears no access frames; the cell's door tells it on the next refused answer.
+  // A desktop shell keeps the S9.21b notice path only.
+  useEffect(() => {
+    if (window.__TAURI__) return undefined;
+    const stop = watchRefusals(window, (outcome) => {
+      const prev = live.current.state;
+      const next = accessHostRefusal(prev, outcome);
+      if (next !== prev) {
+        live.current.state = next;
+        setState(next);
+      }
+    });
+    // The kick closes this tab's sockets but makes no request; a quiet tab asks the door itself.
+    const probe = () => {
+      const s = live.current.state;
+      if (s.ended || s.linkOff || document.visibilityState === 'hidden') return;
+      Promise.resolve()
+        .then(() => window.fetch(REFUSAL_PROBE.path, { cache: 'no-store' }))
+        .catch(() => {});
+    };
+    const t = setInterval(probe, REFUSAL_PROBE.ms);
+    window.addEventListener('focus', probe);
+    document.addEventListener('visibilitychange', probe);
+    return () => {
+      stop();
+      clearInterval(t);
+      window.removeEventListener('focus', probe);
+      document.removeEventListener('visibilitychange', probe);
+    };
   }, []);
 
   useEffect(() => {

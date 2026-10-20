@@ -462,6 +462,41 @@ export function listTokensForOwner(dataDir, owner) {
 }
 
 /**
+ * The at-rest digests of one user's tokens, with their expiry (S9.21d — the
+ * cell remembers which sessions an access notice ended, so the cookie that
+ * named one hears why). Digests only — never a value.
+ *
+ * @param {string} dataDir
+ * @param {string} owner
+ * @returns {Array<{ digest: string, expiresAt: number|null }>}
+ */
+export function listTokenDigestsForOwner(dataDir, owner) {
+  if (typeof owner !== 'string' || owner.length === 0) return [];
+  try {
+    return db(dataDir)
+      .prepare('SELECT hash, expires_at FROM tokens WHERE owner = ?')
+      .all(owner)
+      .map((r) => ({ digest: r.hash, expiresAt: r.expires_at ?? null }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The at-rest digest a presented value has (S9.21d), or null when the store
+ * cannot be opened. Lets a caller recognise a value it once saw as a token
+ * without the table still holding the row.
+ */
+export function digestToken(dataDir, value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  try {
+    return hashToken(db(dataDir), value);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Revoke every token belonging to one user. Returns the labels removed, so the
  * caller can kick exactly those live sessions (DDR-053 §4).
  *

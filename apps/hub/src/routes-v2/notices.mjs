@@ -47,6 +47,7 @@ function send(connection, payload) {
  * @param {{
  *   connections: () => Iterable<object>,         // one Hocuspocus connection per live socket
  *   endSessions: (email: string) => number,       // revoke that person's peer tokens + kick their sockets
+ *   remember?: (email: string, reason?: string) => unknown, // S9.21d: an ENDED person's sessions, before they die
  *   graceMs?: number,
  *   now?: () => number,
  *   setTimer?: (fn: () => void, ms: number) => unknown,
@@ -55,6 +56,7 @@ function send(connection, payload) {
 export function createAccessNotices({
   connections,
   endSessions,
+  remember = () => 0,
   graceMs = DEFAULT_GRACE_MS,
   now = Date.now,
   setTimer = (fn, ms) => {
@@ -90,6 +92,16 @@ export function createAccessNotices({
       change,
       ...(reason && ACCESS_REASONS.includes(reason) ? { reason } : {}),
     };
+    // S9.21d — a browser tab hears none of this frame (desktop shells only); its
+    // next request does. Remember the sessions NOW, before the grace: the sweep
+    // `endSessions` runs first would otherwise delete them unseen.
+    if (change === 'ended') {
+      try {
+        remember(who, payload.reason);
+      } catch (err) {
+        console.error(`[access] remembering ended sessions failed: ${err?.message ?? err}`);
+      }
+    }
     let sent = 0;
     for (const c of live()) if (emailOf(c) === who && send(c, payload)) sent += 1;
     if (change === 'raised') return { sent, ended: Promise.resolve(0) };

@@ -167,6 +167,74 @@ export function accessOutcome(status, body) {
 }
 
 /**
+ * S9.21d (decision v2-lead-browser-link-off-via-refusal) — what one refused answer means for a BROWSER window.
+ * Only the cell door's 401 can end the window: it carries `link-off` / `access-withdrawn` / `expired` for a
+ * cookie whose own session an access notice ended. A 401 with no reason (sign in again), every 403 (a role
+ * answer) and `missing` change nothing — no false card, and nothing about a canvas the session cannot see.
+ */
+export function doorRefusal(status, body) {
+  if (status !== 401) return null;
+  const o = accessOutcome(status, body);
+  return o && (o.kind === 'link-off' || o.kind === 'ended') ? o : null;
+}
+
+/**
+ * S9.21d — a quiet browser tab asks the door itself: on focus, on becoming visible and on this slow tick while
+ * showing, one GET of the studio's `/_health` (studio-owned, so it passes the cell door; nothing in it is read).
+ * Stops once the window shows a card.
+ */
+export const REFUSAL_PROBE = Object.freeze({ path: '/_health', ms: 30_000 });
+
+const WATCHED = Symbol.for('maude.access.refusal-watch');
+
+const sameOrigin = (input, origin) => {
+  const url =
+    typeof input === 'string'
+      ? input
+      : typeof input?.url === 'string'
+        ? input.url
+        : String(input ?? '');
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  return !!origin && (url === origin || url.startsWith(`${origin}/`));
+};
+
+/**
+ * Watch the window's own same-origin answers for `doorRefusal` (S9.21d): `win.fetch` is wrapped once and every
+ * response still reaches its caller untouched (a clone is read, JSON 401s only). Returns the uninstall, which
+ * restores `win.fetch` only while it is still this wrapper. A second watch on the same window is a no-op.
+ */
+export function watchRefusals(win, onOutcome) {
+  const base = win?.fetch;
+  if (typeof base !== 'function' || base[WATCHED]) return () => {};
+  const wrapped = async (...args) => {
+    const r = await base.apply(win, args);
+    try {
+      if (
+        r?.status === 401 &&
+        sameOrigin(args[0], win.location?.origin) &&
+        (r.headers?.get?.('content-type') ?? '').includes('json')
+      ) {
+        r.clone()
+          .json()
+          .then((body) => {
+            const o = doorRefusal(401, body);
+            if (o) onOutcome(o);
+          })
+          .catch(() => {});
+      }
+    } catch {
+      /* watching never fails the caller's request */
+    }
+    return r;
+  };
+  wrapped[WATCHED] = true;
+  win.fetch = wrapped;
+  return () => {
+    if (win.fetch === wrapped) win.fetch = base;
+  };
+}
+
+/**
  * A hub `maude.access` notice (V2-1.7 §5.6) → what the window does. It carries no grant data: `raised` re-reads
  * `/api/access/me`; `narrowed` re-reads too (a canvas may be gone now); `ended` is the card, link-off its card.
  */
