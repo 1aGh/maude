@@ -31,7 +31,6 @@ fn main() {
                 "pick_directory",
                 "resolve_dev_server_url",
                 "open_local_project",
-                "app_is_first_run",
                 "app_get_last_project",
                 "app_set_last_project",
                 "app_recent_projects",
