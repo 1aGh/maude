@@ -15,7 +15,9 @@
 //                 `/_api/cloud/move` (S6.0c) — by curl, curl-local or a script; a GET passes
 //
 //   out-of-project  a `maude` command's output redirected (> >> &> 2> >| or a `tee` it feeds) to a
-//                 path outside the repo root and the OS temp dir (§9 Q3) — `outOfProject` below
+//                 path outside the repo root and the OS temp dir (§9 Q3) — `outOfProject` below;
+//                 and (gate-b-sec2) a `maude` command whose `--root` / `--design-root` names another
+//                 project, or a call that sets / unsets the session env a maude verb is held by
 //
 // FAIL-OPEN: a command the reader can't follow (unbalanced quotes, an unterminated `$(`), a word it
 // can't see (`$VAR`, `$(…)`, a relative path after `cd $X`) never produces a decision. A read is
@@ -37,6 +39,8 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { realpathDeep } from './confine-out.mjs';
+import { DESIGN_ROOT_FLAGS, ROOT_FLAGS, SESSION_ENV_KEYS } from './confine-root.mjs';
+import { findProjectRoot } from './studio-locate.mjs';
 
 // ── the reader ───────────────────────────────────────────────────────────────────────────────
 
@@ -446,6 +450,10 @@ const MESSAGES = {
     `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename with \`maude design canvas move …\` (or ask the person to move it in Canvases).`,
   'out-of-project': (path) =>
     `out-of-project: this \`maude\` command's output would be written to ${path}, outside the project. Write inside the project or the temp dir (or drop the redirection and read the output).`,
+  'other-project': (what) =>
+    `out-of-project: ${what} names a different project. In this session maude verbs work only on this project; to work on another one, the person opens it in Maude or runs the command in their own terminal.`,
+  'session-env': (key) =>
+    `out-of-project: this command changes ${key}, which holds maude verbs to this session's project. Run the maude verb without it.`,
   'not-a-writer': (rel) =>
     `not-a-writer: files in .design/ (${rel}) are written with Edit/Write or a \`maude design\` verb, so every change is checked. Edit the file instead.`,
   'human-only': (what) =>
@@ -622,7 +630,7 @@ export function designVerbOf(cmd, verbs) {
  * (given `root`) catches a symlink in the project that points out of it.
  * `guard(rel)` (optional) judges a runtime `_*` path in a write position: `{code, reason}` denies.
  */
-export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
+export function classifyBash(command, { cwd, designRoot, root, sessionRoot = null, guard = null }) {
   if (typeof command !== 'string' || !command) return null;
   // Always parsed — no text pre-filter (Phase 2 gate round 3): the shell removes quotes and
   // backslashes and APFS folds case, so `r''m`, `r\m` and `RM` run rm with no `rm` in the text,
@@ -635,6 +643,8 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
   if (human) return human;
   const out = root ? outOfProject(cmds, { cwd, root }) : null;
   if (out) return out;
+  const other = root || sessionRoot ? otherProject(cmds, { cwd, root: sessionRoot ?? root }) : null;
+  if (other) return other;
   let designReal = null;
   const realRoot = () => {
     designReal ??= realpathDeep(designRoot);
@@ -924,6 +934,123 @@ function outOfProject(cmds, { cwd, root }) {
       for (const a of operands(e.args)) {
         const abs = outTarget(a, here);
         if (abs && outside(abs)) return hit(abs);
+      }
+    }
+  }
+  return null;
+}
+
+// ── gate-b-sec2 finding 1: a `maude` command stays on the session's project ──────────────────────
+
+const SESSION_ENV = new Set(SESSION_ENV_KEYS);
+const ENV_SETTERS = new Set(['export', 'unset', 'declare', 'typeset', 'local', 'readonly']);
+/** The NAME a `NAME=value` / `NAME+=value` / bare `NAME` word sets, when it is a session key. */
+const sessionKeyOf = (w) => {
+  if (!w?.text) return null;
+  const k = /^([A-Za-z_]\w*)(?:\+?=|$)/.exec(w.text)?.[1];
+  return k && SESSION_ENV.has(k) ? k : null;
+};
+
+/**
+ * Defence in depth behind the dispatcher (confine-root.mjs): the verb's `--root` / `--design-root`
+ * (literal words, realpath'd; a `$VAR` fails open like the rest of the guard) must name the
+ * session's project `root`, and a call that runs a maude verb never sets, exports or unsets the
+ * session env (MAUDE_SESSION_ROOT, MAUDE_AGENT_ACTOR, MAUDE_CHAT_ID, MAUDE_HOOK_SESSION,
+ * CLAUDE_PROJECT_DIR) — `X=… maude`, `env -u X maude`, `env -i maude`, `export X=…; maude`.
+ */
+function otherProject(cmds, { cwd, root }) {
+  if (!cmds.some((c) => maudeWords(c))) return null;
+  let real = null;
+  const project = (abs) => {
+    const r = realpathDeep(abs);
+    const p = findProjectRoot(r);
+    return p ? realpathDeep(p) : r;
+  };
+  const env = (key) => ({ code: 'out-of-project', reason: MESSAGES['session-env'](key) });
+  let here = cwd;
+  for (const cmd of cmds) {
+    for (const a of cmd.assigns) {
+      const k = sessionKeyOf(a);
+      if (k) return env(k);
+    }
+    const head = cmd.words[0];
+    if (head?.literal && ENV_SETTERS.has(head.text)) {
+      for (const w of cmd.words.slice(1)) {
+        const k = sessionKeyOf(w);
+        if (k) return env(k);
+      }
+      continue;
+    }
+    // the wrapper words before the command: `env -i`, `env -u KEY`, `env KEY=…`
+    let k = 0;
+    while (
+      k < cmd.words.length &&
+      cmd.words[k].literal &&
+      WRAPPERS.has(nameOf(cmd.words[k].text))
+    ) {
+      const isEnv = nameOf(cmd.words[k].text) === 'env';
+      k++;
+      while (k < cmd.words.length && cmd.words[k].literal) {
+        const t = cmd.words[k].text;
+        if (isEnv && (/^-(?:i|-ignore-environment)$/.test(t) || t === '-'))
+          return env('the environment');
+        if (isEnv && /^-(?:u|-unset)$/.test(t)) {
+          const key = sessionKeyOf(cmd.words[k + 1]);
+          if (key) return env(key);
+          k += 2;
+        } else if (/^-/.test(t)) k++;
+        else if (/^[A-Za-z_]\w*=/.test(t)) {
+          const key = sessionKeyOf(cmd.words[k]);
+          if (key) return env(key);
+          k++;
+        } else break;
+      }
+    }
+    const e = effective(cmd.words);
+    if (e && (e.raw === 'cd' || e.raw === 'pushd')) {
+      const to = e.args.find((a) => !isOpt(a));
+      here = !to ? homedir() : to.literal ? resolve(here ?? '/', to.text) : null;
+      continue;
+    }
+    const mw = maudeWords(cmd);
+    if (!mw) continue;
+    real ??= realpathDeep(root);
+    const flag = (names) => {
+      const out = [];
+      for (let i = 0; i < mw.length; i++) {
+        const w = mw[i];
+        if (!w.literal) continue;
+        if (w.text === '--') break;
+        for (const f of names) {
+          if (w.text === f && mw[i + 1]) out.push(mw[i + 1]);
+          else if (w.text.startsWith(`${f}=`)) out.push({ ...w, text: w.text.slice(f.length + 1) });
+        }
+      }
+      return out.filter((v) => v.literal && !v.exp && v.text);
+    };
+    const roots = flag(ROOT_FLAGS);
+    for (const r of roots) {
+      const abs = isAbsolute(r.text) ? r.text : here ? `${here}${sep}${r.text}` : null;
+      if (abs && project(abs) !== real) {
+        return { code: 'out-of-project', reason: MESSAGES['other-project'](`--root ${r.text}`) };
+      }
+    }
+    if (!roots.length && here) {
+      // `cd <another project> && maude design …`: the verb takes the cwd's project
+      const at = findProjectRoot(realpathDeep(here));
+      if (at && realpathDeep(at) !== real) {
+        return { code: 'out-of-project', reason: MESSAGES['other-project'](`the folder ${here}`) };
+      }
+    }
+    const base = roots.length ? roots[roots.length - 1].text : root;
+    for (const d of flag(DESIGN_ROOT_FLAGS)) {
+      const b = isAbsolute(base) ? base : here ? `${here}${sep}${base}` : null;
+      const abs = isAbsolute(d.text) ? d.text : b ? `${b}${sep}${d.text}` : null;
+      if (abs && !within(realpathDeep(abs), real)) {
+        return {
+          code: 'out-of-project',
+          reason: MESSAGES['other-project'](`--design-root ${d.text}`),
+        };
       }
     }
   }

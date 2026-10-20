@@ -161,6 +161,26 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       else process.env.MAUDE_CHAT_ID = prev;
     }
   }, 20000);
+
+  test('gate-b-sec2 — the adapter carries MAUDE_SESSION_ROOT = its project, never an inherited one', async () => {
+    process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
+    process.env.MAUDE_ACP_RUNTIME = process.execPath;
+    process.env.MAUDE_CLAUDE_BIN = process.execPath;
+    const prev = process.env.MAUDE_SESSION_ROOT;
+    process.env.MAUDE_SESSION_ROOT = '/somewhere/else';
+    const updates: unknown[] = [];
+    const bridge = new AcpBridge({ repoRoot: process.cwd(), onUpdate: (u) => updates.push(u) });
+    try {
+      await bridge.prompt('hi', 'c0');
+      const s = JSON.stringify(updates);
+      expect(s).toContain(`sessionRoot=${process.cwd()}`);
+      expect(s).not.toContain('/somewhere/else');
+    } finally {
+      await bridge.stop();
+      if (prev === undefined) delete process.env.MAUDE_SESSION_ROOT;
+      else process.env.MAUDE_SESSION_ROOT = prev;
+    }
+  }, 20000);
 });
 
 describe('AcpBridge — cross-restart session resume (DDR-125 gap)', () => {
