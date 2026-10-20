@@ -277,6 +277,90 @@ export function ratioWords(ratio: number): string {
   return `${Math.floor(ratio * 10 + 1e-9) / 10}:1`;
 }
 
+/* ------------------------------------------------------------ the fix (S10.17) */
+
+export interface ContrastFix {
+  css: string;
+  /** the value to write: the same colour, only its lightness moved */
+  value: string;
+  direction: 'lighten' | 'darken';
+  /** the lowest ratio over the token's pairs once the value is in */
+  ratio: number;
+  /** the lightness before and after (OKLCH L, 0..1) */
+  l: { from: number; to: number };
+}
+
+const L_STEP = 0.01;
+
+/** `oklch(L C H)` written in a value, read as written (no gamut round trip), or null. */
+function oklchOfText(text: string | undefined): Oklch | null {
+  const body = text === undefined ? null : inner(text, 'oklch');
+  if (body === null) return null;
+  const [l, c, h] = args(body.split('/')[0], ' ');
+  if (!l || !c || !h) return null;
+  const o: Oklch = { l: num(l), c: num(c, 0.4), h: Number.parseFloat(h) };
+  return [o.l, o.c, o.h].some(Number.isNaN) ? null : o;
+}
+
+/**
+ * "Lighten to 4.5:1" (13 · ds-edge-contrast): the smallest change of OKLCH LIGHTNESS to `css` in one theme (`values`
+ * is that theme's whole token → value map) that makes every pair it takes part in clear its bar — and keeps the pairs
+ * that already did. Chroma and hue are not touched: an `oklch()` value is written back with its own C and H; a hex
+ * or an alias comes back as the colour it resolves to, in the form it was written. One search, no loop: the value
+ * it returns has been judged here, in the text that would be saved.
+ *
+ * null when nothing needs fixing, when the token is not one plain colour, or when no lightness satisfies every pair
+ * (a text colour between a dark and a light surface) — then the person picks.
+ */
+export function fixContrast(css: string, values: ThemeValues): ContrastFix | null {
+  const known = new Set(Object.keys(values));
+  const pairs = pairsOf(css, known);
+  if (!pairs.length) return null;
+  const lookup = (name: string) => values[name];
+  const cur = values[css];
+  const rgb = resolveColour(cur, lookup);
+  if (!rgb) return null;
+  if (!pairs.some((p) => judge(p, values).pass === false)) return null;
+
+  // an alias is fixed as the colour it names, written in that colour's own form
+  let written = cur;
+  for (let i = 0; i < 8 && written !== undefined; i++) {
+    const va = inner(written, 'var');
+    if (va === null) break;
+    written = lookup(args(va, ',')[0] ?? '') ?? written;
+    if (written === cur) break;
+  }
+  const direct = oklchOfText(written);
+  const o: Oklch = direct ?? rgbToOklch(rgb);
+  const asOklch = direct !== null;
+  const write = (l: number): string =>
+    asOklch ? oklchText({ l, c: o.c, h: o.h }) : oklchToHex({ l, c: o.c, h: o.h });
+  const judged = (value: string) => pairs.map((p) => judge(p, { ...values, [css]: value }));
+
+  let best: { value: string; steps: number; dir: 1 | -1; l: number } | null = null;
+  for (const dir of [1, -1] as const) {
+    for (let k = 1; k <= Math.round(1 / L_STEP); k++) {
+      const l = o.l + dir * k * L_STEP;
+      if (l < 0 || l > 1) break;
+      const value = write(l);
+      if (judged(value).every((r) => r.pass !== false)) {
+        if (!best || k < best.steps) best = { value, steps: k, dir, l };
+        break;
+      }
+    }
+  }
+  if (!best) return null;
+  const after = judged(best.value);
+  const ratios = after.map((r) => r.ratio).filter((r): r is number => r !== null);
+  return {
+    css,
+    value: best.value,
+    direction: best.dir === 1 ? 'lighten' : 'darken',
+    ratio: ratios.length ? Math.min(...ratios) : 0,
+    l: { from: o.l, to: best.l },
+  };
+}
+
 /* ------------------------------------------------------------ dark follows */
 
 const fmt = (n: number, d: number) => Number(n.toFixed(d)).toString();
