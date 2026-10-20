@@ -75,12 +75,23 @@ export const clearCancel = (stateDir: string): void =>
  * Cancel a stage: a prover in flight stops (and says `ds-upgrade-cancelled` to whoever asked it); the
  * stage itself is left for `discard`, which the sheet asks next.
  */
-export function cancelStage(designRoot: string, ds: string, stamp: string): { cancelled: string } {
+export async function cancelStage(
+  designRoot: string,
+  ds: string,
+  stamp: string,
+  { waitMs = 8000 }: { waitMs?: number } = {}
+): Promise<{ cancelled: string; stopped: boolean }> {
   const stateDir = stateDirOf(designRoot, ds, stamp);
   readStage(designRoot, ds, stamp); // a stage that does not exist is 404
   // nothing is being proved → nothing to stop (the marker would cancel the NEXT prove)
-  if (readProgress(stateDir)) requestCancel(stateDir);
-  return { cancelled: stamp };
+  if (!readProgress(stateDir)) return { cancelled: stamp, stopped: false };
+  requestCancel(stateDir);
+  // answer once the prover has stopped both studios and the shim (it clears its progress last), so a
+  // `discard` that follows never pulls the folder out from under a prover that has not seen the marker
+  const t = Date.now();
+  while (existsSync(join(stateDir, PROGRESS_FILE)) && Date.now() - t < waitMs)
+    await new Promise((r) => setTimeout(r, 40));
+  return { cancelled: stamp, stopped: !existsSync(join(stateDir, PROGRESS_FILE)) };
 }
 
 export type StagePhase = 'staged' | 'proving' | 'proved';

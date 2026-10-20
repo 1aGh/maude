@@ -94,7 +94,20 @@ export function runDsUpgrade(
     if (step === 'status')
       return out(EXIT.ok, json({ ds: cfg.name, stages: listStages(project.designRoot, cfg.name) }));
     if (step === 'cancel')
-      return out(EXIT.ok, json(cancelStage(project.designRoot, cfg.name, stampOf(arg as string))));
+      return {
+        ...out(EXIT.ok),
+        later: async () => {
+          try {
+            return out(
+              EXIT.ok,
+              json(await cancelStage(project.designRoot, cfg.name, stampOf(arg as string)))
+            );
+          } catch (e) {
+            if (e instanceof DsUpgradeError) return refusal(e);
+            throw e;
+          }
+        },
+      };
     if (step === 'prove' || step === 'apply' || step === 'discard') {
       const stamp = stampOf(arg as string);
       if (step === 'discard')

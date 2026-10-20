@@ -106,6 +106,7 @@ export function DsSwitchSheet({
   onTo,
   onSwitch,
   onClose,
+  onBringUp,
 }) {
   const base = useMemo(() => switchRows(review, { fromOnly }), [review, fromOnly]);
   const [ticks, setTicks] = useState(() => defaultTicks(base));
@@ -273,7 +274,18 @@ export function DsSwitchSheet({
           {refused ? (
             <p className="dss-line" data-tone="warn" role="alert" data-testid="ds-switch-refused">
               <StIcon name="problem" size={14} />
-              {SWITCH_WORDS.level11}
+              <span>{SWITCH_WORDS.level11}</span>
+              {onBringUp && refused.system ? (
+                <button
+                  type="button"
+                  className="btn btn--sm dss-bring"
+                  data-testid="ds-switch-bring-up"
+                  data-ds={refused.system}
+                  onClick={() => onBringUp(refused.system)}
+                >
+                  {SWITCH_WORDS.bringUp}
+                </button>
+              ) : null}
             </p>
           ) : (
             <p className="dss-line" data-tone={line.tone} data-testid="ds-switch-line">

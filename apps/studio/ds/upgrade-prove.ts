@@ -343,7 +343,9 @@ export async function proveStage(
     updatedAt: Date.now(),
     pid: process.pid,
   };
+  let finished = false;
   const beat = () => {
+    if (finished) return; // a late line from a killed shim must not bring the file back
     progress.updatedAt = Date.now();
     writeProgress(stateDir, progress);
   };
@@ -397,6 +399,7 @@ export async function proveStage(
     clearInterval(heart);
     clearInterval(watch);
     await Promise.all(studios.map((s) => s.stop().catch(() => {})));
+    finished = true;
     clearProgress(stateDir);
     clearCancel(stateDir);
   }

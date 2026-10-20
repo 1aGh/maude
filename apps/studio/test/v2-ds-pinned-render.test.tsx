@@ -181,6 +181,8 @@ describe('the pinned system rows', () => {
       // S10.14 registered ds.switch / ds.preview: the rows S10.13 left to the registry appear on their own
       'Switch canvases to another system…',
       'Preview in…',
+      // S10.15b: Combine 2026 is a pre-schema system (the amber dot): its menu offers the door too
+      'Bring it up to the schema…',
       // S10.19 registered ds.check-system (Can edit): "Check the system" appears on its own
       'Check the system',
     ]);

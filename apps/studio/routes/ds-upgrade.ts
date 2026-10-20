@@ -125,7 +125,7 @@ export async function runUpgradeOp(
       };
     }
     case 'cancel':
-      return { status: 200, body: cancelStage(designRoot, ds, stamp()) };
+      return { status: 200, body: await cancelStage(designRoot, ds, stamp()) };
   }
   return { status: 400, body: { error: 'unknown step', code: 'usage' } };
 }

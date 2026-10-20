@@ -108,6 +108,8 @@
 @import url("../v2/ds/advanced.css");
 /* S10.14 — "Switch canvases to …?" and the "Preview in …" menu and banner. */
 @import url("../v2/ds/switch.css");
+/* S10.15b — "Bring <system> up to the schema?" and the amber dot as its door. */
+@import url("../v2/ds/upgrade.css");
 /* S10.17 — the edges: Lighten to 4.5:1, a colour to the trash, an off-system colour. */
 @import url("../v2/ds/edges.css");
 /* S10.9 — the reach view: "Used in 5 canvases · Show" draws every place ringed. */

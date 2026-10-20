@@ -60,6 +60,14 @@ export function systemMenuItems({ row, rows = [], canEdit = true, has = () => fa
       label: 'Preview in…',
       action: { id: 'ds.preview', params: { from: row.dsName } },
     });
+  // S10.15b — a system that needs bringing up (the row's amber dot) offers it here too
+  if (row.amber && canEdit && has('ds.upgrade'))
+    items.push({
+      id: 'upgrade',
+      label: 'Bring it up to the schema…',
+      note: row.amber.title,
+      action: { id: 'ds.upgrade', params: { ds: row.dsName } },
+    });
   // S10.19 — running the check is Can edit (it keeps a file under `_state/`); a viewer reads the last answer in the panel
   if (canEdit && has('ds.check-system'))
     items.push({

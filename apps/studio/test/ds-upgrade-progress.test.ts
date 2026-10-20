@@ -133,7 +133,7 @@ describe('the proof reports its progress (S10.15b)', () => {
       stages: [{ stamp, phase: 'staged' }],
     });
     const c = await runDsUpgradeAsync([FX.name, '--cancel', stamp, '--root', p.root], env);
-    expect(JSON.parse(c.stdout)).toEqual({ cancelled: stamp });
+    expect(JSON.parse(c.stdout)).toEqual({ cancelled: stamp, stopped: false });
   });
 });
 
@@ -153,9 +153,18 @@ describe('Cancel stops a proof in flight (S10.15b)', () => {
           });
         }),
     });
+    // settled early: the proof rejects while cancelStage is still waiting for it to stop
+    const outcome = proving.then(
+      () => null,
+      (e: unknown) => e
+    );
     await until(() => listStages(p.designRoot, FX.name)[0]?.phase === 'proving');
-    expect(cancelStage(p.designRoot, FX.name, stamp)).toEqual({ cancelled: stamp });
-    await expect(proving).rejects.toMatchObject({ code: 'ds-upgrade-cancelled' });
+    // it answers once the prover has stopped, so a discard that follows is safe
+    expect(await cancelStage(p.designRoot, FX.name, stamp)).toEqual({
+      cancelled: stamp,
+      stopped: true,
+    });
+    expect(await outcome).toMatchObject({ code: 'ds-upgrade-cancelled' });
     expect(aborted).toBe(true);
     expect(stopped).toHaveLength(2);
     expect(existsSync(join(stateDir(stamp), 'review.json'))).toBe(false);
@@ -165,7 +174,10 @@ describe('Cancel stops a proof in flight (S10.15b)', () => {
 
   test('a cancel with nothing in flight leaves no marker behind (it would cancel the next proof)', async () => {
     const stamp = stage();
-    cancelStage(p.designRoot, FX.name, stamp);
+    expect(await cancelStage(p.designRoot, FX.name, stamp)).toEqual({
+      cancelled: stamp,
+      stopped: false,
+    });
     expect(existsSync(join(stateDir(stamp), 'cancel.json'))).toBe(false);
     const review = await proveStage(p.designRoot, FX.name, stamp, {
       bootStudio: boots,
@@ -174,8 +186,8 @@ describe('Cancel stops a proof in flight (S10.15b)', () => {
     expect(review.stamp).toBe(stamp);
   });
 
-  test('cancelling a stage that does not exist is a 404', () => {
-    expect(() => cancelStage(p.designRoot, FX.name, '1')).toThrow(/no stage/);
+  test('cancelling a stage that does not exist is a 404', async () => {
+    await expect(cancelStage(p.designRoot, FX.name, '1')).rejects.toThrow(/no stage/);
   });
 });
 
@@ -200,6 +212,7 @@ describe('POST /_api/ds/upgrade status + cancel (S10.15b)', () => {
     expect(JSON.stringify(s.body)).not.toContain('maude-ds-upgrade-');
     expect((await op({ ds: FX.name, step: 'cancel', stage: stamp })).body).toEqual({
       cancelled: stamp,
+      stopped: false,
     });
     expect((await op({ ds: FX.name, step: 'cancel', stage: '../x' })).status).toBe(400);
     expect((await op({ ds: 'nope', step: 'status' })).status).toBe(404);
