@@ -29,6 +29,7 @@ import {
 } from '@agentclientprotocol/sdk';
 
 import { autoAllowRules } from '../actions/verbs.ts';
+import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
 import { type SdkPluginConfig, suppressionFor } from './plugin-bootstrap.ts';
@@ -529,10 +530,22 @@ export const MAUDE_DEFAULT_ALLOWED_TOOLS: readonly string[] = [
   'WebFetch',
 ];
 
+/**
+ * gate-b-sec2 finding 3 (decision v2-gate-b-sec2-bounded-writer-verbs) — the auto-approved tools of
+ * a run with its own write scope (S8.10 Handoff to production): the non-Bash defaults plus the
+ * `Bash(maude design <verb>:*)` rules of the verbs that run names, and no other maude rule. Any
+ * other maude verb goes to the prompt card here; the design plugin's pre-bash hook denies it.
+ */
+export function scopedAllowedTools(onlyVerbs: readonly string[]): string[] {
+  const ok = new Set(onlyVerbs.map((v) => `Bash(maude design ${v}:*)`));
+  return MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => !t.startsWith('Bash(') || ok.has(t));
+}
+
 export function newSessionParams(
   repoRoot: string,
   studioBrief?: string,
-  plugins?: SdkPluginConfig[]
+  plugins?: SdkPluginConfig[],
+  scope: { onlyVerbs?: readonly string[] | null } = {}
 ): { cwd: string; mcpServers: never[]; _meta?: Record<string, unknown> } {
   const meta: Record<string, unknown> = {};
   if (studioBrief) meta.systemPrompt = { append: studioBrief };
@@ -553,7 +566,9 @@ export function newSessionParams(
     // the same `_meta.claudeCode.options` spread as `plugins`/`settings` below
     // (`...userProvidedOptions`, acp-agent.js:2333→2455) into the SDK's
     // `allowedTools` (sdk.d.ts:1331). Everything off this list still prompts.
-    allowedTools: [...MAUDE_DEFAULT_ALLOWED_TOOLS],
+    allowedTools: scope.onlyVerbs
+      ? scopedAllowedTools(scope.onlyVerbs)
+      : [...MAUDE_DEFAULT_ALLOWED_TOOLS],
   };
   if (plugins && plugins.length > 0) {
     options.plugins = plugins;
@@ -995,7 +1010,17 @@ export class AcpBridge {
   private async establishSession(chatId: string): Promise<string> {
     if (!this.conn) throw new Error('ACP adapter not started');
 
-    const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins);
+    // S8.10 — a run with its own write scope auto-approves only its own maude verbs (fail closed:
+    // a getter that throws is a scoped run too).
+    let scoped: readonly string[] | null = null;
+    try {
+      scoped = this.opts.writeOnlyRoots?.() ?? null;
+    } catch {
+      scoped = [];
+    }
+    const params = newSessionParams(this.opts.repoRoot, this.opts.studioBrief, this.opts.plugins, {
+      onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
+    });
     const persistedId = await this.readPersistedSessionId();
     let sessionId: string | undefined;
     let modes: SessionModeState | null | undefined;
@@ -1129,6 +1154,9 @@ export class AcpBridge {
     // and `claude` to every design-plugin hook: `maude design hook` reads this to tell a Maude chat
     // run from a terminal Claude Code (the run's actor, and who brackets it — acp/index.ts does).
     env.MAUDE_AGENT_ACTOR = 'maude-chat';
+    // gate-b-sec2 (decision v2-gate-b-sec2-session-root): the project this chat's maude verbs are
+    // held to — `maude design` refuses a --root / cwd / CLAUDE_PROJECT_DIR naming another one.
+    env.MAUDE_SESSION_ROOT = this.opts.repoRoot;
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
