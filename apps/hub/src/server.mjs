@@ -196,6 +196,11 @@ import { createAccessService, withRolesV2 } from './routes-v2/access.mjs';
 import { COMMENTS_PATH, createMentionForwarder } from './routes-v2/comments.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
 import {
+  createRenderJobsRoutes,
+  RENDER_JOBS_CAPABILITY,
+  renderDoorEnabled,
+} from './routes-v2/render-jobs.mjs';
+import {
   createVotesPoke,
   createVotesRoutes,
   stripVoteAwareness,
@@ -808,13 +813,16 @@ export function createHub(config = {}) {
         // canvas, and a read-only capability is all a browser-bearing process
         // that evaluates tenant TSX may hold. Never the write-capable canvas
         // token above.
-        mintRenderToken: (session) => {
+        // S8.5b-2 — the render door's capability for a canvas-only session carries its grants
+        // (`g`), so the canvas origin holds the worker to that closure.
+        mintRenderToken: (session, { grants = [] } = {}) => {
           try {
             return mintRenderToken({
               secret,
               project: process.env.MAUDE_TENANT_ID ?? 'local',
               subject: session.email,
               role: 'viewer',
+              grants,
             });
           } catch {
             // Same failure mode as the canvas token — a hub without a secret
@@ -921,6 +929,18 @@ export function createHub(config = {}) {
   // Gate 0 A18 (S4.6 / S9.13) — formal votes; assigned once the store is open.
   /** @type {ReturnType<typeof createVotesRoutes>|null} */
   let votesRoutes = null;
+  // S8.5b-2 — the cloud render door (`routes-v2/render-jobs.mjs`): dark unless this hub runs a
+  // studio child, a render service and `MAUDE_RENDER_DOOR=1` (M1 — off in the fleet).
+  const renderJobsRoutes = createRenderJobsRoutes({
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    tenant: process.env.MAUDE_TENANT_ID ?? 'local',
+    auth: (req) => acceptedAuth(req),
+    enabled: () => renderDoorEnabled({ studio }),
+    proxy: () => studioProxy,
+    designRoot: () => (studioProxy ? designRootFor() : null),
+    journal: () => journal,
+    ...(rateLimit ? {} : { limits: null }),
+  });
 
   // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
   const commentsDeps = {
@@ -1224,10 +1244,14 @@ export function createHub(config = {}) {
           // when it is here. Added by the lead's Q13 flip, never before.
           // `votes-v1` (Gate 0 A18, S9.13): hub-held ballots at
           // `/api/projects/:p/v1/votes*`.
+          // `render-jobs-v1` (S8.5b §4.4): the cloud render door, only while it is on here.
           capabilities: withRolesV2(
-            journal
-              ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
-              : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY],
+            [
+              ...(journal
+                ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
+                : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
+              ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
+            ],
             accessService.rolesV2Options
           ),
           // The project's file format — null while the store is unread.
@@ -1316,6 +1340,7 @@ export function createHub(config = {}) {
             // Gate 0 A18 (S9.13) — the votes runtime, null until the store is open.
             votes: votesRoutes,
             presence: presenceDeps(), // S8.19
+            renderJobs: renderJobsRoutes, // S8.5b-2
           },
         })
       ) {

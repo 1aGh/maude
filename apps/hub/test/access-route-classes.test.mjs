@@ -107,6 +107,24 @@ test('the accepted-revisions lane is classified per route, bytes as export', () 
   }
 });
 
+test('S8.5b-2: the render door’s three rows are export, canvas scope, canvasDoor', () => {
+  const id = 'i_00000000000000000001';
+  for (const [path, cap] of [
+    ['render-jobs', { safe: null, unsafe: 'export' }],
+    // no write half (the handler's 405); `edit` like the votes read rows, never `null`
+    [`render-jobs/${id}`, { safe: 'export', unsafe: 'edit' }],
+    [`render-jobs/${id}/file`, { safe: 'export', unsafe: 'edit' }],
+  ]) {
+    const row = rowFor(`/api/projects/current/v1/${path}`);
+    assert.ok(row?.handler, `${path} has no handler row`);
+    assert.deepEqual({ ...row.cap }, cap, path);
+    assert.equal(row.scope, 'canvas', path);
+    assert.equal(row.canvasDoor, true, path);
+  }
+  // an ill-formed id is still this door's (its 404), never the studio's default lane
+  assert.ok(rowFor('/api/projects/current/v1/render-jobs/whatever')?.handler);
+});
+
 test('the studio’s lane is the default row, classified by its own manifest', () => {
   assert.equal(rowFor('/_api/canvas'), null);
   assert.equal(DEFAULT_ROW.delegate, 'studio-manifest');
