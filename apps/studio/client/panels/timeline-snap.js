@@ -11,10 +11,11 @@
  *   • every whole-second tick (multiples of fps)
  *   • every OTHER clip's start + end (skip the clip being dragged)
  *   • the playhead
+ *   • (S7.12) every beat of the music, when the caller passes `beats` (Snap to the beat on)
  * Deduped + clamped to [0, totalFrames]. `clips` is the parsed sequence list
  * ({ from, duration }); `movingIndex` is excluded so a clip never snaps to itself.
  */
-export function computeSnapTargets({ fps, totalFrames, clips, movingIndex, playhead }) {
+export function computeSnapTargets({ fps, totalFrames, clips, movingIndex, playhead, beats }) {
   const targets = new Set([0, totalFrames]);
   const step = Math.max(1, Math.round(fps || 30));
   for (let f = 0; f <= totalFrames; f += step) targets.add(f);
@@ -26,6 +27,8 @@ export function computeSnapTargets({ fps, totalFrames, clips, movingIndex, playh
     targets.add(from + dur);
   });
   if (Number.isFinite(playhead)) targets.add(playhead);
+  // S7.12 — Snap to the beat: the music's beats (comp frames) when `artboardMeta.snap` is on (compBeats).
+  for (const b of beats || []) if (Number.isFinite(b)) targets.add(Math.round(b));
   return [...targets].filter((t) => t >= 0 && t <= totalFrames).sort((a, b) => a - b);
 }
 

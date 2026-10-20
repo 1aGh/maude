@@ -32,9 +32,11 @@ import {
   captionsOf,
   compBeats,
   compClips,
+  compMusic,
   compSpeech,
   compWords,
   duckedSrcOf,
+  type MusicInfo,
 } from '../video/derive.ts';
 import {
   BEATS_MAX_BYTES,
@@ -66,6 +68,8 @@ export interface CompMedia {
   words: CompWord[];
   speech: Array<[number, number]>;
   beats: number[];
+  /** S7.12 — each Music-track clip with its grid (beats, bars, bpm), volume and `<Duck>` */
+  music: MusicInfo[];
   unresolved: string[];
   /** S7.11: the source words of each clip's source (the Transcript panel strikes the ones no clip covers) */
   transcripts: Record<
@@ -173,6 +177,7 @@ export function createVideoRoutes(deps: VideoRouteDeps): RouteSpec[] {
         words: compWords(c, transcripts, fixes),
         speech,
         beats: compBeats(c, grids),
+        music: compMusic(c, grids, source),
         unresolved: c.unresolved,
         transcripts: Object.fromEntries(
           Object.entries(transcripts).map(([src, t]) => [

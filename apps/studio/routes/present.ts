@@ -36,6 +36,7 @@ import {
   readExportPresets,
   readPosters,
   readPresentState,
+  readSnaps,
 } from '../present/meta-schema.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -145,7 +146,8 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             patch.present !== undefined ||
             patch.notes !== undefined ||
             patch.exports !== undefined ||
-            patch.poster !== undefined;
+            patch.poster !== undefined ||
+            patch.snap !== undefined;
           let nextText = currentText;
           let next = current;
           if (writes) {
@@ -166,6 +168,7 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             notes: state.notes,
             exports: readExportPresets(next),
             poster: readPosters(next),
+            snap: readSnaps(next),
             etag: metaEtag(nextText),
           });
         });

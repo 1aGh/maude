@@ -25,6 +25,7 @@ import { isSilentVideo, timelineKindOf } from '../inspector/kinds/clip-model.js'
 import { FitFillAsk, useFitFill } from './fit-fill.jsx';
 import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
 import { TransitionPicker } from './joins/transition-picker.jsx';
+import { MusicLaneOverlay, musicSelection, useMusicLane } from './lanes/music-lane.jsx';
 import { MusicHint } from './music-hint.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
 import { timelineSelection } from './selection.js';
@@ -44,6 +45,7 @@ import {
   getFilmstrip,
   getPeaks,
   peaksToPath,
+  probeMediaDuration,
   stripBucket,
 } from '../../panels/timeline-media-cache.js';
 import {
@@ -663,6 +665,7 @@ export default function TimelinePanel({
       clips: sequences,
       movingIndex: index,
       playhead: clamped,
+      beats: musicLane.snapBeats, // S7.12 — Snap to the beat
     });
 
   // Task 3 — every op addresses a clip as { stableId, index }: stableId when the
@@ -926,7 +929,50 @@ export default function TimelinePanel({
     canEdit: canEditHere && !!onClipVerb,
     runFit: (fit) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.fit', { fit }),
   });
+  // S7.12 — the Music track: beats, the dip, Snap to the beat, and "Add music → beats detected"
+  const musicLane = useMusicLane({
+    canvas: island?.canvas ?? null,
+    artboardId: comp?.artboardId ?? null,
+    sequences,
+    audio,
+    canEdit: canEditHere && !!onClipVerb,
+    runOp: onClipVerb,
+  });
+  const selBed = onClipVerb ? musicLane.bedById(selectedClipId) : null;
+  // Cut to the beat rolls cuts through the footage's spare seconds: the lengths of the picture sources
+  const sequencesNow = useRef(sequences);
+  sequencesNow.current = sequences;
+  const probeSources = async () => {
+    const srcs = [
+      ...new Set(sequencesNow.current.filter((q) => rowKind(q) === 'video').map((q) => q.mediaSrc)),
+    ];
+    const out = {};
+    await Promise.all(
+      srcs.filter(Boolean).map(async (src) => {
+        const url = resolveUrl(src);
+        const sec = url ? await probeMediaDuration(url) : null;
+        if (sec) out[src] = sec;
+      })
+    );
+    return out;
+  };
   useEffect(() => {
+    if (selBed) {
+      timelineSelection.set(
+        musicSelection({
+          info: selBed.info,
+          label: audio[selBed.index]?.label ?? 'Music',
+          canvas: island?.canvas ?? null,
+          artboardId: comp?.artboardId ?? null,
+          fps,
+          onClipVerb,
+          onSelect,
+          probeSources,
+          changeSong: onReplaceAudio ? () => onReplaceAudio(selBed.index) : null,
+        })
+      );
+      return;
+    }
     if (!selSeq || selSeq.loose || !onClipVerb) {
       // S7.11 — a caption word is selected through the lane, not through a clip: a refetch must not clear it
       if (timelineSelection.get()?.kind !== 'caption') timelineSelection.set(null);
@@ -969,7 +1015,8 @@ export default function TimelinePanel({
             }
           : null,
       onVerb: (verb, params) => onClipVerb(ref, verb, params),
-      onOp: (op, params) => onClipVerb(ref, `video.${op}`, params),
+      onOp: (op, params, opts) => onClipVerb(ref, `video.${op}`, params, opts),
+      probeSources,
       onJoin: (j, params) => onClipVerb(joinRef(j), 'video.transition.set', params),
       onRemoveJoin: (j) => onClipVerb(joinRef(j), 'remove-transition', {}),
       deselect: () => onSelect?.(null),
@@ -985,6 +1032,9 @@ export default function TimelinePanel({
     fps,
     comp?.artboardId,
     island?.canvas,
+    selBed?.info,
+    selBed?.index,
+    audio,
   ]);
   // the Timeline going away takes its selection with it
   useEffect(() => () => timelineSelection.set(null), []);
@@ -1510,61 +1560,86 @@ export default function TimelinePanel({
       );
     });
 
-  const renderAudioRow = (a, i) => (
-    <div className="tl-row" key={`a${i}`} data-testid={`timeline-audio-${i}`}>
-      <span className="tl-row-label" title={a.label}>
-        <span
-          className="tl-kind"
-          data-kind="audio"
-          title={`Audio · ${a.label}`}
-          aria-label={`Audio · ${a.label}`}
-        >
-          ♪
-        </span>
-        <span className="tl-row-label-text">{a.label}</span>
-      </span>
-      <div
-        className="tl-row-track"
-        style={{ width: axisPx, flex: 'none' }}
-        onDragOver={onLaneDragOver('audio', `a${i}`)}
-        onDrop={onLaneDrop({ lane: 'audio' })}
-      >
-        {laneCaret('audio', `a${i}`)}
-        <div
-          className="tl-audio-block"
-          title={`${a.label} · ${a.from}–${a.from + a.duration}f`}
-          style={{ left: x(a.from), width: Math.max(2, x(a.duration)) }}
-        >
-          <svg className="tl-wave" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden>
-            {a.src && visuals[`p|${a.src}`] ? (
-              // Task 7 — real peaks (WebAudio decode), filled mirrored wave.
-              <path className="tl-wave-real" d={peaksToPath(visuals[`p|${a.src}`])} />
-            ) : (
-              <path d="M0 6 Q2 1 4 6 T8 6 T12 6 T16 6 T20 6 T24 6 T28 6 T32 6 T36 6 T40 6 T44 6 T48 6 T52 6 T56 6 T60 6 T64 6 T68 6 T72 6 T76 6 T80 6 T84 6 T88 6 T92 6 T96 6 T100 6" />
-            )}
-          </svg>
-          <span className="tl-seq-name">{a.label}</span>
-        </div>
-        {onReplaceAudio ? (
-          <button
-            type="button"
-            className="tl-seq-replace"
-            data-testid={`timeline-audio-replace-${i}`}
-            title="Replace this audio"
-            aria-label={`Replace audio ${a.label}`}
-            style={{ left: x(a.from) + Math.max(2, x(a.duration)) - 20 }}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onReplaceAudio(i);
-            }}
+  const renderAudioRow = (a, i) => {
+    const bedInfo = musicLane.forBed(i); // S7.12 — the media's entry of this loose song
+    return (
+      <div className="tl-row" key={`a${i}`} data-testid={`timeline-audio-${i}`}>
+        <span className="tl-row-label" title={a.label}>
+          <span
+            className="tl-kind"
+            data-kind="audio"
+            title={`Audio · ${a.label}`}
+            aria-label={`Audio · ${a.label}`}
           >
-            ⇄
-          </button>
-        ) : null}
+            ♪
+          </span>
+          <span className="tl-row-label-text">{a.label}</span>
+        </span>
+        <div
+          className="tl-row-track"
+          style={{ width: axisPx, flex: 'none' }}
+          onDragOver={onLaneDragOver('audio', `a${i}`)}
+          onDrop={onLaneDrop({ lane: 'audio' })}
+        >
+          {laneCaret('audio', `a${i}`)}
+          <div
+            className={`tl-audio-block${bedInfo && selectedClipId === bedInfo.stableId ? ' is-selected' : ''}`}
+            title={`${a.label} · ${a.from}–${a.from + a.duration}f`}
+            style={{
+              left: x(a.from),
+              width: Math.max(2, x(a.duration)),
+              cursor: bedInfo ? 'pointer' : undefined,
+            }}
+            data-clip-id={bedInfo?.stableId || undefined}
+            role={bedInfo ? 'button' : undefined}
+            tabIndex={bedInfo ? 0 : undefined}
+            onClick={bedInfo ? () => onSelect?.(bedInfo.stableId) : undefined}
+            onKeyDown={
+              bedInfo
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') onSelect?.(bedInfo.stableId);
+                  }
+                : undefined
+            }
+          >
+            <svg className="tl-wave" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden>
+              {a.src && visuals[`p|${a.src}`] ? (
+                // Task 7 — real peaks (WebAudio decode), filled mirrored wave.
+                <path className="tl-wave-real" d={peaksToPath(visuals[`p|${a.src}`])} />
+              ) : (
+                <path d="M0 6 Q2 1 4 6 T8 6 T12 6 T16 6 T20 6 T24 6 T28 6 T32 6 T36 6 T40 6 T44 6 T48 6 T52 6 T56 6 T60 6 T64 6 T68 6 T72 6 T76 6 T80 6 T84 6 T88 6 T92 6 T96 6 T100 6" />
+              )}
+            </svg>
+            <span className="tl-seq-name">{a.label}</span>
+          </div>
+          {onReplaceAudio ? (
+            <button
+              type="button"
+              className="tl-seq-replace"
+              data-testid={`timeline-audio-replace-${i}`}
+              title="Replace this audio"
+              aria-label={`Replace audio ${a.label}`}
+              style={{ left: x(a.from) + Math.max(2, x(a.duration)) - 20 }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReplaceAudio(i);
+              }}
+            >
+              ⇄
+            </button>
+          ) : null}
+          <MusicLaneOverlay
+            info={bedInfo}
+            x={x}
+            speech={musicLane.speech}
+            fps={musicLane.fps}
+            finding={musicLane.finding(a.src)}
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <aside
@@ -2143,6 +2218,13 @@ export default function TimelinePanel({
                         onDrop={onLaneDrop({ lane: 'audio' })}
                       >
                         {renderBlock(seq, i, { lane: 'audio', laneName: `A${k + 1}` })}
+                        <MusicLaneOverlay
+                          info={musicLane.forClip(seq.stableId)}
+                          x={x}
+                          speech={musicLane.speech}
+                          fps={musicLane.fps}
+                          finding={musicLane.finding(seq.mediaSrc)}
+                        />
                         {laneCaret('audio', `ac${i}`)}
                       </div>
                     </div>

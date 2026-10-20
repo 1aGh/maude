@@ -27,6 +27,7 @@ export const PATCH_KEYS: readonly string[] = [
   'notes',
   'exports',
   'poster',
+  'snap',
   'expected',
 ];
 const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
@@ -60,6 +61,8 @@ export interface PresentPatch {
   exports?: Record<string, ExportSize[] | null>;
   /** S7.8 — artboardId → its poster frame (a comp frame, ≥ 0); null takes it back to the 35 % default. */
   poster?: Record<string, number | null>;
+  /** S7.12 — artboardId → Snap to the beat (`"beat"` · `"off"`); null takes it back to the default (on with a clear beat grid). */
+  snap?: Record<string, 'beat' | 'off' | null>;
   expected?: string;
 }
 
@@ -144,6 +147,18 @@ export function readPosters(meta: unknown): Record<string, number> {
     if (!isId(id) || !isObj(entry)) continue;
     const p = entry.poster;
     if (typeof p === 'number' && Number.isInteger(p) && p >= 0) out[id] = p;
+  }
+  return out;
+}
+
+/** S7.12 — what a `.meta.json` says about Snap to the beat per video artboard (`artboardMeta[id].snap`). Never throws. */
+export function readSnaps(meta: unknown): Record<string, 'beat' | 'off'> {
+  const out: Record<string, 'beat' | 'off'> = {};
+  const m = isObj(meta) ? meta : {};
+  if (!isObj(m.artboardMeta)) return out;
+  for (const [id, entry] of Object.entries(m.artboardMeta)) {
+    if (!isId(id) || !isObj(entry)) continue;
+    if (entry.snap === 'beat' || entry.snap === 'off') out[id] = entry.snap;
   }
   return out;
 }
@@ -247,6 +262,18 @@ export function parsePresentPatch(body: unknown): ParseResult {
     }
     patch.poster = out;
   }
+  if (body.snap !== undefined) {
+    if (!isObj(body.snap) || Object.keys(body.snap).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'snap' };
+    const out: Record<string, 'beat' | 'off' | null> = {};
+    for (const [id, v] of Object.entries(body.snap)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'snap' };
+      if (v !== null && v !== 'beat' && v !== 'off')
+        return { ok: false, error: 'bad-field', field: `snap.${id}` };
+      out[id] = v;
+    }
+    patch.snap = out;
+  }
   return { ok: true, patch };
 }
 
@@ -295,6 +322,7 @@ export function applyPresentPatch(
   for (const [id, v] of Object.entries(patch.notes ?? {})) if (v) written.push(id);
   for (const [id, v] of Object.entries(patch.exports ?? {})) if (v?.length) written.push(id);
   for (const [id, v] of Object.entries(patch.poster ?? {})) if (v !== null) written.push(id);
+  for (const [id, v] of Object.entries(patch.snap ?? {})) if (v !== null) written.push(id);
   if (known) {
     const unknown = [...new Set(written.filter((id) => !known.has(id)))];
     if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
@@ -342,6 +370,18 @@ export function applyPresentPatch(
         ? (map[id] as Record<string, unknown>)
         : {};
       const e = withKey(entry, 'poster', v === null ? undefined : v);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  // S7.12 — Snap to the beat: the same entry, the same keep-everything-else rule.
+  if (patch.snap && Object.keys(patch.snap).length) {
+    let map: Record<string, unknown> = isObj(next.artboardMeta) ? next.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.snap)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'snap', v === null ? undefined : v);
       map = withKey(map, id, Object.keys(e).length ? e : undefined);
     }
     next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);

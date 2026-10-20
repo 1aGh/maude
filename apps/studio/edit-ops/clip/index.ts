@@ -35,7 +35,7 @@ import type { EditOp, ResolvedEditOp } from '../types.ts';
 import { applyCaptions, captionsPatch } from './captions.ts';
 import { applyCutSourceRange } from './cut-source-range.ts';
 import { applyCutToBeat } from './cut-to-beat.ts';
-import { applyDuck, duckPatch } from './duck.ts';
+import { applyDuck, applyMusicVolume, duckPatch } from './duck.ts';
 import { applyFormatAdd, applyFormatUnlink } from './formats.ts';
 import { CLIP_GESTURE_OPS } from './gestures.ts';
 import { applyPlace, placePatch } from './place.ts';
@@ -358,6 +358,17 @@ export const VIDEO_OPS: readonly EditOp[] = [
         duckPatch(t.file, req.params, t.stableId)
       );
       return { source: r.source, detail: { ducked: r.ducked } };
+    },
+  },
+  {
+    // Volume of a music track (07 ve-music): a clip or a loose bed; 1 = full = no prop
+    id: 'video.music.volume',
+    scope: 'artboard',
+    artboards: heldArtboards,
+    apply(source, req) {
+      const t = clipTarget(req);
+      const r = applyMusicVolume(t.file, source, t.artboard, t.stableId, t.hash, req.params.volume);
+      return { source: r.source };
     },
   },
   {

@@ -119,8 +119,9 @@ export function isTitleRow(seq) {
   return (seq.rowKind ?? '') === 'jsx';
 }
 
-/** Which kind chip a Timeline row gets: a title, or a clip (media, an AI slate, a beat). */
-export const timelineKindOf = (seq) => (isTitleRow(seq) ? 'title' : 'clip');
+/** Which kind chip a Timeline row gets: a title, music (S7.12: a song on the Music track) or a clip (media, an AI slate, a beat). */
+export const timelineKindOf = (seq) =>
+  isTitleRow(seq) ? 'title' : seq?.rowKind === 'audio' && !seq.series ? 'music' : 'clip';
 
 /** Does the clip play sound of its own? (A picture or a title does not; the Volume row says so.) */
 export const hasSound = (seq) =>

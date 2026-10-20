@@ -236,4 +236,66 @@
     z-index: 13;
     border-radius: var(--radius-sm, 4px);
   }
+
+  /* S7.12 — the Music track (07 · ve-music): a tick on every beat (a tall one every bar), the tempo, the volume
+   * line dipping under speech. Drawn over the song's block; it never takes a click from it. */
+  .tl-music-ov {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+  }
+  .tl-music-svg {
+    display: block;
+    overflow: visible;
+  }
+  .tl-beat-tick {
+    fill: none;
+    stroke: var(--fg-2);
+    stroke-width: 1;
+    opacity: 0.55;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl-beat-tick--bar {
+    stroke: var(--fg-0);
+    opacity: 0.85;
+  }
+  .tl-duck-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl-duck-label,
+  .tl-music-bpm,
+  .tl-music-finding {
+    position: absolute;
+    font-family: var(--font-ui, inherit);
+    font-size: var(--type-xs);
+    line-height: 14px;
+    color: var(--fg-1);
+    background: color-mix(in oklab, var(--bg-1) 78%, transparent);
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+  }
+  .tl-duck-label {
+    top: 2px;
+  }
+  .tl-music-bpm {
+    top: 2px;
+    right: var(--space-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-music-finding {
+    top: 50%;
+    left: var(--space-2);
+    transform: translateY(-50%);
+  }
+  .tl-audio-block.is-selected {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
 }

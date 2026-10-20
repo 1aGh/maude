@@ -122,6 +122,14 @@ export const SECTIONS = Object.freeze(
         'How long it plays, how fast, how loud and how the picture sits. The file, the in and out points, Grade, Crop and the join after it are under Advanced.',
     },
     {
+      // S7.12 (07 ve-music): a song you select on the Timeline's Music track — drawn for that kind only.
+      n: 26,
+      id: 'music',
+      title: 'Music',
+      explain:
+        'How loud it plays, whether it steps aside while someone speaks, and whether edits land on its beat. The tempo and the exact numbers are under Advanced.',
+    },
+    {
       n: 24,
       id: 'title-motion',
       title: 'Title',

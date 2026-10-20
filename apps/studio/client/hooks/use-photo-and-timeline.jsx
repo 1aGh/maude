@@ -276,6 +276,8 @@ export function usePhotoAndTimeline({
         verb,
         params,
         resolveClip: (cc, ref) => {
+          // S7.12 — a loose music bed has no sequence row: the op resolves its `loose:` id itself
+          if (ref?.bed && typeof ref.stableId === 'string') return { stableId: ref.stableId };
           const all = cc?.ok && Array.isArray(cc.clips) ? cc.clips : [];
           return ref?.transition
             ? all.find((c) => c.kind === 'transition' && c.stableId === ref.stableId) || null

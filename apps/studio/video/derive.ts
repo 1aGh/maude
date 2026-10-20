@@ -16,6 +16,7 @@
 import { enumerateClips } from '../canvas-edit.ts';
 import { transitionDurationFrames } from '../clip-ops.ts';
 import { collectConsts, resolveNum } from '../ripple.ts';
+import { DUCK_DEFAULTS } from './framing.ts';
 import type { BeatGrid, Transcript } from './schema.ts';
 
 export type Track = 'video' | 'video2' | 'music' | 'music2';
@@ -440,6 +441,35 @@ export function duckedSrcOf(source: string): string | null {
   return m ? (m[1] ?? m[2] ?? null) : null;
 }
 
+/** What a `<Duck>` says, with the component's defaults for a prop it leaves out (V2-1.10 §5.3). */
+export interface DuckInfo {
+  db: number;
+  attackMs: number;
+  releaseMs: number;
+}
+
+/** Every `<Duck>` that wraps a literal-src `<Audio>`, by that src: the dip each music bed carries.
+ *  (S7.12: the Music lane draws the line and the inspector names the numbers from this.) */
+export function ducksBySrc(source: string): Map<string, DuckInfo> {
+  const out = new Map<string, DuckInfo>();
+  for (const m of source.matchAll(/<Duck\b/g)) {
+    const at = m.index ?? 0;
+    const tag = openingTag(source, at);
+    const rest = source.slice(at + tag.length);
+    const lead = rest.length - rest.trimStart().length;
+    if (!/^<(?:Maude)?Audio\b/.test(rest.slice(lead))) continue;
+    const s = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(openingTag(rest, lead));
+    const src = s ? (s[1] ?? s[2]) : undefined;
+    if (!src || out.has(src)) continue;
+    out.set(src, {
+      db: literalProp(tag, 'db') ?? DUCK_DEFAULTS.db,
+      attackMs: literalProp(tag, 'attackMs') ?? DUCK_DEFAULTS.attackMs,
+      releaseMs: literalProp(tag, 'releaseMs') ?? DUCK_DEFAULTS.releaseMs,
+    });
+  }
+  return out;
+}
+
 export interface SpeechOptions {
   /** the ducked bed: its own speech never ducks itself */
   exceptSrc?: string;
@@ -506,6 +536,97 @@ export function compBeats(c: CompClips, grids: Record<string, BeatGrid>): number
     }
   }
   return [...seen].sort((a, b) => a - b);
+}
+
+/** One music clip with what the Music lane and inspector read: its grid in COMP frames and its dip. */
+export interface MusicInfo {
+  stableId: string;
+  src: string;
+  track: 'music' | 'music2';
+  from: number;
+  durationInFrames: number;
+  loose?: true;
+  /** literal `volume` of the `<Audio>`, 0..1 (1 when absent) */
+  volume: number;
+  /** the `<Duck>` around it, or null */
+  duck: DuckInfo | null;
+  /** null = no beat sidecar for this song yet (the lane offers to find the beat) */
+  grid: null | {
+    bpm: number;
+    bpmSource: string;
+    tempoStrength: number;
+    barConfidence: number;
+    /** comp frames, ascending */
+    beats: number[];
+    /** the downbeats among `beats` (comp frames); empty below bar confidence 0.4 (Q8) */
+    bars: number[];
+  };
+}
+
+/** Bar ticks are drawn only at or above this confidence (Q8): below it every tick is the same height. */
+export const BAR_CONFIDENCE = 0.4;
+/** A grid with a tempo strength under this has no clear pulse (V2-1.10 §5.2): no snap, no Cut to the beat. */
+export const CLEAR_BEAT = 0.15;
+
+/** The literal `volume` of the first `<Audio src="…">` with this src (1 when absent or an expression). */
+function audioVolume(source: string, src: string): number {
+  for (const m of source.matchAll(/<(?:Maude)?Audio\b/g)) {
+    const tag = openingTag(source, m.index ?? 0);
+    const s = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(tag);
+    if ((s ? (s[1] ?? s[2]) : null) !== src) continue;
+    const v = literalProp(tag, 'volume');
+    return v !== null && v >= 0 && v <= 1 ? v : 1;
+  }
+  return 1;
+}
+
+/** Every Music-track clip with its beats, bars, volume and dip. Same placement maths as `compBeats`. */
+export function compMusic(
+  c: CompClips,
+  grids: Record<string, BeatGrid>,
+  source: string
+): MusicInfo[] {
+  const ducks = ducksBySrc(source);
+  const out: MusicInfo[] = [];
+  for (const span of c.clips) {
+    if (span.track !== 'music' && span.track !== 'music2') continue;
+    const g = grids[span.src];
+    const info: MusicInfo = {
+      stableId: span.stableId,
+      src: span.src,
+      track: span.track,
+      from: span.from,
+      durationInFrames: span.durationInFrames,
+      volume: audioVolume(source, span.src),
+      duck: ducks.get(span.src) ?? null,
+      grid: null,
+    };
+    if (span.loose) info.loose = true;
+    if (g) {
+      const lo = span.trimBefore;
+      const hi = span.trimBefore + span.durationInFrames * span.playbackRate;
+      const barsOn = g.bar.confidence >= BAR_CONFIDENCE;
+      const beats: number[] = [];
+      const bars: number[] = [];
+      g.beats.forEach((b, i) => {
+        const sf = b * c.fps;
+        if (sf < lo || sf >= hi) return;
+        const f = span.from + Math.round((sf - span.trimBefore) / span.playbackRate);
+        beats.push(f);
+        if (barsOn && i >= g.bar.phase && (i - g.bar.phase) % 4 === 0) bars.push(f);
+      });
+      info.grid = {
+        bpm: g.bpm,
+        bpmSource: g.bpmSource,
+        tempoStrength: g.tempoStrength,
+        barConfidence: g.bar.confidence,
+        beats,
+        bars,
+      };
+    }
+    out.push(info);
+  }
+  return out;
 }
 
 // transcriptCut (§5.6) lives in ./transcript-cut.ts (S7.6c: the cut-words verb imports it alone).

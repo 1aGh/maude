@@ -139,6 +139,7 @@ describe('GET /_api/comp-media — the answer', () => {
         'captions',
         'clips',
         'fps',
+        'music',
         'speech',
         'transcripts',
         'unresolved',
