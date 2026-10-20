@@ -57,6 +57,7 @@ import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
 import { sourceHold, type WriteHold } from '../sync/write-hold.ts';
 import { heldByAi } from './agent.ts';
+import { createPhotoEveryUseRoutes, type PhotoEveryUseDeps } from './photo-every-use.ts';
 import type { RouteSpec } from './table.ts';
 
 const json = (status: number, body: unknown) =>
@@ -138,6 +139,11 @@ export interface EditRouteDeps {
   /** tests only: an op table instead of `EDIT_OPS` */
   ops?: readonly EditOp[];
   log?: WriteLog;
+  /**
+   * S8.15 — Apply to every use (`routes/photo-every-use.ts`): its per-canvas writes go through THIS route's
+   * serialized writer, so each canvas lands one action like any edit-op. Absent: the route answers 404.
+   */
+  photoEveryUse?: Omit<PhotoEveryUseDeps, 'runEditOp'>;
 }
 
 /** designRoot-relative `.tsx` path of an existing canvas inside the design root, or null. */
@@ -581,5 +587,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
         }
       },
     },
+    // S8.15 — after the edit routes (callers take the first spec as /_api/edit-op)
+    ...createPhotoEveryUseRoutes(() => deps.photoEveryUse, run),
   ];
 }
