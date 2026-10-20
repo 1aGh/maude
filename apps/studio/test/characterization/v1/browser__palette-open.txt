@@ -11,333 +11,97 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
     input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value]
     span .kbd "⌘K"
   div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
+    div [role="presentation"]
+      div .st-pal-group [role="presentation"] "Recent"
+      p .st-pal-recent-none [data-testid="palette-recent-empty"]
+        span .st-pal-sit "Nothing opened yet."
+        span .st-pal-next "Canvases you open show up here, newest first."
     div [role="group"]
-      div .st-pal-group [role="presentation"] "Canvas"
-      button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+      div .st-pal-group [role="presentation"] "Start here"
+      button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
           span .st-pal-ltxt "New canvas…"
-      button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+      button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
-          span .st-pal-ltxt "New video…"
-      button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+          span .st-pal-ltxt "Open project…"
+      button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
-          span .st-pal-ltxt "Export…"
-        span .st-pal-kbd
-          span .kbd "⇧⌘E"
-      button .st-pal-item [data-testid="palette-row-share.copy-link"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Copy share link"
-      button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Handoff to production"
-        span .st-pal-kbd
-          span .kbd "⇧⌘H"
-      button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Generate with AI…"
-      button .st-pal-item [data-testid="palette-row-settings.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Settings…"
-        span .st-pal-kbd
-          span .kbd "⌘,"
-    div [role="group"]
-      div .st-pal-group [role="presentation"] "View"
-      button .st-pal-item [data-testid="palette-row-view.design-system"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Open design system view"
-      button .st-pal-item [data-testid="palette-row-view.comments"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Toggle comments panel"
-        span .st-pal-kbd
-          span .kbd "⇧⌘M"
-      button .st-pal-item [data-testid="palette-row-view.inspector"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Open inspector"
-        span .st-pal-kbd
-          span .kbd "⇧⌘I"
-      button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Reload active canvas"
-        span .st-pal-kbd
-          span .kbd "⌘R"
-    div [role="group"]
-      div .st-pal-group [role="presentation"] "Tools"
-      button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Draw a mark with the SVG agent"
-      button .st-pal-item [data-testid="palette-row-settings.theme"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Toggle light / dark theme"
-    div [role="group"]
-      div .st-pal-group [role="presentation"] "Help"
-      button .st-pal-item [data-testid="palette-row-help.whats-new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "What's new in maude"
-      button .st-pal-item [data-testid="palette-row-help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+          span .st-pal-ltxt "Import from Figma…"
+      button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
           span .st-pal-ltxt "Keyboard shortcuts"
         span .st-pal-kbd
           span .kbd "?"
-      button .st-pal-item [data-testid="palette-row-help.guides"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Help · commands & flows"
-        span .st-pal-kbd
-          span .kbd "F1"
-      button .st-pal-item [data-testid="palette-row-help.report-bug"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-        span .st-pal-icon
-          svg [aria-hidden="true"]
-        span .st-pal-label
-          span .st-pal-ltxt "Report a bug…"
   div .st-pal-foot
     span .st-pal-hints
       span "move"
         span .kbd "↑"
         span .kbd "↓"
-      span "open"
+      span "run"
         span .kbd "↵"
-    span [data-testid="palette-count"] [role="status"] "Type to search"
+    span [data-testid="palette-count"] [role="status"] "Every tool is here — type its name"
 input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value]
 div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
+  div [role="presentation"]
+    div .st-pal-group [role="presentation"] "Recent"
+    p .st-pal-recent-none [data-testid="palette-recent-empty"]
+      span .st-pal-sit "Nothing opened yet."
+      span .st-pal-next "Canvases you open show up here, newest first."
   div [role="group"]
-    div .st-pal-group [role="presentation"] "Canvas"
-    button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+    div .st-pal-group [role="presentation"] "Start here"
+    button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
         span .st-pal-ltxt "New canvas…"
-    button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
-        span .st-pal-ltxt "New video…"
-    button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+        span .st-pal-ltxt "Open project…"
+    button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
-        span .st-pal-ltxt "Export…"
-      span .st-pal-kbd
-        span .kbd "⇧⌘E"
-    button .st-pal-item [data-testid="palette-row-share.copy-link"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Copy share link"
-    button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Handoff to production"
-      span .st-pal-kbd
-        span .kbd "⇧⌘H"
-    button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Generate with AI…"
-    button .st-pal-item [data-testid="palette-row-settings.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Settings…"
-      span .st-pal-kbd
-        span .kbd "⌘,"
-  div [role="group"]
-    div .st-pal-group [role="presentation"] "View"
-    button .st-pal-item [data-testid="palette-row-view.design-system"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Open design system view"
-    button .st-pal-item [data-testid="palette-row-view.comments"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Toggle comments panel"
-      span .st-pal-kbd
-        span .kbd "⇧⌘M"
-    button .st-pal-item [data-testid="palette-row-view.inspector"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Open inspector"
-      span .st-pal-kbd
-        span .kbd "⇧⌘I"
-    button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Reload active canvas"
-      span .st-pal-kbd
-        span .kbd "⌘R"
-  div [role="group"]
-    div .st-pal-group [role="presentation"] "Tools"
-    button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Draw a mark with the SVG agent"
-    button .st-pal-item [data-testid="palette-row-settings.theme"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Toggle light / dark theme"
-  div [role="group"]
-    div .st-pal-group [role="presentation"] "Help"
-    button .st-pal-item [data-testid="palette-row-help.whats-new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "What's new in maude"
-    button .st-pal-item [data-testid="palette-row-help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+        span .st-pal-ltxt "Import from Figma…"
+    button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
         span .st-pal-ltxt "Keyboard shortcuts"
       span .st-pal-kbd
         span .kbd "?"
-    button .st-pal-item [data-testid="palette-row-help.guides"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Help · commands & flows"
-      span .st-pal-kbd
-        span .kbd "F1"
-    button .st-pal-item [data-testid="palette-row-help.report-bug"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-      span .st-pal-icon
-        svg [aria-hidden="true"]
-      span .st-pal-label
-        span .st-pal-ltxt "Report a bug…"
-button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+p .st-pal-recent-none [data-testid="palette-recent-empty"]
+  span .st-pal-sit "Nothing opened yet."
+  span .st-pal-next "Canvases you open show up here, newest first."
+button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
     span .st-pal-ltxt "New canvas…"
-button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
-    span .st-pal-ltxt "New video…"
-button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    span .st-pal-ltxt "Open project…"
+button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
-    span .st-pal-ltxt "Export…"
-  span .st-pal-kbd
-    span .kbd "⇧⌘E"
-button .st-pal-item [data-testid="palette-row-share.copy-link"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Copy share link"
-button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Handoff to production"
-  span .st-pal-kbd
-    span .kbd "⇧⌘H"
-button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Generate with AI…"
-button .st-pal-item [data-testid="palette-row-settings.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Settings…"
-  span .st-pal-kbd
-    span .kbd "⌘,"
-button .st-pal-item [data-testid="palette-row-view.design-system"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Open design system view"
-button .st-pal-item [data-testid="palette-row-view.comments"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Toggle comments panel"
-  span .st-pal-kbd
-    span .kbd "⇧⌘M"
-button .st-pal-item [data-testid="palette-row-view.inspector"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Open inspector"
-  span .st-pal-kbd
-    span .kbd "⇧⌘I"
-button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Reload active canvas"
-  span .st-pal-kbd
-    span .kbd "⌘R"
-button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Draw a mark with the SVG agent"
-button .st-pal-item [data-testid="palette-row-settings.theme"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Toggle light / dark theme"
-button .st-pal-item [data-testid="palette-row-help.whats-new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "What's new in maude"
-button .st-pal-item [data-testid="palette-row-help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    span .st-pal-ltxt "Import from Figma…"
+button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
     span .st-pal-ltxt "Keyboard shortcuts"
   span .st-pal-kbd
     span .kbd "?"
-button .st-pal-item [data-testid="palette-row-help.guides"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Help · commands & flows"
-  span .st-pal-kbd
-    span .kbd "F1"
-button .st-pal-item [data-testid="palette-row-help.report-bug"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
-  span .st-pal-icon
-    svg [aria-hidden="true"]
-  span .st-pal-label
-    span .st-pal-ltxt "Report a bug…"
-span [data-testid="palette-count"] [role="status"] "Type to search"
+span [data-testid="palette-count"] [role="status"] "Every tool is here — type its name"

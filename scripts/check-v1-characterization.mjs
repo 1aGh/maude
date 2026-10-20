@@ -95,6 +95,13 @@
 // deleted. Every shell state loses that row (the shell body starts at the top of the window) and the `menu-*`
 // states open the project pill's menu instead (see `MENU_SECTION`). Goldens are refreshed by the lead.
 //
+// Approved delta (wave-B gate, 2026-10-20, decision:maude/v2-waveB-gate-v1-goldens): all 30 states move with shipped
+// wave-A/B slices and nothing else. The Share cluster wraps the faces in `span.st-faces-host` and marks the session's
+// own face `.is-you` (S9); the project pill's menu gains `hr.st-pm-sep` group separators (S11.18); ⌘K opens on a
+// "Recent" group (`palette-recent-empty` "Nothing opened yet." on a fresh fixture, S1.4) and a near-miss row reads
+// `.is-quiet` with its `.st-pal-where` place (S1.4/S11.18); the remaining states carry the same cluster/menu rows.
+// Refreshed with `--build --update`, then `--build --repeat` all 30 identical.
+//
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
 //                                              [--build] [--shots <dir>] [--repeat]

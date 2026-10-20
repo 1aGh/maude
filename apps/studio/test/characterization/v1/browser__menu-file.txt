@@ -86,6 +86,7 @@ span .island.st-pill
           span .st-pm-lab "Help"
           span .st-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
+      hr .st-pm-sep
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]
@@ -100,6 +101,7 @@ span .island.st-pill
           span .st-pm-ic [aria-hidden="true"]
           span .st-pm-lab "Export…"
           span .kbd "⇧⌘E"
+      hr .st-pm-sep
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]

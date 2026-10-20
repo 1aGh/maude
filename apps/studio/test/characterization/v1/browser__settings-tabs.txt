@@ -94,6 +94,13 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .st-pref-label "Single-key shortcuts"
               span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
             input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+        h3 .v2s-group-t "Search"
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Search in pictures"
+            span .st-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
         div .st-provider-card
@@ -119,44 +126,44 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .st-pref-body
               span .st-pref-label "Canvases"
             span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
             span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assets"
             span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
             span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
             span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
             span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "AI chat panel"
             span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
 ## tab 1
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
   div .v2s-rail
@@ -252,6 +259,13 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .st-pref-label "Single-key shortcuts"
               span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
             input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+        h3 .v2s-group-t "Search"
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Search in pictures"
+            span .st-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
         div .st-provider-card
@@ -277,44 +291,44 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .st-pref-body
               span .st-pref-label "Canvases"
             span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
             span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assets"
             span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
             span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
             span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
             span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "AI chat panel"
             span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"]
       div .v2s-conns [data-testid="settings-connections"]
         section .v2s-conn [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
@@ -470,6 +484,13 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .st-pref-label "Single-key shortcuts"
               span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
             input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section .v2s-group [data-testid="settings-describe"] [aria-label="Search"]
+        h3 .v2s-group-t "Search"
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Search in pictures"
+            span .st-pref-note "AI describes the pictures in characterization once, with your Claude account, so search finds what's in them."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
         div .st-provider-card
@@ -495,44 +516,44 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .st-pref-body
               span .st-pref-label "Canvases"
             span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
             span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assets"
             span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
             span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
             span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
             span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "AI chat panel"
             span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
-              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
-              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"] [hidden]
       div .v2s-conns [data-testid="settings-connections"]
         section .v2s-conn [data-testid="settings-cloud"] [aria-label="Maude Cloud"]
@@ -611,7 +632,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .v2s-row [data-testid="settings-server-port"]
           span .v2s-row-t
             span .v2s-row-k "Local server port"
-          span .v2s-val.v2s-val--mono "4399"
+          span .v2s-val.v2s-val--mono "4400"
         div .v2s-row [data-testid="settings-runtime"]
           span .v2s-row-t
             span .v2s-row-k "Runtime"
@@ -960,6 +981,10 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         label .v2s-row.v2s-row--switch [data-testid="settings-fold-ds"]
           span .v2s-row-t
             span .v2s-row-k "Design system › Advanced"
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
+        label .v2s-row.v2s-row--switch [data-testid="settings-fold-assets.details"]
+          span .v2s-row-t
+            span .v2s-row-k "Assets › Details › Advanced"
           input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] {value="on"} {off}
         div .v2s-row [data-testid="settings-reset-all"]
           span .v2s-row-t

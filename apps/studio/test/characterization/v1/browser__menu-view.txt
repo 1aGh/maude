@@ -51,6 +51,22 @@ span .island.st-pill
                 svg [aria-hidden="true"]
               span .st-pm-lab "Annotations"
               span .kbd "⇧P"
+          hr .st-pm-sep
+          div .st-pm-li [role="none"]
+            button .st-pm-row [data-testid="project-menu-row-mode.preview"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .st-pm-ic [aria-hidden="true"]
+              span .st-pm-lab "Preview"
+              span .kbd "⌥⌘P"
+          div .st-pm-li [role="none"]
+            button .st-pm-row [data-testid="project-menu-row-present.from-selection"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .st-pm-ic [aria-hidden="true"]
+              span .st-pm-lab "Present"
+              span .kbd "⌥⌘↵"
+          div .st-pm-li [role="none"]
+            button .st-pm-row [data-testid="project-menu-row-present.from-start"] [role="menuitem"] [type="button"] [tabindex="-1"]
+              span .st-pm-ic [aria-hidden="true"]
+              span .st-pm-lab "Present from the start"
+              span .kbd "⌥⇧⌘↵"
           div .st-pm-li [role="none"]
             button .st-pm-row [data-testid="project-menu-row-present.canvas"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
               span .st-pm-ic [aria-hidden="true"]
@@ -60,7 +76,7 @@ span .island.st-pill
             button .st-pm-row [data-testid="project-menu-row-view.zoom-in"] [role="menuitem"] [type="button"] [tabindex="-1"]
               span .st-pm-ic [aria-hidden="true"]
               span .st-pm-lab "Zoom in"
-              span .kbd "⌘="
+              span .kbd "⌘+"
           div .st-pm-li [role="none"]
             button .st-pm-row [data-testid="project-menu-row-view.zoom-out"] [role="menuitem"] [type="button"] [tabindex="-1"]
               span .st-pm-ic [aria-hidden="true"]
@@ -76,6 +92,7 @@ span .island.st-pill
               span .st-pm-ic [aria-hidden="true"]
               span .st-pm-lab "Actual size"
               span .kbd "⇧0"
+          hr .st-pm-sep
           div .st-pm-li [role="none"]
             button .st-pm-row.st-pm-row--adv [data-testid="project-menu-row-sub-advanced"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
               span .st-pm-ic [aria-hidden="true"]
@@ -88,6 +105,7 @@ span .island.st-pill
           span .st-pm-lab "Help"
           span .st-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
+      hr .st-pm-sep
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]
@@ -102,6 +120,7 @@ span .island.st-pill
           span .st-pm-ic [aria-hidden="true"]
           span .st-pm-lab "Export…"
           span .kbd "⇧⌘E"
+      hr .st-pm-sep
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]

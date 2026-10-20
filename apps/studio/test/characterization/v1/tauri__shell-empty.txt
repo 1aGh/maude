@@ -20,8 +20,9 @@ div
             span .st-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
         div .island.st-share [data-testid="share-cluster"] [data-tour="status"]
-          ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
-            li .st-face [aria-label="You"] [title="You"] "YO"
+          span .st-faces-host
+            ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
+              li .is-you.st-face [aria-label="You"] [title="You"] "YO"
           span .st-saved [data-testid="share-cluster-status"] [role="status"]
             svg [aria-hidden="true"]
             span .st-saved-w "Local project"
@@ -64,21 +65,82 @@ div
                   input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] [value]
                   span .kbd "/"
               div .lp-pinned [data-testid="canvases-pinned"]
-                button .lp-ds.lp-row [data-testid="canvases-ds-row"] [title="Open the design system"] [type="button"]
-                  span .lp-ds-ic
+                div .lp-ds-wrap
+                  button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 3 canvases"] [type="button"]
+                    span .lp-ds-ic
+                      svg [aria-hidden="true"]
+                    span .lp-ds-two
+                      span .lp-name "Design system"
+                      span .lp-ds-sub [data-testid="canvases-ds-row-sub"] "demo · 3 canvases"
+                    span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema — click to bring it up"]
+                  button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [aria-haspopup="menu"] [type="button"]
+                    span [aria-hidden="true"] "⋯"
+              div .cv-panel
+                div .kf-chips [data-testid="kind-chips"] [role="group"] [aria-label="Filter by kind"]
+                  button .kf-chip [data-testid="kind-chip-all"] [aria-label="All, 3"] [aria-pressed="true"] [title="All · 3"] [type="button"]
+                    span .kf-chip-w "All"
+                    span .kf-chip-n "3"
+                  button .kf-chip [data-testid="kind-chip-digital"] [aria-label="Fixed size, 0"] [aria-pressed="false"] [title="Fixed size · 0"] [type="button"]
                     svg [aria-hidden="true"]
-                  span .lp-name "Design system"
-              div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI canvases"] [aria-expanded="false"] [tabindex="0"]
-                  div .st-row-wrap
-                    button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                      svg .st-chev [aria-hidden="true"]
-                      span .st-sec-name "UI canvases"
-                      span .st-sec-count "3"
-              button .lp-row.lp-trashrow [data-testid="canvases-trash-row"] [type="button"]
-                span .lp-trash-ic
-                  svg [aria-hidden="true"]
-                span .lp-name "Trash"
+                    span .kf-chip-n "0"
+                  button .kf-chip [data-testid="kind-chip-web"] [aria-label="Web page, 2"] [aria-pressed="false"] [title="Web page · 2"] [type="button"]
+                    svg [aria-hidden="true"]
+                    span .kf-chip-n "2"
+                  button .kf-chip [data-testid="kind-chip-print"] [aria-label="Print, 0"] [aria-pressed="false"] [title="Print · 0"] [type="button"]
+                    svg [aria-hidden="true"]
+                    span .kf-chip-n "0"
+                  button .kf-chip [data-testid="kind-chip-video"] [aria-label="Video, 0"] [aria-pressed="false"] [title="Video · 0"] [type="button"]
+                    svg [aria-hidden="true"]
+                    span .kf-chip-n "0"
+                div .cv-listwrap
+                  div .cv-sort-lane
+                    button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Recent"
+                      svg [aria-hidden="true"]
+                  div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
+                    div .cv-spacer
+                      div .cv-head [data-testid="canvases-head-project"]
+                        span .cv-head-name "characterization"
+                      div .cv-item [role="treeitem"] [aria-label="marketing"] [aria-expanded="false"] [tabindex="0"]
+                        div .cv-row.cv-row--folder
+                          button .cv-main [data-testid="tree-folder-ui-marketing"] [aria-expanded="false"] [type="button"] [tabindex="-1"]
+                            span .cv-twisty
+                              svg .st-chev [aria-hidden="true"]
+                            span .cv-fic
+                              svg [aria-hidden="true"]
+                            span .cv-name "marketing"
+                            span .cv-count [role="img"] [aria-label="1 canvases"] "1"
+                          span .cv-actions
+                            button .cv-act [data-testid="tree-row-menu-ui-marketing"] [aria-label="Folder actions for marketing"] [aria-haspopup="menu"] [title="Folder actions — marketing"] [type="button"]
+                              svg [aria-hidden="true"]
+                      div .cv-item [role="treeitem"] [aria-label="Broken"] [aria-selected="false"] [tabindex="-1"]
+                        div .cv-row.cv-row--canvas
+                          button .cv-main [data-testid="canvas-row-ui-broken"] [title=".design/ui/Broken.tsx"] [type="button"] [tabindex="-1"]
+                            span .cv-thumb [aria-hidden="true"]
+                            span .cv-name "Broken"
+                            span .cv-badges
+                          span .cv-actions
+                            button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-broken"] [aria-label="Pin Broken"] [aria-pressed="false"] [title="Pin"] [type="button"]
+                              svg [aria-hidden="true"]
+                            button .cv-act [data-testid="tree-row-menu-ui-broken"] [aria-label="Actions for Broken"] [aria-haspopup="menu"] [title="Actions for Broken"] [type="button"]
+                              svg [aria-hidden="true"]
+                      div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+                        div .cv-row.cv-row--canvas
+                          button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="button"] [tabindex="-1"]
+                            svg .st-chev [aria-hidden="true"]
+                          button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+                            span .cv-thumb [aria-hidden="true"]
+                            span .cv-name "Home"
+                            span .cv-badges
+                          span .cv-actions
+                            button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
+                              svg [aria-hidden="true"]
+                            button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [aria-haspopup="menu"] [title="Actions for Home"] [type="button"]
+                              svg [aria-hidden="true"]
+                button .lp-row.lp-trashrow [data-testid="canvases-trash-row"] [type="button"]
+                  span .lp-trash-ic
+                    svg [aria-hidden="true"]
+                  span .lp-name "Trash"
+                p .cv-foot [data-testid="canvases-foot"] "3 canvases · ⌘K searches every project"
               div .lp-adv [data-testid="canvases-advanced-fold"]
                 button .lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
                   span .lp-adv-ch
@@ -96,79 +158,106 @@ div
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
-            div .st-empty
-              div .st-empty-title "No canvas open"
-              div .st-empty-body "Open a canvas from the Canvases panel, or start a new one."
-              button .btn.btn--primary.st-empty-quick-setup [data-testid="st-empty-start-quick-setup"] [type="button"] "Start quick setup"
         div .is-collapsed.st-dockslot.st-dockslot--right
           div .island.st-dockslot-ai.st-dockslot-inner [data-testid="dock-ai-right"] [hidden]
-            aside .st-rpanel [aria-label="Assistant"] [aria-hidden="true"]
+            aside .ai-island.st-rpanel [data-testid="ai-chat-island"] [aria-label="AI chat panel"] [aria-hidden="true"]
               div .chat-bar.chat-bar--v2 [data-testid="ai-chat-header"]
                 span .chat-hd-spark [aria-hidden="true"]
                   svg [aria-hidden="true"]
                 span .chat-hd-title "AI"
+                button .ai-pinbtn.st-iconbtn [data-testid="ai-chat-pin"] [aria-label="Pin to the side"] [aria-pressed="false"] [title="Pin to the side"] [type="button"]
+                  svg [aria-hidden="true"]
                 button .st-iconbtn [data-testid="ai-chat-hide"] [aria-label="Hide the AI chat panel"] [title="Hide the AI chat panel"] [type="button"]
                   svg [aria-hidden="true"]
               div .st-rp-body.st-rp-body--chat
-                div .chat-disabled [data-testid="acp-not-connected"]
-                  span .chat-disabled-mark
-                    svg [aria-hidden="true"]
-                  div .chat-disabled-title "AI editing isn't ready yet"
-                  div .chat-disabled-sub
-                    p "Claude Code is installed but not signed in — sign in to connect."
-                    p "AI editing pairs with a Claude Code you have installed. Here's what it still needs:"
-                  div .rdy
-                    ul .rdy-list
-                      li .rdy-row.rdy-row--missing [data-testid="rdy-row-claude"]
-                        span .rdy-ic [aria-hidden="true"]
+                div .chat-panel
+                  span [hidden]
+                  div .chat-thread
+                    div .chat-feed
+                      div .chat-empty
+                        div .chat-empty-title [data-testid="ai-hint"] "Ask for a change, a few variants, or an answer."
+                        div .chat-empty-sub "AI works on what the chip says."
+                      div .ai-sr-only [data-testid="ai-live"] [role="status"]
+                      span .ai-jump-host
+                    div .ai-nc-slot [data-testid="ai-needs-slot"]
+                      div .chat-disabled [data-testid="acp-not-connected"]
+                        span .chat-disabled-mark
                           svg [aria-hidden="true"]
-                        span .rdy-tx
-                          span .rdy-label "Claude Code (the `claude` CLI)"
-                          span .rdy-detail "Installed, but not signed in."
-                          span .rdy-fix
-                            span .rdy-fix-tx "Sign in to connect it to your Pro/Max subscription."
-                          span .rdy-fix-tx.rdy-resolved-path "Found on your PATH:"
-                            code "<user-home>/.local/bin/claude"
-                          span .rdy-fix
-                            button .rdy-signin [data-testid="acp-setup-signin"] [type="button"] "Sign in to Claude"
-                      li .rdy-row.rdy-row--present [data-testid="rdy-row-maude"]
-                        span .rdy-ic [aria-hidden="true"]
-                          svg [aria-hidden="true"]
-                        span .rdy-tx
-                          span .rdy-label "maude CLI"
-                          span .rdy-detail "On PATH — can reach its helpers."
-                            code "/design:edit"
-                      li .rdy-row.rdy-row--present [data-testid="rdy-row-plugins"]
-                        span .rdy-ic [aria-hidden="true"]
-                          svg [aria-hidden="true"]
-                        span .rdy-tx
-                          span .rdy-label "Maude design plugin in Claude Code"
-                          span .rdy-detail "Bundled with this app — loads automatically in the chat session."
-                      li .rdy-row.rdy-row--present [data-testid="rdy-row-agent-browser"]
-                        span .rdy-ic [aria-hidden="true"]
-                          svg [aria-hidden="true"]
-                        span .rdy-tx
-                          span .rdy-label "Screenshot engine (design critics)"
-                          span .rdy-detail "Bundled — artboard screenshots for critics are ready."
-                            code "/design:*"
-                      li .rdy-row.rdy-row--present [data-testid="rdy-row-adapter"]
-                        span .rdy-ic [aria-hidden="true"]
-                          svg [aria-hidden="true"]
-                        span .rdy-tx
-                          span .rdy-label "Claude agent bridge"
-                          span .rdy-detail "Bundled — the chat panel can spawn it."
-                    div .rdy-foot
-                      button .btn.btn--ghost.btn--sm.rdy-recheck [type="button"] "Re-check"
-                  div .chat-trust
-                    div .chat-trust-row "Runs on your Pro/Max subscription"
-                      svg [aria-hidden="true"]
-                    div .chat-trust-row "Signs in via Claude Code's own login — Maude never sees your credentials"
-                      svg [aria-hidden="true"]
-                    div .chat-trust-row "Never metered API billing"
-                      svg [aria-hidden="true"]
+                        div .chat-disabled-title "AI editing isn't ready yet"
+                        div .chat-disabled-sub
+                          p "Claude Code is installed but not signed in — sign in to connect."
+                          p "AI editing pairs with a Claude Code you have installed. Here's what it still needs:"
+                        div .rdy
+                          ul .rdy-list
+                            li .rdy-row.rdy-row--missing [data-testid="rdy-row-claude"]
+                              span .rdy-ic [aria-hidden="true"]
+                                svg [aria-hidden="true"]
+                              span .rdy-tx
+                                span .rdy-label "Claude Code (the `claude` CLI)"
+                                span .rdy-detail "Installed, but not signed in."
+                                span .rdy-fix
+                                  span .rdy-fix-tx "Sign in to connect it to your Pro/Max subscription."
+                                span .rdy-fix-tx.rdy-resolved-path "Found on your PATH:"
+                                  code "<user-home>/.local/bin/claude"
+                                span .rdy-fix
+                                  button .rdy-signin [data-testid="acp-setup-signin"] [type="button"] "Sign in to Claude"
+                            li .rdy-row.rdy-row--present [data-testid="rdy-row-maude"]
+                              span .rdy-ic [aria-hidden="true"]
+                                svg [aria-hidden="true"]
+                              span .rdy-tx
+                                span .rdy-label "maude CLI"
+                                span .rdy-detail "On PATH — can reach its helpers."
+                                  code "/design:edit"
+                            li .rdy-row.rdy-row--present [data-testid="rdy-row-plugins"]
+                              span .rdy-ic [aria-hidden="true"]
+                                svg [aria-hidden="true"]
+                              span .rdy-tx
+                                span .rdy-label "Maude design plugin in Claude Code"
+                                span .rdy-detail "Bundled with this app — loads automatically in the chat session."
+                            li .rdy-row.rdy-row--present [data-testid="rdy-row-agent-browser"]
+                              span .rdy-ic [aria-hidden="true"]
+                                svg [aria-hidden="true"]
+                              span .rdy-tx
+                                span .rdy-label "Screenshot engine (design critics)"
+                                span .rdy-detail "Bundled — artboard screenshots for critics are ready."
+                                  code "/design:*"
+                            li .rdy-row.rdy-row--present [data-testid="rdy-row-adapter"]
+                              span .rdy-ic [aria-hidden="true"]
+                                svg [aria-hidden="true"]
+                              span .rdy-tx
+                                span .rdy-label "Claude agent bridge"
+                                span .rdy-detail "Bundled — the chat panel can spawn it."
+                          div .rdy-foot
+                            button .btn.btn--ghost.btn--sm.rdy-recheck [type="button"] "Re-check"
+                        div .chat-trust
+                          div .chat-trust-row "Runs on your Pro/Max subscription"
+                            svg [aria-hidden="true"]
+                          div .chat-trust-row "Signs in via Claude Code's own login — Maude never sees your credentials"
+                            svg [aria-hidden="true"]
+                          div .chat-trust-row "Never metered API billing"
+                            svg [aria-hidden="true"]
+                    div .chat-composer [data-testid="chat-composer"]
+                      div .chat-cmd-anchor
+                        form .chat-box
+                          div .chat-input-wrap
+                            div .chat-input-mirror [aria-hidden="true"]
+                            textarea .chat-input.chat-input--overlay [aria-label="Message to AI"] [placeholder="Ask AI…"] [name="input"]
+                          div .chat-toolbar
+                            div .ai-clip-wrap
+                              button .ai-clip.icon-btn [data-testid="ai-attach-clip"] [aria-label="Attach"] [aria-expanded="false"] [aria-haspopup="menu"] [title="Attach"] [type="button"]
+                                svg [aria-hidden="true"]
+                              input [data-testid="ai-attach-input"] [type="file"] [hidden]
+                            span .chat-toolbar-spacer
+                            button .chat-send [aria-label="Send message"] [type="button"] [disabled]
+                              svg [aria-hidden="true"]
+                    div .ai-adv [data-testid="ai-advanced-root"]
+                      div .ai-adv-fold [data-testid="ai-advanced-fold"]
+                        button .ai-adv-btn [data-testid="ai-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+                          span .ai-adv-ch
+                            svg [aria-hidden="true"]
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]
         span .island.st-corner.st-corner--ai
-          button .st-iconbtn [data-testid="panel-icon-assistant"] [aria-label="Open Assistant"] [title="Assistant"] [type="button"]
+          button .st-iconbtn [data-testid="panel-icon-assistant"] [aria-label="Ask AI ⌘/"] [title="Ask AI ⌘/"] [type="button"]
             svg [aria-hidden="true"]

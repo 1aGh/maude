@@ -31,6 +31,10 @@ span .island.st-pill
               span .st-pm-ic [aria-hidden="true"]
               span .st-pm-lab "Redo"
               span .kbd "⇧⌘Z"
+          div .st-pm-li [role="none"]
+            button .st-pm-row [data-testid="project-menu-row-edit.undo-history"] [role="menuitem"] [aria-disabled="true"] [type="button"] [tabindex="-1"]
+              span .st-pm-ic [aria-hidden="true"]
+              span .st-pm-lab "Undo history…"
           hr .st-pm-sep
           div .st-pm-li [role="none"]
             button .st-pm-row [data-testid="project-menu-row-edit.cut"] [role="menuitem"] [type="button"] [tabindex="-1"]
@@ -71,6 +75,8 @@ span .island.st-pill
             button .st-pm-row [data-testid="project-menu-row-select.all-annotations"] [role="menuitem"] [type="button"] [tabindex="-1"]
               span .st-pm-ic [aria-hidden="true"]
               span .st-pm-lab "Select all annotations"
+              span .kbd "⇧⌘A"
+          hr .st-pm-sep
           div .st-pm-li [role="none"]
             button .st-pm-row.st-pm-row--adv [data-testid="project-menu-row-sub-advanced"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
               span .st-pm-ic [aria-hidden="true"]
@@ -89,6 +95,7 @@ span .island.st-pill
           span .st-pm-lab "Help"
           span .st-pm-ch [aria-hidden="true"]
             svg [aria-hidden="true"]
+      hr .st-pm-sep
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]
@@ -103,6 +110,7 @@ span .island.st-pill
           span .st-pm-ic [aria-hidden="true"]
           span .st-pm-lab "Export…"
           span .kbd "⇧⌘E"
+      hr .st-pm-sep
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-sub-diagnostics"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]

@@ -29,11 +29,21 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
           span .st-pal-ltxt "s"
             mark .st-pal-mark "Export"
         span .st-pal-where "Menu › View"
-      button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+      button .is-quiet.st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
           span .st-pal-ltxt "Open all Advanced sections"
+        span .st-pal-where "Once · every panel"
+    div [data-testid="palette-group-tools"] [role="group"]
+      div .st-pal-group [role="presentation"] "Tools"
+      button .st-pal-item [data-testid="palette-row-tool:tool.slice"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+        span .st-pal-icon
+          svg [aria-hidden="true"]
+        span .st-pal-label
+          span .st-pal-ltxt "area"
+            mark .st-pal-mark "Export"
+        span .st-pal-where "Edit toolbar"
   div .st-pal-foot
     span .st-pal-hints
       span "move"
@@ -41,7 +51,7 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
         span .kbd "↓"
       span "open"
         span .kbd "↵"
-    span [data-testid="palette-count"] [role="status"] "3 results"
+    span [data-testid="palette-count"] [role="status"] "4 results"
 input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value="export"] {value="export"}
 div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
   div [data-testid="palette-group-actions"] [role="group"]
@@ -62,11 +72,21 @@ div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Resu
         span .st-pal-ltxt "s"
           mark .st-pal-mark "Export"
       span .st-pal-where "Menu › View"
-    button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    button .is-quiet.st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
         span .st-pal-ltxt "Open all Advanced sections"
+      span .st-pal-where "Once · every panel"
+  div [data-testid="palette-group-tools"] [role="group"]
+    div .st-pal-group [role="presentation"] "Tools"
+    button .st-pal-item [data-testid="palette-row-tool:tool.slice"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+      span .st-pal-icon
+        svg [aria-hidden="true"]
+      span .st-pal-label
+        span .st-pal-ltxt "area"
+          mark .st-pal-mark "Export"
+      span .st-pal-where "Edit toolbar"
 div [data-testid="palette-group-actions"] [role="group"]
   div .st-pal-group [role="presentation"] "Actions"
   button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
@@ -85,11 +105,12 @@ div [data-testid="palette-group-actions"] [role="group"]
       span .st-pal-ltxt "s"
         mark .st-pal-mark "Export"
     span .st-pal-where "Menu › View"
-  button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+  button .is-quiet.st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
     span .st-pal-icon
       svg [aria-hidden="true"]
     span .st-pal-label
       span .st-pal-ltxt "Open all Advanced sections"
+    span .st-pal-where "Once · every panel"
 button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
@@ -106,9 +127,26 @@ button .st-pal-item [data-testid="palette-row-action:view.exports"] [role="optio
     span .st-pal-ltxt "s"
       mark .st-pal-mark "Export"
   span .st-pal-where "Menu › View"
-button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+button .is-quiet.st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
     span .st-pal-ltxt "Open all Advanced sections"
-span [data-testid="palette-count"] [role="status"] "3 results"
+  span .st-pal-where "Once · every panel"
+div [data-testid="palette-group-tools"] [role="group"]
+  div .st-pal-group [role="presentation"] "Tools"
+  button .st-pal-item [data-testid="palette-row-tool:tool.slice"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+    span .st-pal-icon
+      svg [aria-hidden="true"]
+    span .st-pal-label
+      span .st-pal-ltxt "area"
+        mark .st-pal-mark "Export"
+    span .st-pal-where "Edit toolbar"
+button .st-pal-item [data-testid="palette-row-tool:tool.slice"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+  span .st-pal-icon
+    svg [aria-hidden="true"]
+  span .st-pal-label
+    span .st-pal-ltxt "area"
+      mark .st-pal-mark "Export"
+  span .st-pal-where "Edit toolbar"
+span [data-testid="palette-count"] [role="status"] "4 results"
