@@ -3716,6 +3716,9 @@
     "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zone-band": "v2 code (added after the freeze)",
     "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zone-cut": "v2 code (added after the freeze)",
     "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zone-flag": "v2 code (added after the freeze)",
-    "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zones": "v2 code (added after the freeze)"
+    "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zones": "v2 code (added after the freeze)",
+    "testid:studio/video-links-overlay.tsx#canvas/video-link-from-to": "v2 code (added after the freeze)",
+    "testid:studio/video-links-overlay.tsx#canvas/video-links": "v2 code (added after the freeze)",
+    "testid:studio/video-links-overlay.tsx#canvas/video-unlinked-id": "v2 code (added after the freeze)"
   }
 }
