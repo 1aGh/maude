@@ -310,6 +310,13 @@ const ACCEPTED = {
   'render-jobs/:id/file': (tg) => [
     ['GET', `${V1}/render-jobs/i_00000000000000000001/file${q(tg)}`],
   ],
+  // S10.18a — team libraries: a system's head, one revision, and a write that is never one.
+  ds: (tg) => [
+    ['GET', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/head`],
+    ['GET', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/revisions/${'0'.repeat(64)}`],
+    ['GET', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/tokens.json`],
+    ['POST', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/head`, '{}'],
+  ],
 };
 
 /** Name a pattern row by a probe path: the accepted route it matches. */
@@ -332,6 +339,7 @@ const PATTERN_PROBES = {
   'render-jobs': `${V1}/render-jobs`,
   'render-jobs/:id': `${V1}/render-jobs/i_00000000000000000001`,
   'render-jobs/:id/file': `${V1}/render-jobs/i_00000000000000000001/file`,
+  ds: `${V1}/ds/brand/head`,
 };
 
 /** The builder for a row: exact/prefix by key, a pattern by the probe it matches. */
