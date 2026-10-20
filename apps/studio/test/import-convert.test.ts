@@ -252,7 +252,10 @@ describe.skipIf(!onMac)(
       const outside = join(import.meta.dir, '.s822-sandbox-probe');
       rmSync(outside, { force: true });
       try {
-        const r = await runSandboxed('/usr/bin/touch', [outside], { work: tmp(), timeoutMs: 5_000 });
+        const r = await runSandboxed('/usr/bin/touch', [outside], {
+          work: tmp(),
+          timeoutMs: 5_000,
+        });
         expect(r.code).not.toBe(0);
         expect(existsSync(outside)).toBe(false);
       } finally {
