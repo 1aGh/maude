@@ -15,6 +15,7 @@ import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
 import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
 import { useDsRowDots } from './row-dots.js';
+import { DsSwitchHost } from './switch-host.jsx';
 import { DsTruthHost } from './truth-host.jsx';
 import { useDsUpdateDots } from './update-dots.js';
 import { bodyOf } from './update-available.jsx';
@@ -211,10 +212,21 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
       fetchImpl={fetchImpl}
     />
   );
-  if (!sheet) return truth;
+  // S10.14 — "Switch canvases to …?" and "Preview in …" ride the same mount
+  const switcher = (
+    <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+  );
+  if (!sheet)
+    return (
+      <>
+        {truth}
+        {switcher}
+      </>
+    );
   return (
     <>
       {truth}
+      {switcher}
       <DsReviewSheet
         key={`${sheet.ds}:${sheet.review.expectHead}`}
         review={sheet.review}

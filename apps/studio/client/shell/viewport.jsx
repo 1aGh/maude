@@ -3,6 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { canvasFrameCfg, canvasUrl } from '../canvas-url.js';
 import { CompareHost } from '../v2/history/compare-view.jsx';
+import { useDsPreviewTarget, withDsPreview } from '../v2/ds/preview-mode.js';
 import { useViewing } from '../v2/history/history-host.jsx';
 import { SYSTEM_TAB } from './constants.js';
 import { FilePreview, sanitizeDisplayText } from '../panels/file-preview.jsx';
@@ -93,22 +94,28 @@ export function Viewport({
   // S1.14 — Version history's Viewing: the held canvas is framed at that version (`?sha=`, read-only);
   // the frame is a different document, so it remounts (below) and comes back at now when the hold ends.
   const viewing = useViewing();
+  // S10.14 — "Preview in …": every open canvas is framed through `?dsPreview=<ds>` while the person steps
+  // through the systems; a session-only override (preview-mode.js), never stored.
+  const dsPreview = useDsPreviewTarget();
   // S6.12 (C5) — what the open canvases say about drawing: one listener for every frame. The card is below.
   const wsSend = useContext(ShellStoreContext)?.local?.wsSend;
   const renderSignal = useRenderSignal({ cfg, wsSend, viewingPath: viewing?.path ?? null });
   const stableSrc = (path) => {
-    const opts = viewing?.path === path ? { viewing: viewing.at } : undefined;
+    const held = viewing?.path === path ? { viewing: viewing.at } : undefined;
+    const opts = withDsPreview(held, dsPreview);
     // A frame that changes between now and a past version is a new frame: the entry it comes back to is
     // built afresh, so it carries the capability that is live THEN, not the one of the first open.
+    // The same holds for a frame entering or leaving a design-system preview, or stepping to another system.
     for (const [k, e] of srcCache.current)
-      if (e.path === path && !!e.viewing !== !!opts) srcCache.current.delete(k);
+      if (e.path === path && (!!e.viewing !== !!held || (e.preview ?? null) !== dsPreview))
+        srcCache.current.delete(k);
     // A head that moves is a swap at the next look (v2/ds/use-ds-frames.js), not a new frame:
     // `canvasFrameCfg` leaves the head out of the identity.
     const bare = canvasUrl(path, canvasFrameCfg(cfg), opts);
     const key = `${path}#${canvasReloadNonce}|${bare}`;
     let entry = srcCache.current.get(key);
     if (!entry) {
-      entry = { path, src: canvasUrl(path, cfg, opts), viewing: !!opts };
+      entry = { path, src: canvasUrl(path, cfg, opts), viewing: !!held, preview: dsPreview };
       srcCache.current.set(key, entry);
     }
     return entry.src;

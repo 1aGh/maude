@@ -274,6 +274,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'file-plane',
     rows: 'config.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas) + revisions + head.json, last — Plane B only (ds/make.ts, S10.16a)',
   },
+  '/_api/ds/switch': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta lane.replace ops, plus the TSX where a data-ds-rev pin goes) for every switched canvas (ds/switch.ts, S10.14); nothing on Plane B',
+    test: 'test/ds-switch.test.ts',
+  },
   '/_api/ds/default': {
     class: 'file-plane',
     rows: "config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only",

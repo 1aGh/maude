@@ -247,6 +247,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     '/_api/ds/make',
     // S10.13 — the project's default design system (config.json)
     '/_api/ds/default',
+    // S10.14 — move canvases to another design system
+    '/_api/ds/switch',
   ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
   { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];

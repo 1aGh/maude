@@ -101,6 +101,34 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `canvases-ds-head` | testid | The "Design systems · 2 in use" line over the pinned rows, drawn once more than one system is in use. | `client/v2/left-panel/canvases-pinned.jsx` · `DsPinnedRows` | — | new |
 | `canvases-ds-make` | testid | The empty row of a project with no design system: "Make a design system" (runs ds.make). | `client/v2/left-panel/canvases-pinned.jsx` · `DsPinnedRows` | — | new |
 | `inspector-uses-link` | testid | The inspector’s "Uses <design system>" as a button: opens that system’s Design system canvas (ds.go-to). `data-ds` carries the system. | `client/v2/ds/uses-link.jsx` · `UsesLink` | — | new |
+| `ds-switch-scrim` | testid | S10.14: The dim backdrop behind the "Switch canvases to …?" sheet. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch` | testid | S10.14: The "Switch canvases to …?" sheet (dialog); `data-to` is the system the canvases move to. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-title` | testid | S10.14: The sheet title, "Switch canvases to Alligators brand?" (the verb the button repeats). | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-scope` | testid | S10.14: The Scope segments: This canvas · Folder · <folder> · Whole project. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-scope-<id>` | testid | S10.14: One Scope segment (`<id>` = canvas, folder or all); `aria-pressed` marks the one in force. Picking another asks the server for a new review. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-to` | testid | S10.14: The target-system select, drawn when the project has more than two systems. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-head-tick` | testid | S10.14: The tick over the list: switch every canvas that can move, or none. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-head` | testid | S10.14: The count line, "5 of 6 canvases in 2026/combine". | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-list` | testid | S10.14: The list of canvases the switch would move (grouped by folder from twelve canvases). | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-row` | testid | S10.14: One canvas row; `data-path` is its design-root-relative path, `data-locked` marks a pinned or blocked canvas. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-tick` | testid | S10.14: A canvas's tick (`data-path`); disabled for a pinned or blocked canvas. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-note` | testid | S10.14: The quiet line under a canvas's name: the system it is in now, or why it keeps its look. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-folder` | testid | S10.14: A folder row in the grouped list (`data-folder`). | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-folder-tick` | testid | S10.14: A folder's tick (`data-folder`): switch every canvas of the folder that can move. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-line` | testid | S10.14: "Both follow the schema — core roles and components swap; the display ramp and illustration palette pair by kind." (`data-tone` ok | warn). | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-refused` | testid | S10.14: Shown instead of the line when a system at level 11 is in the switch: bring it up to the schema first. Switch is disabled. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-ai-row` | testid | S10.14: The AI row: "AI restyles <system>'s N own tokens", drawn only when the ticked canvases own something and an AI can be asked. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-ai` | testid | S10.14: The AI row's switch (`role=switch`): on, the person's Claude account restyles after the switch (origin `ds-restyle`); off, the canvases keep their look, marked off-system. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-fine` | testid | S10.14: "Version history keeps the old look." | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-error` | testid | S10.14: A refusal from the server, in words, under the list. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-cancel` | testid | S10.14: Cancel the switch; nothing changes. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-switch-go` | testid | S10.14: The primary button, "Switch 5 canvases": one action, one ⌘Z. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-preview-bar` | testid | S10.14: "Preview in …" — the menu and the banner while the project is looked at in another system (`data-target`). Session-only. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-preview-menu` | testid | S10.14: The systems menu (`role=listbox`): ↑↓ step, ↵ opens the switch review, esc stops. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-preview-option` | testid | S10.14: One system in the preview menu (`data-ds`); `data-highlight` marks the one being looked at. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-preview-banner` | testid | S10.14: "Previewing Studio site in Warm paper." with "5 canvases shown in it · esc to stop". | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-preview-switch` | testid | S10.14: The banner's "Switch…": opens the switch review for the previewed system. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-preview-stop` | testid | S10.14: The banner's "Stop previewing": every canvas renders in its own system again. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `canvases-trash-row` | testid | The Canvases panel's last row: Trash and its count. Click opens the Trash list. | `client/v2/left-panel/canvases-pinned.jsx` · `TrashRow` | — | stable — re-emit |
 | `canvases-trash` | testid | The Trash list that replaces the Canvases list while it is open. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
 | `canvases-trash-back` | testid | Back from the Trash list to the Canvases list. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |

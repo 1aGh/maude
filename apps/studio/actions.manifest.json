@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "812a240e8efc",
+  "manifestVersion": "2dfeaa9c6534",
   "actions": [
     {
       "id": "search.open",
@@ -5727,6 +5727,35 @@
       "agent": {
         "path": "cli",
         "verb": "maude design ds default <ds>"
+      }
+    },
+    {
+      "id": "ds.switch",
+      "label": "Switch canvases to another system…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/switch",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds switch <canvas|folder|--all> --to <ds> [--dry-run]"
+      }
+    },
+    {
+      "id": "ds.preview",
+      "label": "Preview in another system…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a person looking at the project in another system (session-only, nothing stored); an agent screenshots the canvas URL with that system’s files: `&tokens=<ds.path>/colors_and_type.css&components=<ds.path>/preview/_components.css`"
       }
     }
   ],

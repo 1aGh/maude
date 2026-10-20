@@ -317,6 +317,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/make': { safe: null, unsafe: 'edit' }, // S10.16a — make a system, write a direction, finish it
   '/_api/ds/make-state': { safe: 'read', unsafe: null },
   '/_api/ds/default': { safe: null, unsafe: 'edit' }, // S10.13 — the project's default design system
+  '/_api/ds/switch': { safe: null, unsafe: 'edit' }, // S10.14 — move canvases to another design system
   // S1.18 — entry → path. The studio reads each session's claim per request (S9.9, http.ts
   // `links.scope`): a canvas-only visitor resolves only its granted canvases, every other entry is
   // `unknown` (history/links.ts — no existence oracle). A read: anyone who may view may follow a link.

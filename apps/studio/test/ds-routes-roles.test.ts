@@ -73,6 +73,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/make', { ds: 'forge', action: 'make', label: 'Forge' }],
   // S10.13 — the project's default system (config.json)
   ['/_api/ds/default', { ds: DS }],
+  // S10.14 — move canvases to another system (Can edit on the whole project)
+  ['/_api/ds/switch', { to: DS, all: true }],
 ];
 
 describe('ds routes — roles (Q15)', () => {
@@ -168,7 +170,11 @@ describe('ds routes — roles (Q15)', () => {
     expect(rev.text.replace(DS, 'X')).toBe(revMissing.text.replace('nope', 'X'));
     for (const [route, body] of WRITES.filter(([r]) => r !== '/_api/ds/canvas')) {
       const seen = await call(specs, 'POST', route, body);
-      const missing = await call(specs, 'POST', route, { ...body, ds: 'nope' });
+      const missing = await call(specs, 'POST', route, {
+        ...body,
+        ds: 'nope',
+        ...('to' in body ? { to: 'nope' } : {}), // /_api/ds/switch names its system `to`
+      });
       expect({ route, status: seen.status }).toEqual({ route, status: missing.status });
       expect(seen.text.replace(DS, 'X')).toBe(missing.text.replace('nope', 'X'));
     }

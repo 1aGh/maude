@@ -31118,5 +31118,453 @@
       "test:v2-help-add-guides"
     ],
     "v2": "new in v2 (S6.15)"
+  },
+  {
+    "hook": "ds-switch-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The dim backdrop behind the \"Switch canvases to …?\" sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The \"Switch canvases to …?\" sheet (dialog); `data-to` is the system the canvases move to.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The sheet title, \"Switch canvases to Alligators brand?\" (the verb the button repeats).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The Scope segments: This canvas · Folder · <folder> · Whole project.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-scope-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.14: One Scope segment (`<id>` = canvas, folder or all); `aria-pressed` marks the one in force. Picking another asks the server for a new review.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-to",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The target-system select, drawn when the project has more than two systems.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-head-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The tick over the list: switch every canvas that can move, or none.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-head",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The count line, \"5 of 6 canvases in 2026/combine\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The list of canvases the switch would move (grouped by folder from twelve canvases).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: One canvas row; `data-path` is its design-root-relative path, `data-locked` marks a pinned or blocked canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: A canvas's tick (`data-path`); disabled for a pinned or blocked canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The quiet line under a canvas's name: the system it is in now, or why it keeps its look.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: A folder row in the grouped list (`data-folder`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-folder-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: A folder's tick (`data-folder`): switch every canvas of the folder that can move.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: \"Both follow the schema — core roles and components swap; the display ramp and illustration palette pair by kind.\" (`data-tone` ok | warn).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: Shown instead of the line when a system at level 11 is in the switch: bring it up to the schema first. Switch is disabled.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-ai-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The AI row: \"AI restyles <system>'s N own tokens\", drawn only when the ticked canvases own something and an AI can be asked.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The AI row's switch (`role=switch`): on, the person's Claude account restyles after the switch (origin `ds-restyle`); off, the canvases keep their look, marked off-system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-fine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: \"Version history keeps the old look.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: A refusal from the server, in words, under the list.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: Cancel the switch; nothing changes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The primary button, \"Switch 5 canvases\": one action, one ⌘Z.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-preview-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: \"Preview in …\" — the menu and the banner while the project is looked at in another system (`data-target`). Session-only.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/preview-bar.jsx",
+      "symbol": "DsPreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-preview-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The systems menu (`role=listbox`): ↑↓ step, ↵ opens the switch review, esc stops.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/preview-bar.jsx",
+      "symbol": "DsPreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-preview-option",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: One system in the preview menu (`data-ds`); `data-highlight` marks the one being looked at.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/preview-bar.jsx",
+      "symbol": "DsPreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-preview-banner",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: \"Previewing Studio site in Warm paper.\" with \"5 canvases shown in it · esc to stop\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/preview-bar.jsx",
+      "symbol": "DsPreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-preview-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The banner's \"Switch…\": opens the switch review for the previewed system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/preview-bar.jsx",
+      "symbol": "DsPreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-preview-stop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14: The banner's \"Stop previewing\": every canvas renders in its own system again.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/preview-bar.jsx",
+      "symbol": "DsPreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-switch-sheet.test.tsx"
+    ],
+    "v2": "new"
   }
 ]
