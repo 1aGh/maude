@@ -38,6 +38,9 @@ export const CLIP_VERB_LABELS = {
   'video.fit': 'set how the picture sits',
   'video.title.motion': 'set title motion',
   'video.transition.set': 'set transition',
+  // S7.11 — edit by transcript and the captions (the Transcript panel, the caption lane, the Captions inspector)
+  'cut-source-range': 'cut words',
+  'video.captions.add': 'edit captions',
 };
 
 const REFUSAL_WORD = {
@@ -57,7 +60,7 @@ export function clipVerbRefusal(verb) {
 }
 
 /** Verbs that name no existing clip (a drop adds one). */
-const CLIPLESS_VERBS = new Set(['insert']);
+const CLIPLESS_VERBS = new Set(['insert', 'video.captions.add']);
 
 const mmss = (frame, fps) => {
   const s = Math.max(0, Math.floor(Math.max(0, frame) / Math.max(1, Math.round(fps || 30)) + 1e-9));

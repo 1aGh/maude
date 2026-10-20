@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "27bd1489bf61",
+  "manifestVersion": "80b868ebbf32",
   "actions": [
     {
       "id": "search.open",
@@ -3317,6 +3317,18 @@
       "agent": {
         "path": "cli",
         "verb": "maude design captions add"
+      }
+    },
+    {
+      "id": "video.transcript.open",
+      "label": "Transcript",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the Transcript panel is a per-person view; an agent reads the same words with `maude design captions list`"
       }
     },
     {

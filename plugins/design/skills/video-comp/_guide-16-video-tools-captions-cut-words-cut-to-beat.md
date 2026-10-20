@@ -41,3 +41,13 @@ Linked formats are artboards whose `<VideoComp component={X}>` name the same com
 cut. To add one, copy the video `DCArtboard` with a new id and size and keep `component={X}`. To
 unlink one, copy the comp under a new name and point that artboard at it. Another take of a clip is
 a new `trimBefore` (output frames) at the same `durationInFrames`.
+
+## The Transcript panel is the same words and the same ops
+
+In the studio, the **Transcript** panel (the island's Captions from speech tool, a double-click on a caption word, or
+⌘K › Transcript) shows `maude design captions list` as text. Selecting words and pressing delete runs
+`clip.cut-source-range` — exactly what `cut-words` sends; typing over a word writes one `{ src, at, text }` into this
+comp's `<Captions fixes>` (the middle of the word, in source seconds, so a re-transcribe keeps it); a word whisper
+repeated three times or more (`flags: ["loop"]`) stays out of the captions until a fix names it ("May be noise, not
+speech" → *It is speech*). Fixes belong to **this** video: the `.transcript.json` is the engine's reading and is never
+edited. The panel has no op of its own — an agent that edits the file or runs the verbs gets the same bytes.

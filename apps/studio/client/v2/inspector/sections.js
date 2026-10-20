@@ -129,6 +129,14 @@ export const SECTIONS = Object.freeze(
         'The words, how they come in — None, Fade, Slide up, Pop, Type on or Per word — and how long the title stays.',
     },
     {
+      // S7.11 (07 ve-captions): the captions you select on the Text track — drawn for that kind only.
+      n: 25,
+      id: 'captions',
+      title: 'Captions',
+      explain:
+        'How the words under the picture look: the font, the colour of the word being said, where they sit and how many show at once. The words themselves are in the Transcript.',
+    },
+    {
       n: 10,
       id: 'export',
       title: 'Export',
