@@ -7,7 +7,8 @@
 //   · a project with canvases  by the dominant artboard kind (V2-1.17 `counts.byKind`): print / video /
 //                              digital, else the web set — and "for <project>" is its own name
 // Every line is a sentence from the canvases (01/02 Home, 05 es-home-*). A starter FILLS the prompt and
-// does not send; "Bring my existing brand" is not a sentence — it is the `import-brand` intent.
+// does not send; "Bring my existing brand" is not a sentence — it is the `import-brand` intent, and (S10.16c, 13 ·
+// ds-make-inputs) "A design system" is the `make-ds` intent: the target's window opens the three-input sheet.
 // Pure; art is the name of a small lifted illustration (home.css `.home-art--*`).
 
 /** The one starter that is an action, not a sentence. Runs `import-brand` in the target. */
@@ -18,6 +19,23 @@ export const BRAND_STARTER = Object.freeze({
   art: 'moodboard',
   intent: 'import-brand',
 });
+
+/**
+ * S10.16c — "A design system", the starter that is not a sentence either: it parks the `make-ds` intent in the
+ * target project, whose window opens the three-input sheet (`ds.make`, 13 · ds-make-inputs). "for <project>" is its
+ * own name, like the logo starter it replaces. Home cannot see whether the project already has a system; the sheet
+ * names a second one apart from the first.
+ */
+const dsFor = (name) =>
+  Object.freeze({
+    id: 'ds',
+    title: 'A design system',
+    detail: `for ${name}`,
+    art: 'brand',
+    intent: 'make-ds',
+  });
+/** The shape of the starter, for a caller that has no project name. */
+export const DS_STARTER = dsFor('your brand');
 
 const s = (id, title, detail, prompt, art) => Object.freeze({ id, title, detail, prompt, art });
 
@@ -107,12 +125,12 @@ export function pickStarters({ target, signedIn }) {
   if (target.canvases === 0) return [LANDING, logosFor(name), BRAND_STARTER];
   switch (dominantKind(target.byKind)) {
     case 'print':
-      return [POSTER, logosFor(name), FLYER];
+      return [dsFor(name), POSTER, FLYER];
     case 'video':
-      return [TITLE_CARD, logosFor(name), PRICING];
+      return [dsFor(name), TITLE_CARD, PRICING];
     case 'digital':
-      return [ONBOARDING, PRICING, logosFor(name)];
+      return [dsFor(name), ONBOARDING, PRICING];
     default:
-      return [PRICING, logosFor(name), ONBOARDING];
+      return [dsFor(name), PRICING, ONBOARDING];
   }
 }

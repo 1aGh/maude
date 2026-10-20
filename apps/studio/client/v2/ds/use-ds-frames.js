@@ -39,7 +39,7 @@ export function dsFrameState(key, cfg) {
 export function postDsThemePreview(frame, mode, origin) {
   if (mode !== 'light' && mode !== 'dark') return false;
   try {
-    frame?.contentWindow?.postMessage({ type: 'maude:ds-theme-preview', mode }, origin);
+    frame?.contentWindow?.postMessage({ dgn: 'ds-theme-preview', mode }, origin);
     return !!frame?.contentWindow;
   } catch {
     return false; // detached

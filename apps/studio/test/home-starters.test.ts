@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 
-import { BRAND_STARTER, pickStarters } from '../client/home/home-starters.js';
+import { BRAND_STARTER, DS_STARTER, pickStarters } from '../client/home/home-starters.js';
 
 const lines = (s: Array<{ title: string; detail: string }>) =>
   s.map((x) => `${x.title} | ${x.detail}`);
@@ -37,8 +37,8 @@ describe('pickStarters', () => {
       signedIn: true,
     });
     expect(lines(s)).toEqual([
+      'A design system | for Alligators brand',
       'A pricing page | with a yearly toggle',
-      'Three logo ideas | for Alligators brand',
       'An onboarding flow | four screens, mobile',
     ]);
   });
@@ -48,7 +48,8 @@ describe('pickStarters', () => {
       target: { kind: 'local', name: 'Club', canvases: 9, byKind: { print: 6, web: 2 } },
       signedIn: false,
     });
-    expect(s[0].title).toBe('A matchday poster');
+    expect(s[0].title).toBe('A design system');
+    expect(s[1].title).toBe('A matchday poster');
     expect(s.some((x: { detail: string }) => x.detail === 'for Club')).toBe(true);
   });
 
@@ -61,6 +62,31 @@ describe('pickStarters', () => {
     expect(s[2]).toEqual(BRAND_STARTER);
     expect(BRAND_STARTER.title).toBe('Bring my existing brand');
     expect(BRAND_STARTER.intent).toBe('import-brand');
+  });
+
+  test('S10.16c: "A design system" leads a project that has canvases and opens the make sheet, it does not fill the prompt', () => {
+    for (const byKind of [{ web: 3 }, { print: 2 }, { video: 1 }, { digital: 4 }]) {
+      const s = pickStarters({
+        target: { kind: 'local', name: 'Studio site', canvases: 5, byKind },
+        signedIn: true,
+      });
+      expect(s).toHaveLength(3);
+      expect(s[0].id).toBe('ds');
+    }
+    expect(DS_STARTER.title).toBe('A design system');
+    expect(DS_STARTER.intent).toBe('make-ds');
+    expect((DS_STARTER as { prompt?: string }).prompt).toBeUndefined();
+    // named after the project, like "Three logo ideas"
+    const named = pickStarters({
+      target: { kind: 'local', name: 'Club', canvases: 5, byKind: { web: 1 } },
+      signedIn: true,
+    })[0];
+    expect(named.detail).toBe('for Club');
+    // a new project and an empty one have nothing for a system to learn from: their sets stay
+    const ids = (target: object) =>
+      pickStarters({ target, signedIn: true } as never).map((x: { id: string }) => x.id);
+    expect(ids({ kind: 'new' })).not.toContain('ds');
+    expect(ids({ kind: 'local', name: 'X', canvases: 0, byKind: {} })).not.toContain('ds');
   });
 
   test('always three, each with a sentence that fills the prompt and does not send', () => {

@@ -4,10 +4,11 @@
 //
 // Light | Dark is the SYSTEM's own mode (a class + `data-theme` on each section, V2-1.6 §5.2). It is
 // a viewing preference of this one canvas; it never writes `<html>`, never the app's theme, and is
-// not persisted. A parent (the app's `ds.set-theme-preview` action) reaches it by postMessage
-// `{ type: 'maude:ds-theme-preview', mode }`; `?dsMode=dark` starts it Dark.
+// not persisted. A parent (the app's `ds.set-theme-preview` action) reaches it by the dgn message
+// `{ dgn: 'ds-theme-preview', mode }` (bridge/dgn-protocol.ts); `?dsMode=dark` starts it Dark.
 
 import { useSyncExternalStore } from 'react';
+import { acceptFromShell } from '../../bridge/dgn-protocol.ts';
 import { type BoardMarks, type BoardMode, type BoardModel, cleanMarks, NO_MARKS } from './types.ts';
 
 let model: BoardModel | null = null;
@@ -76,10 +77,12 @@ export function listenForThemePreview(): void {
   }
   window.addEventListener('message', (e: MessageEvent) => {
     // only the studio shell that framed this canvas may change the preview
-    if (e.source !== window.parent) return;
-    const d = e.data as { type?: unknown; mode?: unknown } | null;
-    if (d && d.type === 'maude:ds-theme-preview') setBoardMode(d.mode as BoardMode);
-    if (d && d.type === 'maude:ds-marks') setBoardMarks(d);
+    if (e.source !== window.parent || !e.data) return;
+    // S10.16c: the typed dgn messages (bridge/dgn-protocol.ts), parsed and capped by the table
+    const m = acceptFromShell(e, window);
+    if (!m) return;
+    if (m.dgn === 'ds-theme-preview') setBoardMode(m.mode);
+    else if (m.dgn === 'ds-marks') setBoardMarks(m);
   });
   emit();
 }

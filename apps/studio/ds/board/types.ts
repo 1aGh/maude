@@ -286,7 +286,7 @@ export function boardComponentsCss(model: BoardModel): string {
 
 /**
  * Tokens the studio says changed outside the app (S10.11, 13 · ds-truth-outside) or sit in two places
- * (13 · ds-truth-conflict). They arrive from the shell as `maude:ds-marks`; the board only flags them.
+ * (13 · ds-truth-conflict). They arrive from the shell as the dgn message `ds-marks`; the board only flags them.
  */
 export interface BoardMarks {
   outside: string[];

@@ -102,7 +102,7 @@ export function postDsMarks(frame, marks, origin) {
   try {
     frame?.contentWindow?.postMessage(
       {
-        type: 'maude:ds-marks',
+        dgn: 'ds-marks',
         outside: Array.isArray(marks?.outside) ? marks.outside : [],
         conflicts: Array.isArray(marks?.conflicts) ? marks.conflicts : [],
       },

@@ -488,9 +488,11 @@ export function usePaletteAndPanels({
         designRel: cfg.designRel,
         projectName: cfg?.cloud?.projectName || project || '',
         canAskAI: () => isNativeApp() && !viewerMode,
-        askAI: (text) => {
+        // S10.16c — `opts` ({ send, origin }) goes on to the composer, which sends only for the DS origins and
+        // only through its gates; a viewer's ask never asks to send (the composer checks the role again).
+        askAI: (text, opts) => {
           openPanelExclusive('assistant');
-          sendToAskAI(text);
+          sendToAskAI(text, globalThis, viewerMode ? { ...opts, send: false } : opts);
         },
         openCanvas: openCanvasAt,
       }),

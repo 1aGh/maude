@@ -285,13 +285,13 @@ describe('ds.set-theme-preview → the active canvas, once, in its own origin', 
     });
     handlers['ds.set-theme-preview']?.({ mode: 'dark' });
     expect(asked).toEqual(['dark']);
-    expect(a.win.sent.filter(([m]) => m.type === 'maude:ds-theme-preview')).toEqual([
-      [{ type: 'maude:ds-theme-preview', mode: 'dark' }, ORIGIN],
+    expect(a.win.sent.filter(([m]) => m.dgn === 'ds-theme-preview')).toEqual([
+      [{ dgn: 'ds-theme-preview', mode: 'dark' }, ORIGIN],
     ]);
     expect(b.win.sent).toHaveLength(0);
     // a mode that is not Light or Dark posts nothing
     handlers['ds.set-theme-preview']?.({ mode: 'sepia' });
     handlers['ds.set-theme-preview']?.(undefined);
-    expect(a.win.sent.filter(([m]) => m.type === 'maude:ds-theme-preview')).toHaveLength(1);
+    expect(a.win.sent.filter(([m]) => m.dgn === 'ds-theme-preview')).toHaveLength(1);
   });
 });

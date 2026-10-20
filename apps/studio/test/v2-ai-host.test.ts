@@ -347,7 +347,10 @@ describe('nothing deleted: every v1 control the move carried is still emitted', 
 
   test('the ⌘K Ask AI contract is unchanged: the composer still takes the parked text, capped, never sent', () => {
     const c = read('client/v2/ai/Composer.jsx');
-    expect(c).toContain('subscribeAskAI((t) => composerRuntime.setText(t))');
+    // S10.16c: the take moved into use-ask-ai.js (fills always; sends only for a DS origin through the gates —
+    // test/v2-ask-ai-send.test.tsx). Composer.jsx itself still never sends.
+    expect(c).toContain('useAskAI({ composerRuntime, active, unavailable, viewer, running })');
+    expect(read('client/v2/ai/use-ask-ai.js')).toContain('composerRuntime.setText(text)');
     expect(c).not.toMatch(/composerRuntime\.send\(/);
   });
 });

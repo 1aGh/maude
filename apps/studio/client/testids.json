@@ -10937,7 +10937,7 @@
     "hook": "home-starter-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One of the three starters under the question (`<id>` from home-starters.js, or `brand`): a click fills the prompt and does not send; `brand` is the import-brand intent.",
+    "meaning": "One of the three starters under the question (`<id>` from home-starters.js, or `brand` / `ds`): a click fills the prompt and does not send; `brand` is the import-brand intent and `ds` (S10.16c) the make-ds intent that opens the make sheet in the target.",
     "producer": {
       "file": "apps/studio/client/home/Starters.jsx",
       "symbol": "Starters"

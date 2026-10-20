@@ -339,3 +339,33 @@ describe('S6.3 startIntentConsumer — taken once', () => {
     expect(sh.nudges).toHaveLength(0);
   });
 });
+
+describe('S10.16c make-ds — Home’s "A design system" starter', () => {
+  test('a fifth kind; it carries no sentence into the sheet (an empty prompt, like create-empty)', async () => {
+    const { validateIntent, INTENT_KINDS } = await import('../client/v2/create/take-intent.js');
+    expect([...INTENT_KINDS]).toContain('make-ds');
+    expect(validateIntent({ kind: 'make-ds' })).toEqual({
+      kind: 'make-ds',
+      prompt: '',
+      moveToCloud: false,
+    });
+    expect(validateIntent({ kind: 'make-ds', prompt: 'a calm studio' })).toBeNull();
+    expect(validateIntent({ kind: 'make-ds ', prompt: '' })).toBeNull();
+  });
+
+  test('it runs `ds.make` (the three-input sheet) and creates nothing', async () => {
+    const { runIntent } = await import('../client/v2/create/take-intent.js');
+    const { d, log, f } = deps();
+    expect(await runIntent({ kind: 'make-ds' }, d)).toEqual({ ok: true });
+    expect(log).toEqual(['action:ds.make']);
+    expect(f.calls).toHaveLength(0);
+  });
+
+  test('a Can view / Can comment project refuses with the role line and opens no sheet', async () => {
+    const { runIntent } = await import('../client/v2/create/take-intent.js');
+    const { d, log, toasts } = deps({ canEdit: () => false });
+    expect(await runIntent({ kind: 'make-ds' }, d)).toEqual({ ok: false, reason: 'role' });
+    expect(toasts.map((t) => t.m)).toEqual([ROLE]);
+    expect(log).toEqual([]);
+  });
+});
