@@ -13,7 +13,8 @@ Turns raw footage into a finished, editable cut. This is the **front half** the
 `video-comp` skill never had: Maude **understands the footage first** (finds the
 good shots, reads the character of each clip), then directs them like an editor
 into a `<TransitionSeries>` composition with titles/graphics — which you can then
-scrub on the Timeline and export to MP4 (DDR-148 capture spine, no binaries).
+scrub on the timeline that comes with a video artboard and export to MP4 (DDR-148
+capture spine, no binaries).
 
 **Vision-only.** Analysis looks at frames, never audio. A music track (if you
 pass `--music`) rides UNDER the finished cut as a plain `<Audio>` layer; it does
@@ -43,8 +44,9 @@ skill **`video-comp`** (the Remotion iron rules) before generating.
 
 1. Resolve config + designRoot (`maude design prep --shell-export --root "$REPO"` /
    `bootstrap-check`). Fail loud if there's no `.design/`.
-2. Ensure the dev server is up and capture the port: `PORT=$(maude design server-up --root "$REPO")`.
-   The analyst/director write through the loopback `/_api/footage` route on this port.
+2. Make sure Maude is running and capture the port: `PORT=$(maude design server-up --root "$REPO")`.
+   The analyses and the EDL are saved through it, on the loopback `/_api/footage` route
+   (no verb exists for that write).
 
 ## Step 1 — Ingest the footage → content-addressed assets
 
@@ -217,15 +219,18 @@ in the command; nothing paid runs without the explicit `AskUserQuestion` yes.
 
 ## Step 4 — Generate the composition (codegen — skill `footage-director`)
 
-> **Maude 2 — the shots are placed, not written.** When `maude design reel-place` is available, place the
-> EDL's shots with `maude design reel-place <slug> --next --canvas <canvas>#<artboard>`, once per shot,
-> until it exits 4 ("All shots are placed") — they land live, Stop keeps the shots placed, and the cut is
-> one ⌘Z (skill `footage-director`, "Place the cut shot by shot"). Give the shots beat-grid lengths when
-> there is music (`maude design beats` first). The hand codegen below stays for the rest of the comp
-> (overlays, audio, captions) and for a Maude 1.x install.
+> **The shots are placed, not written.** Place the EDL's shots with
+> `maude design reel-place <slug> --next --canvas <canvas>#<artboard>`, once per shot, until it exits 4
+> ("All shots are placed"). They land live on the video artboard's timeline, with an AI tag on the edge
+> being cut; Stop keeps the shots placed, and the whole cut is one ⌘Z (skill `footage-director`, "Place
+> the cut shot by shot"). Give the shots beat-grid lengths when there is music (`maude design beats`
+> first). The codegen below writes the rest of the comp (overlays, audio, captions).
 
-Read the EDL (`GET /_api/footage?slug=<slug>`) and generate
-`<designRoot>/ui/<Name>.tsx` following the skill's **EDL → `<TransitionSeries>`
+Make the canvas the way `/design:new` does (its step 3): `POST /_api/canvas` through
+`maude design curl-local`, with `name` = `<Name>` and `kind: "blank"`. Never write the `.tsx` or its
+`.meta.json` by hand. Then read the EDL (`GET /_api/footage?slug=<slug>`) and **Edit** the new canvas
+`<designRoot>/<rel>` (the `rel` the create answered) to add one video artboard carrying the comp,
+following the skill's **EDL → `<TransitionSeries>`
 codegen contract**: one **literal** `<TransitionSeries.Sequence name>` block per
 beat (NEVER `.map()`), `<OffthreadVideo startFrom>` for each in-point, literal-sum
 `TOTAL`, DS-token'd overlays, the `<Audio>` bed if `music` is set, **layered
@@ -233,8 +238,8 @@ beat (NEVER `.map()`), `<OffthreadVideo startFrom>` for each in-point, literal-s
 caption overlay for `captions`** (feature-ai-media-generation Phase 2 — generated
 music/voiceover from ElevenLabs, subtitles from `maude design transcribe`; see the
 skill's Audio/Captions codegen bullets), and the `<VideoComp>` meta from the EDL's
-fps/dimensions. Write a `<Name>.meta.json` sidecar (title/subtitle/tags
-`["reel","video"]`) as `/design:new` does.
+fps/dimensions. The video artboard brings the timeline with it; set the canvas's
+title/subtitle/tags `["reel","video"]` through the canvas's own meta edit, as `/design:new` does.
 
 > **Audio in export:** `<Audio>` tracks are carried by the primary
 > `renderMediaOnWeb` export path. The frame-step fallback (used when
@@ -250,8 +255,10 @@ fps/dimensions. Write a `<Name>.meta.json` sidecar (title/subtitle/tags
 2. **Motion over time** (DDR-094/DDR-148): screenshot two different frames (or
    scrub) and confirm the frame changes — a frozen video passes a single
    screenshot. 
-3. Unless `--no-critic`: spawn the **motion-critic** (always — the comp animates)
-   and **design-critic** on the canvas. Apply blocker fixes.
+3. Unless `--no-critic`: review the canvas with the **motion-critic** (always — the comp
+   animates) and the **design-critic**, each spawned on a hand-off as `/design:critic` does
+   (`--agent motion-critic`, `--agent design-critic`). Apply blocker fixes. This loop never
+   posts comments; only an explicit `/design:critic` does.
 
 ### Step 5.5 — Record the reel decision (kgai — when active)
 
@@ -267,8 +274,8 @@ Add one `USES` link per distinct `beats[].clip`. Skip silently when inactive. *(
 
 - The generated canvas path + the EDL path.
 - Clips ingested / analyzed / used; beats; approx duration; anything skipped.
-- Next step: **scrub** in the Player / Timeline (View → Timeline), tweak beats by
-  hand, then `/design:export mp4 --scope artboard`.
+- Next step: **scrub** the timeline of the video artboard (it comes with the artboard),
+  tweak beats by hand, then `/design:export mp4 --scope artboard`.
 - Surface the Remotion license note once (per `video-comp`).
 
 ## Notes

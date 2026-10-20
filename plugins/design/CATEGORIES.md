@@ -22,8 +22,8 @@ Default verbs. No prefix. Members:
 | `/design:edit` | Iterate on the active canvas with auto-critic loop |
 | `/design:new` | Scaffold a new multi-artboard canvas project (or, with `--blank`, an annotation-only **brief board**; ingests a board's notes when run on an annotated brief-board) |
 | `/design:draw` | Generate a verified SVG mark (logo / icon / illustration / diagram / spot) via the geometry engine + visual self-verify loop |
-| `/design:generate` | Generate media from your own AI provider key (BYOK — Nano Banana image v1; audio/video later) and land it on the canvas — key resolved server-side, skill `ai-generation` |
-| `/design:photo` | Edit a photo in the active canvas headlessly — adjustments / duotone / grain / pattern / mask (parametric, no browser) + magic background removal (client-side ML) via the non-destructive PhotoEdit sidecar |
+| `/design:generate` | Generate an image, a sound or a video clip from your own AI provider key (BYOK) and land it on the canvas, marked Made by AI — the key stays with Maude, skill `ai-generation` |
+| `/design:photo` | Edit a photo headlessly, for every use of it — adjustments / duotone / grain / pattern / mask (parametric, no browser) + background removal on this Mac, via the non-destructive PhotoEdit sidecar; one use only is a per-use edit |
 | `/design:critic` | Spawn the critic panel (or single agent / all critics) |
 | `/design:browse` | Boot the local dev server |
 | `/design:rollback` | Go back to an earlier version of the canvas (built on Version history; no flag undoes the last change) |
@@ -32,8 +32,9 @@ Default verbs. No prefix. Members:
 | `/design:comments` | Make the changes the open comments ask for, then reply and resolve each thread |
 | `/design:present` | Set Present order, skipped artboards and speaker notes; open the canvas in Present |
 | `/design:open` | Show a canvas, artboard, element or panel in the Maude window |
+| `/design:assets` | List the project's assets, where each is used and which are not; with `describe`, search in pictures (only after the person said yes) |
 | `/design:screenshot` | Capture a screenshot of the active canvas (`--full`/`--screen <id>`/`--element <id>`/`--all-screens`/`--selector <css>`) |
-| `/design:handoff` | Migrate the active canvas to a production target |
+| `/design:handoff` | Hand the active canvas off to production: a shadcn registry item (the web target); the other targets are drafted by AI from Handoff to production |
 | `/design:to-lottie` | Productionize a maude animation → ONE `.lottie` from code (web + mobile, 1:1; emitter, not converter) |
 | `/design:to-rn` | FALLBACK — native react-native-svg + Reanimated component from the IR (light animation only) |
 | `/design:board` | Read the whiteboard with artboard + ELEMENT context, and/or author a whole tidy template (retro / kanban / social calendar / roadmap / brainstorm / checklist / user-flow) onto it — skill `whiteboard` |
