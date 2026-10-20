@@ -304,6 +304,9 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/components': { safe: 'edit', unsafe: null },
   // S7.20 — routes/kinds.ts: what the F size picker lists. It exists to ADD an artboard, so everything below Can edit is refused.
   '/_api/kinds/presets': { safe: 'edit', unsafe: null },
+  // S7.25 — routes/kinds.ts: the things to check on an artboard (anyone who sees the canvas), and Change kind's plan (it exists to convert, so Can edit)
+  '/_api/kinds/warnings': { safe: 'read', unsafe: null },
+  '/_api/kinds/convert-plan': { safe: 'edit', unsafe: null },
   // S2.17 — routes/edit.ts: what an object is (an instance of a component?), read from the TSX. Anyone who sees the canvas.
   '/_api/edit-instance': { safe: 'read', unsafe: null },
   // S10.3 — a converted design system's reviews (apps/studio/routes/ds.ts). The studio judges
