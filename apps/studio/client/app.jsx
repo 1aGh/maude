@@ -2797,6 +2797,7 @@ function ShellTree() {
       openPanelExclusive,
       paletteOpen,
       presentMode,
+      printGuidesVisible,
       project,
       quickSetupOpen,
       readinessOpen,
