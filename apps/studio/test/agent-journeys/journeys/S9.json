@@ -1,0 +1,157 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S9",
+  "package": "S9",
+  "title": "Implement 2 comments → reply + resolve",
+  "fixture": "app5",
+  "setup": [
+    {
+      "op": "comments",
+      "path": "ui/GitPanel.tsx",
+      "ops": [
+        {
+          "op": "add",
+          "newId": "c_journey_1",
+          "author": "Tereza",
+          "text": "The “Save all” button should say “Save everything”."
+        },
+        {
+          "op": "add",
+          "newId": "c_journey_2",
+          "author": "Tereza",
+          "text": "Make the “View History” button say “Open history”."
+        }
+      ]
+    }
+  ],
+  "turns": [
+    {
+      "say": "Implement the open comments on ui/GitPanel.tsx, then reply to each one saying what you changed and resolve it."
+    }
+  ],
+  "graders": [
+    {
+      "id": "replied-and-resolved",
+      "grader": "comments",
+      "path": "ui/GitPanel.tsx",
+      "ids": ["c_journey_1", "c_journey_2"],
+      "status": "resolved",
+      "replyBy": "ai"
+    },
+    {
+      "id": "implemented",
+      "grader": "text",
+      "path": "ui/GitPanel.tsx",
+      "has": ["Save everything", "Open history"]
+    },
+    { "id": "ids-kept", "grader": "ids-kept", "path": "ui/GitPanel.tsx" },
+    {
+      "id": "comments-through-the-verb",
+      "grader": "no-tool",
+      "tool": "Edit|Write|MultiEdit",
+      "input": "_comments/"
+    },
+    { "id": "ai-version", "grader": "history", "path": "ui/GitPanel.tsx", "kind": "ai", "by": "ai" }
+  ],
+  "dry": {
+    "good": [
+      {
+        "op": "action",
+        "kind": "migration.import",
+        "label": "Version history starts here",
+        "effects": [{ "lane": "@manifest", "op": "create", "path": "ui/GitPanel.tsx" }]
+      },
+      {
+        "tag": "edit-1",
+        "op": "edit",
+        "path": "ui/GitPanel.tsx",
+        "old": ">Save all<",
+        "new": ">Save everything<"
+      },
+      {
+        "tag": "edit-2",
+        "op": "edit",
+        "path": "ui/GitPanel.tsx",
+        "old": "/> View History<",
+        "new": "/> Open history<"
+      },
+      {
+        "tag": "step",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-1",
+        "label": "Implement 2 comments",
+        "effects": [{ "lane": "html", "op": "replace", "path": "ui/GitPanel.tsx" }]
+      },
+      {
+        "tag": "c1",
+        "op": "comments",
+        "path": "ui/GitPanel.tsx",
+        "ops": [
+          {
+            "op": "reply",
+            "id": "c_journey_1",
+            "as": "ai",
+            "body": "Done — the button says “Save everything”."
+          },
+          { "op": "resolve", "id": "c_journey_1", "as": "ai" }
+        ]
+      },
+      {
+        "tag": "c2",
+        "op": "comments",
+        "path": "ui/GitPanel.tsx",
+        "ops": [
+          {
+            "op": "reply",
+            "id": "c_journey_2",
+            "as": "ai",
+            "body": "Done — the button says “Open history”."
+          },
+          { "op": "resolve", "id": "c_journey_2", "as": "ai" }
+        ]
+      },
+      {
+        "op": "tool",
+        "name": "Bash",
+        "input": { "command": "maude design comments resolve c_journey_2" }
+      }
+    ],
+    "faults": {
+      "replied-and-resolved": {
+        "replace": {
+          "c2": {
+            "op": "comments",
+            "path": "ui/GitPanel.tsx",
+            "ops": [{ "op": "reply", "id": "c_journey_2", "as": "ai", "body": "Done." }]
+          }
+        }
+      },
+      "implemented": { "drop": ["edit-2"] },
+      "ids-kept": {
+        "add": [
+          { "op": "edit", "path": "ui/GitPanel.tsx", "old": " data-cd-id=\"save-all\"", "new": "" }
+        ]
+      },
+      "comments-through-the-verb": {
+        "add": [
+          {
+            "op": "tool",
+            "name": "Edit",
+            "input": { "file_path": ".design/_comments/ui-gitpanel.json" }
+          }
+        ]
+      },
+      "ai-version": {
+        "replace": {
+          "step": {
+            "op": "action",
+            "kind": "outside",
+            "label": "Changed outside Maude",
+            "effects": [{ "lane": "html", "op": "replace", "path": "ui/GitPanel.tsx" }]
+          }
+        }
+      }
+    }
+  }
+}
