@@ -34,7 +34,6 @@ import { decodeAudio, encodeWav } from '../video/decode.ts';
 import { decodeWithChromium } from '../video/decode-webaudio.ts';
 import type { Adapter, ExportContext, ExportHooks, ExportOptions, ExportResult } from './index.ts';
 import type { Target } from './scope.ts';
-import { mp4 } from './video.ts';
 
 export type AudioCodec = 'm4a' | 'wav';
 /** Sample rate of the WAV. 48 kHz is what a video's sound is mixed at. */
@@ -96,7 +95,14 @@ export async function extractM4a(video: Uint8Array): Promise<Uint8Array> {
 }
 
 export function makeAudioAdapter(deps: AudioDeps = {}): Adapter {
-  const render: RenderMix = deps.render ?? ((t, o, c, h) => mp4.run(t, o, c, h));
+  // video.ts imports index.ts, which registers this adapter: load it on first use, not at import time, so
+  // this module can be the entry (a test, a verb) without reading the registry before it exists
+  const render: RenderMix =
+    deps.render ??
+    (async (t, o, c, h) => {
+      const { mp4 } = await import('./video.ts');
+      return mp4.run(t, o, c, h);
+    });
   const decode: DecodeMix = deps.decode ?? defaultDecode;
   return {
     async run(targets, options, ctx, hooks): Promise<ExportResult> {
