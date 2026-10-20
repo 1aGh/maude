@@ -123,6 +123,15 @@ export interface CanvasToShell {
   // S10.8 — "Review…" on the Design system canvas's bar: the person asks for "Update N canvases". The canvas
   // only asks; the shell opens the sheet (client/v2/ds/review-host.jsx), for the canvas on screen.
   'ds-review': Empty;
+  // S10.9 (13 · ds-edit-reach) — the answer to a `ds-rects` ask: where each asked element sits, in THIS frame's own
+  // pixels (getBoundingClientRect), and the frame's size. The reach view rings them. `label` is the artboard's own
+  // name as text (untrusted; rendered as text only).
+  'ds-rects-result': {
+    seq: number;
+    view: { w: number; h: number };
+    label?: string;
+    rects: Array<{ id: string; x: number; y: number; w: number; h: number }>;
+  };
   'canvas-expired': Empty;
   // S4.9 — the annotation board of `file` changed (a local write, a peer's, an undo): the shell's
   // Preview annotation list (client/v2/annotations/annotation-list.jsx) re-reads it.
@@ -423,6 +432,9 @@ export interface ShellToCanvas {
   // S10.8 — a canvas left out of a design-system update: the `data-cd-id`s of the elements that wear what
   // changed (client/v2/ds/update-dots.js names them from the usage index); the shell document draws a dot.
   'ds-update-dots': { ids: string[] };
+  // S10.9 — the reach view asks a preview frame where these elements (`data-cd-id`s from the usage index, inside
+  // `artboard` when given) are drawn; the frame answers `ds-rects-result` with the same `seq`.
+  'ds-rects': { seq: number; artboard: string | null; ids: string[] };
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
   'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
@@ -831,6 +843,15 @@ export const DS_DOTS_MAX = 200;
 const DOT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 const dotId: V = (v) => (typeof v === 'string' && DOT_ID.test(v) ? v : BAD);
 const dotIds: V = (v) => (Array.isArray(v) && v.length <= DS_DOTS_MAX ? arrOf(dotId)(v) : BAD);
+/** S10.9 — the reach view: how many elements one `ds-rects` asks about (the model's ring cap, reach-model.js). */
+export const DS_RECTS_MAX = 500;
+const rectIds: V = (v) => (Array.isArray(v) && v.length <= DS_RECTS_MAX ? arrOf(dotId)(v) : BAD);
+const rectSeq: V = intIn(0, 1_000_000);
+const rectArtboard: V = (v) => (v === null || dotId(v) !== BAD ? v : BAD);
+const rectCells: V = (v) =>
+  Array.isArray(v) && v.length <= DS_RECTS_MAX
+    ? arrOf(shape({ id: dotId, x: num, y: num, w: num, h: num }))(v)
+    : BAD;
 const dsPinEntry = shape({ tokens: dsCssPath, components: nul(dsCssPath) });
 const dsPinRevs: V = (v) => {
   if (!isPlain(v)) return BAD;
@@ -1051,6 +1072,19 @@ const c2s: C2S = {
   },
   // S10.8 — handled by client/v2/ds/use-ds-frames.js (opens the review for the ACTIVE canvas's system)
   'ds-review': { gate: 'active', status: 'live', owner: 'h/use-ds-frames', parse: none },
+  // S10.9 — sent by the shell template's `ds-rects` region, read by client/v2/ds/reach-view.jsx (the frames it
+  // framed itself, hence 'frame': a reach frame is never the active canvas)
+  'ds-rects-result': {
+    gate: 'frame',
+    status: 'live',
+    owner: 'v2/ds/reach-view',
+    parse: p({
+      seq: rectSeq,
+      view: shape({ w: num, h: num }),
+      label: opt(shortStr(120)),
+      rects: rectCells,
+    }),
+  },
   // S10.4 — handled by client/v2/ds/pins.js (createPinsHost.onMessage)
   'ds-pins-want': {
     gate: 'active',
@@ -1695,6 +1729,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'tpl/_shell.html',
     parse: p({ ids: dotIds }),
+  },
+  // S10.9 — sent by client/v2/ds/reach-view.jsx, answered by the shell template's `ds-rects` region
+  'ds-rects': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ seq: rectSeq, artboard: rectArtboard, ids: rectIds }),
   },
   'ai-activity': {
     gate: 'parent',
