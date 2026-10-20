@@ -1526,7 +1526,6 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // (`--json` carries the canvases, artboards and element ids the view rings).
   'ds.show-reach': {
     effect: 'none',
-    server: { route: '/_api/ds/usage', method: 'GET' },
     agent: cli('maude design ds usage <ds> --css <--token> --json'),
   },
 };

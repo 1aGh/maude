@@ -20,6 +20,11 @@ import { createMenuHandlers } from '../client/v2/shell/menu-runner.js';
 beforeAll(() => {
   // the frames are never loaded here (no network): each iframe gets a window of its own and the test answers for it
   GlobalRegistrator.register({ settings: { disableIframePageLoading: true } });
+  // happy-dom reports each disabled load on the console; that is this test's own setting, not news
+  const report = console.error.bind(console);
+  console.error = (...a: unknown[]) => {
+    if (!String(a[0] ?? '').includes('Iframe page loading is disabled')) report(...a);
+  };
   const wins = new WeakMap<object, object>();
   Object.defineProperty(window.HTMLIFrameElement.prototype, 'contentWindow', {
     configurable: true,
@@ -356,7 +361,8 @@ describe('the data and the doors', () => {
     expect(def).toBeDefined();
     expect(def?.visible?.minRole).toBe('view');
     expect(ACTION_AGENTS['ds.show-reach']?.agent.path).toBe('cli');
-    expect(ACTION_AGENTS['ds.show-reach']?.server?.route).toBe('/_api/ds/usage');
+    // a read: the usage route (GET /_api/ds/usage, anyone who can open the project) is what the verb calls
+    expect(ACTION_AGENTS['ds.show-reach']?.server).toBeUndefined();
     const got: Array<Record<string, unknown>> = [];
     onDsReviewRequest((r) => got.push(r));
     createMenuHandlers({} as never)['ds.show-reach']?.({
