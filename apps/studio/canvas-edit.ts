@@ -4723,6 +4723,111 @@ export async function deleteArtboard(
 /** Artboard id must be a safe JSX-attribute identifier (no quotes/markup). */
 const ARTBOARD_ID_RE = /^[A-Za-z][\w-]*$/;
 
+/** The leading whitespace of the line `pos` sits on. */
+function lineIndentAt(source: string, pos: number): string {
+  const ls = source.lastIndexOf('\n', pos - 1) + 1;
+  return /^[ \t]*/.exec(source.slice(ls, pos))?.[0] ?? '';
+}
+
+/** Put `names` into the file's `@maude/canvas-lib` import (or a new one), skipping any it already imports. */
+function ensureCanvasLibImports(
+  s: MagicString,
+  source: string,
+  program: AnyNode,
+  names: string[]
+): void {
+  const imports = ((program.body ?? []) as AnyNode[]).filter(
+    (st) => st.type === 'ImportDeclaration'
+  );
+  const have = new Set<string>();
+  for (const st of imports)
+    for (const sp of (st.specifiers ?? []) as AnyNode[])
+      if (sp.local?.name) have.add(sp.local.name);
+  const missing = names.filter((n) => !have.has(n));
+  if (missing.length === 0) return;
+  const own = imports.find(
+    (st) =>
+      st.source?.value === '@maude/canvas-lib' &&
+      st.importKind !== 'type' &&
+      ((st.specifiers ?? []) as AnyNode[]).some((sp) => sp.type === 'ImportSpecifier')
+  );
+  if (own) {
+    const named = ((own.specifiers ?? []) as AnyNode[]).filter(
+      (sp) => sp.type === 'ImportSpecifier'
+    );
+    s.appendLeft((named[named.length - 1] as AnyNode).end as number, `, ${missing.join(', ')}`);
+    return;
+  }
+  const first = imports[0];
+  const raw = first ? source.slice(first.source.start, first.source.end) : '';
+  const quote = raw.startsWith("'") ? "'" : '"';
+  const line = `import { ${missing.join(', ')} } from ${quote}@maude/canvas-lib${quote};`;
+  const lastImport = imports[imports.length - 1];
+  if (lastImport) s.appendLeft(lastImport.end as number, `\n${line}`);
+  else s.prepend(`${line}\n`);
+}
+
+/** True when an element's children are only whitespace and empty `{/* … *\/}` comments. */
+function hasOnlyEmptyChildren(el: AnyNode): boolean {
+  return ((el.children ?? []) as AnyNode[]).every(
+    (c) =>
+      (c.type === 'JSXText' && String(c.value ?? c.raw ?? '').trim() === '') ||
+      (c.type === 'JSXExpressionContainer' && c.expression?.type === 'JSXEmptyExpression')
+  );
+}
+
+/**
+ * G4 — the first artboard of a canvas that has none. Into the last `<DCSection>` when there is one (its
+ * closing tag is the anchor); otherwise into `<DesignCanvas>` inside a new `<DCSection id="main"
+ * title="Main">`, which is what a scaffolded canvas looks like. Adds the `@maude/canvas-lib` names it
+ * needs (a ⌘N canvas imports only `DesignCanvas`). Throws when the file has no canvas at all.
+ */
+function placeFirstArtboard(
+  s: MagicString,
+  source: string,
+  program: AnyNode,
+  artboardText: string,
+  canvasAbsPath: string,
+  id: string
+): void {
+  const unit = detectIndentUnit(source);
+  const sections = collectJsxByTag(program, 'DCSection');
+  const host = (sections.length > 0 ? sections[sections.length - 1] : null) as AnyNode | null;
+  const canvas = host ? null : (collectJsxByTag(program, 'DesignCanvas')[0] as AnyNode | undefined);
+  if (!host && !canvas) {
+    throw new CanvasEditError('there is no canvas in this file to add an artboard to', {
+      canvas: canvasAbsPath,
+      id,
+    });
+  }
+  const el = (host ?? canvas) as AnyNode;
+  const tag = host ? 'DCSection' : 'DesignCanvas';
+  const indent = lineIndentAt(source, el.start as number);
+  const child = `${indent}${unit}`;
+  const body = host
+    ? artboardText
+    : `<DCSection id="main" title="Main">\n${child}${unit}${artboardText}\n${child}</DCSection>`;
+  ensureCanvasLibImports(s, source, program, host ? ['DCArtboard'] : ['DCSection', 'DCArtboard']);
+  const open = el.openingElement as AnyNode;
+  const close = el.closingElement as AnyNode | null;
+  if (!close) {
+    // <DCSection … />  becomes  <DCSection …> + the artboard + </DCSection>
+    let from = (open.end as number) - 2;
+    while (from > (open.start as number) && /\s/.test(source[from - 1] ?? '')) from--;
+    s.overwrite(from, open.end, `>\n${child}${body}\n${indent}</${tag}>`);
+    return;
+  }
+  if (!host && hasOnlyEmptyChildren(el)) {
+    // the blank canvas's "Empty. Add <DCSection> here." comment goes: the section is what it asked for
+    if (open.end === close.start) s.appendLeft(open.end, `\n${child}${body}\n${indent}`);
+    else s.overwrite(open.end, close.start, `\n${child}${body}\n${indent}`);
+    return;
+  }
+  const closeLine = lineStartInfo(source, close.start as number);
+  if (closeLine.newlineBefore) s.appendLeft(closeLine.indentStart, `${child}${body}\n`);
+  else s.appendLeft(close.start as number, `\n${child}${body}\n${indent}`);
+}
+
 /**
  * Insert a new EMPTY `<DCArtboard>` after the canvas's last artboard (Stage I4).
  * Pure. The size props (`width`/`height`) are JSX-authoritative (DDR-027); the
@@ -4748,18 +4853,13 @@ export function applyInsertArtboard(
   }
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
-    throw new CanvasEditError(
-      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
-      { canvas: canvasAbsPath, id }
-    );
+    // plain words: the shell puts this after "Couldn't add an artboard — "
+    throw new CanvasEditError('this canvas does not parse; fix it before editing', {
+      canvas: canvasAbsPath,
+      id,
+    });
   }
   const artboards = collectJsxByTag(parsed.program, 'DCArtboard');
-  if (artboards.length === 0) {
-    throw new CanvasEditError(
-      'no <DCArtboard> to anchor a new artboard — scaffold a canvas first',
-      { canvas: canvasAbsPath, id }
-    );
-  }
   for (const a of artboards) {
     if (getStringAttr(a.openingElement, 'id') === id) {
       throw new CanvasEditError(`artboard id "${id}" already exists`, {
@@ -4768,11 +4868,17 @@ export function applyInsertArtboard(
       });
     }
   }
-  const last = artboards[artboards.length - 1] as AnyNode;
-  const indent = lineStartInfo(source, last.start as number).indent;
   const newText = `<DCArtboard id="${escapeAttr(id)}" label="${escapeAttr(label)}" width={${width}} height={${height}}></DCArtboard>`;
   const s = new MagicString(source);
-  s.appendLeft(last.end as number, `\n${indent}${newText}`);
+  if (artboards.length > 0) {
+    const last = artboards[artboards.length - 1] as AnyNode;
+    const indent = lineStartInfo(source, last.start as number).indent;
+    s.appendLeft(last.end as number, `\n${indent}${newText}`);
+  } else {
+    // G4 (gate B) — a blank (⌘N) canvas has no artboard to sit beside: anchor in its last section, or in
+    // the canvas itself with a section of its own, the way a scaffolded canvas is laid out.
+    placeFirstArtboard(s, source, parsed.program, newText, canvasAbsPath, id);
+  }
   const out = s.toString();
   const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
   if (check.errors && check.errors.length > 0) {

@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 
+import { renderBlankCanvas } from '../canvas-create.ts';
 import { readArtboardPrintProp } from '../canvas-edit.ts';
 import { type DispatchDeps, dispatchEditOp, EDIT_OPS } from '../edit-ops/dispatch.ts';
 import { slugOf } from '../edit-ops/insert-preset.ts';
@@ -28,8 +29,8 @@ export default function Home() {
 }
 `;
 
-function harness() {
-  const files = new Map<string, string>([[FILE, HOME]]);
+function harness(initial: string = HOME) {
+  const files = new Map<string, string>([[FILE, initial]]);
   const snapshots: string[] = [];
   const layouts: LayoutPatch[] = [];
   const deps: DispatchDeps = {
@@ -218,6 +219,35 @@ describe('refusals write nothing', () => {
     expect(r.message.length).toBeGreaterThan(5);
     expect(h.snapshots).toEqual([]);
     expect(h.src()).toBe(HOME);
+  });
+});
+
+describe('a blank canvas (G4, gate B)', () => {
+  const BLANK = renderBlankCanvas({
+    name: 'Untitled canvas',
+    componentName: 'UntitledCanvas',
+    dsName: 'maude-v2',
+    platform: 'web',
+    historyDir: '_history/untitled-canvas',
+  });
+
+  test('the size picker / AI op adds the first artboard, in a section, with its imports', async () => {
+    const h = harness(BLANK);
+    const r = good(await h.run({ presetId: 'app-mobile' }));
+    const board = r.created?.[0]?.artboard as string;
+    expect(board).toBeTruthy();
+    expect(h.src()).toContain('<DCSection id="main" title="Main">');
+    expect(tagOf(h.src(), board)).toContain('kind="digital"');
+    expect(h.src()).toContain(
+      'import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";'
+    );
+  });
+
+  test('a file that does not parse is still refused, and nothing is written', async () => {
+    const h = harness(BLANK.replace('</DesignCanvas>', ''));
+    const r = bad(await h.run({ presetId: 'app-mobile' }));
+    expect(r.message).toBe('This canvas does not parse; fix it before editing.');
+    expect(h.snapshots).toEqual([]);
   });
 });
 
