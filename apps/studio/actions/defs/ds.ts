@@ -53,4 +53,9 @@ export const DS_ACTIONS: ActionDef[] = [
   // S10.10 — edit a component master on the Design system canvas (13 · ds-edit-master): Corners · Fill · Text ·
   // Height from the inspector. One waiting edit per property; Update canvases (ds.publish) is what reaches canvases.
   row('ds.set-master', 'Change a component'),
+  // S10.13 — the pinned system rows. "Use for new canvases" is a row of a system's own menu (it writes the
+  // project's default system); "Make a design system" is the empty row's door — it opens the three-input sheet
+  // (S10.16b), and the same id is Home's starter (S6). Neither is a ⌘K row: each needs the system / sheet in hand.
+  row('ds.set-default', 'Use for new canvases'),
+  row('ds.make', 'Make a design system'),
 ];
