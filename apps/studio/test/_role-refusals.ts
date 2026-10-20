@@ -169,6 +169,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/sync/resync', refused: ['view', 'comment'] },
   // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
   { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
+  // S11.12 — Sync details: a held source conflict's picks (Keep both writes a new canvas), the
+  // unfinished AI edit's Publish / Discard, the transfer's ✕ and Get latest are all writes a read-only
+  // session may not make (the local gate's default-deny; the cell refuses them outright).
+  { method: 'POST', route: '/_api/project/conflict', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/project/ai-action', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/sync/cancel-assets', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/pull', refused: ['view', 'comment'] },
   // S9.19 — who has access is the owner's (`invite`, V2-1.7 §5.5): routes/share.ts refuses every
   // session without it before the linked hub hears anything (test/share-route.test.ts).
   { method: 'POST', route: '/_api/share/invites', refused: ['view', 'comment', 'edit'] },

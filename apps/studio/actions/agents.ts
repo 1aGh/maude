@@ -136,6 +136,53 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: human('hub-link', 'pulls every file of a linked project onto this Mac'),
   },
+  // S11.12 — Sync details (06 ad-syncd). A held SOURCE conflict's three picks; the slug is the
+  // `source-conflict-<slug>` notice id `maude design sync status` lists. Keep both writes this Mac's
+  // version as a new canvas "<name> this Mac" (ONE doc.create — one undo step) + a history aside.
+  ...Object.fromEntries(
+    (
+      [
+        ['keep-mine', 'mine'],
+        ['use-theirs', 'theirs'],
+        ['keep-both', 'keep-both'],
+      ] as const
+    ).map(([k, choice]) => [
+      `sync.${k}`,
+      {
+        effect: 'shared',
+        minRole: 'edit',
+        undo: 'step',
+        server: { route: '/_api/project/conflict', method: 'POST' },
+        agent: cli(
+          `maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{"file":"<slug>","choice":"${choice}"}'`
+        ),
+      } satisfies ActionDefAI,
+    ])
+  ),
+  ...Object.fromEntries(
+    (['publish', 'discard'] as const).map((choice) => [
+      `sync.${choice}-ai-edit`,
+      {
+        effect: 'shared',
+        minRole: 'edit',
+        server: { route: '/_api/project/ai-action', method: 'POST' },
+        agent: cli(
+          `maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/ai-action -d '{"choice":"${choice}"}'`
+        ),
+      } satisfies ActionDefAI,
+    ])
+  ),
+  'sync.cancel-transfer': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/sync/cancel-assets', method: 'POST' },
+    agent: cli('maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets'),
+  },
+  'sync.get-latest': GIT('/_api/git/pull', 'git pull'),
+  'sync.sign-in-again': {
+    effect: 'none',
+    agent: human('hub-link', 'signing in to the cloud is the person’s own credential'),
+  },
   // ── search ──
   'search.open': { effect: 'none', agent: cli('maude design index') },
   'canvases.search': { effect: 'none', agent: cli('maude design index') },
