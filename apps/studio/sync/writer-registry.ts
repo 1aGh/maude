@@ -226,6 +226,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   // S10.3 routes/ds.ts — a converted design system's reviews (V2-1.6 §5.11–§5.12)
   '/_api/ds/state': { class: 'read' },
+  '/_api/ds/board': { class: 'read' }, // S10.7 the model the token editor reads (ds/board/build-model.ts)
   '/_api/ds/revision': { class: 'read' },
   '/_api/ds/revisions': { class: 'read' },
   '/_api/ds/usage': { class: 'read' },
