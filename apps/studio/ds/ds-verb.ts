@@ -101,8 +101,17 @@ export function planDsVerb(
     '--to',
     '--value',
     '--theme',
+    '--grant-file',
   ]);
-  const BOOL = new Set(['--json', '--dry-run', '--cancel', '--no-default', '--all', '--restore']);
+  const BOOL = new Set([
+    '--json',
+    '--dry-run',
+    '--cancel',
+    '--no-default',
+    '--all',
+    '--restore',
+    '--force',
+  ]);
   // a token name (`--accent`) is a positional where the sub-verb takes one
   const first = words.find((w) => !String(w).startsWith('--'));
   const takesCss = first !== undefined && CSS_SUBS.has(String(first));
@@ -353,6 +362,46 @@ export function planDsVerb(
         ...(args.length ? { systems: args } : {}),
         ...(flags['--dry-run'] ? { dryRun: true } : {}),
       });
+    case 'library': {
+      // S10.18b — `library link <url> [--grant-file <f>] [--label <l>]` · `check [<ds>] [--force]` ·
+      // `update [<ds>] [--dry-run]` · `unlink [<ds>]`. The grant is read from a file, never an argument.
+      const [what, ...rest] = args;
+      const ds = rest.length ? { ds: rest[0] } : {};
+      if (rest.length > 1) throw new DsUsageError(`library ${what} takes at most one <ds>`);
+      switch (what) {
+        case 'link': {
+          allow('--grant-file', '--label');
+          if (rest.length !== 1) throw new DsUsageError('library link takes <url>');
+          const gf = flags['--grant-file'];
+          const grant = typeof gf === 'string' ? readFile(gf).trim() : undefined;
+          return plan('library', {
+            action: 'link',
+            url: rest[0],
+            ...(grant ? { grant } : {}),
+            ...(typeof flags['--label'] === 'string' ? { label: flags['--label'] } : {}),
+          });
+        }
+        case 'check':
+          allow('--force');
+          return plan('library', {
+            action: 'check',
+            ...ds,
+            ...(flags['--force'] ? { force: true } : {}),
+          });
+        case 'update':
+          allow('--dry-run');
+          return plan('library', {
+            action: 'update',
+            ...ds,
+            ...(flags['--dry-run'] ? { dryRun: true } : {}),
+          });
+        case 'unlink':
+          allow();
+          return plan('library', { action: 'unlink', ...ds });
+        default:
+          throw new DsUsageError('library takes link | check | update | unlink');
+      }
+    }
     default:
       throw new DsUsageError(sub ? `unknown sub-verb ${sub}` : 'a sub-verb is needed');
   }
@@ -388,6 +437,7 @@ const ROUTE: Record<DsOp, { method: 'GET' | 'POST'; path: string }> = {
   nearest: { method: 'GET', path: '/_api/ds/nearest' },
   'off-system': { method: 'GET', path: '/_api/ds/off-system' },
   upgrade: { method: 'POST', path: '/_api/ds/upgrade' },
+  library: { method: 'POST', path: '/_api/ds/library' },
 };
 
 export interface StudioRef {
@@ -421,6 +471,29 @@ export async function execDsPlan(
     if (review.status !== 200) return review;
     const expectHead = (review.body as { expectHead?: string | null }).expectHead ?? null;
     return execDsPlan({ ...plan, input: { ...plan.input, expectHead } }, o);
+  }
+  // S10.18b — `library update` reads the review first, then takes exactly what it showed (default ticks)
+  if (
+    plan.op === 'library' &&
+    plan.input.action === 'update' &&
+    plan.input.dryRun !== true &&
+    !('expectHead' in plan.input)
+  ) {
+    const review = await execDsPlan({ ...plan, input: { ...plan.input, dryRun: true } }, o);
+    if (review.status !== 200) return review;
+    const b = review.body as { system?: string; expectHead?: string | null; upstream?: string };
+    return execDsPlan(
+      {
+        ...plan,
+        input: {
+          ...plan.input,
+          ds: b.system,
+          expectHead: b.expectHead ?? null,
+          upstream: b.upstream,
+        },
+      },
+      o
+    );
   }
   if (o.studio) {
     const r = ROUTE[plan.op];

@@ -29,6 +29,7 @@ import {
   type PendingToken,
 } from '../ds/engine.ts';
 import { type By, readHead } from '../ds/head.ts';
+import type { DsLibrary } from '../ds/library.ts';
 import type { DsOutsideWatcher } from '../ds/outside.ts';
 import { mapOverrides } from '../ds/override-map.ts';
 import { indexRegistry, loadRegistry } from '../ds/registry.ts';
@@ -37,6 +38,7 @@ import { diskFs, loadSystem } from '../ds/system.ts';
 import type { DsUsageIndex } from '../index/ds-usage.ts';
 import { runConvertOp } from './ds-convert.ts';
 import { runEdgeOp } from './ds-edges.ts';
+import { runLibraryOp } from './ds-library.ts';
 import { runMakeOp } from './ds-make.ts';
 import { runSwitchOp } from './ds-switch.ts';
 import { runUpgradeOp } from './ds-upgrade.ts';
@@ -73,7 +75,8 @@ export type DsOp =
   | 'add-colour'
   | 'nearest'
   | 'off-system'
-  | 'upgrade';
+  | 'upgrade'
+  | 'library';
 
 export interface DsOpContext {
   engine: DsEngine;
@@ -86,6 +89,8 @@ export interface DsOpContext {
   held?: (canvasRel: string) => ReadonlySet<string>;
   /** after an effect: the studio emits `ds:changed {system}` */
   emit?: (event: string, payload: unknown) => void;
+  /** S10.18b: team libraries (default: this engine's, over this Mac's grant store) */
+  library?: DsLibrary;
 }
 
 export interface DsOpAnswer {
@@ -629,6 +634,8 @@ export async function runDsOp(
         return await runEdgeOp(op, null, input, c);
       case 'upgrade':
         return await runUpgradeOp(input, c);
+      case 'library':
+        return await runLibraryOp(input, c);
     }
   } catch (err) {
     const a = errorAnswer(err);
@@ -651,6 +658,8 @@ export interface DsRouteDeps {
   emit?: (event: string, payload: unknown) => void;
   /** S10.16a: the artboards of a canvas a live AI run holds */
   held?: (canvasRel: string) => ReadonlySet<string>;
+  /** S10.18b: team libraries (tests bring a fake hub; default: this Mac's grant store) */
+  library?: () => DsLibrary | null;
 }
 
 const json = (status: number, body: unknown) =>
@@ -701,6 +710,7 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'POST', path: '/_api/ds/fix-contrast', op: 'fix-contrast' },
   { method: 'POST', path: '/_api/ds/add-colour', op: 'add-colour' },
   { method: 'POST', path: '/_api/ds/upgrade', op: 'upgrade' },
+  { method: 'POST', path: '/_api/ds/library', op: 'library' },
 ];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
@@ -715,6 +725,7 @@ export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
       by: await byOf(deps, req),
       ...(deps.emit ? { emit: deps.emit } : {}),
       ...(deps.held ? { held: deps.held } : {}),
+      ...(deps.library?.() ? { library: deps.library() as DsLibrary } : {}),
     };
   };
   const answer = (a: DsOpAnswer) =>
