@@ -43,7 +43,14 @@ export function classifyHelpers(binDir) {
 // the packaging build (`missing serif (design helper)`, 2026-08-12). Not an AST
 // walk (see the note on collectImports), just the cheap 90 % of it.
 function stripComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  return (
+    text
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+      // A template literal is text a helper GENERATES (canvas-edit.ts writes a reel's
+      // `import … from '@remotion/media'` into a new canvas), never an import it loads.
+      .replace(/`(?:\\[\s\S]|[^`\\])*`/g, '``')
+  );
 }
 
 // Match import/export…from, bare import, and static/dynamic require/import().
