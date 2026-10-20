@@ -434,6 +434,16 @@ export default function C() {
     expect(first.err).toBeUndefined();
     expect([id, null]).toContain(first.ok);
     expect((await tryInvoke('take_pending_invite')).ok).toBeNull();
+    // S6.11b — Home's peek of that invite went to the loopback stub (wdio.home.conf.ts), never
+    // cloud.maude.sh; and a peek of that id is all it asked the invites API.
+    const cloudLog = process.env.MAUDE_E2E_HOME_CLOUD_LOG;
+    expect(cloudLog).toBeTruthy();
+    const asked = readFileSync(cloudLog as string, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as { method: string; path: string })
+      .filter((r) => r.path.startsWith('/api/invites/'));
+    for (const r of asked) expect(r).toEqual({ method: 'GET', path: `/api/invites/${id}/peek` });
     await capture('09-invite-link-on-home');
   });
   it('10 · a parked create-empty intent is taken once by the target tab; an unknown kind is refused', async () => {
