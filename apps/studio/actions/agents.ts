@@ -588,6 +588,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design assets --usage <asset>'),
   },
+  // S8.13 — Move to trash on an asset: the picture and its sidecars go to `_trash/` together (the manifest says where each
+  // lives, so Trash and Undo bring them all back). Never a picture a canvas uses or an older version still shows.
+  'assets.trash': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/assets/trash', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: "asset", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: ["assets/<name>"]} answers per item: moved, or used | kept-by-versions | checking'
+    ),
+  },
   'tool.create-default': TSX(
     'Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”'
   ),

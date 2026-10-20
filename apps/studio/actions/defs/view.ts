@@ -134,6 +134,18 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // S8.13 — Move to trash on the picked tile (its menu row; the tidy view's "Move 31 to the trash…" is the same route).
+    // A write: Can edit and up, refused by the server as well. The server also refuses a picture a canvas uses or an
+    // older version still shows (`POST /_api/assets/trash`). No key.
+    id: 'assets.trash',
+    label: 'Move to trash',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
     id: 'view.layers-panel',
     label: 'Layers as a panel',
     kind: 'toggle',
