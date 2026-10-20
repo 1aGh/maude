@@ -21,6 +21,7 @@
 
 import {
   CLOUD_NOT_SYNCED_AFTER_MS,
+  CLOUD_TOO_BIG_WORDS,
   type CloudFingerprintEntry,
   type CloudRenderDoor,
   cloudNotSyncedWords,
@@ -42,9 +43,9 @@ export interface ExportCloudSenderDeps {
    * What this Mac holds of the canvas's files, taken NOW (at send time, never at ask time — a person
    * who keeps editing would otherwise never match, S8.5b §6). Absent = the ask carries no fingerprint.
    * Throws or returns null when it cannot be read: the send waits (transient) rather than going out
-   * unchecked.
+   * unchecked. 'too-big' = past CLOUD_FINGERPRINT_MAX files: the render stays on this Mac (final).
    */
-  fingerprint?: (spec: ExportSpecV2) => CloudFingerprintEntry[] | null;
+  fingerprint?: (spec: ExportSpecV2) => CloudFingerprintEntry[] | 'too-big' | null;
   /**
    * Wait until the door's presence can be told (the hub's capability list). true = known; false = the
    * hub could not be asked (offline): the record then waits instead of being refused as "no cloud".
@@ -70,13 +71,15 @@ export function exportCloudSender(deps: ExportCloudSenderDeps): Sender {
     const spec = record.payload.spec as unknown as ExportSpecV2;
     let expect: CloudFingerprintEntry[] | undefined;
     if (deps.fingerprint) {
-      let fp: CloudFingerprintEntry[] | null = null;
+      let fp: CloudFingerprintEntry[] | 'too-big' | null = null;
       try {
         fp = deps.fingerprint(spec);
       } catch {
         fp = null;
       }
       if (!fp) return { ok: false, status: 503, code: 'retryable' };
+      if (fp === 'too-big')
+        return { ok: false, status: 409, code: 'too-big', message: CLOUD_TOO_BIG_WORDS };
       expect = fp;
     }
     // the lane it was asked for travels with it; the cloud renders it as a cloud job

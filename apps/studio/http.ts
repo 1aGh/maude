@@ -103,6 +103,7 @@ import { createReferenceLanes } from './edit-ops/references.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
+import { closureFingerprint } from './exporters/door-fingerprint.ts';
 import { createHubRenderDoorGetter } from './exporters/hub-render-door.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
@@ -1805,6 +1806,19 @@ export function createHttp(
     door: cloudExports.door,
     accepted: cloudExports.accepted,
     settle: opts.cloudRenderDoor ? undefined : hubRenderDoor.settle,
+    // S8.5b — what this Mac holds of the export's canvases, taken at send time (exporters/door-fingerprint.ts):
+    // a Canvas scope is its canvas, a Folder scope every canvas in it, otherwise the project.
+    fingerprint: (spec) => {
+      const all = projectIndex.snapshot().canvases.map((c) => c.rel);
+      const folder = spec.folder ? spec.folder.replace(/\/+$/, '') : null;
+      const list = spec.canvas
+        ? [spec.canvas]
+        : folder
+          ? all.filter((r) => r.startsWith(`${folder}/`))
+          : all;
+      const r = closureFingerprint(ctx.paths.designRoot, list);
+      return r.ok ? r.expect : r.reason === 'too-large' ? 'too-big' : null;
+    },
   });
   cloudExports.resume();
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)

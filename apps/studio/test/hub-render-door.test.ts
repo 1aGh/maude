@@ -583,6 +583,17 @@ describe('the sender — send-time fingerprint, the capability wait, the 10-minu
     expect(sent).toHaveLength(0);
   });
 
+  test('a closure past the fingerprint cap stays on this Mac (final, with the words), never sent', async () => {
+    const { door, sent } = fake([]);
+    const send = exportCloudSender({
+      door: () => door,
+      accepted: () => {},
+      fingerprint: () => 'too-big',
+    });
+    expect(await send(record)).toMatchObject({ ok: false, status: 409, code: 'too-big' });
+    expect(sent).toHaveLength(0);
+  });
+
   test('not-synced is retried for 10 minutes, then final with the words (G26)', async () => {
     const msg = cloudNotSyncedWords('Hype.tsx');
     const { door } = fake(
