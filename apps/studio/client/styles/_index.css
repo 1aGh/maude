@@ -119,6 +119,8 @@
 @import url("../v2/present/presenter-view.css");
 /* S8.18 — Import a brand: drop a logo or type a website, Reading, the result with roles + preview. */
 @import url("../v2/import/brand.css");
+/* S8.17 — Import from Figma: link, Connect once, pick frames and where they go; the summary; Make editable. */
+@import url("../v2/import/figma.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
 /* S11.7 — the code view (read-only TSX) and the broken-canvas card (client/v2/code/). */

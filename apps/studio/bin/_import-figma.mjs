@@ -81,7 +81,7 @@ import { readFigZip } from '../figma/fig-zip.ts';
 import { strokesIntoOps } from '../figma/into-board.ts';
 import { attrValue, ImportReport } from '../figma/sanitize.ts';
 import { JsxTooLargeError, toArtboard, toCanvas } from '../figma/to-artboard.ts';
-import { toRenderCanvas } from '../figma/to-render.ts';
+import { classifyPageChildren, toRenderCanvas } from '../figma/to-render.ts';
 import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-strokes.ts';
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
 import { FigmaCapError, normalizeDocument, walkNodes } from '../figma/types.ts';
@@ -1539,6 +1539,289 @@ export async function importFrames({
   return { written, reports, pendingExports, resolvedAssets, frameCount: frames.length };
 }
 
+// ── S8.17 — the Import from Figma sheet: list a page's frames, bring the picked ones in as pictures ──
+//
+// canvas 12 · ia-figma-sheets / ia-figma-arrived. Two halves of ONE flow, both deterministic code:
+//
+//   listFigmaFrames     the frames on the linked page — id, a SANITIZED label, the Figma size. What the
+//                       sheet's picker shows. Nothing is written.
+//   importFramePictures the picked frames → ONE new canvas, each frame an artboard at its Figma px, kind
+//                       `digital` (Fixed size), its picture being Figma's own render (to-render.ts, DDR-216
+//                       D12). Comments ride along as stickies when asked; colours and text styles go to the
+//                       tokens file when asked (`importTokens`). The summary is counts + node ids + reason
+//                       codes (D7/D10) — never a word the file said.
+//
+// The caller never picks an output PATH: it names a folder (checked segment by segment, never a runtime
+// `_*` dir, never `system/` or `assets/`) and a canvas name (a filename charset, no separators). The write
+// stages outside the design root and is promoted only on success (D5), realpath-contained.
+
+/** At most this many frames in one import — the asset budget's own ceiling, stated where the caller sees it. */
+export const MAX_PICTURE_FRAMES = 60;
+const NODE_ID_RE = /^-?[0-9]{1,10}:[0-9]{1,10}(?:;[0-9:;-]{1,64})?$/;
+const FOLDER_SEGMENT_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._()-]{0,63}$/u;
+const RESERVED_TOP = new Set(['system', 'assets']);
+
+/** A designRoot-relative folder a new canvas may land in (`ui`, `2026/dresy`), `''` for the root, or null. */
+export function safeCanvasFolder(raw) {
+  if (raw === undefined || raw === null || raw === '') return '';
+  if (typeof raw !== 'string' || raw.length > 256 || raw.startsWith('/')) return null;
+  const segs = raw.replace(/\/+$/g, '').split('/');
+  if (segs.length > 8) return null;
+  for (const s of segs) {
+    if (!FOLDER_SEGMENT_RE.test(s) || s.endsWith('.')) return null;
+  }
+  if (RESERVED_TOP.has(segs[0].toLowerCase())) return null;
+  return segs.join('/');
+}
+
+/** A canvas file name (no extension, no separator), or null. The person's words — or the link's. */
+export function safeCanvasName(raw) {
+  if (typeof raw !== 'string') return null;
+  const s = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!s || s.length > 80) return null;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} ,._()'-]*$/u.test(s)) return null;
+  if (s.endsWith('.')) return null;
+  return s;
+}
+
+/** The file's name as the LINK spells it (`/design/<key>/Uniformy-2027`) — the person's paste, not the API's. */
+export function fileNameFromLink(url) {
+  try {
+    const u = new URL(String(url));
+    const seg = u.pathname.split('/').filter(Boolean)[2] ?? '';
+    const words = decodeURIComponent(seg)
+      .replace(/[^\p{L}\p{N} ,._()'-]+/gu, ' ')
+      .replace(/^[^\p{L}\p{N}]+/u, '');
+    return safeCanvasName(words.slice(0, 80)) ?? 'Figma import';
+  } catch {
+    return 'Figma import';
+  }
+}
+
+/** The page the link points at, and its frames exactly as `to-render.ts` would render them. */
+async function linkedPage(url) {
+  const target = parseFigmaTarget(url, 'design');
+  if (target.surface === 'board') return { target, board: true };
+  let nodeId = target.nodeId;
+  if (!nodeId) {
+    const pages = await fetchPages(target.fileKey);
+    if (pages.length === 0) throw new ImportFigmaError(3, 'file has no pages');
+    nodeId = pages[0].id;
+  }
+  const doc = await fetchDocument({ fileKey: target.fileKey, surface: 'design', nodeId });
+  const page = doc.root;
+  // A link to ONE frame is a page of one: the frame itself is the only pick.
+  const frames =
+    page.type === 'CANVAS'
+      ? classifyPageChildren(page, new ImportReport()).frames
+      : page.absoluteBoundingBox
+        ? [page]
+        : [];
+  return { target, board: false, page, frames };
+}
+
+/**
+ * `POST /_api/figma/frames` and `import-figma --list <url>`: the linked page's frames, nothing written.
+ * Labels go through `attrValue` — the charset the artboard labels land in — because they are
+ * third-party strings shown in the sheet (D6).
+ */
+export async function listFigmaFrames({ url }) {
+  const linked = await linkedPage(url);
+  if (linked.board) return { surface: 'board', fileName: fileNameFromLink(url), frames: [] };
+  const { page, frames } = linked;
+  return {
+    surface: 'design',
+    fileName: fileNameFromLink(url),
+    page: { id: page.id, name: page.type === 'CANVAS' ? attrValue(page.name ?? '') : '' },
+    frames: frames.slice(0, 500).map((f) => ({
+      id: f.id,
+      name: attrValue(f.name ?? '') || f.id,
+      width: Math.max(1, Math.round(f.absoluteBoundingBox.width)),
+      height: Math.max(1, Math.round(f.absoluteBoundingBox.height)),
+    })),
+    more: frames.length > 500,
+  };
+}
+
+/** `<folder>/<name>.tsx`, or `<name> (Figma)` / `(Figma 2)` … when that canvas is already there. */
+export function freeCanvasRel(designRoot, folder, name) {
+  const at = (n) => (folder ? `${folder}/${n}.tsx` : `${n}.tsx`);
+  if (!existsSync(join(designRoot, at(name)))) return at(name);
+  for (let i = 1; i < 100; i += 1) {
+    const n = i === 1 ? `${name} (Figma)` : `${name} (Figma ${i})`;
+    if (!existsSync(join(designRoot, at(n)))) return at(n);
+  }
+  throw new ImportFigmaError(6, 'no free canvas name');
+}
+
+/**
+ * `POST /_api/figma/import-frames` and `import-figma --frames <url> --pick <ids>`: the picked frames
+ * become ONE new canvas of pictures. Returns counts, node ids and reason codes only.
+ *
+ * @param {{ url: string, root: string, designRootRel?: string, frames: string[], folder?: string,
+ *   name?: string | null, comments?: boolean, styles?: boolean, dryRun?: boolean }} args
+ */
+export async function importFramePictures({
+  url,
+  root,
+  designRootRel = '.design',
+  frames: picked,
+  folder = '',
+  name = null,
+  comments: withComments = true,
+  styles = false,
+  dryRun = false,
+}) {
+  const folderRel = safeCanvasFolder(folder);
+  if (folderRel === null) throw new ImportFigmaError(2, 'invalid folder');
+  if (!Array.isArray(picked) || picked.length === 0)
+    throw new ImportFigmaError(2, 'pick at least one frame');
+  if (picked.length > MAX_PICTURE_FRAMES)
+    throw new ImportFigmaError(2, `at most ${MAX_PICTURE_FRAMES} frames in one import`);
+  if (!picked.every((id) => typeof id === 'string' && NODE_ID_RE.test(id)))
+    throw new ImportFigmaError(2, 'invalid frame id');
+  const canvasName =
+    name === null || name === undefined ? fileNameFromLink(url) : safeCanvasName(name);
+  if (!canvasName) throw new ImportFigmaError(2, 'invalid canvas name');
+
+  const linked = await linkedPage(url);
+  if (linked.board)
+    throw new ImportFigmaError(2, 'a FigJam board comes in as annotations, not frames');
+  const { target, page, frames: onPage } = linked;
+  const want = new Set(picked);
+  // Only frames the page actually HAS: an id the sheet did not list is refused, never fetched on its own.
+  const chosen = onPage.filter((f) => want.has(f.id));
+  if (chosen.length !== want.size)
+    throw new ImportFigmaError(3, 'a picked frame is not on this page');
+
+  const pageNode = { ...page, type: 'CANVAS', children: chosen };
+  const doc = {
+    fileKey: target.fileKey,
+    surface: 'design',
+    origin: 'rest',
+    root: pageNode,
+    nodeCount: 0,
+    maxDepth: 0,
+  };
+  const result = toRenderCanvas(doc, pageNode, { kind: 'digital' });
+  const reports = [result.report];
+  const designRoot = join(root, designRootRel);
+  const canvasRel = freeCanvasRel(designRoot, folderRel, canvasName);
+  const out = {
+    canvas: dryRun ? null : canvasRel,
+    planned: canvasRel,
+    artboards: result.artboardCount,
+    frames: chosen.map((f) => ({
+      id: f.id,
+      width: Math.max(1, Math.round(f.absoluteBoundingBox.width)),
+      height: Math.max(1, Math.round(f.absoluteBoundingBox.height)),
+    })),
+    comments: { placed: 0, resolved: 0, elsewhere: 0 },
+    tokens: null,
+    assets: { resolved: 0, pending: result.pendingRenders.length },
+    dispositions: [],
+  };
+  if (dryRun) {
+    out.dispositions = result.report.entries;
+    return out;
+  }
+
+  let fileComments = [];
+  if (withComments) {
+    try {
+      fileComments = await fetchComments(target.fileKey);
+    } catch {
+      fileComments = []; // the design is the point; a file whose comments we cannot read still imports
+    }
+  }
+
+  const staging = makeStagingDir();
+  try {
+    const assets = await resolveAssets(
+      target.fileKey,
+      result.pendingRenders.map((x) => ({
+        nodeId: x.node.id,
+        format: 'svg',
+        placeholder: x.placeholder,
+      })),
+      makeAssetDeps({ root, designRootRel, stagingDir: staging }),
+      result.report,
+      makeAssetBudget(),
+      { outlineText: false, svgMaxBytes: FIGMA_RENDER_MAX_BYTES }
+    );
+    out.assets.resolved = assets.resolved.length;
+    const tsx = applyRewrites(result.tsx, assets.rewrites);
+    const meta = {
+      ...result.meta,
+      source: { ...result.meta.source, importedAt: new Date().toISOString() },
+    };
+    const stagedTsx = join(staging, 'canvas.tsx');
+    const stagedMeta = join(staging, 'canvas.meta.json');
+    writeFileSync(stagedTsx, tsx, 'utf8');
+    writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+
+    let annText = null;
+    if (fileComments.length > 0) {
+      const commentReport = new ImportReport();
+      const { strokes, placedIds } = commentsToStrokes(
+        fileComments,
+        indexNodes(pageNode),
+        result.origin,
+        commentReport,
+        page.id
+      );
+      reports.push(commentReport);
+      const placed = new Set(placedIds);
+      out.comments.placed = placed.size;
+      out.comments.resolved = fileComments.filter((c) => placed.has(c.id) && c.resolved).length;
+      out.comments.elsewhere = fileComments.filter((c) => !c.parentId && !placed.has(c.id)).length;
+      if (strokes.length > 0) annText = boardText(strokes);
+    }
+
+    const finalTsx = assertContained(root, designRootRel, join(designRoot, canvasRel));
+    const finalMeta = assertContained(
+      root,
+      designRootRel,
+      join(designRoot, canvasRel.replace(/\.tsx$/, '.meta.json'))
+    );
+    mkdirSync(join(finalTsx, '..'), { recursive: true });
+    if (annText !== null) {
+      const stagedAnn = join(staging, 'canvas.annotations.json');
+      writeFileSync(stagedAnn, annText, 'utf8');
+      promoteFile(
+        stagedAnn,
+        assertContained(
+          root,
+          designRootRel,
+          join(designRoot, `${canvasSlug(canvasRel)}.annotations.json`)
+        )
+      );
+    }
+    promoteFile(stagedMeta, finalMeta);
+    // The canvas last: the watcher sees a .tsx whose meta (and board) are already there.
+    promoteFile(stagedTsx, finalTsx);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+
+  if (styles) {
+    try {
+      const t = await importTokens({ url, root, designRootRel });
+      out.tokens = { count: t.count, path: t.path ?? null };
+      reports.push(t.report);
+    } catch (err) {
+      // The frames landed; a style read that failed is one line of the summary, not a failed import.
+      out.tokens = {
+        count: 0,
+        path: null,
+        failed: err instanceof FigmaApiError ? err.kind : 'failed',
+      };
+    }
+  }
+  out.dispositions = reports.flatMap((r) => r.entries);
+  return out;
+}
+
 // ── Phase 7 — `--explode`: one artboard, via the local Dev Mode codegen ─────
 
 /**
@@ -1916,7 +2199,7 @@ export async function importTokens({ url, root, designRootRel = '.design', dryRu
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 
-function parseArgv(argv) {
+export function parseArgv(argv) {
   const out = {
     mode: null,
     url: null,
@@ -1936,6 +2219,10 @@ function parseArgv(argv) {
     fileKey: null,
     into: null,
     at: null,
+    pick: null,
+    name: null,
+    comments: true,
+    styles: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -2009,8 +2296,48 @@ function parseArgv(argv) {
       case '--confirm-large':
         out.confirmLarge = true;
         break;
-      case '--editable':
-        out.editable = true;
+      // S8.17 — `--editable <artboard-id>` is Make editable: the DDR-219 codegen of ONE artboard, the
+      // same operation as `--explode` (it needs `--canvas`). Bare `--editable` keeps its v1 meaning on
+      // `--pages` / `--frames`: the JSX translation instead of Figma's picture.
+      case '--editable': {
+        const next = argv[i + 1];
+        if (next !== undefined && !next.startsWith('-') && !out.mode) {
+          out.mode = 'explode';
+          out.artboard = argv[++i];
+        } else if (next !== undefined && !next.startsWith('-')) {
+          throw new ImportFigmaError(
+            2,
+            '--editable <artboard> is its own operation — drop the other mode'
+          );
+        } else {
+          out.editable = true;
+        }
+        break;
+      }
+      // S8.17 — the sheet's two halves on the command line: list a page's frames, pick some of them.
+      case '--list':
+        if (out.mode)
+          throw new ImportFigmaError(
+            2,
+            'pick exactly one of --board/--frames/--tokens/--list/--explode'
+          );
+        out.mode = 'list';
+        out.url = argv[++i];
+        break;
+      case '--pick':
+        out.pick = String(argv[++i] ?? '')
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        break;
+      case '--name':
+        out.name = argv[++i];
+        break;
+      case '--no-comments':
+        out.comments = false;
+        break;
+      case '--styles':
+        out.styles = true;
         break;
       case '--json':
         out.json = true;
@@ -2035,7 +2362,11 @@ Usage:
   maude design import-figma --board  <figjam-url> --into <canvas.tsx> --root <repo>
                             [--at x,y] [--dry-run] [--confirm-large] [--json]
   maude design import-figma --pages  <figma-url>  --root <repo> [--folder <name>] [--editable]
-  maude design import-figma --frames <figma-url>  --root <repo> [--slug <name>]
+  maude design import-figma --list   <figma-url>  [--json]
+  maude design import-figma --frames <figma-url>  --root <repo> [--pick <id,id…>] [--folder <dir>]
+                            [--name <canvas>] [--no-comments] [--styles] [--dry-run] [--json]
+  maude design import-figma --frames <figma-url>  --root <repo> --editable [--slug <name>]
+  maude design import-figma --editable <artboard-id> --canvas <dir>/<Canvas>.tsx --root <repo>
   maude design import-figma --tokens <figma-url>  --root <repo>
   maude design import-figma --fig    <path.fig>   --root <repo> [--slug <name>]
                             [--file-key <key>] [--dry-run] [--json]
@@ -2055,6 +2386,13 @@ has to reimplement auto-layout, constraints and clipping. Text stays real text
 inside the SVG. The trade is that a rendered artboard is not directly editable;
 \`--editable\` opts back into the JSX translation when an editable artboard
 matters more than an accurate one.
+
+\`--frames\` brings frames in as Figma's exact picture: each picked frame (\`--pick\`, ids from
+\`--list\`; default every frame on the linked page, at most 60) becomes one Fixed size artboard at
+its Figma size, all on ONE new canvas (\`<folder>/<name>.tsx\`; "<name> (Figma)" when that canvas
+is already there). The pictures are not editable. \`--editable <artboard-id> --canvas …\` makes ONE
+of them editable later (the same operation as \`--explode\`); bare \`--editable\` translates every
+frame to JSX instead, as before.
 
 \`--board … --into <canvas>\` lands the board in a canvas you already have, as ONE section
 ("From FigJam") on its annotation layer, right of what is there (or at \`--at\`). Stickies,
@@ -2284,6 +2622,38 @@ async function main() {
           `import-figma: ${r.written.length} page(s) -> ui/${r.folder}/${opts.dryRun ? ' (dry run)' : ''}\n${[...lines, ...skips].join('\n')}\n${formatSummary(merged, { assets: `${r.resolvedAssets}/${r.pendingExports} resolved` })}\n`
         );
       }
+      return;
+    }
+    if (opts.mode === 'list') {
+      const r = await listFigmaFrames({ url: opts.url });
+      process.stdout.write(
+        opts.json
+          ? `${JSON.stringify(r)}\n`
+          : `import-figma: ${r.surface === 'board' ? 'a FigJam board — use --board' : `${r.frames.length} frame(s)`}\n${r.frames.map((f) => `  ${f.id}  ${f.width} x ${f.height}`).join('\n')}\n`
+      );
+      return;
+    }
+    // S8.17 — `--frames` brings frames in as Figma's exact picture (Fixed size, at Figma px), into ONE
+    // new canvas. Bare `--editable` keeps the v1 JSX translation below.
+    if (opts.mode === 'frames' && !opts.editable) {
+      const r = await importFramePictures({
+        url: opts.url,
+        root,
+        designRootRel: opts.designRoot,
+        frames: opts.pick ?? (await listFigmaFrames({ url: opts.url })).frames.map((f) => f.id),
+        folder: opts.folder ?? '',
+        name: opts.name,
+        comments: opts.comments,
+        styles: opts.styles,
+        dryRun: opts.dryRun,
+      });
+      const merged = new ImportReport();
+      merged.entries.push(...r.dispositions);
+      process.stdout.write(
+        opts.json
+          ? `${JSON.stringify(r)}\n`
+          : `import-figma: ${r.artboards} frame(s) as pictures -> ${r.planned}${opts.dryRun ? ' (dry run)' : ''}\n${formatSummary(merged, { assets: `${r.assets.resolved}/${r.assets.pending} resolved` })}\n`
+      );
       return;
     }
     if (opts.mode === 'frames') {

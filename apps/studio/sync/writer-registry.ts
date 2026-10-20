@@ -339,6 +339,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
   '/_api/figma/explode': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
+  // S8.17 — the Import from Figma sheet: the picked frames land as ONE new canvas (+ its board, + tokens)
+  '/_api/figma/import-frames': {
+    class: 'file-plane',
+    rows: 'I04/I05 (canvases join by cold start)',
+  },
   '/_api/generate-jobs': { class: 'file-plane', rows: 'S29' },
   // S8.16 — N takes land in assets/ with their `.gen.json` sidecars (companion text); the quote and the reads write nothing
   '/_api/generate-takes': { class: 'file-plane', rows: 'S29' },
@@ -381,6 +386,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/setup-readiness': { class: 'read' },
   '/_api/whats-new': { class: 'read' },
   '/_api/figma/probe': { class: 'read' },
+  '/_api/figma/frames': { class: 'read' }, // S8.17 — lists a page's frames, writes nothing
   '/_api/figma/status': { class: 'read' },
   '/_api/generate/providers': { class: 'read' },
   '/_api/generate/audio-search': { class: 'read' },
