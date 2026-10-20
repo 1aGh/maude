@@ -30,6 +30,7 @@
     "e2e:ds-edges": "wdio run ./wdio.ds-edges.conf.ts",
     "e2e:ds-advanced": "wdio run ./wdio.ds-advanced.conf.ts",
     "e2e:ds-library": "wdio run ./wdio.ds-library.conf.ts",
+    "e2e:ds-review:all": "wdio run ./wdio.ds-review.conf.ts && wdio run ./wdio.ds-review-master.conf.ts && wdio run ./wdio.ds-outside.conf.ts && wdio run ./wdio.ds-make.conf.ts",
     "e2e:handoff": "wdio run ./wdio.handoff.conf.ts",
     "e2e:share-roles": "wdio run ./wdio.share-roles.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",

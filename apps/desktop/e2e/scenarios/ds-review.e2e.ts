@@ -5,6 +5,22 @@ import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow, ensureFilesTab } from '../helpers/tree';
 
+/*
+ * The ds-review story (S10.21, V2-8.3): four parts, four worlds. Each part seeds its own project, so one boot can't
+ * hold all four; `pnpm e2e:ds-review:all` (apps/desktop/e2e) runs them in order and stops at the first red.
+ *
+ *   part 1  this file, MAUDE_E2E_DS_REVIEW_PART=1   wdio.ds-review.conf.ts         fixtures/seed-ds-review.ts
+ *           edit → review → untick → Update → the dot → ⌘Z                                (S10.8, ds-edit-review)
+ *   part 2  this file, MAUDE_E2E_DS_REVIEW_PART=2   wdio.ds-review-master.conf.ts  fixtures/seed-ds-master.ts
+ *           a master change, a folder left out with one tick                             (S10.10, ds-edit-master)
+ *   part 3  ds-review-outside.e2e.ts                wdio.ds-outside.conf.ts        fixtures/seed-ds-outside.ts
+ *           an agent edit behind the app arrives as a review: Keep, Undo                 (S10.11, ds-truth-outside)
+ *   part 4  this file, MAUDE_E2E_DS_REVIEW_PART=4   wdio.ds-make.conf.ts           a copy of fixtures/project
+ *           make a design system with a scripted agent: sentence, directions, mix, use   (S10.16b, ds-make-*)
+ *
+ * The parity half of S10.21 (every ds.* action: the button ≡ the agent on disk) is apps/studio/test/ds-agent-parity.test.ts.
+ */
+
 /**
  * 13 · ds-edit-review, part 1 (S10.8) — a design-system change waits; "Update N canvases" is the one place it
  * reaches the canvases: edit → review → untick a canvas → Update → it keeps the old look with a dot → ⌘Z takes
