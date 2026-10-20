@@ -295,13 +295,16 @@ export default function TimelinePanel({
   // S7.18 — Advanced at the foot (frames, keyframes, the cut as code), the asked-for empty tracks, and how long
   // one export of this video may be (C22). The fold is the shared `timeline` Advanced fold.
   const advOpen = useAdvancedOpen();
+  const haveRef = useRef([]);
   const adv = useAdvanced();
   useCapVersion();
   const capFile = island?.canvas ?? null;
   const capId = comp?.artboardId ?? null;
   useEffect(() => {
     if (capFile && capId) void loadMaxFrames(capFile, capId);
-    bindCapTarget(() => (capFile && capId ? { file: capFile, artboardId: capId } : null));
+    bindCapTarget(() =>
+      capFile && capId ? { file: capFile, artboardId: capId, have: haveRef.current } : null
+    );
     return () => bindCapTarget(null);
   }, [capFile, capId]);
   const cap = capView({
@@ -888,6 +891,7 @@ export default function TimelinePanel({
   const trackOfIdx = new Map();
   const trackOfBed = new Map();
   const drawnTracks = deriveTracks({ sequences, audio, extra: extraTracks });
+  haveRef.current = drawnTracks.map((t) => t.id);
   for (const t of drawnTracks) {
     for (const m of t.members) (m.kind === 'seq' ? trackOfIdx : trackOfBed).set(m.index, t.id);
   }

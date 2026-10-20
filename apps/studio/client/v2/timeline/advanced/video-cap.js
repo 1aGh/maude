@@ -145,10 +145,13 @@ export async function saveMaxFrames(file, id, frames, fetchImpl = globalThis.fet
 
 // ── the video the action reads ──────────────────────────────────────────────────────────────────────
 let source = () => null;
-/** The Timeline says which video it follows: `() => { file, artboardId } | null`. */
+/** The Timeline says which video it follows: `() => { file, artboardId, have? } | null`. */
 export function bindCapTarget(fn) {
   source = typeof fn === 'function' ? fn : () => null;
 }
+
+/** The video the Timeline follows now: `{ file, artboardId, have }` (`have` = the track ids it draws), or null. */
+export const followedVideo = () => source();
 
 /** `video.allow-longer`: the followed video may export up to the ceiling (`on: false` = back to the limit). */
 export async function allowLongerAtFollowed(on = true, fetchImpl = globalThis.fetch) {
