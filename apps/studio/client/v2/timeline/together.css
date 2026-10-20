@@ -1,0 +1,85 @@
+/* client/v2/timeline/together.css — S7.17: two people on one video (07 Video Editing · ve-together). Lifted from the
+ * canvas's `.ve-peer-head`, `.ve-peer-tag` and `.ve-item--peer` rules; tokens only. A teammate is sky
+ * (`--object-sky`); comment flags and time marks sit on the ruler. Nothing animates (reduced motion needs nothing). */
+
+@layer components {
+  /* a teammate's playhead: a thin sky line over the tracks */
+  .tl-peer-head {
+    position: absolute;
+    top: 18px;
+    bottom: 0;
+    z-index: 5;
+    width: 2px;
+    translate: -50% 0;
+    background: var(--object-sky);
+    pointer-events: none;
+  }
+
+  /* "Tereza is fixing a caption" — over the word she is in */
+  .tl-peer-tag {
+    position: absolute;
+    top: 0;
+    z-index: 7;
+    translate: -50% 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--object-sky);
+    color: var(--object-ink);
+    font-family: var(--font-rounded);
+    font-weight: var(--w-semibold);
+    font-size: var(--type-xs);
+    line-height: 18px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* her word: her ring, read-only for everyone else */
+  .tl-cap[data-held="true"],
+  .tx-w[data-held="true"] {
+    box-shadow: 0 0 0 2px var(--object-sky);
+    cursor: not-allowed;
+  }
+
+  /* a thread pinned to a moment of the video */
+  .tl-flag {
+    position: absolute;
+    top: 2px;
+    z-index: 2;
+    width: 10px;
+    height: 14px;
+    translate: -1px 0;
+    padding: 0;
+    border: 0;
+    border-left: 2px solid var(--accent);
+    background: color-mix(in oklab, var(--accent) 35%, transparent);
+    clip-path: polygon(0 0, 100% 0, 70% 50%, 100% 100%, 0 100%);
+    cursor: pointer;
+  }
+  .tl-flag.is-resolved {
+    border-left-color: var(--fg-3);
+    background: color-mix(in oklab, var(--fg-3) 30%, transparent);
+  }
+  .tl-flag:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* a sticky pinned to a range of the video, in its paper */
+  .tl-time-mark {
+    position: absolute;
+    bottom: 1px;
+    z-index: 1;
+    height: 5px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--object-ink) 25%, transparent);
+    cursor: pointer;
+  }
+  .tl-time-mark:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

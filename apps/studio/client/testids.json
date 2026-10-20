@@ -38800,5 +38800,69 @@
       "apps/studio/test/e2e/kinds-convert.e2e.mjs"
     ],
     "v2": "new in v2 (S7.25)"
+  },
+  {
+    "hook": "timeline-peer-head-<clientID>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.17: a teammate’s playhead on the followed video — a thin sky line (07 ve-together).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/peers.jsx",
+      "symbol": "PeerHeads"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/caption-word-lock.test.ts"
+    ],
+    "v2": "new in v2 (S7.17)"
+  },
+  {
+    "hook": "timeline-peer-tag-<clientID>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.17: “Tereza is fixing a caption” over the caption word a teammate holds.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/peers.jsx",
+      "symbol": "PeerHeads"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/caption-word-lock.test.ts"
+    ],
+    "v2": "new in v2 (S7.17)"
+  },
+  {
+    "hook": "timeline-flag-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.17: a comment thread pinned to a moment of the video, on the ruler; click opens the thread.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/marks.jsx",
+      "symbol": "RulerMarks"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-marks.test.ts"
+    ],
+    "v2": "new in v2 (S7.17)"
+  },
+  {
+    "hook": "timeline-time-mark-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.17: a sticky pinned to a time range of the video, a bar on the ruler in its paper; click seeks to its start.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/marks.jsx",
+      "symbol": "RulerMarks"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-marks.test.ts"
+    ],
+    "v2": "new in v2 (S7.17)"
   }
 ]

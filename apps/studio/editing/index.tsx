@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { canvasModeStore, canvasSingleKeys } from '../bridge/canvas-mode-store.ts';
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
+import { TimelinePresence } from '../collab/timeline-presence.tsx';
 import { resolveSelectionEl } from '../dom-selection.ts';
 import { isEditableTarget } from '../input-router.tsx';
 import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
@@ -305,6 +306,8 @@ export function EditingLayer() {
       {editChrome ? <MinimapContext /> : null}
       {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
       <HoldRings />
+      {/* S7.17 — my playhead + the caption word I'm fixing on awareness; teammates' to the timeline island */}
+      <TimelinePresence />
       {/* S2.19 — ⌘/ on a selection: the canvas says what and where; one AI outline follows the ask */}
       <AskBubble readOnly={isReadOnlyCanvas()} />
       <AiScopeOutline />

@@ -267,6 +267,7 @@ describe('the field survives other fields’ publishes (kept across setLocalStat
         'present',
         'summon',
         'surface',
+        'timeline',
         'watching',
       ].sort()
     );

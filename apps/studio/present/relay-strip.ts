@@ -28,6 +28,17 @@ export const PRESENTER_ONLY_FIELDS: readonly string[] = Object.freeze(['present'
  * unread).
  */
 export function stripPresenterAwareness(payload: Uint8Array): Uint8Array | null {
+  return stripAwarenessFields(payload, PRESENTER_ONLY_FIELDS);
+}
+
+/**
+ * The general form (S7.17 reuses it for `timeline` / `editing`): every state the
+ * frame carries loses `fields`. Same return contract as `stripPresenterAwareness`.
+ */
+export function stripAwarenessFields(
+  payload: Uint8Array,
+  fields: readonly string[]
+): Uint8Array | null {
   let entries: { clientID: number; clock: number; json: string }[];
   let changed = false;
   try {
@@ -44,7 +55,7 @@ export function stripPresenterAwareness(payload: Uint8Array): Uint8Array | null 
       const state = JSON.parse(json);
       if (state && typeof state === 'object' && !Array.isArray(state)) {
         let hit = false;
-        for (const key of PRESENTER_ONLY_FIELDS) {
+        for (const key of fields) {
           if (Object.hasOwn(state, key)) {
             delete state[key];
             hit = true;

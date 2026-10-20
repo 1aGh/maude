@@ -184,3 +184,5 @@
 @import url("../v2/transcript/transcript.css");
 /* S7.13 — the Re-frame island, "Shared by N formats" and the inspector's Formats rows (client/v2/timeline/reframe.css). */
 @import url("../v2/timeline/reframe.css");
+/* S7.17 — a teammate's playhead and caption word, comment flags and time marks on the ruler. */
+@import url("../v2/timeline/together.css");

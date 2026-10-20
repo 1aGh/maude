@@ -25,6 +25,7 @@ import { useFileDrag } from './edit/drop.jsx';
 import { playToggle } from './keys.js';
 import { loopJump } from './transport.js';
 import { bindFollowed, playbackStore } from './playhead.js';
+import { useTimelinePeersLane } from './peers.jsx';
 import { bindPosterSource, loadPoster, posterOf, usePosterVersion } from './poster.js';
 import { TimelineIslandContext } from './island-context.js';
 import { TimelineIsland } from './island.jsx';
@@ -94,6 +95,8 @@ export default function TimelineHost({ children }) {
     window.addEventListener('message', lane.onMessage);
     return () => window.removeEventListener('message', lane.onMessage);
   }, []);
+  // S7.17 — teammates' playheads and caption words, from the active canvas (always listening)
+  useTimelinePeersLane();
   // another canvas: its videos are not these videos
   // biome-ignore lint/correctness/useExhaustiveDependencies: switching canvases is the trigger
   useEffect(() => {

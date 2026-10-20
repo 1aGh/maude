@@ -18,6 +18,7 @@ import {
 } from '../../transcript/captions-api.js';
 import { useCompMedia } from '../../transcript/comp-media-store.js';
 import { wordKey } from '../../transcript/transcript-model.js';
+import { fixingText, useTimelinePeers, wordHolder } from '../peers.jsx';
 import { timelineSelection, useTimelineSelection } from '../selection.js';
 
 const LOW_P = 0.5;
@@ -52,6 +53,7 @@ export function captionSelection({ canvas, artboardId, fps, media, key }) {
 export function CaptionLane({ canvas, artboardId, fps, frame, x, axisPx, onSeek }) {
   const { media } = useCompMedia(canvas, artboardId);
   const sel = useTimelineSelection();
+  const { peers } = useTimelinePeers();
   const words = media?.words ?? [];
   const captionsSelected = sel?.kind === 'caption' && sel.canvas === canvas;
 
@@ -72,6 +74,8 @@ export function CaptionLane({ canvas, artboardId, fps, frame, x, axisPx, onSeek 
       <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
         {words.map((w) => {
           const key = wordKey(w);
+          // S7.17 — a word a teammate is fixing wears their ring and says so
+          const heldBy = wordHolder(peers, artboardId, key);
           const left = x(w.f0);
           const width = Math.max(2, x(w.f1 - w.f0) - 1);
           return (
@@ -84,8 +88,9 @@ export function CaptionLane({ canvas, artboardId, fps, frame, x, axisPx, onSeek 
               data-hl={frame >= w.f0 && frame < w.f1 ? 'true' : undefined}
               data-sel={captionsSelected && sel.wordKey === key ? 'true' : undefined}
               data-low={typeof w.p === 'number' && w.p < LOW_P && !w.fixed ? 'true' : undefined}
+              data-held={heldBy ? 'true' : undefined}
               style={{ left, width }}
-              title={w.text}
+              title={heldBy ? `${w.text} · ${fixingText(heldBy)}` : w.text}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();

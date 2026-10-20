@@ -10,6 +10,7 @@
 // wires them to the shell. Speech is untrusted text: it is only ever rendered as a React child.
 
 import { useEffect, useRef, useState } from 'react';
+import { fixingText } from '../timeline/peers.jsx';
 import { NO_ENGINE_TEXT } from './captions-api.js';
 import { rangeKeys } from './transcript-model.js';
 
@@ -38,9 +39,21 @@ function CaptionsGlyph() {
 }
 
 /** One word. A button-less span: selection is by pointer and keys on the panel, as text is. */
-function Word({ item, selected, playing, editing, onDown, onEnter, onEdit, onCommit, onCancel }) {
+function Word({
+  item,
+  selected,
+  playing,
+  editing,
+  heldBy,
+  onDown,
+  onEnter,
+  onEdit,
+  onCommit,
+  onCancel,
+}) {
   const state = item.state;
   const title =
+    (heldBy ? fixingText(heldBy) : null) ??
     item.note ??
     (item.lowConfidence
       ? 'Not sure about this word — check it.'
@@ -84,6 +97,7 @@ function Word({ item, selected, playing, editing, onDown, onEnter, onEdit, onCom
       data-playing={playing ? 'true' : undefined}
       data-low={item.lowConfidence ? 'true' : undefined}
       data-fixed={item.fixed ? 'true' : undefined}
+      data-held={heldBy ? 'true' : undefined}
       title={title}
       onMouseDown={(e) => onDown(e, item)}
       onMouseEnter={(e) => onEnter(e, item)}
@@ -101,6 +115,8 @@ function Word({ item, selected, playing, editing, onDown, onEnter, onEdit, onCom
  *   frame: number,
  *   canEdit: boolean,
  *   onSelect: (keys: string[], anchor: string|null) => void,
+ *   lockedBy?: (key: string) => string|null,   // S7.17: the teammate fixing this word, or null
+ *   onEditing?: (key: string|null) => void,    // S7.17: the word I opened to fix, or null when I left it
  *   onCut: () => void,
  *   onFix: (item: any, text: string) => Promise<any>|void,
  *   onFindSpeech: () => void,
@@ -119,8 +135,15 @@ export function TranscriptPanel({
   onFindSpeech,
   onSetUp,
   onClose,
+  lockedBy,
+  onEditing,
 }) {
   const [editing, setEditing] = useState(null); // { key, seed, select }
+  // S7.17 — the word I am fixing is published as mine; a word a teammate is fixing does not open for me
+  const editingKey = editing?.key ?? null;
+  useEffect(() => {
+    onEditing?.(editingKey);
+  }, [editingKey, onEditing]);
   const [dragging, setDragging] = useState(false);
   const root = useRef(null);
   const items = model.sections.flatMap((s) => s.paragraphs.flatMap((p) => p.items));
@@ -136,6 +159,7 @@ export function TranscriptPanel({
 
   const startEdit = (item, selectAll, seed) => {
     if (!canEdit || !hasCaptions || item.state === 'struck') return;
+    if (lockedBy?.(item.key)) return;
     onSelect([item.key], item.key);
     setEditing({ key: item.key, seed: seed ?? item.text, select: selectAll });
   };
@@ -236,6 +260,7 @@ export function TranscriptPanel({
                     selected={selected.has(it.key)}
                     playing={it.f0 !== null && frame >= it.f0 && frame < it.f1}
                     editing={editing?.key === it.key ? editing : null}
+                    heldBy={lockedBy?.(it.key) ?? null}
                     onDown={onDown}
                     onEnter={onEnter}
                     onEdit={startEdit}

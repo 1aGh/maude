@@ -7,7 +7,7 @@
 //            refusal and the toast are a gesture's), toasts, Undo, Settings, and the speech reader;
 //   · PANEL  draws the Transcript island when `transcriptUi.open`.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
@@ -22,6 +22,7 @@ import {
   transcriptUi,
   useTranscriptUi,
 } from './captions-api.js';
+import { useMyCaptionWord, useTimelinePeers, wordHolder } from '../timeline/peers.jsx';
 import { compMediaStore, useCompMedia } from './comp-media-store.js';
 import { TranscriptPanel } from './TranscriptPanel.jsx';
 import { buildTranscriptModel } from './transcript-model.js';
@@ -128,6 +129,13 @@ export default function TranscriptHost() {
     []
   );
 
+  // ── TOGETHER (S7.17) — my word is mine while I fix it; a teammate's is theirs ──
+  const [fixingKey, setFixingKey] = useState(null);
+  const panelUp = ui.open && !!canvas && !panelsHidden;
+  useMyCaptionWord(panelUp ? artboard : null, panelUp ? fixingKey : null);
+  const { peers } = useTimelinePeers();
+  const lockedBy = useCallback((key) => wordHolder(peers, artboard, key), [peers, artboard]);
+
   // ── PANEL ──
   const { media } = useCompMedia(canvas, artboard);
   const model = useMemo(
@@ -147,6 +155,8 @@ export default function TranscriptHost() {
       onFindSpeech={() => void findSpeech()}
       onSetUp={setUpSpeech}
       onClose={transcriptUi.close}
+      lockedBy={lockedBy}
+      onEditing={setFixingKey}
     />
   );
 }

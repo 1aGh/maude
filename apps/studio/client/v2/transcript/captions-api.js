@@ -15,6 +15,7 @@
 
 import { useSyncExternalStore } from 'react';
 
+import { fixingText, keysHolder, lockedAnswer, timelinePeers } from '../timeline/peers.jsx';
 import { compMediaStore } from './comp-media-store.js';
 import {
   buildTranscriptModel,
@@ -221,6 +222,12 @@ export async function cutSelection() {
   const model = buildTranscriptModel(media, { nameOf: d.nameOf });
   const plan = cutPlan(model, ui.selection);
   if (!plan) return { ok: false, reason: 'nothing-selected' };
+  // S7.17 — a word a teammate is fixing is theirs until they leave it
+  const holder = keysHolder(timelinePeers.get().peers, t.artboard, ui.selection);
+  if (holder) {
+    setUi({ notice: `${fixingText(holder)}.` });
+    return { ...lockedAnswer(holder), reason: 'locked' };
+  }
   if (plan.refusal) {
     setUi({ notice: plan.refusal });
     return { ok: false, reason: 'refused', message: plan.refusal };
@@ -253,6 +260,11 @@ export async function fixWord(item, text) {
   if (!d || !t || !d.canEdit()) return { ok: false, reason: 'read-only' };
   const media = compMediaStore.get(t.canvas, t.artboard);
   if (!media?.captions) return { ok: false, reason: 'no-captions' };
+  const holder = keysHolder(timelinePeers.get().peers, t.artboard, [item?.key]);
+  if (holder) {
+    setUi({ notice: `${fixingText(holder)}.` });
+    return { ...lockedAnswer(holder), reason: 'locked' };
+  }
   const fixes = captionFixes(media.captions.fixes, item, text);
   const a = await d.run(null, 'video.captions.add', { fixes: fixes.length ? fixes : null });
   if (!a?.ok) {
