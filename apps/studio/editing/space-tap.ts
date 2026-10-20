@@ -45,3 +45,12 @@ export function createSpaceTap(thresholdMs: number = SPACE_TAP_MS): SpaceTap {
     },
   };
 }
+
+/** The canvas → shell notice: a tap, nothing else (`space-tap` in the dgn table; the shell plays the followed video). */
+export function sendSpaceTap(win: Window): void {
+  try {
+    win.parent.postMessage({ dgn: 'space-tap' }, '*');
+  } catch {
+    /* detached */
+  }
+}
