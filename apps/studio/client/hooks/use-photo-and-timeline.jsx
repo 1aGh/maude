@@ -22,6 +22,7 @@ import { parseCompTimeline } from '../panels/timeline-parse.js';
 import { trackRecordableWrite } from '../inspector/css-knobs.jsx';
 import { runActionMessage } from '../actions/shell-key-handlers.js';
 import {
+  clipVerbRefusal,
   clipVerbToast,
   refusalText,
   runClipVerb,
@@ -259,9 +260,11 @@ export function usePhotoAndTimeline({
   // transition/split/insert-transition/remove-transition/remove …), shared by the inspector popover,
   // context menu, seam chips, ⌫ and ⌘B. S7.6: every verb is `clip.<verb>` through `/_api/edit-op`.
   const timelineClipVerb = useCallback(
-    (clipRef, verb, params) => {
+    // `opts.quiet`: the caller words the outcome itself (a drop that falls back to a new cut). Resolves the
+    // answer (`{ ok, … }`), or null when nothing ran — so a multi-step gesture can wait for its one write.
+    (clipRef, verb, params, opts = {}) => {
       const canvas = tlKeyRef.current.canvas;
-      if (!canvas || canvas === SYSTEM_TAB) return;
+      if (!canvas || canvas === SYSTEM_TAB) return Promise.resolve(null);
       const artboardId = timelineArtboardIdRef.current || undefined;
       const run = runClipVerb({
         fetch: (url, init) => fetch(url, init),
@@ -280,14 +283,12 @@ export function usePhotoAndTimeline({
       });
       // ⌘Z right after a verb waits for its record (the canvas's undo barrier, css-knobs.jsx).
       trackRecordableWrite(run);
-      run
+      return run
         .then((j) => {
+          if (opts.quiet) return j;
           if (j && !j.ok) {
             console.warn('[clip-op]', verb, refusalText(j));
-            timelineOpFailed(
-              verb === 'remove' ? 'Remove refused' : `${verb} refused`,
-              refusalText(j)
-            );
+            timelineOpFailed(clipVerbRefusal(verb), refusalText(j));
           } else if (j?.ok) {
             // S7.9 — S names what it split and offers the one Undo; the other verbs say what happened.
             const s = tlKeyRef.current;
@@ -312,8 +313,13 @@ export function usePhotoAndTimeline({
             );
             if (verb === 'remove') setTimelineSelectedClip(null);
           }
+          return j;
         })
-        .catch(() => shellToast(`${verb} failed: network error`));
+        .catch(() => {
+          if (!opts.quiet)
+            shellToast(`${clipVerbRefusal(verb).replace(' refused', '')} failed: network error`);
+          return null;
+        });
     },
     [resolveClipRef, recordOnCanvas, timelineOpFailed, postToActiveCanvas]
   );

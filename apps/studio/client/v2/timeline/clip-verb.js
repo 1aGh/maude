@@ -36,6 +36,14 @@ export const CLIP_VERB_LABELS = {
   insert: 'add clip',
 };
 
+const REFUSAL_WORD = { retime: 'Trim', move: 'Move', insert: 'Drop', remove: 'Remove' };
+
+/** The title of the notice a refused verb raises: "Trim refused", never "retime refused". */
+export function clipVerbRefusal(verb) {
+  const label = clipVerbLabel(verb);
+  return `${REFUSAL_WORD[verb] || label.charAt(0).toUpperCase() + label.slice(1)} refused`;
+}
+
 /** Verbs that name no existing clip (a drop adds one). */
 const CLIPLESS_VERBS = new Set(['insert']);
 
@@ -56,7 +64,13 @@ export function clipVerbToast(verb, { name, atFrame, fps, params } = {}) {
   if (verb === 'retime')
     return { text: params?.from != null ? 'Clip moved.' : 'Clip trimmed.', undo: false };
   if (verb === 'move') return { text: 'Clip moved.', undo: false };
-  if (verb === 'insert') return { text: 'Clip added to the timeline.', undo: false };
+  if (verb === 'insert') {
+    const n = Array.isArray(params?.items) ? params.items.length : 1;
+    return {
+      text: n > 1 ? `${n} clips added to the timeline.` : 'Clip added to the timeline.',
+      undo: false,
+    };
+  }
   return { text: `Applied: ${clipVerbLabel(verb)}.`, undo: false };
 }
 

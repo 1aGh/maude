@@ -2389,6 +2389,13 @@ export default function TimelinePanel({
               // Vertical z-order (overlay clips only) — mirrors the V-chip drag.
               const zLadder = overlay.filter((o) => !o.seq.loose);
               const docIdx = zLadder.findIndex((o) => o.i === i);
+              // the series beats, in order: "earlier" and "later" are relative to THEM, not to every row
+              const beats = sequences
+                .map((s2, i2) => ({ s: s2, i: i2 }))
+                .filter(({ s: s2 }) => s2.series);
+              const at = beats.findIndex((b) => b.i === i);
+              const prevBeat = at > 0 ? beats[at - 1] : null;
+              const nextBeat = at >= 0 && at < beats.length - 1 ? beats[at + 1] : null;
               // S7.9 — the 17 v1 items, six drawn and eleven under Advanced ▸ (edit/clip-menu.js).
               return (
                 <ClipMenu
@@ -2397,8 +2404,8 @@ export default function TimelinePanel({
                   onClose={() => setCtxMenu(null)}
                   model={{
                     seq,
-                    index: i,
-                    count: sequences.length,
+                    index: seq.series ? Math.max(0, at) : i,
+                    count: seq.series ? beats.length : sequences.length,
                     rowKind: rowKind(seq),
                     layerIndex: ctxMenu.layerIndex ?? null,
                     zLadder: docIdx >= 0 ? { docIdx, len: zLadder.length } : null,
@@ -2447,8 +2454,15 @@ export default function TimelinePanel({
                     'to-storyline': () => onClipVerb(ref, 'to-storyline', {}),
                     'layer-up': () => onClipVerb(ref, 'layer-order', { toIndex: docIdx + 1 }),
                     'layer-down': () => onClipVerb(ref, 'layer-order', { toIndex: docIdx - 1 }),
-                    earlier: () => onReorder(ref, seq.series ? 'backward' : 'forward'),
-                    later: () => onReorder(ref, seq.series ? 'forward' : 'backward'),
+                    // a series beat swaps places with its neighbour through the ONE move op; a layer re-stacks
+                    earlier: () =>
+                      seq.series
+                        ? prevBeat && onReorderMove?.(ref, refFor(prevBeat.s, prevBeat.i), 'before')
+                        : onReorder(ref, 'forward'),
+                    later: () =>
+                      seq.series
+                        ? nextBeat && onReorderMove?.(ref, refFor(nextBeat.s, nextBeat.i), 'after')
+                        : onReorder(ref, 'backward'),
                     'replace-layer': () => onReplaceLayer(ref, ctxMenu.layerIndex),
                   }}
                 />

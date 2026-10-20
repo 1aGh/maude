@@ -102,7 +102,14 @@ const move: EditOp = {
   },
 };
 
-/** `clip.insert` — footage dropped on the timeline: a beat at `index`, or an overlay / audio clip at `from`. */
+/** The most footage one drop may add (a folder of clips is still ONE gesture, one undo step). */
+const MAX_DROP = 50;
+
+/**
+ * `clip.insert` — footage dropped on the timeline: a beat at `index`, or an overlay / audio clip at `from`.
+ * `items: [{ mediaTag, src, durationInFrames }]` is a multi-file drop: they land in order, in this ONE write.
+ * (Without `items` the request's own `mediaTag` / `src` / `durationInFrames` is the one clip.)
+ */
 const insert: EditOp = {
   id: 'clip.insert',
   scope: 'artboard',
@@ -111,24 +118,40 @@ const insert: EditOp = {
     const p = req.params;
     if (typeof p.lane !== 'string' || !LANES.has(p.lane))
       return bad(req.file, 'Footage lands on the video, a layer above it, or the music.');
-    if (present(p.mediaTag) && typeof p.mediaTag !== 'string')
-      return bad(req.file, 'The footage has no readable kind.');
-    if (present(p.src) && typeof p.src !== 'string')
-      return bad(req.file, 'The footage has no readable path.');
+    const lane = p.lane as 'storyline' | 'overlay' | 'audio';
+    let list: Array<Record<string, unknown>> = [p];
+    if (present(p.items)) {
+      if (!Array.isArray(p.items) || p.items.length === 0 || p.items.length > MAX_DROP)
+        return bad(req.file, `A drop adds between 1 and ${MAX_DROP} clips.`);
+      list = p.items as Array<Record<string, unknown>>;
+    }
+    const at = present(p.index) ? frames(req.file, p.index, 'index', 0) : undefined;
+    const from = present(p.from) ? frames(req.file, p.from, 'from', 0) : undefined;
     const ph = p.placeholder as { prompt?: unknown; kind?: unknown } | null | undefined;
-    const r = applyInsertClipAt(req.file, source, artboardOf(req), {
-      lane: p.lane as 'storyline' | 'overlay' | 'audio',
-      ...(present(p.index) ? { index: frames(req.file, p.index, 'index', 0) } : {}),
-      ...(present(p.from) ? { from: frames(req.file, p.from, 'from', 0) } : {}),
-      durationInFrames: frames(req.file, p.durationInFrames, 'durationInFrames', 1),
-      mediaTag: (p.mediaTag as string | null | undefined) ?? null,
-      src: (p.src as string | null | undefined) ?? null,
-      placeholder:
-        ph && typeof ph === 'object' && typeof ph.prompt === 'string'
-          ? { prompt: ph.prompt, kind: typeof ph.kind === 'string' ? ph.kind : 'veo' }
-          : null,
+    let out = source;
+    const ids: Array<string | null> = [];
+    list.forEach((it, k) => {
+      if (!it || typeof it !== 'object') return bad(req.file, 'The footage is not readable.');
+      if (present(it.mediaTag) && typeof it.mediaTag !== 'string')
+        return bad(req.file, 'The footage has no readable kind.');
+      if (present(it.src) && typeof it.src !== 'string')
+        return bad(req.file, 'The footage has no readable path.');
+      const r = applyInsertClipAt(req.file, out, artboardOf(req), {
+        lane,
+        ...(at !== undefined ? { index: at + k } : {}),
+        ...(from !== undefined ? { from } : {}),
+        durationInFrames: frames(req.file, it.durationInFrames, 'durationInFrames', 1),
+        mediaTag: (it.mediaTag as string | null | undefined) ?? null,
+        src: (it.src as string | null | undefined) ?? null,
+        placeholder:
+          ph && typeof ph === 'object' && typeof ph.prompt === 'string'
+            ? { prompt: ph.prompt, kind: typeof ph.kind === 'string' ? ph.kind : 'veo' }
+            : null,
+      });
+      out = r.source;
+      ids.push(r.stableId);
     });
-    return { source: r.source, detail: { stableId: r.stableId } };
+    return { source: out, detail: { stableId: ids[0] ?? null, stableIds: ids } };
   },
 };
 

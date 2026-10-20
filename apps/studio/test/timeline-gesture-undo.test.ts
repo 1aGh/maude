@@ -8,7 +8,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { applyRetimeSequenceByClip, enumerateClips } from '../canvas-edit.ts';
-import { CLIP_VERB_LABELS, clipVerbToast, runClipVerb } from '../client/v2/timeline/clip-verb.js';
+import {
+  CLIP_VERB_LABELS,
+  clipVerbRefusal,
+  clipVerbToast,
+  runClipVerb,
+} from '../client/v2/timeline/clip-verb.js';
 import { applyFitTotalToContent, applyInsertClipAt, applySeriesMove } from '../clip-ops.ts';
 import { EDIT_OPS } from '../edit-ops/dispatch.ts';
 import { createEditOpCommand, editOpRecordFromShell } from '../editing/edit-op.ts';
@@ -252,9 +257,22 @@ describe('the toast after a gesture', () => {
     expect(clipVerbToast('retime', { params: { from: 30 } }).text).toBe('Clip moved.');
     expect(clipVerbToast('move', {}).text).toBe('Clip moved.');
     expect(clipVerbToast('insert', {}).text).toBe('Clip added to the timeline.');
+    expect(clipVerbToast('insert', { params: { items: [{}, {}, {}] } }).text).toBe(
+      '3 clips added to the timeline.'
+    );
     expect(clipVerbToast('remove', {}).text).toBe('Clip removed.');
     expect(clipVerbToast('speed', {}).text).toBe('Applied: set speed.');
     for (const verb of ['retime', 'move', 'insert', 'remove', 'speed'])
       expect(clipVerbToast(verb, {}).undo).toBe(false);
+  });
+});
+
+describe('a refused gesture says it in a designer’s word', () => {
+  test('Trim refused, Move refused, Drop refused — never "retime refused"', () => {
+    expect(clipVerbRefusal('retime')).toBe('Trim refused');
+    expect(clipVerbRefusal('move')).toBe('Move refused');
+    expect(clipVerbRefusal('insert')).toBe('Drop refused');
+    expect(clipVerbRefusal('remove')).toBe('Remove refused');
+    expect(clipVerbRefusal('speed')).toBe('Set speed refused');
   });
 });

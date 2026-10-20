@@ -175,6 +175,65 @@ describe('one gesture, one write, the same bytes as the pure appliers', () => {
   });
 });
 
+describe('dropping three clips is one gesture: one write, one undo step', () => {
+  test('items land in order at index, in ONE edit-op, bytes = the appliers run one after another', async () => {
+    const s = sandbox();
+    const route = editOpRoute(s.designRoot, s.root);
+    const items = [
+      { mediaTag: 'Video', src: 'assets/a.mp4', durationInFrames: 60 },
+      { mediaTag: 'Video', src: 'assets/b.mp4', durationInFrames: 90 },
+      { mediaTag: 'Video', src: 'assets/c.mp4', durationInFrames: 30 },
+    ];
+    let want = SRC;
+    items.forEach((it, k) => {
+      want = applyInsertClipAt(FILE, want, 'reel', {
+        lane: 'storyline',
+        index: 1 + k,
+        ...it,
+      }).source;
+    });
+    const r = await route.handle(
+      post({
+        file: FILE,
+        op: 'clip.insert',
+        targets: [],
+        params: { artboard: 'reel', lane: 'storyline', index: 1, items },
+      }),
+      {}
+    );
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as { writeId?: string; detail?: { stableIds?: unknown[] } };
+    expect(typeof j.writeId).toBe('string');
+    expect(j.detail?.stableIds).toHaveLength(3);
+    expect(s.read()).toBe(want);
+    const order = [...s.read().matchAll(/src="assets\/(\w)\.mp4"/g)].map((m) => m[1]);
+    expect(order).toEqual(['a', 'b', 'c']);
+  });
+
+  test('a bad item refuses the whole drop and writes nothing', async () => {
+    const s = sandbox();
+    const route = editOpRoute(s.designRoot, s.root);
+    const r = await route.handle(
+      post({
+        file: FILE,
+        op: 'clip.insert',
+        targets: [],
+        params: {
+          artboard: 'reel',
+          lane: 'storyline',
+          items: [
+            { mediaTag: 'Video', src: 'assets/a.mp4', durationInFrames: 60 },
+            { mediaTag: 'Video', src: '../escape.mp4', durationInFrames: 60 },
+          ],
+        },
+      }),
+      {}
+    );
+    expect(r.status).toBe(400);
+    expect(s.read()).toBe(SRC);
+  });
+});
+
 describe('refusals', () => {
   test('a gesture during an AI cut on the same artboard → 409 held-by-ai, file untouched', async () => {
     const s = sandbox();
