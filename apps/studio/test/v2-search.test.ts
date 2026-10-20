@@ -40,7 +40,7 @@ describe('the probes: Advanced things found by name, each with where it lives', 
     expect(byName('Add a team server…')?.where).toBe(
       'Settings › Connections › Your team’s own server'
     );
-    expect(byName('Hub address')?.where).toBe('Settings › Connections › Maude Cloud');
+    expect(byName('Hub address')?.where).toBe('Settings › Connections › Your team’s own server');
     expect(rows.some((r) => r.actionId === 'sync.resync')).toBe(true);
     expect(rows.some((r) => r.actionId === 'diag.sync')).toBe(true);
   });
