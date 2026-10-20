@@ -2512,7 +2512,7 @@ export function createHttp(
     onReady: (key) => ctx.bus.emit('thumb-ready', { key }),
   });
   // S8.20 — search in pictures (describe/, contract V2-1.17 §5.9): opt-in per person on this Mac, never in a cell (A5).
-  // The picture that goes is the Assets tile the renderer made; the describer is S12.13's agent (none until then).
+  // The picture that goes is the Assets tile the renderer made; the describer is S12.13's asset-describer agent (describe/claude.ts via envDescriber; the stub under MAUDE_DESCRIBE_STUB=1).
   describeSvc = isWorkspaceMode()
     ? null
     : createDescribeService({
