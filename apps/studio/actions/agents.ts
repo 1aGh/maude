@@ -308,12 +308,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'the Transcript panel is a per-person view; an agent reads the same words with `maude design captions list`'
   ),
   'video.transcript.cut': VIDEO_OP(cli('maude design cut-words')),
+  // S7.11b — both run through `POST /_api/media-analysis` (Can edit; the job is the verb's own helper)
   'video.transcript.find-speech': {
     effect: 'project',
     minRole: 'edit',
+    server: { route: '/_api/media-analysis', method: 'POST' },
     agent: cli('maude design transcribe-local'),
   },
-  'video.music.beats': { effect: 'project', minRole: 'edit', agent: cli('maude design beats') },
+  'video.music.beats': {
+    effect: 'project',
+    minRole: 'edit',
+    server: { route: '/_api/media-analysis', method: 'POST' },
+    agent: cli('maude design beats'),
+  },
   'video.music.duck': VIDEO_OP(
     file(
       'canvas-tsx',
@@ -394,6 +401,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'canvas-tsx',
       'design:video-comp',
       'Wrap the title’s content in <TitleMotion preset="none|fade|slide-up|pop|type-on|per-word" frames={12}> (inside its <Place> when it has one); none takes the wrapper off'
+    )
+  ),
+  // S7.11b — the Title inspector's Font and Colour: fontFamily / color in the style of the element holding the words
+  'video.title.style': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set fontFamily "var(--font-…)" (a design-system font token) and color (a token or one plain CSS colour) in the style object literal of the element holding the title’s words; remove the property to take it off'
     )
   ),
   'video.transition.set': VIDEO_OP(

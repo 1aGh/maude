@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b28583992c1e",
+  "manifestVersion": "2185d110f360",
   "actions": [
     {
       "id": "search.open",
@@ -3406,6 +3406,10 @@
       "exec": "shell",
       "effect": "project",
       "minRole": "edit",
+      "server": {
+        "route": "/_api/media-analysis",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design transcribe-local"
@@ -3418,6 +3422,10 @@
       "exec": "shell",
       "effect": "project",
       "minRole": "edit",
+      "server": {
+        "route": "/_api/media-analysis",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design beats"
@@ -3637,6 +3645,25 @@
         "format": "canvas-tsx",
         "skill": "design:video-comp",
         "how": "Wrap the title’s content in <TitleMotion preset=\"none|fade|slide-up|pop|type-on|per-word\" frames={12}> (inside its <Place> when it has one); none takes the wrapper off"
+      }
+    },
+    {
+      "id": "video.title.style",
+      "label": "Title font and colour",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set fontFamily \"var(--font-…)\" (a design-system font token) and color (a token or one plain CSS colour) in the style object literal of the element holding the title’s words; remove the property to take it off"
       }
     },
     {
