@@ -85,7 +85,7 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:new',
     description:
-      'Create a multi-artboard canvas, a blank brief board, or artboards from annotations; verify with the critic loop.',
+      'Create a canvas with several artboards, an empty brief canvas, or artboards from annotations; verify with the critic loop.',
     argHint: '<Name> "<brief>" [--blank] [--from-annotations] …',
   },
   {

@@ -21,11 +21,11 @@ Opt-out flags (for deliberate exceptions):
 
 **Input `$ARGUMENTS`:** `<Name> "<brief>" [--component] [--mobile] [--quick | --no-critic] [--perfect-iter N] [--ds=<name>]`
 
-- `<Name>` — Title-Case with spaces (`Match Recap`, `Scout Radar`) for a full-screen canvas project.
+- `<Name>` — Title-Case with spaces (`Match Recap`, `Scout Radar`) for a full-screen canvas project. Letters, numbers, spaces, `-` and `_` only (step 3 says what a refused name becomes).
   - PascalCase (`MatchRecap`) when it's a component with `--component`.
 - `<brief>` — what the canvas should do / look like. Describe **everything the canvas will contain** here (how many artboards, which screens, what flow), not a single screen.
 - `--component` — creates `<designRoot>/<newComponentDir>/<PascalName>.jsx` instead of top-level HTML. Components mount inside canvas artboards.
-- `--mobile` — hints a mobile aesthetic in the prompt (mobile chrome, single column). Default = desktop. If the name contains "Mobile" / "iOS" / "Android", auto-detect.
+- `--mobile` — hints a mobile aesthetic in the prompt (mobile chrome, single column) and picks the Mobile preset size for the artboards (App › Mobile 390 × 844, or Web page › Mobile for a web flow). Default = desktop. If the name contains "Mobile" / "iOS" / "Android", auto-detect.
 - `--quick` | `--no-critic` | `--perfect-iter N` — see the table above.
 - `--ds=<name>` — pick which design system this canvas uses (multi-DS projects). Must match a name in `config.json.designSystems[]`. Default = `config.defaultDesignSystem`, falling back to `project` for single-DS layouts. **Unknown DS fails with hint to `/design:setup-ds <name>` — no fallback prompt** (clean separation: `new` does canvases, `setup-ds` does DS creation).
 - `--opt-out=palette|aesthetic|full` — opt out z project DS rules. **Default = `palette`** (tokens link + rootClass envelope kept; local namespaced palette overrides colors only; type/radii/aesthetic still enforced). `aesthetic` = palette + gradients/off-ladder radii/alt type pairings/decorative SVGs allowed. `full` = DS treated as advisory. **A11y enforced at every scope.** Plain-language opt-out signals in the brief ("opt-out design system", "modern color scheme", "different feel", "fully off-system") trigger an inferred scope + one-shot AskUserQuestion before the loop kicks off — see SKILL.md "Opt-out scope" + "Iter-1 checkpoint when scope > palette".
@@ -40,6 +40,6 @@ Opt-out flags (for deliberate exceptions):
 /design:new MatchRecap "..." --component                   # component in components/
 /design:new "iOS Bikeshare Signup" "5-screen iOS signup flow, modern blue+orange palette" --mobile --opt-out=aesthetic
 /design:new "Marketing Hero" "Landing hero with feature grid" --ds=marketing
-/design:new "Onboarding brief" --blank                          # empty annotation-only brief board, zero model cost
-/design:new                                                     # ingest: active brief-board's notes → artboards in the SAME canvas
+/design:new "Onboarding brief" --blank                          # an empty brief canvas for annotations, zero model cost
+/design:new                                                     # ingest: the active brief canvas's annotations → artboards in the SAME canvas
 ```

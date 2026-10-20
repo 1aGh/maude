@@ -1,10 +1,13 @@
 ## Failure modes
 
-- **Target file already exists** → preferred: surface AskUserQuestion with 2–3 alternative-name suggestions (mechanical `<Name> v2`, plus 1–2 brief-derived semantic alternatives — e.g. if the existing one is `iOS Signup Flow.tsx` and the brief is about scootersharing, suggest `Scooter Signup Flow`). If the user picks one, use it; if they cancel, abort.
-- **Target file exists AND AskUserQuestion is denied** (Auto Mode / non-interactive context) → infer the most accurate alternative name from the brief — semantic, not a mechanical `v2`. Document the choice explicitly in the final print (`Filename: <chosen> (auto-picked from brief because <existing> existed)`). Auto Mode authorizes reasonable autonomous decisions; preserving existing files while creating a new one with a brief-accurate name is reasonable. A mechanical `v2` suffix is an acceptable fallback if the brief doesn't yield a clear semantic name.
-- **`frontend-design` Skill unavailable** → **do NOT fail** — fall back to orchestrator-direct generation (see step 6). The final print MUST flag `Generation: orchestrator-direct fallback` + suggestion `/plugin install frontend-design@claude-plugins-official` for better quality next run.
-- **Generated HTML violates validation** (missing tokens, hardcoded colors, single-page wrapper without DCArtboard, …) → re-prompt once. If broken again, fail with detail.
-- **Post-write screenshot fails / canvas renders blank** → warn `⚠ canvas rendered blank — likely JSX error` but don't abort. The file exists; the user can open it manually + find the error in the console.
+- **The create answers 409 (the name is taken, or too close to a canvas that is)** → nothing was written. Preferred: surface AskUserQuestion with 2–3 alternative-name suggestions (mechanical `<Name> v2`, plus 1–2 brief-derived semantic alternatives — e.g. if the existing one is `iOS Signup Flow.tsx` and the brief is about scootersharing, suggest `Scooter Signup Flow`). If the user picks one, use it; if they cancel, abort.
+- **409 AND AskUserQuestion is denied** (Auto Mode / non-interactive context) → infer the most accurate alternative name from the brief — semantic, not a mechanical `v2` — and create again. Document the choice explicitly in the final print (`Name: <chosen> (auto-picked from brief because <existing> existed)`). A canvas nobody named never gets here: the create counts "Untitled canvas 2", "3" itself. Auto Mode authorizes reasonable autonomous decisions; preserving existing files while creating a new one with a brief-accurate name is reasonable. A mechanical `v2` suffix is an acceptable fallback if the brief doesn't yield a clear semantic name.
+- **The create is refused for another reason** (a name outside the allowed set, a name over 60 characters, a folder the project does not configure, a view-only project) → show the sentence it returns, offer its suggestion if it has one, and stop. Never fall back to writing the canvas file by hand.
+- **No studio answers** (`server-up` failed) → stop with the one line it prints. A canvas is made through the studio; there is no file-only path.
+- **`frontend-design` Skill unavailable** → **do NOT fail** — fall back to orchestrator-direct drafting (see step 6). The final print MUST flag `Generation: orchestrator-direct fallback` + suggestion `/plugin install frontend-design@claude-plugins-official` for better quality next run.
+- **The draft violates validation** (missing tokens, hardcoded colors, an artboard without its kind and size, …) → re-draft once. If broken again, stop with detail; the canvas is still a valid one.
+- **A write is denied by a hook** → read the reason in `/design:edit` step 4.5 and do not retry the same write or work around it with Bash.
+- **Post-write screenshot fails / canvas renders blank** → warn `⚠ canvas rendered blank — likely JSX error` but don't abort. The canvas exists; the person can open it and find the error in the console.
 - **Screenshot reports success but file is missing** → use the canonical helper via `maude design screenshot`. The helper detects silent-fail (PNG < 1 KB) and exit-codes 3. Avoid calling `agent-browser screenshot …` inline directly — it has CLI quirks around the `--full` separator and `--output` that the helper handles for you.
 
 ### `--perfect` cost when budget tight
@@ -27,6 +30,6 @@ Default `/design:new` = `--perfect` (8 iter, target 4.5/5, routed panel). Honest
 
 4. **If the user explicitly chose a downgrade** (option b/c in the question above, OR an explicit `--quick` / `--no-critic` flag) → state it explicitly in the final print:
    > `Critic panel (--quick mode per user choice): signature-moment-critic only, max 2 iter`
-- **Path contains a path outside `<DESIGN_ROOT>`** → fail (security).
-- **`.design/config.json` missing** → warn the user "using defaults" and continue with defaults from `dev-server/config.schema.json`.
+- **A path outside `<DESIGN_ROOT>`** (a `--component` target, a folder) → fail (security).
+- **`.design/config.json` missing** → warn the user "using defaults" and continue with defaults from `apps/studio/config.schema.json`.
 - **Auto-critic loop hits `stable-but-bland`** (correctness clean, aspiration plateau below target) → don't fail, surface the canvas with a diagnostic. The user should get the lowest 2 aspiration axes named so they know where to steer targeted feedback.

@@ -2,7 +2,7 @@
 
 > **Skip in BLANK mode (handled in step 3.5) and INGEST mode (which has its own `annotations_sha` short-circuit in step 6b).** This brief-identity scan is a normal-mode-only guard.
 
-Before the expensive UX research (step 4.5) + generation (step 6), check whether a previous `/design:new` already produced a canvas from a **byte-identical brief in this same DS**. Each canvas's `.meta.json` carries a `brief_sha` (stamped at step 11); scan the canvas dir for a match.
+Before the expensive UX research (step 4.5) + generation (step 6), check whether a previous `/design:new` already produced a canvas from a **byte-identical brief in this same DS**. Each canvas's `.meta.json` carries a `brief_sha` (added at step 11); scan the canvas dir for a match.
 
 ```bash
 BRIEF_SHA8=$(printf '%s' "$BRIEF" | shasum -a 256 | cut -c1-8)   # reused by step 4.5's research cache key
@@ -26,10 +26,10 @@ Same brief already produced a canvas in this DS:
   <EXISTING_MATCH> (created <EXISTING_TS>)
 Pick:
   (a) Open the existing canvas — don't regenerate. (default)
-  (b) Re-run anyway — generate a fresh canvas. Step 3's existing-file guard
-      forces a distinct name, so the prior file is preserved.
+  (b) Re-run anyway — draft a fresh canvas. Step 3 gives it a distinct name
+      (the create never overwrites), so the prior canvas is preserved.
 ```
 
-On **(a)** → print the existing path, tell the user to click it in the browser file tree to make it active, and **exit without generating**. On **(b)** → continue to step 4 (the new canvas gets a distinct name; the prior is untouched).
+On **(a)** → print the existing path, show it with `maude design open "<EXISTING_REL>"` (design-root-relative), and **exit without drafting**. Exit code 3 there only means no Maude window shows this project. On **(b)** → continue to step 4 (the new canvas gets a distinct name; the prior is untouched).
 
-**Auto Mode (AskUserQuestion denied):** default to **(b) re-run** — a `/design:new` invocation should produce a canvas (silently producing nothing surprises the user), and the cost is already bounded by the `--quick`/`--no-critic`/budget guards. Stamp `Identical-brief match found (<EXISTING_MATCH>); re-ran per Auto Mode default` in the final print so the collision is visible.
+**Auto Mode (AskUserQuestion denied):** default to **(b) re-run** — a `/design:new` invocation should produce a canvas (silently producing nothing surprises the person), and the cost is already bounded by the `--quick`/`--no-critic`/budget guards. Stamp `Identical-brief match found (<EXISTING_MATCH>); re-ran per Auto Mode default` in the final print so the collision is visible.
