@@ -46,6 +46,22 @@ const MATCHES = {
     scope: 'label:cy',
     access: { v: 1, role: null, grants: [{ c: 'ui/a.tsx', r: 'member' }] },
   },
+  // S8.5b-4 — canvas-only with TWO exportable canvases: a job on one must never carry the other.
+  'tok-canvas2': {
+    owner: 'cara@x.test',
+    label: 'cara',
+    role: null,
+    readOnly: true,
+    scope: 'label:cara',
+    access: {
+      v: 1,
+      role: null,
+      grants: [
+        { c: 'ui/a.tsx', r: 'member' },
+        { c: 'ui/b.tsx', r: 'member' },
+      ],
+    },
+  },
 };
 const verify = (token) => MATCHES[token] ?? null;
 function auth(req) {
@@ -322,6 +338,26 @@ test('T3: canvas-only + its granted canvas → forwarded read-only with R carryi
   const claims = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString('utf8'));
   assert.equal(claims.r, 'viewer');
   assert.deepEqual(claims.g, [{ c: 'ui/a.tsx', r: 'member' }]);
+});
+
+test('S8.5b-4 F2: a status poll’s fresh capability is narrowed to the JOB’s canvas, like the submit’s', async () => {
+  const r = await submit('tok-canvas2', {
+    jobId: JOB(40),
+    spec: spec('ui/a.tsx'),
+    expect: [fp('ui/a.tsx')],
+  });
+  assert.equal(r.status, 202);
+  seen.length = 0;
+  const s = await call(`/${JOB(40)}`, { token: 'tok-canvas2' });
+  assert.equal(s.status, 200);
+  const carrying = seen.filter((x) => x.headers['x-maude-render-token']);
+  assert.ok(carrying.length >= 1, 'the queued job gets a fresh capability (T11)');
+  for (const x of carrying) {
+    const claims = JSON.parse(
+      Buffer.from(x.headers['x-maude-render-token'].split('.')[0], 'base64url').toString('utf8')
+    );
+    assert.deepEqual(claims.g, [{ c: 'ui/a.tsx', r: 'member' }], `${x.url} widened the grants`);
+  }
 });
 
 test('a project session’s render capability is viewer with no grants', async () => {

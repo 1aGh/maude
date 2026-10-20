@@ -141,6 +141,28 @@ function claimOf(access) {
   };
 }
 
+/** The studio's job, projected: what the desktop's tracker reads, nothing the cell keeps for itself. */
+function answerStatus(respondJson, jobId, body) {
+  const job = Array.isArray(body?.jobs) ? body.jobs.find((j) => j?.id === jobId) : null;
+  if (!job) {
+    respondJson(404, { ...NOT_FOUND });
+    return true;
+  }
+  const progress =
+    job.progress && Number.isFinite(job.progress.current) && Number.isFinite(job.progress.total)
+      ? { current: job.progress.current, total: job.progress.total }
+      : null;
+  respondJson(200, {
+    job: {
+      id: jobId,
+      status: typeof job.status === 'string' ? job.status : 'unknown',
+      ...(progress ? { progress } : {}),
+      ...(typeof job.error === 'string' ? { error: job.error.slice(0, MAX_ERROR_CHARS) } : {}),
+    },
+  });
+  return true;
+}
+
 /**
  * The runtime behind the rows. `server.mjs` builds one per hub and hands it to `runHubRoutes`
  * as `deps.renderJobs`.
@@ -351,43 +373,36 @@ export function createRenderJobsRoutes({
       respondJson(404, { ...NOT_FOUND });
       return true;
     }
-    // Every poll carries a freshly minted render capability (§7, T11): a canvas-only session's
-    // carries its grants; the studio swaps it in on a job that has not finished.
+    // Every poll carries a freshly minted render capability (§7, T11); the studio swaps it in on a
+    // job that has not finished. A project session's is viewer with no grants. A canvas-only
+    // session's must carry ONLY the job's own canvas grant, exactly like the submit's (§8.4,
+    // decision v2-S8.5b-2-render-grants-narrowed; S8.5b-4 F2): the hub cannot know that canvas
+    // before it reads the job, so it reads first WITHOUT a capability (a canvas-only read mints
+    // none), then — the job still unfinished — reads again with the narrowed one.
     const session = sessionOf(who);
-    const r = await p.forwardAs(session, {
-      method: 'GET',
-      path: `/_api/export-jobs?id=${jobId}`,
-      renderGrants: who.access.canvasOnly
-        ? who.access.grants.filter((g) => who.access.can('export', g.c))
-        : [],
-    });
+    const path = `/_api/export-jobs?id=${jobId}`;
+    let r = await p.forwardAs(session, { method: 'GET', path, renderGrants: [] });
     if (!r.ok) return respondForwardRefusal(respondJson, r);
+    if (who.access.canvasOnly && r.status === 200) {
+      const peek = await readUpstreamJson(r.stream);
+      const held = Array.isArray(peek?.jobs) ? peek.jobs.find((j) => j?.id === jobId) : null;
+      const canvas = held?.spec?.canvas;
+      const unfinished = held?.status === 'queued' || held?.status === 'running';
+      const narrowed =
+        unfinished && typeof canvas === 'string'
+          ? who.access.grants.filter((g) => g.c === canvas && who.access.can('export', g.c))
+          : [];
+      if (narrowed.length === 0) return answerStatus(respondJson, jobId, peek);
+      r = await p.forwardAs(session, { method: 'GET', path, renderGrants: narrowed });
+      if (!r.ok) return respondForwardRefusal(respondJson, r);
+    }
     if (r.status !== 200) {
       r.stream.resume();
       if (r.status === 404) respondJson(404, { ...NOT_FOUND });
       else respondJson(r.status >= 500 ? r.status : 502, { code: 'upstream' });
       return true;
     }
-    const body = await readUpstreamJson(r.stream);
-    const job = Array.isArray(body?.jobs) ? body.jobs.find((j) => j?.id === jobId) : null;
-    if (!job) {
-      respondJson(404, { ...NOT_FOUND });
-      return true;
-    }
-    // The job, projected: what the desktop's tracker reads, nothing the cell keeps for itself.
-    const progress =
-      job.progress && Number.isFinite(job.progress.current) && Number.isFinite(job.progress.total)
-        ? { current: job.progress.current, total: job.progress.total }
-        : null;
-    respondJson(200, {
-      job: {
-        id: jobId,
-        status: typeof job.status === 'string' ? job.status : 'unknown',
-        ...(progress ? { progress } : {}),
-        ...(typeof job.error === 'string' ? { error: job.error.slice(0, MAX_ERROR_CHARS) } : {}),
-      },
-    });
-    return true;
+    return answerStatus(respondJson, jobId, await readUpstreamJson(r.stream));
   }
 
   async function file({ response, respondJson }, who, jobId) {
