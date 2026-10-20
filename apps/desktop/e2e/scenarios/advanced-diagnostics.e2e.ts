@@ -84,4 +84,59 @@ describe('advanced-diagnostics', () => {
     await browser.keys('Escape');
     await (await $(tid('diagnostics-sheet'))).waitForExist({ reverse: true, timeout: 5_000 });
   });
+
+  // S11.19 (written, not run: needs an unlocked screen and the lane — run once alone after merge).
+  // Each leg also asserts the G1/G2 class of defect: nothing inside an Advanced body reaches past the
+  // body's right edge, so nothing is clipped out of its panel. (Edges, not scrollWidth: scrollWidth also
+  // counts the body's own offset.)
+  const fitsItsPanel = async (testid: string) =>
+    browser.execute((t) => {
+      const body = document.querySelector(`[data-testid="${t}"]`) as HTMLElement | null;
+      if (!body) return false;
+      const edge = body.getBoundingClientRect().right + 0.5;
+      return [...body.querySelectorAll('*')].every((e) => {
+        const r = e.getBoundingClientRect();
+        return !r.width || r.right <= edge;
+      });
+    }, testid);
+
+  it('5 · Settings › Advanced: this Mac, Claude Code, Decision memory, Reset', async () => {
+    await (await $(tid('project-pill'))).click();
+    await (await $(tid('project-menu-row-settings.open'))).click();
+    await (await $(tid('settings-tab-advanced'))).click();
+    for (const id of [
+      'settings-server-port',
+      'settings-runtime',
+      'settings-own-plugin-copy',
+      'settings-decision-memory',
+      'settings-reset-folds',
+    ]) {
+      expect({ id, shown: await (await $(tid(id))).isDisplayed() }).toEqual({ id, shown: true });
+    }
+    await capture('05-settings-advanced');
+    await (await $(tid('settings-close'))).click();
+  });
+
+  it('6 · Canvases › Advanced: the folder path and the switches all fit the panel', async () => {
+    const toggle = await $(tid('canvases-advanced'));
+    await toggle.waitForDisplayed({ timeout: 10_000 });
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    for (const id of ['canvases-folder', 'canvases-folder-copy', 'canvases-refresh']) {
+      expect({ id, shown: await (await $(tid(id))).isDisplayed() }).toEqual({ id, shown: true });
+    }
+    expect(await fitsItsPanel('fold-left.canvases-body')).toBe(true);
+    await capture('06-canvases-advanced');
+  });
+
+  it('7 · Version history › Advanced: project, branch and versions fit the panel', async () => {
+    await (await $(tid('project-pill'))).click();
+    await (await $(tid('project-menu-row-history.open'))).click();
+    const toggle = await $(tid('fold-history-toggle'));
+    await toggle.waitForDisplayed({ timeout: 10_000 });
+    // folds are remembered per Mac: open it only when it is closed
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    expect(await (await $(tid('vh-advanced'))).isDisplayed()).toBe(true);
+    expect(await fitsItsPanel('fold-history-body')).toBe(true);
+    await capture('07-history-advanced');
+  });
 });
