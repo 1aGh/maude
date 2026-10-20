@@ -5096,7 +5096,9 @@
       "symbol": "ViewOnlyTip"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5109,7 +5111,9 @@
       "symbol": "RequestBlocks"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5122,7 +5126,9 @@
       "symbol": "RequestBlocks"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5135,7 +5141,9 @@
       "symbol": "RequestBlocks"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5148,7 +5156,9 @@
       "symbol": "RequestBlocks"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5161,7 +5171,9 @@
       "symbol": "AccessEndedCard"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5174,7 +5186,9 @@
       "symbol": "AccessEndedCard"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5187,7 +5201,9 @@
       "symbol": "LinkOffCard"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5200,7 +5216,9 @@
       "symbol": "TrashedBanner"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5213,7 +5231,9 @@
       "symbol": "TrashedBanner"
     },
     "region": "share",
-    "consumers": ["apps/studio/test/v2-access.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-access.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -10708,7 +10728,9 @@
       "symbol": "HomeAsk"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10721,7 +10743,9 @@
       "symbol": "HomeAsk"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10734,7 +10758,9 @@
       "symbol": "HomeAsk"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10747,7 +10773,9 @@
       "symbol": "TargetChip"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10760,7 +10788,9 @@
       "symbol": "TargetChip"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10773,7 +10803,9 @@
       "symbol": "TargetChip"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10786,7 +10818,9 @@
       "symbol": "Starters"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10799,7 +10833,9 @@
       "symbol": "HomeAsk"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10877,7 +10913,9 @@
       "symbol": "ProjectsEmpty"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10890,7 +10928,9 @@
       "symbol": "SharedWithYou"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10903,7 +10943,9 @@
       "symbol": "SharedWithYou"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -10916,7 +10958,9 @@
       "symbol": "SharedWithYou"
     },
     "region": "home",
-    "consumers": ["test:home-ask-send"],
+    "consumers": [
+      "test:home-ask-send"
+    ],
     "v2": "new"
   },
   {
@@ -13519,7 +13563,9 @@
       "symbol": "CalloutFold"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-sync-stuck-callout.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-sync-stuck-callout.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13532,7 +13578,9 @@
       "symbol": "CalloutFold"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-sync-stuck-callout.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-sync-stuck-callout.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13545,7 +13593,9 @@
       "symbol": "CalloutFold"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-sync-stuck-callout.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-sync-stuck-callout.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13558,7 +13608,9 @@
       "symbol": "CalloutFold"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-sync-stuck-callout.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-sync-stuck-callout.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13571,7 +13623,9 @@
       "symbol": "CalloutFold"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-sync-stuck-callout.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-sync-stuck-callout.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -26537,34 +26591,478 @@
     ],
     "v2": "new"
   },
-  {"hook": "ds-review-scrim", "kind": "testid", "pattern": false, "meaning": "S10.8: the dim backdrop behind the \"Update N canvases\" sheet.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the \"Update N canvases\" sheet (dialog); `data-view` is the swatch view, before or after.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-title", "kind": "testid", "pattern": false, "meaning": "S10.8: the sheet title, \"Update canvases with the new Accent?\" (the verb the button repeats).", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-swatch", "kind": "testid", "pattern": false, "meaning": "S10.8: what changed, up to three lines (a colour pair as chips, anything else in words), then \"and N more\".", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-chip-before", "kind": "testid", "pattern": false, "meaning": "S10.8: the colour a changed value had. Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "Delta"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-chip-after", "kind": "testid", "pattern": false, "meaning": "S10.8: the colour a changed value has now. Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "Delta"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-value", "kind": "testid", "pattern": false, "meaning": "S10.8: a changed value that is not a colour, as \"before → after\". Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "Delta"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-shown", "kind": "testid", "pattern": false, "meaning": "S10.8: the value of the chosen view (Before or After), kept for tests and screen readers; hidden. Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "Delta"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-ok", "kind": "testid", "pattern": false, "meaning": "S10.8: \"Fine in Light and Dark\" — shown when every changed value has both themes and no failed contrast.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-head-tick", "kind": "testid", "pattern": false, "meaning": "S10.8: the head checkbox — ticks or unticks every canvas that can be ticked; `aria-checked` may be `mixed`.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-head", "kind": "testid", "pattern": false, "meaning": "S10.8: \"4 of 5 canvases in <project>\" next to the head tick.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-seg-<view>", "kind": "testid", "pattern": true, "meaning": "S10.8: the Before / After switch over the list (`<view>`: `before`, `after`); with more than twelve canvases the list groups by folder instead and there is no switch.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-list", "kind": "testid", "pattern": false, "meaning": "S10.8: the canvases to update; `data-grouped` when it is by folder.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-folder", "kind": "testid", "pattern": false, "meaning": "S10.8: a folder row in the by-folder list (`data-folder`). Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-folder-tick", "kind": "testid", "pattern": false, "meaning": "S10.8: a folder row's checkbox — ticks the whole folder. Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-row", "kind": "testid", "pattern": false, "meaning": "S10.8: one canvas in the list (`data-path`, `data-state` follows | left-out | pinned, `data-off`, `data-locked`). Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "RowView"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-tick", "kind": "testid", "pattern": false, "meaning": "S10.8: a canvas's checkbox; disabled for a pinned or blocked canvas. Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "RowView"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-note", "kind": "testid", "pattern": false, "meaning": "S10.8: the quiet line under a canvas name (\"14 places\", \"Left out — keeps the old Accent, gets an update dot\", why it is pinned). Repeats.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "RowView"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-fine", "kind": "testid", "pattern": false, "meaning": "S10.8: the fine print under the list: unticked canvases keep the old look and show an update dot; Cancel puts the swatch back.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-error", "kind": "testid", "pattern": false, "meaning": "S10.8: a refusal in words, under the list; the sheet stays open.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-cancel", "kind": "testid", "pattern": false, "meaning": "S10.8: Cancel — drops what waits; no canvas changes.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-review-update", "kind": "testid", "pattern": false, "meaning": "S10.8: the primary button, \"Update 4 canvases\" — sends the ticks; one action, one ⌘Z.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
-  {"hook": "ds-update-available", "kind": "testid", "pattern": false, "meaning": "S10.8: Inspector › the \"Update available\" block on an instance in a canvas that was left out of an update.", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-update-what", "kind": "testid", "pattern": false, "meaning": "S10.8: what the canvas is missing, one line (\"Corners 2 → 6, by You, 10 min ago. 2026/combine was left out of that update.\").", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-update-do", "kind": "testid", "pattern": false, "meaning": "S10.8: Update — gives this instance the current look (`ds.instance-update`).", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-update-detach", "kind": "testid", "pattern": false, "meaning": "S10.8: Detach — S2's `component.detach` on this instance.", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-update-error", "kind": "testid", "pattern": false, "meaning": "S10.8: a refusal of Update in words (AI holds it, locked, viewer).", "producer": {"file": "apps/studio/client/v2/ds/update-available.jsx", "symbol": "DsUpdateAvailable"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-update-available.test.tsx"], "v2": "new"},
-  {"hook": "ds-bar-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).", "producer": {"file": "apps/studio/ds/board/ds-bar.tsx", "symbol": "DsBarView"}, "region": "canvas", "consumers": ["e2e:ds-review"], "sourceConsumers": ["apps/studio/test/ds-frames-wiring.test.tsx"], "v2": "new"},
+  {
+    "hook": "ds-review-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the dim backdrop behind the \"Update N canvases\" sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the \"Update N canvases\" sheet (dialog); `data-view` is the swatch view, before or after.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the sheet title, \"Update canvases with the new Accent?\" (the verb the button repeats).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-swatch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: what changed, up to three lines (a colour pair as chips, anything else in words), then \"and N more\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-chip-before",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the colour a changed value had. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "Delta"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-chip-after",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the colour a changed value has now. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "Delta"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-value",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: a changed value that is not a colour, as \"before → after\". Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "Delta"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-shown",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the value of the chosen view (Before or After), kept for tests and screen readers; hidden. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "Delta"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-ok",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: \"Fine in Light and Dark\" — shown when every changed value has both themes and no failed contrast.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-head-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the head checkbox — ticks or unticks every canvas that can be ticked; `aria-checked` may be `mixed`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-head",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: \"4 of 5 canvases in <project>\" next to the head tick.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-seg-<view>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.8: the Before / After switch over the list (`<view>`: `before`, `after`); with more than twelve canvases the list groups by folder instead and there is no switch.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the canvases to update; `data-grouped` when it is by folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: a folder row in the by-folder list (`data-folder`). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-folder-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: a folder row's checkbox — ticks the whole folder. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: one canvas in the list (`data-path`, `data-state` follows | left-out | pinned, `data-off`, `data-locked`). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "RowView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-tick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: a canvas's checkbox; disabled for a pinned or blocked canvas. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "RowView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the quiet line under a canvas name (\"14 places\", \"Left out — keeps the old Accent, gets an update dot\", why it is pinned). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "RowView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-fine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the fine print under the list: unticked canvases keep the old look and show an update dot; Cancel puts the swatch back.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: a refusal in words, under the list; the sheet stays open.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: Cancel — drops what waits; no canvas changes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-review-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the primary button, \"Update 4 canvases\" — sends the ticks; one action, one ⌘Z.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/review-sheet.jsx",
+      "symbol": "DsReviewSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-review-sheet.test.tsx",
+      "apps/studio/test/v2-ds-review-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-update-available",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: Inspector › the \"Update available\" block on an instance in a canvas that was left out of an update.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/update-available.jsx",
+      "symbol": "DsUpdateAvailable"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-update-available.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-update-what",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: what the canvas is missing, one line (\"Corners 2 → 6, by You, 10 min ago. 2026/combine was left out of that update.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/update-available.jsx",
+      "symbol": "DsUpdateAvailable"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-update-available.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-update-do",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: Update — gives this instance the current look (`ds.instance-update`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/update-available.jsx",
+      "symbol": "DsUpdateAvailable"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-update-available.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-update-detach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: Detach — S2's `component.detach` on this instance.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/update-available.jsx",
+      "symbol": "DsUpdateAvailable"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-update-available.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-update-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: a refusal of Update in words (AI holds it, locked, viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/update-available.jsx",
+      "symbol": "DsUpdateAvailable"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-update-available.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-bar-review",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.8: the bar's \"Review…\" button, beside \"N changes waiting\": asks the shell for \"Update N canvases\" (dgn `ds-review`).",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [
+      "e2e:ds-review"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/ds-frames-wiring.test.tsx"
+    ],
+    "v2": "new"
+  },
   {
     "hook": "settings-connections",
     "kind": "testid",
@@ -27004,46 +27502,620 @@
     ],
     "v2": "new"
   },
-  {"hook": "signin-card", "kind": "testid", "pattern": false, "meaning": "The sign-in card on Home (S6.8, 02 ob-first-launch): \"Keep your work on cloud.maude.sh\" with two doors. `data-state` is idle | waiting | timeout | failed | offline. Shown only on a first run (no project, no account) or while a sign-in runs.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-cloud", "kind": "testid", "pattern": false, "meaning": "The card's \"Sign in to cloud.maude.sh\" door: opens the browser sign-in (registry `home.signin`). Rests while this Mac is offline.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-local", "kind": "testid", "pattern": false, "meaning": "The card's \"Just a local project\" door: opens the Create a local project sheet.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-waiting", "kind": "testid", "pattern": false, "meaning": "\"Waiting for your browser…\" — the card while the browser sign-in runs.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-cancel", "kind": "testid", "pattern": false, "meaning": "Cancel while waiting: ends the attempt on the server and restores the card at once.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-reopen", "kind": "testid", "pattern": false, "meaning": "\"Open the page again\" while waiting: opens the same sign-in page in the browser again.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-use-code", "kind": "testid", "pattern": false, "meaning": "\"Use a code instead\" (Signed in on another device?): shows the code to type on cloud.maude.sh/activate.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-code-box", "kind": "testid", "pattern": false, "meaning": "The line and code shown after \"Use a code instead\".", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-code", "kind": "testid", "pattern": false, "meaning": "The user code itself (not a credential: it only lets the person approve THIS attempt on the cloud page).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-note", "kind": "testid", "pattern": false, "meaning": "A refusal while waiting, in words (e.g. the browser could not be opened).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-timeout", "kind": "testid", "pattern": false, "meaning": "\"Sign-in didn't finish — Nothing changed on this Mac. Try again whenever you like.\" after ten minutes with no answer.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-failed", "kind": "testid", "pattern": false, "meaning": "The cloud could not be reached, or Rust refused the attempt: the reason in words, buttons live.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-offline", "kind": "testid", "pattern": false, "meaning": "\"Offline — Sign-in waits until this Mac is online\": the buttons swap, the card wakes by itself.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-advanced", "kind": "testid", "pattern": false, "meaning": "\"Advanced options\" on the card: opens the flyout of five rows (closed again next launch).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-advanced-menu", "kind": "testid", "pattern": false, "meaning": "The Advanced options flyout: hub, folder or GitHub project, connect AI, the maude command, Figma (one sheet each, S6.9).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "signin-adv-<id>", "kind": "testid", "pattern": true, "meaning": "One Advanced row (`<id>` = hub | folder-github | ai | cli | figma). Resting (`aria-disabled`) until its sheet exists (S6.9).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-signin-quiet", "kind": "testid", "pattern": false, "meaning": "The quiet \"Sign in to cloud.maude.sh\" in Home's top bar once there is a project but no account.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInQuiet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-signin-toast", "kind": "testid", "pattern": false, "meaning": "The toast after a sign-in: \"Signed in. What you make now lives on cloud.maude.sh.\" or \"Signed in — your 2 cloud projects are here.\"", "producer": {"file": "apps/studio/client/v2/signin/SignInToast.jsx", "symbol": "SignInToast"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-whatsnew-line", "kind": "testid", "pattern": false, "meaning": "Home's one quiet What's new line after an update (the newest unseen entry's title), shown once and never on a first run.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewLine"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-whatsnew-open", "kind": "testid", "pattern": false, "meaning": "\"See what's new\" on that line: lists the unseen entries.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewLine"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-whatsnew-dismiss", "kind": "testid", "pattern": false, "meaning": "Dismiss on that line (the entries stay unseen for Menu › Help).", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewLine"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-whatsnew-dialog", "kind": "testid", "pattern": false, "meaning": "The list of unseen entries; closing it moves this Mac's one seen mark forward.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewDialog"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-whatsnew-close", "kind": "testid", "pattern": false, "meaning": "Done in that list.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewDialog"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-create-advanced", "kind": "testid", "pattern": false, "meaning": "Advanced › Location in the Create a local project sheet.", "producer": {"file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx", "symbol": "CreateLocalSheet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-create-location", "kind": "testid", "pattern": false, "meaning": "The folder the project will be kept in, `~/Maude/<name>`.", "producer": {"file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx", "symbol": "CreateLocalSheet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "home-create-choose-folder", "kind": "testid", "pattern": false, "meaning": "\"Choose another folder…\" under Advanced › Location. Resting until the native folder picker is wired.", "producer": {"file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx", "symbol": "CreateLocalSheet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
-  {"hook": "insp-sec-ds-token", "kind": "testid", "pattern": false, "meaning": "S10.7: The inspector block for a token selected on the Design system canvas (kind `ds-token`): `data-token` is the CSS name, `data-locked` when it is a frozen brand colour. Its rows are `insp-row-ds-editing | ds-light | ds-dark | ds-value | ds-name | ds-follows | ds-adv-light | ds-adv-dark | ds-adv-token`.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-light", "kind": "testid", "pattern": false, "meaning": "S10.7: The token's Light value as the person reads it: the colour's own name, else the value text.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-dark", "kind": "testid", "pattern": false, "meaning": "S10.7: The token's Dark value: \"Follows Light\" while Dark follows, else its name or value.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-picker", "kind": "testid", "pattern": false, "meaning": "S10.7: The native colour picker for the mode being edited. Dragging it updates contrast live and writes nothing; one write when the drag ends.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-value", "kind": "testid", "pattern": false, "meaning": "S10.7: The value box for the mode being edited (a colour, a length, a duration…); written on blur or Enter.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-name", "kind": "testid", "pattern": false, "meaning": "S10.7: The colour's own name for the mode being edited (\"Deeper azure\"); written on blur.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-contrast", "kind": "testid", "pattern": false, "meaning": "S10.7: The quiet contrast line, both modes, live while the picker is dragged: \"Light 5.6:1 · Dark 4.8:1\", or \"3.1:1 on Pole and Hover in Dark\" with `data-tone=\"warn\"`.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-used", "kind": "testid", "pattern": false, "meaning": "S10.7: \"Used in 5 canvases\" (and \"· was Azure\" while an edit waits). The Show door is S10.9's.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-note", "kind": "testid", "pattern": false, "meaning": "S10.7: A refusal or a clash in words, under the token (someone changed it just now; not a value; can't edit).", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-locked", "kind": "testid", "pattern": false, "meaning": "S10.7: The lock badge on a frozen brand colour.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-locked-line", "kind": "testid", "pattern": false, "meaning": "S10.7: \"Locked brand colour. It can't be changed here.\" — replaces every field of a locked token.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-advanced", "kind": "testid", "pattern": false, "meaning": "S10.7: The token's Advanced fold: Light and Dark as the files write them, and the CSS name.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenPanel"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-nosystem", "kind": "testid", "pattern": false, "meaning": "S10.7: The token's canvas follows no design system: nothing to edit.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenBody"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
-  {"hook": "ds-token-loading", "kind": "testid", "pattern": false, "meaning": "S10.7: The system is being read, or the studio could not give its model.", "producer": {"file": "apps/studio/client/v2/ds/kinds/token.jsx", "symbol": "TokenBody"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-token-kind.test.tsx"], "v2": "new"},
+  {
+    "hook": "signin-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sign-in card on Home (S6.8, 02 ob-first-launch): \"Keep your work on cloud.maude.sh\" with two doors. `data-state` is idle | waiting | timeout | failed | offline. Shown only on a first run (no project, no account) or while a sign-in runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-cloud",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's \"Sign in to cloud.maude.sh\" door: opens the browser sign-in (registry `home.signin`). Rests while this Mac is offline.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-local",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's \"Just a local project\" door: opens the Create a local project sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Waiting for your browser…\" — the card while the browser sign-in runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel while waiting: ends the attempt on the server and restores the card at once.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-reopen",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open the page again\" while waiting: opens the same sign-in page in the browser again.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-use-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Use a code instead\" (Signed in on another device?): shows the code to type on cloud.maude.sh/activate.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-code-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line and code shown after \"Use a code instead\".",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The user code itself (not a credential: it only lets the person approve THIS attempt on the cloud page).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A refusal while waiting, in words (e.g. the browser could not be opened).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-timeout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Sign-in didn't finish — Nothing changed on this Mac. Try again whenever you like.\" after ten minutes with no answer.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The cloud could not be reached, or Rust refused the attempt: the reason in words, buttons live.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-offline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Offline — Sign-in waits until this Mac is online\": the buttons swap, the card wakes by itself.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Advanced options\" on the card: opens the flyout of five rows (closed again next launch).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-advanced-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced options flyout: hub, folder or GitHub project, connect AI, the maude command, Figma (one sheet each, S6.9).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "signin-adv-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Advanced row (`<id>` = hub | folder-github | ai | cli | figma). Opens its sheet (S6.9).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInCard"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-signin-quiet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The quiet \"Sign in to cloud.maude.sh\" in Home's top bar once there is a project but no account.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInCard.jsx",
+      "symbol": "SignInQuiet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-signin-toast",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The toast after a sign-in: \"Signed in. What you make now lives on cloud.maude.sh.\" or \"Signed in — your 2 cloud projects are here.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/SignInToast.jsx",
+      "symbol": "SignInToast"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-whatsnew-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Home's one quiet What's new line after an update (the newest unseen entry's title), shown once and never on a first run.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/WhatsNewLine.jsx",
+      "symbol": "WhatsNewLine"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-whatsnew-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"See what's new\" on that line: lists the unseen entries.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/WhatsNewLine.jsx",
+      "symbol": "WhatsNewLine"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-whatsnew-dismiss",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Dismiss on that line (the entries stay unseen for Menu › Help).",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/WhatsNewLine.jsx",
+      "symbol": "WhatsNewLine"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-whatsnew-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list of unseen entries; closing it moves this Mac's one seen mark forward.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/WhatsNewLine.jsx",
+      "symbol": "WhatsNewDialog"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-whatsnew-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Done in that list.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/WhatsNewLine.jsx",
+      "symbol": "WhatsNewDialog"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Location in the Create a local project sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-location",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The folder the project will be kept in, `~/Maude/<name>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-choose-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Choose another folder…\" under Advanced › Location. Resting until the native folder picker is wired.",
+    "producer": {
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-first-run"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-ds-token",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The inspector block for a token selected on the Design system canvas (kind `ds-token`): `data-token` is the CSS name, `data-locked` when it is a frozen brand colour. Its rows are `insp-row-ds-editing | ds-light | ds-dark | ds-value | ds-name | ds-follows | ds-adv-light | ds-adv-dark | ds-adv-token`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-light",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The token's Light value as the person reads it: the colour's own name, else the value text.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-dark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The token's Dark value: \"Follows Light\" while Dark follows, else its name or value.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-picker",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The native colour picker for the mode being edited. Dragging it updates contrast live and writes nothing; one write when the drag ends.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-value",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The value box for the mode being edited (a colour, a length, a duration…); written on blur or Enter.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The colour's own name for the mode being edited (\"Deeper azure\"); written on blur.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-contrast",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The quiet contrast line, both modes, live while the picker is dragged: \"Light 5.6:1 · Dark 4.8:1\", or \"3.1:1 on Pole and Hover in Dark\" with `data-tone=\"warn\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-used",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: \"Used in 5 canvases\" (and \"· was Azure\" while an edit waits). The Show door is S10.9's.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: A refusal or a clash in words, under the token (someone changed it just now; not a value; can't edit).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-locked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The lock badge on a frozen brand colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-locked-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: \"Locked brand colour. It can't be changed here.\" — replaces every field of a locked token.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The token's Advanced fold: Light and Dark as the files write them, and the CSS name.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-nosystem",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The token's canvas follows no design system: nothing to edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenBody"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.7: The system is being read, or the studio could not give its model.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenBody"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
   {
     "hook": "safe-zones",
     "kind": "testid",
@@ -27189,27 +28261,724 @@
     ],
     "v2": "new in v2 (S7.22)"
   },
-  {"hook": "diag-sync-details", "kind": "testid", "pattern": false, "meaning": "Sync details root (Menu › Diagnostics › Sync, 06 ad-syncd) — replaces the v1 Sync panel mount in the sheet.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-title", "kind": "testid", "pattern": false, "meaning": "The header \"Sync · <project>\".", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-need-word", "kind": "testid", "pattern": false, "meaning": "The header status word \"<n> need you\" (absent when nothing needs the person).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-needs", "kind": "testid", "pattern": false, "meaning": "The \"Needs you · <n>\" section: held source conflicts and the unfinished AI edit.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-conflict-<slug>", "kind": "testid", "pattern": true, "meaning": "One held source conflict card: Keep mine · Use theirs · Keep both + Compare.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "ConflictCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-keep-mine-<slug>", "kind": "testid", "pattern": true, "meaning": "Keep mine — registry `sync.keep-mine` (`POST /_api/project/conflict` choice mine).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "ConflictCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-use-theirs-<slug>", "kind": "testid", "pattern": true, "meaning": "Use theirs — registry `sync.use-theirs` (choice theirs).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "ConflictCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-keep-both-<slug>", "kind": "testid", "pattern": true, "meaning": "Keep both — registry `sync.keep-both`: theirs becomes the canvas, this Mac's version a new canvas \"<name> this Mac\" (choice keep-both).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "ConflictCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-conflict-note-<slug>", "kind": "testid", "pattern": true, "meaning": "The sentence after a pick on that card.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "ConflictCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-compare-<slug>", "kind": "testid", "pattern": true, "meaning": "Compare — opens the two versions' differing lines (Yours / Cloud) under the card.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "Compare"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-compare-lines-<slug>", "kind": "testid", "pattern": true, "meaning": "The differing lines Compare shows.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "Compare"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-ai", "kind": "testid", "pattern": false, "meaning": "The unfinished AI edit card (\"AI stopped halfway on …\").", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "AiCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-publish-ai", "kind": "testid", "pattern": false, "meaning": "Publish — registry `sync.publish-ai-edit` (`POST /_api/project/ai-action` publish).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "AiCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-discard-ai", "kind": "testid", "pattern": false, "meaning": "Discard — registry `sync.discard-ai-edit` (ai-action discard).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "AiCard"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-moving", "kind": "testid", "pattern": false, "meaning": "\"Moving now\": the asset transfer in flight with its bar.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-cancel-transfer", "kind": "testid", "pattern": false, "meaning": "The transfer's ✕ — registry `sync.cancel-transfer` (`POST /_api/sync/cancel-assets`).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-counts", "kind": "testid", "pattern": false, "meaning": "The Counts section (Project files · Assets · Held · rate-limited · failed).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-count-<id>", "kind": "testid", "pattern": true, "meaning": "One count row: `files`, `assets` or `held`.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-rate-limited", "kind": "testid", "pattern": false, "meaning": "The rate-limited sentence under Counts (the cloud asked this Mac to slow down).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-held-<kind>", "kind": "testid", "pattern": true, "meaning": "One held breaker with its files (nothing was removed).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-failed", "kind": "testid", "pattern": false, "meaning": "The files that need a look (stuck, only on this Mac, …) and the failed count.", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-signin", "kind": "testid", "pattern": false, "meaning": "The \"Sync stopped — the sign-in to the cloud ran out.\" card (desktop only).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"},
-  {"hook": "diag-sync-signin-again", "kind": "testid", "pattern": false, "meaning": "Sign in again — registry `sync.sign-in-again` (opens the sign-in dialog).", "producer": {"file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx", "symbol": "SyncDetails"}, "region": "sync/cloud", "consumers": ["test:v2-sync-details"], "v2": "new"}
+  {
+    "hook": "diag-sync-details",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sync details root (Menu › Diagnostics › Sync, 06 ad-syncd) — replaces the v1 Sync panel mount in the sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The header \"Sync · <project>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-need-word",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The header status word \"<n> need you\" (absent when nothing needs the person).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-needs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Needs you · <n>\" section: held source conflicts and the unfinished AI edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-conflict-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One held source conflict card: Keep mine · Use theirs · Keep both + Compare.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-keep-mine-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Keep mine — registry `sync.keep-mine` (`POST /_api/project/conflict` choice mine).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-use-theirs-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Use theirs — registry `sync.use-theirs` (choice theirs).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-keep-both-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Keep both — registry `sync.keep-both`: theirs becomes the canvas, this Mac's version a new canvas \"<name> this Mac\" (choice keep-both).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-conflict-note-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The sentence after a pick on that card.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-compare-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare — opens the two versions' differing lines (Yours / Cloud) under the card.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "Compare"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-compare-lines-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The differing lines Compare shows.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "Compare"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The unfinished AI edit card (\"AI stopped halfway on …\").",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-publish-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Publish — registry `sync.publish-ai-edit` (`POST /_api/project/ai-action` publish).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-discard-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Discard — registry `sync.discard-ai-edit` (ai-action discard).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-moving",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Moving now\": the asset transfer in flight with its bar.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-cancel-transfer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The transfer's ✕ — registry `sync.cancel-transfer` (`POST /_api/sync/cancel-assets`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-counts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Counts section (Project files · Assets · Held · rate-limited · failed).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-count-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One count row: `files`, `assets` or `held`.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-rate-limited",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The rate-limited sentence under Counts (the cloud asked this Mac to slow down).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-held-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One held breaker with its files (nothing was removed).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The files that need a look (stuck, only on this Mac, …) and the failed count.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-signin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Sync stopped — the sign-in to the cloud ran out.\" card (desktop only).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-signin-again",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign in again — registry `sync.sign-in-again` (opens the sign-in dialog).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
+    },
+    "region": "sync/cloud",
+    "consumers": [
+      "test:v2-sync-details"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-<sheet>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Advanced sheet that is open (`<sheet>` = hub | folder | cli | figma; Connect AI is S5.13's `ai-connect-sheet`). Title asks with the verb of its main button.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/AdvSheet.jsx",
+      "symbol": "AdvSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-<sheet>-cancel",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Cancel on an Advanced sheet (Escape and the scrim answer the same).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/AdvSheet.jsx",
+      "symbol": "AdvSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-<sheet>-go",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The main button of an Advanced sheet: Connect (hub) · Open (folder) · Install (cli) · Import (figma).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/AdvSheet.jsx",
+      "symbol": "AdvSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-url",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Hub address on \"Connect to your own hub\".",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-test",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Test connection\": one tokenless probe of the address.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-testing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Testing…\" while the probe runs.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-reachable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Reachable — hub 1.4\": the probe found a Maude hub.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-test-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The probe's refusal, in words (unreachable, or not a Maude hub).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-mode-password",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Email and password\" segment of the hub sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-mode-invite",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Invite link or key\" segment: drawn and resting until the hub invite has a Home route.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-email",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Email on the hub sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-password",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Password on the hub sheet: posted once, emptied the moment Connect is pressed, never echoed.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-hub-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connect's refusal, in the server's words.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/HubSheet.jsx",
+      "symbol": "HubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-folder-tab-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"A folder on this Mac\" segment.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/FolderGithubSheet.jsx",
+      "symbol": "FolderGithubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-folder-tab-github",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"From GitHub\" segment: resting (`aria-disabled`) until S6.10 hands the repo list in.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/FolderGithubSheet.jsx",
+      "symbol": "FolderGithubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-folder-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"You'll choose the folder next.\" on the folder segment.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/FolderGithubSheet.jsx",
+      "symbol": "FolderGithubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-folder-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the folder could not be opened, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/FolderGithubSheet.jsx",
+      "symbol": "FolderGithubSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-ai-apikey",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The API key option on Connect AI: drawn and resting (Maude's AI runs on the Claude subscription — DDR-123).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/ConnectAiSheet.jsx",
+      "symbol": "ConnectAiSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-ai-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Where AI stands: \"Connected\" or \"Not connected yet — or connect at your first prompt\".",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/ConnectAiSheet.jsx",
+      "symbol": "ConnectAiSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-cli-cmd-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Status word of the maude command row (Installed | Not installed).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/CliSheet.jsx",
+      "symbol": "CliSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-cli-plugin-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Status word of the Claude Code plugin row.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/CliSheet.jsx",
+      "symbol": "CliSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-cli-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the install stopped, in the server's words (e.g. a file already sits at ~/.local/bin/maude).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/CliSheet.jsx",
+      "symbol": "CliSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-cli-copy-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Copy beside a Terminal line (`<id>` = npm | plugin).",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/CliSheet.jsx",
+      "symbol": "CopyLine"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-figma-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Figma fine print, naming the project the frames land in.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/FigmaSheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "onb-figma-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the project could not be opened for the import.",
+    "producer": {
+      "file": "apps/studio/client/v2/onboarding/FigmaSheet.jsx",
+      "symbol": "FigmaSheet"
+    },
+    "region": "home",
+    "consumers": [
+      "test:v2-onboarding-sheets"
+    ],
+    "v2": "new"
+  }
 ]

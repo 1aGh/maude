@@ -52,6 +52,8 @@ const GLYPHS = {
       <path d="M8 5.5v5M5.5 8h5" />
     </>
   ),
+  // S6.9 — the Claude Code plugin row of the maude-command sheet
+  layers: <path d="M8 2.5l5.5 3L8 8.5l-5.5-3zM2.5 8.25L8 11.25l5.5-3M2.5 10.75L8 13.75l5.5-3" />,
   done: (
     <>
       <circle cx="8" cy="8" r="5.75" />

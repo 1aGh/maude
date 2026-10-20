@@ -123,6 +123,24 @@ export const signInOpenBrowser = (userCode, state) =>
   shellInvoke('home_cloud_sign_in_open', { userCode, state });
 /** After the Home server stored the credential: Rust records the account → the profile it landed in. */
 export const signInDone = (profile) => shellInvoke('home_cloud_signed_in', { profile });
+// S6.9 — the Advanced sheets' routes (S6.6). Nothing here keeps or logs what it carries: the hub
+// password is posted once, in the body, and the answer never contains it.
+/** "Test connection": one tokenless GET /health on the server → `{ok, reachable, url, version}`. */
+export const hubTest = (url) => post('/_home/hub/test', { url });
+/** "Connect": `creds` ({email, password}) signs in; without it, a hub this Mac already holds a sign-in for. */
+export const hubPrepare = (profile, url, creds) =>
+  post('/_home/hub/prepare', {
+    profile,
+    url,
+    ...(creds ? { email: creds.email, password: creds.password } : {}),
+  });
+/** Claude readiness → `{available, claudeInstalled, reason, install:{phase,ok?,reason?}, signinInFlight}`. */
+export const aiStatus = () => homeFetch('/_home/ai/status');
+/** step: 'install' | 'signin' | 'cancel'. */
+export const aiConnect = (step) => post('/_home/ai/connect', { step });
+/** The maude command → `{state, link, claude, plugin:{phase,ok?}}`. */
+export const cliStatus = () => homeFetch('/_home/cli/status');
+export const cliInstall = () => post('/_home/cli/install', {});
 /** The What's New feed and this Mac's one seen mark (S6.6, `/_home/whats-new`). */
 export const getWhatsNew = () => homeFetch('/_home/whats-new');
 export const markWhatsNewSeen = (seen) => post('/_home/whats-new', { seen });

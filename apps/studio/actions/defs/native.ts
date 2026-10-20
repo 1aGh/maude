@@ -96,6 +96,49 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     visible: { shell: ['home'] },
     search: { hidden: true },
   },
+  // S6.9 — the four Advanced sheets that are capabilities of their own (02 ob-adv-sheets); Import from Figma is
+  // `import.figma` (the sheet opens the target project with that intent). Home draws the sheets; the rows are
+  // what the manifest, ⌘K and the agent-parity table name. Each credential is typed by the person into the
+  // sheet and goes to the Home server (or the system) and nowhere else.
+  {
+    // "Connect to your own hub": Test connection, then sign in to a self-hosted team server and open the
+    // managed copy as a tab (`/_home/hub/{test,prepare}`).
+    id: 'hub.connect',
+    label: 'Connect to your own hub…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { keywords: ['hub', 'team server', 'self-hosted', 'address', 'sign in'] },
+  },
+  {
+    // "Open a folder or a GitHub project": the folder picker today; the GitHub list is S6.10's.
+    id: 'project.open-github',
+    label: 'Open a folder or a GitHub project…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { keywords: ['github', 'folder', 'repo', 'clone', 'open'] },
+  },
+  {
+    // "Connect AI": install Claude Code when it is missing, then the person's browser sign-in
+    // (`/_home/ai/connect`). The API key option rests (DDR-123: the AI runs on the Claude subscription).
+    id: 'ai.connect',
+    label: 'Connect AI…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { keywords: ['api key', 'claude', 'anthropic', 'sign in', 'connect ai'] },
+  },
+  {
+    // "Install the maude command": a link to the bundled maude in ~/.local/bin and, when `claude` is there,
+    // the Claude Code plugin (`/_home/cli/install`). Never sudo, never over an existing file.
+    id: 'cli.install',
+    label: 'Install the maude command…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { keywords: ['terminal', 'cli', 'command', 'plugin', 'claude code', 'path'] },
+  },
   {
     // V2-4.2: "Back to Home" is the first row of the project pill's menu (CONTRACT §1) — the SAME
     // command as File ▸ Show Home (`home.open`, `new_home_tab`), worded for the Menu. ⌘T stays

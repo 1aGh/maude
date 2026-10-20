@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fb309e36ebce",
+  "manifestVersion": "a621eb37b75b",
   "actions": [
     {
       "id": "search.open",
@@ -4257,6 +4257,54 @@
         "path": "human",
         "because": "accounts",
         "note": "opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent"
+      }
+    },
+    {
+      "id": "hub.connect",
+      "label": "Connect to your own hub…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "signs the person in to a self-hosted team server (the password goes to the Home server once); an agent links a folder with `maude design link`"
+      }
+    },
+    {
+      "id": "project.open-github",
+      "label": "Open a folder or a GitHub project…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "opens a folder or a GitHub project as a tab; the GitHub token stays in Rust. An agent works inside the project it was started in"
+      }
+    },
+    {
+      "id": "ai.connect",
+      "label": "Connect AI…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "the person’s own Claude sign-in in their browser; an agent is already running on one"
+      }
+    },
+    {
+      "id": "cli.install",
+      "label": "Install the maude command…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "onboarding",
+        "note": "links the bundled maude into ~/.local/bin and adds the Claude Code plugin; an agent is already running through both"
       }
     },
     {

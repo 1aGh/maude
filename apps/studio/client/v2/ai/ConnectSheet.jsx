@@ -24,6 +24,11 @@ export function ConnectSheet({
   error = null,
   onConnect,
   onCancel,
+  // S6.9 (02 ob-adv-sheets): Home's "Connect AI" reads "Connect AI" and carries no "your prompt waits"
+  // line (there is no prompt yet). The defaults are CONTRACT §7's words, unchanged for every other caller.
+  title = 'Connect your Claude account?',
+  lead = 'Connect your Claude account to let AI draft this.',
+  fine = "Your prompt waits here and runs as soon as it's connected.",
   children,
 }) {
   const titleId = useId();
@@ -40,10 +45,10 @@ export function ConnectSheet({
       data-phase={phase}
     >
       <p className="ai-conn-t" id={titleId}>
-        Connect your Claude account?
+        {title}
       </p>
       <div className="ai-conn-b">
-        <p>Connect your Claude account to let AI draft this.</p>
+        {lead ? <p>{lead}</p> : null}
         <span className="ai-conn-opt">
           <span className="ai-conn-ic" aria-hidden="true">
             <Spark size={14} />
@@ -59,7 +64,7 @@ export function ConnectSheet({
             {error}
           </p>
         ) : null}
-        <p className="ai-conn-fine">Your prompt waits here and runs as soon as it's connected.</p>
+        {fine ? <p className="ai-conn-fine">{fine}</p> : null}
       </div>
       <div className="ai-conn-a">
         <button
