@@ -5,7 +5,7 @@
 //   {action: 'update', ds?, dryRun: true}             the review: changes from upstream + this project's canvases
 //   {action: 'update', ds?, expectHead, upstream, canvases?}   take the update as ONE action
 //   {action: 'unlink', ds?}                           the copy becomes an ordinary local system
-//   {action: 'relink', ds?, grant?}                   "Link again": this Mac takes the record as its own link (A3)
+//   {action: 'relink', ds?, url?, grant?}             "Link again": the link (or key) pasted again → this Mac's link (A3)
 //
 // Every action needs Can edit on the WHOLE project (Q15 — "library"), the review included: it reaches another
 // project's hub with this Mac's grant. A canvas-only session or Can view gets 403, and a system it cannot see
@@ -169,7 +169,10 @@ export async function runLibraryOp(
         const ds = pickSystem(lib, input.ds);
         if (input.grant !== undefined && typeof input.grant !== 'string')
           usage('grant is a string');
+        if (input.url !== undefined && typeof input.url !== 'string') usage('url is a string');
+        // gate-b-sec2: "Link again" takes the library's link (or its key) pasted again, never one click
         const r = await lib.relink(ds, {
+          ...(typeof input.url === 'string' && input.url ? { url: input.url } : {}),
           ...(typeof input.grant === 'string' && input.grant ? { grant: input.grant } : {}),
           by: c.by,
         });

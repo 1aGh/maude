@@ -103,7 +103,8 @@ export type LibraryErrorCode =
   | 'ds-library-not-linked'
   | 'ds-library-up-to-date'
   | 'ds-library-no-grant'
-  | 'ds-library-relink';
+  | 'ds-library-relink'
+  | 'ds-library-other';
 
 const STATUS: Record<LibraryErrorCode, number> = {
   'ds-library-url': 400,
@@ -118,6 +119,7 @@ const STATUS: Record<LibraryErrorCode, number> = {
   'ds-library-up-to-date': 409,
   'ds-library-no-grant': 409,
   'ds-library-relink': 409,
+  'ds-library-other': 409,
 };
 
 export class DsLibraryError extends Error {
@@ -1081,18 +1083,35 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
   /* ------------------------------------------------------------- relink */
 
   /**
-   * "Link again" (A3): the person, shown the hub's host, makes `ds`'s CURRENT library record this Mac's link —
-   * with an access key when the link came with one. Nothing is asked of the hub here; the next check is.
+   * "Link again" (A3, gate-b-sec2 finding 2): the person pastes the library's link again (or its access key) and
+   * `ds`'s CURRENT record becomes this Mac's link. One click is not enough: the record may be a peer's rewrite
+   * pointing at a hub where this Mac is a member, and a member token must never follow a peer's choice. So:
+   *   - nothing pasted → `ds-library-relink` (nothing stored, nothing sent);
+   *   - a pasted link must name the record's very library (hub, project, system) → else `ds-library-other`;
+   *   - the credential is the key pasted now, one this Mac stored for this very address, or — only once the
+   *     person pasted this library's own link — the member token this Mac holds for its hub.
+   * Nothing is asked of the hub here; the next check is.
    */
-  function relink(ds: string, inp: { grant?: string; by: By }) {
+  function relink(ds: string, inp: { url?: string; grant?: string; by: By }) {
     void inp.by;
     return withLock(path.join(designRoot, systemOf(ds).path), async () => {
       const L = linked(ds);
       const grant = inp.grant ?? null;
       if (grant !== null && !GRANT_RE.test(grant))
         throw fail('ds-library-url', 'That is not a library grant.');
-      if (!grant && !credentialFor(L.lib))
-        throw fail('ds-library-no-grant', 'The library link needs its access key.');
+      const url = inp.url ?? null;
+      if (!url && !grant)
+        throw fail(
+          'ds-library-relink',
+          `Paste the link of ${L.lib.system} from ${L.lib.project} again to link it on this Mac.`
+        );
+      if (url && !sameAddress(parseLibraryUrl(url, rules), L.lib))
+        throw fail('ds-library-other', 'That link is for a different library. Nothing was linked.');
+      const token =
+        grant ??
+        grants.get(L.lib.hub, L.lib.project, L.lib.system) ??
+        (url ? (opts.memberToken?.(L.lib.hub) ?? null) : null);
+      if (!token) throw fail('ds-library-no-grant', 'The library link needs its access key.');
       if (grant) grants.set(L.lib.hub, L.lib.project, L.lib.system, grant);
       grants.setLink(designRoot, ds, L.lib);
       lastCheck.delete(ds);

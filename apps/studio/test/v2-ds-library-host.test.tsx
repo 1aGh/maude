@@ -15,7 +15,7 @@ import { createMenuHandlers } from '../client/v2/shell/menu-runner.js';
 import { createDsLibrary, memoryGrantStore } from '../ds/library.ts';
 import { createDsRoutes } from '../routes/ds.ts';
 import { cleanup } from './_ds-engine-fixture.ts';
-import { LIB, type Linking, linked, V2 } from './_ds-library-hub.ts';
+import { LIB, type Linking, linked, URL_, V2 } from './_ds-library-hub.ts';
 
 afterAll(cleanup);
 
@@ -243,16 +243,50 @@ describe('the library host', () => {
     const before = L.hub.calls.length;
     await mount(w.impl, []);
     expect(L.hub.calls.length).toBe(before); // no request, no credential
+    // gate-b-sec2 finding 2: the line names the system, the project, the host and who set the record last
     expect(q('ds-library-relink-line')?.textContent).toBe(
-      'This Mac hasn’t linked this library from alligators.cloud.test. Link it again only if you trust alligators.cloud.test.'
+      'This Mac hasn’t linked gator from p_gator on alligators.cloud.test. Michal set this link last. Nothing is sent there until you paste its library link again.'
     );
     expect(q('ds-library-nogrant')).toBeNull();
     expect(q('ds-library-update')).toBeNull();
     expect(q('ds-library-relink')?.textContent).toBe('Link again');
+    // one click opens the paste dialog — it links nothing and asks nothing
     await act(async () => q('ds-library-relink')?.click());
     await settle();
-    expect(w.calls.some((c) => c.body?.action === 'relink' && c.body?.ds === LIB)).toBe(true);
-    // linked here now: the check goes to the record's hub and the card offers the update
+    expect(w.calls.some((c) => c.body?.action === 'relink')).toBe(false);
+    expect(L.hub.calls.length).toBe(before);
+    expect(q('ds-library-link')?.getAttribute('data-mode')).toBe('relink');
+    expect(q('ds-library-link')?.querySelector('h2')?.textContent).toBe('Link this library again');
+    expect(q('ds-library-link')?.textContent).toContain(
+      'Paste the library link of gator from p_gator on alligators.cloud.test. A link to any other library links nothing.'
+    );
+    expect((q('ds-library-link-go') as HTMLButtonElement).disabled).toBe(true);
+    expect(q('ds-library-link-go')?.textContent).toBe('Link again');
+    const set = async (id: string, v: string) => {
+      const el = q(id) as HTMLInputElement;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(el, v);
+      const key = Object.keys(el).find((k) => k.startsWith('__reactProps')) as string;
+      (el as unknown as Record<string, { onChange: (e: unknown) => void }>)[key].onChange({
+        target: el,
+        currentTarget: el,
+      });
+    };
+    // a link to another library links nothing
+    await act(async () =>
+      set('ds-library-link-url', 'https://alligators.cloud.test/api/projects/p_other/v1/ds/gator')
+    );
+    await act(async () => q('ds-library-link-go')?.click());
+    await settle();
+    expect(q('ds-library-link-error')?.textContent).toBe(
+      'That link is for a different library. Nothing was linked.'
+    );
+    expect(L.hub.calls.length).toBe(before);
+    // its own link: linked here now — the check goes to the record's hub and the card offers the update
+    await act(async () => set('ds-library-link-url', URL_));
+    await act(async () => q('ds-library-link-go')?.click());
+    await settle();
+    expect(w.calls.some((c) => c.body?.action === 'relink' && c.body?.url === URL_)).toBe(true);
+    expect(q('ds-library-link')).toBeNull();
     expect(L.hub.calls.length).toBeGreaterThan(before);
     expect(q('ds-library-relink')).toBeNull();
     expect(q('ds-library-update')?.textContent).toBe('Update…');

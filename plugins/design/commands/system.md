@@ -132,7 +132,8 @@ whose Dark follows Light, send the Light value only: the DS engine sets Dark (de
 
 When a verb answers `ds-library-relink`, the library link on this design system was not made on this Mac (it came by
 sync). **Linking again is the person's** (decision `v2-gate-b-sec1-library-link-record`): they press **Link again** in
-Design system › Advanced, which names the hub it would talk to. Never run a library verb to fix it; tell the person.
+Design system › Advanced, which names the system, the project and the hub it would talk to, and paste that library's
+link (or its access key) again — one click links nothing. Never run a library verb to fix it; tell the person.
 
 ## What `/design:system` does NOT do
 

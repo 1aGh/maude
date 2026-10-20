@@ -42,7 +42,10 @@ export const LIBRARY_WORDS = Object.freeze({
   // gate-b-sec1 (A3): head.json syncs, so its library record may be a peer's — this Mac sends nothing until the
   // person links it again, knowingly (the card names the hub's host)
   linkAgain: 'Link again',
-  relink: 'This Mac hasn’t linked this library yet. Link it again from its card.',
+  relink: 'This Mac hasn’t linked this library yet. Paste its library link again to link it here.',
+  // gate-b-sec2 (finding 2): "Link again" takes the library's own link (or its key) pasted again, never one click
+  relinkTitle: 'Link this library again',
+  otherLibrary: 'That link is for a different library. Nothing was linked.',
   notOnMac: 'Team libraries are linked from the Maude app on a Mac.',
 });
 
@@ -95,15 +98,39 @@ export function noGrantLine(linkedBy) {
     : 'Only the person who linked it can update this library from their Mac.';
 }
 
+/** "Alligators from p_gator on alligators.cloud.maude.sh" — the record's own names, as display text. */
+function libraryWhat(lib) {
+  const host = hostOf(lib?.hub);
+  const sys = plainName(lib?.system);
+  const proj = plainName(lib?.project);
+  if (!host) return null;
+  return sys && proj ? `${sys} from ${proj} on ${host}` : `this library on ${host}`;
+}
+
 /**
- * "Link again" (A3): this Mac holds a credential for the record's hub but did not make this link — the record may
- * be a peer's edit. The line names the hub's host, so the choice is made knowingly.
+ * "Link again" (A3): the record may be a peer's edit, so the card names what it points at — the system, the
+ * project and the hub's host — and who set it last when the record says so (gate-b-sec2 finding 2). Nothing is
+ * sent there until the person pastes that library's own link again.
  */
-export function relinkLine(hub) {
-  const host = hostOf(hub);
-  return host
-    ? `This Mac hasn’t linked this library from ${host}. Link it again only if you trust ${host}.`
-    : LIBRARY_WORDS.relink;
+export function relinkLine(lib) {
+  const what = libraryWhat(lib);
+  if (!what) return LIBRARY_WORDS.relink;
+  const who = whoName(lib?.linkedBy);
+  return [
+    `This Mac hasn’t linked ${what}.`,
+    who ? `${who} set this link last.` : null,
+    'Nothing is sent there until you paste its library link again.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/** The lead of the "Link again" dialog: which library's link to paste. */
+export function relinkLead(lib) {
+  const what = libraryWhat(lib);
+  return what
+    ? `Paste the library link of ${what}. A link to any other library links nothing.`
+    : 'Paste this library’s link. A link to any other library links nothing.';
 }
 
 /** A library error code → the person's words. */
@@ -134,6 +161,8 @@ export function refusalWords(code, fallback = LIBRARY_WORDS.failed) {
       return LIBRARY_WORDS.needKey;
     case 'ds-library-relink':
       return LIBRARY_WORDS.relink;
+    case 'ds-library-other':
+      return LIBRARY_WORDS.otherLibrary;
     case 'not-on-mac':
       return LIBRARY_WORDS.notOnMac;
     case 'ds-outside-unreviewed':
@@ -236,7 +265,7 @@ export function cardModel({ row, check = null, review = null, access = 'unknown'
     noGrant,
     noGrantLine: access === 'no' ? noGrantLine(row.library?.linkedBy) : null,
     relink,
-    relinkLine: relink ? relinkLine(row.library?.hub) : null,
+    relinkLine: relink ? relinkLine(row.library) : null,
     error: noGrant ? null : error,
     canUpdate: waiting && !noGrant,
   };
