@@ -245,6 +245,8 @@ const PROJECT = [
   '/_api/ds/make',
   // S10.13 — the project's default design system (config.json)
   '/_api/ds/default',
+  // S10.14 — move canvases to another design system
+  '/_api/ds/switch',
   '/_api/share/invites',
   '/_api/share/invites/:id/resend',
   '/_api/share/invites/:id/revoke',
