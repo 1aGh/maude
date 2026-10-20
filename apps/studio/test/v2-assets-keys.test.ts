@@ -82,10 +82,12 @@ describe('the agent path', () => {
     expect(ACTIONS_BY_ID.get('assets.place')?.enabled?.minRole).toBe('edit');
   });
 
-  test('assets.details is a read: `maude design assets --usage`', () => {
+  test('assets.details is a read for every role: GET /_api/asset-details, `maude design assets --usage <asset> --details`', () => {
     expect(AGENT_PATHS['assets.details']).toMatchObject({
       effect: 'none',
-      agent: { path: 'cli', verb: 'maude design assets --usage <asset>' },
+      minRole: 'view',
+      server: { route: '/_api/asset-details', method: 'GET' },
+      agent: { path: 'cli', verb: 'maude design assets --usage <asset> --details' },
     });
   });
 });

@@ -342,7 +342,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Server | `diag.server` | `maude design status` | auto |
 | Settings… | `settings.open` | `maude design open --panel settings` | auto |
 | Show all comments | `comments.filter-all` | `maude design comments list --all` | auto |
-| Show details | `assets.details` | `maude design assets --usage <asset>` | auto |
+| Show details | `assets.details` | `maude design assets --usage <asset> --details` | auto |
 | Show my comments | `comments.filter-mine` | `maude design comments list --mine` | auto |
 | Show open comments | `comments.filter-open` | `maude design comments list --open` | auto |
 | Show resolved comments | `comments.filter-resolved` | `maude design comments list --resolved` | auto |

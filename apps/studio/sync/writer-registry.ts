@@ -532,6 +532,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
+  // routes/asset-details.ts (S8.21): the details of one asset and the Generated runs — reads of the project's own sidecars
+  '/_api/asset-details': { class: 'read' },
+  '/_api/asset-generated': { class: 'read' },
   // routes/generate.ts (S8.16): the consent quote is this process's memory; `of` reads a take's `.gen.json`
   '/_api/generate-takes/quote': { class: 'local' },
   '/_api/generate-takes/of': { class: 'read' },

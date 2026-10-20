@@ -30,6 +30,7 @@ import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { Window } from 'happy-dom';
+import { recordAssetOrigin } from '../asset-origins.ts';
 import { isValidSvg, optimizeSvg } from '../draw/optimize.ts';
 
 export class ImportAssetError extends Error {
@@ -905,6 +906,11 @@ async function main() {
     } else {
       const text = readFileSync(opts.file, 'utf8');
       results = [await importSvg(text, { root, designRootRel: opts.designRoot })];
+    }
+    // S8.21 — where it came from, on THIS Mac only (`_canvas-state/asset-origins.json`, never synced): the details'
+    // Advanced shows it as "Original". A record that cannot be kept never fails the import.
+    for (const r of results) {
+      if (r?.path) recordAssetOrigin(resolve(root, opts.designRoot), r.path, resolve(opts.file));
     }
     if (opts.json) {
       process.stdout.write(`${JSON.stringify(results)}\n`);

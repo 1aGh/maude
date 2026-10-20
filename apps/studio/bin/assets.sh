@@ -5,6 +5,7 @@
 # Usage:
 #   assets.sh                       # every asset: kind, size, how many canvases use it
 #   assets.sh --usage <asset>       # the canvases that use one asset (assets/a1b2c3d4.png or just the name)
+#   assets.sh --usage <asset> --details   # + Made by AI, what AI saw, the artboards, the edit files, the Original on this Mac
 #   assets.sh --not-used            # assets nothing uses — nothing is listed until older versions are checked
 #   assets.sh --json                # machine-readable (combine with the others)
 #   assets.sh --root <project>      # default: $CLAUDE_PROJECT_DIR, else the current directory

@@ -140,7 +140,11 @@ describe('groups from the index', () => {
       assets: [{ path: 'assets/aa11bb22.jpg', name: 'aa11bb22.jpg', size: 4096, kind: 'image' }],
     };
     const host = await mount();
-    expect(calls.map((c) => c.url)).toEqual(['/_api/index?part=assets', '/_api/assets']);
+    // (the Generated group reads its own list once the rows are in: asset-generated, S8.21)
+    expect(calls.map((c) => c.url).filter((u) => u !== '/_api/asset-generated')).toEqual([
+      '/_api/index?part=assets',
+      '/_api/assets',
+    ]);
     expect(tiles(host)[0]?.getAttribute('aria-label')).toBe('aa11bb22.jpg');
   });
 });
@@ -228,7 +232,7 @@ describe('the tile menu', () => {
 });
 
 describe('details (⌘I) and the registry fact', () => {
-  test('⌘I opens the plain details of the picked tile: kind, size, the canvases', async () => {
+  test('⌘I opens the details of the picked tile in place of the list: size, the canvases; back returns', async () => {
     indexAnswer = INDEX;
     const host = await mount();
     await click(tiles(host).find((t) => t.dataset.asset === 'assets/aa11bb22.jpg'));
@@ -237,7 +241,7 @@ describe('details (⌘I) and the registry fact', () => {
     });
     const card = q(host, 'assets-details');
     expect(card?.textContent).toContain('aa11bb22.jpg');
-    expect(card?.textContent).toContain('Picture · 4 KB');
+    expect(card?.textContent).toContain('4 KB');
     expect(card?.textContent).toContain('Used in 4 canvases');
     expect(card?.textContent).toContain('matchday');
     await click(q(host, 'assets-details-close'));

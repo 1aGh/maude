@@ -2252,6 +2252,21 @@ export function createHttp(
         if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
       },
     },
+    // S8.21 — GET /_api/asset-details, /_api/asset-generated (routes/asset-details.ts): details per kind, the Generated runs.
+    // The Original path is this Mac's own record: a cell has no Mac, so it keeps none.
+    assetDetails: {
+      designRoot: ctx.paths.designRoot,
+      access: (req) => accessOf(req),
+      usedIn: (rel) => projectIndex.assetsAnswer().assets.find((a) => a.rel === rel)?.usedIn ?? [],
+      read: (rel) => {
+        try {
+          return readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      inCell: isWorkspaceMode(),
+    },
     // S8.16 — /_api/generate-takes* (routes/generate.ts): N takes on the generation queue, the consent quote, ← →.
     generate: generateDepsFor({
       designRoot: ctx.paths.designRoot,

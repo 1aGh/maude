@@ -14,7 +14,10 @@
 // (I) route, no drag — the studio picks: empty frames in order, else a tidy grid, else loose).
 // S8.16: the spark in the head row is Assets › Generate (`assets.generate`, assets/generate-ask.jsx): the selected artboard
 // sets the shape, a quote says how long and who pays before anything is sent, and the best take lands in the frame.
-// NOT here yet: details per kind (S8.21), search in pictures (S8.20), the Generated group.
+// S8.21: ⌘I / "Show details" opens the asset's details IN PLACE OF the list (assets/details.jsx: a photo, Made by AI, footage, sound;
+// "Used in" opens the artboard; Advanced holds the stored name, the Original on this Mac and the command). "Generated" is a group of
+// its own after Just added: the pictures that have a `.gen.json`, one block per generation run (assets/generated.js).
+// NOT here yet: search in pictures (S8.20).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { uploadAsset } from '../../../asset-upload.ts';
@@ -26,8 +29,9 @@ import { bindAssetsPanel, takeGenerateRequest } from '../assets/assets-bus.js';
 import { filterAssets } from '../assets/browse-model.js';
 import { BrowseView, browseOrder, MAX_PLACE } from '../assets/browse-view.jsx';
 import { NOTHING_PICKED, pick as pickTile, pickAll } from '../assets/multi-select.js';
-import { AssetDetailsCard } from '../assets/details-card.jsx';
+import { AssetDetails } from '../assets/details.jsx';
 import { GenerateAsk } from '../assets/generate-ask.jsx';
+import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
 import { AssetTile } from '../assets/tile.jsx';
@@ -49,15 +53,24 @@ const GROUPS = [
 
 /**
  * Photos / Video / Sound, empty groups left out. `justAdded` (S8.14): what arrived in this window comes first, in its own
- * "Just added" group, and is not repeated under its kind.
+ * "Just added" group, and is not repeated under its kind. `generated` (S8.21): the server's generation runs; their pictures sit
+ * in "Generated" (one block per run) after Just added, claimed first so a fresh take is there at once, and not repeated either.
  */
-export function groupAssets(assets, { justAdded = false, now } = {}) {
-  const { added, rest } = justAdded ? splitJustAdded(assets, now) : { added: [], rest: assets };
+export function groupAssets(assets, { justAdded = false, now, generated = [] } = {}) {
+  const { runs, rest: others } = splitGenerated(assets, generated);
+  const { added, rest } = justAdded ? splitJustAdded(others, now) : { added: [], rest: others };
   const kinds = GROUPS.map((g) => ({
     ...g,
     items: rest.filter((a) => (a.kind || 'image') === g.kind),
   })).filter((g) => g.items.length);
-  return added.length ? [{ kind: 'added', title: 'Just added', items: added }, ...kinds] : kinds;
+  const gen = runs.length
+    ? [{ kind: 'generated', title: 'Generated', items: runs.flatMap((r) => r.items), runs }]
+    : [];
+  return [
+    ...(added.length ? [{ kind: 'added', title: 'Just added', items: added }] : []),
+    ...gen,
+    ...kinds,
+  ];
 }
 
 async function addFilesNative(onProgress) {
@@ -107,9 +120,18 @@ export function AssetsPanel({
   // S8.16 — the Generate ask selects what it placed (`select-by-id`) and says so in a toast with Undo
   postToActiveCanvas = undefined,
   toast = undefined,
+  // S8.21 — "Used in" in the details opens the canvas (`<designRel>/<canvas>`) and selects the artboard
+  onOpenCanvas = undefined,
   fetchImpl = undefined,
 }) {
   const { assets, history, reload } = useAssets({ fetchImpl });
+  const generated = useGenerated({ fetchImpl });
+  const reloadGenerated = generated.reload;
+  // a run's record is a file of its own: re-read when the rows move, so a take that just landed is in its run
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `assets` changing IS the trigger
+  useEffect(() => {
+    if (assets) void reloadGenerated();
+  }, [assets, reloadGenerated]);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState(null);
   const [menu, setMenu] = useState(null);
@@ -175,11 +197,27 @@ export function AssetsPanel({
   const shown = useMemo(() => filterAssets(pool, query), [pool, query]);
   // S8.14 — Just added on top; not in the Not used view, which lists what to tidy (its own order)
   const groups = useMemo(
-    () => groupAssets(shown, { justAdded: !(notUsedOnly && hasUsage) }),
-    [shown, notUsedOnly, hasUsage]
+    () =>
+      groupAssets(shown, {
+        justAdded: !(notUsedOnly && hasUsage),
+        generated: notUsedOnly && hasUsage ? [] : generated.groups,
+      }),
+    [shown, notUsedOnly, hasUsage, generated.groups]
   );
   useAssetAnswers(); // the bars on tiles follow what the studio last said about each open canvas
   const url = (p) => `/${designRel}/${p}`;
+  const renderTile = (a) => (
+    <AssetTile
+      key={a.path}
+      asset={a}
+      url={url(a.path)}
+      picked={picked === a.path}
+      canDrag={!readOnly}
+      onPick={setPicked}
+      onMenu={openMenu}
+      uploading={assetUploadOf(a.path)}
+    />
+  );
 
   // ↵ / the menu's Place: the picked picture onto the selected artboard (or frame). One edit-op, one undo step.
   const place = useCallback(
@@ -485,47 +523,49 @@ export function AssetsPanel({
       }}
       onDrop={onDrop}
     >
-      <div className="lp-head-row">
-        <label className="lp-find">
-          <StIcon name="search" size={13} />
-          <input
-            type="search"
-            data-testid="assets-search"
-            placeholder="Search assets"
-            aria-label="Search assets"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query ? null : <Kbd>⌘K</Kbd>}
-        </label>
-        {readOnly ? null : (
-          <button
-            type="button"
-            className="st-iconbtn lp-add"
-            data-testid="assets-generate"
-            aria-label="Generate an image"
-            data-tip="Generate an image"
-            aria-pressed={asking}
-            onClick={() => setAsking((v) => !v)}
-          >
-            <StIcon name="sparkle" size={14} />
-          </button>
-        )}
-        {readOnly ? null : (
-          <button
-            type="button"
-            className="st-iconbtn lp-add"
-            data-testid="assets-add"
-            aria-label="Add files…"
-            data-tip="Add files…"
-            disabled={busy}
-            onClick={add}
-          >
-            <StIcon name="plus" size={15} />
-          </button>
-        )}
-      </div>
-      {hasUsage ? (
+      {detailed ? null : (
+        <div className="lp-head-row">
+          <label className="lp-find">
+            <StIcon name="search" size={13} />
+            <input
+              type="search"
+              data-testid="assets-search"
+              placeholder="Search assets"
+              aria-label="Search assets"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query ? null : <Kbd>⌘K</Kbd>}
+          </label>
+          {readOnly ? null : (
+            <button
+              type="button"
+              className="st-iconbtn lp-add"
+              data-testid="assets-generate"
+              aria-label="Generate an image"
+              data-tip="Generate an image"
+              aria-pressed={asking}
+              onClick={() => setAsking((v) => !v)}
+            >
+              <StIcon name="sparkle" size={14} />
+            </button>
+          )}
+          {readOnly ? null : (
+            <button
+              type="button"
+              className="st-iconbtn lp-add"
+              data-testid="assets-add"
+              aria-label="Add files…"
+              data-tip="Add files…"
+              disabled={busy}
+              onClick={add}
+            >
+              <StIcon name="plus" size={15} />
+            </button>
+          )}
+        </div>
+      )}
+      {hasUsage && !detailed ? (
         <div className="lp-chips">
           <button
             type="button"
@@ -572,9 +612,20 @@ export function AssetsPanel({
           onOther={() => menuRunner.run('ai.generate')}
         />
       ) : null}
-      {detailed ? <AssetDetailsCard asset={detailed} onClose={() => setDetails(null)} /> : null}
+      {detailed ? (
+        <AssetDetails
+          asset={detailed}
+          url={url(detailed.path)}
+          placeLabel={placeLabel}
+          canPlace={!readOnly}
+          onPlace={(p) => void place(p)}
+          onBack={() => setDetails(null)}
+          onOpenBoard={(canvas, boardId) => onOpenCanvas?.(`${designRel}/${canvas}`, boardId)}
+          fetchImpl={fetchImpl}
+        />
+      ) : null}
       {notUsedOnly && hasUsage ? <NotCountedNote model={tidy} /> : null}
-      <div className="lp-assets-list" hidden={!!browse}>
+      <div className="lp-assets-list" hidden={!!browse || !!detailed}>
         {assets == null ? (
           <p className="lp-empty-b">Loading…</p>
         ) : assets.length === 0 ? (
@@ -612,8 +663,8 @@ export function AssetsPanel({
           groups.map((g) => (
             <section key={g.kind} aria-label={g.title}>
               <p className="lp-group">
-                {g.kind === 'added' ? (
-                  <span className="lp-group-s" data-testid="assets-group-added">
+                {g.kind === 'added' || g.kind === 'generated' ? (
+                  <span className="lp-group-s" data-testid={`assets-group-${g.kind}`}>
                     <span>{g.title}</span>
                     <span className="lp-count">{g.items.length}</span>
                   </span>
@@ -633,20 +684,25 @@ export function AssetsPanel({
                   </button>
                 )}
               </p>
-              <div className="lp-grid">
-                {g.items.map((a) => (
-                  <AssetTile
-                    key={a.path}
-                    asset={a}
-                    url={url(a.path)}
-                    picked={picked === a.path}
-                    canDrag={!readOnly}
-                    onPick={setPicked}
-                    onMenu={openMenu}
-                    uploading={assetUploadOf(a.path)}
-                  />
-                ))}
-              </div>
+              {g.runs ? (
+                // one block per generation run: what was asked for, then its takes in the order they were made
+                g.runs.map((r) => (
+                  <div
+                    key={r.group}
+                    className="lp-run"
+                    data-testid="assets-gen-run"
+                    data-group={r.group}
+                  >
+                    <p className="lp-run-t" title={r.prompt}>
+                      <span className="lp-run-p">{runTitle(r)}</span>
+                      <span className="lp-run-m">{runMeta(r)}</span>
+                    </p>
+                    <div className="lp-grid">{r.items.map(renderTile)}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="lp-grid">{g.items.map(renderTile)}</div>
+              )}
             </section>
           ))
         )}

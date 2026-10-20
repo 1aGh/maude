@@ -67,6 +67,43 @@ describe('maude design assets (studio)', () => {
     expect(bad.code).toBe(1);
   });
 
+  test('--usage --details asks the studio for the details of that asset; --details alone is a usage error', async () => {
+    studio = fakeStudio((s) => {
+      if (s.path === '/_api/asset-details')
+        return json({
+          ok: true,
+          details: {
+            rel: 'assets/aaaaaaaa.png',
+            uses: [{ canvas: 'ui/a.tsx', boards: [{ id: 'ab-post', label: 'Post 4:5' }] }],
+            madeByAi: {
+              prompt: 'night touchdown',
+              provider: 'fal',
+              model: 'flux',
+              at: '2026-10-18T09:12:00Z',
+            },
+            footage: null,
+            advanced: {
+              storedAs: 'assets/aaaaaaaa.png',
+              edits: [],
+              cutOuts: [],
+              original: '~/Pictures/IMG.jpg',
+            },
+          },
+        });
+      return handler(s);
+    });
+    const r = await studio.run('assets', ['--usage', 'aaaaaaaa.png', '--details']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('prompt: night touchdown');
+    expect(r.stdout).toContain('on artboard ab-post (Post 4:5) in ui/a.tsx');
+    expect(r.stdout).toContain('original: ~/Pictures/IMG.jpg');
+    expect(studio.seen.find((s) => s.path === '/_api/asset-details')?.query.path).toBe(
+      'assets/aaaaaaaa.png'
+    );
+    expect(studio.seen.every((s) => s.method === 'GET')).toBe(true);
+    expect((await studio.run('assets', ['--details'])).code).toBe(2);
+  });
+
   test('--not-used lists the unused, never an asset an older version shows', async () => {
     studio = fakeStudio(handler);
     const r = await studio.run('assets', ['--not-used', '--json']);
@@ -149,5 +186,38 @@ describe('maude design assets (no studio)', () => {
     expect(nu.code).toBe(0);
     expect(nu.stdout).toContain('Checking older versions');
     expect(nu.stdout).not.toContain('bbbbbbbb');
+  });
+
+  test('--usage --details with no studio: the sidecars and the artboard are read in-process, the Original from this Mac', async () => {
+    const root = project();
+    writeFileSync(
+      join(root, '.design', 'assets', 'aaaaaaaa.gen.json'),
+      JSON.stringify({
+        format: 'maude.gen',
+        v: 1,
+        prompt: 'night touchdown',
+        provider: 'fal',
+        model: 'flux',
+        at: '2026-10-18T09:12:00Z',
+        takes: ['aaaaaaaa'],
+      })
+    );
+    writeFileSync(
+      join(root, '.design', 'ui', 'a.tsx'),
+      'export default () => (<DesignCanvas><DCSection id="s"><DCArtboard id="ab-post" label="Post 4:5" width={10} height={10}><img src="../assets/aaaaaaaa.png" /></DCArtboard></DCSection></DesignCanvas>);\n'
+    );
+    mkdirSync(join(root, '.design', '_canvas-state'), { recursive: true });
+    writeFileSync(
+      join(root, '.design', '_canvas-state', 'asset-origins.json'),
+      JSON.stringify({
+        v: 1,
+        origins: { aaaaaaaa: { path: '/Volumes/Photos/IMG.png', importedAt: 1 } },
+      })
+    );
+    const r = await run(['--usage', 'aaaaaaaa.png', '--details']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('prompt: night touchdown');
+    expect(r.stdout).toContain('on artboard ab-post (Post 4:5) in ui/a.tsx');
+    expect(r.stdout).toContain('original: /Volumes/Photos/IMG.png');
   });
 });

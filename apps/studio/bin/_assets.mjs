@@ -22,9 +22,11 @@ import {
   UsageError,
 } from './_studio-verb.mjs';
 
-export const USAGE = `usage: maude design assets [--usage <asset>] [--not-used] [--json] [--root <project>]
+export const USAGE = `usage: maude design assets [--usage <asset> [--details]] [--not-used] [--json] [--root <project>]
   (none)          every asset: kind, size, canvases using it
   --usage <asset> the canvases that use one asset (assets/a1b2c3d4.png, or just a1b2c3d4.png)
+  --details       with --usage: also what the Assets tab's details show — Made by AI (prompt, provider, licence), what AI saw
+                  (footage), the artboards that show it, the edit files, and the Original on this Mac
   --not-used      assets nothing uses; lists nothing until older versions have been checked
   --json          machine-readable
 Read-only. Pictures that an older version of a canvas still shows, and today's AI takes nobody
@@ -66,14 +68,60 @@ async function fromStatic(root) {
   return answer;
 }
 
+/** The studio's answer for one asset, else the same facts built in-process (this Mac's own project session). */
+async function detailsOf(root, studio, row) {
+  if (studio) {
+    const r = await call(studio, `/_api/asset-details?path=${encodeURIComponent(row.rel)}`);
+    if (r?.status === 200 && r.body?.details) return r.body.details;
+  }
+  const { assetDetails } = await import('../asset-details.ts');
+  const { homedir } = await import('node:os');
+  const designRoot = path.join(root, DESIGN_REL);
+  return assetDetails(row.rel, {
+    designRoot,
+    usedIn: row.usedIn,
+    readCanvas: (rel) => {
+      try {
+        return readFileSync(path.join(designRoot, rel), 'utf8');
+      } catch {
+        return null;
+      }
+    },
+    includeOriginal: true,
+    home: homedir(),
+  });
+}
+
+function printDetails(d) {
+  if (d.madeByAi) {
+    const m = d.madeByAi;
+    console.log(`  made by AI: ${clean(m.provider)} ${clean(m.model)} ${clean(m.at)}`);
+    console.log(`  prompt: ${clean(m.prompt)}`);
+    if (m.licence) console.log(`  licence: ${clean(m.licence)}`);
+  }
+  if (d.footage) {
+    if (d.footage.summary) console.log(`  AI saw: ${clean(d.footage.summary)}`);
+    for (const x of d.footage.moments)
+      console.log(`  good moment ${x.start}-${x.end}s ${clean(x.note)}`);
+  }
+  for (const u of d.uses)
+    for (const b of u.boards)
+      console.log(`  on artboard ${clean(b.id)} (${clean(b.label)}) in ${clean(u.canvas)}`);
+  for (const e of d.advanced.edits) console.log(`  edits: ${clean(e)}`);
+  for (const c of d.advanced.cutOuts) console.log(`  cut-out: ${clean(c)}`);
+  if (d.advanced.original) console.log(`  original: ${clean(d.advanced.original)}`);
+}
+
 async function main(words) {
   const { flags, pos } = parseWords(words, {
-    bool: ['--not-used', '--json'],
+    bool: ['--not-used', '--json', '--details'],
     value: ['--usage', '--root'],
   });
   if (pos.length) throw new UsageError('assets takes no positional argument');
   if (flags['--usage'] && flags['--not-used'])
     throw new UsageError('--usage and --not-used are exclusive');
+  if (flags['--details'] && !flags['--usage'])
+    throw new UsageError('--details goes with --usage <asset>');
   const root = projectRoot(flags['--root']);
   if (!root) {
     process.stderr.write(
@@ -106,9 +154,18 @@ async function main(words) {
       process.stderr.write(`maude design assets: no asset ${clean(rel)}\n`);
       return 1;
     }
-    if (json) console.log(JSON.stringify({ source, history: answer.history, ...row }, null, 2));
+    const details = flags['--details'] ? await detailsOf(root, studio, row) : null;
+    if (json)
+      console.log(
+        JSON.stringify(
+          { source, history: answer.history, ...row, ...(details ? { details } : {}) },
+          null,
+          2
+        )
+      );
     else {
       console.log(`${clean(row.rel)}  ${row.kind}  ${kb(row.size)}`);
+      if (details) printDetails(details);
       for (const c of row.usedIn) console.log(`  used in ${clean(c)}`);
       if (row.usedElsewhere) console.log('  also named by a design-system or other file');
       if (row.olderVersions === true) console.log('  an older version of a canvas still shows it');
