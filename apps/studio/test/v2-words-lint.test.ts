@@ -65,6 +65,12 @@ const ALLOW: readonly { file: string; rule: string; text: RegExp; why: string }[
     why: 'CONTRACT §6: "Delete comment" on your own comments (comments have no trash)',
   },
   {
+    file: 'timeline/Timeline.jsx',
+    rule: 'delete',
+    text: /^Delete comment$/,
+    why: 'CONTRACT §6: "Delete comment" on your own comment pinned to a time (comments have no trash)',
+  },
+  {
     file: 'settings/account.jsx',
     rule: 'delete',
     text: /^Delete the account$/,

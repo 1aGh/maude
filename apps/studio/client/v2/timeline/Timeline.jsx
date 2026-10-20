@@ -2187,7 +2187,7 @@ export default function TimelinePanel({
                             setCommentPopover(null);
                           }}
                         >
-                          Delete
+                          Delete comment
                         </button>
                       ) : null}
                     </div>
