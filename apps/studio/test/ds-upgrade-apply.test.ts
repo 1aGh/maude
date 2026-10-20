@@ -5,11 +5,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { LOCAL_OWNER } from '../access/request.ts';
 import { registerDsUndoHook } from '../ds/undo-hook.ts';
 import { applyStage } from '../ds/upgrade-apply.ts';
+import { runDsUpgradeAsync } from '../ds/upgrade-cli.ts';
 import { checkV6 } from '../ds/upgrade-codemod.ts';
 import { proveStage, type RenderJob, type RenderResult } from '../ds/upgrade-prove.ts';
 import { discardStage, stageUpgrade, treeHash } from '../ds/upgrade-stage.ts';
+import { runDsOp } from '../routes/ds.ts';
 import { cleanup, makeProject, PERSON, type Project } from './_ds-engine-fixture.ts';
 import { CANVASES, FX, fxConfigEntry, writeFx } from './_ds-upgrade-fixture.ts';
 
@@ -180,5 +183,45 @@ describe('ds-upgrade apply + one ⌘Z (S10.15a)', () => {
     expect(u.status).toBe(200);
     expect(p.read(FX.tokensCssRel)).toBe(`${css}/* later */\n`);
     expect(JSON.stringify(u.body.skipped ?? [])).toContain('ds-upgrade-changed');
+  });
+});
+
+describe('POST /_api/ds/upgrade ≡ maude design ds-upgrade (S10.15a)', () => {
+  const op = (input: Record<string, unknown>, access = LOCAL_OWNER) =>
+    runDsOp('upgrade', input, { engine: p.engine, outside: null, usage: null, access, by: PERSON });
+
+  test('stage → apply refused unproved → discard, by the route; Can view is refused every step', async () => {
+    const st = await op({ ds: FX.name, step: 'stage', plan: [] });
+    expect(st.status).toBe(200);
+    const body = st.body as { stamp: string; dir?: string; canvases: unknown[] };
+    expect(body.dir).toBeUndefined(); // the throwaway folder's path stays on this machine
+    expect(body.canvases.length).toBe(2);
+    const ap = await op({ ds: FX.name, step: 'apply', stage: body.stamp });
+    expect(ap).toMatchObject({ status: 409, body: { code: 'ds-upgrade-not-proved' } });
+    expect((await op({ ds: FX.name, step: 'discard', stage: body.stamp })).status).toBe(200);
+    expect((await op({ ds: FX.name, step: 'stage', plan: 'x' })).status).toBe(400);
+    expect((await op({ ds: FX.name, step: 'apply', stage: '../x' })).status).toBe(400);
+    const viewer = { ...LOCAL_OWNER, can: () => false } as typeof LOCAL_OWNER;
+    expect((await op({ ds: FX.name, step: 'analyse' }, viewer)).status).toBe(403);
+  });
+
+  test('the verb: --apply goes to the studio as one POST; with no studio it exits 3', async () => {
+    const env = { CLAUDE_PROJECT_DIR: p.root };
+    const none = await runDsUpgradeAsync([FX.name, '--apply', '123', '--root', p.root], env, {});
+    expect(none.code).toBe(3);
+    let sent: unknown = null;
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      sent = { url, body: JSON.parse(String(init.body)) };
+      return Response.json({ code: 'ds-upgrade-not-proved', error: 'prove it' }, { status: 409 });
+    }) as unknown as typeof fetch;
+    const r = await runDsUpgradeAsync([FX.name, '--apply', '123', '--root', p.root], env, {
+      studio: { base: 'http://127.0.0.1:9' },
+      fetchImpl,
+    });
+    expect(sent).toEqual({
+      url: 'http://127.0.0.1:9/_api/ds/upgrade',
+      body: { ds: FX.name, step: 'apply', stage: '123' },
+    });
+    expect(r.code).toBe(13);
   });
 });
