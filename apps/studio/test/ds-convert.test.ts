@@ -16,7 +16,11 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { designSystemCanvasSource } from '../ds/board/template.ts';
+import { checkCanvas } from '../ds/canvas-check.ts';
+import { canvasContext } from '../ds/canvas-cli.ts';
 import { checkSystem } from '../ds/check.ts';
+import { loadProject } from '../ds/cli.ts';
 import { createDsConvert, DsConvertError } from '../ds/convert.ts';
 import { mapSpecimens, sectionOf } from '../ds/convert-map.ts';
 import { emitTokensJson, stableJson } from '../ds/emit.ts';
@@ -356,6 +360,33 @@ describe('ds convert — the run', () => {
       readFileSync(path.join(p.designRoot, '_history/_ds-convert', snap[0], 'report.json'), 'utf8')
     );
     expect(report.rolledBack).toBe(true);
+  });
+});
+
+describe('ds convert — the canvas it writes', () => {
+  test('parses, and ds-check canvas mode is clean on it (sections + own artboards)', async () => {
+    const p = makeProject();
+    await p.convert.convert({ systems: ['gator'], by: PERSON });
+    const rel = 'system/gator/design-system.tsx';
+    const src = readFileSync(path.join(p.designRoot, rel), 'utf8');
+    expect(() => new Bun.Transpiler({ loader: 'tsx' }).transformSync(src)).not.toThrow();
+    const report = checkCanvas(canvasContext(loadProject(p.root, {})), rel);
+    expect(report.findings).toEqual([]);
+    expect(report.state).not.toBe('blocked');
+  });
+
+  test('an own artboard’s label cannot break out; a bad id or path is refused', () => {
+    const src = designSystemCanvasSource('acme', 'Acme', [
+      { id: 'ds-own-x', label: '" onClick={evil} x="</DCArtboard>', src: 'preview/x.tsx' },
+    ]);
+    expect(src).not.toContain('{evil}');
+    expect(src).not.toContain('</DCArtboard>"');
+    expect(() => new Bun.Transpiler({ loader: 'tsx' }).transformSync(src)).not.toThrow();
+    for (const bad of [
+      { id: 'ds-own-x" y="1', label: 'x', src: 'preview/x.tsx' },
+      { id: 'ds-own-x', label: 'x', src: '../../secret.tsx' },
+    ])
+      expect(() => designSystemCanvasSource('acme', 'Acme', [bad])).toThrow();
   });
 });
 
