@@ -12,6 +12,8 @@ import { createContext, useContext } from 'react';
  *   size: 'compact'|'full',
  *   kept: boolean,
  *   onToggleSize: () => void,
+ *   fileDrag?: boolean,                                   // footage is being dragged over the window (S7.9)
+ *   dropRect?: { left: number, top: number, width: number, height: number } | null,   // the artboard, in window px
  *   empty: import('react').ReactNode,
  * }} IslandValue
  */

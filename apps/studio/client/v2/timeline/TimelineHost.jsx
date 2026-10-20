@@ -20,6 +20,7 @@ import { useShellStore } from '../../stores/shell-store.jsx';
 import { usePanelLayout } from '../shell/use-panel-layout.js';
 import { anchorCentre, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
+import { useFileDrag } from './edit/drop.jsx';
 import { playToggle } from './keys.js';
 import { loopJump } from './transport.js';
 import { bindFollowed, playbackStore } from './playhead.js';
@@ -184,6 +185,23 @@ export default function TimelineHost({ children }) {
   }, []);
   const poster = activePath && targetId ? posterOf(activePath, targetId) : null;
 
+  // ── footage dragged over the window: the canvas draws "Or drop here — adds at the end" on this artboard (S7.9) ──
+  const fileDrag = useFileDrag(present && !!targetId);
+  useEffect(() => {
+    if (!targetId || !fileDrag) return undefined;
+    postToActiveCanvas({ dgn: 'timeline-drop-hint', artboardId: targetId, on: true });
+    return () => postToActiveCanvas({ dgn: 'timeline-drop-hint', artboardId: targetId, on: false });
+  }, [fileDrag, targetId, postToActiveCanvas]);
+  // where the artboard is, in window pixels: the canvas frame's corner plus the rect the canvas reported
+  const dropRect = (() => {
+    if (!fileDrag || !view.target?.rect) return null;
+    const f = activePath ? iframesRef?.current?.get(activePath) : null;
+    const fr = f?.getBoundingClientRect?.();
+    if (!fr) return null;
+    const r = view.target.rect;
+    return { left: fr.left + r.x, top: fr.top + r.y, width: r.w, height: r.h };
+  })();
+
   // ── the island's words and hands ──
   const canAsk = isNativeApp() && !viewerMode;
   const artboardLabel = view.target?.label ?? 'this video';
@@ -192,10 +210,12 @@ export default function TimelineHost({ children }) {
       size: view.size,
       kept: view.kept,
       poster,
+      fileDrag,
+      dropRect,
       onToggleSize: () => timelineStore.toggleSize(),
       empty: <TimelineEmpty artboard={artboardLabel} canAsk={canAsk} />,
     }),
-    [view.size, view.kept, poster, artboardLabel, canAsk]
+    [view.size, view.kept, poster, artboardLabel, canAsk, fileDrag, dropRect]
   );
 
   // ── where it goes: the window, and the canvas frame the artboard's rect is measured in ──

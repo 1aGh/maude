@@ -20,8 +20,9 @@ import {
 } from '../shell/constants.js';
 import { parseCompTimeline } from '../panels/timeline-parse.js';
 import { trackRecordableWrite } from '../inspector/css-knobs.jsx';
+import { runActionMessage } from '../actions/shell-key-handlers.js';
 import {
-  clipVerbLabel,
+  clipVerbToast,
   refusalText,
   runClipVerb,
   seqUndoPayload,
@@ -288,16 +289,33 @@ export function usePhotoAndTimeline({
               refusalText(j)
             );
           } else if (j?.ok) {
+            // S7.9 — S names what it split and offers the one Undo; the other verbs say what happened.
+            const s = tlKeyRef.current;
+            const row = (s.sequences || []).find(
+              (r) => r.stableId && r.stableId === (clipRef?.stableId ?? clipRef)
+            );
+            const toast = clipVerbToast(verb, {
+              name: row?.label,
+              atFrame: params?.atFrame,
+              fps: (s.comps || []).find((c) => c.id === s.compId)?.fps,
+              params,
+            });
             shellToast(
-              verb === 'remove' ? 'Clip removed.' : `Applied: ${clipVerbLabel(verb)}.`,
-              true
+              toast.text,
+              true,
+              toast.undo
+                ? {
+                    label: 'Undo',
+                    onClick: () => postToActiveCanvas(runActionMessage('edit.undo')),
+                  }
+                : undefined
             );
             if (verb === 'remove') setTimelineSelectedClip(null);
           }
         })
         .catch(() => shellToast(`${verb} failed: network error`));
     },
-    [resolveClipRef, recordOnCanvas, timelineOpFailed]
+    [resolveClipRef, recordOnCanvas, timelineOpFailed, postToActiveCanvas]
   );
   // Task 3 — remove a clip (with server-side ripple for series beats): `clip.remove`, the same op
   // `/_api/remove-sequence` applies. Shared by the panel's ×/context-menu and Delete/Backspace.
