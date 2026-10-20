@@ -65,4 +65,9 @@ export const DS_ACTIONS: ActionDef[] = [
   // project's default system); "Make a design system" is the empty row's door — it opens the three-input sheet
   // (S10.16b), and the same id is Home's starter (S6). Neither is a ⌘K row: each needs the system / sheet in hand.
   row('ds.set-default', 'Use for new canvases'),
+  // S10.12 — convert system folders (13 · 25 ds-multi-migrate, 29 ds-edge-migrate). The banner on today's folder view
+  // opens the dialog; its Convert is one all-or-nothing run. Restore (the system's version history) puts a system back
+  // to its folder. Each needs a system in hand, so neither is a ⌘K row. Can edit on the whole project.
+  row('ds.convert', 'Turn into a Design system canvas'),
+  row('ds.convert-restore', 'Restore the system folder'),
 ];

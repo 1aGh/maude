@@ -245,6 +245,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     '/_api/ds/make',
     // S10.13 — the project's default design system (config.json)
     '/_api/ds/default',
+    // S10.12 — convert system folders / Restore one (ds/convert.ts)
+    '/_api/ds/convert',
   ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
   { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];

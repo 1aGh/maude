@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "05bed8c4dd4b",
+  "manifestVersion": "d9a86d51774d",
   "actions": [
     {
       "id": "search.open",
@@ -5698,6 +5698,40 @@
       "agent": {
         "path": "cli",
         "verb": "maude design ds default <ds>"
+      }
+    },
+    {
+      "id": "ds.convert",
+      "label": "Turn into a Design system canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/convert",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds convert [<ds>…] [--dry-run]"
+      }
+    },
+    {
+      "id": "ds.convert-restore",
+      "label": "Restore the system folder",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/ds/convert",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds convert <ds> --restore"
       }
     }
   ],

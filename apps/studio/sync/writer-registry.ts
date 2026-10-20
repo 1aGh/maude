@@ -274,9 +274,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'file-plane',
     rows: 'config.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas) + revisions + head.json, last — Plane B only (ds/make.ts, S10.16a)',
   },
+  '/_api/ds/convert': {
+    class: 'file-plane',
+    rows: 'per system: revisions + tokens.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas), head.json last; Restore moves head.json + the canvas to _trash — Plane B only, all or nothing (ds/convert.ts, S10.12)',
+  },
   '/_api/ds/default': {
     class: 'file-plane',
-    rows: "config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only",
+    rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',
   },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },
