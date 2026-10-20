@@ -1188,7 +1188,7 @@ describe('gate-b-sec2 — bounded writers: maude-verb allowlists, fail closed wi
 
   test('ds-migrator runs ds convert / status / check-system, check and screenshot — nothing else', async () => {
     for (const cmd of [
-      'maude design ds convert acme --dry-run --json > .design/_runs/sec2/handoff/plan.json',
+      'maude design ds convert acme --dry-run --json | jq .sections',
       'maude design ds convert acme --json',
       'maude design ds status acme --json',
       'maude design ds check-system acme --json',

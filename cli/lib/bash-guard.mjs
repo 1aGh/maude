@@ -431,6 +431,13 @@ export function parseBash(src) {
 
 const CANVAS_RE = /\.(?:tsx|jsx)$/;
 const WRAPPERS = new Set(['sudo', 'command', 'builtin', 'exec', 'nohup', 'nice', 'time', 'env']);
+/** A wrapper's flags whose operand is the next word (not the command). */
+const OPERAND_FLAGS = {
+  env: new Set(['-u', '--unset', '-C', '--chdir']),
+  sudo: new Set(['-u', '-g', '-C', '-h', '-p', '-U']),
+  nice: new Set(['-n']),
+  exec: new Set(['-a']),
+};
 const INTERPRETERS = {
   node: ['-e', '--eval', '-p', '--print'],
   bun: ['-e', '--eval', '-p', '--print'],
@@ -564,15 +571,20 @@ function effective(words) {
   while (k < words.length) {
     const w = words[k];
     if (!w.literal) return null;
-    if (!WRAPPERS.has(nameOf(w.text))) break;
+    const wrapper = nameOf(w.text);
+    if (!WRAPPERS.has(wrapper)) break;
     k++;
-    // env's own flags and NAME=value words
+    // env's own flags and NAME=value words; a flag that takes an operand skips it too
+    // (`env -u NAME maude …`, `env -C dir`, `sudo -u user` — gate-b-sec2: else NAME read as the command)
+    const takesArg = OPERAND_FLAGS[wrapper];
     while (
       k < words.length &&
       words[k].literal &&
       (/^-/.test(words[k].text) || /^[A-Za-z_]\w*=/.test(words[k].text))
-    )
+    ) {
+      if (takesArg?.has(words[k].text)) k++;
       k++;
+    }
   }
   if (k >= words.length || !words[k].literal) return null;
   return { name: nameOf(words[k].text), raw: words[k].text, args: words.slice(k + 1) };

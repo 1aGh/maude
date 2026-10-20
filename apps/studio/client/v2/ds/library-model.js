@@ -187,6 +187,8 @@ export function linkedRows(state) {
       library: {
         hub: typeof lib.hub === 'string' ? lib.hub : '',
         project: typeof lib.project === 'string' ? lib.project : '',
+        // the record's system on its hub (gate-b-sec2: "Link again" names it)
+        system: typeof lib.system === 'string' ? lib.system : '',
         label: typeof lib.label === 'string' && lib.label ? lib.label.slice(0, 120) : r.name,
         linkedBy: lib.linkedBy && typeof lib.linkedBy === 'object' ? lib.linkedBy : null,
         upstreamHead: typeof lib.upstreamHead === 'string' ? lib.upstreamHead : null,
