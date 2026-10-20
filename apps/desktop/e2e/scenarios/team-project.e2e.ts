@@ -197,6 +197,41 @@ describe('team-project (native-desktop)', () => {
     await closeHistory();
   });
 
+  it('4c · Settings › Connections: the team server reads like the cloud; its token only as the last four', async () => {
+    // S11.14 (06 ad-edge-hub) — the server-add leg's other end: the folder this copy syncs is the
+    // team server's row, "Connected …" with Sign out, and its Advanced names the address, the access
+    // token as •••• •••• <last 4> (never more) and Replace…. Read-only here: nothing is replaced.
+    const t = TEAM as NonNullable<typeof TEAM>;
+    await settleMotion();
+    await (await $(tid('project-pill'))).click();
+    const row = await $(tid('project-menu-row-settings.open'));
+    await row.waitForDisplayed({ timeout: 10_000 });
+    await row.click();
+    await (await $(tid('settings-tab-connections'))).click();
+    const status = await $(tid('settings-conn-hub-status'));
+    await status.waitForDisplayed({ timeout: 15_000 });
+    expect(await status.getText()).toMatch(/^Connected/);
+    expect(await (await $(tid('settings-hub-sign-out'))).isDisplayed()).toBe(true);
+    const fold = await $(tid('fold-connections.hub-toggle'));
+    if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
+    const token = await $(tid('settings-hub-token'));
+    await token.waitForDisplayed({ timeout: 10_000 });
+    expect(await token.getText()).toMatch(/•••• •••• (\S{4}|••••)/);
+    expect(await (await $(tid('settings-hub-address'))).getText()).toContain(t.hub);
+    expect(await (await $(tid('settings-hub-token-replace'))).isDisplayed()).toBe(true);
+    // the stored credential's body never reaches the page
+    const hubs = read(process.env.HUBS_CONFIG_PATH ?? '') ?? '';
+    const stored = (JSON.parse(hubs || '{}').hubs?.[t.hub]?.token as string | undefined) ?? '';
+    if (stored.length > 8)
+      expect(await browser.execute(() => document.body.innerHTML)).not.toContain(
+        stored.slice(0, -4)
+      );
+    await capture('06c-connections-team-server');
+    await fold.click(); // remembered per Mac: leave it as it was
+    const close = await $(tid('settings-close'));
+    if (await close.isExisting()) await close.click();
+  });
+
   it('5 · the switcher names the project and offers team projects again', async () => {
     await settleMotion();
     const trigger = await $(tid('repo-switcher-trigger'));

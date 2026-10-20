@@ -422,6 +422,12 @@
   .v2s-conn-more {
     margin: var(--space-2) 0 0 calc(28px + var(--space-3));
   }
+  .v2s-conn-body {
+    margin-left: calc(28px + var(--space-3));
+  }
+  .v2s-conn-body > .v2s-conn-list {
+    margin-left: 0;
+  }
   .v2s-conn-h {
     margin: 0 0 var(--space-1);
     font-size: var(--type-xs);

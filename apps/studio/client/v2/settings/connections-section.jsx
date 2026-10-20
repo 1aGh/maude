@@ -66,17 +66,19 @@ function CloudProjects({ c }) {
     );
   return projects.map((p) => {
     const name = p.name || p.id;
+    // Viewer dignity (Phase 17 T4): no dead Connect that would 403 at the workspace — viewing has a
+    // first-class home in the browser, and the label says why.
     if (p.role === 'viewer')
       return (
-        <div className="v2s-conn-li" key={p.id} data-testid={`cloud-project-${p.id}`}>
-          <span>{name}</span>
+        <div className="v2s-conn-li" key={p.id}>
           <button
             type="button"
             className="btn btn--ghost btn--sm"
             onClick={() => openExternal(shareViewUrl(p.url, p.id))}
             title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
+            data-testid={`cloud-project-${p.id}`}
           >
-            View in the browser
+            {`View ${name} in the browser`}
           </button>
         </div>
       );
@@ -342,29 +344,32 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
           </>
         }
       >
-        {cloud.state === 'in' ? (
-          <div className="v2s-conn-list">
-            <p className="v2s-conn-h">Cloud projects on this Mac</p>
-            <div data-testid="settings-cloud-projects">
-              <CloudProjects c={cloud} />
+        {/* `cloud-bar`: the account's own words — the projects, the Connect outcome, an error. */}
+        <div className="v2s-conn-body" data-testid="cloud-bar">
+          {cloud.state === 'in' ? (
+            <div className="v2s-conn-list">
+              <p className="v2s-conn-h">Cloud projects on this Mac</p>
+              <div data-testid="settings-cloud-projects">
+                <CloudProjects c={cloud} />
+              </div>
+              {cloud.note ? (
+                <p
+                  className="v2s-hint"
+                  role="status"
+                  aria-live="polite"
+                  data-testid="cloud-connect-note"
+                >
+                  {cloud.note.text}
+                </p>
+              ) : null}
             </div>
-            {cloud.note ? (
-              <p
-                className="v2s-hint"
-                role="status"
-                aria-live="polite"
-                data-testid="cloud-connect-note"
-              >
-                {cloud.note.text}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        {cloud.error ? (
-          <p className="v2s-conn-err" role="alert">
-            {cloud.error}
-          </p>
-        ) : null}
+          ) : null}
+          {cloud.error ? (
+            <p className="v2s-conn-err" role="alert">
+              {cloud.error}
+            </p>
+          ) : null}
+        </div>
       </ConnectionRow>
 
       <ConnectionRow

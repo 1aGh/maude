@@ -326,6 +326,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
+          div .v2s-conn-body [data-testid="cloud-bar"]
           div .v2s-conn-fold
             div .v2-fold [data-testid="fold-connections.cloud"]
               button .v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
@@ -543,6 +544,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               span .v2s-conn-s [data-testid="settings-conn-cloud-status"] "Where your projects live. Not signed in."
             span .v2s-conn-a
               button .btn.btn--sm [data-testid="cloud-signin"] [type="button"] "Sign in"
+          div .v2s-conn-body [data-testid="cloud-bar"]
           div .v2s-conn-fold
             div .v2-fold [data-testid="fold-connections.cloud"]
               button .v2-fold-btn [data-testid="fold-connections.cloud-toggle"] [aria-expanded="false"] [type="button"] "Advanced"

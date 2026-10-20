@@ -3823,16 +3823,22 @@
     "hook": "cloud-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Maude Cloud rail at the bottom of the sidebar (local, non-cloud shell only).",
+    "meaning": "Connections › Maude Cloud: the account’s own words — the cloud projects on this Mac, the Connect outcome note, an error. (The CloudBar rail’s root keeps the same hook.)",
     "producer": {
-      "file": "apps/studio/client/panels/CloudBar.jsx",
-      "symbol": "CloudBar"
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
     ],
-    "v2": "moves"
+    "v2": "moves",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/panels/CloudBar.jsx",
+        "symbol": "CloudBar"
+      }
+    ]
   },
   {
     "hook": "cloud-signin",

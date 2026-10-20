@@ -351,6 +351,23 @@ describe('Settings › Connections, rendered (06 ad-edge-hub)', () => {
     expect(document.body.textContent).not.toContain('a91f');
   });
 
+  test('the e2e-facing hooks stay: the account row, the cloud-bar words, a viewer’s browser door', async () => {
+    installFetch({
+      '/_api/cloud/projects': {
+        ok: true,
+        projects: [
+          { id: 'gallery', name: 'Stub Gallery', role: 'viewer', url: 'https://g.cloud.maude.sh' },
+          { id: 'proj', name: 'Stub Project', role: 'member', url: 'https://p.cloud.maude.sh' },
+        ],
+      },
+    });
+    await mount();
+    expect(q('cloud-account')?.textContent).toContain('you@studio.cz');
+    expect(q('cloud-project-gallery')?.textContent).toBe('View Stub Gallery in the browser');
+    expect(q('cloud-project-proj')?.textContent).toBe('Connect Stub Project');
+    expect(q('cloud-bar')?.contains(q('settings-cloud-projects'))).toBe(true);
+  });
+
   test('its Advanced: Address (copy), Access token •••• •••• a91f + Replace…, Hub version', async () => {
     installFetch();
     await mount();
