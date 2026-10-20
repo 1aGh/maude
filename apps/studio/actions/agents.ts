@@ -191,7 +191,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── canvas ──
   'canvas.new': TSX('Write a new .tsx under the design root with a DCArtboard per screen'),
   'canvas.new-brief': TSX(
-    'Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
+    'Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
   ),
   // S6.3 — a canvas from one sentence: the agent writes the new .tsx itself (V2-1.1 §5.9: `file:'canvas-tsx'`).
   'home.ask': TSX(
@@ -778,7 +778,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
-  'annotations.hide-resolved': PREF('per-person view preference (C29); never written to the board'),
+  'annotations.hide-resolved': PREF('per-person view preference (C29); never written to the annotations'),
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
@@ -1157,12 +1157,12 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'annotation.forward': BOARD('Move the elements one step later in the element order'),
   'annotation.to-back': BOARD('Move the elements to the start of the element order'),
   'annotation.backward': BOARD('Move the elements one step earlier in the element order'),
-  'annotation.copy': PREF('the clipboard is the user’s; read the board file instead'),
+  'annotation.copy': PREF('the clipboard is the user’s; read the annotations file instead'),
   'annotation.cut': BOARD('Remove the elements (the clipboard half is the user’s)'),
   'annotation.chain': BOARD('Add the next element bound to the selected one'),
   'annotation.edit-text': BOARD('Change the element’s text field'),
   'annotation.nudge': BOARD('Change the elements’ x / y'),
-  'annotation.remove': BOARD('Remove the elements from the board file'),
+  'annotation.remove': BOARD('Remove the elements from the annotations file'),
   'annotation.resolve': BOARD(
     'Set the sticky’s resolved to { by, at } (the person’s name, an ISO UTC time); remove it to reopen'
   ),
@@ -1177,14 +1177,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: file(
       'comments',
       'design:whiteboard',
-      'Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the board file'
+      'Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the annotations file'
     ),
   },
   'annotation.fold': BOARD('Set the section’s folded to true; remove it to unfold'),
   // The agent IS the AI: what a person asks it about a selection, it reads from the board.
   'annotation.ask-ai': { effect: 'none', agent: cli('maude design read-annotations') },
   'annotations.trash-resolved': BOARD(
-    'Remove the stickies whose resolved is set from the board file'
+    'Remove the stickies whose resolved is set from the annotations file'
   ),
   'annotations.select-resolved': { effect: 'none', agent: cli('maude design read-annotations') },
   // S4.14 — people vote; the agent reads the result section. The doors are /_api/votes/start|end (edit).
@@ -1194,7 +1194,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/votes/start', method: 'POST' },
     agent: human(
       'vote',
-      'the result section is on the board when it ends: `maude design read-annotations`'
+      'the result section is in the annotations when it ends: `maude design read-annotations`'
     ),
   },
   'annotations.end-vote': {

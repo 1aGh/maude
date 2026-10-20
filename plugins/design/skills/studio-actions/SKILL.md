@@ -127,7 +127,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Move earlier | `object.reorder-earlier` | `canvas-tsx` | Move the element’s JSX one place earlier among its siblings (in an auto layout the order in the code is the order on the canvas) | `design:design` |
 | Move later | `object.reorder-later` | `canvas-tsx` | Move the element’s JSX one place later among its siblings (in an auto layout the order in the code is the order on the canvas) | `design:design` |
 | Move next to… | `object.reorder-to` | `canvas-tsx` | Move the element’s JSX before, after or inside another element; for a copy, duplicate it first (a copy keeps no data-cd-id) | `design:design` |
-| Move resolved stickies to the trash | `annotations.trash-resolved` | `annotations` | Remove the stickies whose resolved is set from the board file | `design:whiteboard` |
+| Move resolved stickies to the trash | `annotations.trash-resolved` | `annotations` | Remove the stickies whose resolved is set from the annotations file | `design:whiteboard` |
 | Move to trash | `assets.trash` | `canvas-tsx` | Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: "asset", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: ["assets/<name>"]} answers per item: moved, or used \| kept-by-versions \| checking | `design:design` |
 | Move to… | `canvas.move` | `canvas-tsx` | Move the .tsx and its .meta.json to another folder under the design root | `design:design` |
 | Name element | `element.stamp` | `canvas-tsx` | Give the element a readable data-cd-id (kebab-case, unique on the canvas) so an arrow can point at it | `design:design` |
@@ -138,7 +138,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | New artboard: Mobile | `artboard.new-mobile` | `canvas-tsx` | Add a DCArtboard sized 390×844 | `design:design` |
 | New artboard: Tablet | `artboard.new-tablet` | `canvas-tsx` | Add a DCArtboard sized 834×1194 | `design:design` |
 | New artboard: Video | `artboard.new-video` | `canvas-tsx` | Add <DCArtboard kind="video" width={1920} height={1080}> with a <VideoComp component={…} durationInFrames={150} fps={30} width={1920} height={1080} /> inside and the comp function — see canvas-tsx.md § Add an artboard of a kind | `design:design` |
-| New brief board | `canvas.new-brief` | `canvas-tsx` | Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root | `design:design` |
+| New brief board | `canvas.new-brief` | `canvas-tsx` | Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root | `design:design` |
 | New canvas | `canvas.new` | `canvas-tsx` | Write a new .tsx under the design root with a DCArtboard per screen | `design:design` |
 | New video | `canvas.new-video` | `canvas-tsx` | Write a new video-comp .tsx canvas | `design:video-comp` |
 | Nudge | `annotation.nudge` | `annotations` | Change the elements’ x / y | `design:whiteboard` |
@@ -156,7 +156,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Re-frame | `video.reframe` | `canvas-tsx` | Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted) | `design:video-comp` |
 | Rectangle | `tool.rect` | `annotations` | Add a rect shape element to the canvas’s .annotations.json | `design:whiteboard` |
 | Relink… | `asset.relink` | `canvas-tsx` | Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./ | `design:design` |
-| Remove | `annotation.remove` | `annotations` | Remove the elements from the board file | `design:whiteboard` |
+| Remove | `annotation.remove` | `annotations` | Remove the elements from the annotations file | `design:whiteboard` |
 | Remove | `object.remove` | `canvas-tsx` | Delete the element’s JSX (a removed DCArtboard is parked in the trash) | `design:design` |
 | Remove frame | `object.unframe` | `canvas-tsx` | Replace the frame with its children, in order; the frame’s own attributes go | `design:design` |
 | Rename artboard | `artboard.rename` | `canvas-tsx` | Set the DCArtboard’s label prop (up to 80 characters; accents are kept) | `design:design` |
@@ -195,7 +195,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Text | `tool.el-text` | `canvas-tsx` | Add a text element to the artboard in the canvas .tsx | `design:design` |
 | Text | `tool.text` | `annotations` | Add a text element to the canvas’s .annotations.json | `design:whiteboard` |
 | Tidy up artboards | `artboard.tidy` | `canvas-tsx` | Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards | `design:design` |
-| Turn into a comment | `annotation.to-comment` | `comments` | Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the board file | `design:whiteboard` |
+| Turn into a comment | `annotation.to-comment` | `comments` | Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the annotations file | `design:whiteboard` |
 | Ungroup | `annotation.ungroup` | `annotations` | Clear the elements’ group id | `design:whiteboard` |
 | Union selection | `shape.combine.union` | `canvas-tsx` | Replace the shapes with one <svg data-shape="path" data-combine="union"> holding ONE <path d> of every outline (each wound clockwise), fillRule="nonzero" — see canvas-tsx.md § Combine shapes | `design:design` |
 | Update to the current look | `ds.instance-update` | `canvas-tsx` | Add data-ds-rev="head" to the instance’s element (right after its data-cd-id; overwrite the attribute if it has one); the rest of the canvas keeps its version. Over HTTP: POST /_api/edit-op {op: "ds.instance-update", targets: [instance]} — refused on a canvas that follows the system already | `design:design` |
@@ -363,7 +363,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Connect this folder to a cloud project… | `connections.cloud-project-connect` | hub-link — links this folder to a cloud project under the person’s account |
 | Connect to your own hub… | `hub.connect` | hub-link — signs the person in to a self-hosted team server (the password goes to the Home server once); an agent links a folder with `maude design link` |
 | Continue on your draft | `history.continue-draft` | git — an agent runs git itself in the project folder: git switch <draft> |
-| Copy | `annotation.copy` | view-pref — the clipboard is the user’s; read the board file instead |
+| Copy | `annotation.copy` | view-pref — the clipboard is the user’s; read the annotations file instead |
 | Copy | `edit.copy` | view-pref — the clipboard is the user’s; read the source instead |
 | Copy canvas link | `canvas.copy-link` | view-pref — copies to the clipboard; an agent shares the canvas path instead |
 | Copy link | `share.copy-link` | links |
@@ -390,7 +390,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Help and guides | `help.guides` | onboarding |
 | Hidden files | `view.hidden-files` | view-pref |
 | Hide panels | `view.panels` | view-pref |
-| Hide resolved stickies | `annotations.hide-resolved` | view-pref — per-person view preference (C29); never written to the board |
+| Hide resolved stickies | `annotations.hide-resolved` | view-pref — per-person view preference (C29); never written to the annotations |
 | How sharing works | `help.sharing` | onboarding |
 | Inspect | `tool.inspect` | view-pref — a pointer mode |
 | Install the maude command… | `cli.install` | onboarding — links the bundled maude into ~/.local/bin and adds the Claude Code plugin; an agent is already running through both |
@@ -469,7 +469,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Sign in as another account… | `account.switch` | native-window — the desktop app’s profiles; an agent never picks an account |
 | Sign in to cloud.maude.sh | `home.signin` | accounts — opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent |
 | Sort canvases | `canvases.sort` | view-pref — the order the Canvases panel lists in; `maude design index` lists them all |
-| Start a vote… | `annotations.start-vote` | vote — the result section is on the board when it ends: `maude design read-annotations` |
+| Start a vote… | `annotations.start-vote` | vote — the result section is in the annotations when it ends: `maude design read-annotations` |
 | Step a frame | `timeline.step` | view-pref — playback |
 | Step back | `ui.step-back` | view-pref — the user’s navigation history |
 | Stop following | `presence.stop` | summon — ends a Follow or the spotlight |

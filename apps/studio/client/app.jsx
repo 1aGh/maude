@@ -59,7 +59,6 @@ import { useTreeDrag } from './use-tree-drag.js';
 import ChatPanel from './panels/ChatPanel.jsx';
 import DiffView from './panels/DiffView.jsx';
 import SyncConsentDialog from './panels/SyncConsentDialog.jsx';
-import SyncPanel from './panels/SyncPanel.jsx';
 import CloudBar from './panels/CloudBar.jsx';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from './share-link.js';
 import { isEmbedLocation } from './embed.js';

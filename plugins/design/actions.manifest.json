@@ -108,7 +108,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
+        "how": "Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
       }
     },
     {
@@ -3878,7 +3878,7 @@
       "agent": {
         "path": "human",
         "because": "view-pref",
-        "note": "the clipboard is the user’s; read the board file instead"
+        "note": "the clipboard is the user’s; read the annotations file instead"
       }
     },
     {
@@ -3943,7 +3943,7 @@
         "path": "file",
         "format": "annotations",
         "skill": "design:whiteboard",
-        "how": "Remove the elements from the board file"
+        "how": "Remove the elements from the annotations file"
       }
     },
     {
@@ -4001,7 +4001,7 @@
         "path": "file",
         "format": "comments",
         "skill": "design:whiteboard",
-        "how": "Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the board file"
+        "how": "Write the thread into the comments file with from { kind: sticky, … } set, and remove the sticky from the annotations file"
       }
     },
     {
@@ -4125,7 +4125,7 @@
       "agent": {
         "path": "human",
         "because": "view-pref",
-        "note": "per-person view preference (C29); never written to the board"
+        "note": "per-person view preference (C29); never written to the annotations"
       }
     },
     {
@@ -4138,7 +4138,7 @@
         "path": "file",
         "format": "annotations",
         "skill": "design:whiteboard",
-        "how": "Remove the stickies whose resolved is set from the board file"
+        "how": "Remove the stickies whose resolved is set from the annotations file"
       }
     },
     {
@@ -4155,7 +4155,7 @@
       "agent": {
         "path": "human",
         "because": "vote",
-        "note": "the result section is on the board when it ends: `maude design read-annotations`"
+        "note": "the result section is in the annotations when it ends: `maude design read-annotations`"
       }
     },
     {
