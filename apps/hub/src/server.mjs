@@ -133,6 +133,11 @@ import {
   handleDocumentItemRoute,
   handleDocumentsRoute,
 } from './documents.mjs';
+import {
+  createDsLibraryRoutes,
+  createDsLibraryUsage,
+  DS_LIBRARY_CAPABILITY,
+} from './ds-library.mjs';
 import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-page.mjs';
 import { endedSessionReason } from './ended-sessions.mjs';
 import {
@@ -941,6 +946,17 @@ export function createHub(config = {}) {
     journal: () => journal,
     ...(rateLimit ? {} : { limits: null }),
   });
+  // S10.18a — team libraries (`ds-library.mjs`): a system's head + revisions, to members and
+  // to a non-member's library read grant. No grant verifier is wired yet (the credential is
+  // the lead's open question), so a non-member is refused — fail closed.
+  const dsLibraryRoutes = createDsLibraryRoutes({
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    designRoot: () => (studioProxy ? designRootFor() : null),
+    systems: () => acceptedProjectConfig()?.designSystems ?? [],
+    auth: (req) => acceptedAuth(req),
+    verifyGrant: null,
+    usage: createDsLibraryUsage({ file: join(dataDir, 'ds-library-usage.json') }),
+  });
 
   // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
   const commentsDeps = {
@@ -1245,12 +1261,15 @@ export function createHub(config = {}) {
           // `votes-v1` (Gate 0 A18, S9.13): hub-held ballots at
           // `/api/projects/:p/v1/votes*`.
           // `render-jobs-v1` (S8.5b §4.4): the cloud render door, only while it is on here.
+          // `ds-library` (V2-1.6 §5.14, S10.18a): team-library head + revisions at
+          // `/api/projects/:p/v1/ds/*`, only where a checkout's design root is served.
           capabilities: withRolesV2(
             [
               ...(journal
                 ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
                 : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
               ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
+              ...(dsLibraryRoutes.enabled() ? [DS_LIBRARY_CAPABILITY] : []),
             ],
             accessService.rolesV2Options
           ),
@@ -1341,6 +1360,7 @@ export function createHub(config = {}) {
             votes: votesRoutes,
             presence: presenceDeps(), // S8.19
             renderJobs: renderJobsRoutes, // S8.5b-2
+            dsLibrary: dsLibraryRoutes, // S10.18a
           },
         })
       ) {
