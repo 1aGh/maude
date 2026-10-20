@@ -53,6 +53,8 @@ import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 import { clearFollowedLoop, loopAt } from '../timeline/playhead.js';
+import { addTrackAtFollowed } from '../timeline/advanced/actions.js';
+import { allowLongerAtFollowed } from '../timeline/advanced/video-cap.js';
 import { setPosterAtPlayhead } from '../timeline/poster.js';
 import { timelineStore } from '../timeline/timeline-store.js';
 import { addCaptionsFromSpeech, transcriptUi } from '../transcript/captions-api.js';
@@ -390,6 +392,9 @@ export function createMenuHandlers(d) {
     'view.timeline-keep-open': () => timelineStore.toggleKeep(),
     'timeline.expand': () => timelineStore.expand(),
     'timeline.compact': () => timelineStore.compact(),
+    // S7.18 — the timeline's Advanced: "+ track" (an empty Video 2 / Music 2) and Allow longer (C22)
+    'timeline.add-track': (p) => d.toast?.(addTrackAtFollowed(p?.track)),
+    'video.allow-longer': async () => d.toast?.(await allowLongerAtFollowed()),
     // S7.8 — the playhead's frame becomes the followed video's poster (client/v2/timeline/poster.js)
     // S7.8 — the loop range, from ⌘K (the keys are I / O with the timeline focused)
     'timeline.loop-in': () => loopAt('in'),

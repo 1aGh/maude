@@ -9,6 +9,8 @@
 // an unparseable comp yields `{ sequences: [] }` and the panel shows a scrub-
 // only track. It is NOT a general TSX parser.
 
+import { describeKeyframes, interpolateCalls } from '../../video/keyframes.ts';
+
 /**
  * Collect top-level numeric consts so `durationInFrames={A}` resolves. Two
  * passes: literal ints first, then expression consts built from them
@@ -51,25 +53,33 @@ function resolveNum(raw, consts) {
   return null;
 }
 
-/** Animation (interpolate-of-frame) windows inside a named component's body. */
+/**
+ * Animation (interpolate-of-frame) windows inside a named component's body: `kf` is what the marker overview
+ * draws, `info` (S7.18) is parallel to it and says what each window moves and what curve it has — the Advanced
+ * panel's rows. Both come from the same calls (video/keyframes.ts), so the k-th marker is the k-th window.
+ */
 function keyframesForComponent(source, compName, consts, seqFrom) {
-  if (!compName) return [];
-  const def = source.search(new RegExp(`\\b(?:const|function)\\s+${compName}\\b`));
-  if (def < 0) return [];
-  // Heuristic body window — components in a comp are small; the next top-level
-  // `const X =`/`function X` bounds it well enough for the marker overview.
-  const rest = source.slice(def + compName.length);
-  const nextDef = rest.search(/\n(?:const|function)\s+[A-Z]/);
-  const body = rest.slice(0, nextDef > 0 ? nextDef : 2400);
+  if (!compName) return { kf: [], info: [] };
+  const calls = interpolateCalls(source, compName);
+  if (calls.length === 0) return { kf: [], info: [] };
+  const details = describeKeyframes(source, compName);
   const kf = [];
-  for (const m of body.matchAll(
-    /interpolate\(\s*frame\s*,\s*\[\s*([^,\]]+?)\s*,\s*([^,\]]+?)\s*[,\]]/g
-  )) {
-    const a = resolveNum(m[1], consts);
-    const b = resolveNum(m[2], consts);
-    if (a != null && b != null && b >= a) kf.push({ from: seqFrom + a, to: seqFrom + b });
+  const info = [];
+  for (const call of calls) {
+    const a = resolveNum(call.from, consts);
+    const b = resolveNum(call.to, consts);
+    if (a != null && b != null && b >= a) {
+      kf.push({ from: seqFrom + a, to: seqFrom + b });
+      info.push(details.find((d) => d.index === call.index));
+    }
   }
-  return kf;
+  return { kf, info };
+}
+
+/** The `keyframes` + `keyframeInfo` fields of one sequence row. */
+function keyframeFields(src, compName, consts, seqFrom) {
+  const { kf, info } = keyframesForComponent(src, compName, consts, seqFrom);
+  return { keyframes: kf, keyframeInfo: info };
 }
 
 /**
@@ -225,7 +235,7 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
       mediaSrc: it.mediaSrc,
       from: Math.max(0, from),
       duration: Math.max(1, duration),
-      keyframes: keyframesForComponent(src, it.compName, consts, Math.max(0, from)),
+      ...keyframeFields(src, it.compName, consts, Math.max(0, from)),
     });
     cursor = from + duration;
   }

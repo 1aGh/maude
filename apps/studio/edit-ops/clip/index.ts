@@ -37,6 +37,7 @@ import { applyCutSourceRange } from './cut-source-range.ts';
 import { applyCutToBeat } from './cut-to-beat.ts';
 import { applyDuck, applyMusicVolume, duckPatch } from './duck.ts';
 import { applyFormatAdd, applyFormatUnlink } from './formats.ts';
+import { applyEasing, easingPatch } from './easing.ts';
 import { CLIP_GESTURE_OPS } from './gestures.ts';
 import { applyPlace, placePatch } from './place.ts';
 import { applyReframe, reframePatch } from './reframe.ts';
@@ -468,6 +469,17 @@ export const VIDEO_OPS: readonly EditOp[] = [
       if (opts.presentation === undefined && opts.durationInFrames === undefined)
         bad(t.file, 'There is nothing to change in this transition.');
       return applyEditTransition(t.file, source, t.artboard, t.stableId, t.hash, opts);
+    },
+  },
+  {
+    // A keyframe's curve (S7.18, 07 ve-advanced "Easing"): `{ easing: Easing.bezier(a, b, c, d) }` on the k-th
+    // `interpolate(frame, …)` of a named component; `bezier: null` takes it off. Names a component, not a clip.
+    id: 'video.easing.set',
+    scope: 'artboard',
+    artboards: heldArtboards,
+    apply(source, req) {
+      const r = applyEasing(req.file, source, easingPatch(req.file, req.params));
+      return { source: r.source, detail: { changed: r.changed } };
     },
   },
   {

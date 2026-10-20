@@ -1316,7 +1316,7 @@
       "v2": {
         "action": null,
         "testid": "timeline-readout",
-        "where": "Open a video canvas → Timeline (⇧⌘T) › the current-time readout (until S7)"
+        "where": "Select a video → Timeline › the current-time readout; with Advanced open it reads the timecode, 00:00:11:24 (S7.18)"
       }
     },
     {
@@ -1329,7 +1329,7 @@
       "v2": {
         "action": null,
         "testid": "timeline-long-badge",
-        "where": "Open a long video canvas (over 900 frames) → Timeline › the “long” badge (until S7)"
+        "where": "Select a video longer than 3 600 frames (2:00 at 30 fps) → Timeline › the “long” badge; it opens Advanced, where Allow longer is (S7.18, C22)"
       }
     },
     {
@@ -1342,7 +1342,7 @@
       "v2": {
         "action": null,
         "testid": "timeline-kf-<i>-<k>",
-        "where": "Open a video canvas → Timeline › a marker on a clip for each animation window (click seeks to it; until S7)"
+        "where": "Select a video → Timeline › Advanced › a marker on a clip for each animation window (click seeks to it and shows its curve; S7.18)"
       }
     },
     {

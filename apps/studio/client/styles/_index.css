@@ -172,6 +172,8 @@
 @import url("../v2/timeline/timeline.css");
 /* S7.10 — the join picker, the "how should it sit?" ask and the Music line (client/v2/timeline/joins/). */
 @import url("../v2/timeline/joins/joins.css");
+/* S7.18 — the timeline's Advanced at its foot: frames, the easing curve, render settings, the cut as code. */
+@import url("../v2/timeline/advanced/advanced.css");
 /* S7.11 — the Transcript panel and the caption lane on the Text track (client/v2/transcript/). */
 @import url("../v2/transcript/transcript.css");
 /* S7.13 — the Re-frame island, "Shared by N formats" and the inspector's Formats rows (client/v2/timeline/reframe.css). */
