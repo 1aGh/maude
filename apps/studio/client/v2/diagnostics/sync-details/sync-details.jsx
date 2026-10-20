@@ -1,5 +1,7 @@
 // client/v2/diagnostics/sync-details/sync-details.jsx — S11.12 (06 ad-syncd): Menu › Diagnostics ›
-// Sync, rebuilt. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
+// Sync, rebuilt. The controls carry the v1 hooks the e2e scenarios drive (S11.12b): sync-panel (root) ·
+// sync-ai-held · sync-ai-publish · sync-ai-discard · sync-assets-cancel · sync-signin-again ·
+// sync-delivery-attention. Replaces the v1 Sync panel's mount in the sheet (its routes stay; SyncPanel.jsx and
 // SourceConflictPanel.jsx keep their files). What needs the person comes first, each with its own
 // choice; the transfer, the counts and the lists follow.
 //
@@ -146,7 +148,7 @@ function AiCard({ need, fetchImpl }) {
   }
   const n = need.canvases;
   return (
-    <div className="sd-card" data-testid="diag-sync-ai">
+    <div className="sd-card" data-testid="sync-ai-held">
       <strong className="sd-ct">AI stopped halfway on {need.label}.</strong>
       <span className="sd-cd">
         It changed {n} canvas{n === 1 ? '' : 'es'} and didn’t finish. The half-done edit is on this
@@ -163,7 +165,7 @@ function AiCard({ need, fetchImpl }) {
             className="dg-btn"
             disabled={!!busy}
             data-action={id}
-            data-testid={`diag-sync-${AI_PICK[id]}-ai`}
+            data-testid={`sync-ai-${AI_PICK[id]}`}
             onClick={() => pick(id)}
           >
             {busy === id ? `${label}…` : label}
@@ -182,7 +184,7 @@ function AiCard({ need, fetchImpl }) {
 export default function SyncDetails({
   status,
   project,
-  cloud = null,
+  cloud,
   native = false,
   onSignInAgain,
   fetchImpl = fetch,
@@ -191,7 +193,7 @@ export default function SyncDetails({
   const m = syncDetailsModel(status, { project, cloud, native, refused: p?.phase === 'refused' });
   const [cancelled, setCancelled] = useState(false);
   return (
-    <div className="sd" data-testid="diag-sync-details">
+    <div className="sd" data-testid="sync-panel">
       <div className="dg-hd">
         <strong data-testid="diag-sync-title">{m.title}</strong>
         {m.needWord ? (
@@ -237,7 +239,7 @@ export default function SyncDetails({
               className="dg-x"
               aria-label="Cancel the transfer"
               data-action="sync.cancel-transfer"
-              data-testid="diag-sync-cancel-transfer"
+              data-testid="sync-assets-cancel"
               onClick={async () => {
                 await postJson(fetchImpl, '/_api/sync/cancel-assets');
                 setCancelled(true);
@@ -277,20 +279,26 @@ export default function SyncDetails({
             </details>
           ))}
           {m.lists.failed > 0 || m.lists.attention.length ? (
-            <ul className="sd-failed" data-testid="diag-sync-failed">
-              {m.lists.attention.map(([rel, state]) => (
-                <li key={rel}>
-                  <span className="dg-mono">{cleanName(rel, '(unnamed)')}</span>{' '}
-                  {DELIVERY_WORD[state] || state}
-                </li>
-              ))}
-              {m.lists.failed > 0 ? (
-                <li>
-                  {m.lists.failed} file{m.lists.failed === 1 ? '' : 's'} didn’t come through — sync
-                  tries again by itself.
-                </li>
+            <div data-testid="diag-sync-failed">
+              {m.lists.attention.length ? (
+                <ul className="sd-failed" data-testid="sync-delivery-attention">
+                  {m.lists.attention.map(([rel, state]) => (
+                    <li key={rel}>
+                      <span className="dg-mono">{cleanName(rel, '(unnamed)')}</span>{' '}
+                      {DELIVERY_WORD[state] || state}
+                    </li>
+                  ))}
+                </ul>
               ) : null}
-            </ul>
+              {m.lists.failed > 0 ? (
+                <ul className="sd-failed">
+                  <li>
+                    {m.lists.failed} file{m.lists.failed === 1 ? '' : 's'} didn’t come through —
+                    sync tries again by itself.
+                  </li>
+                </ul>
+              ) : null}
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -306,7 +314,7 @@ export default function SyncDetails({
               type="button"
               className="dg-btn dg-btn--primary"
               data-action="sync.sign-in-again"
-              data-testid="diag-sync-signin-again"
+              data-testid="sync-signin-again"
               onClick={() => onSignInAgain?.(typeof status?.url === 'string' ? status.url : '')}
             >
               Sign in again

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 
-import { openSyncDetails } from '../helpers/chrome';
+import { closeDiagnostics, openSyncDetails, pressDiagnosticsAdvancedRow } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { invokeTauri } from '../helpers/native';
@@ -404,44 +404,47 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     expect(await note.getAttribute('role')).toBe('status');
   });
 
-  it('9 · Resync re-runs the WHOLE sync from the panel, and the app survives it', async () => {
-    // feature-sync-resync-and-out-of-process-sweep. Two things are proven here
-    // that no unit test can reach:
+  it('9 · Resync re-runs the WHOLE sync from the menu, and the app survives it', async () => {
+    // feature-sync-resync-and-out-of-process-sweep, moved by S11.12b: the v1 Sync panel (and its header
+    // button, `sync-resync`) is retired, so Resync is the Diagnostics > Advanced row `sync.resync` and its
+    // trace card `diag-resync` in Diagnostics > Sync (S11.11). Two things are proven here that no unit
+    // test can reach:
     //
-    //   • the control is wired to the whole-sync route in the PACKAGED client
-    //     bundle (the committed artifact is what ships — a rebuild forgotten in
-    //     the last task ships a UI without its own button);
-    //   • pressing it leaves the app ALIVE. Resync tears down every provider,
-    //     re-authenticates every document and re-fires the asset sweep — the
-    //     exact sequence that used to take the dev server down with it. The
-    //     canvas list still rendering afterwards IS the assertion.
-    // (the status bar's sync chip is gone — V2-4.8b — the panel opens from Menu › Diagnostics › Sync)
+    //   - the row is wired to the whole-sync route in the PACKAGED client bundle (the committed
+    //     artifact is what ships: a rebuild forgotten in the last task ships a UI without its button);
+    //   - pressing it leaves the app ALIVE. Resync tears down every provider, re-authenticates every
+    //     document and re-fires the asset sweep, the exact sequence that used to take the dev server
+    //     down with it. The canvas list still rendering afterwards IS the assertion.
+    await closeDiagnostics();
+    await pressDiagnosticsAdvancedRow('sync.resync');
     await openSyncDetails();
 
-    // `waitForExist`, not `waitForDisplayed` — the right dock in this harness's
-    // window geometry is the same one `shell-parity` had to assert existence on.
+    // `waitForExist`, not `waitForDisplayed`: the sheet in this harness's window geometry is the same
+    // one `shell-parity` had to assert existence on.
     const panel = await $(tid('sync-panel'));
     await panel.waitForExist({ timeout: 15_000 });
-    const resync = await $(tid('sync-resync'));
-    await resync.waitForExist({ timeout: 10_000 });
-    expect(await resync.isEnabled()).toBe(true);
-    await capture('sync panel with Resync');
+    const card = await $(tid('diag-resync'));
+    await card.waitForExist({ timeout: 30_000 });
+    expect(['running', 'done', 'attention']).toContain(await card.getAttribute('data-state'));
+    await capture('resync trace in Diagnostics');
 
-    await resync.click();
-    // It refuses a second press — while the cycle runs AND through the
-    // cooldown after it, so an impatient person cannot pin their own hub's
-    // rate limit (DDR-102: a restart is one WS auth per document).
-    await browser.waitUntil(async () => !(await resync.isEnabled()), {
-      timeout: 15_000,
-      timeoutMsg: 'Resync stayed pressable — the cycle/cooldown guard is gone',
+    // The cycle ends in a sentence, never in silence.
+    await browser.waitUntil(async () => (await card.getAttribute('data-state')) !== 'running', {
+      timeout: 120_000,
+      timeoutMsg: 'Resync never finished',
     });
-    await capture('resync in flight');
+    expect(await (await $(tid('diag-resync-result'))).getText()).toMatch(
+      /^Resync (done|stopped early)/
+    );
 
-    // The app is still an app: the canvas list is there, and the panel is still
-    // rendering sync state rather than a blank aside.
+    // The app is still an app: the canvas list is there, and Sync details is still rendering sync state
+    // rather than a blank sheet.
+    await closeDiagnostics();
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 20_000 });
-    expect((await panel.getText()).length).toBeGreaterThan(0);
-    await capture('after resync — the studio is still up');
+    await openSyncDetails();
+    expect((await (await $(tid('sync-panel'))).getText()).length).toBeGreaterThan(0);
+    await capture('after resync: the studio is still up');
+    await closeDiagnostics();
   });
 
   it('10 · a cloud project opens as its OWN copy — no folder chosen (plan T21/T22)', async () => {

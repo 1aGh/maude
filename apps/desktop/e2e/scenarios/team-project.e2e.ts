@@ -1,11 +1,13 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 
 import {
+  closeDiagnostics,
   closeHistory,
   openHistory,
   openSyncDetails,
+  pressDiagnosticsAdvancedRow,
   syncStatusText,
   toggleTheme,
 } from '../helpers/chrome';
@@ -31,6 +33,13 @@ import { activeTab, HOME, labels, pinCurrentWindow, waitWindow } from '../helper
  *      when it returns
  *   8. access removed: the app says to sign in again (not "check your
  *      connection"), and signing in again delivers the change it kept
+ *   9. (S11.12) the same canvas changed offline here and meanwhile at the teammate:
+ *      Diagnostics > Sync > Sync details holds both versions, Compare shows what differs, and
+ *      Keep both makes the teammate's version the canvas and this Mac's a sibling canvas
+ *      "<name> this Mac" - on BOTH copies
+ *  9b. the reverse race: the teammate is the one who loses - no card, nothing held here
+ *  10. (S11.11) Resync from Diagnostics > Advanced: the trace "Resyncing... n of m", then the
+ *      result sentence, then the log line in Diagnostics > Logs
  *
  * Only runs under wdio.team-project.conf.ts (real hub + seeding teammate).
  */
@@ -494,5 +503,147 @@ describe('team-project (native-desktop)', () => {
       180_000
     );
     await capture('11-signed-in-again-edit-delivered');
+  });
+
+  it('9 · the same canvas changed here offline and at the teammate: Sync details holds both, Keep both keeps both', async () => {
+    // S11.12 (06 ad-syncd). The file-level conflict of the sync plane: this Mac's change is queued while
+    // the server is away, the teammate's reaches the project first, and the designer's outbox then
+    // meets a newer head. Nothing is overwritten: the runtime holds `source-conflict-<slug>` and the
+    // card sits under Needs you until the person chooses. Keep both = theirs becomes the canvas, this
+    // Mac's version becomes a new canvas "<name> this Mac" (S9.24's Keep both is per sticky, on the board).
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const ui = (root: string) => join(root, '.design', 'ui');
+    const mine = join(ui(t.managedDir), 'welcome.tsx');
+    const theirs = join(ui(t.teammate), 'welcome.tsx');
+    const copyAt = (root: string) =>
+      readdirSync(ui(root)).find((f) => /^welcome this Mac.*\.tsx$/.test(f)) ?? null;
+    await closeDiagnostics();
+    await settleMotion();
+
+    process.kill(t.hubPid, 'SIGSTOP');
+    try {
+      writeFileSync(mine, canvas('Welcome, mine while offline'));
+      await eventually(
+        'the change to be waiting on this machine',
+        async () => {
+          const text = ((await syncStatusText()) ?? '').toLowerCase();
+          return /offline|reconnect|saving|pending|waiting|not shared|unsaved/.test(text);
+        },
+        60_000
+      );
+    } finally {
+      process.kill(t.hubPid, 'SIGCONT');
+    }
+    // the teammate's change reaches the project before this Mac's outbox drains
+    writeFileSync(theirs, canvas('Welcome, theirs from the teammate'));
+
+    await openSyncDetails();
+    const card = await $(tid('diag-sync-conflict-ui-welcome'));
+    await card.waitForDisplayed({ timeout: 120_000 });
+    expect(await card.getText()).toContain('changed here and in the cloud.');
+    expect(await card.getText()).toContain('Both versions are kept until you choose.');
+    expect(await (await $(tid('diag-sync-need-word'))).getText()).toMatch(/need(s)? you/);
+    await capture('12-sync-details-conflict-card');
+
+    // Compare: what differs, Yours / Cloud, without choosing anything
+    await (await $(tid('diag-sync-compare-ui-welcome'))).click();
+    const lines = await $(tid('diag-sync-compare-lines-ui-welcome'));
+    await lines.waitForDisplayed({ timeout: 10_000 });
+    const compared = await lines.getText();
+    expect(compared).toContain('mine while offline');
+    expect(compared).toContain('theirs from the teammate');
+    expect(read(mine) ?? '').toContain('mine while offline'); // still only looking
+    await capture('13-sync-details-compare');
+
+    await (await $(tid('diag-sync-keep-both-ui-welcome'))).click();
+    await card.waitForDisplayed({ reverse: true, timeout: 30_000 });
+
+    // theirs is the canvas, mine is a sibling canvas - here ...
+    await eventually(
+      'the teammate’s version as the canvas on this Mac',
+      () => (read(mine) ?? '').includes('theirs from the teammate'),
+      60_000
+    );
+    await eventually('a "this Mac" copy beside it', () => copyAt(t.managedDir) !== null, 60_000);
+    expect(read(join(ui(t.managedDir), copyAt(t.managedDir) as string)) ?? '').toContain(
+      'mine while offline'
+    );
+    // ... and, the asymmetric direction, at the teammate: the copy is a new canvas there too
+    await eventually(
+      'the "this Mac" copy at the teammate',
+      () => {
+        const f = copyAt(t.teammate);
+        return !!f && (read(join(ui(t.teammate), f)) ?? '').includes('mine while offline');
+      },
+      120_000
+    );
+    expect(read(theirs) ?? '').toContain('theirs from the teammate');
+    // the canvas list names the copy (a new row, the original untouched)
+    await closeDiagnostics();
+    await (await canvasRow('canvas-row-ui-welcome')).waitForDisplayed({ timeout: 30_000 });
+    await capture('14-kept-both-canvas-list');
+  });
+
+  it('9b · the reverse race: the teammate edits first, this Mac second - nothing is held here', async () => {
+    // Test sync in both directions: the side that wins the race above loses this one.
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
+    const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
+    writeFileSync(theirs, canvas('Welcome, teammate first'));
+    await eventually('the teammate’s edit on this Mac', () =>
+      (read(mine) ?? '').includes('teammate first')
+    );
+    await browser.pause(1_500);
+    writeFileSync(mine, canvas('Welcome, designer second'));
+    await eventually(
+      'the designer’s edit at the teammate',
+      () => (read(theirs) ?? '').includes('designer second'),
+      120_000
+    );
+    await openSyncDetails();
+    expect(await (await $(tid('diag-sync-conflict-ui-welcome'))).isExisting()).toBe(false);
+    expect(await (await $(tid('diag-sync-need-word'))).isExisting()).toBe(false);
+    await capture('15-reverse-race-no-card');
+    await closeDiagnostics();
+  });
+
+  it('10 · Resync from Diagnostics > Advanced: the trace, the result sentence, the log line', async () => {
+    // S11.11 (06 ad-trace). One Resync, three places that must agree: the card in Diagnostics > Sync
+    // ("Resyncing... 1 204 of 1 318"), the result sentence under it, and the line in Diagnostics > Logs
+    // (the Sync filter). A real hub with real files; the numbers differ per run, the shapes do not.
+    await closeDiagnostics();
+    await pressDiagnosticsAdvancedRow('sync.resync');
+    await openSyncDetails();
+
+    const card = await $(tid('diag-resync'));
+    await card.waitForExist({ timeout: 30_000 });
+    // running: the bar and "Resyncing..." (with "n of m" once the file count is known); a quick cycle may
+    // already be done, which is the same card in its other state
+    if ((await card.getAttribute('data-state')) === 'running') {
+      expect(await (await $(tid('diag-resync-progress'))).getText()).toMatch(
+        /^Resyncing…( [\d ]+ of [\d ]+)?$/
+      );
+      await capture('16-resync-running');
+    }
+    await browser.waitUntil(async () => (await card.getAttribute('data-state')) !== 'running', {
+      timeout: 120_000,
+      timeoutMsg: 'Resync never finished',
+    });
+    const result = await (await $(tid('diag-resync-result'))).getText();
+    expect(result).toMatch(/^Resync (done — .+|stopped early — .+)\.$/);
+    await capture('17-resync-result');
+
+    // the log line: "resync · 1 318 checked · 3 sent · 0 conflicts" under the Sync source
+    await (await $(tid('diag-tab-logs'))).click();
+    await (await $(tid('diag-logs-filter-sync'))).click();
+    const lines = await $(tid('diag-logs-lines'));
+    await lines.waitForDisplayed({ timeout: 10_000 });
+    await browser.waitUntil(
+      async () =>
+        /resync · [\d ]+ checked · [\d ]+ sent · [\d ]+ conflicts/.test(await lines.getText()),
+      { timeout: 15_000, timeoutMsg: 'the resync log line never reached Diagnostics > Logs' }
+    );
+    await capture('18-resync-log-line');
+    await closeDiagnostics();
   });
 });

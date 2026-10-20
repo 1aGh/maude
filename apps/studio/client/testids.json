@@ -3231,15 +3231,18 @@
     "hook": "sync-panel",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Sync panel root (per-file hub sync).",
+    "meaning": "The Sync details root (Menu › Diagnostics › Sync); the v1 Sync panel it replaced is no longer mounted.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts",
       "apps/desktop/e2e/scenarios/team-project.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx"
     ],
     "v2": "stable"
   },
@@ -3254,7 +3257,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the per-file rows left with the Sync panel; the files that need a look are `sync-delivery-attention` in Sync details."
   },
   {
     "hook": "sync-offline",
@@ -3267,7 +3271,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: Download all is the Menu row Diagnostics > Advanced > Download all (registry `sync.download-all`)."
   },
   {
     "hook": "sync-resync",
@@ -3279,13 +3284,12 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/sync-panel-surface.test.ts"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the Sync panel is no longer mounted anywhere (its file stays). Resync is the Menu row Diagnostics > Advanced > Resync now (`project-menu-row-sync.resync`, registry `sync.resync`); the trace card is `diag-resync` in Diagnostics > Sync."
   },
   {
     "hook": "sync-offline-note",
@@ -3298,7 +3302,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the offline/resync note left with the panel; the Resync trace (`diag-resync`) and the Share cluster word say it."
   },
   {
     "hook": "sync-signin-again",
@@ -3306,12 +3311,15 @@
     "pattern": false,
     "meaning": "\"Sign in again\" button when the hub session expired.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/scenarios/team-project.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx"
     ],
     "v2": "stable"
   },
@@ -3321,12 +3329,15 @@
     "pattern": false,
     "meaning": "Section for an unfinished AI edit held back from sync.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx"
     ],
     "v2": "stable"
   },
@@ -3336,12 +3347,15 @@
     "pattern": false,
     "meaning": "Publish the held AI edit.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx"
     ],
     "v2": "stable"
   },
@@ -3351,12 +3365,15 @@
     "pattern": false,
     "meaning": "Discard the held AI edit.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "AiCard"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx"
     ],
     "v2": "stable"
   },
@@ -3371,7 +3388,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: notices left with the Sync panel; a held source conflict is a Needs-you card in Sync details (`diag-sync-conflict-<slug>`)."
   },
   {
     "hook": "sync-notice-<id>",
@@ -3384,7 +3402,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: notices left with the Sync panel; see `diag-sync-conflict-<slug>` and the callouts."
   },
   {
     "hook": "sync-resolve-<doc>",
@@ -3399,7 +3418,8 @@
     "consumers": [
       ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the Resolve opener left with the panel; the card is `diag-sync-conflict-<slug>` with Keep mine / Use theirs / Keep both / Compare."
   },
   {
     "hook": "sync-notice-dismiss-<id>",
@@ -3412,7 +3432,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: notices left with the Sync panel."
   },
   {
     "hook": "sync-assets",
@@ -3428,7 +3449,8 @@
     "sourceConsumers": [
       "apps/studio/test/sync-panel-surface.test.ts"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the assets section is Moving now (`diag-sync-moving`) and the assets count (`diag-sync-count-assets`) in Sync details."
   },
   {
     "hook": "sync-assets-cancel",
@@ -3436,12 +3458,13 @@
     "pattern": false,
     "meaning": "Cancel the assets transfer.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
     },
     "region": "sync/cloud",
     "consumers": [],
     "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx",
       "apps/studio/test/sync-panel-surface.test.ts"
     ],
     "v2": "stable"
@@ -3457,7 +3480,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the project-files section is the Counts block (`diag-sync-counts`) in Sync details."
   },
   {
     "hook": "sync-files-progress",
@@ -3470,7 +3494,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see `diag-sync-count-files` in Sync details."
   },
   {
     "hook": "sync-files-remaining",
@@ -3483,7 +3508,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see `diag-sync-count-files` in Sync details."
   },
   {
     "hook": "sync-files-phase",
@@ -3496,7 +3522,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see `diag-sync-count-files` in Sync details."
   },
   {
     "hook": "sync-blocked-<class>",
@@ -3511,7 +3538,8 @@
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: NO equivalent in Sync details yet (blocked-by-class lines such as too-large); multiplayer/surface.e2e.ts L22.blocked-file still reads `sync-blocked-too-large`."
   },
   {
     "hook": "sync-files-conflicts",
@@ -3524,7 +3552,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: held source conflicts are the Needs-you cards (`diag-sync-conflict-<slug>`)."
   },
   {
     "hook": "sync-files-rate-limited",
@@ -3537,7 +3566,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: `diag-sync-rate-limited` in Sync details."
   },
   {
     "hook": "sync-files-failed",
@@ -3550,7 +3580,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: `diag-sync-failed` in Sync details."
   },
   {
     "hook": "sync-held-<kind>",
@@ -3566,7 +3597,8 @@
     "sourceConsumers": [
       "apps/studio/test/sync-panel-surface.test.ts"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: `diag-sync-held-<kind>` in Sync details."
   },
   {
     "hook": "sync-delivery-attention",
@@ -3574,12 +3606,15 @@
     "pattern": false,
     "meaning": "List of files whose delivery needs attention.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
+      "symbol": "SyncDetails"
     },
     "region": "sync/cloud",
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-sync-details.test.tsx"
     ],
     "v2": "stable"
   },
@@ -3594,7 +3629,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the delivered rest is no longer listed; Counts say how many are fine."
   },
   {
     "hook": "sync-trash",
@@ -3607,7 +3643,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: the per-Mac Trash list is Canvases > Advanced > Kept on this Mac (S1.8)."
   },
   {
     "hook": "sync-trash-list",
@@ -3620,7 +3657,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see Canvases > Advanced > Kept on this Mac."
   },
   {
     "hook": "sync-trash-restore-<sourceRel>",
@@ -3633,7 +3671,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see Canvases > Advanced > Kept on this Mac."
   },
   {
     "hook": "sync-trash-prune",
@@ -3646,7 +3685,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see `canvases-trash-clear`."
   },
   {
     "hook": "sync-trash-prune-confirm",
@@ -3659,7 +3699,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see `canvases-trash-clear`."
   },
   {
     "hook": "sync-trash-prune-yes",
@@ -3672,7 +3713,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "S11.12b: see `canvases-trash-clear`."
   },
   {
     "hook": "sync-consent",
@@ -12226,7 +12268,9 @@
     },
     "region": "other",
     "consumers": [
-      "test:v2-diagnostics-render"
+      "test:v2-diagnostics-render",
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -12256,7 +12300,9 @@
     },
     "region": "other",
     "consumers": [
-      "test:v2-diagnostics-render"
+      "test:v2-diagnostics-render",
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -28666,21 +28712,6 @@
     "v2": "new in v2 (S7.22)"
   },
   {
-    "hook": "diag-sync-details",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Sync details root (Menu › Diagnostics › Sync, 06 ad-syncd) — replaces the v1 Sync panel mount in the sheet.",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
-      "symbol": "SyncDetails"
-    },
-    "region": "sync/cloud",
-    "consumers": [
-      "test:v2-sync-details"
-    ],
-    "v2": "new"
-  },
-  {
     "hook": "diag-sync-title",
     "kind": "testid",
     "pattern": false,
@@ -28706,7 +28737,8 @@
     },
     "region": "sync/cloud",
     "consumers": [
-      "test:v2-sync-details"
+      "test:v2-sync-details",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -28736,7 +28768,8 @@
     },
     "region": "sync/cloud",
     "consumers": [
-      "test:v2-sync-details"
+      "test:v2-sync-details",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -28781,7 +28814,8 @@
     },
     "region": "sync/cloud",
     "consumers": [
-      "test:v2-sync-details"
+      "test:v2-sync-details",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -28811,7 +28845,8 @@
     },
     "region": "sync/cloud",
     "consumers": [
-      "test:v2-sync-details"
+      "test:v2-sync-details",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -28826,52 +28861,8 @@
     },
     "region": "sync/cloud",
     "consumers": [
-      "test:v2-sync-details"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "diag-sync-ai",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The unfinished AI edit card (\"AI stopped halfway on …\").",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
-      "symbol": "AiCard"
-    },
-    "region": "sync/cloud",
-    "consumers": [
-      "test:v2-sync-details"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "diag-sync-publish-ai",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Publish — registry `sync.publish-ai-edit` (`POST /_api/project/ai-action` publish).",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
-      "symbol": "AiCard"
-    },
-    "region": "sync/cloud",
-    "consumers": [
-      "test:v2-sync-details"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "diag-sync-discard-ai",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Discard — registry `sync.discard-ai-edit` (ai-action discard).",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
-      "symbol": "AiCard"
-    },
-    "region": "sync/cloud",
-    "consumers": [
-      "test:v2-sync-details"
+      "test:v2-sync-details",
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
     "v2": "new"
   },
@@ -28880,21 +28871,6 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "\"Moving now\": the asset transfer in flight with its bar.",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
-      "symbol": "SyncDetails"
-    },
-    "region": "sync/cloud",
-    "consumers": [
-      "test:v2-sync-details"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "diag-sync-cancel-transfer",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The transfer's ✕ — registry `sync.cancel-transfer` (`POST /_api/sync/cancel-assets`).",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
       "symbol": "SyncDetails"
@@ -28985,21 +28961,6 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The \"Sync stopped — the sign-in to the cloud ran out.\" card (desktop only).",
-    "producer": {
-      "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
-      "symbol": "SyncDetails"
-    },
-    "region": "sync/cloud",
-    "consumers": [
-      "test:v2-sync-details"
-    ],
-    "v2": "new"
-  },
-  {
-    "hook": "diag-sync-signin-again",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Sign in again — registry `sync.sign-in-again` (opens the sign-in dialog).",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/sync-details/sync-details.jsx",
       "symbol": "SyncDetails"

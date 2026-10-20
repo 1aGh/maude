@@ -37,7 +37,6 @@ import { placeTargetOf } from '../v2/assets/place-asset.js';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import { VersionHistoryHost } from '../v2/history/history-host.jsx';
 import { setHistoryOpener } from '../v2/history/object-filter.js';
-import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
@@ -71,7 +70,6 @@ export function usePaletteAndPanels({
   changesOpen,
   setChangesOpen,
   syncPanelOpen,
-  setSyncPanelOpen,
   setDiffTarget,
   search,
   setSearch,
@@ -490,7 +488,7 @@ export function usePaletteAndPanels({
   // The rule — what a read-only session lacks, and why Inspector and Layers are NOT among it (Cloud
   // Phase 27 C1) — is panel-availability.js; the shell parity table (V2-4.9) reads the same one.
   const panelAvailable = (id) =>
-    panelAvailableIn(id, { viewerMode, native: isNativeApp(), layersMode, hasSync: !!syncStatus });
+    panelAvailableIn(id, { viewerMode, native: isNativeApp(), layersMode });
   const idsForSide = (side) =>
     DOCK_PANELS.filter(
       (p) => panelAvailable(p.id) && (panelSide[p.id] || PANEL_SIDES_DEFAULTS[p.id]) === side
@@ -694,17 +692,8 @@ export function usePaletteAndPanels({
           }}
         />
       );
-    if (id === 'sync')
-      return (
-        <SyncPanel
-          status={syncStatus}
-          project={cfg?.cloud?.projectName || project}
-          cloud={cfg?.cloud ?? null}
-          groupPaths={(groups || []).map((g) => g.path).filter(Boolean)}
-          resizing={resizingFor('sync')}
-          onClose={() => setSyncPanelOpen(false)}
-        />
-      );
+    // S11.12b: no 'sync' branch — the dock's Sync panel is retired (panel-availability.js); Sync details lives
+    // in Menu › Diagnostics › Sync. SyncPanel.jsx and SourceConflictPanel.jsx stay as files, mounted nowhere.
     if (id === 'inspector' || id === 'layers')
       return annotationLayersFor(
         id,
