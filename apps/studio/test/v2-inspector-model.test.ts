@@ -55,9 +55,11 @@ describe('the sections (14 Editing, ed-inspector)', () => {
       [11, 'combine', 'Combine shapes'], // S2.14
       [9, 'interaction', 'Interaction'],
       [22, 'safe-zones', 'Safe zones'], // S7.22
+      [23, 'clip', 'Clip'], // S7.10
+      [24, 'title-motion', 'Title'], // S7.10
       [10, 'export', 'Export'],
     ]);
-    expect(SECTION_IDS).toHaveLength(14);
+    expect(SECTION_IDS).toHaveLength(16);
   });
 
   test('every section carries its one-line explainer, in CONTRACT words (no "island", no "screen")', () => {
