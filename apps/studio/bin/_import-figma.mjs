@@ -72,6 +72,7 @@ import {
   fetchNodes,
   fetchPages,
   fetchStyles,
+  fixtureAsset,
 } from '../figma/client.ts';
 import { CodegenError, CodegenSession } from '../figma/codegen-client.ts';
 import { commentStrokeId, commentsToStrokes, indexNodes } from '../figma/comments-to-strokes.ts';
@@ -908,6 +909,15 @@ function makeAssetDeps({ root, designRootRel, stagingDir }) {
       return join(stagingDir, `${nodeId.replace(/[^0-9]+/g, '-')}.${ext}`);
     },
     async stage(url, outPath, maxBytes) {
+      // S8.17b — MAUDE_FIGMA_FIXTURE only: a `maude-fixture:<file>` picture is read from the fixture directory. Null (so
+      // the download gate below runs, unchanged) whenever the variable is unset or the URL is anything else.
+      const fixture = fixtureAsset(url);
+      if (fixture) {
+        if (fixture.bytes.length > maxBytes)
+          throw new ImportFigmaError(4, 'fixture picture too large');
+        writeFileSync(outPath, fixture.bytes);
+        return { bytes: fixture.bytes.length, ext: fixture.ext };
+      }
       const { bytes, ext } = await fetchAsset({
         url,
         root,

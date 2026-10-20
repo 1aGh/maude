@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { uploadAsset } from '../../asset-upload.ts';
+import { toastArrivals } from '../v2/assets/import-toast.js';
 import { isNativeApp, pickMediaFile, pickMediaFiles, pickedMediaSource } from '../github.js';
 import { StIcon } from '../shell/icons.jsx';
 
@@ -54,6 +55,9 @@ export function AssetPicker({
   multiple = false,
   hasArtboardAnchor = false,
   onPickMany,
+  // S8.22b — the one line per arrival (a second copy, a flat picture from a .psd, a cleaned logo, offline); absent = silent
+  toast = undefined,
+  isOffline = undefined,
 }) {
   const [assets, setAssets] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -128,8 +132,18 @@ export function AssetPicker({
   const uploadOne = async (f) => {
     const res = await uploadAsset(f, { onProgress: setProgress });
     setProgress(null);
-    return 'path' in res ? { ok: true, path: res.path } : { ok: false, error: res.error };
+    const name = typeof f?.name === 'string' ? f.name : undefined;
+    const entry = { name, result: res };
+    return 'path' in res
+      ? { ok: true, path: res.path, entry }
+      : { ok: false, error: res.error, entry };
   };
+  const sayArrivals = (rows) =>
+    toastArrivals(
+      toast,
+      rows.map((r) => r.entry),
+      { offline: isOffline?.() === true }
+    );
 
   const doUpload = async (f) => {
     if (!f) return;
@@ -137,6 +151,7 @@ export function AssetPicker({
     setErr(null);
     const res = await uploadOne(f);
     setBusy(false);
+    sayArrivals([res]);
     if (res.ok) onPick(res.path);
     else setErr(res.error);
   };
@@ -158,6 +173,7 @@ export function AssetPicker({
       files.map((f) => uploadOne(f).then((r) => ({ ...r, file: f })))
     );
     setBusy(false);
+    sayArrivals(results);
     const ok = results.filter((r) => r.ok);
     const failed = results.length - ok.length;
     if (failed > 0) setErr(`${failed} of ${results.length} uploads failed`);

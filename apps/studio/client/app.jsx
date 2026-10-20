@@ -224,6 +224,7 @@ import {
 } from './shell/dock.jsx';
 import { CommandPalette } from './dialogs/command-palette.jsx';
 import { AssetPicker } from './dialogs/asset-picker.jsx';
+import { importsWaitHereFrom } from './v2/assets/import-offline.js';
 import { useLastFinishedAt } from './v2/export/last-finished.js';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
@@ -3242,6 +3243,9 @@ function ShellTree() {
           multiple={!!assetPickerReq.multiple}
           hasArtboardAnchor={!!assetPickerReq.hasArtboardAnchor}
           onPickMany={onPickMany}
+          // S8.22b — the one line per arrival, and "Kept on this Mac" while a linked project is offline
+          toast={shellToast}
+          isOffline={() => importsWaitHereFrom({ cfg, syncStatus })}
         />
       )}
       {stickerPickerReq && (

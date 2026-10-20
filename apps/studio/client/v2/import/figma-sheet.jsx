@@ -24,6 +24,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { canvasRel } from '../access/access-client.js';
 import { getPaletteEnv } from '../search/search-env.js';
+import { askNow, clearAsked } from '../assets/ask-once.js';
 import { useFigmaConnection } from '../settings/use-connections.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { registerFigmaArtboardSlots } from './figma-artboard.jsx';
@@ -136,7 +137,8 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
       return;
     }
     if (connected === false) {
-      setStep('connect');
+      // S8.22b — the question is put once: after that the callout above (Connect…) says it, quietly, per link
+      if (askNow('figma')) setStep('connect');
       return;
     }
     setStep('reading');
@@ -163,6 +165,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
       setErr(figma.error || 'Figma did not accept that token.');
       return;
     }
+    clearAsked('figma'); // connected: a later removal may ask again
     setErr(null);
     setStep('link');
   };

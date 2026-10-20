@@ -1,0 +1,14 @@
+{
+  "name": "Uniformy-2027",
+  "document": {
+    "id": "0:0",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "1:1",
+        "name": "Dresy 2027",
+        "type": "CANVAS"
+      }
+    ]
+  }
+}

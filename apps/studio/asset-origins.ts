@@ -27,6 +27,8 @@ export const MAX_ORIGIN_PATH = 1024;
 export interface AssetOrigin {
   path: string;
   importedAt: number;
+  /** who added it, as a display name ("Tereza") — never an e-mail. Optional: an older record has none. */
+  by?: string;
 }
 
 interface OriginsDoc {
@@ -47,6 +49,17 @@ export function originKey(assetRel: unknown): string | null {
   return SHA8.test(stem) ? stem : null;
 }
 
+/** Longest name kept for "Added by". */
+export const MAX_ORIGIN_BY = 80;
+
+/** A display name, or null: no control character, no `@` (an e-mail is not a name), a sane length. */
+export function cleanOriginBy(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  if (!t || t.length > MAX_ORIGIN_BY || CONTROL.test(t) || t.includes('@')) return null;
+  return t;
+}
+
 /** Only an absolute path with no control character and a sane length is kept. */
 export function isOriginPath(p: unknown): p is string {
   if (typeof p !== 'string' || !p || p.length > MAX_ORIGIN_PATH) return false;
@@ -62,8 +75,12 @@ function readDoc(designRoot: string): OriginsDoc {
     if (j && j.v === 1 && j.origins && typeof j.origins === 'object' && !Array.isArray(j.origins)) {
       const origins: Record<string, AssetOrigin> = {};
       for (const [k, v] of Object.entries(j.origins)) {
-        if (SHA8.test(k) && v && isOriginPath(v.path) && Number.isFinite(v.importedAt))
-          origins[k] = { path: v.path, importedAt: v.importedAt };
+        if (SHA8.test(k) && v && isOriginPath(v.path) && Number.isFinite(v.importedAt)) {
+          const by = cleanOriginBy(v.by);
+          origins[k] = by
+            ? { path: v.path, importedAt: v.importedAt, by }
+            : { path: v.path, importedAt: v.importedAt };
+        }
       }
       return { v: 1, origins };
     }
@@ -87,14 +104,21 @@ export function recordAssetOrigin(
   designRoot: string,
   assetRel: string,
   absPath: string,
-  now: number = Date.now()
+  now: number = Date.now(),
+  addedBy?: string
 ): boolean {
   const key = originKey(assetRel);
   if (!key || !isOriginPath(absPath)) return false;
   try {
     const doc = readDoc(designRoot);
-    if (doc.origins[key]?.path === absPath) return true; // the same copy again: nothing to say twice
-    doc.origins[key] = { path: absPath, importedAt: now };
+    const prev = doc.origins[key];
+    // a name that is not a name never erases one we know
+    const by = cleanOriginBy(addedBy) ?? (prev?.path === absPath ? prev.by : undefined);
+    // the same copy by the same person again: nothing to say twice
+    if (prev?.path === absPath && prev.by === by) return true;
+    doc.origins[key] = by
+      ? { path: absPath, importedAt: now, by }
+      : { path: absPath, importedAt: now };
     const keys = Object.keys(doc.origins);
     if (keys.length > MAX_ORIGINS) {
       keys

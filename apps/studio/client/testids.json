@@ -11700,6 +11700,19 @@
     "v2": "new"
   },
   {
+    "hook": "assets-details-added-by",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Who added the file (\"Added by Tereza\"), from this Mac's origin record; a display name, never an e-mail. Not drawn when nobody is named.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/details.jsx",
+      "symbol": "AssetDetails"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "assets-details-edits",
     "kind": "testid",
     "pattern": false,

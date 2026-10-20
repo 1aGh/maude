@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { DetailsAdvanced } from './details-advanced.jsx';
 import {
+  addedByLine,
   addedText,
   detailsKind,
   editsLine,
@@ -159,6 +160,11 @@ export function AssetDetails({
         <Row k="Added" testid="assets-details-added">
           {addedText(d.mtimeMs, now)}
         </Row>
+      ) : null}
+      {addedByLine(d) ? (
+        <p className="lp-dt-fine" data-testid="assets-details-added-by">
+          {addedByLine(d)}
+        </p>
       ) : null}
       {edits ? (
         <Row k="Edits" testid="assets-details-edits">

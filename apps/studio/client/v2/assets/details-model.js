@@ -8,6 +8,7 @@
 
 import { displayName } from '../../shell/util.js';
 import { commentTime } from '../comments/comments-model.js';
+import { ARRIVAL_LINES } from './import-lines.js';
 
 const KB = 1024;
 const MB = KB * KB;
@@ -78,6 +79,15 @@ export function sizeRow(d, media = {}) {
 export function addedText(mtimeMs, now = Date.now()) {
   const t = Number(mtimeMs);
   return Number.isFinite(t) && t > 0 ? commentTime(new Date(t).toISOString(), now) : '';
+}
+
+/**
+ * "Added by Tereza" — from the origin record's display name, when one exists. Never an e-mail: a name that has an `@` in it
+ * is not drawn, whatever the answer said. '' when nobody is named.
+ */
+export function addedByLine(d) {
+  const who = typeof d?.addedBy === 'string' ? d.addedBy.trim() : '';
+  return who && !who.includes('@') ? ARRIVAL_LINES.addedBy(who) : '';
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
