@@ -63,7 +63,7 @@ const FORMATS: Array<{
 ];
 
 /** Open a fixture canvas from the tree and wait for its frame. */
-async function openCanvas(slug: 'export' | 'video'): Promise<void> {
+async function openCanvas(slug: 'export' | 'video' | 'print'): Promise<void> {
   const row = await canvasRow(`canvas-row-ui-${slug}`);
   await row.waitForExist({ timeout: 30_000 });
   await row.click();
@@ -72,7 +72,7 @@ async function openCanvas(slug: 'export' | 'video'): Promise<void> {
   await browser.waitUntil(
     async () =>
       (await frame.getAttribute('data-path')) ===
-      `.design/ui/${slug === 'export' ? 'Export' : 'Video'}.tsx`,
+      `.design/ui/${slug === 'export' ? 'Export' : slug === 'video' ? 'Video' : 'Print'}.tsx`,
     { timeout: 30_000, timeoutMsg: `canvas ${slug} never became the active frame` }
   );
 }
@@ -273,5 +273,37 @@ describe('export-formats (native-desktop)', () => {
     );
     await capture('export-batch-advanced');
     await (await $('[data-testid="export-cancel"]')).click();
+  });
+  // S8.7 — a print artboard: the paper is the PDF (tinted bleed, crop marks, the back as page 2), the warnings
+  // inform and never block, and Print PDF exports a real PDF with the back along.
+  it('a print artboard opens on Print PDF with the paper beside it, and exports it', async function () {
+    this.timeout(300_000);
+    await openCanvas('print');
+    open = null; // the next case re-opens its own canvas
+    await openExportDialog();
+    const print = await $('[data-testid="export-print"]');
+    await print.waitForDisplayed({ timeout: 30_000 });
+    expect(await (await $('[data-testid="export-print-format"]')).getAttribute('data-value')).toBe(
+      'print-pdf'
+    );
+    expect(await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')).toBe('true');
+    expect(await (await $('[data-testid="export-print-caption"]')).getText()).toBe(
+      'Page 1 of 2 · A6 · 105 × 148 mm'
+    );
+    expect(await (await $('[data-testid="export-row-colour"]')).getText()).toContain(
+      'RGB — the print shop converts to CMYK.'
+    );
+    await capture('export-print-sheet');
+    // untick Bleed: the paper changes with it
+    await (await $('[data-testid="export-print-bleed"]')).click();
+    expect(await (await $('[data-testid="export-paper"]')).getAttribute('data-bleed')).toBe(
+      'false'
+    );
+    await (await $('[data-testid="export-print-bleed"]')).click();
+    const before = await existingJobIds();
+    await (await $('[data-testid="export-submit"]')).click();
+    const job = await waitForJob('pdf', before);
+    expect(job.status).toBe('done');
+    await capture('export-print-done');
   });
 });
