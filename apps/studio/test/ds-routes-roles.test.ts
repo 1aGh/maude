@@ -77,6 +77,8 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/switch', { to: DS, all: true }],
   // S10.12 — convert system folders (the dry run is refused too: it lists every system)
   ['/_api/ds/convert', { systems: [DS], dryRun: true }],
+  // S10.15a — Bring it up to the schema (even the read-only analyse lists every canvas)
+  ['/_api/ds/upgrade', { ds: DS, step: 'analyse' }],
 ];
 
 describe('ds routes — roles (Q15)', () => {

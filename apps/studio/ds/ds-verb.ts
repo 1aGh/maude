@@ -134,7 +134,9 @@ export function planDsVerb(
     op,
     input,
     ...base,
-    read: READS.has(op) || ((op === 'publish' || op === 'switch' || op === 'convert') && input.dryRun === true),
+    read:
+      READS.has(op) ||
+      ((op === 'publish' || op === 'switch' || op === 'convert') && input.dryRun === true),
   });
   switch (sub) {
     case 'status':
@@ -337,6 +339,7 @@ const ROUTE: Record<DsOp, { method: 'GET' | 'POST'; path: string }> = {
   default: { method: 'POST', path: '/_api/ds/default' },
   switch: { method: 'POST', path: '/_api/ds/switch' },
   convert: { method: 'POST', path: '/_api/ds/convert' },
+  upgrade: { method: 'POST', path: '/_api/ds/upgrade' },
 };
 
 export interface StudioRef {

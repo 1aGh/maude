@@ -3,9 +3,10 @@
 // validated, then the plan applied to the tokens CSS as byte-minimal span edits. The staging,
 // visual proof and one-undo apply (steps 5–8) build on these functions.
 
+import { colourLiterals } from './canvas-check.ts';
 import { checkSystem } from './check.ts';
 import { ownCustomProperties, splitSelectorList } from './css-scan.ts';
-import { aliasFor, type RegistryIndex } from './registry.ts';
+import { aliasFor, type RegistryIndex, slotKindOf } from './registry.ts';
 import {
   type Declaration,
   type DsFs,
@@ -42,9 +43,41 @@ export interface PlanItem {
   values?: Record<string, string>;
   sources?: string[];
   note?: string;
+  /**
+   * needs-pick: exactly three options (V3). An option is `{label?, values: {theme: value}}` for a
+   * `role:<name>` item, or `{label?, tokens: {"--name": {theme: value}}}` for a group (`palette`).
+   */
   options?: unknown[];
+  /** the index of the picked option */
   picked?: unknown;
   newHue?: boolean;
+  /** canvas-codemod: the edit counts per kind (`alias`, `own-css`, `wrapper`) */
+  edits?: Record<string, number>;
+}
+
+/** The roles an add-role item adds: its judged `values`, or the tokens of its picked option. */
+export function addedRoles(it: PlanItem): { name: string; values: Record<string, string> }[] {
+  if (it.kind !== 'add-role') return [];
+  const own = it.id.startsWith('role:') ? it.id.slice(5) : null;
+  if (it.values) return own ? [{ name: own, values: it.values }] : [];
+  if (it.status !== 'needs-pick' || typeof it.picked !== 'number') return [];
+  const opt = it.options?.[it.picked] as
+    | { values?: Record<string, string>; tokens?: Record<string, Record<string, string>> }
+    | undefined;
+  if (!opt || typeof opt !== 'object') return [];
+  const out: { name: string; values: Record<string, string> }[] = [];
+  if (own && opt.values && typeof opt.values === 'object')
+    out.push({ name: own, values: opt.values });
+  if (opt.tokens && typeof opt.tokens === 'object')
+    for (const [name, values] of Object.entries(opt.tokens))
+      if (/^--[A-Za-z0-9_-]{1,128}$/.test(name) && values && typeof values === 'object')
+        out.push({ name, values });
+  return out;
+}
+
+/** A name's kind for V4: its Tier-2 slot kind, else its Tier-1 group, else the name itself. */
+function kindOf(idx: RegistryIndex, name: string): string {
+  return slotKindOf(idx, name) ?? idx.roles.get(name)?.group ?? name;
 }
 
 export interface UpgradePlan {
@@ -139,6 +172,35 @@ export function validatePlan(model: SystemModel, idx: RegistryIndex, plan: Upgra
         }
       }
     }
+    // V4: a literal colour (a new hue) appears only in a picked option, flagged `newHue`, of a
+    // kind the system lacks entirely.
+    const literal = addedRoles(it).flatMap((r) =>
+      Object.entries(r.values)
+        .filter(([, v]) => typeof v === 'string' && colourLiterals(v).length)
+        .map(([theme, v]) => ({ name: r.name, theme, v }))
+    );
+    const hued = it.newHue === true || literal.length > 0;
+    if (it.kind === 'add-role' && hued) {
+      const picked = it.status === 'needs-pick' && typeof it.picked === 'number';
+      const why = !it.newHue
+        ? `${literal[0]?.theme}: ${literal[0]?.v} is a new hue but the item is not flagged newHue`
+        : !picked || it.options?.length !== 3 || !it.options[it.picked as number]
+          ? 'a new hue needs three options and a picked one'
+          : null;
+      if (why) out.push({ invariant: 'V4', item: it.id, detail: why });
+      else {
+        const declaredKinds = new Set([...model.declared].map((n) => kindOf(idx, n)));
+        for (const r of addedRoles(it)) {
+          const k = kindOf(idx, r.name);
+          if (declaredKinds.has(k))
+            out.push({
+              invariant: 'V4',
+              item: it.id,
+              detail: `the system already has ${k} colours — a new hue is only for a kind it lacks`,
+            });
+        }
+      }
+    }
   }
   return out;
 }
@@ -228,22 +290,20 @@ export function applySystemPlan(model: SystemModel, plan: UpgradePlan): string {
       }
     }
   }
-  const adds = plan.items.filter(
-    (i) => i.kind === 'add-role' && i.values && i.status !== 'needs-judgement'
-  );
+  const adds = plan.items.filter((i) => i.status !== 'needs-judgement' && addedRoles(i).length > 0);
   if (adds.length) {
     const blocks = targetBlocks(model);
     const perBlock = new Map<number, string[]>();
-    for (const it of adds) {
-      const name = it.id.replace(/^role:/, '');
-      for (const [theme, value] of Object.entries(it.values as Record<string, string>)) {
-        const rule = theme === '*' ? blocks.invariant : blocks.byTheme.get(theme);
-        if (rule === undefined) throw new Error(`${name}: no block for theme ${theme}`);
-        const list = perBlock.get(rule) ?? [];
-        list.push(`${name}: ${value};${it.note ? ` /* ${it.note} */` : ''}`);
-        perBlock.set(rule, list);
+    for (const it of adds)
+      for (const { name, values } of addedRoles(it)) {
+        for (const [theme, value] of Object.entries(values)) {
+          const rule = theme === '*' ? blocks.invariant : blocks.byTheme.get(theme);
+          if (rule === undefined) throw new Error(`${name}: no block for theme ${theme}`);
+          const list = perBlock.get(rule) ?? [];
+          list.push(`${name}: ${value};${it.note ? ` /* ${it.note} */` : ''}`);
+          perBlock.set(rule, list);
+        }
       }
-    }
     for (const [rule, lines] of perBlock) {
       const r = model.rules[rule];
       const indent = '  ';
