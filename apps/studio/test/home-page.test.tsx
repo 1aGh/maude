@@ -788,6 +788,10 @@ describe('home-api', () => {
     );
     expect(http.map(([n]) => n).sort()).toEqual(
       [
+        'aiConnect',
+        'aiStatus',
+        'cliInstall',
+        'cliStatus',
         'cloudSignInCancel',
         'cloudSignInPoll',
         'cloudSignInStart',
@@ -798,6 +802,8 @@ describe('home-api', () => {
         'getIndex',
         'getRecentSearches',
         'getWhatsNew',
+        'hubPrepare',
+        'hubTest',
         'markWhatsNewSeen',
         'prepareCloud',
         'prepareCloudLink',
