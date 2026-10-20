@@ -106,6 +106,14 @@ import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-s
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
 import { createRectsRunner } from './exporters/rects-runner.ts';
+import {
+  type CloudRenderDoor,
+  cloudLabel,
+  cloudTargetFacts,
+  createCloudExports,
+  desktopCloudFacts,
+  intentRole,
+} from './exporters/remote.ts';
 import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
 import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
@@ -202,11 +210,13 @@ import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
-import { createOutbox, type GateFacts } from './outbox/index.ts';
+import { createOutbox, type GateFacts, type IntentRecord } from './outbox/index.ts';
+import { exportCloudSender } from './outbox/senders/export-cloud.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, EDIT8_RE, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
+import { cloudExportResponse } from './routes/export.ts';
 import {
   allSpecs,
   announceAction,
@@ -1315,6 +1325,8 @@ export function createHttp(
     shellCount?: () => number;
     /** S5.3 — THE run registry (server.ts builds it on the lease home); absent = in-memory */
     runs?: RunRegistry;
+    /** S8.5 — the cloud render door for this Mac; absent/null = no cloud (videos render here) */
+    cloudRenderDoor?: () => CloudRenderDoor | null;
   } = {}
 ): Http {
   /** The current request's inspector state (Cloud Phase 27 D3). Resolved per
@@ -1703,11 +1715,22 @@ export function createHttp(
     aiReady: true,
     allowanceResetsAt: currentAllowanceResetsAt(),
   });
+  // S8.5 — the gone-target facts (V2-1.14 §5.9) from this Mac's own files. Every other kind keeps
+  // the facts it had; an `export.cloud` record is also judged by its canvas / artboards (G3) and
+  // your role now (G14 Can view, G9 removed). The trash write stop is built further down: read lazily.
+  const cloudFacts = desktopCloudFacts(ctx.paths.designRoot, () => trashWriteStop.stopped());
+  const outboxTarget = (r: IntentRecord) => {
+    const base = { projectId: null, projectName: ctx.projectLabel, role: 'owner' as const };
+    if (r.kind !== 'export.cloud') return base;
+    const url = ctx.cfg.linkedHub?.url;
+    const role = url ? intentRole(accessFor(url).role) : 'owner';
+    return cloudTargetFacts(r, { ...base, role }, cloudFacts);
+  };
   const outbox = createOutbox({
     designRoot: ctx.paths.designRoot,
     senders: outboxSenders,
     gates: outboxGates,
-    target: () => ({ projectId: null, projectName: ctx.projectLabel, role: 'owner' }),
+    target: (r) => outboxTarget(r),
     onChange: (seq) => ctx.bus.emit('outbox:changed', { seq }),
   });
   outbox.store.load();
@@ -1761,6 +1784,19 @@ export function createHttp(
   outboxSenders['share.invite'] = shareInviteSender(shareDeps);
   // S9.21 — an Ask to edit queued while the hub could not hear it; sends `{ canvas? }` only.
   outboxSenders['share.ask-to-edit'] = shareAskToEditSender(shareDeps);
+  // S8.5 — a cloud video asked while the cloud could not hear it: `export.cloud`, record id = job id.
+  // The sender hands it over; the tracker follows it to the file (and resumes after a restart).
+  const cloudExports = createCloudExports({
+    designRoot: ctx.paths.designRoot,
+    outbox,
+    door: () => opts.cloudRenderDoor?.() ?? null,
+    emit: (row) => ctx.bus.emit('export:job', row),
+  });
+  outboxSenders['export.cloud'] = exportCloudSender({
+    door: cloudExports.door,
+    accepted: cloudExports.accepted,
+  });
+  cloudExports.resume();
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
   // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
@@ -1794,6 +1830,9 @@ export function createHttp(
     access: (req) => accessOf(req),
     history: () => exportJobs.loadHistory(),
     renderLane: () => resolveRenderLane(),
+    // S8.5 — the Render row: a cloud door on this Mac, and a comp's own length (Suggest each time)
+    cloudRender: () => resolveRenderLane() === 'local' && cloudExports.available(),
+    videoSeconds: (rel) => cloudFacts.videoSeconds(rel),
     // S8.4 — Retry: only the failed items of one of THIS session's group jobs
     retry: (id, items, session, allow) => exportJobs.retry(id, items, session, allow),
     // S8.7 — the Print preflight: fonts are read under the design root; the safe margin is measured from the
@@ -5736,7 +5775,8 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
         return Response.json(
-          { jobs: exportJobs.list() },
+          // S8.5 — this Mac's cloud rows (queued in the outbox, rendering, done) beside its own jobs
+          { jobs: [...cloudExports.rows(), ...exportJobs.list()] },
           { headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -5753,6 +5793,16 @@ export function createHttp(
       const v2 = isV2Body(body) ? planExportV2(body.spec, exportV2Deps, req) : null;
       if (v2 && !v2.ok) return v2.response;
       if (v2?.ok) {
+        // S8.5 — a video sent to the cloud from this Mac waits in the outbox (id = job id)
+        const cloud = cloudExportResponse(v2.group, {
+          cloud: cloudExports,
+          renderLane: resolveRenderLane(),
+          label: cloudLabel(v2.group.spec, ctx.cfg.name || ctx.projectLabel || ''),
+          actor: 'you',
+          device: 'studio',
+          project: { id: null, hub: ctx.cfg.linkedHub?.url ?? null },
+        });
+        if (cloud) return cloud;
         try {
           const { id, result } = exportJobs.enqueue({
             ...buildExportArgs(req, {
@@ -5816,6 +5866,17 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const id = new URL(req.url).searchParams.get('id');
       if (!id) return new Response('id query param required', { status: 400 });
+      // S8.5 — a cloud job's file came down to this Mac (`_state/export-cloud/<id>/`)
+      const cloudDl = cloudExports.bytes(id);
+      if (cloudDl.ok)
+        return new Response(cloudDl.body as unknown as BodyInit, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': contentDisposition(cloudDl.filename),
+            'Cache-Control': 'no-store',
+          },
+        });
       const dl = await exportJobs.getBytes(id);
       if (!dl.ok) {
         return new Response(dl.reason === 'not-done' ? 'job not finished' : 'Not found', {
