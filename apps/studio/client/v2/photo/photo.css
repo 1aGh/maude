@@ -1,0 +1,214 @@
+/* client/v2/photo/photo.css — S8.15: the Inspector's Photo tab for one use (12 Import and Assets, ia-photo-inspector)
+ * and the "Apply to every use?" sheet's list (ia-photo-steps). Tokens only; motion collapses under reduced motion.
+ * The look thumbs preview with CSS filters only — the real edit is baked by the canvas (PhotoPreviewBridge). */
+
+@layer shell {
+  .ph-sec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .ph-fs {
+    display: contents;
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .ph-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .ph-hd strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ph-chip {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    border: var(--rule-thin);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1);
+  }
+  .ph-l,
+  .ph-quiet {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ph-looks {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+  .ph-look {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+    transition: border-color var(--dur-flip) var(--ease-out);
+  }
+  .ph-look:hover {
+    border-color: var(--border-default);
+  }
+  .ph-look[data-on="true"] {
+    border-color: var(--accent);
+    color: var(--fg-0);
+  }
+  .ph-look:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .ph-look-pic {
+    display: block;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+  }
+  .ph-look-pic img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .ph-tone--brighter img {
+    filter: brightness(1.18);
+  }
+  .ph-tone--warmer img {
+    filter: sepia(0.35);
+  }
+  .ph-tone--cooler img {
+    filter: hue-rotate(18deg) brightness(1.02);
+  }
+  .ph-tone--punchy img {
+    filter: contrast(1.25) brightness(1.04);
+  }
+  .ph-tone--mono img {
+    filter: grayscale(1);
+  }
+  .ph-tone--club-green img {
+    filter: grayscale(1) sepia(1) hue-rotate(78deg) saturate(1.6);
+  }
+  .ph-tone--night img {
+    filter: brightness(0.7) contrast(1.15);
+  }
+  .ph-sl {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .ph-sl-l {
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .ph-sl-v {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ph-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .ph-row > span,
+  .ph-ai {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .ph-acts {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .ph-ghost {
+    background: transparent;
+  }
+  .ph-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--status-error-text);
+  }
+  .ph-scope {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: var(--rule-thin);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+  .ph-scope p {
+    margin: 0;
+  }
+  .ph-scope-h {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .ph-scope-t {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ph-wide {
+    width: 100%;
+    justify-content: center;
+  }
+  .ph-sheet {
+    width: min(480px, calc(100vw - 32px));
+  }
+  .ph-uselist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .ph-use {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-thin);
+    border-radius: var(--radius-sm);
+  }
+  .ph-use strong {
+    color: var(--fg-0);
+    font-weight: var(--w-medium, var(--w-semibold));
+  }
+  .ph-use span {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .ph-refused {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--status-warn-text);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ph-look {
+      transition-duration: 1ms;
+    }
+  }
+}

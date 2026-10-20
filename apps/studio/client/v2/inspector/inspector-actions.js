@@ -8,6 +8,7 @@
 //   inspector.edit-css-as-text  ⌘K "Edit CSS as text…"  Advanced › CSS as one block (S11.8)
 //   element.detach       ⌘K "Detach"            this instance becomes its own component (S11.8)
 //   inspect.copy-code    ⌘K "Copy code"         the same, from the Inspect panel in Preview / Viewing (S3.11)
+//   photo.apply-every-use  ⌘K "Apply to every use…"  the Photo section's sheet for the picture it shows (S8.15)
 //
 // The menu runner (client/v2/shell/menu-runner.js) calls `runInspectorAction(id)`; the mounted frame binds the
 // handlers for the element it shows (frame.jsx), the same shape as left-panel-bus.js. With nothing bound
@@ -26,6 +27,8 @@ export const INSPECTOR_ACTION_IDS = Object.freeze([
   'component.go-to-main',
   // S3.11 — the Inspect panel's primary action (bound by inspect-panel.jsx)
   'inspect.copy-code',
+  // S8.15 — ⌘K "Apply to every use…": the Photo section's sheet (bound by v2/photo/photo-section.jsx)
+  'photo.apply-every-use',
 ]);
 
 /** @type {Map<string, () => Promise<string | null> | string | null>} */

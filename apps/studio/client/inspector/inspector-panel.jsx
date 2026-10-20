@@ -6,6 +6,7 @@ import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
 import { Kbd, StIcon } from '../shell/icons.jsx';
 import { shellToast } from '../shell/util.js';
 import { PhotoKnobs } from '../photo-knobs.jsx';
+import { PhotoSection } from '../v2/photo/photo-section.jsx';
 import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
 import { useEmptyArtboard } from '../v2/empty/empty-hint-store.js';
@@ -30,6 +31,15 @@ export const PHOTO_ASSET_RE = /assets\/[0-9a-f]{8}\.[a-z0-9]+/i;
 // the two can never drift apart (e.g. an extension-charset fix landing in one
 // and not the other).
 export const PHOTO_ASSET_RE_G = new RegExp(PHOTO_ASSET_RE.source, 'gi');
+
+/**
+ * S8.15 — does the Photo tab edit ONE use? An artboard picture the canvas names (`data-cd-id`) and resolved as the
+ * picture itself (`photoAsset` is stamped only on an `<img>`): yes. An annotation image, or a picture without an id,
+ * keeps the v1 every-use knobs.
+ */
+export function isPhotoPerUse(photoTarget, el) {
+  return photoTarget?.kind === 'artboard-img' && !!el?.id && !!el?.photoAsset;
+}
 
 export function photoAssetOfSelection(el) {
   if (!el || Array.isArray(el)) return null;
@@ -147,6 +157,8 @@ export function InspectorPanel({
   // S10.19 — …and shows the system itself (Advanced, Check the system) when nothing else is waiting
   const dsSystem = useDsAdvanced();
   const [tabState, setTabState] = useState('inspect');
+  // S8.15 — what the Image section's Adjust… / ✦ Remove background asked Photo for on the way in
+  const [photoIntent, setPhotoIntent] = useState(null);
   const tab = layersOnly ? 'layers' : (tabProp ?? tabState);
   const setTab = (t) => {
     setTabState(t);
@@ -518,6 +530,9 @@ export function InspectorPanel({
         return a ? { asset: a, kind: 'artboard-img' } : null;
       })();
   const photoOnly = photoTarget?.kind === 'annotation-image';
+  // S8.15 — an artboard picture with an id is edited one use at a time (the v2 Photo section); an annotation
+  // image, or a picture the canvas cannot name, keeps the v1 every-use knobs.
+  const photoPerUse = isPhotoPerUse(photoTarget, el);
   // Cmd+Z / Cmd+Shift+Z (or Cmd+Y) while focus is still inside a Photo-tab
   // slider — mirrors `onKnobKeyDown` above for the same reason: the window-
   // level shortcut listener bails out whenever `document.activeElement` is an
@@ -596,7 +611,22 @@ export function InspectorPanel({
           the header. Inspector > Advanced > Used in says the same and keeps Detach (v2/inspector/advanced-rows-default.jsx,
           `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
       <div className="st-rp-body">
-        {effTab === 'photo' && photoTarget ? (
+        {effTab === 'photo' && photoTarget && photoPerUse ? (
+          <PhotoSection
+            key={`${photoTarget.asset}:${el.id}:${el.index ?? 0}`}
+            asset={photoTarget.asset}
+            el={el}
+            canvasFile={canvasFile}
+            intent={photoIntent}
+            onIntentUsed={() => setPhotoIntent(null)}
+            ColorPicker={ColorPicker}
+            StIcon={StIcon}
+            onPreview={(edit, use) => onPhotoEdit?.(photoTarget.asset, edit, use)}
+            onRemoveBackground={onPhotoRemoveBackground}
+            onReplaceMedia={onReplaceMedia}
+            onRecordEdit={onRecordEdit}
+          />
+        ) : effTab === 'photo' && photoTarget ? (
           <div onKeyDown={onPhotoKnobKeyDown}>
             <PhotoKnobs
               key={`${photoTarget.asset}:${photoRev ?? 0}`}
@@ -724,7 +754,16 @@ export function InspectorPanel({
             onRunAction={onRunAction}
             onReplaceMedia={onReplaceMedia}
             // S2.15 — Adjust… / Remove background hand off to the Photo tab (only for a photo the panel can edit)
-            onOpenPhoto={photoTarget && !photoOnly ? () => setTab('photo') : undefined}
+            onOpenPhoto={
+              photoTarget && !photoOnly
+                ? (intent) => {
+                    setPhotoIntent(typeof intent === 'string' ? intent : null);
+                    setTab('photo');
+                  }
+                : undefined
+            }
+            // S8.15 — "Edits apply to this use only" is true only where Photo edits one use
+            photoPerUse={photoPerUse}
             onUndoRedo={onUndoRedo}
             onRenameElementId={async (req) => {
               const r = await onRenameElementId(req);

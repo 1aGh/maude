@@ -28,6 +28,7 @@ import {
   runClipVerb,
   seqUndoPayload,
 } from '../v2/timeline/clip-verb.js';
+import { photoPreviewMessage } from '../v2/photo/photo-section.jsx';
 import { PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import {
   collectDirPaths,
@@ -111,8 +112,9 @@ export function usePhotoAndTimeline({
   //     overlay). (2) undo: a shell-side stack (photo edits are sidecar writes,
   //     not the canvas-side source-edit stack). (3) background removal: the
   //     client-side @imgly ML flow (Task 12).
+  // S8.15 — `use` (the picture's `data-cd-id`) previews that one use only; without it, every use.
   const onPhotoEdit = useCallback(
-    (asset, edit) => postToActiveCanvas({ dgn: 'photo-preview', asset, edit }),
+    (asset, edit, use) => postToActiveCanvas(photoPreviewMessage(asset, edit, use)),
     [postToActiveCanvas]
   );
   const onPhotoRecordEdit = useCallback((asset, before, after) => {

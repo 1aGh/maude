@@ -25391,6 +25391,349 @@
     "v2": "new"
   },
   {
+    "hook": "photo-section",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo tab for ONE use of an artboard picture (S8.15). `data-use` is the picture’s id; `data-edit` the per-use edit it carries now (`data-photo-edit`), absent when it shows the every-use look.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › the picture’s file name in the header.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-look-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Photo › Look: one look (`role=\"radio\"`, `aria-checked`). `<id>`: `original`, `brighter`, `warmer`, `cooler`, `punchy`, `mono`, `club-green`, `night`. A click previews on this use and writes it to this use only.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-light",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › Light (−100 … +100, `adjustments.exposure`) with its signed value.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-colour",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › Colour (−100 … +100, `adjustments.saturation`) with its signed value.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-ai-remove-bg",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › ✦ Remove background: runs on this Mac and adds a mask on top, for this use.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-cutout-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › “Background removed” and its switch (off shows the original photo; this use only).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-replace",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › Replace… — the asset picker (`image.replace`).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › Reset — `photo.use-edit {edit: null}`: this use shows the every-use look again (one undo step).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › the line when a write was refused (“Not changed; try again.” or the reason).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › the “Only this use changes” block.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-scope-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › “<file> is in N more canvases — they keep the original. Reset brings this one back too.” (from `GET /_api/photo-every-use`).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Photo › Apply to every use… — opens the sheet (`photo.apply-every-use`).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/photo-section.jsx",
+      "symbol": "PhotoSection"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Apply … to every use?” sheet’s scrim.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Apply … to every use?” sheet (`role=\"dialog\"`).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s title, “Apply Punchy and the cut-out to every use?”.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One canvas the sheet would change (`data-canvas`), with its artboards. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s reason when the session may not change every canvas (`canApply: false`); Apply is disabled.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s Cancel (Close after a partial apply).",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-apply",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s Apply to every use — `POST /_api/photo-every-use`.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx",
+      "apps/desktop/e2e/scenarios/photo-per-use.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "photo-every-use-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s line when Apply was refused or missed a canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/photo/apply-every-use-sheet.jsx",
+      "symbol": "ApplyEveryUseSheet"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-photo-section.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "edit-crop-mode",
     "kind": "testid",
     "pattern": false,

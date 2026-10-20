@@ -203,6 +203,10 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
  * @param {Function} [p.onRemoveBackground] async (asset) => { maskAsset } | null.
  * @param {Function} [p.onRecordEdit]    (before, after) => void — undo integration.
  * @param {Function} [p.StIcon]         Injected shell icon component (optional).
+ * @param {object}  [p.value]            S8.15 — controlled mode: the edit to show. The panel then neither
+ *                                       fetches nor writes; every change goes to `onChange` (the owner —
+ *                                       Photo › Advanced — decides where it lands: one use, or every use).
+ * @param {Function} [p.onChange]        (next, { commit }) => void — controlled mode's change channel.
  */
 export function PhotoKnobs({
   asset,
@@ -212,9 +216,14 @@ export function PhotoKnobs({
   onRemoveBackground,
   onRecordEdit,
   StIcon,
+  value,
+  onChange,
 }) {
-  const [edit, setEditState] = useState(() => clone(initialEdit));
-  const [loading, setLoading] = useState(!initialEdit);
+  const controlled = value !== undefined;
+  const [ownEdit, setEditState] = useState(() => clone(initialEdit));
+  const [ownLoading, setLoading] = useState(!initialEdit && !controlled);
+  const edit = controlled ? value || {} : ownEdit;
+  const loading = controlled ? false : ownLoading;
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved | error
   const [bgBusy, setBgBusy] = useState(false);
   // sr-only live-region text for the background-removal busy state (Task 19).
@@ -225,7 +234,7 @@ export function PhotoKnobs({
 
   // Hydrate from the sidecar unless seeded.
   useEffect(() => {
-    if (initialEdit || !asset) return;
+    if (controlled || initialEdit || !asset) return;
     let dead = false;
     setLoading(true);
     fetch(`/_api/photo-edit?asset=${encodeURIComponent(asset)}`)
@@ -239,7 +248,7 @@ export function PhotoKnobs({
     return () => {
       dead = true;
     };
-  }, [asset, initialEdit]);
+  }, [asset, initialEdit, controlled]);
 
   const put = useCallback(
     (next) => {
@@ -271,12 +280,15 @@ export function PhotoKnobs({
       // Reset and a number field's blur can arrive before React renders.
       // The next mutation (and its undo base) must already see this edit.
       editRef.current = next;
-      setEditState(next);
       onEdit?.(next);
-      put(next);
+      if (controlled) onChange?.(next, { commit });
+      else {
+        setEditState(next);
+        put(next);
+      }
       if (commit) onRecordEdit?.(before, next);
     },
-    [onEdit, put, onRecordEdit]
+    [onEdit, put, onRecordEdit, controlled, onChange]
   );
 
   const setAdj = (key, value, commit) =>

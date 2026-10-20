@@ -355,6 +355,7 @@ describe('the registry carries the inspector actions (rule 14: each with its AI 
       'element.detach',
       'component.go-to-main', // S2.17
       'inspect.copy-code', // S3.11
+      'photo.apply-every-use', // S8.15 (bound by the Photo section)
     ]);
     for (const id of INSPECTOR_ACTION_IDS) {
       const def = ACTIONS_BY_ID.get(id);
