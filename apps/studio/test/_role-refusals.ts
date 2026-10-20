@@ -167,6 +167,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // S11.11 — `sync.resync`: Resync now re-compares every file with the cloud copy and sends what is newer
   // here, so it is an edit (routes/sync.ts is `readOnly: 'refused'`; the cloud cell refuses it outright).
   { method: 'POST', route: '/_api/sync/resync', refused: ['view', 'comment'] },
+  // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
+  { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
   // S9.19 — who has access is the owner's (`invite`, V2-1.7 §5.5): routes/share.ts refuses every
   // session without it before the linked hub hears anything (test/share-route.test.ts).
   { method: 'POST', route: '/_api/share/invites', refused: ['view', 'comment', 'edit'] },

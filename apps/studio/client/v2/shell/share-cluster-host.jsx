@@ -9,7 +9,8 @@
 //   · Exports       ← the export center's jobs (shown once any exists; ring = running jobs' progress)
 //   · Share         ← `share.open` through the shell's runner (today's share dialog)
 //   · access words  ← `cfg.readOnly` + `readOnlyReason` + the cloud role
-// Retry runs the Sync panel's own Resync (`POST /_api/sync/resync`) — the one retry path that exists.
+// Retry runs the Sync panel's own Resync (`POST /_api/sync/resync`); while a full disk holds writes
+// (S11.17, recovery-store.js) it tries the held writes instead, and Show in Finder opens the design folder.
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { syncPresentation } from '../../../sync/presentation.ts';
@@ -27,6 +28,8 @@ import { setExportPeople } from '../export/use-export-spec.js';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
+import { nativeDoors } from './native-doors.js';
+import { useDiskHold } from './recovery-store.js';
 import { accessStatus, exportsRing, facesOf, outboxPending, saveStatus } from './save-status.js';
 import { ShareCluster } from './share-cluster.jsx';
 import { AccountChip } from './account-card.jsx';
@@ -128,9 +131,20 @@ export function ShellShareCluster() {
   // the normal cluster.
   const roleLimited = !!viewerMode && cfg?.readOnlyReason !== 'format';
   const access = accessStatus({ canEdit: !roleLimited, role: cfg?.cloud?.role });
-  const status = saveStatus({ linked, online, phase, pending, writeFailed: null });
-  // "Show in Finder" has no reveal path in the shell yet (Diagnostics › Project folder, V2-4.7).
-  const shown = { ...status, actions: status.actions.filter((a) => a.id !== 'show-in-finder') };
+  // S11.17 — a full disk holds writes: Not saved + "This Mac is out of space — …" until they land.
+  const disk = useDiskHold();
+  const doors = useMemo(() => nativeDoors(), []);
+  const status = saveStatus({
+    linked,
+    online,
+    phase,
+    pending,
+    writeFailed: disk.full ? { kind: 'disk-full' } : null,
+  });
+  // Show in Finder is the desktop app's door (S11.16); a browser tab has no Finder.
+  const shown = doors.available
+    ? { ...status }
+    : { ...status, actions: status.actions.filter((a) => a.id !== 'show-in-finder') };
   // The status-bar chip's tooltip + short label (V2-4.8b): the sentence on hover, the label as data.
   if (presentation) {
     const names = presentation.names.length ? ` (${presentation.names.join(', ')})` : '';
@@ -242,6 +256,10 @@ export function ShellShareCluster() {
   });
 
   const retry = useCallback(async () => {
+    if (disk.full) {
+      menuRunner.run('save.retry-held'); // S11.17 — the held writes, through the registry
+      return;
+    }
     try {
       const res = await fetch('/_api/sync/resync', { method: 'POST' });
       const json = await res.json().catch(() => ({}));
@@ -250,7 +268,7 @@ export function ShellShareCluster() {
     } catch {
       shellToast('Maude could not reach the sync service.');
     }
-  }, []);
+  }, [disk.full]);
 
   const designRel = cfg?.designRel || '.design';
   const openTrashed = useCallback(
@@ -287,6 +305,7 @@ export function ShellShareCluster() {
         run={(id) => menuRunner.run(id)}
         onStatusAction={(id) => {
           if (id === 'retry') retry();
+          else if (id === 'show-in-finder') void doors.revealPath(cfg?.designRel || '.design');
         }}
         // S3.12 — Viewing's one way out. The flow is S9.21's (outbox kind `share.ask-to-edit`): the button runs
         // that registry action the day it exists; until then it says what to do, as the menubar does.

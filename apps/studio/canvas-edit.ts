@@ -49,6 +49,7 @@ import {
   walkIdElements,
   withIdAttr,
 } from './element-ids.ts';
+import { sourceHold } from './sync/write-hold.ts';
 
 export class CanvasEditError extends Error {
   readonly canvas: string;
@@ -307,6 +308,24 @@ export interface EditResult {
 }
 
 /**
+ * S11.17 (C37) — the canvas as every edit here sees it: the bytes a full disk is holding
+ * (sync/write-hold.ts), else the file. An edit made while the disk is full builds on the last one.
+ */
+async function readCanvasSource(file: { text(): Promise<string> }, abs: string): Promise<string> {
+  const held = sourceHold().read(abs);
+  if (held !== undefined) return typeof held === 'string' ? held : new TextDecoder().decode(held);
+  return file.text();
+}
+
+/**
+ * Every write here: tmp + rename in the same folder (a reader never sees half a file). On a full
+ * disk the bytes wait in the studio's hold and land once there is room (S11.17).
+ */
+async function writeCanvasSource(abs: string, source: string): Promise<void> {
+  await sourceHold().put(abs, source);
+}
+
+/**
  * Apply a single-attribute edit to the JSX element with the given `data-cd-id`.
  * Reads the canvas, rewrites in memory, writes atomically (via Bun.write to a
  * tmp + rename) so a concurrent reader never sees a partial file.
@@ -327,7 +346,7 @@ export async function editAttribute(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     // Read under the same per-file lock as the write — no gap between the read
     // that proves the precondition (and records what is replaced) and the rename.
     const previous = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
@@ -339,10 +358,7 @@ export async function editAttribute(
     }
     const next = applyEdit(canvasAbsPath, source, id, attr, value, occurrence);
     if (next.source === source) return { source, delta: 0, changed: false, previous };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true, previous };
   });
 }
@@ -370,7 +386,7 @@ export async function removeAttribute(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const previous = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
     if (
       precondition &&
@@ -380,10 +396,7 @@ export async function removeAttribute(
     }
     const next = applyRemove(canvasAbsPath, source, id, attr, occurrence);
     if (next.source === source) return { source, delta: 0, changed: false, previous };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true, previous };
   });
 }
@@ -575,7 +588,7 @@ export async function editText(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     // Byte cap before the AST walk (ethical-hacker F-C) — a real canvas is well
     // under this; a pathologically large attacker-authored file that would make
     // the resolver's per-candidate walk expensive is refused up front.
@@ -587,10 +600,7 @@ export async function editText(
     }
     const next = applyTextEdit(canvasAbsPath, source, id, text, opts);
     if (next.source === source) return { source, delta: 0, changed: false };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true };
   });
 }
@@ -1441,13 +1451,10 @@ export async function moveElement(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyMove(canvasAbsPath, source, id, refId, position, idIndex, refIndex);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -1719,13 +1726,10 @@ export async function retimeSequence(
         id: String(seqIndex),
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyRetimeSequence(canvasAbsPath, source, seqIndex, patch);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -1807,7 +1811,7 @@ export async function retimeSequenceByClip(
         id: stableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyRetimeSequenceByClip(
       canvasAbsPath,
       source,
@@ -1817,10 +1821,7 @@ export async function retimeSequenceByClip(
       patch
     );
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -2830,13 +2831,10 @@ export async function removeClip(
         id: stableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const nextSrc = applyRemoveClip(canvasAbsPath, source, artboardId, stableId, expectedHash);
     if (nextSrc.source === source) return nextSrc;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, nextSrc.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, nextSrc.source);
     return nextSrc;
   });
 }
@@ -2936,7 +2934,7 @@ export async function reorderClip(
         id: movedStableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyReorderClip(
       canvasAbsPath,
       source,
@@ -2948,10 +2946,7 @@ export async function reorderClip(
       position
     );
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3057,13 +3052,10 @@ export async function toggleClipHidden(
         id: stableId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyToggleClipHidden(canvasAbsPath, source, artboardId, stableId, expectedHash);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3181,13 +3173,10 @@ export async function insertClip(
         id: artboardId ?? '',
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertClip(canvasAbsPath, source, artboardId, opts);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3288,13 +3277,10 @@ export async function editArrayElementString(
         id: arrayName,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyEditArrayElementString(canvasAbsPath, source, arrayName, index, field, value);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3399,13 +3385,10 @@ export async function deleteElement(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDeleteElement(canvasAbsPath, source, id, occurrence);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3546,13 +3529,10 @@ export async function insertElement(
         id: refId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertElement(canvasAbsPath, source, refId, position, kind, opts);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3671,7 +3651,7 @@ export async function insertElementIntoArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertElementIntoArtboard(
       canvasAbsPath,
       source,
@@ -3681,10 +3661,7 @@ export async function insertElementIntoArtboard(
       opts
     );
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3777,13 +3754,10 @@ export async function duplicateElement(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDuplicateElement(canvasAbsPath, source, id, occurrence);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3900,13 +3874,10 @@ export async function resizeArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyResizeArtboard(canvasAbsPath, source, artboardId, width, height);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -3997,13 +3968,10 @@ export async function setArtboardHug(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardHug(canvasAbsPath, source, artboardId, fixed, freezeHeight);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4097,13 +4065,10 @@ export async function setArtboardStyle(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardStyle(canvasAbsPath, source, artboardId, patch);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4229,13 +4194,10 @@ export async function setArtboardLabel(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardLabel(canvasAbsPath, source, artboardId, label);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4254,13 +4216,10 @@ export async function setArtboardKind(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardKind(canvasAbsPath, source, artboardId, kind);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4353,13 +4312,10 @@ async function setArtboardObjectProp(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applySetArtboardObjectProp(canvasAbsPath, source, artboardId, propName, value);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4584,13 +4540,10 @@ export async function deleteArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDeleteArtboard(canvasAbsPath, source, artboardId);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4672,13 +4625,10 @@ export async function insertArtboard(
         id: opts.id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyInsertArtboard(canvasAbsPath, source, opts);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4952,14 +4902,11 @@ export async function copyArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyCopyArtboard(canvasAbsPath, source, o.accepted ?? source, artboardId, copy);
     if (next.existed || next.source === source) return next;
     o.beforeWrite?.(next.source);
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -4978,13 +4925,10 @@ export async function duplicateArtboard(
         id: artboardId,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDuplicateArtboard(canvasAbsPath, source, artboardId, newWidth);
     if (next.source === source) return next;
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return next;
   });
 }
@@ -5623,13 +5567,10 @@ export async function convertToAbsolute(
         id: spec.containerId ?? 'artboard',
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyConvertToAbsolute(canvasAbsPath, source, spec);
     if (next.source === source) return { source, delta: 0, changed: false };
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true };
   });
 }
@@ -5765,15 +5706,12 @@ export async function detachComponent(
         id,
       });
     }
-    const source = await file.text();
+    const source = await readCanvasSource(file, canvasAbsPath);
     const next = applyDetachComponent(canvasAbsPath, source, id, occurrence);
     if (next.source === source) {
       return { source, delta: 0, changed: false, detachedName: next.detachedName };
     }
-    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
-    await Bun.write(tmp, next.source);
-    const { rename } = await import('node:fs/promises');
-    await rename(tmp, canvasAbsPath);
+    await writeCanvasSource(canvasAbsPath, next.source);
     return { ...next, changed: true };
   });
 }

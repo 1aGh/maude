@@ -21,8 +21,9 @@
 // Inputs come from today's sources: `phase` from sync/presentation.ts `syncPresentation(syncStatus)`
 // (the status bar's own rule), `pending` = hub queuedOps + GET /_api/outbox `content.pending` (V2-2.16),
 // `online` = navigator.onLine, `linked` = a cloud cell, a credentialed cloud link, or a /_sync-status link.
-// `writeFailed` has ONE producer today (phase `refused`, above); the full-disk case (`disk-full`, C37) has
-// none yet — the machine handles it so the day the server reports it the word is already right.
+// `writeFailed` has two producers: phase `refused` (above) and the full disk (`disk-full`, C37 / S11.17):
+// share-cluster-host.jsx passes `{ kind: 'disk-full' }` while `GET /_api/diagnostics/disk` reports held
+// writes (recovery-store.js), and the word goes back to Saved once they land.
 
 import { initialsOf } from '../../shell/icons.jsx';
 

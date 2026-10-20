@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { browser, expect } from '@wdio/globals';
+import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
@@ -207,6 +207,20 @@ describe('relaunch (native-desktop)', () => {
         timeout: 15_000,
         timeoutMsg: `the reopened tab neither had a crash notice nor said "${crashed}"`,
       });
+      // S11.17 (C37) — the one line, with the time of the last work when the project home knows it,
+      // and Report a bug… opens the dialog (crash logs ticked when there are any; the consent step
+      // itself is report-bug-dialog.e2e.ts).
+      const line = await $('[data-testid="callout-crashed"]');
+      expect(await line.getText()).toMatch(
+        /Maude quit unexpectedly\. Your work (up to (\w{3} \d{1,2}, )?\d{2}:\d{2} )?is here\./
+      );
+      await (await $('[data-testid="callout-crashed-action"]')).click();
+      const dialog = await $('[data-testid="report-bug-dialog"]');
+      await dialog.waitForDisplayed({ timeout: 10_000 });
+      await capture('relaunch-4-crash-report-bug');
+      await browser.keys(['Escape']);
+      if (await dialog.isDisplayed().catch(() => false))
+        await (await $('[data-testid="report-bug-dialog"] .st-dialog-hd .st-iconbtn')).click();
     }
     // Once: a second ask (a reload) hears nothing.
     expect(await invokeTauri('take_crash_notice')).toBe(null);

@@ -22,6 +22,7 @@ import {
   readPickedMediaBlob,
 } from './github.js';
 import { reportLogsConsent, reportLogsPolicy } from './v2/settings/settings-model.js';
+import { crashLogsTicked, takeReportEntry } from './v2/shell/recovery-store.js';
 
 // Two of these are auto-captured (window + artboard), so the ceiling leaves
 // room for the user to still attach their own.
@@ -250,13 +251,19 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   useEffect(() => {
     if (!open) return;
     let alive = true;
+    // S11.17 — opened from the crash line ("Maude quit unexpectedly…"): the crash logs start ticked.
+    const entry = takeReportEntry();
     fetch('/_api/ui-prefs')
       .then((r) => (r.ok ? r.json() : null))
       .then((prefs) => {
         if (!alive) return;
         const policy = reportLogsConsent(reportLogsPolicy(prefs));
         setLogs(policy);
-        setConsent((c) => ({ ...c, logTail: policy.on, crashLogs: policy.on }));
+        setConsent((c) => ({
+          ...c,
+          logTail: policy.on,
+          crashLogs: crashLogsTicked(policy, entry),
+        }));
       })
       .catch(() => {});
     fetch('/_api/debug-bundle')

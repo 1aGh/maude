@@ -1918,6 +1918,8 @@ export function createHttp(
     },
     // S1.12b — Version history (V2-1.9 §5.11): rows, words, names, kept-aside versions. The
     // session's access is `currentAccess()` (S9.9, server.ts withSession).
+    // S11.17 — the crash line's "Your work up to …" reads the project home; the disk hold is the studio's
+    diagnostics: { control: () => ctx.syncControl?.current?.() ?? null },
     history: {
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,

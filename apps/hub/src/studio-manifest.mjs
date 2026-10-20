@@ -421,6 +421,11 @@ export const STUDIO_ROUTES = Object.freeze({
   // per-canvas `sees` filter yet (V2-1.16): refused in a cell, explicitly, not only by default.
   '/_api/diagnostics': REFUSED,
   '/_api/diagnostics/report': REFUSED,
+  // S11.17 (C37) — the crash line and the full-disk hold are this Mac's: a cell has no crash notice and
+  // its disk is the hub's (DDR-243 disk pressure); refused in a cell, explicitly.
+  '/_api/diagnostics/last-work': REFUSED,
+  '/_api/diagnostics/disk': REFUSED,
+  '/_api/diagnostics/disk-retry': REFUSED,
   '/_api/index': REFUSED,
   // V2-2.17 — cells render no pictures (contract V2-1.17 R7); GET /_api/thumb/<key> is dynamic and
   // matches no exact route or prefix here, so it is refused default-closed as well.

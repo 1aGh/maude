@@ -23,4 +23,7 @@ export const SYNC_ACTIONS: ActionDef[] = [
   // the card says "Keep <first name>'s" when the other side's author is known (CONTRACT §4 words)
   pick('sync.conflict.keep-theirs', 'Keep theirs'),
   pick('sync.conflict.keep-both', 'Keep both', 'duplicate'),
+  // S11.17 (C37) — the Not saved status's Retry while a full disk holds writes (the Share cluster runs
+  // it; hidden from ⌘K like the picks: it only means something while the status says Not saved).
+  pick('save.retry-held', 'Retry saving'),
 ];
