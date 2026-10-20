@@ -941,6 +941,19 @@
     font-size: var(--type-xs);
     color: var(--u-fg-1);
   }
+  /* S6.15 — "Add the guide canvases to this project": one row above the shortcut sections. */
+  .help-modal-guides {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--u-s-2) var(--u-s-3);
+    padding-bottom: var(--u-s-3);
+    margin-bottom: var(--u-s-2);
+    border-bottom: 1px solid var(--u-border);
+  }
+  .help-modal-guides-status {
+    color: var(--u-fg-2);
+  }
   .help-modal-body::-webkit-scrollbar {
     width: 6px;
   }

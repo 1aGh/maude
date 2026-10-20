@@ -1,11 +1,15 @@
 // dialogs/help-modal.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { MDCC_VERSION } from '../shell/constants.js';
+import { addGuides, GUIDES_WORDS } from '../v2/help/add-guides.js';
 
 // Help modal — hosts the cheatsheet that used to live in the left sidebar.
 // Triggered from the menubar's Help item. Esc + backdrop click close it.
-export function HelpModal({ open, onClose, onStartTour }) {
+// `canAddGuides` (S6.15, Q10): a person who can edit the project gets "Add the guide canvases to this
+// project" — a new project starts empty. The server refuses every role below edit whatever this shows.
+export function HelpModal({ open, onClose, onStartTour, canAddGuides = false }) {
+  const [guides, setGuides] = useState({ busy: false, words: '' });
   useEffect(() => {
     if (!open) return;
     function onKey(e) {
@@ -54,6 +58,31 @@ export function HelpModal({ open, onClose, onStartTour }) {
           </button>
         </header>
         <div className="help-modal-body">
+          {canAddGuides && (
+            <div className="help-modal-guides">
+              <button
+                type="button"
+                className="mdcc-tour__back"
+                data-testid="help-add-guides"
+                disabled={guides.busy}
+                onClick={async () => {
+                  setGuides({ busy: true, words: GUIDES_WORDS.adding });
+                  const r = await addGuides();
+                  setGuides({ busy: false, words: r.words });
+                }}
+              >
+                {GUIDES_WORDS.label}
+              </button>
+              <span
+                className="help-modal-guides-status"
+                data-testid="help-add-guides-status"
+                role="status"
+                aria-live="polite"
+              >
+                {guides.words}
+              </span>
+            </div>
+          )}
           <details open>
             <summary>Canvas selection &amp; tools</summary>
             <ul>

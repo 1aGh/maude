@@ -115,6 +115,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S6.15 — Help › Help and guides adds two canvases: an edit (routes/help-guides.ts, hub `edit`)
+  { method: 'POST', route: '/_api/help/add-guides', refused: ['view', 'comment'] },
   // S7.6c — the video tools' edit ops (`video.*` server: POST /_api/edit-op): a clip op from a
   // Can comment session is the gate's 403, whatever the Timeline shows.
   {

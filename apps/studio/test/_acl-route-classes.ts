@@ -257,6 +257,8 @@ const PROJECT = [
   '/_api/share/requests/:id/approve',
   '/_api/share/requests/:id/decline',
   '/_api/cloud/move',
+  // S6.15 — Help adds the guide canvases: new canvases in the project, so a canvas-only session never gets a 2xx
+  '/_api/help/add-guides',
   // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
   '/_api/trash/clear',
   // S8.13 — Move assets to the trash: the whole `assets/` folder is the project's (a canvas-only session has no say)
