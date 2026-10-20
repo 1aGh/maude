@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { UploadBars } from './asset-upload-bars.tsx';
 import { type AssetStateItem, acceptFromShell } from './bridge/dgn-protocol.ts';
 
 /** What a frame says. `null` = draw nothing (the picture is here, or still uploading from here). */
@@ -253,47 +254,55 @@ export function AssetPlaceholderLayer() {
     };
   }, [frames]);
 
-  if (frames.length === 0 || typeof document === 'undefined') return null;
-  return createPortal(
-    <div className="dc-absent-layer" data-testid="asset-frames">
-      {frames.map((f) => (
-        <div
-          key={f.key}
-          ref={(el) => {
-            if (el) nodes.current.set(f.key, el);
-            else nodes.current.delete(f.key);
-          }}
-          className="dc-absent"
-          data-testid="asset-frame"
-          data-rel={f.rel}
-          data-state={f.words.state}
-          role="img"
-          aria-label={`${baseName(f.rel)} · ${f.words.line}`}
-        >
-          <span className="dc-absent-in">
-            <span className="dc-absent-n">{baseName(f.rel)}</span>
-            <span className="dc-absent-d">{f.words.line}</span>
-            {f.words.relink ? (
-              <button
-                type="button"
-                className="dc-absent-btn"
-                data-testid="asset-frame-relink"
-                onClick={() => {
-                  // A literal `{ dgn }` so the bridge inventory sees this send site.
-                  try {
-                    window.parent.postMessage({ dgn: 'asset-relink-request', rel: f.rel }, '*');
-                  } catch {
-                    /* detached */
-                  }
-                }}
-              >
-                Relink…
-              </button>
-            ) : null}
-          </span>
-        </div>
-      ))}
-    </div>,
-    document.body
+  if (typeof document === 'undefined') return null;
+  // S8.14 — a picture still going up wears a thin bar (asset-upload-bars.tsx); it is a sibling layer, so it needs no frame
+  const bars = <UploadBars items={items} relOf={relOfSrc} />;
+  if (frames.length === 0) return bars;
+  return (
+    <>
+      {bars}
+      {createPortal(
+        <div className="dc-absent-layer" data-testid="asset-frames">
+          {frames.map((f) => (
+            <div
+              key={f.key}
+              ref={(el) => {
+                if (el) nodes.current.set(f.key, el);
+                else nodes.current.delete(f.key);
+              }}
+              className="dc-absent"
+              data-testid="asset-frame"
+              data-rel={f.rel}
+              data-state={f.words.state}
+              role="img"
+              aria-label={`${baseName(f.rel)} · ${f.words.line}`}
+            >
+              <span className="dc-absent-in">
+                <span className="dc-absent-n">{baseName(f.rel)}</span>
+                <span className="dc-absent-d">{f.words.line}</span>
+                {f.words.relink ? (
+                  <button
+                    type="button"
+                    className="dc-absent-btn"
+                    data-testid="asset-frame-relink"
+                    onClick={() => {
+                      // A literal `{ dgn }` so the bridge inventory sees this send site.
+                      try {
+                        window.parent.postMessage({ dgn: 'asset-relink-request', rel: f.rel }, '*');
+                      } catch {
+                        /* detached */
+                      }
+                    }}
+                  >
+                    Relink…
+                  </button>
+                ) : null}
+              </span>
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
   );
 }

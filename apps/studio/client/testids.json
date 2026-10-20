@@ -11459,6 +11459,22 @@
     "v2": "stable"
   },
   {
+    "hook": "assets-tile-up",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The thin bar along the foot of an Assets tile whose file this Mac still owes the cloud (`data-known` false = the share is not known). Not drawn in the wide Browse view.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tile.jsx",
+      "symbol": "AssetTile"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/drop-photos.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "assets-tile-menu",
     "kind": "testid",
     "pattern": false,
@@ -11527,7 +11543,7 @@
     "hook": "assets-group-<kind>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The group heading in the Assets tab, a button: `<kind>` is image | video | audio. \"Photos 120 ›\" widens into the Browse view (S8.13).",
+    "meaning": "The group heading in the Assets tab: `<kind>` is image | video | audio (a button — \"Photos 120 ›\" widens into the Browse view, S8.13) or `added` (S8.14: \"Just added\", the files that arrived in this window, first in the tab — a plain heading, not a button).",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
       "symbol": "AssetsPanel"
@@ -22589,6 +22605,35 @@
     "v2": "new"
   },
   {
+    "hook": "asset-upload-bars",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer holding the thin upload bars. Present only while the shell says a picture on this canvas is still going up to the cloud.",
+    "producer": {
+      "file": "apps/studio/asset-upload-bars.tsx",
+      "symbol": "UploadBars"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-upload-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the thin bar along the foot of a picture this Mac still owes the cloud (`data-rel`; `data-known` false = the share is not known; a progressbar). It goes away by itself when the last byte lands.",
+    "producer": {
+      "file": "apps/studio/asset-upload-bars.tsx",
+      "symbol": "UploadBars"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/drop-photos.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "asset-frame-relink",
     "kind": "testid",
     "pattern": false,
@@ -25372,6 +25417,22 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/desktop/e2e/scenarios/edit-images.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-drop-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring and pill over the artboard, frame or picture a drag of photos from Finder is over, saying what will happen (\"Drop to fill 6 empty frames in order\" · \"Drop to place 6 photos in a tidy grid\" · \"Drop to place the photo here\"); after the drop it reads \"Adding 6 photos…\" until they are placed (`data-kind`, `data-busy`).",
+    "producer": {
+      "file": "apps/studio/editing/finder-drop.tsx",
+      "symbol": "FinderDrop"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/drop-photos.e2e.ts"
     ],
     "v2": "new"
   },

@@ -9,6 +9,9 @@
 // multi-select, ↵ fills the artboard's frames in order); "Not used" lists what nothing needs and "Move N to the trash…" takes it,
 // sidecars with it (assets/tidy.jsx); a tile's menu has Move to trash. Every move asks the studio, which refuses a picture a
 // canvas uses or an older version still shows (`POST /_api/assets/trash`).
+// S8.14: what arrived in this window is the first group, "Just added" (assets/just-added.js); a tile still going up to the cloud
+// wears a thin bar (the shell lane's `assetUploadOf`); "From this Mac…" with an artboard selected imports AND places (the Image
+// (I) route, no drag — the studio picks: empty frames in order, else a tidy grid, else loose).
 // NOT here yet: details per kind (S8.21), search in pictures (S8.20), Generate (S8.16).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,11 +19,13 @@ import { uploadAsset } from '../../../asset-upload.ts';
 import { mimeFromExt } from '../../dialogs/asset-picker.jsx';
 import { isNativeApp, pickMediaFiles, pickedMediaSource } from '../../github.js';
 import { Kbd, StIcon } from '../../shell/icons.jsx';
+import { assetUploadOf, useAssetAnswers } from '../assets/asset-state-lane.js';
 import { bindAssetsPanel } from '../assets/assets-bus.js';
 import { filterAssets } from '../assets/browse-model.js';
 import { BrowseView, browseOrder, MAX_PLACE } from '../assets/browse-view.jsx';
 import { NOTHING_PICKED, pick as pickTile, pickAll } from '../assets/multi-select.js';
 import { AssetDetailsCard } from '../assets/details-card.jsx';
+import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
 import { AssetTile } from '../assets/tile.jsx';
 import { AssetTileMenu, tileMenuItems } from '../assets/tile-menu.jsx';
@@ -38,12 +43,17 @@ const GROUPS = [
   { kind: 'audio', title: 'Sound' },
 ];
 
-/** Photos / Video / Sound, empty groups left out. */
-export function groupAssets(assets) {
-  return GROUPS.map((g) => ({
+/**
+ * Photos / Video / Sound, empty groups left out. `justAdded` (S8.14): what arrived in this window comes first, in its own
+ * "Just added" group, and is not repeated under its kind.
+ */
+export function groupAssets(assets, { justAdded = false, now } = {}) {
+  const { added, rest } = justAdded ? splitJustAdded(assets, now) : { added: [], rest: assets };
+  const kinds = GROUPS.map((g) => ({
     ...g,
-    items: assets.filter((a) => (a.kind || 'image') === g.kind),
+    items: rest.filter((a) => (a.kind || 'image') === g.kind),
   })).filter((g) => g.items.length);
+  return added.length ? [{ kind: 'added', title: 'Just added', items: added }, ...kinds] : kinds;
 }
 
 async function addFilesNative(onProgress) {
@@ -77,6 +87,8 @@ function addFilesBrowser(onProgress) {
     input.click();
   });
 }
+
+const IMAGE_PATH = /\.(avif|gif|heic|heif|jpe?g|png|svg|tiff?|webp)$/i;
 
 const hasFiles = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
 
@@ -117,8 +129,9 @@ export function AssetsPanel({
   const upload = async (run) => {
     setBusy(true);
     setErr('');
+    let results = [];
     try {
-      const results = await run();
+      results = await run();
       const failed = results.filter((r) => !('path' in r)).length;
       if (failed) setErr(`${failed} of ${results.length} uploads failed`);
       if (results.length) await reload();
@@ -127,9 +140,24 @@ export function AssetsPanel({
     }
     setProgress(null);
     setBusy(false);
+    return results;
   };
-  const add = () =>
-    upload(() => (isNativeApp() ? addFilesNative(setProgress) : addFilesBrowser(setProgress)));
+  const pickFiles = () =>
+    isNativeApp() ? addFilesNative(setProgress) : addFilesBrowser(setProgress);
+  const add = () => upload(pickFiles);
+  // S8.14 — Image (I) shows this tab; "From this Mac…" there does what a drop on the artboard does: the photos chosen are
+  // imported AND placed on the selected artboard (empty frames in order, else a tidy grid, else loose), in one write.
+  // With no artboard selected it is the plain import it always was.
+  const addAndPlace = async () => {
+    const results = await upload(pickFiles);
+    const paths = results.filter((r) => 'path' in r && IMAGE_PATH.test(r.path)).map((r) => r.path);
+    if (readOnly || !placeTarget || paths.length === 0) return;
+    const r = await placeAsset(
+      { assets: paths.slice(0, MAX_PLACE), target: placeTarget, mode: 'auto' },
+      { record: onRecord }
+    );
+    if (!r.ok && alive.current) setErr(r.message);
+  };
 
   const byPath = useMemo(() => new Map((assets || []).map((a) => [a.path, a])), [assets]);
   // Not used needs the index's verdicts; the old listing has none, so the chip is not drawn there
@@ -137,7 +165,12 @@ export function AssetsPanel({
   const tidy = useMemo(() => tidyModel(assets || [], history), [assets, history]);
   const pool = notUsedOnly && hasUsage ? tidy.list : assets || [];
   const shown = useMemo(() => filterAssets(pool, query), [pool, query]);
-  const groups = useMemo(() => groupAssets(shown), [shown]);
+  // S8.14 — Just added on top; not in the Not used view, which lists what to tidy (its own order)
+  const groups = useMemo(
+    () => groupAssets(shown, { justAdded: !(notUsedOnly && hasUsage) }),
+    [shown, notUsedOnly, hasUsage]
+  );
+  useAssetAnswers(); // the bars on tiles follow what the studio last said about each open canvas
   const url = (p) => `/${designRel}/${p}`;
 
   // ↵ / the menu's Place: the picked picture onto the selected artboard (or frame). One edit-op, one undo step.
@@ -519,19 +552,26 @@ export function AssetsPanel({
           groups.map((g) => (
             <section key={g.kind} aria-label={g.title}>
               <p className="lp-group">
-                <button
-                  type="button"
-                  className="lp-group-b"
-                  data-testid={`assets-group-${g.kind}`}
-                  aria-label={`${g.title}, ${g.items.length}. Browse`}
-                  onClick={() => openBrowse(g.kind)}
-                >
-                  <span>{g.title}</span>
-                  <span className="lp-count">
-                    {g.items.length}
-                    <StIcon name="chevron" size={11} />
+                {g.kind === 'added' ? (
+                  <span className="lp-group-s" data-testid="assets-group-added">
+                    <span>{g.title}</span>
+                    <span className="lp-count">{g.items.length}</span>
                   </span>
-                </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="lp-group-b"
+                    data-testid={`assets-group-${g.kind}`}
+                    aria-label={`${g.title}, ${g.items.length}. Browse`}
+                    onClick={() => openBrowse(g.kind)}
+                  >
+                    <span>{g.title}</span>
+                    <span className="lp-count">
+                      {g.items.length}
+                      <StIcon name="chevron" size={11} />
+                    </span>
+                  </button>
+                )}
               </p>
               <div className="lp-grid">
                 {g.items.map((a) => (
@@ -543,6 +583,7 @@ export function AssetsPanel({
                     canDrag={!readOnly}
                     onPick={setPicked}
                     onMenu={openMenu}
+                    uploading={assetUploadOf(a.path)}
                   />
                 ))}
               </div>
@@ -556,7 +597,7 @@ export function AssetsPanel({
             className="lp-mac"
             data-testid="assets-from-mac"
             disabled={busy}
-            onClick={add}
+            onClick={addAndPlace}
           >
             <StIcon name="folder" size={14} />
             <span>From this Mac…</span>

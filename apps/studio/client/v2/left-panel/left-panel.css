@@ -742,6 +742,53 @@
     align-items: center;
     gap: var(--space-1);
   }
+  /* S8.14 — "Just added" names a run, it does not open one: the heading without the button */
+  .lp-group-s {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  /* S8.14 — a picture still going up to the cloud: a thin bar along the foot of its tile */
+  .lp-tile-up {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+    pointer-events: none;
+  }
+  .lp-tile-up > b {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width var(--dur-soft) var(--ease-out);
+  }
+  .lp-tile-up[data-known="false"] > b {
+    width: 40%;
+    animation: lp-tile-up-slide 1.2s ease-in-out infinite;
+  }
+  @keyframes lp-tile-up-slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lp-tile-up > b {
+      transition-duration: 1ms;
+    }
+    .lp-tile-up[data-known="false"] > b {
+      animation: none;
+      width: 100%;
+      opacity: 0.5;
+    }
+  }
   .lp-notcounted {
     flex: none;
     display: flex;

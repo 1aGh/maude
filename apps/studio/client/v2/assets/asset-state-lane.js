@@ -15,8 +15,9 @@
 // answer for that canvas (S8.19c): a rel the studio did not say is missing is dropped, so a canvas
 // cannot make the shell open a relink for a path of its choosing. `onRelink` gets the studio's rel.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
+import { INDEX_CHANGED_EVENT } from '../canvases/use-canvas-index.js';
 
 /** canvas file → (rel → item): what the studio last said about each canvas. The relink gate and the
  *  Inspector's absent-picture box read it; nothing else does. */
@@ -59,8 +60,29 @@ export function assetItemForSrc(canvas, src) {
   return assetItemsFor(canvas).get(s) ?? null;
 }
 
+/**
+ * S8.14 — the upload state of a project file (`assets/x.jpg`) as ANY open canvas was last told: `{ progress? }` while this
+ * Mac still owes the hub its bytes, else null. The Assets tab draws the thin bar on a tile from it; nothing else reads it.
+ */
+export function assetUploadOf(rel) {
+  for (const items of answers.values()) {
+    const it = items.get(rel);
+    if (it && it.state === 'uploading')
+      return { progress: typeof it.progress === 'number' ? it.progress : undefined };
+  }
+  return null;
+}
+
+/** Re-render when the studio's answers change (the tile bars). Returns the version, which only means "something moved". */
+export function useAssetAnswers() {
+  return useSyncExternalStore(subscribeAssetAnswers, assetAnswersVersion, assetAnswersVersion);
+}
+
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 export const ASSET_STATE_POLL_MS = 60_000;
+/** While something of this Mac's is still going up, ask again soon: the bar moves and goes away when the last byte lands. */
+export const ASSET_UPLOAD_POLL_MS = 2_500;
+const INDEX_REASK_MS = 800;
 
 /** The canvas file a frame shows (`data-path`). */
 const pathOf = (frame) => frame?.getAttribute?.('data-path') || frame?.dataset?.path || '';
@@ -86,6 +108,7 @@ export function createAssetStateLane(deps) {
   /** Window → the JSON last said to it; `waiting` → whether it needs the 60 s poll. */
   const spoken = new WeakMap();
   const waiting = new Set();
+  const uploading = new Set();
   let timer = null;
   let stopped = false;
 
@@ -117,6 +140,8 @@ export function createAssetStateLane(deps) {
     setAnswer(canvas, items);
     if (items.some((it) => it?.state === 'waiting')) waiting.add(canvas);
     else waiting.delete(canvas);
+    if (items.some((it) => it?.state === 'uploading')) uploading.add(canvas);
+    else uploading.delete(canvas);
     arm();
     const json = JSON.stringify(items);
     const before = spoken.get(target);
@@ -132,11 +157,14 @@ export function createAssetStateLane(deps) {
   }
 
   function arm() {
-    if (stopped || timer !== null || waiting.size === 0) return;
-    timer = setTimer(() => {
-      timer = null;
-      void refreshAll();
-    }, ASSET_STATE_POLL_MS);
+    if (stopped || timer !== null || (waiting.size === 0 && uploading.size === 0)) return;
+    timer = setTimer(
+      () => {
+        timer = null;
+        void refreshAll();
+      },
+      uploading.size > 0 ? ASSET_UPLOAD_POLL_MS : ASSET_STATE_POLL_MS
+    );
   }
 
   async function refreshAll(force = false) {
@@ -168,6 +196,17 @@ export function createAssetStateLane(deps) {
     if (item?.state === 'missing') deps.onRelink?.(item.rel, canvas);
   };
   win?.addEventListener?.('message', onMessage);
+  // S8.14 — photos just placed from Finder reach the canvas file before their bytes reach the hub: when the index moves (the
+  // placement is one), ask again shortly, so the new pictures hear `uploading` and wear a bar. One quiet read per burst.
+  let indexTimer = null;
+  const onIndexChanged = (e) => {
+    if (stopped || indexTimer !== null || e?.type !== INDEX_CHANGED_EVENT) return;
+    indexTimer = setTimer(() => {
+      indexTimer = null;
+      void refreshAll();
+    }, INDEX_REASK_MS);
+  };
+  win?.addEventListener?.(INDEX_CHANGED_EVENT, onIndexChanged);
 
   return {
     /** A canvas opened / the socket came back / a sweep ended: ask again for every open canvas. */
@@ -179,6 +218,9 @@ export function createAssetStateLane(deps) {
       if (timer !== null) clearTimer(timer);
       timer = null;
       win?.removeEventListener?.('message', onMessage);
+      win?.removeEventListener?.(INDEX_CHANGED_EVENT, onIndexChanged);
+      if (indexTimer !== null) clearTimer(indexTimer);
+      indexTimer = null;
     },
   };
 }
