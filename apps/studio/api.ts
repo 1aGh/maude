@@ -415,6 +415,16 @@ export interface GitCommitter {
   commits: number;
 }
 
+/** S11.12 — how Keep both names and fills its copy (`duplicateCanvas`). */
+export interface DuplicateCanvasOpts {
+  /** The word after the name: "copy" (the default) or "this Mac" (Keep both). */
+  suffix?: 'copy' | 'this Mac';
+  /** The copy's `.meta.json` title (Keep both: "<name> (this Mac)"). */
+  title?: string;
+  /** The copy's source, instead of the original file's bytes now. */
+  source?: string;
+}
+
 export type CreateCanvasResult =
   | { ok: true; file: string; rel: string; slug: string }
   | { ok: false; status: number; error: string };
@@ -722,7 +732,7 @@ export interface Api {
   // Duplicate a canvas beside itself ("<name> copy") — POST /_api/canvas
   // { duplicateOf }. Source, meta and the whiteboard layer; not comments or
   // history, which belong to the original.
-  duplicateCanvas(input: { file?: unknown }): Promise<CreateCanvasResult>;
+  duplicateCanvas(input: { file?: unknown } & DuplicateCanvasOpts): Promise<CreateCanvasResult>;
   // Soft-delete a canvas from the browser (Phase 22 — DELETE /_api/canvas)
   deleteCanvas(input: { file?: unknown }): Promise<DeleteCanvasResult>;
   // feature-file-tree-drag-drop-folders (Task 3) — move/rename a canvas + its
@@ -4076,7 +4086,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return { ok: true, file: path.posix.join(paths.designRel, rel), rel, slug };
   }
 
-  async function duplicateCanvas(input: { file?: unknown }): Promise<CreateCanvasResult> {
+  async function duplicateCanvas(
+    input: { file?: unknown } & DuplicateCanvasOpts
+  ): Promise<CreateCanvasResult> {
     const raw = input?.file;
     if (typeof raw !== 'string' || !raw.trim()) {
       return { ok: false, status: 400, error: 'file is required' };
@@ -4120,10 +4132,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const srcBase = path.basename(rel).replace(/\.tsx$/i, '');
     const base = foldToAllowedName(srcBase) || UNTITLED_CANVAS;
     const dir = path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel);
-    // "<name> copy", then "<name> copy 2", … — the first free, valid name.
+    // "<name> copy", then "<name> copy 2", … — the first free, valid name (S11.12 Keep both:
+    // "<name> this Mac", "<name> this Mac 2", …).
+    const word = input.suffix ?? 'copy';
     let name: string | null = null;
     for (let n = 1; n < 100 && !name; n++) {
-      const suffix = n === 1 ? ' copy' : ` copy ${n}`;
+      const suffix = n === 1 ? ` ${word}` : ` ${word} ${n}`;
       const v = validateCanvasName(`${base.slice(0, 60 - suffix.length)}${suffix}`);
       if (!v.ok || !v.name) return { ok: false, status: 400, error: v.error ?? 'invalid name' };
       const candidate = path.posix.join(dir, `${v.name}.tsx`);
@@ -4136,14 +4150,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!name) return { ok: false, status: 409, error: 'too many copies of this canvas' };
     const toRel = path.posix.join(dir, `${name}.tsx`);
     const toAbs = path.join(paths.designRoot, toRel);
-    await Bun.write(toAbs, await Bun.file(fileAbs).arrayBuffer());
+    // Keep both writes the version it was handed (the one this Mac held), never a later disk read.
+    await Bun.write(
+      toAbs,
+      typeof input.source === 'string' ? input.source : await Bun.file(fileAbs).arrayBuffer()
+    );
     const metaAbs = fileAbs.replace(/\.tsx$/i, '.meta.json');
     if (await Bun.file(metaAbs).exists()) {
       let text = await Bun.file(metaAbs).text();
       try {
         const meta = JSON.parse(text) as Record<string, unknown>;
         const now = new Date().toISOString();
-        if (typeof meta.title !== 'string' || meta.title === srcBase) meta.title = name;
+        if (typeof input.title === 'string') meta.title = input.title.slice(0, 120);
+        else if (typeof meta.title !== 'string' || meta.title === srcBase) meta.title = name;
         meta.created = now;
         meta.last_modified = now;
         text = `${JSON.stringify(meta, null, 2)}\n`;

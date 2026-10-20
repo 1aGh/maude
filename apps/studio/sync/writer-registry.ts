@@ -179,7 +179,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/project/conflict': {
     class: 'lane',
     rows: 'X15',
-    via: 'mine: html lane.replace on top of the accepted version (a new action); theirs: accepted body back to disk',
+    via: 'mine: html lane.replace on top of the accepted version (a new action); theirs: accepted body back to disk; keep-both (S11.12): mine as a new canvas (ONE doc.create) + history.aside, theirs back to disk',
     test: 'test/sync-accepted-runtime.test.ts',
   },
   '/_api/project/ai-action': {

@@ -826,7 +826,13 @@ export interface SyncRuntime {
    */
   resolveConflict?(
     repoRel: string,
-    choice: 'mine' | 'theirs'
+    choice: 'mine' | 'theirs',
+    /**
+     * S11.12 (Keep both) — take theirs only while this Mac's version is still exactly `ifMine`
+     * (what the copy holds). Checked and taken in one synchronous step, so an edit that lands
+     * meanwhile is never written over: the answer is `rejected` / `changed` and nothing moves.
+     */
+    o?: { ifMine?: string }
   ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
   /** T16 — the person's decision on a held (unfinished) AI run (no id: every held run). */
   resolveAiAction?(
@@ -6239,13 +6245,16 @@ export function createSyncRuntime(
       const sides = slug ? projections.get(slug)?.conflictSides() : null;
       return slug && sides ? { slug, ...sides } : null;
     },
-    resolveConflict: async (repoRel, choice) => {
+    resolveConflict: async (repoRel, choice, o) => {
       const slug = projections.has(repoRel) ? repoRel : slugForRepoRel(repoRel);
       const projection = slug ? projections.get(slug) : undefined;
       if (!slug || !projection) return null;
       const sides = projection.conflictSides();
       if (!sides) return null;
       if (choice === 'theirs') {
+        // No await between the read of `mine` (the disk, read now) and the take.
+        if (o?.ifMine !== undefined && sides.mine !== o.ifMine)
+          return { status: 'rejected', code: 'changed' };
         projection.takeAccepted();
         return { status: 'taken' };
       }
