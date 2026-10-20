@@ -291,6 +291,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'file-plane',
     rows: 'per system: revisions + tokens.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas), head.json last; Restore moves head.json + the canvas to _trash — Plane B only, all or nothing (ds/convert.ts, S10.12)',
   },
+  '/_api/ds/upgrade': {
+    class: 'lane',
+    via: 'apply: ONE kernel action (proposeFiles: the codemodded canvases that passed the visual gate); the system files (tokens CSS, tokens.json, config.json schema) follow on Plane B only after acceptance, and the ds-upgrade undo hook moves them with its undo / redo. The other steps write only runtime state (_state/ds-upgrade/) and a throwaway stage under the OS temp dir (ds/upgrade-apply.ts, S10.15a)',
+    test: 'test/ds-upgrade-apply.test.ts',
+  },
   '/_api/ds/default': {
     class: 'file-plane',
     rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',

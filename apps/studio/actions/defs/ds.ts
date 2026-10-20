@@ -80,4 +80,8 @@ export const DS_ACTIONS: ActionDef[] = [
   // to its folder. Each needs a system in hand, so neither is a ⌘K row. Can edit on the whole project.
   row('ds.convert', 'Turn into a Design system canvas'),
   row('ds.convert-restore', 'Restore the system folder'),
+  // S10.15a — Bring it up to the schema (13 · ds-multi-schema): the amber dot / a switch to or from a level-11
+  // system opens the sheet (S10.15b); its primary button applies a proven stage as one action. A system's own
+  // row, never ⌘K. Can edit on the whole project.
+  row('ds.upgrade', 'Bring it up to the schema'),
 ];

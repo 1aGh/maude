@@ -256,6 +256,8 @@ const PROJECT = [
   '/_api/ds/switch',
   // S10.12 — convert system folders / Restore one (ds/convert.ts)
   '/_api/ds/convert',
+  // S10.15a — Bring it up to the schema (ds/upgrade*.ts)
+  '/_api/ds/upgrade',
   '/_api/share/invites',
   '/_api/share/invites/:id/resend',
   '/_api/share/invites/:id/revoke',

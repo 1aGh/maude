@@ -1563,6 +1563,18 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/ds/convert', method: 'POST' },
     agent: cli('maude design ds convert <ds> --restore'),
   },
+  // S10.15a — "Bring it up to the schema" (ds/upgrade*.ts, V2-1.13 §5.10): analyse → stage (throwaway before/ +
+  // after/ copies) → prove (two headless studios, the in-page ΔE gate) → apply as ONE action (the codemodded
+  // canvases through the kernel, the system files after it; one ⌘Z takes both back). The sheet is S10.15b's.
+  'ds.upgrade': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/upgrade', method: 'POST' },
+    agent: cli(
+      'maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage>'
+    ),
+  },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',

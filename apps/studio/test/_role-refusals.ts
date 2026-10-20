@@ -265,6 +265,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     '/_api/ds/switch',
     // S10.12 — convert system folders / Restore one (ds/convert.ts)
     '/_api/ds/convert',
+    // S10.15a — Bring it up to the schema, every step (ds/upgrade*.ts)
+    '/_api/ds/upgrade',
   ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
   { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];
