@@ -523,7 +523,8 @@ export interface ShellToCanvas {
     path: string;
     sticker?: { pack: string; id: string; flip?: boolean };
   };
-  'photo-preview': { asset: string; edit: PhotoEdit | null };
+  /** S8.15 — `use`: the `data-cd-id` of the one use being edited (absent = every use). */
+  'photo-preview': { asset: string; edit: PhotoEdit | null; use?: string };
   'photo-busy': { asset: string; busy: boolean };
   // comments
   'comments-set': { comments: CommentThread[] };
@@ -1910,7 +1911,7 @@ const s2c: S2C = {
     target: 'parent',
     status: 'live',
     owner: 'canvas-lib (photo)',
-    parse: p({ asset: str, edit: nul(jsonObj) }),
+    parse: p({ asset: str, edit: nul(jsonObj), use: opt(str) }),
   },
   'photo-busy': {
     gate: 'any',

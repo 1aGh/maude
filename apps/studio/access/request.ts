@@ -29,7 +29,14 @@ import type { Closure, ProjectReader } from './closure.ts';
 import { aclCheckOn } from './filters.ts';
 import type { Capability, ProjectRole } from './roles.ts';
 import { FLOOR_ROLE, can as roleCan } from './roles.ts';
-import { type Access, type AccessClaim, legacyClaim, resolveAccess, writes } from './scope.ts';
+import {
+  type Access,
+  type AccessClaim,
+  legacyClaim,
+  PER_USE_PHOTO_RE,
+  resolveAccess,
+  writes,
+} from './scope.ts';
 
 // ---------------------------------------------------------------------------
 // The write classes (§5.7). `READ_ONLY_ALLOWED_WRITES` (http.ts) is their union.
@@ -322,8 +329,17 @@ export interface GateInput {
   tableSession?: SessionAllowlist;
   /** The closure of the session's grants, when it has any (computed lazily). */
   closure?: () => Closure | null;
-  /** Does designRoot-relative `rel` exist (G2 create-only assets)? */
-  exists?: (rel: string) => boolean;
+  /**
+   * Does designRoot-relative `rel` exist (G2 create-only assets)? With `body` (a per-use photo
+   * edit, S8.15): does it hold bytes OTHER than these — a content-addressed file that already
+   * holds them is no overwrite.
+   */
+  exists?: (rel: string, body?: string) => boolean;
+  /**
+   * S8.15 — the exact bytes a write to a per-use photo edit would land, so `writes()` can check
+   * them against the name (contract S8-asset-sidecars §5.6). Absent: such a create is refused.
+   */
+  bodyFor?: (req: Request, target: string) => Promise<string | undefined>;
   /**
    * A route that knows its own target better than the generic read (routes/table.ts
    * `RouteSpec.target`, S9.7b): a reply names a comment id, and only the server knows which
@@ -351,10 +367,21 @@ async function gateTarget(
   return own ? await own : targetOf(req, g.designRel);
 }
 
-/** May a session with grants see `rel`: a granted canvas, or its closure. */
-function seesTarget(g: GateInput, rel: string): boolean {
+/**
+ * May a session with grants see `rel`: a granted canvas, or its closure. S8.15 — a WRITE may
+ * also name a per-use photo edit of an asset in the closure: the writer's own bytes name it, so
+ * naming it reveals nothing, and `writes()` decides (a read of one stays closure-only, U1).
+ */
+function seesTarget(g: GateInput, rel: string, method = 'GET'): boolean {
   if (g.access.seesCanvas(rel)) return true;
-  return g.closure?.()?.read.has(rel) ?? false;
+  const closure = g.closure?.() ?? null;
+  if (closure?.read.has(rel)) return true;
+  const perUse = method === 'GET' || method === 'HEAD' ? null : PER_USE_PHOTO_RE.exec(rel);
+  if (!perUse || !closure) return false;
+  for (const asset of closure.assetUsers.keys())
+    if (asset.startsWith(`${perUse[1]}.`) && !asset.slice(perUse[1].length + 1).includes('/'))
+      return true;
+  return false;
 }
 
 /**
@@ -365,7 +392,7 @@ export async function canvasScopeRefusal(req: Request, g: GateInput): Promise<Re
   if (!g.access.canvasOnly || !aclCheckOn('canvasScopeRefusal')) return null;
   const target = await gateTarget(req, g);
   if (target === undefined) return null;
-  if (target === null || !seesTarget(g, target)) return notInScopeResponse();
+  if (target === null || !seesTarget(g, target, req.method)) return notInScopeResponse();
   return null;
 }
 
@@ -385,12 +412,14 @@ export async function localGate(req: Request, pathname: string, g: GateInput): P
   const target = await gateTarget(req, g, pathname);
   if (target === undefined) return { ok: false, reason: 'capability', cap };
   if (target === null) return { ok: false, reason: 'not-in-scope' };
-  if (g.access.canvasOnly && !seesTarget(g, target)) return { ok: false, reason: 'not-in-scope' };
+  if (g.access.canvasOnly && !seesTarget(g, target, req.method))
+    return { ok: false, reason: 'not-in-scope' };
   if (g.access.can(cap, target)) return { ok: true };
   if (cap === 'edit' || cap === 'annotate') {
     const closure = g.closure?.() ?? null;
-    if (closure && writes(g.access, closure, target, { exists: g.exists?.(target) ?? true }))
-      return { ok: true };
+    const body = PER_USE_PHOTO_RE.test(target) ? await g.bodyFor?.(req, target) : undefined;
+    const exists = g.exists?.(target, body) ?? true;
+    if (closure && writes(g.access, closure, target, { exists, body })) return { ok: true };
   }
   return { ok: false, reason: 'capability', cap };
 }

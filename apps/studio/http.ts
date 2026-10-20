@@ -95,8 +95,8 @@ import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
-import { createDsOutsideWatcher } from './ds/outside.ts';
 import { heldArtboards } from './ds/make.ts';
+import { createDsOutsideWatcher } from './ds/outside.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { registerDsUndoHook } from './ds/undo-hook.ts';
 import { createReferenceLanes } from './edit-ops/references.ts';
@@ -205,7 +205,7 @@ import { materializeMissing } from './materialize-client.ts';
 import { createOutbox, type GateFacts } from './outbox/index.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
-import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
+import { createPhotoStore, EDIT8_RE, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
 import {
   allSpecs,
@@ -3185,10 +3185,26 @@ export function createHttp(
       // rebinding on every method.
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const asset = new URL(req.url).searchParams.get('asset');
+      const q = new URL(req.url).searchParams;
+      const asset = q.get('asset');
+      // S8.15 — `?edit=<edit8>` reads one use's edit; `?perUse=1` writes one (the server names it)
+      const editName = q.get('edit');
+      if (editName !== null && !EDIT8_RE.test(editName))
+        return new Response('invalid edit name', { status: 400 });
       if (req.method === 'GET') {
-        const edit = await photoStore.getPhotoEdit(asset);
+        const edit = editName
+          ? await photoStore.getPerUseEdit(asset, editName)
+          : await photoStore.getPhotoEdit(asset);
         return Response.json(edit ?? {}, { headers: { 'Cache-Control': 'no-store' } });
+      }
+      if ((req.method === 'PUT' || req.method === 'POST') && q.get('perUse') === '1') {
+        const body = await readJson<unknown>(req, PHOTO_EDIT_MAX_BYTES + 1024);
+        if (body == null) return new Response('body required', { status: 400 });
+        const r = await photoStore.savePerUseEdit(asset, body);
+        return Response.json(r.ok ? { ok: true, path: r.path, edit: r.edit8, value: r.edit } : r, {
+          status: r.ok ? 200 : r.status,
+          headers: { 'Cache-Control': 'no-store' },
+        });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
         const body = await readJson<unknown>(req, PHOTO_EDIT_MAX_BYTES + 1024);
@@ -7169,9 +7185,18 @@ export function createHttp(
       designRel,
       tableSession,
       closure: access.grants.length > 0 ? () => visibility.closureOf(access) : undefined,
-      exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
-      // S9.7b — a table route's own target (a reply by comment id: the thread's canvas)
-      targetFor: laneRoutes.targetFor,
+      // S8.15 — a per-use photo edit that already holds these bytes is no overwrite
+      exists: (rel, body) =>
+        body === undefined
+          ? existsSync(join(ctx.paths.designRoot, rel))
+          : photoStore.holdsOther(rel, body),
+      // S9.7b — a table route's own target (a reply by comment id: the thread's canvas);
+      // S8.15 — /_api/photo-edit names its sidecar (the per-use one by the bytes it writes)
+      targetFor: (req, pathname) =>
+        pathname === '/_api/photo-edit'
+          ? photoStore.gateTarget(req)
+          : laneRoutes.targetFor(req, pathname),
+      bodyFor: (req) => photoStore.gateBody(req),
     };
   }
 

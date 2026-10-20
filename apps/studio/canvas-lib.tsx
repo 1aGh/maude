@@ -3619,6 +3619,59 @@ export function extractAssetRef(el: Element): string | null {
   return photoRefOf(el).match(ASSET_REF_RE)?.[0] ?? null;
 }
 
+// S8.15 — one use of a photo can carry its own edit: the authored attribute
+// `data-photo-edit="<edit8>"` names `assets/<img8>.<edit8>.photo.json` (contract
+// S8-asset-sidecars §5.1). Render order: that use's edit when its file is valid,
+// else the every-use `assets/<img8>.photo.json`, else the original. The bridge keys
+// its work by PHOTO KEY — `assets/<img8>.<ext>` for every use, `…#<edit8>` for one
+// use — so two uses of one picture bake apart. A 1.x canvas-lib never reads the
+// attribute and shows the every-use look.
+const PHOTO_EDIT_NAME_RE = /^[0-9a-f]{8,16}$/;
+
+/** The photo key of an element: its asset, plus `#<edit8>` when it carries its own edit. */
+export function photoKeyOf(el: Element): string | null {
+  const asset = extractAssetRef(el);
+  if (!asset) return null;
+  const edit = el.getAttribute('data-photo-edit');
+  return edit && PHOTO_EDIT_NAME_RE.test(edit) ? `${asset}#${edit}` : asset;
+}
+
+const keyAsset = (key: string): string => key.split('#')[0] as string;
+
+/**
+ * Every element showing `key` — or, with `use` (the `data-cd-id` of the one use the
+ * inspector is editing), that element only, whatever its key: its first edit has no
+ * name yet.
+ */
+export function findPhotoEls(key: string, use?: string): Element[] {
+  if (typeof document === 'undefined') return [];
+  const asset = keyAsset(key);
+  const out: Element[] = [];
+  for (const n of document.querySelectorAll('img, image')) {
+    if (use !== undefined) {
+      if (n.getAttribute('data-cd-id') === use && extractAssetRef(n) === asset) out.push(n);
+    } else if (photoKeyOf(n) === key) out.push(n);
+  }
+  return out;
+}
+
+/** The edit a key shows: its own file, else the every-use file (render order above). */
+async function fetchEditFor(key: string): Promise<PhotoEdit | null> {
+  const [asset, edit] = key.split('#') as [string, string | undefined];
+  const get = (q: string): Promise<Record<string, unknown> | null> =>
+    fetch(`/_api/photo-edit?${q}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  const a = `asset=${encodeURIComponent(asset)}`;
+  if (edit) {
+    const own = await get(`${a}&edit=${edit}`);
+    if (own && Object.keys(own).length > 0 && !isDefaultEdit(own as PhotoEdit))
+      return own as PhotoEdit;
+  }
+  const every = await get(a);
+  return every && Object.keys(every).length > 0 ? (every as PhotoEdit) : null;
+}
+
 function setPhotoElSrc(el: Element, url: string): void {
   if (el.tagName.toLowerCase() === 'image') {
     el.setAttribute(el.hasAttribute('xlink:href') ? 'xlink:href' : 'href', url);
@@ -3654,44 +3707,49 @@ export function PhotoPreviewBridge() {
     []
   );
 
-  const bake = useCallback((asset: string, original: string, edit: PhotoEdit) => {
-    const token = (tokenRef.current.get(asset) ?? 0) + 1;
-    tokenRef.current.set(asset, token);
-    import('./photo/pipeline.ts')
-      .then(({ renderPhotoDataUrl }) => renderPhotoDataUrl({ source: original, edit }))
-      .then((dataUrl) => {
-        if (tokenRef.current.get(asset) !== token) return; // superseded by a newer edit
-        const live = findPhotoEl(asset);
-        if (live) setPhotoElSrc(live, dataUrl);
-      })
-      .catch((err) => {
-        console.error('[PhotoPreviewBridge] bake failed', err);
-      });
-  }, []);
+  const bake = useCallback(
+    (slot: string, original: string, edit: PhotoEdit, key: string, use?: string) => {
+      const token = (tokenRef.current.get(slot) ?? 0) + 1;
+      tokenRef.current.set(slot, token);
+      import('./photo/pipeline.ts')
+        .then(({ renderPhotoDataUrl }) => renderPhotoDataUrl({ source: original, edit }))
+        .then((dataUrl) => {
+          if (tokenRef.current.get(slot) !== token) return; // superseded by a newer edit
+          for (const live of findPhotoEls(key, use)) setPhotoElSrc(live, dataUrl);
+        })
+        .catch((err) => {
+          console.error('[PhotoPreviewBridge] bake failed', err);
+        });
+    },
+    []
+  );
 
   const apply = useCallback(
-    (asset: string, edit: PhotoEdit | null) => {
-      const el = findPhotoEl(asset);
-      if (!el) return;
-      if (!el.hasAttribute('data-photo-asset')) el.setAttribute('data-photo-asset', asset);
+    (key: string, edit: PhotoEdit | null, use?: string) => {
+      const els = findPhotoEls(key, use);
+      if (els.length === 0) return;
+      const asset = keyAsset(key);
+      for (const el of els)
+        if (!el.hasAttribute('data-photo-asset')) el.setAttribute('data-photo-asset', asset);
       if (!originalRef.current.has(asset)) {
-        const orig =
-          el.getAttribute('src') || el.getAttribute('href') || el.getAttribute('xlink:href') || '';
-        originalRef.current.set(asset, orig);
+        const orig = photoRefOf(els[0] as Element);
+        if (!orig.startsWith('data:')) originalRef.current.set(asset, orig);
       }
       const original = originalRef.current.get(asset) ?? '';
+      // One bake slot per key — or per use while the inspector previews one use.
+      const slot = use === undefined ? key : `${key}@${use}`;
       const timers = bakeTimers.current;
-      clearTimeout(timers.get(asset));
+      clearTimeout(timers.get(slot));
       if (!edit || isDefaultEdit(edit)) {
-        timers.delete(asset);
+        timers.delete(slot);
         // A bake already rendering an earlier edit must not land over this.
-        tokenRef.current.set(asset, (tokenRef.current.get(asset) ?? 0) + 1);
-        setPhotoElSrc(el, original);
+        tokenRef.current.set(slot, (tokenRef.current.get(slot) ?? 0) + 1);
+        if (original) for (const el of els) setPhotoElSrc(el, original);
         return;
       }
       timers.set(
-        asset,
-        setTimeout(() => bake(asset, original, edit), BAKE_DEBOUNCE_MS)
+        slot,
+        setTimeout(() => bake(slot, original, edit, key, use), BAKE_DEBOUNCE_MS)
       );
     },
     [bake]
@@ -3714,27 +3772,24 @@ export function PhotoPreviewBridge() {
     const onRefreshed = (e: Event) => {
       const sha8 = (e as CustomEvent<{ sha8?: unknown }>).detail?.sha8;
       if (typeof sha8 !== 'string' || !/^[0-9a-f]{8}$/i.test(sha8)) return;
-      // Resolve the full `assets/<sha8>.<ext>` ref from the live DOM — the
-      // event carries only the hash (the sidecar name has no extension).
-      let asset: string | null = null;
+      // Resolve every photo key of that asset from the live DOM — the event
+      // carries only the hash (the sidecar name has no extension), and each use
+      // with its own edit (S8.15) is a key of its own.
+      const keys = new Set<string>();
       for (const n of document.querySelectorAll('img, image')) {
-        const ref = extractAssetRef(n);
-        if (ref?.includes(`assets/${sha8}.`)) {
-          asset = ref;
-          break;
-        }
+        const key = photoKeyOf(n);
+        if (key?.includes(`assets/${sha8}.`)) keys.add(key);
       }
-      if (!asset) return; // no photo on this canvas uses that asset
-      const target = asset;
-      const g = nextFetchGen(target);
-      fetch(`/_api/photo-edit?asset=${encodeURIComponent(target)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((edit) => {
-          if (!isLatestFetch(target, g)) return; // a newer answer owns the render
-          // A deleted/reset edit applies as null → restores the original src.
-          apply(target, edit && !isDefaultEdit(edit) ? (edit as PhotoEdit) : null);
-        })
-        .catch(() => {});
+      for (const target of keys) {
+        const g = nextFetchGen(target);
+        fetchEditFor(target)
+          .then((edit) => {
+            if (!isLatestFetch(target, g)) return; // a newer answer owns the render
+            // A deleted/reset edit applies as null → restores the original src.
+            apply(target, edit && !isDefaultEdit(edit) ? edit : null);
+          })
+          .catch(() => {});
+      }
     };
     document.addEventListener('maude:photo-edit-refreshed', onRefreshed);
     return () => document.removeEventListener('maude:photo-edit-refreshed', onRefreshed);
@@ -3742,7 +3797,13 @@ export function PhotoPreviewBridge() {
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      const m = e.data as { dgn?: string; asset?: unknown; edit?: unknown; busy?: unknown } | null;
+      const m = e.data as {
+        dgn?: string;
+        asset?: unknown;
+        edit?: unknown;
+        busy?: unknown;
+        use?: unknown;
+      } | null;
       if (!m) return;
       // Background-removal busy shimmer (Task 12 reveal) — a `data-photo-busy`
       // attribute toggle on the real element, styled by inspect.ts's single CSS
@@ -3762,8 +3823,16 @@ export function PhotoPreviewBridge() {
       if (m.dgn !== 'photo-preview' || typeof m.asset !== 'string') return;
       const asset = m.asset;
       const edit = (m.edit ?? null) as PhotoEdit | null;
-      nextFetchGen(asset);
-      apply(asset, edit);
+      // S8.15 — `use` (a `data-cd-id`) previews that one use; without it, every use
+      // that has no edit of its own.
+      const use = typeof m.use === 'string' && m.use ? m.use : undefined;
+      if (use !== undefined) {
+        for (const el of findPhotoEls(asset, use)) {
+          const key = photoKeyOf(el);
+          if (key) nextFetchGen(key);
+        }
+      } else nextFetchGen(asset);
+      apply(asset, edit, use);
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
@@ -3797,16 +3866,15 @@ export function PhotoPreviewBridge() {
     const scan = () => {
       let scanned = 0;
       for (const n of document.querySelectorAll('img, image')) {
-        const asset = extractAssetRef(n);
-        if (!asset || attempted.has(asset)) continue;
+        const key = photoKeyOf(n);
+        if (!key || attempted.has(key)) continue;
         if (++scanned > MAX_SCAN_PER_PASS) break;
-        attempted.add(asset);
-        const g = nextFetchGen(asset);
-        fetch(`/_api/photo-edit?asset=${encodeURIComponent(asset)}`)
-          .then((r) => (r.ok ? r.json() : null))
+        attempted.add(key);
+        const g = nextFetchGen(key);
+        fetchEditFor(key)
           .then((edit) => {
-            if (cancelled || !isLatestFetch(asset, g) || !edit || isDefaultEdit(edit)) return;
-            apply(asset, edit);
+            if (cancelled || !isLatestFetch(key, g) || !edit || isDefaultEdit(edit)) return;
+            apply(key, edit);
           })
           .catch(() => {});
       }
@@ -3820,7 +3888,7 @@ export function PhotoPreviewBridge() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['src', 'href'],
+      attributeFilter: ['src', 'href', 'data-photo-edit'],
     });
     return () => {
       cancelled = true;
