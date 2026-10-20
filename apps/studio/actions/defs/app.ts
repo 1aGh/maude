@@ -155,6 +155,20 @@ export const APP_ACTIONS: ActionDef[] = [
       sheet: 'This cheat sheet · help',
     },
   },
+  // S6.15 (Q10) — a new project starts empty; Help and guides adds the two guide canvases on request. The Help
+  // dialog's button and this ⌘K row are one function (client/v2/help/add-guides.js → POST /_api/help/add-guides).
+  {
+    id: 'help.add-guides',
+    label: 'Add the guide canvases to this project',
+    kind: 'command',
+    icon: 'help',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: {
+      keywords: ['guides', 'how to use maude', 'how to make video', 'tutorial', 'examples'],
+      where: 'Help and guides',
+    },
+  },
   // S11.2 — the empty-artboard hint's button, and its ⌘K twin: opens the AI chat with "Fill <artboard> starting
   // from <another board>." in the field. It never sends — the person presses ↵. Desktop only (the chat is native).
   {

@@ -2224,6 +2224,8 @@ export function createHttp(
       localFormat: () => asFormat(ctx.cfg.formatVersion),
       cloud: cloudApi,
     },
+    // S6.15 — POST /_api/help/add-guides (routes/help-guides.ts): main origin only, Can edit and up.
+    helpGuides: { uiDir: () => join(ctx.paths.designRoot, ctx.cfg.newCanvasDir || 'ui') },
     // S9.20b — GET /_api/cloud/plan (routes/cloud-plan.ts): main origin only, the device token.
     cloudPlan: { cloud: cloudApi },
     // S11.14 — GET /_api/connections/hub (routes/connections.ts): main origin only, the hub credential.

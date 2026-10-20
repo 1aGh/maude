@@ -1079,6 +1079,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'ai.ask-fill-artboard': { effect: 'none', agent: human('summon') },
   'help.shortcuts': { effect: 'none', agent: cli('maude design open --panel shortcuts') },
   'help.guides': HELP,
+  // S6.15 (Q10): adds the two guide canvases on request — the person's own question to Help; an agent that wants the
+  // guides' words reads the plugin docs, and an agent that wants a canvas makes one. Refused below edit by the route.
+  'help.add-guides': {
+    effect: 'project',
+    minRole: 'edit',
+    server: { route: '/_api/help/add-guides', method: 'POST' },
+    agent: human(
+      'onboarding',
+      'Help › Help and guides adds the guide canvases to a project on request'
+    ),
+  },
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
   'ai.draw-mark': { effect: 'external', agent: cli('maude design draw-build') },
   // ── AI runs (S5.3, V2-1.15 §5.10). S5.4 built `maude design runs list|stop`: a terminal

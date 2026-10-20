@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "05bed8c4dd4b",
+  "manifestVersion": "0e2c074333ea",
   "actions": [
     {
       "id": "search.open",
@@ -3509,6 +3509,23 @@
       "agent": {
         "path": "human",
         "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.add-guides",
+      "label": "Add the guide canvases to this project",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/help/add-guides",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "onboarding",
+        "note": "Help › Help and guides adds the guide canvases to a project on request"
       }
     },
     {

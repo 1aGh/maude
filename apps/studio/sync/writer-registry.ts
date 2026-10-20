@@ -431,6 +431,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S6.0b routes/cloud-move.ts: creates the cloud project + links THIS folder (the attach lane);
   // the seed-up is the sync runtime's, never this route's
   '/_api/cloud/move': { class: 'local' },
+  // S6.15 — Help › Help and guides adds the two guide canvases: NEW files observed into existence (like createCanvas)
+  '/_api/help/add-guides': {
+    class: 'file-plane',
+    rows: 'How to use Maude / How to make video .tsx + .meta.json, new files only (routes/help-guides.ts; never over an existing file)',
+  },
   // S9.20b routes/cloud-plan.ts: the account's plan from cloud /api/home (device token); writes nothing
   '/_api/cloud/plan': { class: 'read' },
   '/_api/cloud/projects': { class: 'read' },
