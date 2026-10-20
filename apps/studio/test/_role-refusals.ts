@@ -147,6 +147,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view', 'comment'],
     body: { assets: ['assets/a1b2c3d4.jpg'] },
   },
+  // S8.16 — Generate with N takes: Can edit on the canvas (test/generate-takes.test.ts is the handler's own gate)
+  {
+    method: 'POST',
+    route: '/_api/generate-takes',
+    refused: ['view', 'comment'],
+    body: { canvas: 'x.tsx', artboard: 'a', prompt: 'p' },
+  },
   // S3.10a — `element.set-link` / `element.clear-link`: one dispatch route for every structural edit (test/edit-op-route.test.ts;
   // the viewer's 403 through a booted studio is a row of test/access-role-matrix.test.ts).
   { method: 'POST', route: '/_api/edit-op', refused: ['view', 'comment'] },

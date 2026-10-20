@@ -340,6 +340,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
   '/_api/figma/explode': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },
   '/_api/generate-jobs': { class: 'file-plane', rows: 'S29' },
+  // S8.16 — N takes land in assets/ with their `.gen.json` sidecars (companion text); the quote and the reads write nothing
+  '/_api/generate-takes': { class: 'file-plane', rows: 'S29' },
   '/_api/generate/audio-reuse': { class: 'file-plane', rows: 'S30' },
   '/_api/stickers': { class: 'file-plane', rows: 'S27' },
   '/_api/generate/prefs': { class: 'local', rows: 'S31 (config.assign schema gap)' },
@@ -500,6 +502,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
+  // routes/generate.ts (S8.16): the consent quote is this process's memory; `of` reads a take's `.gen.json`
+  '/_api/generate-takes/quote': { class: 'local' },
+  '/_api/generate-takes/of': { class: 'read' },
   '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
   // S11.13 routes/settings.ts — Settings › Advanced reads (a count; plugin versions)
   '/_api/kg/summary': { class: 'read' },

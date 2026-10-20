@@ -34,6 +34,7 @@ import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
+import { createGenerateRoutes, type GenerateRouteDeps } from './generate.ts';
 import { createHelpGuidesRoutes, type HelpGuidesDeps } from './help-guides.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createKindRoutes } from './kinds.ts';
@@ -68,6 +69,8 @@ export { canvasPathsOfIndex } from './availability.ts';
 export { riderPatch } from './canvas-meta-rider.ts';
 // S8.1 — the v2 half of http.ts's legacy `/_api/export(-jobs)` routes shares the estimate's gate.
 export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
+// S8.16 — the Generate-with-N-takes deps over the live registry, key store and generation queue.
+export { generateDepsFor } from './generate.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
 // S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
@@ -130,6 +133,8 @@ export interface RouteDeps {
   assetState?: AssetStateRouteDeps;
   /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/` */
   assetTrash?: AssetTrashRouteDeps;
+  /** S8.16 — `/_api/generate-takes*` (main origin, Can edit on the canvas): N takes, the consent quote, ← → */
+  generate?: GenerateRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
   share: ShareRouteDeps;
   /** S9.24 — the object-conflict card: `GET /_api/sync/conflicts`, `POST …/resolve` (one lane edit) */
@@ -213,6 +218,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
+    ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
     ...createDsRoutes(

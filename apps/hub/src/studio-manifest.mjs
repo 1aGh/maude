@@ -388,6 +388,10 @@ export const STUDIO_ROUTES = Object.freeze({
   // `/_api/export` is forbidden for, and there is no browser in a cell image.
   '/_api/shell-shot': REFUSED,
   '/_api/generate-jobs': REFUSED,
+  // S8.16 — Generate with N takes: BYOK keys + provider egress, the same as /_api/generate-jobs.
+  '/_api/generate-takes': REFUSED,
+  '/_api/generate-takes/of': REFUSED,
+  '/_api/generate-takes/quote': REFUSED,
   '/_api/generate/audio-reuse': REFUSED,
   '/_api/generate/audio-search': REFUSED,
   '/_api/generate/keyframe-model': REFUSED,
