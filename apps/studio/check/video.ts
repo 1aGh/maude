@@ -7,11 +7,14 @@
 //   video-reframe-focus    focus / formats keys: literal [sourceSec, x, y], sorted, x and y in [0, 1]
 //   video-reframe-zoom     zoom ≥ 1;  video-reframe-fit: fill | fit | blur
 //   video-place-at         <Place at formats>: literal [x, y] pairs in [0, 1]
+//   video-title-motion     <TitleMotion preset frames>: preset is one of the six, frames a whole number (S7.10)
 //   video-captions-fixes   `fixes` is a JSON literal of { src, at, text }
 //   video-derived-prop     `__words` / `__speech` are the build's — never in the file
 //
 // Only components imported from `@maude/canvas-lib` are judged (aliases followed): a comp's own
 // local `Captions` (today's CUES pattern) is the author's business.
+
+import { isTitleMotion } from '../video/title-motion.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc's ESTree nodes are walked structurally
 type Node = any;
@@ -25,7 +28,7 @@ export interface VideoFinding {
 }
 
 const LIB = '@maude/canvas-lib';
-const VOCAB = ['Captions', 'Duck', 'Reframe', 'Place'] as const;
+const VOCAB = ['Captions', 'Duck', 'Reframe', 'Place', 'TitleMotion'] as const;
 type Vocab = (typeof VOCAB)[number];
 const ASPECT_RE = /^[1-9]\d{0,4}:[1-9]\d{0,4}$/;
 
@@ -308,6 +311,20 @@ export function videoVocabFindings(rel: string, text: string, program: Node): Vi
             'write fit="fill", "fit" or "blur"'
           );
       }
+    } else if (kind === 'TitleMotion') {
+      const pr = attr(el, 'preset');
+      const fr = attr(el, 'frames');
+      const frv = fr ? attrValue(fr) : undefined;
+      if (
+        (pr !== null && !isTitleMotion(attrValue(pr))) ||
+        (fr !== null && (typeof frv !== 'number' || !Number.isInteger(frv) || frv < 1 || frv > 90))
+      )
+        push(
+          'video-title-motion',
+          at,
+          '<TitleMotion> has a preset or a length it does not know',
+          'write preset="slide-up" (none, fade, slide-up, pop, type-on or per-word) and frames={12}'
+        );
     } else if (kind === 'Place') {
       const pair = (p: unknown) => Array.isArray(p) && p.length === 2 && p.every(frac);
       const a = attr(el, 'at');
