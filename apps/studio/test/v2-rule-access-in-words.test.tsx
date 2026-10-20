@@ -21,6 +21,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { cloudRoleWord } from '../client/home/home-model.js';
 import { accessWord, ACCESS_WORDS as CARD_WORDS } from '../client/v2/access/access-client.js';
+import { AccessLayer } from '../client/v2/access/access-host.jsx';
 import { WHERE_CONTEXTS } from '../client/v2/advanced/where-matrix.js';
 import { previewHint } from '../client/v2/preview/preview-bar.jsx';
 import { ROLE_WORDS } from '../client/v2/share/share-model.js';
@@ -122,5 +123,33 @@ describe('Ask to edit is the one action', () => {
   test('a link in a browser: Preview says what esc does in mode words, not a role id', () => {
     expect(previewHint(capsFor({ canEdit: false, role: 'observer' }))).toBe('for Viewing');
     expect(previewHint(capsFor({ canEdit: false, role: 'viewer' }))).toBe('for Viewing');
+  });
+});
+
+describe('the access cards name the canvas, never its file', () => {
+  // The shell hands the host the open tab's designRoot-relative path; the words carry its name only.
+  const rel = 'ui/2026/combine/Combine-kampan.tsx';
+  async function layer(props: Record<string, unknown>) {
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(<AccessLayer canvas={rel} project="Alligators brand" {...props} />);
+    });
+    return host;
+  }
+  test('link off: "Ask the person who shared Combine-kampan for a new one."', async () => {
+    const h = await layer({ linkOff: true });
+    const words = h.querySelector('[data-testid="access-link-off"]')?.textContent ?? '';
+    expect(words).toContain('This link was turned off.');
+    expect(words).toContain('Ask the person who shared Combine-kampan for a new one.');
+    expect(words).not.toContain('.tsx');
+    expect(words).not.toContain('ui/');
+  });
+  test('the view-only tip: "You can look at Combine-kampan, not change it."', async () => {
+    const h = await layer({ tip: true });
+    const words = h.querySelector('[data-testid="access-view-tip"]')?.textContent ?? '';
+    expect(words).toContain('You can look at Combine-kampan, not change it.');
+    expect(words).not.toContain('.tsx');
   });
 });
