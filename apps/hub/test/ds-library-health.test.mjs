@@ -59,5 +59,6 @@ test('/health and the rows ask the same predicate, over the same design root', (
     lib.includes('designRoot: () => (studioProxy ? designRootFor() : null)'),
     'design root'
   );
-  assert.ok(lib.includes('verifyGrant: null'), 'no non-member until the grant lands');
+  // S10.18a-2: the grant store's verifier — null while MAUDE_DS_LIBRARY_GRANTS is off.
+  assert.ok(lib.includes('verifyGrant: dsGrants.verifyGrant'), 'the grant store decides');
 });

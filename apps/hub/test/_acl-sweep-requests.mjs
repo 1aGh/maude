@@ -317,6 +317,12 @@ const ACCEPTED = {
     ['GET', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/tokens.json`],
     ['POST', `${V1}/ds/${tg.slug.replace(/[^a-z]/g, '')}/head`, '{}'],
   ],
+  // S10.18a-2 — the owner's library grants: list, mint, revoke.
+  'ds-grants': (tg) => [
+    ['GET', `${V1}/ds-grants${q(tg)}`],
+    ['POST', `${V1}/ds-grants`, json({ system: tg.slug, label: tg.path })],
+    ['DELETE', `${V1}/ds-grants/g_0000000000000000`],
+  ],
 };
 
 /** Name a pattern row by a probe path: the accepted route it matches. */
@@ -340,6 +346,7 @@ const PATTERN_PROBES = {
   'render-jobs/:id': `${V1}/render-jobs/i_00000000000000000001`,
   'render-jobs/:id/file': `${V1}/render-jobs/i_00000000000000000001/file`,
   ds: `${V1}/ds/brand/head`,
+  'ds-grants': `${V1}/ds-grants`,
 };
 
 /** The builder for a row: exact/prefix by key, a pattern by the probe it matches. */
