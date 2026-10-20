@@ -96,6 +96,7 @@ import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
 import { createDsOutsideWatcher } from './ds/outside.ts';
+import { heldArtboards } from './ds/make.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { registerDsUndoHook } from './ds/undo-hook.ts';
 import { createReferenceLanes } from './edit-ops/references.ts';
@@ -1846,6 +1847,8 @@ export function createHttp(
         return { name: vouched || (await api.gitCurrentUser()) || 'You' };
       },
       emit: (e, p) => ctx.bus.emit(e, p),
+      // S10.16a — a Design system canvas's section reads 'drawing' while a run holds its artboard
+      held: (canvasRel) => heldArtboards(runs, canvasRel),
     },
     // S4.14 — `/_api/votes*` (routes/votes.ts): board ballots locally, a proxy to a `votes-v1` hub when
     // linked, off in a cell / on an older hub. The voter is this machine's person, never the body.
