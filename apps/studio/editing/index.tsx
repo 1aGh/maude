@@ -43,6 +43,7 @@ import {
   isInstanceAction,
   runInstanceAction,
 } from './instance-actions.ts';
+import { KindDim } from './kind-dim.tsx';
 import {
   CONSTRAIN_ACTION,
   isConstrainAction,
@@ -299,6 +300,8 @@ export function EditingLayer() {
       <EmptyArtboardReporter />
       {/* S7.7 — tells the shell which artboard is selected and where: the timeline island rises from a video */}
       <ArtboardAnchorReporter />
+      {/* S7.24b — the kind filter in Layers dims the artboards outside the kind (a look, never a lock) */}
+      <KindDim />
       {/* S7.9 — footage in flight over the window: the followed video wears "Or drop here — adds at the end" */}
       {isReadOnlyCanvas() ? null : <DropChip />}
       <ArtboardHandles />

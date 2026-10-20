@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "7bc6955c25a0",
+  "manifestVersion": "80c470f2f8a5",
   "actions": [
     {
       "id": "search.open",
@@ -1892,6 +1892,18 @@
         "path": "human",
         "because": "view-pref",
         "note": "a selection in the person’s window; an agent finds elements with `maude design canvas-rects`"
+      }
+    },
+    {
+      "id": "layers.filter-kind",
+      "label": "Filter layers by kind",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "dims the other artboards in the person’s window; `maude design index` lists every canvas with its artboard kinds"
       }
     },
     {

@@ -42,3 +42,22 @@ export function useKindFilter() {
   const k = useSyncExternalStore(subscribeKindFilter, getKindFilter, () => 'all');
   return [k, setKindFilter, pickKind];
 }
+
+// ── S7.24b: ⌘K "Filter layers by kind" → the cursor goes to the Layers chips ─────────────────────────────────
+// The chips may not be mounted when the request comes (the Layers tab is not showing yet), so the request is
+// remembered until they mount and take it — the same shape as the select-by-selector request.
+
+export const FOCUS_LAYERS_KIND_EVENT = 'maude:focus-layers-kind';
+let pendingFocus = false;
+
+export function requestFocusLayersKind(target = globalThis.window) {
+  pendingFocus = true;
+  target?.dispatchEvent?.(new CustomEvent(FOCUS_LAYERS_KIND_EVENT));
+}
+
+/** The chips took the request. @returns whether one was waiting. */
+export function takeFocusLayersKindRequest() {
+  const was = pendingFocus;
+  pendingFocus = false;
+  return was;
+}

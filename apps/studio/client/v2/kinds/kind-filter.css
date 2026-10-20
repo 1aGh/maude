@@ -56,6 +56,38 @@
   .kf-chip-n {
     font-size: var(--type-xs);
   }
+  /* S7.24b — the Layers half: the sentence under the chips and its way out (08 `ak-fp-foot`, `ak-link`) */
+  .kf-layers {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+  }
+  .kf-foot {
+    margin: var(--space-1) var(--space-2) 0;
+    padding: var(--space-2) var(--space-1) 0;
+    box-shadow: inset 0 0.5px 0 var(--border-subtle);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .kf-foot-link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-weight: var(--w-medium);
+    color: var(--accent-text);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+  }
+  .kf-foot-link:hover {
+    color: var(--fg-0);
+  }
+  .kf-foot-link:focus-visible {
+    outline: var(--focus-ring-width, 2px) solid var(--focus-ring);
+    outline-offset: 1px;
+  }
   @media (prefers-reduced-motion: reduce) {
     .kf-chip {
       transition-duration: 1ms;

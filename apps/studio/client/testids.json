@@ -32587,6 +32587,118 @@
     "v2": "new"
   },
   {
+    "hook": "layers-kind-filter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind filter in the Layers header (S7.24b): the chips, the foot, and the kit block when nothing matches. Renders nothing for a canvas whose artboards the index does not know yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-kind-chips",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind chips in the Layers header, counted over the open canvas's artboards (21 = 19 fixed size + 2 print). The same filter as `kind-chips` in Canvases; `data-on` is the kind being filtered to.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-kind-chip-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Layers kind chip (`all` · `digital` · `web` · `print` · `video`): `aria-pressed` when it is on, `data-zero` when the canvas has no artboard of the kind, accessible name \"Print, 2\". Pressing the chip that is on clears the filter.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-kind-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sentence under the Layers chips while a kind filter dims artboards: \"19 other artboards are dimmed.\" followed by Show all.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-kind-show-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Show all, in the foot above: puts the filter back to All, so nothing is dimmed.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-kind-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kit's empty block when the kind filter matches no artboard of the open canvas: names the filter (\"No print artboards in Combine-invite.\"). The artboards stay on the canvas, only dimmed.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-kind-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Clear filter, in the block above: undoes the kind filter in one click.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/LayersKindFilter.jsx",
+      "symbol": "LayersKindFilter"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-dim.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "insp-mk-<name>",
     "kind": "testid",
     "pattern": true,

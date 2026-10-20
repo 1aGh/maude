@@ -11,6 +11,7 @@ import { pushRecent } from '../../../kinds/presets.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { persistUiPrefs } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import KindDimHost from './KindDimHost.jsx';
 import SizePicker from './SizePicker.jsx';
 
 /** The new Recent list after a pick, given the stored one. */
@@ -50,15 +51,20 @@ export default function SizePickerHost({ req, onClose }) {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  if (!req) return null;
   return (
-    <SizePicker
-      canvas={req.canvas}
-      anchor={req.anchor ?? null}
-      canEdit={!viewerMode}
-      onGhost={(msg) => postToActiveCanvas?.(msg)}
-      onPlace={(msg) => postToActiveCanvas?.(msg)}
-      onClose={onClose}
-    />
+    <>
+      {/* S7.24b — the kind filter dims the artboards outside the kind on every open canvas (draws nothing here) */}
+      <KindDimHost designRel={cfg?.designRel || cfg?.designRoot || ''} />
+      {req ? (
+        <SizePicker
+          canvas={req.canvas}
+          anchor={req.anchor ?? null}
+          canEdit={!viewerMode}
+          onGhost={(msg) => postToActiveCanvas?.(msg)}
+          onPlace={(msg) => postToActiveCanvas?.(msg)}
+          onClose={onClose}
+        />
+      ) : null}
+    </>
   );
 }
