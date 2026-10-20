@@ -59,6 +59,8 @@ const DEDICATED: Record<string, string> = {
   'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
   // S10.8: a converted acme project seeded with one pending Accent change.
   'ds-review.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-review',
+  // S10.9: the reach view ("Used in 5 canvases · Show"), against a project whose canvases use the Accent.
+  'ds-reach.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-reach',
   // S10.11: an outside DS change + a conflict pick, seeded.
   'ds-review-outside.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-outside',
   // S6.11: an invite link landing on Home, against a loopback cloud stub.
