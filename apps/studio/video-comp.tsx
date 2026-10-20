@@ -245,6 +245,16 @@ export function playheadOf(artboardId: string | null | undefined): Playhead | nu
   return next;
 }
 
+/** S7.17 — the same playhead in FRAMES (what a teammate's timeline draws), or null with no clip there. */
+export function playheadFrameOf(artboardId: string | null | undefined): number | null {
+  const head = playheadOf(artboardId);
+  if (!head) return null;
+  for (const e of registry().values()) {
+    if (e.artboardId === artboardId && e.fps > 0) return Math.max(0, Math.round(head.t * e.fps));
+  }
+  return null;
+}
+
 /** React: re-renders when the clip on `artboardId` moves. `null` for an artboard with no clip. */
 export function usePlayhead(artboardId: string | null | undefined): Playhead | null {
   return useSyncExternalStore(

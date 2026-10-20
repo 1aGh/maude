@@ -46,6 +46,8 @@ import { TransitionPicker } from './joins/transition-picker.jsx';
 import { MusicLaneOverlay, musicSelection, useMusicLane } from './lanes/music-lane.jsx';
 import { MusicHint } from './music-hint.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
+import { RulerMarks } from './marks.jsx';
+import { PeerHeads } from './peers.jsx';
 import { timelineSelection } from './selection.js';
 import { useTimelineIsland } from './island-context.js';
 import { usePlayback } from './playhead.js';
@@ -2026,6 +2028,15 @@ export default function TimelinePanel({
                   Poster
                 </span>
               ) : null}
+              {/* S7.17 — comment flags + time-pinned stickies on this video */}
+              <RulerMarks
+                file={capFile}
+                artboardId={capId}
+                fps={fps}
+                total={totalFrames}
+                x={x}
+                onSeek={onSeek}
+              />
               {ticks.map((f) => {
                 const major = f % (fps || 30) === 0;
                 const showLabel = (advOpen && adv.mode === 'frames') || major || step <= 5;
@@ -2478,6 +2489,14 @@ export default function TimelinePanel({
             {snapFlash ? (
               <span className="tl-snapline" style={{ left: LABEL_GUTTER + x(snapFlash.frame) }} />
             ) : null}
+            {/* S7.17 — teammates' playheads, and the tag over a caption word one of them is fixing */}
+            <PeerHeads
+              canvas={capFile}
+              artboardId={capId}
+              x={x}
+              gutter={LABEL_GUTTER}
+              total={totalFrames}
+            />
             <span
               className="tl-playhead"
               data-testid="timeline-playhead"

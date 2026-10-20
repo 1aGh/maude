@@ -12,6 +12,8 @@
 // No DOM: `runClipVerb` takes its `fetch` and its `record` sink from the hook
 // (client/hooks/use-photo-and-timeline.jsx), so the one flow is what the tests drive.
 
+import { clipOpHolder, lockedAnswer } from './peers.jsx';
+
 /** What the toast and the undo row call each verb. */
 export const CLIP_VERB_LABELS = {
   speed: 'set speed',
@@ -141,7 +143,8 @@ export const refusalText = (j) => (j && (j.message || j.error)) || 'failed';
 /**
  * One clip verb, end to end: read the comp's clips, resolve `clipRef` (`resolveClip(cc, clipRef)`),
  * run `clip.<verb>` through `/_api/edit-op`, and on success hand `record` the undo payload.
- * Resolves the answer (`{ ok, … }`), or null when the clip is not on the timeline any more.
+ * Resolves the answer (`{ ok, … }`), or null when the clip is not on the timeline any more. A clip that shows a
+ * caption word a teammate is fixing answers `{ ok: false, code: 'locked' }` without a write (S7.17, `heldBy`).
  * Never rejects on a refusal; a network failure rejects (the hook toasts it).
  */
 export async function runClipVerb({
@@ -153,6 +156,7 @@ export async function runClipVerb({
   params,
   resolveClip,
   record,
+  heldBy = clipOpHolder,
 }) {
   const cc = await get(compClipsUrl(canvas, artboardId))
     .then((r) => r.json())
@@ -161,6 +165,9 @@ export async function runClipVerb({
   if (!CLIPLESS_VERBS.has(verb)) {
     clip = resolveClip(cc, clipRef);
     if (!clip?.stableId) return null;
+    // S7.17 — a teammate's caption word in this clip is theirs until they leave it: nothing is sent
+    const holder = heldBy(verb, artboardId ?? null, clip.stableId);
+    if (holder) return lockedAnswer(holder);
   }
   // `refRef` names the clip a move drops beside; the writer takes its stableId + fingerprint, read fresh above.
   let sent = params;
