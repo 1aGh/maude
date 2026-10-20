@@ -466,11 +466,13 @@ export const VIEW_ACTIONS: ActionDef[] = [
     label: 'Open all Advanced sections',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Once · every panel' },
   },
   {
     id: 'view.advanced-close-all',
     label: 'Close all Advanced sections',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Settings › Advanced › Reset' },
   },
 ];

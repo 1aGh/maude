@@ -98,4 +98,17 @@ export const MOVED_KEYS: readonly MovedKey[] = [
     to: 'edit.undo',
   },
   { was: 'Timeline redo ⇧⌘Z', now: '⇧⌘Z', to: 'edit.redo' },
+  // S11.18 (CONTRACT §2 moved list, design critic W5) — two actions that lost their menu row, not a key
+  {
+    was: 'Toggle theme',
+    now: '⌘K “Theme”',
+    note: 'and Settings › General',
+    to: 'settings.theme',
+  },
+  {
+    was: 'New video…',
+    now: '⌘K “New video”',
+    note: 'and New artboard › Video',
+    to: 'canvas.new-video',
+  },
 ];

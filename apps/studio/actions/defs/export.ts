@@ -96,6 +96,7 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'link',
     exec: 'shell',
+    search: { where: 'Share' },
     legacy: { palette: 'Copy share link' },
   },
   {
