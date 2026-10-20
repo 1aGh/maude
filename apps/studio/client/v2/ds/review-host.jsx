@@ -21,6 +21,7 @@ import { useDsRowDots } from './row-dots.js';
 import { DsOffSystemHost } from './off-system-host.jsx';
 import { DsSwitchHost } from './switch-host.jsx';
 import { DsConvertHost } from './convert-host.jsx';
+import { DsMakeHost } from './make-host.jsx';
 import { DsTruthHost } from './truth-host.jsx';
 import { useDsUpdateDots } from './update-dots.js';
 import { bodyOf } from './update-available.jsx';
@@ -265,6 +266,14 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
     <>
       <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
       <DsOffSystemHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+      {/* S10.16b — "Make a design system": the three-input sheet, the filling sections, the ready card */}
+      <DsMakeHost
+        cfg={cfg}
+        activePath={activePath}
+        toast={toast}
+        frameFor={frameFor}
+        fetchImpl={fetchImpl}
+      />
     </>
   );
   if (reach) {

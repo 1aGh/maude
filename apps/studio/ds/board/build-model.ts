@@ -10,6 +10,7 @@ import { indexRegistry, loadRegistry, type RegistryIndex } from '../registry.ts'
 import { diskFs, loadSystem, type SystemConfig } from '../system.ts';
 import { formsOf } from '../value-types.ts';
 import { lookOf, type StateRule, stateRulesOf, statesOf } from './component-states.ts';
+import { directionsOf } from './directions-model.ts';
 import {
   type BoardComponent,
   type BoardLogo,
@@ -318,6 +319,7 @@ export function buildBoardModel(
   }
 
   const label = typeof tm.meta.label === 'string' && tm.meta.label ? tm.meta.label : sys.name;
+  const made = directionsOf(designRoot, sys, tm.themes, tm.defaultTheme, modes.light);
   return {
     format: 'maude.ds-board',
     v: 1,
@@ -335,6 +337,8 @@ export function buildBoardModel(
     logos: logosOf(designRoot, sys, loaded.logos),
     pendingCount: Object.keys(pendingTokens).length + Object.keys(pendingComponents).length,
     canvases: usage ? usage.canvases : null,
+    making: made.making,
+    directions: made.directions,
   };
 }
 

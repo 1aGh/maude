@@ -34804,5 +34804,597 @@
     ],
     "sourceConsumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "ds-make-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The scrim behind \"Make a design system for <project>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The three-input sheet (`role=dialog`): a sentence, anything to learn from, mostly for.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Make a design system for <project>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-sentence",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Input 1, the brand in a sentence (required). It goes to AI verbatim.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ref-logo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Input 2, Logo: chooses an SVG, uploads it as bytes and names it on the chip (`aria-pressed` once chosen).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-logo-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The hidden file input behind the Logo chip.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ref-website",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Input 2, Website: the chip that holds the link field.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-website",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The link field inside the Website chip; only the host is passed on.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ref-figma",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Input 2, Figma library: a toggle (`aria-pressed`); AI says if Figma is not connected.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ref-canvases",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Input 2, Your canvases: on by default, drawn only when the project has canvases.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-for",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Input 3, Mostly for: Websites, Apps, Print and social, A bit of everything.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-for-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.16b: One \"Mostly for\" segment (`<id>` = websites, apps, print or everything); `aria-pressed` marks the one in force.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-fine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The fine print under the inputs, or why Make three directions is off when AI is not available.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: A refusal from the server, in words, on the sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Cancel; nothing was made.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Make three directions\": makes the outline, then asks AI with origin `ds-make`. Off until the sentence is typed.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-sheet.jsx",
+      "symbol": "DsMakeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ready",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The ready card on a system being made: \"<name> system is ready.\" (or \"partly ready\") with one action.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-host.jsx",
+      "symbol": "MakeReadyBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ready-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The ready card's line: ready, or partly ready.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-host.jsx",
+      "symbol": "MakeReadyBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ready-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: What is still missing, said plainly, or that every canvas picks the system up after a review.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-host.jsx",
+      "symbol": "MakeReadyBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-ready-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: A refusal from \"Use as <name>'s style\", in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-host.jsx",
+      "symbol": "MakeReadyBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-make-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Use as <name>'s style\": publishes the first revision, makes it the project default and offers the existing canvases one review.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/make-host.jsx",
+      "symbol": "MakeReadyBanner"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The direction bar in the inspector for a selected `ds-dir-*` artboard or tile (`data-direction`): Use A, Mix with.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Direction A · Calm daylight\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-picked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Picked\": the working files are exactly this direction.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-mood",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The colours' own names and the headline face of the direction.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-waiting",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: AI has not drawn this direction yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-made",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The system is made; its directions stay to look at and the pick is gone.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Use A\" (`ds.use-direction`), or \"Use this mix\" once parts of others are taken (`ds.mix`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-mix",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"Mix with…\": opens the list of the other directions' type, colours and corners.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-mix-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The Mix list (`role=menu`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-mix-<word>-<dir>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.16b: One part to take (`<word>` = type, colour or radius; `<dir>` = the direction that lends it); `aria-checked` marks it taken.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-summary",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: \"A + B's type + C's colours\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: What happened (`data-tone` ok or warn), in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-nosystem",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: The selection is not part of a design system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-dir-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.16b: Reading the system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/direction-bar.jsx",
+      "symbol": "DirectionPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-make.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-outline-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.16b: A section that waits or is being drawn while the system is made, on the Design system canvas (`data-ds-state` waiting or drawing).",
+    "producer": {
+      "file": "apps/studio/ds/board/outline.tsx",
+      "symbol": "useSectionOutline"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ds-make-board.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "[data-ds-direction]",
+    "kind": "selector",
+    "pattern": false,
+    "meaning": "S10.16b: The tile of a direction on the Design system canvas (`data-ds-direction` = a, b or c; `data-picked`). A click on it selects the direction in the inspector.",
+    "producer": {
+      "file": "apps/studio/ds/board/directions.tsx",
+      "symbol": "DirTile"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/ds-make-board.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

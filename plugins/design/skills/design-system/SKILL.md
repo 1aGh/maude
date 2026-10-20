@@ -29,6 +29,7 @@ At every invocation, decide which flow to execute:
 - Invoked via `/design:setup-ds <name>` → **BOOTSTRAP**, `target_ds = <name>`
 - Invoked via `/design:edit "..."` or `/design:new "..."` AND no `<designRoot>/system/*/` exists → **BOOTSTRAP**, `target_ds = "project"`, Q1 prefilled from `$ARGUMENTS` / `$BRIEF`
 - Invoked via `/design:setup-ds <existing-name> --force` → **BOOTSTRAP** (re-bootstrap), `target_ds = <existing-name>`
+- Invoked via `/design:setup-ds <name> --app` (the Maude app's "Make a design system" sheet) → **BOOTSTRAP**, sub-mode `app`, `target_ds = <name>`; the brief is the person's sentence, verbatim
 - Otherwise (active canvas exists, `system/*/` exists) → **READ** (default)
 
 When in BOOTSTRAP mode, classify into sub-modes:
@@ -36,6 +37,7 @@ When in BOOTSTRAP mode, classify into sub-modes:
 - `first-bootstrap` — `.design/config.json` does not exist (or `designSystems[]` is empty)
 - `additional-ds` — config exists, `target_ds` is NOT in `designSystems[]`
 - `re-bootstrap` — config exists, `target_ds` IS in `designSystems[]`, `--force` passed (else refuse)
+- `app` — `--app`: the Maude app already made the system as an outline (`revisions/head.json` has no head). The flow is `_bootstrap.md` § "`app` adaptation": three directions written with `maude design ds draft`, the in-app pick as the gate, the sections filled through the working files, and no `ds done` (the person's button does it)
 
 If both modes seem plausible, **prefer READ** — bootstrap should be the explicit choice.
 

@@ -129,6 +129,19 @@ export interface BoardTypeRole {
   class: string;
 }
 
+/** S10.16b: one AI direction of a system being made — a draft revision, as the `ds-dir-*` tile draws it. */
+export interface BoardDirection {
+  /** `a` · `b` · `c` — the artboard is `ds-dir-<direction>` */
+  direction: string;
+  label: string;
+  /** the colours' own names and the headline face: "cool white · azure · System sans" */
+  mood: string;
+  /** the working files are exactly this direction (it was picked with Use) */
+  picked: boolean;
+  /** theme → the few tokens a tile draws → their plain CSS value */
+  vars: Record<string, Record<string, string>>;
+}
+
 export interface BoardModel {
   format: 'maude.ds-board';
   v: 1;
@@ -148,6 +161,10 @@ export interface BoardModel {
   pendingCount: number;
   /** canvases that follow the system; null when the usage index has not run */
   canvases: number | null;
+  /** S10.16b: the system is still being made (`head.json` head = base = null): empty sections are outlines */
+  making?: boolean;
+  /** S10.16b: the directions the AI drafted, for the `ds-dir-*` artboards */
+  directions?: BoardDirection[];
 }
 
 export type BoardMode = 'light' | 'dark';

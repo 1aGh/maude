@@ -123,6 +123,43 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-switch-error` | testid | S10.14: A refusal from the server, in words, under the list. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-cancel` | testid | S10.14: Cancel the switch; nothing changes. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-go` | testid | S10.14: The primary button, "Switch 5 canvases": one action, one ⌘Z. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-make-scrim` | testid | S10.16b: The scrim behind "Make a design system for <project>". | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make` | testid | S10.16b: The three-input sheet (`role=dialog`): a sentence, anything to learn from, mostly for. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-title` | testid | S10.16b: "Make a design system for <project>". | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-sentence` | testid | S10.16b: Input 1, the brand in a sentence (required). It goes to AI verbatim. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-ref-logo` | testid | S10.16b: Input 2, Logo: chooses an SVG, uploads it as bytes and names it on the chip (`aria-pressed` once chosen). | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-logo-file` | testid | S10.16b: The hidden file input behind the Logo chip. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-ref-website` | testid | S10.16b: Input 2, Website: the chip that holds the link field. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-website` | testid | S10.16b: The link field inside the Website chip; only the host is passed on. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-ref-figma` | testid | S10.16b: Input 2, Figma library: a toggle (`aria-pressed`); AI says if Figma is not connected. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-ref-canvases` | testid | S10.16b: Input 2, Your canvases: on by default, drawn only when the project has canvases. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-for` | testid | S10.16b: Input 3, Mostly for: Websites, Apps, Print and social, A bit of everything. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-for-<id>` | testid (pattern) | S10.16b: One "Mostly for" segment (`<id>` = websites, apps, print or everything); `aria-pressed` marks the one in force. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-fine` | testid | S10.16b: The fine print under the inputs, or why Make three directions is off when AI is not available. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-error` | testid | S10.16b: A refusal from the server, in words, on the sheet. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-cancel` | testid | S10.16b: Cancel; nothing was made. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-go` | testid | S10.16b: "Make three directions": makes the outline, then asks AI with origin `ds-make`. Off until the sentence is typed. | `client/v2/ds/make-sheet.jsx` · `DsMakeSheet` | test:v2-ds-make | new |
+| `ds-make-ready` | testid | S10.16b: The ready card on a system being made: "<name> system is ready." (or "partly ready") with one action. | `client/v2/ds/make-host.jsx` · `MakeReadyBanner` | test:v2-ds-make | new |
+| `ds-make-ready-title` | testid | S10.16b: The ready card's line: ready, or partly ready. | `client/v2/ds/make-host.jsx` · `MakeReadyBanner` | test:v2-ds-make | new |
+| `ds-make-ready-sub` | testid | S10.16b: What is still missing, said plainly, or that every canvas picks the system up after a review. | `client/v2/ds/make-host.jsx` · `MakeReadyBanner` | test:v2-ds-make | new |
+| `ds-make-ready-note` | testid | S10.16b: A refusal from "Use as <name>'s style", in words. | `client/v2/ds/make-host.jsx` · `MakeReadyBanner` | test:v2-ds-make | new |
+| `ds-make-use` | testid | S10.16b: "Use as <name>'s style": publishes the first revision, makes it the project default and offers the existing canvases one review. | `client/v2/ds/make-host.jsx` · `MakeReadyBanner` | test:v2-ds-make | new |
+| `ds-dir-bar` | testid | S10.16b: The direction bar in the inspector for a selected `ds-dir-*` artboard or tile (`data-direction`): Use A, Mix with. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-name` | testid | S10.16b: "Direction A · Calm daylight". | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-picked` | testid | S10.16b: "Picked": the working files are exactly this direction. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-mood` | testid | S10.16b: The colours' own names and the headline face of the direction. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-waiting` | testid | S10.16b: AI has not drawn this direction yet. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-made` | testid | S10.16b: The system is made; its directions stay to look at and the pick is gone. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-use` | testid | S10.16b: "Use A" (`ds.use-direction`), or "Use this mix" once parts of others are taken (`ds.mix`). | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-mix` | testid | S10.16b: "Mix with…": opens the list of the other directions' type, colours and corners. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-mix-menu` | testid | S10.16b: The Mix list (`role=menu`). | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-mix-<word>-<dir>` | testid (pattern) | S10.16b: One part to take (`<word>` = type, colour or radius; `<dir>` = the direction that lends it); `aria-checked` marks it taken. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-summary` | testid | S10.16b: "A + B's type + C's colours". | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-note` | testid | S10.16b: What happened (`data-tone` ok or warn), in words. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-nosystem` | testid | S10.16b: The selection is not part of a design system. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-dir-loading` | testid | S10.16b: Reading the system. | `client/v2/ds/direction-bar.jsx` · `DirectionPanel` | test:v2-ds-make | new |
+| `ds-outline-<kind>` | testid (pattern) | S10.16b: A section that waits or is being drawn while the system is made, on the Design system canvas (`data-ds-state` waiting or drawing). | `ds/board/outline.tsx` · `useSectionOutline` | test:ds-make-board | new |
+| `[data-ds-direction]` | selector | S10.16b: The tile of a direction on the Design system canvas (`data-ds-direction` = a, b or c; `data-picked`). A click on it selects the direction in the inspector. | `ds/board/directions.tsx` · `DirTile` | test:ds-make-board | new |
 | `ds-preview-bar` | testid | S10.14: "Preview in …" — the menu and the banner while the project is looked at in another system (`data-target`). Session-only. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-preview-menu` | testid | S10.14: The systems menu (`role=listbox`): ↑↓ step, ↵ opens the switch review, esc stops. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-preview-option` | testid | S10.14: One system in the preview menu (`data-ds`); `data-highlight` marks the one being looked at. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
