@@ -159,3 +159,20 @@ describe('the flag on text under a band', () => {
     host.remove();
   });
 });
+
+describe('DCArtboard carries the prop', () => {
+  test('it stamps data-dc-safe-zones for the inspector to read back; absent without the prop', async () => {
+    const { DCArtboard } = await import('../canvas-lib.tsx');
+    const html = (props: Record<string, unknown>) =>
+      renderToStaticMarkup(
+        <DCArtboard id="story" label="Story" width={270} height={480} fixed {...props}>
+          <p>x</p>
+        </DCArtboard>
+      );
+    expect(html({ safeZones: 'instagram-reels' })).toContain(
+      'data-dc-safe-zones="instagram-reels"'
+    );
+    expect(html({})).not.toContain('data-dc-safe-zones');
+    expect(html({ safeZones: '' })).not.toContain('data-dc-safe-zones');
+  });
+});
