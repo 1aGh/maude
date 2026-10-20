@@ -491,8 +491,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `shortcuts-moved-hd` | testid | The “Keys and tools that moved” heading. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-moved` | testid | The list of moved keys and tools (old → new). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-none` | testid | The sheet’s “Nothing called …” line. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
-| `help-add-guides` | testid | Help › Help and guides: "Add the guide canvases to this project" (Can edit and up; a new project starts empty, Q10). `help.add-guides` in ⌘K runs the same function. | `client/dialogs/help-modal.jsx` · `HelpModal` | test:v2-help-add-guides | new in v2 (S6.15) |
-| `help-add-guides-status` | testid | The line under that button (`role="status"`): adding, added, already there, or why not. | `client/dialogs/help-modal.jsx` · `HelpModal` | test:v2-help-add-guides | new in v2 (S6.15) |
+| `help-add-guides` | testid | Help › Help and guides: "Add the guide canvases to this project" (Can edit and up; a new project starts empty, Q10). `help.add-guides` in ⌘K runs the same function. | `client/dialogs/help-modal.jsx` · `HelpModal` | e2e:onboarding, test:v2-help-add-guides | new in v2 (S6.15) |
+| `help-add-guides-status` | testid | The line under that button (`role="status"`): adding, added, already there, or why not. | `client/dialogs/help-modal.jsx` · `HelpModal` | e2e:onboarding, test:v2-help-add-guides | new in v2 (S6.15) |
 
 ### settings
 

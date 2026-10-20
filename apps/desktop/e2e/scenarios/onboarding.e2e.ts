@@ -16,6 +16,7 @@ import { activeTab, HOME, labels, waitWindow } from '../helpers/windows';
  *   3. Just a local project → "Create a local project" → a name → a project tab on the empty
  *      project card (S6.2) — the project is in the throwaway Maude folder the config names
  *   4. the empty card's prompt makes the first canvas from a sentence (S6.3 takes it from there)
+ *   5. Help and guides adds the two guide canvases on request (S6.15: a new project starts empty)
  *
  * NOT covered here (needs a debug-only switch in the Rust shell, not part of this slice): the CLOUD
  * leg — Sign in to cloud.maude.sh against a fake control plane. `home_cloud_sign_in_open` opens the
@@ -131,5 +132,44 @@ describe('native-first-run (native-desktop)', () => {
       { timeout: 60_000, interval: 500, timeoutMsg: 'the first canvas never appeared in the list' }
     );
     await capture('05-first-canvas-from-the-sentence');
+  });
+
+  it('5 · Help and guides adds the two guide canvases on request (S6.15, Q10)', async () => {
+    // A new project starts empty; the guides are one button away. F1 opens Help and guides.
+    expect(await (await $(tid('canvas-row-ui-how-to-use-maude'))).isExisting()).toBe(false);
+    await browser.keys('\uE031');
+    const add = await $(tid('help-add-guides'));
+    await add.waitForDisplayed({ timeout: 15_000 });
+    expect(await add.getText()).toBe('Add the guide canvases to this project');
+    await add.click();
+    await browser.waitUntil(
+      async () => (await (await $(tid('help-add-guides-status'))).getText()) !== '',
+      { timeout: 15_000, timeoutMsg: 'the Help dialog never said what it did' }
+    );
+    expect(await (await $(tid('help-add-guides-status'))).getText()).toBe(
+      'Added the guides to this project.'
+    );
+    await capture('06-guides-added');
+    await browser.keys('Escape');
+    await browser.waitUntil(
+      async () => {
+        await expandTree();
+        return (
+          (await (await $(tid('canvas-row-ui-how-to-use-maude'))).isExisting()) &&
+          (await (await $(tid('canvas-row-ui-how-to-make-video'))).isExisting())
+        );
+      },
+      { timeout: 60_000, interval: 500, timeoutMsg: 'the two guides never appeared in the list' }
+    );
+    // a second press adds nothing and says so
+    await browser.keys('\uE031');
+    await (await $(tid('help-add-guides'))).click();
+    await browser.waitUntil(
+      async () =>
+        (await (await $(tid('help-add-guides-status'))).getText()) ===
+        'The guides are already in this project.',
+      { timeout: 15_000, timeoutMsg: 'asking twice did not say the guides were already there' }
+    );
+    await browser.keys('Escape');
   });
 });

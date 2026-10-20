@@ -30907,6 +30907,7 @@
     },
     "region": "help/shortcuts",
     "consumers": [
+      "apps/desktop/e2e/scenarios/onboarding.e2e.ts",
       "test:v2-help-add-guides"
     ],
     "v2": "new in v2 (S6.15)"
@@ -30922,6 +30923,7 @@
     },
     "region": "help/shortcuts",
     "consumers": [
+      "apps/desktop/e2e/scenarios/onboarding.e2e.ts",
       "test:v2-help-add-guides"
     ],
     "v2": "new in v2 (S6.15)"
