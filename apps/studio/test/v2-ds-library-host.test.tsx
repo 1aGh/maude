@@ -228,6 +228,36 @@ describe('the library host', () => {
     expect(toasts).toEqual([]);
   });
 
+  test('A3: a record this Mac did not link shows "Link again" naming the hub host; nothing is asked until it is pressed', async () => {
+    const L = await linked();
+    L.hub.head = V2.id;
+    // the same credential, but the link was made on ANOTHER Mac (or a peer rewrote head.json): no link record here
+    const grants = memoryGrantStore();
+    grants.set('https://alligators.cloud.test', 'p_gator', LIB, 'grant-abc123456789');
+    const other = createDsLibrary(L.p.engine, {
+      fetchImpl: L.hub.fetch,
+      grants,
+      now: () => L.clock.t,
+    });
+    const w = wire(L, other);
+    const before = L.hub.calls.length;
+    await mount(w.impl, []);
+    expect(L.hub.calls.length).toBe(before); // no request, no credential
+    expect(q('ds-library-relink-line')?.textContent).toBe(
+      'This Mac hasn’t linked this library from alligators.cloud.test. Link it again only if you trust alligators.cloud.test.'
+    );
+    expect(q('ds-library-nogrant')).toBeNull();
+    expect(q('ds-library-update')).toBeNull();
+    expect(q('ds-library-relink')?.textContent).toBe('Link again');
+    await act(async () => q('ds-library-relink')?.click());
+    await settle();
+    expect(w.calls.some((c) => c.body?.action === 'relink' && c.body?.ds === LIB)).toBe(true);
+    // linked here now: the check goes to the record's hub and the card offers the update
+    expect(L.hub.calls.length).toBeGreaterThan(before);
+    expect(q('ds-library-relink')).toBeNull();
+    expect(q('ds-library-update')?.textContent).toBe('Update…');
+  });
+
   test('a project with no converted system asks nothing; the open check waits for the first paint', async () => {
     const L = await linked();
     const none = wire(L);

@@ -8,6 +8,7 @@ import {
   linkLibrary,
   loadLibraryReview,
   loadLinked,
+  relinkLibrary,
   takeLibraryUpdate,
   unlinkLibrary,
 } from '../client/v2/ds/library-host.jsx';
@@ -229,5 +230,50 @@ describe('the card, through the routes', () => {
     const ok = await linkingProject();
     expect(await linkLibrary(URL_, GRANT, wire(ok))).toEqual({ ok: true, system: LIB });
     expect((await loadLinked(wire(ok))).map((r) => r.ds)).toEqual([LIB]);
+  });
+
+  test('A3: a record linked on another Mac answers relink; the card names the host; Link again makes it this Mac’s', async () => {
+    const L = await linked();
+    const grants = memoryGrantStore();
+    grants.set('https://alligators.cloud.test', 'p_gator', LIB, GRANT);
+    const other = createDsLibrary(L.p.engine, {
+      fetchImpl: L.hub.fetch,
+      grants,
+      now: () => L.clock.t,
+    });
+    const f = wire(L, 'owner', other);
+    const before = L.hub.calls.length;
+    const c = await checkLibrary(LIB, f, true);
+    expect(c).toMatchObject({ ok: false, code: 'ds-library-relink', relink: true, noGrant: false });
+    expect(L.hub.calls.length).toBe(before);
+    const [row] = await loadLinked(f);
+    const card = cardModel({ row, access: 'relink' });
+    expect(card).toMatchObject({ relink: true, canUpdate: false, noGrantLine: null });
+    expect(card.relinkLine).toContain('alligators.cloud.test');
+    expect(await relinkLibrary(LIB, f)).toEqual({ ok: true });
+    expect(await checkLibrary(LIB, f, true)).toMatchObject({ ok: true });
+    expect(L.hub.calls.length).toBeGreaterThan(before);
+  });
+
+  test('A5: in a cell every library action but Unlink is refused not-on-mac, and no hub is asked', async () => {
+    const L = await linked();
+    const f = wire(L);
+    const before = L.hub.calls.length;
+    const was = process.env.MAUDE_WORKSPACE_MODE;
+    process.env.MAUDE_WORKSPACE_MODE = '1';
+    try {
+      expect(await checkLibrary(LIB, f, true)).toMatchObject({ ok: false, code: 'not-on-mac' });
+      expect(await loadLibraryReview(LIB, f)).toMatchObject({
+        ok: false,
+        message: LIBRARY_WORDS.notOnMac,
+      });
+      expect(await linkLibrary(URL_, GRANT, f)).toMatchObject({ ok: false, code: 'not-on-mac' });
+      expect(await relinkLibrary(LIB, f)).toMatchObject({ ok: false, code: 'not-on-mac' });
+      expect(L.hub.calls.length).toBe(before);
+      expect(await unlinkLibrary(LIB, f)).toEqual({ ok: true });
+    } finally {
+      if (was === undefined) delete process.env.MAUDE_WORKSPACE_MODE;
+      else process.env.MAUDE_WORKSPACE_MODE = was;
+    }
   });
 });

@@ -39435,6 +39435,38 @@
     "v2": "new"
   },
   {
+    "hook": "ds-library-relink-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "gate-b-sec1 (A3): \"This Mac hasn’t linked this library from <host>…\" — the head.json library record is not a link made on this Mac (a peer may have rewritten it); nothing is sent until Link again.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-library-relink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "gate-b-sec1 (A3): the card's Link again button — this Mac takes the record (whose hub host the line names) as its own link.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/library-card.jsx",
+      "symbol": "DsLibraryCard"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-library-host.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ds-library-note",
     "kind": "testid",
     "pattern": false,

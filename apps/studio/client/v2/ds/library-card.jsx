@@ -55,6 +55,11 @@ export function DsLibraryCard({ value, actions }) {
           {m.noGrantLine}
         </p>
       ) : null}
+      {m.relinkLine ? (
+        <p className="dsl-quiet" data-testid="ds-library-relink-line">
+          {m.relinkLine}
+        </p>
+      ) : null}
       {m.error || value.note ? (
         <p className="dsl-note" role="status" data-testid="ds-library-note">
           {value.note || m.error}
@@ -70,6 +75,17 @@ export function DsLibraryCard({ value, actions }) {
             onClick={() => a.update?.()}
           >
             {LIBRARY_WORDS.update}…
+          </button>
+        ) : null}
+        {m.relink ? (
+          <button
+            type="button"
+            className="btn btn--sm btn--primary"
+            disabled={busy}
+            data-testid="ds-library-relink"
+            onClick={() => a.relink?.()}
+          >
+            {LIBRARY_WORDS.linkAgain}
           </button>
         ) : null}
         <button

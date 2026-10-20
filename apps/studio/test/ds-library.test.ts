@@ -3,11 +3,17 @@
 // then this project's own review (unticked = left out at the old head) as ONE action; ⌘Z takes it back.
 // The hub is a fake (test/_ds-library-hub.ts) — never a real one.
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, statSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { DsLibraryError, parseLibraryUrl } from '../ds/library.ts';
+import {
+  createDsLibrary,
+  DsLibraryError,
+  fileGrantStore,
+  memoryGrantStore,
+  parseLibraryUrl,
+} from '../ds/library.ts';
 import { buildRevision, verifyRevision } from '../ds/revision.ts';
 import { registerDsUndoHook } from '../ds/undo-hook.ts';
 import { cleanup, PERSON } from './_ds-engine-fixture.ts';
@@ -199,6 +205,40 @@ describe('ds library: link', () => {
     ])
       expect(() => parseLibraryUrl(bad)).toThrow(DsLibraryError);
   });
+
+  test('A5: in a cell a link is https to a named host — never loopback, an IP literal or an internal name', async () => {
+    const cell = { cell: true };
+    expect(parseLibraryUrl(URL_, cell).hub).toBe(HUB);
+    for (const bad of [
+      'http://localhost:4400/api/projects/local/v1/ds/gator',
+      'https://localhost/api/projects/p/v1/ds/gator',
+      'https://127.0.0.1/api/projects/p/v1/ds/gator',
+      'https://[::1]:8443/api/projects/p/v1/ds/gator',
+      'https://169.254.169.254/api/projects/p/v1/ds/gator',
+      'https://10.0.0.5/api/projects/p/v1/ds/gator',
+      'https://metadata/api/projects/p/v1/ds/gator',
+      'https://hub.internal/api/projects/p/v1/ds/gator',
+    ])
+      expect(() => parseLibraryUrl(bad, cell)).toThrow(DsLibraryError);
+    // a cell's library also refuses a loopback record it reads from head.json, and asks nothing
+    const L = await linkingProject();
+    const lib = createDsLibrary(L.p.engine, {
+      fetchImpl: L.hub.fetch,
+      grants: L.grants,
+      cell: true,
+    });
+    expect(
+      await code(
+        (async () =>
+          lib.link({
+            url: 'http://localhost:4400/api/projects/p/v1/ds/gator',
+            grant: GRANT,
+            by: PERSON,
+          }))()
+      )
+    ).toMatchObject({ code: 'ds-library-url' });
+    expect(L.hub.calls).toEqual([]);
+  });
 });
 
 describe('ds library: check, update, unlink', () => {
@@ -308,6 +348,85 @@ describe('ds library: check, update, unlink', () => {
       code: 'ds-library-no-grant',
     });
     expect(L.hub.calls.length).toBe(before);
+  });
+
+  // gate-b-sec1 A3 — head.json syncs; its `library` record may be a peer's. A credential this Mac holds for ANOTHER
+  // library (a grant, or a member token from hubs.json) must never follow the peer's choice.
+  const rewrite = (L: Awaited<ReturnType<typeof linked>>, patch: Record<string, string>) => {
+    const head = JSON.parse(L.p.read(`system/${LIB}/revisions/head.json`) as string);
+    Object.assign(head.library, patch);
+    L.p.write(`system/${LIB}/revisions/head.json`, `${JSON.stringify(head, null, 2)}\n`);
+  };
+
+  test('A3: a peer pointing the record at another library this Mac holds a grant for gets nothing sent', async () => {
+    const L = await linked();
+    L.grants.set(HUB, 'p_other', LIB, 'grant-other-1234567'); // this Mac linked p_other's library elsewhere
+    rewrite(L, { project: 'p_other' });
+    const before = L.hub.calls.length;
+    expect(await code(L.lib.check(LIB, { force: true }))).toMatchObject({
+      code: 'ds-library-relink',
+      status: 409,
+    });
+    expect(await code(L.lib.review(LIB))).toMatchObject({ code: 'ds-library-relink' });
+    expect(
+      await code(L.lib.update(LIB, { expectHead: V1.id, upstream: V2.id, by: PERSON }))
+    ).toMatchObject({ code: 'ds-library-relink' });
+    expect(L.hub.calls.length).toBe(before);
+  });
+
+  test('A3: a peer pointing the record at a hub where this Mac is a member gets nothing sent', async () => {
+    const L = await linked();
+    const B = 'https://bravo.cloud.test';
+    const seen: string[] = [];
+    const lib = createDsLibrary(L.p.engine, {
+      fetchImpl: (async (u: string, init?: RequestInit) => {
+        seen.push(`${u} ${JSON.stringify(init?.headers ?? {})}`);
+        return L.hub.fetch(u, init);
+      }) as typeof fetch,
+      grants: L.grants,
+      memberToken: (h) => (h === B ? 'member-token-bravo' : null),
+      now: () => L.clock.t,
+    });
+    rewrite(L, { hub: B, project: 'p_bravo', system: LIB });
+    expect(await code(lib.check(LIB, { force: true }))).toMatchObject({
+      code: 'ds-library-relink',
+    });
+    expect(seen).toEqual([]);
+    // the person, shown bravo's host, links it again: only now does the check go there
+    await lib.relink(LIB, { by: PERSON });
+    await code(lib.check(LIB, { force: true }));
+    expect(seen.length).toBe(1);
+    expect(seen[0]).toContain(`${B}/api/projects/p_bravo/v1/ds/${LIB}/head`);
+    expect(seen[0]).toContain('member-token-bravo');
+  });
+
+  test('A3: relink with no credential at all is no-grant; unlink forgets this Mac’s link', async () => {
+    const L = await linked();
+    const lib = createDsLibrary(L.p.engine, {
+      fetchImpl: L.hub.fetch,
+      grants: memoryGrantStore(),
+      now: () => L.clock.t,
+    });
+    expect(await code(lib.relink(LIB, { by: PERSON }))).toMatchObject({
+      code: 'ds-library-no-grant',
+    });
+    expect(L.grants.linkOf(L.p.designRoot, LIB)).toMatchObject({ hub: HUB, project: 'p_gator' });
+    await L.lib.unlink(LIB, { by: PERSON });
+    expect(L.grants.linkOf(L.p.designRoot, LIB)).toBeNull();
+  });
+
+  test('A3: the file store keeps grants and this Mac’s links together, 0600', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'maude-grants-'));
+    const file = path.join(dir, 'ds-library-grants.json');
+    const s = fileGrantStore(file);
+    s.set(HUB, 'p_gator', LIB, GRANT);
+    s.setLink(dir, LIB, { hub: HUB, project: 'p_gator', system: LIB });
+    const again = fileGrantStore(file);
+    expect(again.get(HUB, 'p_gator', LIB)).toBe(GRANT);
+    expect(again.linkOf(dir, LIB)).toEqual({ hub: HUB, project: 'p_gator', system: LIB });
+    again.delete(HUB, 'p_gator', LIB);
+    expect(fileGrantStore(file).linkOf(dir, LIB)).not.toBeNull();
+    expect(statSync(file).mode & 0o777).toBe(0o600);
   });
 
   test('unlink: the copy becomes an ordinary local system; revisions and the working files stay', async () => {

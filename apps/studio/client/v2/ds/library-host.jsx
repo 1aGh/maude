@@ -81,7 +81,18 @@ export async function checkLibrary(ds, fetchImpl = globalThis.fetch, force = fal
   const r = await library(fetchImpl, { action: 'check', ds, ...(force ? { force: true } : {}) });
   if (r.ok)
     return { ok: true, usedBy: Number.isSafeInteger(r.body?.usedBy) ? r.body.usedBy : null };
-  return { ok: false, code: r.code, noGrant: r.code === 'ds-library-no-grant' };
+  return {
+    ok: false,
+    code: r.code,
+    noGrant: r.code === 'ds-library-no-grant',
+    relink: r.code === 'ds-library-relink',
+  };
+}
+
+/** "Link again" (A3): this Mac takes the system's current library record as its own link. Nothing goes to the hub. */
+export async function relinkLibrary(ds, fetchImpl = globalThis.fetch) {
+  const r = await library(fetchImpl, { action: 'relink', ds });
+  return r.ok ? { ok: true } : { ok: false, code: r.code, message: refusalWords(r.code) };
 }
 
 /** The review: what the library changed, and this project's canvases (read-only). */
@@ -159,8 +170,8 @@ export function DsLibraryHost({
         setAccess((a) => ({ ...a, [r.ds]: 'yes' }));
         setErrors((e) => ({ ...e, [r.ds]: null }));
         setUsed((u) => ({ ...u, [r.ds]: c.usedBy }));
-      } else if (c.noGrant) {
-        setAccess((a) => ({ ...a, [r.ds]: 'no' }));
+      } else if (c.noGrant || c.relink) {
+        setAccess((a) => ({ ...a, [r.ds]: c.relink ? 'relink' : 'no' }));
         setErrors((e) => ({ ...e, [r.ds]: null }));
       } else if (c.code === 'ds-library-unreachable' || c.code === 'unreachable') {
         setErrors((e) => ({ ...e, [r.ds]: LIBRARY_WORDS.offline }));
@@ -197,7 +208,14 @@ export function DsLibraryHost({
   const openAccess = openDs ? access[openDs] : undefined;
   // biome-ignore lint/correctness/useExhaustiveDependencies: the open system, its moved head and its grant are the triggers
   useEffect(() => {
-    if (!openDs || !openRow || !isWaiting(openRow) || openAccess === 'no') return undefined;
+    if (
+      !openDs ||
+      !openRow ||
+      !isWaiting(openRow) ||
+      openAccess === 'no' ||
+      openAccess === 'relink'
+    )
+      return undefined;
     if (counts[openDs]?.head === openHead) return undefined;
     let dead = false;
     (async () => {
@@ -207,8 +225,11 @@ export function DsLibraryHost({
         setCounts((c) => ({ ...c, [openDs]: { head: openHead, review: r.review } }));
         if (Number.isSafeInteger(r.review?.usedBy))
           setUsed((u) => ({ ...u, [openDs]: r.review.usedBy }));
-      } else if (r.code === 'ds-library-no-grant') {
-        setAccess((a) => ({ ...a, [openDs]: 'no' }));
+      } else if (r.code === 'ds-library-no-grant' || r.code === 'ds-library-relink') {
+        setAccess((a) => ({
+          ...a,
+          [openDs]: r.code === 'ds-library-relink' ? 'relink' : 'no',
+        }));
       }
     })();
     return () => {
@@ -233,7 +254,11 @@ export function DsLibraryHost({
       const r = await loadLibraryReview(row.ds, f());
       setBusy(false);
       if (!r.ok) {
-        if (r.code === 'ds-library-no-grant') setAccess((a) => ({ ...a, [row.ds]: 'no' }));
+        if (r.code === 'ds-library-no-grant' || r.code === 'ds-library-relink')
+          setAccess((a) => ({
+            ...a,
+            [row.ds]: r.code === 'ds-library-relink' ? 'relink' : 'no',
+          }));
         return say(r.message, false);
       }
       setDialogError('');
@@ -274,8 +299,16 @@ export function DsLibraryHost({
     setLibraryActions({
       update: () => startUpdate(openRow.ds),
       unlink: () => setUnlinking({ ds: openRow.ds, label: openRow.label, error: '' }),
+      relink: async () => {
+        setBusy(true);
+        const r = await relinkLibrary(openRow.ds, f());
+        setBusy(false);
+        if (!r.ok) return say(r.message, false);
+        setAccess((a) => ({ ...a, [openRow.ds]: 'unknown' }));
+        refresh();
+      },
     });
-  }, [openRow, used, counts, access, errors, busy, openHead, startUpdate]);
+  }, [openRow, used, counts, access, errors, busy, openHead, startUpdate, f, say, refresh]);
   useEffect(
     () => () => {
       setLibrary(null);
