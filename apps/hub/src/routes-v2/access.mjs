@@ -26,6 +26,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { GRANT_ROLES, resolveAccess } from '../../../studio/access/scope.ts';
 import { claimForMatch, NOT_IN_SCOPE_REFUSAL, presentedBearer } from '../access-gate.mjs';
 import { cloudIdentityEnabled } from '../cloud-identity.mjs';
+import { rememberEndedSessions } from '../ended-sessions.mjs';
 import {
   canvasOfInvite,
   createAccessRequest,
@@ -243,6 +244,8 @@ export function createAccessService({
   const notices = createAccessNotices({
     connections,
     endSessions: (email) => endSessions(email),
+    // S9.21d — the ended person's cookies hear why at the studio door's 401.
+    remember: (email, reason) => rememberEndedSessions(dataDir, email, reason, now()),
     graceMs,
     now,
   });
