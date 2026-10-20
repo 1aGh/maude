@@ -156,6 +156,66 @@ describe('revisionRenderable', () => {
     expect(revisionRenderable(dsAbs, id)).toBe(true);
   });
 
+  // S10.4b — a made system (ds/make.ts) freezes an EMPTY `_components.css`: its 0-byte sibling is there,
+  // so the head is renderable and no canvas waits on "…'s Mac" forever. A 0-byte sibling standing in for
+  // text the revision does carry is still missing (emptiness never beats content).
+  function writeWith(
+    system: string,
+    files: Record<string, string>,
+    siblingText?: (s: string) => string
+  ) {
+    const dsAbs = path.join(root, 'system', system);
+    mkdirSync(path.join(dsAbs, 'revisions'), { recursive: true });
+    const rev = buildRevision(system, files);
+    writeFileSync(path.join(dsAbs, 'revisions', `${rev.id}.json`), rev.bytes);
+    for (const s of revisionSiblings(rev.id, rev.body))
+      writeFileSync(path.join(dsAbs, s.path), siblingText ? siblingText(s.text) : s.text);
+    return { dsAbs, id: rev.id };
+  }
+
+  test('an empty sibling the revision itself has empty is present; a made head is no gap', () => {
+    const { dsAbs, id } = writeWith('studio-site', {
+      'colors_and_type.css': ':root{--a:1}',
+      'preview/_components.css': '',
+    });
+    expect(revisionRenderable(dsAbs, id)).toBe(true);
+    writeHeadJson('studio-site', id, [{ rev: id, by: { kind: 'person', name: 'Jonas' } }]);
+    expect(dsRenderIndex(root, SYSTEMS, {}).dsRevGaps).toEqual({});
+  });
+
+  test('a 0-byte sibling for text the revision carries is still missing', () => {
+    const { dsAbs, id } = writeWith(
+      'studio-site',
+      { 'colors_and_type.css': ':root{--a:2}', 'preview/_components.css': '.btn{}' },
+      () => ''
+    );
+    expect(revisionRenderable(dsAbs, id)).toBe(false);
+  });
+
+  test('the tokens entry follows tokensCssRel: an empty custom tokens file is present', () => {
+    const { id } = writeWith('studio-site', {
+      'tokens/main.css': '',
+      'preview/_components.css': '.b{}',
+    });
+    // the siblings follow the default key, so write the tokens sibling by hand (empty, as the revision says)
+    writeFileSync(path.join(root, 'system', 'studio-site', 'revisions', `${id}.tokens.css`), '');
+    writeHeadJson('studio-site', id);
+    const custom = [
+      {
+        name: 'studio-site',
+        path: 'system/studio-site',
+        tokensCssRel: 'system/studio-site/tokens/main.css',
+      },
+    ];
+    expect(dsRenderIndex(root, custom, {}).dsRevGaps).toEqual({});
+    // without the key the empty tokens sibling cannot be vouched for
+    expect(
+      Object.keys(
+        dsRenderIndex(root, [{ name: 'studio-site', path: 'system/studio-site' }], {}).dsRevGaps
+      )
+    ).toEqual([id]);
+  });
+
   test('a non-id is never touched on disk', () => {
     expect(revisionRenderable(root, '../x')).toBe(false);
   });

@@ -7036,14 +7036,17 @@ export function createHttp(
     // inline — both canvas CSPs allow inline styles, so no new route).
     // S1.11 — a past version (`?sha=`) carries its own meta lane (V2-1.9 §5.6): injected here,
     // BEFORE the CSP hashes the inline scripts, escaped for a script tag (past meta is peer-authored).
+    // S10.4b — the past meta also carries that version's `dsPairing` aliases into the fallback slot.
+    const pastMeta = await versionMetaFor(query);
     const injected = injectVersionMeta(
       injectFallbacks(
         inspect().injectInspector(shellHtml),
         ctx.paths.designRoot,
         ctx.cfg as unknown as Record<string, unknown>,
-        query
+        query,
+        pastMeta
       ),
-      await versionMetaFor(query)
+      pastMeta
     );
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
