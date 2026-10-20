@@ -228,7 +228,7 @@ describe('Import from Figma sheet', () => {
 describe('the words (CONTRACT §3 Figma, §4)', () => {
   test('links: design vs board vs not Figma', () => {
     expect(model.figmaLinkKind(URL_D)).toBe('design');
-    expect(model.figmaLinkKind('https://www.figma.com/board/abc/x')).toBe('board');
+    expect(model.figmaLinkKind('https://www.figma.com/board/abc/x')).toBe('figjam');
     expect(model.figmaLinkKind('https://evil.example/design/abc')).toBe('bad');
     expect(model.figmaLinkKind('http://www.figma.com/design/abc')).toBe('bad');
   });

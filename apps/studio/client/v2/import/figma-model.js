@@ -7,7 +7,7 @@
 // Everything the server answers is counts, sizes, node ids and code-owned reason codes (DDR-216 D7/D10), so a
 // summary row is built from numbers here — never from a word the Figma file said.
 
-/** Which door a link opens: a design file's frames, a FigJam board, or neither. Shape only — the server judges. */
+/** Which door a link opens: a design file's frames, a FigJam file, or neither. Shape only — the server judges. */
 export function figmaLinkKind(raw) {
   const s = String(raw ?? '').trim();
   if (!s) return 'none';
@@ -20,7 +20,7 @@ export function figmaLinkKind(raw) {
   if (u.protocol !== 'https:') return 'bad';
   if (!/^(www\.)?figma\.com$/i.test(u.hostname)) return 'bad';
   const first = u.pathname.split('/').filter(Boolean)[0];
-  if (first === 'board') return 'board';
+  if (first === 'board') return 'figjam';
   if (first === 'design' || first === 'file' || first === 'proto') return 'design';
   return 'bad';
 }
@@ -57,10 +57,10 @@ export const FIGMA_WORDS = Object.freeze({
   importing: 'Importing…',
   cancel: 'Cancel',
   import: 'Import',
-  boardTitle: 'Import a FigJam board',
+  boardTitle: 'Import from FigJam',
   boardFine:
     'It comes in as annotations on this canvas: stickies, sections and connectors stay themselves. A widget that can’t come across is named.',
-  boardNeedsCanvas: 'Open the canvas it should go on, then import the board.',
+  boardNeedsCanvas: 'Open the canvas it should go on, then import it.',
   // the inspector (ia-figma-arrived)
   exactTitle: "Figma's exact picture.",
   exactRest: " Its text and shapes can't be changed until it's made editable.",

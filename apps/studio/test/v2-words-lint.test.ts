@@ -100,6 +100,12 @@ const ALLOW: readonly { file: string; rule: string; text: RegExp; why: string }[
     text: /^New blank brief board$/,
     why: 'a record of the v1 control: tree.jsx keeps this aria-label as an e2e hook (cloud-entry, selfhost-entry)',
   },
+  {
+    file: 'import/figma-model.js',
+    rule: 'board',
+    text: /^(board|A board from FigJam works too — it comes in as annotations\.)$/,
+    why: "S8.17: Figma's own URL segment (figma.com/board/…, never drawn) and 12 ia-figma-sheets' exact line: FigJam's word for its file",
+  },
 ];
 
 const allowed = (file: string, h: Hit) =>

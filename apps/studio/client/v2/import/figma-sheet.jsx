@@ -74,7 +74,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
   const figma = useFigmaConnection();
   const connected = figma.status ? Boolean(figma.status.configured) : null;
 
-  const [step, setStep] = useState('link'); // link · connect · reading · pick · importing · done
+  const [step, setStep] = useState('link'); // link · connect · reading · pick · figjam · importing · done
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
   const [err, setErr] = useState(null);
@@ -84,7 +84,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
   const [folder, setFolder] = useState('');
   const [comments, setComments] = useState(true);
   const [styles, setStyles] = useState(false);
-  const [result, setResult] = useState(null); // { kind: 'frames'|'board', ... }
+  const [result, setResult] = useState(null); // { kind: 'frames' or 'figjam', ... }
   const urlRef = useRef(null);
   const tokenRef = useRef(null);
   const ref = useModalFocus({ open, onClose, initialRef: step === 'connect' ? tokenRef : urlRef });
@@ -127,8 +127,8 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
 
   const read = async () => {
     setErr(null);
-    if (kind === 'board') {
-      setStep('board');
+    if (kind === 'figjam') {
+      setStep('figjam');
       return;
     }
     if (kind !== 'design') {
@@ -146,8 +146,8 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
       if (r.json?.reason !== 'not-connected') setErr(figmaFailureWords(r.json?.reason));
       return;
     }
-    if (r.json.surface === 'board') {
-      setStep('board');
+    if (r.json.surface !== 'design') {
+      setStep('figjam');
       return;
     }
     setFile(r.json);
@@ -197,11 +197,11 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
       url: normalizeLink(url),
     });
     if (!r.ok) {
-      setStep('board');
+      setStep('figjam');
       setErr(figmaFailureWords(r.json?.reason));
       return;
     }
-    setResult({ kind: 'board', ...r.json });
+    setResult({ kind: 'figjam', ...r.json });
     setStep('done');
     onImported?.(r.json);
   };
@@ -209,8 +209,8 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
   const fileName = file?.fileName ?? '';
   const pickedCount = picked.size;
   const doneTitle =
-    result?.kind === 'board'
-      ? `Imported ${fileName || 'the board'} as annotations`
+    result?.kind === 'figjam'
+      ? `Imported ${fileName || 'the FigJam file'} as annotations`
       : `Imported ${result?.artboards ?? 0} ${result?.artboards === 1 ? 'frame' : 'frames'}${fileName ? ` from ${fileName}` : ''}`;
   const canvasLanded = typeof result?.canvas === 'string' ? result.canvas : null;
   const renamed =
@@ -235,7 +235,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
           <strong id="fi-title" className="bi-title">
             {step === 'connect'
               ? W.connectTitle
-              : step === 'board'
+              : step === 'figjam'
                 ? W.boardTitle
                 : step === 'done'
                   ? doneTitle
@@ -395,7 +395,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
           </div>
         ) : null}
 
-        {step === 'board' || (step === 'importing' && result === null && !file) ? (
+        {step === 'figjam' || (step === 'importing' && result === null && !file) ? (
           <div className="bi-body" data-testid="figma-import-mode-board">
             <p className="bi-fine">{boardCanvas ? W.boardFine : W.boardNeedsCanvas}</p>
           </div>
@@ -405,7 +405,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
           <div className="bi-body">
             <FigmaSummary
               title={doneTitle}
-              rows={result.kind === 'board' ? boardSummaryRows(result) : frameSummaryRows(result)}
+              rows={result.kind === 'figjam' ? boardSummaryRows(result) : frameSummaryRows(result)}
               dispositions={result.dispositions ?? []}
             />
             {renamed ? (
@@ -475,7 +475,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
                 >
                   {step === 'importing' ? W.importing : importVerb(pickedCount)}
                 </button>
-              ) : step === 'board' || step === 'importing' ? (
+              ) : step === 'figjam' || step === 'importing' ? (
                 <button
                   type="button"
                   className="btn btn--sm btn--primary"
