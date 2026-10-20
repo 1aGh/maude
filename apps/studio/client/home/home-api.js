@@ -106,6 +106,27 @@ export const prepareCloud = (profile, server, projectId) =>
 export const prepareCloudLink = (profile, link) =>
   post('/_home/cloud/prepare', { profile, projectId: link.project, code: link.code });
 
+// S6.8 — signing in to Maude Cloud from Home (contract S6-S9 §5.1). The device code and the token stay in
+// the Home server process: the page holds only the attempt's `state` and the `userCode` the person may
+// type on the activate page. The browser is opened by RUST (`home_cloud_sign_in_open`), which composes
+// the URL itself — the page never sees or builds it.
+/** → `{ok, userCode, state, expiresIn}` | `{ok:false, reason, error}` (502 unreachable, 403 not-prepared). */
+export const cloudSignInStart = (profile) =>
+  post('/_home/cloud/signin/start', profile ? { profile } : {});
+/** → `{status:'pending'|'done'|'expired'|'cancelled', email?, landing?}` | 409 `{reason:'stale-state'}`. */
+export const cloudSignInPoll = (state) => post('/_home/cloud/signin/poll', { state });
+export const cloudSignInCancel = (state) => post('/_home/cloud/signin/cancel', { state });
+/** Rust picks (or makes) the profile the next sign-in may write → its id. A refusal rejects with words. */
+export const signInPrepare = (forInvite) =>
+  shellInvoke('home_cloud_sign_in_prepare', forInvite ? { forInvite } : {});
+export const signInOpenBrowser = (userCode, state) =>
+  shellInvoke('home_cloud_sign_in_open', { userCode, state });
+/** After the Home server stored the credential: Rust records the account → the profile it landed in. */
+export const signInDone = (profile) => shellInvoke('home_cloud_signed_in', { profile });
+/** The What's New feed and this Mac's one seen mark (S6.6, `/_home/whats-new`). */
+export const getWhatsNew = () => homeFetch('/_home/whats-new');
+export const markWhatsNewSeen = (seen) => post('/_home/whats-new', { seen });
+
 // Pictures: `/_home/thumb/<pid>/<key>.jpg` is guarded like every other route, and an <img src>
 // cannot send a header — so the page fetches the bytes (with the header) and shows a blob: URL.
 // A key names immutable bytes, so one object URL per picture lives for the page (capped).

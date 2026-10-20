@@ -10647,8 +10647,8 @@
     "kind": "testid",
     "meaning": "The New project sheet on Home (V2-3.9): a name → `/_home/projects/create-local` → `open_project({root})`.",
     "producer": {
-      "file": "apps/studio/client/home/home-app.jsx",
-      "symbol": "HomeApp"
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
     },
     "region": "home",
     "consumers": [
@@ -10661,8 +10661,8 @@
     "kind": "testid",
     "meaning": "The project name in the New project sheet (empty = \"Untitled project\", C4 naming in create-local).",
     "producer": {
-      "file": "apps/studio/client/home/home-app.jsx",
-      "symbol": "HomeApp"
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
     },
     "region": "home",
     "consumers": [
@@ -10675,8 +10675,8 @@
     "kind": "testid",
     "meaning": "\"Create project\" in the New project sheet.",
     "producer": {
-      "file": "apps/studio/client/home/home-app.jsx",
-      "symbol": "HomeApp"
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
     },
     "region": "home",
     "consumers": [
@@ -10689,8 +10689,8 @@
     "kind": "testid",
     "meaning": "Cancel in the New project sheet (Escape and the scrim answer the same).",
     "producer": {
-      "file": "apps/studio/client/home/home-app.jsx",
-      "symbol": "HomeApp"
+      "file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx",
+      "symbol": "CreateLocalSheet"
     },
     "region": "home",
     "consumers": [
@@ -26990,5 +26990,31 @@
       "apps/studio/test/size-ghost.test.tsx"
     ],
     "v2": "new"
-  }
+  },
+  {"hook": "signin-card", "kind": "testid", "pattern": false, "meaning": "The sign-in card on Home (S6.8, 02 ob-first-launch): \"Keep your work on cloud.maude.sh\" with two doors. `data-state` is idle | waiting | timeout | failed | offline. Shown only on a first run (no project, no account) or while a sign-in runs.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-cloud", "kind": "testid", "pattern": false, "meaning": "The card's \"Sign in to cloud.maude.sh\" door: opens the browser sign-in (registry `home.signin`). Rests while this Mac is offline.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-local", "kind": "testid", "pattern": false, "meaning": "The card's \"Just a local project\" door: opens the Create a local project sheet.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-waiting", "kind": "testid", "pattern": false, "meaning": "\"Waiting for your browser…\" — the card while the browser sign-in runs.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-cancel", "kind": "testid", "pattern": false, "meaning": "Cancel while waiting: ends the attempt on the server and restores the card at once.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-reopen", "kind": "testid", "pattern": false, "meaning": "\"Open the page again\" while waiting: opens the same sign-in page in the browser again.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-use-code", "kind": "testid", "pattern": false, "meaning": "\"Use a code instead\" (Signed in on another device?): shows the code to type on cloud.maude.sh/activate.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-code-box", "kind": "testid", "pattern": false, "meaning": "The line and code shown after \"Use a code instead\".", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-code", "kind": "testid", "pattern": false, "meaning": "The user code itself (not a credential: it only lets the person approve THIS attempt on the cloud page).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-note", "kind": "testid", "pattern": false, "meaning": "A refusal while waiting, in words (e.g. the browser could not be opened).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-timeout", "kind": "testid", "pattern": false, "meaning": "\"Sign-in didn't finish — Nothing changed on this Mac. Try again whenever you like.\" after ten minutes with no answer.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-failed", "kind": "testid", "pattern": false, "meaning": "The cloud could not be reached, or Rust refused the attempt: the reason in words, buttons live.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-offline", "kind": "testid", "pattern": false, "meaning": "\"Offline — Sign-in waits until this Mac is online\": the buttons swap, the card wakes by itself.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-advanced", "kind": "testid", "pattern": false, "meaning": "\"Advanced options\" on the card: opens the flyout of five rows (closed again next launch).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-advanced-menu", "kind": "testid", "pattern": false, "meaning": "The Advanced options flyout: hub, folder or GitHub project, connect AI, the maude command, Figma (one sheet each, S6.9).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "signin-adv-<id>", "kind": "testid", "pattern": true, "meaning": "One Advanced row (`<id>` = hub | folder-github | ai | cli | figma). Resting (`aria-disabled`) until its sheet exists (S6.9).", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInCard"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-signin-quiet", "kind": "testid", "pattern": false, "meaning": "The quiet \"Sign in to cloud.maude.sh\" in Home's top bar once there is a project but no account.", "producer": {"file": "apps/studio/client/v2/signin/SignInCard.jsx", "symbol": "SignInQuiet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-signin-toast", "kind": "testid", "pattern": false, "meaning": "The toast after a sign-in: \"Signed in. What you make now lives on cloud.maude.sh.\" or \"Signed in — your 2 cloud projects are here.\"", "producer": {"file": "apps/studio/client/v2/signin/SignInToast.jsx", "symbol": "SignInToast"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-whatsnew-line", "kind": "testid", "pattern": false, "meaning": "Home's one quiet What's new line after an update (the newest unseen entry's title), shown once and never on a first run.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewLine"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-whatsnew-open", "kind": "testid", "pattern": false, "meaning": "\"See what's new\" on that line: lists the unseen entries.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewLine"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-whatsnew-dismiss", "kind": "testid", "pattern": false, "meaning": "Dismiss on that line (the entries stay unseen for Menu › Help).", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewLine"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-whatsnew-dialog", "kind": "testid", "pattern": false, "meaning": "The list of unseen entries; closing it moves this Mac's one seen mark forward.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewDialog"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-whatsnew-close", "kind": "testid", "pattern": false, "meaning": "Done in that list.", "producer": {"file": "apps/studio/client/v2/signin/WhatsNewLine.jsx", "symbol": "WhatsNewDialog"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-create-advanced", "kind": "testid", "pattern": false, "meaning": "Advanced › Location in the Create a local project sheet.", "producer": {"file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx", "symbol": "CreateLocalSheet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-create-location", "kind": "testid", "pattern": false, "meaning": "The folder the project will be kept in, `~/Maude/<name>`.", "producer": {"file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx", "symbol": "CreateLocalSheet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"},
+  {"hook": "home-create-choose-folder", "kind": "testid", "pattern": false, "meaning": "\"Choose another folder…\" under Advanced › Location. Resting until the native folder picker is wired.", "producer": {"file": "apps/studio/client/v2/signin/CreateLocalSheet.jsx", "symbol": "CreateLocalSheet"}, "region": "home", "consumers": ["test:home-first-run"], "v2": "new"}
 ]

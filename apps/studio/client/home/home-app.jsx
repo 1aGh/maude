@@ -37,6 +37,13 @@ import {
 } from './home-api.js';
 import { parseMaudeLink } from '../share-link.js';
 import { browserDoorOf } from '../v2/cloud/browser-door.js';
+import { CreateLocalSheet } from '../v2/signin/CreateLocalSheet.jsx';
+import { SignInCard, SignInQuiet } from '../v2/signin/SignInCard.jsx';
+import { SignInToast } from '../v2/signin/SignInToast.jsx';
+import { cardMode, isFirstRun, signedInToast } from '../v2/signin/signin-model.js';
+import { useCloudSignIn } from '../v2/signin/use-signin.js';
+import { useWhatsNewLine } from '../v2/signin/use-whats-new-line.js';
+import { WhatsNewDialog, WhatsNewLine } from '../v2/signin/WhatsNewLine.jsx';
 import { HomeAsk } from './HomeAsk.jsx';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
@@ -99,6 +106,8 @@ function useHomeData() {
   const [shell, setShell] = useState(null);
   const [index, setIndex] = useState(null); // Map pid → HomeProjectIndex
   const [clouds, setClouds] = useState([]);
+  // S6.8: the cloud listings have answered once (signed in or not) — the first-run card waits for it
+  const [cloudsReady, setCloudsReady] = useState(false);
   const [status, setStatus] = useState('loading'); // loading | ready | offline
   const shellRef = useRef(null);
   const native = inShell();
@@ -127,12 +136,14 @@ function useHomeData() {
     const ids = (s?.profiles ?? []).map((p) => p.id).filter(Boolean);
     if (!ids.length) {
       setClouds([]);
+      setCloudsReady(true);
       return;
     }
     const answers = await Promise.all(ids.map((id) => getCloud(id)));
     setClouds(
       answers.map((a) => (a.json && typeof a.json === 'object' ? a.json : null)).filter(Boolean)
     );
+    setCloudsReady(true);
   }, []);
 
   const readShell = useCallback(async () => {
@@ -211,7 +222,7 @@ function useHomeData() {
     });
   }, []);
 
-  return { native, shell, index, clouds, status, reload: loadAll, patchPin };
+  return { native, shell, index, clouds, cloudsReady, status, reload: loadAll, patchPin };
 }
 
 // ── maude:// links (V2-3.5) ───────────────────────────────────────────────────────────────────
@@ -322,6 +333,20 @@ export function HomeApp() {
   const [creating, setCreating] = useState(null);
   const askNewProject = useCallback(() => setCreating((c) => c ?? { name: '', busy: false }), []);
   const online = useOnline();
+  // S6.8 — the sign-in card, its toast, the Advanced flyout (closed on every launch) and the What's New line
+  const [toast, setToast] = useState(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const closeToast = useCallback(() => setToast(null), []);
+  const signin = useCloudSignIn({
+    native: data.native,
+    // Home reads the new account's listing, then says how much arrived with it
+    onSignedIn: async ({ profile }) => {
+      await data.reload();
+      const r = await getCloud(profile);
+      const n = Array.isArray(r.json?.projects) ? r.json.projects.length : 0;
+      setToast(signedInToast(n));
+    },
+  });
   // S6.4 — where the sentence lands, and the shelves that come from the cloud
   const [pick, setPick] = useState(null); // the person's choice in the chip, by key
   const [asking, setAsking] = useState(false);
@@ -344,6 +369,17 @@ export function HomeApp() {
   );
 
   const signedIn = useMemo(() => data.clouds.some((c) => c?.signedIn), [data.clouds]);
+  // S6.8 — the card shows only on a first run (no project, no account, the lists have answered)
+  const firstRun =
+    data.native &&
+    data.cloudsReady &&
+    isFirstRun({ status: data.status, projectCount: model.projectCount, signedIn });
+  const signinLive = signin.state.phase !== 'idle';
+  const cardOn = data.native && !signedIn && (firstRun || signinLive);
+  const whatsNew = useWhatsNewLine({
+    enabled: data.native && data.cloudsReady && data.status === 'ready' && !firstRun && !cardOn,
+    native: data.native,
+  });
   const cloudOnline = online && !data.clouds.some((c) => c?.offline);
   const choices = useMemo(
     () => targetChoices({ model, signedIn, online: cloudOnline }),
@@ -605,12 +641,17 @@ export function HomeApp() {
           <HMark size={22} />
           <span className="home-pill-name">Home</span>
         </span>
-        <HomeSearch
-          inputRef={searchRef}
-          pids={searchPids}
-          onOpen={(pid, canvas, artboard) => open(pid, canvas, artboard)}
-          canOpen={data.native}
-        />
+        <div className="home-top-end">
+          {data.native && data.cloudsReady && !signedIn && !firstRun && !signinLive ? (
+            <SignInQuiet onClick={() => signin.begin()} disabled={!online} />
+          ) : null}
+          <HomeSearch
+            inputRef={searchRef}
+            pids={searchPids}
+            onOpen={(pid, canvas, artboard) => open(pid, canvas, artboard)}
+            canOpen={data.native}
+          />
+        </div>
       </header>
 
       <main className="home-page" aria-label="Home">
@@ -626,6 +667,34 @@ export function HomeApp() {
           onSend={sendSentence}
           onEmpty={startEmpty}
           onBrand={startBrand}
+          below={
+            <>
+              {cardOn ? (
+                <SignInCard
+                  mode={cardMode(signin.state, online)}
+                  userCode={signin.state.userCode}
+                  showCode={signin.state.showCode}
+                  error={signin.state.error}
+                  note={signin.note}
+                  native={data.native}
+                  onCloud={() => signin.begin()}
+                  onLocal={askNewProject}
+                  onCancel={signin.cancel}
+                  onReopen={signin.reopen}
+                  onShowCode={signin.showCode}
+                  advancedOpen={advancedOpen}
+                  onToggleAdvanced={() => setAdvancedOpen((o) => !o)}
+                />
+              ) : null}
+              {whatsNew.show ? (
+                <WhatsNewLine
+                  entry={whatsNew.entry}
+                  onOpen={whatsNew.open}
+                  onDismiss={whatsNew.dismiss}
+                />
+              ) : null}
+            </>
+          }
         />
 
         {!data.native ? (
@@ -867,50 +936,18 @@ export function HomeApp() {
       ) : null}
 
       {creating ? (
-        <div className="home-link-modal" role="dialog" aria-modal="true" aria-label="New project">
-          <div className="home-link-scrim" aria-hidden="true" onClick={() => setCreating(null)} />
-          <form
-            className="island home-link-dialog"
-            data-testid="home-create-dialog"
-            onSubmit={(e) => {
-              e.preventDefault();
-              createProject();
-            }}
-          >
-            <h2>New project</h2>
-            <p>It goes in the Maude folder in your home folder and opens in a new tab.</p>
-            <input
-              className="home-create-name"
-              data-testid="home-create-name"
-              aria-label="Project name"
-              placeholder="Untitled project"
-              // biome-ignore lint/a11y/noAutofocus: the sheet opens for this one field
-              autoFocus
-              maxLength={80}
-              value={creating.name}
-              onChange={(e) => setCreating({ ...creating, name: e.target.value })}
-            />
-            <div className="home-link-foot">
-              <button
-                type="button"
-                className="btn"
-                data-testid="home-create-cancel"
-                onClick={() => setCreating(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn--primary"
-                data-testid="home-create-submit"
-                disabled={creating.busy}
-              >
-                {creating.busy ? 'Creating…' : 'Create project'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <CreateLocalSheet
+          value={creating}
+          onChange={setCreating}
+          onSubmit={createProject}
+          onCancel={() => setCreating(null)}
+        />
       ) : null}
+
+      {whatsNew.reading ? (
+        <WhatsNewDialog entries={whatsNew.entries} onClose={whatsNew.close} />
+      ) : null}
+      {toast ? <SignInToast text={toast} onDone={closeToast} /> : null}
     </div>
   );
 }

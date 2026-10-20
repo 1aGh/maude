@@ -782,18 +782,23 @@ describe('home-api', () => {
           'shellInvoke',
           'shellListen',
         ].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink)$/.test(
+        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink|signInPrepare|signInOpenBrowser|signInDone)$/.test(
           name
         )
     );
     expect(http.map(([n]) => n).sort()).toEqual(
       [
+        'cloudSignInCancel',
+        'cloudSignInPoll',
+        'cloudSignInStart',
         'createLocal',
         'createLocalFromPrompt',
         'getCloud',
         'getConfig',
         'getIndex',
         'getRecentSearches',
+        'getWhatsNew',
+        'markWhatsNewSeen',
         'prepareCloud',
         'prepareCloudLink',
         'saveRecentSearch',
