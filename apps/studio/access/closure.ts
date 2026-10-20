@@ -21,7 +21,6 @@ import path, { dirname, resolve, sep } from 'node:path';
 import { canvasArtifacts } from '../canvas-artifacts.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
-import { videoDepsFor } from '../video/inject.ts';
 import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
 
 /** Relative import specifiers (side-effect, `from`, literal dynamic `import()`), in source order. */
@@ -78,6 +77,19 @@ export function relativeImportCandidates(
   return deps;
 }
 
+/**
+ * S7.5 — the transcript deps come from `video/inject.ts`, which parses the canvas (oxc + the clip
+ * JSX helpers → canvas-edit.ts). The hub imports this module under Node's strip-only TypeScript and
+ * must not load that graph, so inject.ts REGISTERS itself when the studio loads it (canvas-build.ts
+ * imports it at boot). Without a registration — the hub — no transcript is a dep: the closure fails
+ * closed (a canvas-scoped cell visitor does not read transcripts).
+ */
+type VideoDeps = (source: string, canvasAbs: string, designRoot: string) => string[];
+let videoDeps: VideoDeps | null = null;
+export function registerVideoDeps(fn: VideoDeps | null): void {
+  videoDeps = fn;
+}
+
 /** Relative import specifiers in a canvas source → absolute paths (the files
  *  Bun.build inlines): sibling `.css`, and — RC6 of
  *  rca/issue-canvas-hmr-optimistic-update-consistency — imported local
@@ -114,7 +126,7 @@ export function localDepsFromSource(
   }
   // S7.5 (V2-1.10 §5.3): the transcripts a canvas-lib <Captions>/<Duck> reads at build are inputs —
   // a new or changed `assets/<sha8>.transcript.json` rebuilds the canvases whose comps play it.
-  for (const p of videoDepsFor(source, canvasAbsPath, designRoot)) {
+  for (const p of videoDeps ? videoDeps(source, canvasAbsPath, designRoot) : []) {
     if (seen.has(p)) continue;
     seen.add(p);
     deps.push(p);

@@ -32,6 +32,7 @@ import {
   compSpeech,
   compWords,
 } from './derive.ts';
+import { registerVideoDeps } from '../access/closure.ts';
 import { type CaptionWordFrames, DUCK_DEFAULTS, msToFrames } from './framing.ts';
 import { readTranscript, sidecarRelFor, TRANSCRIPT_MAX_BYTES, type Transcript } from './schema.ts';
 
@@ -319,3 +320,6 @@ export function videoDepsFor(source: string, canvasAbs: string, designRoot: stri
   }
   return [...out].sort();
 }
+
+// The closure's freshness deps reach this parser only through the registration (access/closure.ts).
+registerVideoDeps(videoDepsFor);
