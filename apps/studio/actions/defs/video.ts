@@ -63,6 +63,17 @@ export const VIDEO_ACTIONS: ActionDef[] = [
     ...row('video.poster.set', 'Set as poster frame', 'Timeline'),
     search: { where: 'Timeline › Poster', keywords: ['poster', 'cover', 'thumbnail'] },
   },
+  // S7.18 — bound: Timeline › Advanced › Long videos. C22: past 3 600 frames a video warns; this stores the
+  // artboard's own ceiling (`artboardMeta.maxFrames`, ≤ 18 000) so one export may go that far.
+  {
+    ...row('video.allow-longer', 'Allow longer videos', 'Timeline › Advanced'),
+    search: {
+      where: 'Timeline › Advanced',
+      keywords: ['longer', 'length', 'limit', '2 min', 'frames'],
+    },
+  },
+  // S7.18 — bound: Timeline › Advanced › the keyframe's curve (a handle drag / arrow key writes it)
+  row('video.easing.set', 'Keyframe curve', 'Timeline › Advanced'),
   row('video.format.add', 'Add a format', 'Inspector › Formats'),
   row('video.format.unlink', 'Make an unlinked copy', 'Inspector › Formats'),
   row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),

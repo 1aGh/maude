@@ -168,6 +168,18 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
   },
+  // S7.18 (C35) — "+ track" under the timeline's Advanced: an empty Video 2 or Music 2 on the followed video. A
+  // comp's tracks are derived from what it says, so this only draws a lane (the person's own view); no key.
+  {
+    id: 'timeline.add-track',
+    label: 'Add a track',
+    kind: 'command',
+    exec: 'shell',
+    search: {
+      where: 'Timeline › Advanced',
+      keywords: ['track', 'video 2', 'music 2', 'layer', 'lane'],
+    },
+  },
   {
     id: 'timeline.comment-mode',
     label: 'Comment on the timeline',

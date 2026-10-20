@@ -345,6 +345,25 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)'
     )
   ),
+  // S7.18 — a keyframe's curve: `{ easing: Easing.bezier(a, b, c, d) }` on the k-th interpolate(frame, …) of the clip's
+  // component, `Easing` imported from remotion. The Timeline's Advanced draws it as cubic-bezier(a, b, c, d).
+  'video.easing.set': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Add { easing: Easing.bezier(a, b, c, d) } as the options of the k-th interpolate(frame, …) in the clip’s component; import Easing from remotion'
+    )
+  ),
+  // S7.18 (C22) — the artboard's own export ceiling, in the canvas .meta.json
+  'video.allow-longer': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'artboardMeta.<id>.maxFrames: an integer up to 18000 in the canvas .meta.json (3600 without it)'
+    ),
+  },
   'video.poster.set': {
     effect: 'project',
     minRole: 'edit',
@@ -1051,6 +1070,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.to-end': PREF('playback'),
   'timeline.prev-keyframe': PREF('playback'),
   'timeline.next-keyframe': PREF('playback'),
+  // S7.18 — "+ track": which empty tracks the timeline draws is the person's own view; the lanes follow the clips
+  'timeline.add-track': PREF('which empty tracks the timeline draws (the lanes follow the clips)'),
   // S7.9 — the timeline's edit gestures (one `clip.*` op each) and the 17-row clip menu. An agent writes the
   // same literal props in the canvas .tsx; `comment` and `generate` have a verb of their own.
   'timeline.trim': VIDEO_OP(

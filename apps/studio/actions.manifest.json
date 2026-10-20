@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b28583992c1e",
+  "manifestVersion": "66bbebd12490",
   "actions": [
     {
       "id": "search.open",
@@ -2927,6 +2927,18 @@
       }
     },
     {
+      "id": "timeline.add-track",
+      "label": "Add a track",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "which empty tracks the timeline draws (the lanes follow the clips)"
+      }
+    },
+    {
       "id": "timeline.comment-mode",
       "label": "Comment on the timeline",
       "kind": "toggle",
@@ -3523,6 +3535,39 @@
         "format": "canvas-meta",
         "skill": "design:video-comp",
         "how": "artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json"
+      }
+    },
+    {
+      "id": "video.allow-longer",
+      "label": "Allow longer videos",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "artboardMeta.<id>.maxFrames: an integer up to 18000 in the canvas .meta.json (3600 without it)"
+      }
+    },
+    {
+      "id": "video.easing.set",
+      "label": "Keyframe curve",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Add { easing: Easing.bezier(a, b, c, d) } as the options of the k-th interpolate(frame, …) in the clip’s component; import Easing from remotion"
       }
     },
     {
