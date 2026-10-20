@@ -102,6 +102,8 @@
 @import url("../v2/ds/token.css");
 /* S10.11 — the outside-change review and the conflict pick (Design system canvas). */
 @import url("../v2/ds/truth.css");
+/* S10.19 — Design system › Advanced and the Check the system card (inspector, Design system canvas). */
+@import url("../v2/ds/advanced.css");
 /* S10.14 — "Switch canvases to …?" and the "Preview in …" menu and banner. */
 @import url("../v2/ds/switch.css");
 /* S10.17 — the edges: Lighten to 4.5:1, a colour to the trash, an off-system colour. */

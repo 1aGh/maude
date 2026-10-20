@@ -1703,4 +1703,28 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design ds usage <ds> --css <--token> --json'),
   },
+  // S10.19 — Design system › Advanced. The check is a verb that keeps `_state/ds-check/<ds>.json` (per Mac, ignored);
+  // the files an agent hands off ARE `tokens.json` + `colors_and_type.css` (the sheet writes nothing new); Finder
+  // opens on the person's Mac.
+  'ds.check-system': {
+    effect: 'none',
+    minRole: 'edit',
+    server: { route: '/_api/ds/check-system', method: 'POST' },
+    agent: cli('maude design ds check-system <ds> [--json]'),
+  },
+  'ds.handoff-tokens': {
+    effect: 'none',
+    agent: file(
+      'tokens',
+      'design:design-system',
+      'the handoff of tokens IS system/<ds>/tokens.json (design tokens, both modes) and colors_and_type.css: read them, or run maude design ds-check <ds> --emit to regenerate tokens.json first'
+    ),
+  },
+  'ds.reveal-files': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens Finder on the person’s Mac; an agent already holds system/<ds>/ and reads it in place'
+    ),
+  },
 };

@@ -196,6 +196,8 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   // sub-verb, never a flag on `revisions`.
   d('ds status', 'none'),
   d('ds usage', 'none'),
+  // S10.19. Runs the check over the system's files and keeps one file under `_state/` (per Mac, ignored).
+  d('ds check-system', 'none', { note: 'reads the system; keeps _state/ds-check/<ds>.json' }),
   d('ds revisions', 'none', {
     note: 'only `revisions list <ds>`; the helper refuses any other form',
   }),

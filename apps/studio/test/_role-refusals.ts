@@ -268,6 +268,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     // S10.17 — Lighten to 4.5:1 / Add it to the system
     '/_api/ds/fix-contrast',
     '/_api/ds/add-colour',
+    // S10.19 — Check the system (writes _state/ds-check/<ds>.json)
+    '/_api/ds/check-system',
   ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
   { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];

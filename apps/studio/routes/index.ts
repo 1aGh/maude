@@ -31,6 +31,7 @@ import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { type ConnectionsRouteDeps, createConnectionsRoutes } from './connections.ts';
 import { createDiagnosticsRoutes, type DiagnosticsRouteDeps } from './diagnostics.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
+import { createDsCheckRoutes } from './ds-check.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
@@ -154,6 +155,12 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
   deps.agent.runs ??= createAgentRuns(deps.agent.bracket, undefined, deps.ai.registry);
   const convert = deps.annotations ? createAnnotationRoutes(deps.annotations) : null;
   const projectUndo = deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel };
+  const dsDeps: DsRouteDeps = deps.ds ?? {
+    // no engine wired: every DS route answers 503 `ds-unavailable`
+    engine: () => null,
+    access: () => trashAccessNone,
+    person: async () => ({ name: '' }),
+  };
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
@@ -221,14 +228,9 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
-    ...createDsRoutes(
-      deps.ds ?? {
-        // no engine wired: every DS route answers 503 `ds-unavailable`
-        engine: () => null,
-        access: () => trashAccessNone,
-        person: async () => ({ name: '' }),
-      }
-    ),
+    ...createDsRoutes(dsDeps),
+    // S10.19 — Design system › Advanced and Check the system (routes/ds-check.ts)
+    ...createDsCheckRoutes(dsDeps),
     // S4.14 — no home wired: votes are off (every write 409 `votes-off`), nothing is read or written
     ...createVoteRoutes(
       deps.votes ?? {

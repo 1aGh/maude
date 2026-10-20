@@ -337,7 +337,7 @@
       "v2": {
         "action": null,
         "testid": "canvases-ds-files",
-        "where": "Canvases › Advanced › the design system’s files — its folder path heads the group (the Design system row itself opens the system canvas)"
+        "where": "Canvases › Advanced › the design system’s files — its folder path heads the group (the Design system row itself opens the system canvas); also Design system › Advanced › Files, where the folder path heads the list and Reveal in Finder opens it (testid ds-advanced-files)"
       }
     },
     {

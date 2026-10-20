@@ -128,6 +128,9 @@ const FILTERED = [
   // S10.17 — the nearest system colour, and the off-system colours of a canvas (reads)
   '/_api/ds/nearest',
   '/_api/ds/off-system',
+  // S10.19 — the system's files view and Check the system answer like `state`: a system is seen only through its DS canvas
+  '/_api/ds/system-files',
+  '/_api/ds/check-system',
   '/_api/asset-state',
 ];
 

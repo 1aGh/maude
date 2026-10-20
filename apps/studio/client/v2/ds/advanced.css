@@ -1,0 +1,277 @@
+/* client/v2/ds/advanced.css — S10.19: Design system › Advanced and Check the system (13 · ds-advanced).
+ * Stands in the inspector's place while a system's own Design system canvas has nothing selected. Tokens only;
+ * mono only inside the fold (and the one quiet line under the check). No motion. */
+
+@layer shell {
+  .dsa {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    text-align: left;
+  }
+  .dsa-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    font-size: var(--type-base);
+    color: var(--fg-0);
+  }
+  .dsa-hd strong {
+    font-weight: var(--w-semibold);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .dsa-row {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsa-row-k {
+    color: var(--fg-2);
+  }
+  .dsa-row .btn {
+    gap: var(--space-1);
+  }
+  .dsa-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--status-warn-text);
+  }
+  .dsa-quiet {
+    font-weight: var(--w-regular);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsa-mono {
+    font-family: var(--font-mono);
+  }
+  .dsa-k {
+    margin: var(--space-1) 0 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+
+  /* the fold */
+  .dsa-adv > summary {
+    cursor: pointer;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .dsa-adv > summary > span {
+    margin-left: var(--space-1);
+    color: var(--fg-3);
+  }
+  .dsa-adv-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-1) 2px;
+  }
+  .dsa-seg {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .dsa-seg-b {
+    padding: 2px var(--space-3);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .dsa-seg-b[aria-pressed="true"] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .dsa-code {
+    margin: 0;
+    padding: var(--space-3);
+    max-height: 280px;
+    overflow: auto;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    line-height: 1.6;
+    color: var(--fg-0);
+    white-space: pre;
+  }
+  .dsa-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+  }
+  .dsa-tree span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .dsa-tree svg {
+    flex: none;
+    color: var(--fg-2);
+  }
+  .dsa-tree em {
+    font-style: normal;
+    color: var(--fg-2);
+  }
+  .dsa-tree-1 {
+    padding-left: var(--space-4);
+  }
+  .dsa-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .dsa-acts .btn {
+    gap: var(--space-1);
+  }
+
+  /* the cards under it */
+  .dsa-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .dsa-card-title {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .dsa-flow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .dsa-flow b {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .dsa-flow-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .dsa-hist {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-sm);
+  }
+  .dsa-hist-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    color: var(--fg-1);
+  }
+  .dsa-hist-ic--ai {
+    background: var(--spark-muted);
+  }
+  .dsa-hist-t {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .dsa-hist-t b {
+    margin-right: var(--space-2);
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .dsa-hist em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .dsa-hist-acts {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--space-1);
+  }
+  .dsa-chk {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+    text-align: left;
+  }
+  .dsa-chk-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .dsa-chk b {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .dsa-chk-t {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .dsa-chk-ic {
+    display: grid;
+    place-items: center;
+    height: var(--lh-sm);
+  }
+  .dsa-chk-ic--ok {
+    color: var(--status-success-text);
+  }
+  .dsa-chk-ic--warn {
+    color: var(--status-warn-text);
+  }
+  .dsa-chk--adv {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+    padding-top: var(--space-2);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+}

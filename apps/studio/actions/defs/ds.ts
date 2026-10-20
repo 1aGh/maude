@@ -87,4 +87,19 @@ export const DS_ACTIONS: ActionDef[] = [
   row('ds.fix-contrast', 'Lighten to 4.5:1'),
   row('ds.add-colour', 'Add it to the system'),
   row('ds.use-nearest', 'Use the system colour'),
+  // S10.19 — Design system › Advanced and Check the system (13 · ds-advanced). All three are reached from the system
+  // they name (its panel, its own menu), so none is a ⌘K row. The check writes one file under `_state/` and is Can
+  // edit; reading its last answer is not an action. Reveal in Finder is the Mac app's native door for the system's
+  // folder (S11.16's `project_reveal_path`, confined by Rust). Hand off tokens opens the handoff sheet (S8's target
+  // `tokens` is S8.10's: until it lands the sheet is the canvas handoff and the files themselves are the handoff).
+  row('ds.check-system', 'Check the system'),
+  {
+    id: 'ds.reveal-files',
+    label: 'Reveal in Finder',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'], facts: ['native'], minRole: 'edit' },
+    search: ROW,
+  },
+  row('ds.handoff-tokens', 'Hand off tokens'),
 ];

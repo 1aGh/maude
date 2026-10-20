@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { canvasDsSystem } from '../../canvas-url.js';
 import { loadReach } from './reach-data.js';
+import { DsAdvancedHost } from './advanced-host.jsx';
 import { DsReachView } from './reach-view.jsx';
 import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
@@ -245,6 +246,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   const closeReach = useCallback(() => setReach(null), []);
   // S10.11 — the outside-change review and the conflict pick live in the inspector's empty place; their host rides here
   // S10.12 — "Convert system folders" (the folder view's banner, `ds.convert`) rides here too
+  // S10.19 — Design system › Advanced and Check the system (the system panel in the same place) ride the same mount
   const truth = (
     <>
       <DsTruthHost
@@ -255,6 +257,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         fetchImpl={fetchImpl}
       />
       <DsConvertHost toast={toast} fetchImpl={fetchImpl} />
+      <DsAdvancedHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
     </>
   );
   // S10.14 — "Switch canvases to …?" and "Preview in …" ride the same mount; so does S10.17's off-system question

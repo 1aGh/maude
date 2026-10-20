@@ -318,6 +318,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ds/clear': { safe: null, unsafe: 'delete' },
   '/_api/ds/make': { safe: null, unsafe: 'edit' }, // S10.16a — make a system, write a direction, finish it
   '/_api/ds/make-state': { safe: 'read', unsafe: null },
+  '/_api/ds/system-files': { safe: 'read', unsafe: null }, // S10.19 — Design system › Advanced (GET only)
+  '/_api/ds/check-system': { safe: 'read', unsafe: 'edit' }, // S10.19 — the last check (GET) · run it (POST; writes _state/)
   '/_api/ds/default': { safe: null, unsafe: 'edit' }, // S10.13 — the project's default design system
   '/_api/ds/switch': { safe: null, unsafe: 'edit' }, // S10.14 — move canvases to another design system
   '/_api/ds/convert': { safe: null, unsafe: 'edit' }, // S10.12 — system folders → Design system canvases; Restore

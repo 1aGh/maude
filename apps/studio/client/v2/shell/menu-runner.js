@@ -38,6 +38,7 @@ import {
 import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
+import { requestDsAdvanced } from '../ds/advanced-bus.js';
 import { requestDsReview } from '../ds/review-bus.js';
 import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
 import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
@@ -351,6 +352,11 @@ export function createMenuHandlers(d) {
       const r = await restoreSystemFolder(String(p?.ds ?? ''));
       d.toast?.(r.message, r.ok);
     },
+    // S10.19 — Design system › Advanced: run the check (the host says the outcome and shows the system), reveal the
+    // system's folder (the Mac app), hand off the tokens (the handoff sheet; its `tokens` target is S8.10's)
+    'ds.check-system': (p) => requestDsAdvanced({ kind: 'check', ds: p?.ds }),
+    'ds.reveal-files': (p) => requestDsAdvanced({ kind: 'reveal', ds: p?.ds }),
+    'ds.handoff-tokens': (p) => d.setExportDialog({ mode: 'handoff', target: 'tokens', ds: p?.ds }),
     'ds.set-default': async (p) => {
       const r = await setDefaultSystem(String(p?.ds ?? ''), { label: p?.label });
       d.toast?.(r.message, r.ok);

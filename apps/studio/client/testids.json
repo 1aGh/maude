@@ -33086,5 +33086,325 @@
       "apps/studio/test/export-lane-choice.test.ts"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "ds-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Design system › Advanced (13 · ds-advanced): the system panel in the inspector’s empty place on a Design system canvas; `data-system` names the system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-check-button",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: “Check the system” in the system panel; disabled while a run waits.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the one line a refused or failed check says, in the system panel.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the Advanced fold of the system panel (tokens file, folder, hand-off).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: what the Advanced fold holds, once opened.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-seg-<which>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.19: the CSS | JSON switch of the tokens file (`css` · `json`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "TokensView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the tokens file, read only; `data-file` names it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "TokensView"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-files",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the system folder as a short list inside the Advanced fold (closes nothing-deleted A-design-system-folder-path).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "FilesList"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-advanced-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the first row of the files list: the system’s folder path.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "FilesList"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-handoff-tokens",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: “Hand off tokens ⇧⌘H” in the Advanced fold (`ds.handoff-tokens`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-reveal-files",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: “Reveal in Finder” for the system folder; only in the Mac app (`ds.reveal-files`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-flow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the “Which way changes flow” card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "DsAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-history",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the system’s own version history card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "History"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-history-row-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.19: one row of the system’s version history, newest first.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "History"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-history-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: “Restore…” in the system’s version history; opens Version history.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/advanced.jsx",
+      "symbol": "History"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-check-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: the “Check the system” card (13 · ds-advanced).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/check-card.jsx",
+      "symbol": "CheckCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-check-ran",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: “ran 1 min ago” on the check card.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/check-card.jsx",
+      "symbol": "CheckCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-check-row-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.19: one line of the check card; `data-ok`, `data-kind` (contrast · pair · complete · schema).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/check-card.jsx",
+      "symbol": "CheckCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-check-show-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S10.19: “Show” on a pair that falls short: goes to the token on the Design system canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/check-card.jsx",
+      "symbol": "CheckCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-check-ask-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.19: “Ask AI to review” on the check card: fills the AI chat’s composer, never sends.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/check-card.jsx",
+      "symbol": "CheckCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-advanced.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

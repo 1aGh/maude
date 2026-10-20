@@ -10,6 +10,7 @@ import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
 import { useEmptyArtboard } from '../v2/empty/empty-hint-store.js';
 import { LayersEmpty } from '../v2/empty/layers-empty.jsx';
+import { useDsAdvanced } from '../v2/ds/advanced.jsx';
 import { useDsTruthCards } from '../v2/ds/truth-card.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
 import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
@@ -133,6 +134,8 @@ export function InspectorPanel({
   const emptyBoard = useEmptyArtboard();
   // S10.11 — a Design system canvas whose files changed outside the app (or in two places) says so here
   const dsTruth = useDsTruthCards();
+  // S10.19 — …and shows the system itself (Advanced, Check the system) when nothing else is waiting
+  const dsSystem = useDsAdvanced();
   const [tabState, setTabState] = useState('inspect');
   const tab = layersOnly ? 'layers' : (tabProp ?? tabState);
   const setTab = (t) => {
@@ -602,8 +605,11 @@ export function InspectorPanel({
           layersTree?.artboardId === emptyBoard.artboardId &&
           !layersTree?.nodes?.length ? (
           <LayersEmpty artboard={emptyBoard.label} />
-        ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) && dsTruth ? (
-          dsTruth
+        ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) && (dsTruth || dsSystem) ? (
+          <>
+            {dsTruth}
+            {dsSystem}
+          </>
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
           <div className="st-rp-empty">
             {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +

@@ -60,7 +60,8 @@ export function systemMenuItems({ row, rows = [], canEdit = true, has = () => fa
       label: 'Preview in…',
       action: { id: 'ds.preview', params: { from: row.dsName } },
     });
-  if (has('ds.check-system'))
+  // S10.19 — running the check is Can edit (it keeps a file under `_state/`); a viewer reads the last answer in the panel
+  if (canEdit && has('ds.check-system'))
     items.push({
       id: 'check',
       label: 'Check the system',
