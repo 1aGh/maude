@@ -176,6 +176,9 @@ export const TAG_WORKING = 'AI is working';
 export const TAG_NEEDS_YOU = 'Waiting for you';
 /** S7.14 — an AI cut placing shots: "AI is cutting · 7 of 14", built from the progress NUMBERS only. */
 export const TAG_CUTTING = 'AI is cutting';
+/** S7.15 — an AI watching the attached footage, before a shot is placed (07 · ve-ai-watch): a fixed phrase. */
+export const TAG_WATCHING = 'AI is watching footage';
+export const watchingTag = (p) => (p?.kind === 'watch' && p.done < p.total ? TAG_WATCHING : null);
 export const cuttingTag = (p) =>
   p?.kind === 'place' && Number.isFinite(p.done) && Number.isFinite(p.total)
     ? `${TAG_CUTTING} · ${p.done} of ${p.total}`
@@ -210,7 +213,9 @@ export function ringsFor(view, { activeCanvas, entryOf } = {}) {
         who: 'you',
         tag: needs
           ? TAG_NEEDS_YOU
-          : (l.artboard === r.progress?.artboard && cuttingTag(r.progress)) || TAG_WORKING,
+          : (l.artboard === r.progress?.artboard && cuttingTag(r.progress)) ||
+            watchingTag(r.progress) ||
+            TAG_WORKING,
         waiting: 0,
       };
     }

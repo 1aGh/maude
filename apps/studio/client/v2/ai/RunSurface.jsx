@@ -36,6 +36,8 @@ import { compareView, fetchRunVersions } from './run-compare.js';
 import { artboardLabel, runFile } from './runs-model.js';
 import { useBoardLabels } from './RunList.jsx';
 import { shortArtboardName } from './scope.js';
+import { runCardFor } from './run-cards.js';
+import './video/cards.jsx';
 import { RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
 import { useChatRuns } from './use-chat-runs.js';
 
@@ -196,6 +198,20 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
       ? ''
       : describeResult(run, artboards);
 
+  // S7 §2.2 — the card a feature registered for what this run counts (S7.15: the AI cut's `watch` and `place`)
+  const RunCard = runCardFor(run?.progress?.kind);
+  const kindCard = (where) =>
+    RunCard && run ? (
+      <RunCard
+        run={run}
+        where={where}
+        live={live}
+        ended={ended}
+        designRel={designRel}
+        onAsk={onFollowUp}
+      />
+    ) : null;
+
   return (
     <>
       <RunLiveRegion message={message} />
@@ -204,6 +220,7 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
           {copyLine}
         </p>
       ) : null}
+      {kindCard('top')}
       {showWorking ? (
         <WorkingLine
           text={workingText(run)}
@@ -229,6 +246,7 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
           />
         </div>
       ) : null}
+      {kindCard('tail')}
     </>
   );
 }
