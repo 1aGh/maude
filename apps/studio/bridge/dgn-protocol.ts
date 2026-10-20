@@ -435,6 +435,20 @@ export interface ShellToCanvas {
   // S10.8 — a canvas left out of a design-system update: the `data-cd-id`s of the elements that wear what
   // changed (client/v2/ds/update-dots.js names them from the usage index); the shell document draws a dot.
   'ds-update-dots': { ids: string[] };
+  // S10.16c — the Design system canvas's three shell messages (they were raw `{ type: 'maude:ds-…' }` posts):
+  // the Light | Dark preview (`ds.set-theme-preview`, a view of this one canvas), the tokens the studio flags
+  // ("Changed outside" / "2 versions", S10.11) and which sections of a system being made wait, are drawn or done
+  // (13 · ds-make-filling, S10.16b). The board listens only to its parent and keeps all three in memory.
+  'ds-theme-preview': { mode: 'light' | 'dark' };
+  'ds-marks': { outside: string[]; conflicts: string[] };
+  'ds-make-states': {
+    sections: Partial<
+      Record<
+        'brand' | 'colour' | 'type' | 'space' | 'motion' | 'components' | 'patterns',
+        'waiting' | 'drawing' | 'done'
+      >
+    >;
+  };
   // S10.9 — the reach view asks a preview frame where these elements (`data-cd-id`s from the usage index, inside
   // `artboard` when given) are drawn; the frame answers `ds-rects-result` with the same `seq`.
   'ds-rects': { seq: number; artboard: string | null; ids: string[] };
@@ -855,6 +869,37 @@ export const DS_DOTS_MAX = 200;
 const DOT_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 const dotId: V = (v) => (typeof v === 'string' && DOT_ID.test(v) ? v : BAD);
 const dotIds: V = (v) => (Array.isArray(v) && v.length <= DS_DOTS_MAX ? arrOf(dotId)(v) : BAD);
+/** S10.16c — `ds-theme-preview`: the board's own Light | Dark. */
+const dsThemeMode: V = lit('light', 'dark');
+/** S10.16c — `ds-marks`: custom-property names (the board's `safeCssName`), at most this many per list. */
+export const DS_MARKS_MAX = 200;
+const MARK_NAME = /^--[A-Za-z0-9_-]{1,128}$/;
+const markName: V = (v) => (typeof v === 'string' && MARK_NAME.test(v) ? v : BAD);
+const markNames: V = (v) =>
+  Array.isArray(v) && v.length <= DS_MARKS_MAX ? arrOf(markName)(v) : BAD;
+/** S10.16c — `ds-make-states`: the seven sections of a design system board (ds/board/types.ts SECTIONS, pinned by
+ *  test/ds-board-dgn-messages.test.tsx) and the three words a section can be in. */
+export const DS_SECTION_KINDS = [
+  'brand',
+  'colour',
+  'type',
+  'space',
+  'motion',
+  'components',
+  'patterns',
+] as const;
+const dsSectionState: V = lit('waiting', 'drawing', 'done');
+const dsMakeSections: V = (v) => {
+  if (!isPlain(v)) return BAD;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(v)) {
+    if (!(DS_SECTION_KINDS as readonly string[]).includes(k)) return BAD;
+    const r = dsSectionState(v[k]);
+    if (r === BAD) return BAD;
+    out[k] = r;
+  }
+  return out;
+};
 /** S10.9 — the reach view: how many elements one `ds-rects` asks about (the model's ring cap, reach-model.js). */
 export const DS_RECTS_MAX = 500;
 const rectIds: V = (v) => (Array.isArray(v) && v.length <= DS_RECTS_MAX ? arrOf(dotId)(v) : BAD);
@@ -1757,6 +1802,27 @@ const s2c: S2C = {
     status: 'live',
     owner: 'tpl/_shell.html',
     parse: p({ ids: dotIds }),
+  },
+  // S10.16c — sent by client/v2/ds/use-ds-frames.js (`ds.set-theme-preview`), read by ds/board/state.ts
+  'ds-theme-preview': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'ds/board/state',
+    parse: p({ mode: dsThemeMode }),
+  },
+  // S10.16c — sent by client/v2/ds/truth-host.jsx (`postDsMarks`), read by ds/board/state.ts
+  'ds-marks': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'ds/board/state',
+    parse: p({ outside: markNames, conflicts: markNames }),
+  },
+  // S10.16c — sent by client/v2/ds/make-host.jsx while a system is being made, read by ds/board/outline.tsx
+  'ds-make-states': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'ds/board/outline',
+    parse: p({ sections: dsMakeSections }),
   },
   // S10.9 — sent by client/v2/ds/reach-view.jsx, answered by the shell template's `ds-rects` region
   'ds-rects': {
