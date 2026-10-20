@@ -291,3 +291,64 @@ describe('the Browse view and Not used (S8.13)', () => {
     expect(existsSync(join(ASSETS, 'brw-c.png'))).toBe(true);
   });
 });
+
+/**
+ * Part 3 (S8.20, 12 · ia-assets-find) — search in pictures, opt-in.
+ *   9. a search offers it once (Turn on…, or Connect… with no AI); the sheet sends nothing until Describe pictures,
+ *      and the answer is this Mac's runtime file `_canvas-state/_describe.json` (never versioned, never synced).
+ *  10. with the sidecar on the stub describer (`MAUDE_DESCRIBE_STUB=1`, every picture reads "A picture"), "picture"
+ *      finds pic.png under "Seen in the picture" — its name does not say it — with the word marked.
+ * No real AI: without the stub, step 10 is skipped (the studio has no describer until S12.13).
+ */
+describe('search in pictures (S8.20)', () => {
+  const CONSENT = join(DESIGN, '_canvas-state', '_describe.json');
+  const restoreConsent = existsSync(CONSENT) ? readFileSync(CONSENT, 'utf8') : null;
+  after(() => {
+    if (restoreConsent === null) rmSync(CONSENT, { force: true });
+    else writeFileSync(CONSENT, restoreConsent);
+  });
+
+  it('asked once: the sheet sends nothing until Describe pictures', async () => {
+    const report = startReport('assets-describe');
+    rmSync(CONSENT, { force: true });
+    const search = await $('[data-testid="assets-search"]');
+    await search.setValue('picture');
+    const offer = await $('[data-testid="assets-describe-offer"]');
+    await offer.waitForExist({ timeout: 10_000 });
+    await capture(report, 'offer');
+    if ((await offer.getAttribute('data-kind')) === 'connect') {
+      expect(await (await $('[data-testid="assets-search-foot"]')).getText()).toContain(
+        'names only'
+      );
+      return; // no AI on this machine: names only, and the answer is never asked for
+    }
+    await (await $('[data-testid="assets-describe-turn-on"]')).click();
+    await (await $('[data-testid="assets-describe-sheet"]')).waitForExist({ timeout: 5000 });
+    expect(existsSync(CONSENT)).toBe(false); // opening the sheet sends nothing
+    await capture(report, 'sheet');
+    await (await $('[data-testid="assets-describe-confirm"]')).click();
+    await browser.waitUntil(async () => existsSync(CONSENT), { timeout: 5000 });
+    expect(JSON.parse(readFileSync(CONSENT, 'utf8'))).toMatchObject({ v: 1, on: true });
+  });
+
+  it('with the stub describer, "picture" finds pic.png by what AI saw, marked', async function () {
+    if (process.env.MAUDE_DESCRIBE_STUB !== '1') this.skip();
+    const report = startReport('assets-describe-seen');
+    const search = await $('[data-testid="assets-search"]');
+    await browser.waitUntil(
+      async () => {
+        await search.setValue('');
+        await search.setValue('picture');
+        return (await $('[data-testid="assets-group-seen"]')).isExisting();
+      },
+      {
+        timeout: 90_000,
+        interval: 5000,
+        timeoutMsg: 'nothing was described (budget: one batch per 20 s)',
+      }
+    );
+    const line = await $('[data-testid="assets-seen-line"] mark');
+    expect(await line.getText()).toBe('picture');
+    await capture(report, 'seen');
+  });
+});

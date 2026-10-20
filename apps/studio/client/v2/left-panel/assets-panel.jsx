@@ -17,7 +17,10 @@
 // S8.21: ⌘I / "Show details" opens the asset's details IN PLACE OF the list (assets/details.jsx: a photo, Made by AI, footage, sound;
 // "Used in" opens the artboard; Advanced holds the stored name, the Original on this Mac and the command). "Generated" is a group of
 // its own after Just added: the pictures that have a `.gen.json`, one block per generation run (assets/generated.js).
-// NOT here yet: search in pictures (S8.20).
+// S8.20: search in pictures, opt-in (assets/describe-*.js*, search-marks.jsx). A search reads names and tags; the first one
+// offers "Search what's in the pictures too?" (or Connect… with no AI). One sheet asks once per project, per person, on this
+// Mac; after a yes the studio describes each picture once and "Seen in the picture" lists what a word was found in, marked.
+// "Describing 12 of 193 pictures" with Stop sits at the foot while it runs.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { uploadAsset } from '../../../asset-upload.ts';
@@ -25,15 +28,18 @@ import { mimeFromExt } from '../../dialogs/asset-picker.jsx';
 import { isNativeApp, pickMediaFiles, pickedMediaSource } from '../../github.js';
 import { Kbd, StIcon } from '../../shell/icons.jsx';
 import { assetUploadOf, useAssetAnswers } from '../assets/asset-state-lane.js';
-import { bindAssetsPanel, takeGenerateRequest } from '../assets/assets-bus.js';
+import { bindAssetsPanel, takeDescribeRequest, takeGenerateRequest } from '../assets/assets-bus.js';
 import { filterAssets } from '../assets/browse-model.js';
 import { BrowseView, browseOrder, MAX_PLACE } from '../assets/browse-view.jsx';
 import { NOTHING_PICKED, pick as pickTile, pickAll } from '../assets/multi-select.js';
+import { offerOf, searchFootWords, useDescribe } from '../assets/describe-client.js';
+import { DescribeOffer, DescribeProgress, DescribeSheet } from '../assets/describe-consent.jsx';
 import { AssetDetails } from '../assets/details.jsx';
 import { GenerateAsk } from '../assets/generate-ask.jsx';
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
+import { SeenLine } from '../assets/search-marks.jsx';
 import { AssetTile } from '../assets/tile.jsx';
 import { AssetTileMenu, tileMenuItems } from '../assets/tile-menu.jsx';
 import { ConfirmTrash, NotCountedNote, TidyFoot, tidyModel } from '../assets/tidy.jsx';
@@ -147,6 +153,9 @@ export function AssetsPanel({
   const [err, setErr] = useState('');
   const [dropping, setDropping] = useState(false);
   const [asking, setAsking] = useState(() => !readOnly && takeGenerateRequest());
+  // S8.20 — the describe sheet (⌘K "Search in pictures" asked before the tab was there opens it on mount)
+  const [describeAsk, setDescribeAsk] = useState(() => takeDescribeRequest());
+  const describe = useDescribe({ fetchImpl, query });
   const alive = useRef(true);
   const rootRef = useRef(null);
   useEffect(() => {
@@ -204,6 +213,15 @@ export function AssetsPanel({
       }),
     [shown, notUsedOnly, hasUsage, generated.groups]
   );
+  // S8.20 — "Seen in the picture": what a word was found in ONLY by what AI saw (never a picture already named above)
+  const seen = useMemo(() => {
+    // not in the Not used view, which lists what to tidy by name
+    if (!query.trim() || !describe.hits.length || (notUsedOnly && hasUsage)) return [];
+    const named = new Set(shown.map((a) => a.path));
+    return describe.hits
+      .filter((h) => byPath.has(h.rel) && !named.has(h.rel))
+      .map((h) => ({ asset: byPath.get(h.rel), hit: h }));
+  }, [query, describe.hits, shown, byPath, notUsedOnly, hasUsage]);
   useAssetAnswers(); // the bars on tiles follow what the studio last said about each open canvas
   const url = (p) => `/${designRel}/${p}`;
   const renderTile = (a) => (
@@ -373,6 +391,7 @@ export function AssetsPanel({
   // The registry reaches the tab through the bus: the same functions the tile menu runs.
   const live = useRef({});
   live.current = {
+    describe,
     picked,
     browse,
     browsePicked,
@@ -407,6 +426,16 @@ export function AssetsPanel({
         },
         generate: () => {
           if (!live.current.readOnly) setAsking(true);
+        },
+        // S8.20 — ⌘K "Search in pictures": off → the sheet (never a silent yes); on → off at once
+        describe: () => {
+          const d = live.current.describe;
+          if (d.status?.consent?.on) void d.consent(false);
+          else setDescribeAsk(true);
+        },
+        describeStop: () => {
+          const d = live.current.describe;
+          if (d.status?.consent?.on) void d.stop(d.status.paused !== 'stopped');
         },
         tileSelected: () => {
           const l = live.current;
@@ -495,6 +524,13 @@ export function AssetsPanel({
   };
   const env = getPaletteEnv();
   const canAsk = !readOnly && env.canAskAI?.() === true;
+  // S8.20 — describing is the person's own (a viewer too): "AI connected" is the shell's, not the role's
+  const aiOn = env.canAskAI?.() === true;
+  const offer = offerOf(describe.status, aiOn);
+  const answerDescribe = (on) => {
+    setDescribeAsk(false);
+    void describe.consent(on);
+  };
   const emptyWords = copy('es-panels-make.assets-none');
 
   const onDrop = (e) => {
@@ -654,57 +690,101 @@ export function AssetsPanel({
               </p>
             )}
           </div>
-        ) : shown.length === 0 ? (
+        ) : shown.length === 0 && seen.length === 0 ? (
           <div className="lp-empty" data-testid="assets-nohits">
             <p className="lp-empty-t">Nothing called “{query}”.</p>
             <p className="lp-empty-b">Try another word — search reads names and tags.</p>
+            {offer === 'turn-on' ? (
+              // 05 · es-search-more: the one next step is the opt-in, on the person's own account
+              <>
+                <AskButton onClick={() => setDescribeAsk(true)}>
+                  Let AI describe your pictures
+                </AskButton>
+                <p className="lp-empty-b lp-empty-fine" data-testid="assets-nohits-describe">
+                  So search finds what's in them. Once for {env.projectName || 'this project'}, on
+                  your Claude account.
+                </p>
+              </>
+            ) : null}
           </div>
         ) : (
-          groups.map((g) => (
-            <section key={g.kind} aria-label={g.title}>
-              <p className="lp-group">
-                {g.kind === 'added' || g.kind === 'generated' ? (
-                  <span className="lp-group-s" data-testid={`assets-group-${g.kind}`}>
-                    <span>{g.title}</span>
-                    <span className="lp-count">{g.items.length}</span>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="lp-group-b"
-                    data-testid={`assets-group-${g.kind}`}
-                    aria-label={`${g.title}, ${g.items.length}. Browse`}
-                    onClick={() => openBrowse(g.kind)}
-                  >
-                    <span>{g.title}</span>
-                    <span className="lp-count">
-                      {g.items.length}
-                      <StIcon name="chevron" size={11} />
-                    </span>
-                  </button>
-                )}
-              </p>
-              {g.runs ? (
-                // one block per generation run: what was asked for, then its takes in the order they were made
-                g.runs.map((r) => (
-                  <div
-                    key={r.group}
-                    className="lp-run"
-                    data-testid="assets-gen-run"
-                    data-group={r.group}
-                  >
-                    <p className="lp-run-t" title={r.prompt}>
-                      <span className="lp-run-p">{runTitle(r)}</span>
-                      <span className="lp-run-m">{runMeta(r)}</span>
+          [
+            ...(seen.length
+              ? [
+                  <section key="seen" aria-label="Seen in the picture">
+                    <p className="lp-group">
+                      <span className="lp-group-s" data-testid="assets-group-seen">
+                        <span>Seen in the picture</span>
+                        <span className="lp-count">{seen.length}</span>
+                      </span>
                     </p>
-                    <div className="lp-grid">{r.items.map(renderTile)}</div>
-                  </div>
-                ))
-              ) : (
-                <div className="lp-grid">{g.items.map(renderTile)}</div>
-              )}
-            </section>
-          ))
+                    <div className="lp-grid">
+                      {seen.map(({ asset, hit }) => (
+                        <div key={asset.path} className="lp-seen">
+                          {renderTile(asset)}
+                          <SeenLine hit={hit} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>,
+                ]
+              : []),
+            ...groups.map((g) => (
+              <section key={g.kind} aria-label={g.title}>
+                <p className="lp-group">
+                  {g.kind === 'added' || g.kind === 'generated' ? (
+                    <span className="lp-group-s" data-testid={`assets-group-${g.kind}`}>
+                      <span>{g.title}</span>
+                      <span className="lp-count">{g.items.length}</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="lp-group-b"
+                      data-testid={`assets-group-${g.kind}`}
+                      aria-label={`${g.title}, ${g.items.length}. Browse`}
+                      onClick={() => openBrowse(g.kind)}
+                    >
+                      <span>{g.title}</span>
+                      <span className="lp-count">
+                        {g.items.length}
+                        <StIcon name="chevron" size={11} />
+                      </span>
+                    </button>
+                  )}
+                </p>
+                {g.runs ? (
+                  // one block per generation run: what was asked for, then its takes in the order they were made
+                  g.runs.map((r) => (
+                    <div
+                      key={r.group}
+                      className="lp-run"
+                      data-testid="assets-gen-run"
+                      data-group={r.group}
+                    >
+                      <p className="lp-run-t" title={r.prompt}>
+                        <span className="lp-run-p">{runTitle(r)}</span>
+                        <span className="lp-run-m">{runMeta(r)}</span>
+                      </p>
+                      <div className="lp-grid">{r.items.map(renderTile)}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="lp-grid">{g.items.map(renderTile)}</div>
+                )}
+              </section>
+            )),
+            ...(query && offer
+              ? [
+                  <DescribeOffer
+                    key="offer"
+                    kind={offer}
+                    onTurnOn={() => setDescribeAsk(true)}
+                    onConnect={() => menuRunner.run('ai.connect')}
+                  />,
+                ]
+              : []),
+          ]
         )}
         {readOnly ? null : (
           // S3.15 (04 md-edit-image): the row under the photos — the same picker and upload as "Add files…"
@@ -730,7 +810,27 @@ export function AssetsPanel({
           }
         />
       ) : query && assets ? (
-        <p className="lp-foot">Searched {assets.length} assets — names and tags</p>
+        <p className="lp-foot" data-testid="assets-search-foot">
+          {searchFootWords({
+            count: assets.length,
+            results: shown.length + seen.length,
+            status: describe.status,
+            canAsk: aiOn,
+          })}
+        </p>
+      ) : (
+        <DescribeProgress
+          status={describe.status}
+          onStop={(stopped) => void describe.stop(stopped)}
+        />
+      )}
+      {describeAsk ? (
+        <DescribeSheet
+          project={env.projectName}
+          count={describe.status?.total ?? 0}
+          onCancel={() => answerDescribe(false)}
+          onConfirm={() => answerDescribe(true)}
+        />
       ) : null}
       {browse && assets ? (
         <BrowseView
