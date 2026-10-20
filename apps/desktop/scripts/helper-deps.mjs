@@ -114,6 +114,11 @@ export function collectImports(entryFile) {
       // An interpolated specifier is code the helper GENERATES (clip-ops.ts writes
       // `from '${specifier}'` into a canvas), never a package the helper itself loads.
       if (spec.includes('${')) continue;
+      // A backslash never appears in a module specifier: it is a regex literal that quotes one
+      // (ds-resolver.ts's `/from\s*["']@maude\/ds["']/`), never an import.
+      if (spec.includes('\\')) continue;
+      // `import type … from 'x'` is erased at build time — nothing loads `x` at runtime.
+      if (/^(?:import|export)\s+type\b/.test(m[0])) continue;
       // `@maude/*` is never an npm package here: `@maude/canvas-lib` is the
       // dev-server's VIRTUAL specifier (canvas-build resolves it to
       // apps/studio/canvas-lib.tsx — DDR-025), and it reaches this scrape only

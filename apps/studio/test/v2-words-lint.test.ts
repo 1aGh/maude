@@ -29,6 +29,12 @@ function walk(dir: string, out: string[] = []): string[] {
 /** A hit that stays: where, which rule, which text — and why. */
 const ALLOW: readonly { file: string; rule: string; text: RegExp; why: string }[] = [
   {
+    file: 'ds/make-model.js',
+    rule: 'i',
+    text: /The brief, as I wrote it|say what you read and what you/,
+    why: 'S10.16b: the brief the person hands the AI chat is written in their voice ("I pick one"), a prompt for the agent, never chrome',
+  },
+  {
     file: 'present/',
     rule: 'screen',
     text: /audience screen/i,
