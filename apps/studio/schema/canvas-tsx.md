@@ -221,6 +221,7 @@ no `..`, no scheme). Edits are attributes of this one `<img>`, never of the asse
 | Place on an artboard, `mode: "fill"` | The same `<img>`, first child, `position: "absolute"; left: "0"; top: "0"; width: "100%"; height: "100%"; objectFit: "cover"` — behind the content. |
 | `mode: "loose"` (↵ on a selected artboard) | A last child `<img … style={{ display: "block", width: "<natural>px", maxWidth: "100%", height: "auto" }} />` — in the flow, never wider than its container. |
 | `mode: "fill-in-order"` / `"grid"` | In order: the n-th `<img>` inside the target takes the n-th asset, extra assets are placed loose. Grid: one `<div style={{ display: "grid", gridTemplateColumns: "repeat(ceil(√n), 1fr)", gap: "var(--space-2)" }}>` with a square `aspectRatio: "1 / 1"; objectFit: "cover"` `<img>` each. |
+| Photos dropped from Finder or added with Image (`mode: "auto"`, S8.14) | The studio picks. The target's EMPTY pictures (an `<img>` with no `src`) are filled in document order with `emptyOnly`, and extra photos are placed loose after them; with none empty, several photos become the grid above and one photo is placed loose (on a frame it fills it). Import the files first (`/_api/asset`); the `src` written is always `assets/<sha8>.<ext>`. |
 | Figma paste | The same `<img>` plus the inert `data-source="figma"` and `data-source-name="Hero / v3"` (the frame’s name, when Figma said it). It is Figma’s exact picture, not layers. |
 | Replace… | `src` (a tile: `data-image-tile` and `backgroundImage`) only. |
 | Fit ▸ Fill | `objectFit: "cover"`; `objectPosition`, `transform`, `transformOrigin` and `data-image-fit` removed. |
@@ -229,7 +230,7 @@ no `..`, no scheme). Edits are attributes of this one `<img>`, never of the asse
 | Fit ▸ Tile | The `<img>` becomes `<div role="img" aria-label="<alt>" data-image-tile="assets/…" data-image-fit="tile" style={{ …box, backgroundImage: "url(\"assets/…\")", backgroundRepeat: "repeat", backgroundSize: "auto" }} />` (an empty alt gives `aria-hidden="true"` instead of the label). Any other Fit turns it back into an `<img>`. |
 
 A source or a style the file computes (`src={photo}`, `style={fit}`) is refused. Over HTTP the same results:
-`POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset | assets, mode, artboard?, natural?: {w, h}, alt?, from?: {name}}}`,
+`POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset | assets, mode (fill · loose · fill-in-order · grid · auto), emptyOnly?, artboard?, natural?: {w, h}, alt?, from?: {name}}}`,
 `{op: "image.replace", targets: [picture], params: {asset}}`,
 `{op: "image.crop", targets: [picture], params: {fit?, zoom?, x?, y?}}`.
 

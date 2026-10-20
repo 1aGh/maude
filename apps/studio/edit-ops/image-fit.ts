@@ -11,6 +11,10 @@
 //   mode 'loose'         in the flow, last child, at its natural width capped at the container (`natural` = {w, h} px).
 //   mode 'fill-in-order' the n-th picture inside the target takes the n-th asset; the rest are placed loose, after.
 //   mode 'grid'          one `display: grid` wrapper (ceil(sqrt(n)) columns, a space gap) with a square, cropped picture each.
+//   mode 'auto'          (S8.14, a drop from Finder) the server picks with edit-ops/place-plan.ts: the target's EMPTY pictures
+//                        (an <img> with no src) fill in order, else several pictures go in a tidy grid, else one is put in
+//                        loose (on a frame it fills it). `emptyOnly: true` makes 'fill-in-order' take only empty pictures
+//                        and report every slot it filled in `created` (the drop selects them).
 //
 // What is written is plain TSX any v1 peer reads: an `<img src="assets/<sha8>.<ext>" alt="" style={{…}} />` with a fresh
 // readable `data-cd-id`. `from: {name}` (a Figma paste) adds the inert `data-source="figma"` / `data-source-name`.
@@ -32,10 +36,12 @@ import {
   walkIdElements,
 } from '../element-ids.ts';
 import { refuse } from './constraints.ts';
+import { type PlaceTargetKind, planPlacement } from './place-plan.ts';
 import { lineIndent, siblingModel } from './siblings.ts';
 import type { EditOp, ElementRef, ResolvedEditOp } from './types.ts';
 
-export const PLACE_MODES = ['fill', 'fill-in-order', 'grid', 'loose'] as const;
+// 'auto' (S8.14): the server picks — empty frames fill in order, else a tidy grid, else loose (edit-ops/place-plan.ts)
+export const PLACE_MODES = ['fill', 'fill-in-order', 'grid', 'loose', 'auto'] as const;
 export type PlaceMode = (typeof PLACE_MODES)[number];
 export const MAX_ASSETS = 50;
 const MAX_NATURAL = 100_000;
@@ -149,6 +155,8 @@ function parses(source: string, file: string): boolean {
 interface PlaceParams {
   assets: string[];
   mode: PlaceMode;
+  /** fill-in-order takes only the EMPTY pictures (no src) and reports every slot it filled in `created` */
+  emptyOnly: boolean;
   natural: { w: number; h: number } | null;
   alt: string;
   from: string | null;
@@ -187,7 +195,16 @@ function placeParams(req: ResolvedEditOp): PlaceParams {
       return refuse(req, 'Where that picture came from is not a name.');
     from = typeof p.from.name === 'string' ? p.from.name.slice(0, MAX_SOURCE_NAME) : '';
   }
-  return { assets: list as string[], mode: mode as PlaceMode, natural, alt, from };
+  if (p.emptyOnly !== undefined && typeof p.emptyOnly !== 'boolean')
+    return refuse(req, 'Only the empty frames is a yes or no.');
+  return {
+    assets: list as string[],
+    mode: mode as PlaceMode,
+    emptyOnly: p.emptyOnly === true,
+    natural,
+    alt,
+    from,
+  };
 }
 
 // ── the new picture ────────────────────────────────────────────────────────────────────────────
@@ -271,6 +288,17 @@ function picturesIn(walk: Walked, target: IdElement): IdElement[] {
   );
 }
 
+/** A picture with nothing in it yet: an `<img>` with no `src` (or an empty one), not locked. */
+export const isEmptyPicture = (e: IdElement): boolean => {
+  if (e.tag !== 'img' || e.locked) return false;
+  const src = e.attrs.find(([k]) => k === 'src');
+  return !src || src[1] === '';
+};
+
+/** The empty pictures inside `target`, document order. */
+export const emptyPicturesIn = (walk: Walked, target: IdElement): IdElement[] =>
+  picturesIn(walk, target).filter(isEmptyPicture);
+
 /** Direct element children of a frame, as the walk sees them. */
 const kidsOf = (walk: Walked, e: IdElement): IdElement[] =>
   e.kids.map((i) => walk.elements[i]).filter((k): k is IdElement => !!k);
@@ -298,6 +326,16 @@ export const imagePlace: EditOp = {
   apply(source, req) {
     const p = placeParams(req);
     const { walk, target, artboard } = containerOf(source, req);
+    if (p.mode === 'auto') {
+      const kind: PlaceTargetKind = isPicture(target)
+        ? 'picture'
+        : target.tag === 'DCArtboard'
+          ? 'artboard'
+          : 'frame';
+      const plan = planPlacement(kind, p.assets.length, emptyPicturesIn(walk, target).length);
+      p.mode = plan.mode;
+      p.emptyOnly = plan.mode === 'fill-in-order';
+    }
     const created: ElementRef[] = [];
     const used = usedIds(walk.elements);
     const newId = (): string => {
@@ -345,9 +383,20 @@ export const imagePlace: EditOp = {
           : w.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === artboard)) as IdElement;
       let i = 0;
       for (; i < p.assets.length; i++) {
-        const w = walkOrRefuse(out, req);
-        const slot = picturesIn(w, find(w))[i];
+        let w = walkOrRefuse(out, req);
+        // emptyOnly: a slot that was filled is no longer empty, so the next empty one is always the first left
+        let slot = p.emptyOnly ? emptyPicturesIn(w, find(w))[0] : picturesIn(w, find(w))[i];
         if (!slot) break;
+        if (p.emptyOnly) {
+          // every slot it fills is reported, so the drop can select them: give a slot without an id one first
+          if (!slot.id) {
+            const st = stampElement(out, req, slot);
+            out = st.source;
+            w = walkOrRefuse(out, req);
+            slot = elementOf(w, { artboard, element: st.id }) ?? slot;
+          }
+          created.push({ artboard, element: slot.id as string });
+        }
         out = swapSource(out, req, slot, p.assets[i] as string, artboard);
       }
       for (; i < p.assets.length; i++) {
