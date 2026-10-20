@@ -224,7 +224,7 @@ const NOTICE_CSS = `
 .maude-notice { box-sizing: border-box; position: relative; width: 100%; padding: 16px;
   border: 1px solid var(--border-default, #45454c); border-left: 3px solid var(--accent, #d63b1f);
   border-radius: var(--radius-md, 8px); background: var(--bg-2, #26262b); color: var(--fg-0, #fafafa);
-  box-shadow: 0 8px 28px #0004; font: 13px/1.5 var(--font-sans, system-ui, sans-serif);
+  box-shadow: var(--shadow-md, 0 8px 28px #0004); font: 13px/1.5 var(--font-sans, system-ui, sans-serif);
   display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
 .maude-notice[data-kind=error], .maude-notice[data-kind=warning] { border-left-color: var(--status-error, #d65b4d); }
 .maude-notice-title { font-weight: 600; padding-right: 20px; }
@@ -234,8 +234,10 @@ const NOTICE_CSS = `
 .maude-notice-summary { color: var(--fg-1, #ddd); }
 .maude-notice-close { position: absolute; right: 8px; top: 8px; border: 0; border-radius: 4px;
   background: transparent; color: inherit; cursor: pointer; font-size: 18px; padding: 0 6px; }
-.maude-notice-action { align-self: flex-start; border: 0; background: transparent; color: inherit;
-  font: inherit; text-decoration: underline; cursor: pointer; padding: 2px 0; }
+.maude-notice-action { align-self: flex-start; border: 0; background: transparent;
+  color: var(--accent-text, var(--accent, #d63b1f)); font: inherit; font-weight: 600; text-decoration: none;
+  cursor: pointer; padding: 2px 0; }
+.maude-notice-action:hover { text-decoration: underline; }
 .maude-notice button:focus-visible { outline: 2px solid var(--accent, #d63b1f); outline-offset: 2px; }
 .maude-notice .st-toast-actions { flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) {

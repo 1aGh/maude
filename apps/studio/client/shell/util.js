@@ -177,7 +177,7 @@ export function browseFirstRunHint(readOnly = false) {
     title: readOnly ? 'Your mock is live' : 'You’re in Edit',
     description: readOnly
       ? 'Click things to try it. Press V to select & inspect.'
-      : 'Click selects, like Figma. Switch to Preview at the top right to use the live mock.',
+      : 'Click selects. Switch to Preview (top right) to use the design live.',
     onDismiss: dismiss,
   });
 }
