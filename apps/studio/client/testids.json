@@ -30978,5 +30978,85 @@
       "apps/studio/test/video-play-chrome.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "kind-chips",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind filter row over the Canvases list (and Layers): All · Fixed size · Web page · Print · Video, each with its count. `data-on` is the kind being filtered to (`all` when none).",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/KindChips.jsx",
+      "symbol": "KindChips"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-filter.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "kind-chip-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One kind chip (`all` · `digital` · `web` · `print` · `video`): `aria-pressed` when it is on, `data-zero` when no canvas has the kind, accessible name \"Print, 2\". Pressing the chip that is on clears the filter.",
+    "producer": {
+      "file": "apps/studio/client/v2/kinds/KindChips.jsx",
+      "symbol": "KindChips"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-filter.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-kind-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A canvas row's \"2 of 3\" while a kind filter is on: how many of its artboards are of that kind; `<slug>` as `canvas-row-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-filter.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-kind-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kit's empty block when a kind filter hides every canvas: names the filter (\"No print canvases in Alligators brand.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "KindNone"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-filter.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-kind-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Clear filter, in the block above: undoes the kind filter in one click.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "KindNone"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-filter.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

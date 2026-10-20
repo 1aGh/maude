@@ -70,6 +70,15 @@ export const SEARCH_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
   },
+  // S7.24 (08 · ak-mixed-filter) — the kind chips (All · Fixed size · Web page · Print · Video) over the
+  // Canvases list; ⌘K moves the cursor to them. The filter is the person's own view (kept in the window).
+  {
+    id: 'canvases.filter-kind',
+    label: 'Filter canvases by kind',
+    kind: 'command',
+    exec: 'shell',
+    search: { where: 'Canvases panel' },
+  },
   {
     id: 'canvases.refresh',
     label: 'Refresh canvases',

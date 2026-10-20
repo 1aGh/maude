@@ -43,6 +43,7 @@ export const ACTION_KEYWORDS = Object.freeze({
   'canvases.pin': ['favourite', 'favorite', 'keep on top'],
   'canvases.unpin': ['favourite', 'favorite', 'remove from pinned'],
   'canvases.sort': ['order', 'recent', 'name', 'kind', 'folders on top'],
+  'canvases.filter-kind': ['print', 'video', 'web', 'fixed size', 'kind', 'filter', 'only'],
   'canvas.close': ['tab'],
   'video.assemble': ['clips', 'footage', 'reel', 'edit video'],
   'view.design-system': ['design system', 'tokens', 'brand', 'components', 'colours', 'colors'],

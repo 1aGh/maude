@@ -12,6 +12,7 @@
 
 import { copy } from '../empty/empty-copy.js';
 import { DYNAMIC_NOTE, hasJumpList, jumpFoot, jumpIsOpen, normaliseKind } from './jump-model.js';
+import { hasKind, hitCount, isFilterKind, kindFilterFoot } from '../kinds/kind-filter-model.js';
 import { searchCanvases } from './panel-search.js';
 import { DEFAULT_SORT, fold, normaliseSort, sortItems } from './sort.js';
 
@@ -255,10 +256,13 @@ export function visibleRows(
     jumpOpen = new Map(), // S1.3 — path → boolean: the canvases whose artboard list the person opened/closed
     activeArtboard = null, // S1.3 — the artboard in view on the open canvas
     fileNames = false, // S11.9 — Show file names: each canvas row carries `fileName` (a second mono line)
+    kind = 'all', // S7.24 — the kind filter ('digital' | 'web' | 'print' | 'video'): only canvases that have it
   } = {}
 ) {
   const s = normaliseSort(sort);
   const rows = [];
+  const kindOn = isFilterKind(kind);
+  const ofKind = (list) => (kindOn ? list.filter((c) => hasKind(c, kind)) : list);
   const decorate = (c, extra) => ({
     ...c,
     pinned: pins.has(c.rel),
@@ -296,7 +300,7 @@ export function visibleRows(
   };
 
   if (query.trim()) {
-    const ordered = sortItems(allCanvases(tree), s);
+    const ordered = sortItems(ofKind(allCanvases(tree)), s);
     const hits = searchCanvases(ordered, query, {
       folderOf: (c) => folderLabel(c, tree),
       order: ordered,
@@ -320,6 +324,7 @@ export function visibleRows(
           jumpable,
           jumpOpen: open,
           boardCount: c.boards.length,
+          ...(kindOn ? { kindCount: hitCount(c, kind) } : null),
         })
       );
       if (open) {
@@ -331,6 +336,28 @@ export function visibleRows(
           : h.matched;
         rows.push(...boardRows(c, list, { depth: 1, level: 2, activeBoard: activeArtboard }));
       }
+    });
+    return rows;
+  }
+
+  // S7.24 — a kind filter without a query: the canvases that have the kind, flat like a search, each with its
+  // folder and how many of its artboards match (08 · CanvasHit "2 of 3"). The Pinned group and the project row
+  // step aside; a pinned canvas of another kind is simply not of this kind.
+  if (kindOn) {
+    const matching = sortItems(ofKind(allCanvases(tree)), s);
+    matching.forEach((c, i) => {
+      rows.push(
+        decorate(c, {
+          key: `kind:${c.path}`,
+          depth: 0,
+          level: 1,
+          posinset: i + 1,
+          setsize: matching.length,
+          sub: folderLabel(c, tree),
+          jumpable: false,
+          kindCount: hitCount(c, kind),
+        })
+      );
     });
     return rows;
   }
@@ -488,17 +515,28 @@ export function visibleRows(
 
 /**
  * The line under the list and which fact it is: `{ text, tone?, source }`, `source` one of
- * 'sync' | 'jump' | 'access' | 'default' (T-S1a — the contract's one-line precedence: the offline foot is the
+ * 'sync' | 'jump' | 'access' | 'kind' | 'default' (T-S1a — the contract's one-line precedence: the offline foot is the
  * most urgent, then the artboard count while a canvas's artboards are listed, then the canvas-only foot,
  * then "93 canvases · ⌘K searches every project"). `foots` is `{ sync?, access? }` from the row-slots store.
  */
-export function panelFootLine({ total, shown, searching, jump = null, foots = null }) {
+export function panelFootLine({
+  total,
+  shown,
+  searching,
+  jump = null,
+  foots = null,
+  kind = 'all', // S7.24 — the kind filter, and how many canvases have it
+  kindMatching = 0,
+}) {
   if (foots?.sync) return { ...foots.sync, source: 'sync' };
   // S11.4 — a project still coming down says how far it has got (05 · es-arriving)
   if (foots?.arriving) return { ...foots.arriving, source: 'arriving' };
   // S1.3 — while a canvas's artboards are listed, the foot counts them (11 · pn-jump)
   if (jump) return { text: jumpFoot(jump.boards, { dynamic: jump.dynamic }), source: 'jump' };
   if (foots?.access) return { ...foots.access, source: 'access' };
+  // S7.24 — "12 of 93 canvases have video. A canvas counts once under each kind it has." (a search keeps its own count)
+  if (isFilterKind(kind) && !searching)
+    return { text: kindFilterFoot({ kind, matching: kindMatching, total }), source: 'kind' };
   // S11.3 — a search that found nothing says how much it searched (05 · es-search-panel)
   if (searching && shown === 0) return { text: searchedFoot(total), source: 'search-none' };
   const n = searching ? plural(shown, 'result', 'results') : plural(total, 'canvas', 'canvases');

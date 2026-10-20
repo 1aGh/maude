@@ -10,6 +10,17 @@
     display: flex;
     flex-direction: column;
   }
+  /* S7.24 — the kind chips sit above the list; the Sort lane's offsets are the list's own, so it rides in here */
+  .cv-listwrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .cv-meta--count {
+    font-variant-numeric: tabular-nums;
+  }
   /* a11y gate B1: the Sort lane rides over the tree's project row from outside the role=tree element */
   .cv-sort-lane {
     position: absolute;

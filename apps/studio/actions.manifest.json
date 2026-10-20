@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "05bed8c4dd4b",
+  "manifestVersion": "9c1a643ad039",
   "actions": [
     {
       "id": "search.open",
@@ -72,6 +72,18 @@
         "path": "human",
         "because": "view-pref",
         "note": "the order the Canvases panel lists in; `maude design index` lists them all"
+      }
+    },
+    {
+      "id": "canvases.filter-kind",
+      "label": "Filter canvases by kind",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "narrows the Canvases list in the person’s window; `maude design index` lists every canvas with its artboard kinds"
       }
     },
     {

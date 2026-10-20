@@ -176,6 +176,12 @@ export function createMenuHandlers(d) {
       d.openPanelExclusive('tree');
       requestCanvasesOp({ op: 'sort' });
     },
+    // S7.24 — the kind chips over the Canvases list: bring the panel up and put the cursor on them
+    'canvases.filter-kind': () => {
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'filter' });
+    },
     // S1.2 — the shell's tab hook owns the closures for these two (share links, the tree reload, the tab).
     'canvas.copy-link': () => {
       if (d.activePath) dispatchCanvasOp('copy-link', d.activePath);

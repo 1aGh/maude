@@ -253,6 +253,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.sort': PREF(
     'the order the Canvases panel lists in; `maude design index` lists them all'
   ),
+  // S7.24 — the kind chips narrow the Canvases list in the person's window; `maude design index` reads each
+  // canvas's artboard kinds (the same index the counts come from).
+  'canvases.filter-kind': PREF(
+    'narrows the Canvases list in the person’s window; `maude design index` lists every canvas with its artboard kinds'
+  ),
   'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
   // S8.18 — a website read is third-party network (the fetch-asset gate); a logo alone writes assets/logos/
   'import.brand': { effect: 'external', agent: cli('maude design import-brand') },
@@ -778,7 +783,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
-  'annotations.hide-resolved': PREF('per-person view preference (C29); never written to the annotations'),
+  'annotations.hide-resolved': PREF(
+    'per-person view preference (C29); never written to the annotations'
+  ),
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
