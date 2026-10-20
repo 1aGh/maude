@@ -802,13 +802,10 @@ describe('home-api', () => {
         'getIndex',
         'getRecentSearches',
         'getWhatsNew',
-<<<<<<< HEAD
         'hubPrepare',
         'hubTest',
-=======
         'inviteAccept',
         'invitePeek',
->>>>>>> s6-11
         'markWhatsNewSeen',
         'prepareCloud',
         'prepareCloudLink',
