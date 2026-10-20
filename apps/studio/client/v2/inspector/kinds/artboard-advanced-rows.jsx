@@ -15,6 +15,7 @@ import { Row } from '../sections/row.jsx';
 import { advancedFacts } from './artboard-kinds-model.js';
 import { KIND_OPTIONS } from './artboard-model.js';
 import { SizePairRow, handlersOf, useArtboardWrites } from './artboard-rows.jsx';
+import { useCompMedia } from '../../transcript/comp-media-store.js';
 import { useVideoFacts } from './video-facts.js';
 
 /** Kinds whose rows live in artboard-{web,fixed,video}.jsx; paper keeps all of these in its own body. */
@@ -23,7 +24,11 @@ const OWN_ROWS = new Set(['web', 'digital', 'video']);
 export function ArtboardAdvancedRows({ el, ctx }) {
   const { f, id, can, resize, commitHeight } = useArtboardWrites(el, ctx);
   const h = handlersOf(ctx);
-  const video = useVideoFacts(el?.file ?? ctx?.canvasFile ?? null, f.kind === 'video' ? id : null);
+  const file = el?.file ?? ctx?.canvasFile ?? null;
+  const video = useVideoFacts(file, f.kind === 'video' ? id : null);
+  // S7.13 — a video that shares its cut says which comp it is (07 ve-formats: `linkedTo`, `framing per format`)
+  const formats = useCompMedia(f.kind === 'video' ? file : null, id).media?.formats;
+  const linkedTo = formats?.formats?.length > 1 ? formats.comp : null;
   if (!OWN_ROWS.has(f.kind)) return null;
 
   const setKind = (next) => {
@@ -65,7 +70,7 @@ export function ArtboardAdvancedRows({ el, ctx }) {
           onChange={setKind}
         />
       </Row>
-      {advancedFacts(f, video).map(([k, v]) => (
+      {advancedFacts(f, { ...video, linkedTo }).map(([k, v]) => (
         <Row key={k} k={k} name={`ab-fact-${k}`}>
           <span className="insp-ro" data-testid={`insp-ab-fact-${k}`}>
             {v}

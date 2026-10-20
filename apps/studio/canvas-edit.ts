@@ -51,6 +51,7 @@ import {
 } from './element-ids.ts';
 import { isSafeZoneId } from './kinds/safe-zones.ts';
 import { sourceHold } from './sync/write-hold.ts';
+import { type ReframeRead, reframeOf } from './video/reframe-read.ts';
 
 export class CanvasEditError extends Error {
   readonly canvas: string;
@@ -2379,6 +2380,8 @@ export interface ClipInfo {
   text: string | null;
   /** S7.10 — the picture's `fit` on the clip's `<Reframe>` (Fill · Fit · Blur behind); null = not set. */
   fit: 'fill' | 'fit' | 'blur' | null;
+  /** S7.13 — the clip's framing keyframes (`<Reframe focus formats zoom>`, in source time) for the Re-frame island; null = centred. */
+  reframe: ReframeRead | null;
   /** The clip's stacked layers (mp4 background + title/lower-third + …) for the
    *  expandable timeline rows. Empty for a pure inline card. */
   layers: ClipLayer[];
@@ -2621,6 +2624,7 @@ export function enumerateClips(
       text: literalTextOf(source.slice(c.start, c.end)),
       titleMotion: titleMotionOf(source.slice(c.start, c.end)),
       fit: fitOf(source.slice(c.start, c.end)),
+      reframe: reframeOf(source.slice(c.start, c.end)),
       placeholder: (() => {
         // Direct <AIPlaceholder> child → a slate clip (Task 21). The prompt is
         // authored as `prompt={"…"}` (JSON.stringify — DDR-150 P1), so read

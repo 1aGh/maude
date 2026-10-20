@@ -36,6 +36,8 @@ export const CLIP_VERB_LABELS = {
   insert: 'add clip',
   // S7.10 — the video.* ops the clip inspector and the join picker write (a verb with a dot IS its op id)
   'video.fit': 'set how the picture sits',
+  // S7.13 — the Re-frame island: a focus keyframe, or Reset (07 · ve-reframe)
+  'video.reframe': 'set framing',
   'video.title.motion': 'set title motion',
   'video.transition.set': 'set transition',
   // S7.11 — edit by transcript and the captions (the Transcript panel, the caption lane, the Captions inspector)
@@ -49,6 +51,7 @@ const REFUSAL_WORD = {
   insert: 'Drop',
   remove: 'Remove',
   'video.fit': 'Framing',
+  'video.reframe': 'Framing',
   'video.title.motion': 'Motion',
   'video.transition.set': 'Transition',
 };

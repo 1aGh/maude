@@ -38,6 +38,7 @@ import {
   duckedSrcOf,
   type MusicInfo,
 } from '../video/derive.ts';
+import { type LinkedFormats, linkedFormats } from '../video/linked-formats.ts';
 import {
   BEATS_MAX_BYTES,
   type BeatGrid,
@@ -89,6 +90,8 @@ export interface CompMedia {
   >;
   /** S7.11: the comp's <Captions> props (null = no captions yet) */
   captions: CaptionsProps | null;
+  /** S7.13: the video's linked formats (derived from the canvas source, never stored); null = no such video artboard */
+  formats: LinkedFormats | null;
 }
 
 /** `canvas` (repo- or designRoot-relative) → the canvas under the design root, or null. Runtime
@@ -197,6 +200,7 @@ export function createVideoRoutes(deps: VideoRouteDeps): RouteSpec[] {
           ])
         ),
         captions: captionsOf(source),
+        formats: linkedFormats(abs, source, artboard),
       },
       sidecars: sigs.join(';'),
     };

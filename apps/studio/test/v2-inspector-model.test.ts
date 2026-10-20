@@ -54,6 +54,7 @@ describe('the sections (14 Editing, ed-inspector)', () => {
       [8, 'type', 'Type'],
       [11, 'combine', 'Combine shapes'], // S2.14
       [9, 'interaction', 'Interaction'],
+      [27, 'formats', 'Formats'], // S7.13
       [22, 'safe-zones', 'Safe zones'], // S7.22
       [23, 'clip', 'Clip'], // S7.10
       [26, 'music', 'Music'], // S7.12
@@ -61,7 +62,7 @@ describe('the sections (14 Editing, ed-inspector)', () => {
       [25, 'captions', 'Captions'], // S7.11
       [10, 'export', 'Export'],
     ]);
-    expect(SECTION_IDS).toHaveLength(18);
+    expect(SECTION_IDS).toHaveLength(19);
   });
 
   test('every section carries its one-line explainer, in CONTRACT words (no "island", no "screen")', () => {

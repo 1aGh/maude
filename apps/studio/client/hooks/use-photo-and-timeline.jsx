@@ -490,6 +490,8 @@ export function usePhotoAndTimeline({
         text: cm.text ?? null,
         titleMotion: cm.titleMotion ?? null,
         fit: cm.fit ?? null,
+        // S7.13 — the clip's framing keyframes, for the Re-frame island
+        reframe: cm.reframe ?? null,
         // Task 21 — AI placeholder slate (✨ row + Generate flow).
         placeholder: cm.placeholder ?? null,
         mediaTag: cm.mediaTag ?? s.mediaTag,
