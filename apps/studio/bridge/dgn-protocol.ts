@@ -389,6 +389,7 @@ export interface ShellToCanvas {
     present: boolean;
     guides: boolean;
     print: boolean;
+    safeZones: boolean;
   }>;
   'view-annotations': { visible: boolean };
   'canvas-cap': { t: string };
@@ -1611,6 +1612,7 @@ const s2c: S2C = {
       present: opt(bool),
       guides: opt(bool),
       print: opt(bool),
+      safeZones: opt(bool),
     }),
   },
   'view-annotations': {

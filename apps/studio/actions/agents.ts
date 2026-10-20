@@ -371,6 +371,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.duplicate-at-width': TSX(
     'Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard'
   ),
+  // S7.22 — safe zones: a plain string prop; the bands are drawn on the canvas only and no exporter paints them.
+  'artboard.set-safe-zones': TSX(
+    'Set the DCArtboard’s safeZones prop to one preset id — instagram-story, instagram-reels, instagram-grid, tiktok, youtube-shorts or facebook-event-cover — or remove the prop for none; whether the bands are drawn is the person’s own view state, not the file — see canvas-tsx.md § Artboard props that Maude 2 adds'
+  ),
   'artboard.rename': TSX('Set the DCArtboard’s label prop (up to 80 characters; accents are kept)'),
   'artboard.reset-position': TSX(
     'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'

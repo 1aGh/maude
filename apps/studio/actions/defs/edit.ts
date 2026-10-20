@@ -678,6 +678,17 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
+  // S7.22 — Safe zones (08 ak-safe-zones): which platform's own interface covers a fixed-size or video artboard. One edit-op
+  // (`edit-ops/safe-zones.ts`) writes the `safeZones` string prop; the bands are canvas-only and never exported. The
+  // inspector's Safe zones row runs it; ⌘K does not list it (it needs a platform), an agent writes the prop itself.
+  {
+    id: 'artboard.set-safe-zones',
+    label: 'Set safe zones',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
   {
     id: 'artboard.rename',
     label: 'Rename artboard',

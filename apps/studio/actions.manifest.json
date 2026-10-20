@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f85341e9c376",
+  "manifestVersion": "0ab182a7ebfd",
   "actions": [
     {
       "id": "search.open",
@@ -1426,6 +1426,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.set-safe-zones",
+      "label": "Set safe zones",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the DCArtboard’s safeZones prop to one preset id — instagram-story, instagram-reels, instagram-grid, tiktok, youtube-shorts or facebook-event-cover — or remove the prop for none; whether the bands are drawn is the person’s own view state, not the file — see canvas-tsx.md § Artboard props that Maude 2 adds"
       }
     },
     {
