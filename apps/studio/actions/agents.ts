@@ -1180,6 +1180,36 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent'
     ),
   },
+  // S6.9 — the Advanced sheets on Home. A credential is typed (or approved in the browser) by the person; an
+  // agent never holds one, and it already runs inside `maude` and Claude Code, so installing them is theirs.
+  'hub.connect': {
+    effect: 'external',
+    agent: human(
+      'hub-link',
+      'signs the person in to a self-hosted team server (the password goes to the Home server once); an agent links a folder with `maude design link`'
+    ),
+  },
+  'project.open-github': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'opens a folder or a GitHub project as a tab; the GitHub token stays in Rust. An agent works inside the project it was started in'
+    ),
+  },
+  'ai.connect': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'the person’s own Claude sign-in in their browser; an agent is already running on one'
+    ),
+  },
+  'cli.install': {
+    effect: 'external',
+    agent: human(
+      'onboarding',
+      'links the bundled maude into ~/.local/bin and adds the Claude Code plugin; an agent is already running through both'
+    ),
+  },
   'nav.home': { effect: 'none', agent: human('native-window') },
   // V2-4.2: a person's sign-in; an agent never picks an account.
   'account.switch': {

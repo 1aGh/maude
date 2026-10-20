@@ -225,6 +225,8 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
     visible: { minRole: 'edit' },
+    // S6.9: Home's "Import from Figma" Advanced sheet opens the target project with this action as its intent
+    search: { keywords: ['figma', 'frames', 'dev mode', 'access token'] },
   },
   {
     id: 'import.brand',
