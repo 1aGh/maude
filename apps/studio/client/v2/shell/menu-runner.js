@@ -55,6 +55,7 @@ import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 import { clearFollowedLoop, loopAt } from '../timeline/playhead.js';
 import { addTrackAtFollowed } from '../timeline/advanced/actions.js';
+import { requestFocusLayersKind } from '../kinds/kind-filter-store.js';
 import { foldAtFollowed } from '../timeline/fold.js';
 import {
   addMarkerAtPlayhead,
@@ -237,6 +238,12 @@ export function createMenuHandlers(d) {
       d.openPanelExclusive('layers');
       foldStore.set('left.layers', true);
       requestFocusSelector();
+    },
+    // S7.24b — the kind chips in the Layers header: bring Layers up and put the cursor on them
+    'layers.filter-kind': () => {
+      panelLayout.show();
+      d.openPanelExclusive('layers');
+      requestFocusLayersKind();
     },
     // S11.7 — the code view opens in the Viewport (read-only; the server refuses Can view the source).
     // The three card actions act on the broken-canvas card that is showing, and on nothing otherwise.

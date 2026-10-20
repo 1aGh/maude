@@ -85,6 +85,16 @@ export const VIEW_ACTIONS: ActionDef[] = [
       where: 'Layers panel › Advanced',
     },
   },
+  // S7.24b (08 · ak-mixed-fit) — the kind chips in the Layers header (the same filter as the Canvases chips);
+  // ⌘K moves the cursor to them. The filter dims the other artboards on the canvas, in this person's window only.
+  {
+    id: 'layers.filter-kind',
+    label: 'Filter layers by kind',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { facts: ['canvasOpen'] },
+    search: { where: 'Layers panel' },
+  },
   {
     id: 'view.design-system',
     label: 'Design system',

@@ -533,7 +533,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   // S7.25 — Change kind makes a copy: the original keeps every byte; the print is the copy with kind, print, px size and ONE scaling wrapper.
   'artboard.convert-kind': TSX(
-    'Copy the DCArtboard right after itself with a new id and label, set kind="print", print={{ paper, orientation, bleedMm }} and width/height to the paper plus 2 × bleed in px, drop safeZones, and put the copy’s children in one <div style={{ position: \'relative\', flex: \'none\', width, height, zoom }}> that scales the design to the paper’s width; optionally artboardMeta.<copy>.madeFrom = { artboard, label } in the .meta.json — see canvas-tsx.md § Change an artboard’s kind'
+    "Copy the DCArtboard right after itself with a new id and label, set kind=\"print\", print={{ paper, orientation, bleedMm }} and width/height to the paper plus 2 × bleed in px, drop safeZones, and put the copy’s children in one <div style={{ position: 'relative', flex: 'none', width, height, zoom }}> that scales the design to the paper’s width; optionally artboardMeta.<copy>.madeFrom = { artboard, label } in the .meta.json — see canvas-tsx.md § Change an artboard’s kind"
   ),
   // S7.25 — the one verb of a warning row: each is an ordinary edit, so an agent makes the same edit.
   'warning.fix': TSX(
@@ -858,6 +858,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'layers.show-tags': PREF('tag and id after each layer’s name, in the person’s own view'),
   'layers.select-by-selector': PREF(
     'a selection in the person’s window; an agent finds elements with `maude design canvas-rects`'
+  ),
+  // S7.24b — the Layers chips dim the other artboards in the person's window; `maude design index` lists every
+  // canvas with its artboard kinds, `maude design canvas-rects` the artboards of the open one.
+  'layers.filter-kind': PREF(
+    'dims the other artboards in the person’s window; `maude design index` lists every canvas with its artboard kinds'
   ),
   'view.design-system': { effect: 'none', agent: cli('maude design open --panel design-system') },
   'view.comments': COMMENTS,
