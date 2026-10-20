@@ -540,6 +540,10 @@ export interface ShellToCanvas {
   // S7.17 (07 ve-together): the caption word this person is fixing in the shell (the Transcript panel's field) — the
   // canvas publishes it on awareness as a soft lock; `{ artboardId: null }` = they left it.
   'timeline-word': { artboardId: Id | null; wordKey?: string };
+  // S7.24b (08 ak-mixed-fit): the kind filter — the artboards OUTSIDE the chosen kind, for the canvas to draw
+  // quiet ("19 other artboards are dimmed"). The shell counts (the index knows each canvas's artboard kinds); the
+  // canvas only draws. `null` = dim nothing. ≤ DIM_IDS_MAX ids; a longer list is refused whole.
+  'dim-artboards': { ids: string[] | null };
   // S7.20: the F size picker's hover — where the artboard of this preset would land, dashed and labelled
   // ("FB event cover 1920 × 1005"); `null` = the pointer left the tiles. The canvas picks the place.
   'size-ghost': {
@@ -984,6 +988,8 @@ const presentRunCell = shape({
 const presentRunList: V = (v) =>
   Array.isArray(v) && v.length <= PRESENT_RUN_MAX ? arrOf(presentRunCell)(v) : BAD;
 /** `peers` (V2-4.3b): a planted or oversized list is REJECTED whole, never trimmed. */
+/** S7.24b — the most artboard ids one `dim-artboards` carries (client/v2/kinds/layers-kind-model.js sends no more). */
+export const DIM_IDS_MAX = 500;
 export const PEERS_MAX = 32;
 export const PEER_NAME_MAX = 64;
 const PEER_COLOR = /^(#[0-9a-f]{3,8}|oklch\([0-9.%\s/-]{1,40}\))$/i;
@@ -2078,6 +2084,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'collab/timeline-presence (S7.17)',
     parse: p({ artboardId: nul(linkArtboardIdV), wordKey: opt(wordKeyV) }),
+  },
+  // S7.24b — the kind filter's dimming: ids of the artboards outside the kind, or null. Parent only; capped.
+  'dim-artboards': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/kind-dim (S7.24b) ← client/v2/kinds/kind-dim-relay',
+    parse: p({ ids: nul(capped(DIM_IDS_MAX, arrOf(shortStr(128)))) }),
   },
   'size-ghost': {
     gate: 'parent',
