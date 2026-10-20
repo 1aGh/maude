@@ -5,6 +5,8 @@
 // usage cache and produces a `BoardModel`; the generated `@maude/ds/board` module inlines it, so
 // the canvas origin needs no route (DDR-054: nothing privileged is reachable from the canvas).
 
+import type { MasterState, StateRule } from './component-states.ts';
+
 export type SectionKind =
   | 'brand'
   | 'colour'
@@ -101,6 +103,19 @@ export interface BoardComponent {
   used: number | null;
   pending: boolean;
   specimen: string | null;
+  /** S10.10: the states the system's CSS styles for it (hover, active, focus, disabled) */
+  states: MasterState[];
+  /** S10.10: the master's own Corners / Fill / Text / Height in `.<class>`, as the file says them */
+  look: Record<string, string>;
+  /** S10.10: its waiting edits, as the declarations that will be written */
+  patches: ComponentPatch[];
+}
+
+/** A waiting edit of a master: one declaration in one rule of `preview/_components.css`. */
+export interface ComponentPatch {
+  selector: string;
+  prop: string;
+  value: string;
 }
 
 export interface BoardLogo {
@@ -126,6 +141,8 @@ export interface BoardModel {
   tokens: BoardToken[];
   typeRoles: BoardTypeRole[];
   components: BoardComponent[];
+  /** S10.10: every state rule of every master, ready to draw (component-states.ts) */
+  stateRules: StateRule[];
   logos: BoardLogo[];
   /** `dsPending` entries: tokens + component patches */
   pendingCount: number;
@@ -215,4 +232,37 @@ export function boardThemeCss(model: BoardModel): string {
     blocks.push(`${scope}${m},${scope} ${m}{${decls.join(';')}}`);
   }
   return blocks.join('\n');
+}
+
+/** A selector a waiting edit may name: classes, descendants and pseudo-classes — nothing that can end a rule. */
+export const safeSelector = (s: unknown): s is string =>
+  typeof s === 'string' && /^[.\w\s>+~:[\]="'*-]{1,240}$/.test(s);
+const PROP = /^[a-z][a-z-]{0,48}$/;
+
+/**
+ * The components section's own `<style>` (S10.10), in the same scope as `boardThemeCss`:
+ *  · each state rule of a master, with the state swapped for `.ds-force-<state>`, so a hover or a disabled button
+ *    can be drawn without a pointer;
+ *  · each waiting edit of a master, over the file's rule — the board shows the master "as edited" before Update.
+ * Both come from files and `dsPending` (data written by people and agents): selectors and values are re-checked
+ * here, anything else is dropped.
+ */
+export function boardComponentsCss(model: BoardModel): string {
+  const scope = `.ds-board[data-ds-board="${ident(model.system)}"]`;
+  const out: string[] = [];
+  for (const r of model.stateRules ?? []) {
+    const sels = r.selector.split(',').filter(safeSelector);
+    const decls = r.decls.filter(([p, v]) => PROP.test(p) && safeCssValue(v));
+    if (sels.length && decls.length) {
+      const head = sels.map((x) => `${scope} ${x.trim()}`).join(',');
+      out.push(`${head}{${decls.map(([p, v]) => `${p}:${v.trim()}`).join(';')}}`);
+    }
+  }
+  for (const c of model.components) {
+    for (const p of c.patches ?? []) {
+      if (!safeSelector(p.selector) || !PROP.test(p.prop) || !safeCssValue(p.value)) continue;
+      out.push(`${scope} ${p.selector.trim()}{${p.prop}:${p.value.trim()}}`);
+    }
+  }
+  return out.join('\n');
 }

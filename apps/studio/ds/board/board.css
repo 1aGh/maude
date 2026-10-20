@@ -418,6 +418,14 @@
 .ds-m-sample {
   display: inline-flex;
 }
+/* S10.10: the axis line under the samples ("2 variants · 4 states · 1 size"), and the overflow line */
+.ds-m-cap {
+  margin-top: 0;
+}
+.ds-comps > .ds-more {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
 
 /* ─── Specimen ─── */
 .ds-specimen {
