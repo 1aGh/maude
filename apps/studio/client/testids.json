@@ -30917,5 +30917,85 @@
       "apps/studio/test/video-play-chrome.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "timeline-landing-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line where a lifted beat will land while it is dragged (07 ve-move-transition).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/edit/move.jsx",
+      "symbol": "MoveLanding"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-ripple.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-landing-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tip beside the landing line: \"Drop before Touchdown\".",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/edit/move.jsx",
+      "symbol": "MoveLanding"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-ripple.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-drop-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tip beside the drop caret: \"Drop 3 clips at 0:09\" over \"the video grows by …\" (07 ve-drop).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/edit/drop.jsx",
+      "symbol": "DropLanding"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-ripple.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-artboard-drop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Invisible catcher over the followed video artboard while footage is dragged over the window; a drop adds at the end.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/edit/drop.jsx",
+      "symbol": "ArtboardDropCatcher"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-ripple.test.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-drop-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the followed video artboard's dashed rim and chip \"Or drop here — adds at the end\".",
+    "producer": {
+      "file": "apps/studio/editing/drop-chip.tsx",
+      "symbol": "DropChip"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/drop-chip.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

@@ -3,6 +3,8 @@
 
 import { describe, expect, test } from 'bun:test';
 
+import { AGENT_PATHS } from '../actions/agents.ts';
+import { ACTIONS, ACTIONS_BY_ID } from '../actions/index.ts';
 import {
   CLIP_MENU_ROWS,
   clipMenuActionId,
@@ -155,5 +157,41 @@ describe('what each situation shows', () => {
     expect(m.plain).toEqual([]);
     expect(m.advanced.map((r) => r.id)).toEqual(['replace-layer']);
     expect(m.advanced[0].label).toBe('Replace image…');
+  });
+});
+
+describe('every row is a registry action with an agent path', () => {
+  test('timeline.clip-menu.<id> × 17, in the menu’s order, none of them human-only', () => {
+    const inRegistry = ACTIONS.map((a) => a.id).filter((id) =>
+      id.startsWith('timeline.clip-menu.')
+    );
+    expect(inRegistry).toEqual(GOLDEN.map((id) => clipMenuActionId(id)));
+    for (const id of inRegistry) {
+      const def = ACTIONS_BY_ID.get(id);
+      expect(def?.exec).toBe('shell');
+      expect(def?.search?.hidden).toBe(true); // the clip menu runs it, not ⌘K
+      const ai = (AGENT_PATHS as Record<string, { agent: { path: string } } | undefined>)[id];
+      expect(ai).toBeTruthy();
+      expect(ai?.agent.path).not.toBe('human');
+    }
+  });
+
+  test('Can comment may comment on a clip; everything else needs Can edit', () => {
+    const role = (id: string) =>
+      (ACTIONS_BY_ID.get(clipMenuActionId(id))?.enabled as { minRole?: string } | undefined)
+        ?.minRole;
+    expect(role('comment')).toBe('comment');
+    for (const id of GOLDEN.filter((i) => i !== 'comment')) expect(role(id)).toBe('edit');
+  });
+
+  test('the three gestures are registry actions too, edit-op writes', () => {
+    for (const id of ['timeline.trim', 'timeline.move-clip', 'timeline.add-clips']) {
+      expect(ACTIONS_BY_ID.get(id)).toBeTruthy();
+      const ai = (AGENT_PATHS as Record<string, { server?: { route: string }; minRole?: string }>)[
+        id
+      ];
+      expect(ai?.server?.route).toBe('/_api/edit-op');
+      expect(ai?.minRole).toBe('edit');
+    }
   });
 });
