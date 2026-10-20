@@ -27,6 +27,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -533,11 +534,12 @@ const TAURI_STUB = `window.__TAURI__ = {
 };`;
 
 // How long a click waits for its element. The element is usually there at once; on a busy machine (a full pass shares
-// the lane with builds) the left panel can take seconds to mount, and a 2 s wait read as "not reachable" (the 12:57
-// pass lost 40 hooks to it). A genuinely absent element costs this once per attempt.
+// the lane with builds) the left panel can take seconds to mount, and a 2 s wait reads as "not reachable". A genuinely
+// absent element costs this once per attempt.
 const LOAD_MS = 8000;
 
 async function runOpener(browser, srv, probe, opener) {
+  const startedAt = Date.now();
   const ctx = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     reducedMotion: 'reduce',
@@ -920,7 +922,33 @@ async function runOpener(browser, srv, probe, opener) {
       .join(' | ')
       .slice(0, 2600);
   } finally {
+    // Every opener opens a fresh page, but the studio keeps the selection a page made: the next page opened with that
+    // element selected, the Inspector opened and the left panel shut, so `left-trash` (after `photo`) and
+    // `left-hidden-files` (after the history openers) found no Canvases panel and `acp-turn` / `acp-elicit` no chat
+    // field — the 12:57 pass lost ~40 hooks that way, and a longer wait or a retry could not help. An opener leaves
+    // with nothing selected (Esc twice, after its last look at the page). PROBE_LEAVE_SELECTED=1 skips it (debugging).
+    if (!process.env.PROBE_LEAVE_SELECTED) {
+      const last = ctx.pages()[0];
+      for (let i = 0; last && i < 2; i++) {
+        await last.keyboard.press('Escape').catch(() => {});
+        await sleep(250);
+      }
+    }
     await ctx.close();
+    // PROBE_STATE=1: what the opener wrote under the fixture (project + home) — the state the next opener inherits
+    if (process.env.PROBE_STATE) {
+      const out = [];
+      const walk = (d) => {
+        for (const e of readdirSync(d, { withFileTypes: true })) {
+          const p = join(d, e.name);
+          if (e.isDirectory()) walk(p);
+          else if (statSync(p).mtimeMs >= startedAt) out.push(p.slice(runDir.length + 1));
+        }
+      };
+      walk(runDir);
+      const mine = out.filter((p) => !/^home\/\.(claude|npm)|\.log$|\.key$|\.json\.backup/.test(p));
+      console.log(`  [state ${opener.id}] ${mine.join(' ') || '(nothing written)'}`);
+    }
     // an opener that moved the camera (it is remembered per canvas, per person: `_canvas-state/<slug>.view.json`)
     // gives it back, so the next opener finds the boards where every other opener expects them
     if (opener.resetCamera) {

@@ -63,6 +63,17 @@ test('a reach step can wait for a screen instead of a clock, and the click wait 
   assert.match(src, /const again = await runOpener/);
 });
 
+test('an opener leaves with nothing selected, after its last look at the page (the selection outlives a page)', () => {
+  const src = read('scripts/v2-manifest/probe-reach.mjs');
+  const esc = src.indexOf("last.keyboard.press('Escape')");
+  assert.ok(esc > 0, 'the probe presses Esc before it closes the page');
+  // in the `finally` (so a failed opener leaves clean too): after the screenshot / eval hooks that look at the page,
+  // before the context closes
+  assert.ok(esc > src.indexOf('PROBE_FRAME_EVAL'), 'after the last look at the page');
+  assert.ok(esc < src.indexOf('await ctx.close();'), 'before the page closes');
+  assert.match(src, /PROBE_LEAVE_SELECTED/);
+});
+
 test('the ⌃-wheel zoom does not press where the first-run hint and the toasts stack', () => {
   const src = read('scripts/v2-manifest/probe-reach.mjs');
   const at = src.match(
