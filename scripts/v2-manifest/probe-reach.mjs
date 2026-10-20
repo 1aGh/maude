@@ -419,7 +419,9 @@ export default function Flyer() {
 `
   );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
-  // a video comp (two 20 s sequences = long, each animates its title): the Timeline and its clip inspector
+  // a video comp: two sequences of 1 850 frames = 3 700, past the 3 600-frame default cap (S7.18), so the Timeline draws
+  // its long-video badge (a click on it opens Advanced); each sequence animates its title, so Advanced has keyframes.
+  // The Timeline and its clip inspector
   put(
     '.design/ui/Reel.tsx',
     `import { DCArtboard, DesignCanvas, VideoComp } from '@maude/canvas-lib';
@@ -433,8 +435,8 @@ const Title = () => {
 
 const ReelCut = () => (
   <AbsoluteFill style={{ background: '#000' }}>
-    <Sequence from={0} durationInFrames={600}><Title /></Sequence>
-    <Sequence from={600} durationInFrames={600}><Title /></Sequence>
+    <Sequence from={0} durationInFrames={1850}><Title /></Sequence>
+    <Sequence from={1850} durationInFrames={1850}><Title /></Sequence>
   </AbsoluteFill>
 );
 
@@ -442,7 +444,7 @@ export default function Reel() {
   return (
     <DesignCanvas>
       <DCArtboard id="reel" kind="video" label="Reel" width={1080} height={1920}>
-        <VideoComp component={ReelCut} durationInFrames={1200} fps={30} width={1080} height={1920} />
+        <VideoComp component={ReelCut} durationInFrames={3700} fps={30} width={1080} height={1920} />
       </DCArtboard>
     </DesignCanvas>
   );
@@ -529,6 +531,11 @@ const TAURI_STUB = `window.__TAURI__ = {
   event: { listen: () => Promise.resolve(() => {}) },
   window: {}, path: {}, app: {},
 };`;
+
+// How long a click waits for its element. The element is usually there at once; on a busy machine (a full pass shares
+// the lane with builds) the left panel can take seconds to mount, and a 2 s wait read as "not reachable" (the 12:57
+// pass lost 40 hooks to it). A genuinely absent element costs this once per attempt.
+const LOAD_MS = 8000;
 
 async function runOpener(browser, srv, probe, opener) {
   const ctx = await browser.newContext({
@@ -650,7 +657,7 @@ async function runOpener(browser, srv, probe, opener) {
         await row.click({ timeout: 5000 });
       } catch {
         // a banner / dialog from the state under test covers the tree: a DOM click reaches the same onClick
-        await row.evaluate((n) => n.click(), null, { timeout: 2000 });
+        await row.evaluate((n) => n.click(), null, { timeout: LOAD_MS });
       }
       await sleep(2500);
     }
@@ -676,16 +683,16 @@ async function runOpener(browser, srv, probe, opener) {
         try {
           await el.click({ timeout: 3000 });
         } catch {
-          await el.evaluate((n) => n.click(), null, { timeout: 2000 });
+          await el.evaluate((n) => n.click(), null, { timeout: LOAD_MS });
         }
       } else if (step.click) {
         const el = page.locator(step.click).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
         try {
-          await el.click({ timeout: 3000 });
+          await el.click({ timeout: LOAD_MS });
         } catch {
           // covered / animating: a DOM click reaches the same onClick
-          await el.evaluate((n) => n.click(), null, { timeout: 2000 });
+          await el.evaluate((n) => n.click(), null, { timeout: LOAD_MS });
         }
       } else if (step.key) {
         await page.locator('body').press(step.key);
@@ -756,7 +763,9 @@ async function runOpener(browser, srv, probe, opener) {
       } else if (step.wheelZoom) {
         // ⌃ + wheel over empty canvas below the boards (the viewport's own zoom gesture); + = out, − = in
         const box = await page.locator(tid('canvas-frame')).boundingBox();
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height - 130);
+        // left of centre: the first-run hint, the What's New toast and the mode hint stack in the middle of the
+        // bottom edge (wave B), and a wheel over one of them never reaches the canvas
+        await page.mouse.move(box.x + box.width * 0.12, box.y + box.height - 130);
         await page.keyboard.down('Control');
         for (let i = 0; i < 12; i++) {
           await page.mouse.wheel(0, step.wheelZoom / 12);
@@ -789,6 +798,14 @@ async function runOpener(browser, srv, probe, opener) {
         const el = page.locator(step.dblclick).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
         await el.dblclick({ timeout: 4000 });
+      } else if (step.waitFor) {
+        // wait for a screen to draw (a stubbed answer on a busy machine takes longer than any fixed wait); soft, so an
+        // absent hook is the finding, not a timeout
+        await page
+          .locator(step.waitFor)
+          .first()
+          .waitFor({ state: 'visible', timeout: step.timeout ?? 15_000 })
+          .catch(() => {});
       } else if (step.wait) {
         await sleep(step.wait);
       } else if (step.frameContext) {
@@ -958,7 +975,13 @@ try {
       .filter((o) => !ONLY_OPENERS || ONLY_OPENERS.includes(o.id));
     for (const o of openers) {
       const t0 = Date.now();
-      const ev = await runOpener(browser, srv, probe, o);
+      let ev = await runOpener(browser, srv, probe, o);
+      // one more try for a failed opener: a timeout on a loaded machine is not evidence of an unreachable screen
+      // (an opener that fails twice is a real finding). Keep the attempt that saw more.
+      if (!ev.ok) {
+        const again = await runOpener(browser, srv, probe, o);
+        if (again.ok || again.testids.length > ev.testids.length) ev = again;
+      }
       evidence[probe.id][o.id] = ev;
       flushEvidence();
       console.log(

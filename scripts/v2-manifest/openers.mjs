@@ -345,17 +345,31 @@ export const ROUTE_ANSWERS = {
   // ── Figma ───────────────────────────────────────────────────────────────────────────────────
   figmaProbeOk: { ok: true, handle: 'tereza' },
   figmaProbeBad: { ok: false, error: 'Figma did not accept that token.' },
-  figmaImportOk: {
+  // the link step's Import reads the page's frames (v2 FigmaSheet: /_api/figma/frames), the pick step's Import brings the
+  // picked ones in (/_api/figma/import-frames) and the done step is the summary
+  figmaFrames: {
     ok: true,
-    mode: 'frames',
-    frameCount: 2,
+    surface: 'design',
+    fileName: 'Probe',
+    page: 'Page 1',
+    more: 0,
+    frames: [
+      { id: '1:2', name: 'Hero', width: 1440, height: 900 },
+      { id: '1:3', name: 'Pricing', width: 1440, height: 1100 },
+    ],
+  },
+  figmaImportFramesOk: {
+    ok: true,
+    artboards: 2,
+    comments: { placed: 1, resolved: 0, elsewhere: 0 },
+    assets: { pending: 0, resolved: 0 },
     dispositions: [
       { disposition: 'imported', name: 'Hero' },
       { disposition: 'imported', name: 'Pricing' },
       { disposition: 'skipped', name: 'Comment layer', reason: 'not a design' },
     ],
   },
-  figmaImportBad: { __status: 400, ok: false, error: 'That link is not a Figma file.' },
+  figmaFramesBad: { __status: 400, ok: false, reason: 'bad-url' },
   // signed out of Maude Cloud, with the cloud's own address (the sign-in link is checked against it)
   cloudOut: { ok: true, connected: false, url: 'https://cloud.example' },
   cloudProjectsNone: { ok: true, projects: [] },
@@ -444,8 +458,14 @@ export const STATES = {
     extends: 'figma-in',
     routes: { '/_api/figma/probe': 'figmaProbeBad' },
   },
-  'figma-import-ok': { extends: 'figma-in', routes: { '/_api/figma/import': 'figmaImportOk' } },
-  'figma-import-bad': { extends: 'figma-in', routes: { '/_api/figma/import': 'figmaImportBad' } },
+  'figma-import-ok': {
+    extends: 'figma-in',
+    routes: {
+      '/_api/figma/frames': 'figmaFrames',
+      '/_api/figma/import-frames': 'figmaImportFramesOk',
+    },
+  },
+  'figma-import-bad': { extends: 'figma-in', routes: { '/_api/figma/frames': 'figmaFramesBad' } },
   // a maude:// link the shell parked at launch (take_pending_deep_link)
   'deeplink-connect': {
     invoke: { take_pending_deep_link: 'maude://open/studio-site?code=mhc_00112233445566778899' },
@@ -974,9 +994,13 @@ export const OPENERS = [
       { click: tid('canvas-row-ui-reel') },
       { wait: 5000 },
       { key: 'Shift+Meta+T' },
-      { wait: 3000 },
+      { waitFor: '[data-testid^="timeline-seq-"]', timeout: 20_000 },
       { click: '[data-testid^="timeline-seq-"]', optional: true },
       { dblclick: '[data-testid="timeline-seq-0"]', optional: true },
+      // the fixture comp is past the long-video cap (3 600 frames): its badge opens Advanced, where the keyframe
+      // markers sit on the clips (timeline-kf-<i>-<k>)
+      { click: tid('timeline-long-badge'), optional: true },
+      { wait: 600 },
     ],
   },
   { id: 'export-no-render', config: { exportLane: 'none' }, steps: [{ key: 'Shift+Meta+E' }] },
@@ -1379,7 +1403,11 @@ export const OPENERS = [
       { run: 'import.figma' },
       { fill: [tid('figma-import-url'), 'https://www.figma.com/design/abc123/Probe'] },
       { click: tid('figma-import-preview') },
-      { wait: 800 },
+      // the frames come back: the picker (figma-import-mode-<id>), then Import brings the picked ones in and the sheet
+      // says what came across (figma-import-summary)
+      { waitFor: tid('figma-import-run') },
+      { click: tid('figma-import-run') },
+      { waitFor: tid('figma-import-summary') },
     ],
   },
   {
@@ -1585,7 +1613,8 @@ export const OPENERS = [
   {
     id: 'acp-comments',
     state: 'acp-chat-comments',
-    steps: [{ key: 'Meta+Slash' }, { wait: 800 }],
+    // the chip waits on the comment count the shell reads after the chat opens; wait for it, not for a clock
+    steps: [{ key: 'Meta+Slash' }, { waitFor: tid('chat-qa-implement-comments') }],
   },
   // the Comments panel with its resolved comments listed (Reopen) …
   {

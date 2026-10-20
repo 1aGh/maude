@@ -3771,7 +3771,8 @@
     "consumers": [
       ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the dialog left with the Sync panel (SourceConflictPanel is mounted nowhere; its file stays for `lineDiff`). A conflict is a card in Diagnostics > Sync > Needs you, `diag-sync-conflict-<slug>`: Keep mine, Use theirs, Keep both and Compare (`diag-sync-compare-<slug>`, the changed lines in `diag-sync-compare-lines-<slug>`)."
   },
   {
     "hook": "source-conflict-close",
@@ -3786,7 +3787,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the dialog closed with its Close button; Compare folds shut in the conflict card (`diag-sync-compare-<slug>`)."
   },
   {
     "hook": "source-conflict-original",
@@ -3801,7 +3803,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the two sides are the changed lines Compare draws (`diag-sync-compare-lines-<slug>`) in Diagnostics > Sync > Needs you."
   },
   {
     "hook": "source-conflict-base",
@@ -3816,7 +3819,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the two sides are the changed lines Compare draws (`diag-sync-compare-lines-<slug>`) in Diagnostics > Sync > Needs you."
   },
   {
     "hook": "source-conflict-diff",
@@ -3831,7 +3835,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the differences are `diag-sync-compare-lines-<slug>` in the conflict card of Diagnostics > Sync > Needs you."
   },
   {
     "hook": "source-conflict-error",
@@ -3844,7 +3849,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: a pick that fails says so in the card (`diag-sync-conflict-note-<slug>`)."
   },
   {
     "hook": "source-conflict-keep-mine",
@@ -3857,7 +3863,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: Keep mine is a button of the conflict card in Diagnostics > Sync > Needs you (registry `sync.keep-mine`)."
   },
   {
     "hook": "source-conflict-use-theirs",
@@ -3873,7 +3880,8 @@
       ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs",
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: Use theirs is a button of the conflict card in Diagnostics > Sync > Needs you (registry `sync.use-theirs`)."
   },
   {
     "hook": "cloud-bar",
@@ -8727,7 +8735,8 @@
       "apps/desktop/e2e/multiplayer/surface.e2e.ts",
       "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the status note and its phase dot left with the Sync panel (mounted nowhere, S11.12b); Diagnostics > Sync says the state in its title (`diag-sync-title`) and the Needs you word (`diag-sync-need-word`)."
   },
   {
     "hook": "[aria-label=\"Close share dialog\"]",
