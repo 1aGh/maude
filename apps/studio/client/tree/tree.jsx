@@ -1425,6 +1425,9 @@ export function Sidebar({
               onOpen={openDs}
               onMenu={onDsAction ? (e, row) => rowMenu.openAt(e, { kind: 'ds', row }) : undefined}
               onMake={() => onDsAction?.('ds.make', {})}
+              onBringUp={
+                onDsAction && !readOnly ? (ds) => onDsAction('ds.upgrade', { ds }) : undefined
+              }
             />
           )}
           {showHidden ? (

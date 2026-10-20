@@ -150,3 +150,40 @@ test('no plugin markdown curls a studio route that has a verb (S12.9)', () => {
     `A plugin must reach these through their verb or hook, not a raw curl:\n  ${hits.join('\n  ')}`
   );
 });
+
+// S10.15b (S10 Q13): the `--upgrade-schema` skill section and its command are wired to the verbs that exist.
+// Every `maude design ds-upgrade …` the section tells the agent to run names a sub-verb or a step flag the
+// helper really has, the steps that write are named, and it stops before `--apply`.
+test('the upgrade-schema skill section names only ds-upgrade steps that exist, and stops before --apply', async () => {
+  const { SUB_VERBS } = await import('./sub-verbs.mjs');
+  const skill = readFileSync('plugins/design/skills/design-system/SKILL.md', 'utf8');
+  const at = skill.indexOf('\n## upgrade-schema');
+  assert.ok(at > 0, 'SKILL.md has a "## upgrade-schema" section');
+  const section = skill.slice(at, skill.indexOf('\n## ', at + 5));
+  const help = readFileSync('apps/studio/bin/ds-upgrade.sh', 'utf8');
+  const flags = new Set([...help.matchAll(/ds-upgrade\.sh <ds> (--[a-z-]+)/g)].map((m) => m[1]));
+  assert.ok(flags.has('--prove') && flags.has('--status') && flags.has('--cancel'));
+  const subs = new Set(Object.keys(SUB_VERBS['ds-upgrade']));
+  const cmds = [...section.matchAll(/`maude design ds-upgrade ([^`]*)`/g)].map((m) => m[1]);
+  assert.ok(cmds.length >= 5, 'the section names the verbs');
+  for (const c of cmds) {
+    for (const tok of c.split(/\s+/)) {
+      if (tok.startsWith('--')) assert.ok(flags.has(tok), `ds-upgrade ${c}: ${tok} is not a step`);
+    }
+    const first = c.split(/\s+/)[0];
+    if (!first.startsWith('<') && !first.startsWith('--'))
+      assert.ok(subs.has(first), `ds-upgrade ${c}: ${first} is not a sub-verb`);
+  }
+  for (const step of ['--stage', '--prove', '--status', '--cancel', '--discard'])
+    assert.ok(section.includes(step), `the section names ${step}`);
+  assert.match(section, /Do not run `--apply`/);
+});
+
+test('/design:setup-ds documents --upgrade-schema and points at the skill section', () => {
+  const cmd = readFileSync('plugins/design/commands/setup-ds.md', 'utf8');
+  assert.match(cmd, /^## Upgrade-schema mode \(`--upgrade-schema`/m);
+  assert.match(cmd, /design-system\/SKILL\.md` § upgrade-schema/);
+  assert.match(cmd, /^upgrade_schema: true\|false/m);
+  // the argument-hint already offered the flag
+  assert.match(cmd, /argument-hint:.*--upgrade-schema/);
+});

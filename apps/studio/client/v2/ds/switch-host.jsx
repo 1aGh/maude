@@ -11,6 +11,7 @@ import { DsPreviewBar } from './preview-bar.jsx';
 import { beginDsPreview, stopDsPreview, useDsPreview } from './preview-mode.js';
 import { DsSwitchSheet } from './switch-sheet.jsx';
 import { onDsSwitchRequest, requestDsSwitch } from './switch-bus.js';
+import { requestDsUpgrade } from './upgrade-bus.js';
 import {
   defaultScope,
   refusalWords,
@@ -199,6 +200,11 @@ export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
           }
           onTo={(to) => open({ ...sheet, to })}
           onClose={close}
+          // S10.15b: a system made before the schema is brought up first (13 · ds-multi-schema); the switch waits
+          onBringUp={(ds) => {
+            close();
+            requestDsUpgrade({ ds });
+          }}
           onSwitch={async (rows, { restyle }) => {
             const r = await runSwitch({ to: sheet.to, scope: sheet.scope }, rows, f());
             if (!r.ok) return r;

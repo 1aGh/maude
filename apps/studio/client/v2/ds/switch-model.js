@@ -31,6 +31,7 @@ export const SWITCH_WORDS = Object.freeze({
   offline: "No project home answers right now — switch when you're back online.",
   making: 'That system is still being made. Finish it, then switch.',
   level11: 'Made before the schema. Bring it up to the schema first, then switch.',
+  bringUp: 'Bring it up',
   noneTicked: 'Tick at least one canvas to switch.',
   restyleOff: 'Own tokens keep their look, marked off-system.',
 });

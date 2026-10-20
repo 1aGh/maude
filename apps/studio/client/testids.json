@@ -37824,5 +37824,309 @@
       "apps/studio/test/video-links-overlay.test.tsx"
     ],
     "v2": "new in v2 (S7.13)"
+  },
+  {
+    "hook": "ds-upgrade",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The \"Bring <system> up to the schema?\" dialog (13 · ds-multi-schema); `data-view` = ask | working | proving | review | converted.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The dialog’s scrim.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: \"Bring <system> up to the schema?\" — the verb its primary button repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-lead",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: \"<system> was made before the schema. Until it does, canvases can’t switch to or from it cleanly.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-converted",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: Shown instead of the lead when the system is already on a Design system canvas (the engine refuses it, `ds-upgrade-converted`): said in words, nothing to press but Close.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-lines",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The four SCHEMA_FIX lines (Adds N roles · Renames components · Keeps N own tokens · Updates N canvases).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: One of the four lines (`data-kind` roles | components | own | canvases).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: \"N canvases can’t be updated yet\" — the canvases the proof or a rule refused; they stay as they are (`title` lists them).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-working",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: \"AI is bringing it up\" — the AI has the job and no stage is checked yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-proving",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The check in flight: the words and the bar.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-progress",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The check’s progress bar (`role=progressbar`, `data-current` / `data-total` = canvases checked of all).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-progress-words",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: \"3 of 6 canvases checked, in every theme\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-blocker",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: Why the primary button is off on a proved stage (a system-file change shows, the project moved, a choice is open).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-no-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: Shown when no AI can be asked here (not the Mac app): the Claude Code command instead.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-fine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The fine print: nothing changes how it looks; your Claude account / one undo step.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: A refusal from the server in the person’s words.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: Cancel — stops a check in flight and puts a stage back; \"Close\" on a converted system.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-upgrade-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.15b: The primary button: \"✦ Bring it up\" (asks the AI) before the run, \"Bring it up\" on a proved stage (applies it as one action, one undo step).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/upgrade-sheet.jsx",
+      "symbol": "DsUpgradeSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-switch-bring-up",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.14/S10.15b: \"Bring it up\" beside the level-11 refusal on the switch sheet (`data-ds`): closes the switch and opens the bring-up dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/switch-sheet.jsx",
+      "symbol": "DsSwitchSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-upgrade-sheet.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

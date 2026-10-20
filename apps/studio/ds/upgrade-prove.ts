@@ -28,6 +28,13 @@ import { systemConfigsFrom } from './system.ts';
 import type { PlanItem, UpgradePlan } from './upgrade.ts';
 import { addedRoles } from './upgrade.ts';
 import {
+  cancelRequested,
+  clearCancel,
+  clearProgress,
+  type ProveProgress,
+  writeProgress,
+} from './upgrade-progress.ts';
+import {
   DsUpgradeError,
   readStage,
   type StageManifest,
@@ -72,10 +79,19 @@ export interface Studio {
   stop(): Promise<void>;
 }
 
+export interface RenderOptions {
+  /** aborts the render: the shim is killed */
+  signal?: AbortSignal;
+  /** one update per canvas done */
+  onProgress?: (u: { current: number; total: number }) => void;
+}
+
 export interface ProveDeps {
   bootStudio?: (projectRoot: string) => Promise<Studio>;
-  render?: (job: RenderJob) => Promise<RenderResult>;
+  render?: (job: RenderJob, opts?: RenderOptions) => Promise<RenderResult>;
   now?: () => number;
+  /** how often the cancel marker is looked for (ms); tests make it short */
+  pollMs?: number;
 }
 
 export interface Review {
@@ -184,13 +200,21 @@ export async function bootHeadlessStudio(projectRoot: string): Promise<Studio> {
 }
 
 /** The default renderer: the playwright shim as a subprocess. */
-export async function renderWithShim(job: RenderJob): Promise<RenderResult> {
+export async function renderWithShim(
+  job: RenderJob,
+  opts: RenderOptions = {}
+): Promise<RenderResult> {
   const dir = mkdtempSync(join(tmpdir(), 'maude-ds-prove-job-'));
   try {
     const file = join(dir, 'job.json');
     writeFileSync(file, JSON.stringify(job));
     const shim = exportShimPath('_ds-prove-playwright.mjs');
-    const r = await spawnShim([shim, '--job', file], { cwd: dirname(shim) });
+    const r = await spawnShim([shim, '--job', file], {
+      cwd: dirname(shim),
+      signal: opts.signal,
+      onProgress: opts.onProgress,
+    });
+    if (opts.signal?.aborted) throw new Error('cancelled');
     if (r.code !== 0)
       throw new Error(`the visual gate failed to run: ${r.stderr.trim().slice(0, 400)}`);
     return JSON.parse(r.stdoutLines.filter(Boolean).at(-1) ?? '{}') as RenderResult;
@@ -285,7 +309,13 @@ function reviewOf(
   return { review, failedCanvases };
 }
 
-/** Step 6. Writes diff.json + review.json beside the stage record; returns the review. */
+/**
+ * Step 6. Writes diff.json + review.json beside the stage record; returns the review.
+ *
+ * While it runs it keeps `progress.json` (phase, canvases done, a 2 s heartbeat) and looks for
+ * `cancel.json` (the sheet's Cancel): on one it kills the shim, stops both studios and throws
+ * `ds-upgrade-cancelled`, so nobody waits out a proof they no longer want (S10.15b).
+ */
 export async function proveStage(
   designRoot: string,
   ds: string,
@@ -301,6 +331,31 @@ export async function proveStage(
   const canvases = affectedCanvases(stage.dir, ds);
   const studios: Studio[] = [];
   let result: RenderResult;
+
+  // an old cancel is not this proof's
+  clearCancel(stateDir);
+  const ctl = new AbortController();
+  const progress: ProveProgress = {
+    phase: 'booting',
+    current: 0,
+    total: canvases.length,
+    startedAt: Date.now(),
+    updatedAt: Date.now(),
+    pid: process.pid,
+  };
+  let finished = false;
+  const beat = () => {
+    if (finished) return; // a late line from a killed shim must not bring the file back
+    progress.updatedAt = Date.now();
+    writeProgress(stateDir, progress);
+  };
+  beat();
+  const heart = setInterval(beat, 2000);
+  const watch = setInterval(() => {
+    if (cancelRequested(stateDir)) ctl.abort();
+  }, deps.pollMs ?? 300);
+  const cancelled = () =>
+    new DsUpgradeError('ds-upgrade-cancelled', 'the proof was cancelled; nothing changed');
   try {
     // allSettled: a studio that booted while its sibling failed is still stopped below
     const booted = await Promise.allSettled([
@@ -310,22 +365,43 @@ export async function proveStage(
     for (const b of booted) if (b.status === 'fulfilled') studios.push(b.value);
     const failed = booted.find((b) => b.status === 'rejected');
     if (failed) throw (failed as PromiseRejectedResult).reason;
+    if (ctl.signal.aborted) throw cancelled();
     const [before, after] = studios;
-    result = await render({
-      before: before.origin,
-      after: after.origin,
-      canvases,
-      deltaE: DELTA_E,
-      ratio: FAIL_RATIO,
-      timeout: 20000,
-    });
+    progress.phase = 'rendering';
+    beat();
+    result = await render(
+      {
+        before: before.origin,
+        after: after.origin,
+        canvases,
+        deltaE: DELTA_E,
+        ratio: FAIL_RATIO,
+        timeout: 20000,
+      },
+      {
+        signal: ctl.signal,
+        onProgress: (u) => {
+          progress.current = u.current;
+          progress.total = u.total;
+          beat();
+        },
+      }
+    );
+    if (ctl.signal.aborted) throw cancelled();
   } catch (e) {
+    if (e instanceof DsUpgradeError) throw e;
+    if (ctl.signal.aborted) throw cancelled();
     throw new DsUpgradeError(
       'ds-upgrade-proof-failed',
       `the proof could not run: ${(e as Error).message}`.slice(0, 400)
     );
   } finally {
+    clearInterval(heart);
+    clearInterval(watch);
     await Promise.all(studios.map((s) => s.stop().catch(() => {})));
+    finished = true;
+    clearProgress(stateDir);
+    clearCancel(stateDir);
   }
   const now = (deps.now ?? Date.now)();
   writeFileSync(

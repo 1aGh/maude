@@ -43,6 +43,7 @@ import { requestDsAdvanced } from '../ds/advanced-bus.js';
 import { requestDsReview } from '../ds/review-bus.js';
 import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
 import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
+import { requestDsUpgrade } from '../ds/upgrade-bus.js';
 import { requestDsConvert, restoreSystemFolder } from '../ds/convert-model.js';
 import { runMasterAction } from '../ds/master-write.js';
 import { runTokenAction } from '../ds/token-write.js';
@@ -360,6 +361,8 @@ export function createMenuHandlers(d) {
     // S10.14 — switch canvases to another system (one review) and look at the project in one first (session-only)
     'ds.switch': (p) => requestDsSwitch({ from: p?.from, to: p?.to, scope: p?.scope }),
     'ds.preview': (p) => requestDsPreview({ from: p?.from }),
+    // S10.15b — the amber dot / the row's menu: "Bring <system> up to the schema?" (the AI does it, the person applies)
+    'ds.upgrade': (p) => requestDsUpgrade({ ds: String(p?.ds ?? '') }),
     // S10.12 — convert the system folders (the folder view's banner opens the dialog) / Restore one to its folder
     'ds.convert': (p) => requestDsConvert(p, { toast: d.toast }),
     'ds.convert-restore': async (p) => {

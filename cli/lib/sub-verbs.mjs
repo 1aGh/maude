@@ -49,7 +49,18 @@ export const SUB_VERBS = {
 };
 
 const STEP_FLAGS = {
-  'ds-upgrade': ['--analyse', '--plan-mechanical', '--validate', '--stage', '--apply'],
+  'ds-upgrade': [
+    '--analyse',
+    '--plan-mechanical',
+    '--validate',
+    '--stage',
+    '--apply',
+    // S10.15b: the proof, the discard and the cancel are steps as well
+    '--prove',
+    '--discard',
+    '--cancel',
+    '--status',
+  ],
 };
 
 /** Flags that take a value (so the value isn't read as a positional). */

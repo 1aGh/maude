@@ -27,7 +27,18 @@ test('validate takes the plan file as its second word', () => {
 });
 
 test('a step flag after a sub-verb is refused — no escalation through the prefix rule', () => {
-  for (const flag of ['--apply', '--stage', '--validate', '--analyse', '--plan-mechanical']) {
+  for (const flag of [
+    '--apply',
+    '--stage',
+    '--validate',
+    '--analyse',
+    '--plan-mechanical',
+    // S10.15b: the proof, its cancel and the discard are steps too
+    '--prove',
+    '--discard',
+    '--cancel',
+    '--status',
+  ]) {
     const r = subVerbArgs('ds-upgrade', ['analyse', 'acme', flag, 'p.json']);
     assert.ok(r.error, flag);
     assert.match(r.error, /sub-verb/);

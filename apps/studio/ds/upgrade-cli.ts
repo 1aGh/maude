@@ -7,6 +7,8 @@
 //   --prove <stage>           two headless studios + the in-page ΔE gate → diff.json, review.json
 //   --apply <stage>           ONE action through the project's studio (permission card); 3 = no studio
 //   --discard <stage>         the throwaway copies and the record go
+//   --status                  the system's live stages: staged, being proved (progress), proved (review)
+//   --cancel <stage>          stops a proof in flight (S10.15b: the sheet's Cancel); --discard follows
 // <stage> is the stamp `--stage` printed, or the record folder's path.
 
 import { readFileSync } from 'node:fs';
@@ -24,6 +26,7 @@ import {
   validatePlan,
   validateResult,
 } from './upgrade.ts';
+import { cancelStage, listStages } from './upgrade-progress.ts';
 import { proveStage } from './upgrade-prove.ts';
 import { DsUpgradeError, discardStage, stageUpgrade } from './upgrade-stage.ts';
 
@@ -62,8 +65,11 @@ export function runDsUpgrade(
     for (let i = 0; i < argv.length; i++) {
       const t = argv[i];
       if (t === '--root') root = argv[++i] ?? null;
-      else if (t === '--analyse' || t === '--plan-mechanical') step = t.slice(2);
-      else if (['--validate', '--stage', '--apply', '--prove', '--discard'].includes(t)) {
+      else if (t === '--analyse' || t === '--plan-mechanical' || t === '--status')
+        step = t.slice(2);
+      else if (
+        ['--validate', '--stage', '--apply', '--prove', '--discard', '--cancel'].includes(t)
+      ) {
         step = t.slice(2);
         arg = argv[++i] ?? null;
         if (!arg)
@@ -77,7 +83,7 @@ export function runDsUpgrade(
     }
     if (names.length !== 1 || !step)
       throw new UsageError(
-        'usage: ds-upgrade <ds> --analyse | --plan-mechanical | --validate|--stage <plan.json> | --prove|--apply|--discard <stage>'
+        'usage: ds-upgrade <ds> --analyse | --plan-mechanical | --status | --validate|--stage <plan.json> | --prove|--apply|--discard|--cancel <stage>'
       );
     const project = loadProject(root, env);
     const [cfg] = selectSystems(project, names);
@@ -85,6 +91,23 @@ export function runDsUpgrade(
     const outside =
       step === 'stage' || step === 'apply' ? systemWriteViolation(project.designRoot, cfg) : null;
     if (outside) return out(EXIT.refused, '', `ds-upgrade: ${outside}\n`);
+    if (step === 'status')
+      return out(EXIT.ok, json({ ds: cfg.name, stages: listStages(project.designRoot, cfg.name) }));
+    if (step === 'cancel')
+      return {
+        ...out(EXIT.ok),
+        later: async () => {
+          try {
+            return out(
+              EXIT.ok,
+              json(await cancelStage(project.designRoot, cfg.name, stampOf(arg as string)))
+            );
+          } catch (e) {
+            if (e instanceof DsUpgradeError) return refusal(e);
+            throw e;
+          }
+        },
+      };
     if (step === 'prove' || step === 'apply' || step === 'discard') {
       const stamp = stampOf(arg as string);
       if (step === 'discard')

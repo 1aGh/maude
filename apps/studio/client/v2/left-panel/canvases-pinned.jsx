@@ -36,7 +36,8 @@ export function TrashIcon({ size = 14 }) {
  *  with an amber dot for a system that needs bringing up and a ⋯ menu of its own. Several systems in use
  *  sit under "Design systems · 2 in use". A project with none shows "Make a design system".
  *    header  { title, note } | null      onMenu(event, row)      the row's ⋯ (omit = no menu)
- *    empty   { label } | null            onMake()                the empty row's door */
+ *    empty   { label } | null            onMake()                the empty row's door
+ *                                        onBringUp(ds)           S10.15b: a click on the amber dot (omit = the dot is only a mark) */
 export function DsPinnedRows({
   rows,
   activeDsName,
@@ -45,6 +46,7 @@ export function DsPinnedRows({
   empty = null,
   onMenu,
   onMake,
+  onBringUp,
 }) {
   if (!rows?.length && !empty) return null;
   return (
@@ -67,7 +69,12 @@ export function DsPinnedRows({
               data-default={r.isDefault ? 'true' : undefined}
               aria-current={on ? 'true' : undefined}
               title={r.sub ? `${r.label} — ${r.sub}` : 'Open the design system'}
-              onClick={() => onOpen(r.dsName)}
+              onClick={(e) =>
+                // S10.15b: the amber dot is the door to "Bring it up to the schema?"; the rest of the row opens the system
+                onBringUp && r.amber && e.target?.closest?.('[data-testid="canvases-ds-row-warn"]')
+                  ? onBringUp(r.dsName)
+                  : onOpen(r.dsName)
+              }
             >
               <span className="lp-ds-ic">
                 <StIcon name="sliders" size={14} />
@@ -88,7 +95,8 @@ export function DsPinnedRows({
                   data-testid="canvases-ds-row-warn"
                   role="img"
                   aria-label={r.amber.title}
-                  title={r.amber.title}
+                  title={onBringUp ? `${r.amber.title} — click to bring it up` : r.amber.title}
+                  data-act={onBringUp ? 'bring-up' : undefined}
                 />
               ) : null}
             </button>

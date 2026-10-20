@@ -120,6 +120,25 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-switch-ai-row` | testid | S10.14: The AI row: "AI restyles <system>'s N own tokens", drawn only when the ticked canvases own something and an AI can be asked. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-ai` | testid | S10.14: The AI row's switch (`role=switch`): on, the person's Claude account restyles after the switch (origin `ds-restyle`); off, the canvases keep their look, marked off-system. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-fine` | testid | S10.14: "Version history keeps the old look." | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
+| `ds-upgrade` | testid | S10.15b: The "Bring <system> up to the schema?" dialog (13 · ds-multi-schema); `data-view` = ask | working | proving | review | converted. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-scrim` | testid | S10.15b: The dialog’s scrim. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-title` | testid | S10.15b: "Bring <system> up to the schema?" — the verb its primary button repeats. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-lead` | testid | S10.15b: "<system> was made before the schema. Until it does, canvases can’t switch to or from it cleanly." | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-converted` | testid | S10.15b: Shown instead of the lead when the system is already on a Design system canvas (the engine refuses it, `ds-upgrade-converted`): said in words, nothing to press but Close. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-lines` | testid | S10.15b: The four SCHEMA_FIX lines (Adds N roles · Renames components · Keeps N own tokens · Updates N canvases). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-line` | testid | S10.15b: One of the four lines (`data-kind` roles | components | own | canvases). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-refused` | testid | S10.15b: "N canvases can’t be updated yet" — the canvases the proof or a rule refused; they stay as they are (`title` lists them). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-working` | testid | S10.15b: "AI is bringing it up" — the AI has the job and no stage is checked yet. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-proving` | testid | S10.15b: The check in flight: the words and the bar. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-progress` | testid | S10.15b: The check’s progress bar (`role=progressbar`, `data-current` / `data-total` = canvases checked of all). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-progress-words` | testid | S10.15b: "3 of 6 canvases checked, in every theme". | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-blocker` | testid | S10.15b: Why the primary button is off on a proved stage (a system-file change shows, the project moved, a choice is open). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-no-ai` | testid | S10.15b: Shown when no AI can be asked here (not the Mac app): the Claude Code command instead. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-fine` | testid | S10.15b: The fine print: nothing changes how it looks; your Claude account / one undo step. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-error` | testid | S10.15b: A refusal from the server in the person’s words. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-cancel` | testid | S10.15b: Cancel — stops a check in flight and puts a stage back; "Close" on a converted system. | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-upgrade-go` | testid | S10.15b: The primary button: "✦ Bring it up" (asks the AI) before the run, "Bring it up" on a proved stage (applies it as one action, one undo step). | `client/v2/ds/upgrade-sheet.jsx` · `DsUpgradeSheet` | — | new |
+| `ds-switch-bring-up` | testid | S10.14/S10.15b: "Bring it up" beside the level-11 refusal on the switch sheet (`data-ds`): closes the switch and opens the bring-up dialog. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-error` | testid | S10.14: A refusal from the server, in words, under the list. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-cancel` | testid | S10.14: Cancel the switch; nothing changes. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |
 | `ds-switch-go` | testid | S10.14: The primary button, "Switch 5 canvases": one action, one ⌘Z. | `client/v2/ds/switch-sheet.jsx` · `DsSwitchSheet` | — | new |

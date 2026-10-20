@@ -23,6 +23,7 @@ import { DsSwitchHost } from './switch-host.jsx';
 import { DsConvertHost } from './convert-host.jsx';
 import { DsMakeHost } from './make-host.jsx';
 import { DsTruthHost } from './truth-host.jsx';
+import { DsUpgradeHost } from './upgrade-host.jsx';
 import { useDsUpdateDots } from './update-dots.js';
 import { bodyOf } from './update-available.jsx';
 
@@ -265,6 +266,8 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   const switcher = (
     <>
       <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+      {/* S10.15b — "Bring <system> up to the schema?": the amber dot, the row's menu and the switch's level-11 refusal */}
+      <DsUpgradeHost cfg={cfg} toast={toast} fetchImpl={fetchImpl} />
       <DsOffSystemHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
       {/* S10.16b — "Make a design system": the three-input sheet, the filling sections, the ready card */}
       <DsMakeHost
