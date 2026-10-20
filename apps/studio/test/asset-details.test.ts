@@ -78,6 +78,24 @@ describe('assetDetails', () => {
     ]);
   });
 
+  test('every way a canvas spells the path finds its artboard', () => {
+    for (const spelling of [
+      'assets/d34bb59d.jpg',
+      './assets/d34bb59d.jpg',
+      '../assets/d34bb59d.jpg',
+      '/assets/d34bb59d.jpg',
+      '.design/assets/d34bb59d.jpg',
+      'assets/d34bb59d.jpg?v=2',
+    ])
+      expect(
+        boardsShowing(canvas('ab-x', spelling), 'ui/a.tsx', 'assets/d34bb59d.jpg'),
+        spelling
+      ).toEqual([{ id: 'ab-x', label: 'Post ab-x' }]);
+    expect(
+      boardsShowing(canvas('ab-x', 'assets/other000.jpg'), 'ui/a.tsx', 'assets/d34bb59d.jpg')
+    ).toEqual([]);
+  });
+
   test('a use that is not an element still names its canvas, with no artboard to open', () => {
     const root = project();
     put(root, 'assets/d34bb59d.jpg');

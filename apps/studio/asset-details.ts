@@ -197,7 +197,8 @@ export function footageOf(designRoot: string, rel: string): FootageFacts | null 
 const norm = (v: string): string =>
   v
     .replace(/[?#].*$/, '')
-    .replace(/^\.?\/+/, '')
+    .replace(/^(?:\.{1,2}\/)+/, '')
+    .replace(/^\/+/, '')
     .replace(/^\.design\//, '');
 
 /** The artboards of one canvas that show `assetRel` (a `src`/`href`/`poster`/tile attribute names it). */
