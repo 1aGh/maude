@@ -75,6 +75,9 @@ const NONE = [
 ];
 
 const FILTERED = [
+  // S8.15 — Apply to every use: the canvases a picture is in, narrowed to the session's; the write is G2's
+  // every-referrer rule on the every-use edit (routes/photo-every-use.ts)
+  '/_api/photo-every-use',
   // A6a — S1.7 shared Trash list (L18: only the session's canvases); S1.18 link resolve (an ungranted entry reads `unknown`, as a missing one)
   '/_api/trash',
   '/_api/link/resolve',

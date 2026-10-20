@@ -178,6 +178,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/edit-attr': { safe: null, unsafe: 'edit' },
   '/_api/edit-css': { safe: null, unsafe: 'edit' },
   '/_api/edit-op': { safe: null, unsafe: 'edit' }, // S2.1 — routes/edit.ts dispatch
+  // S8.15 — Apply to every use (routes/photo-every-use.ts): GET the canvases a picture is in, POST the every-use edit
+  '/_api/photo-every-use': { safe: 'read', unsafe: 'edit' },
   '/_api/edit-text': { safe: null, unsafe: 'edit' },
   '/_api/edit-array-src': { safe: null, unsafe: 'edit' },
   // GET-only, READ-only in the studio: it parses the selection to render the

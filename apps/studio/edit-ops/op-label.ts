@@ -94,6 +94,7 @@ const ROWS: Readonly<Record<string, Say>> = {
   'image.replace': () => 'Replaced a picture',
   'image.crop': () => 'Cropped a picture',
   'photo.use-edit': () => 'Edited this use of a photo',
+  'photo.every-use': () => 'Applied a photo edit to every use',
   'component.swap-variant': (n) => `Swapped the variant of ${n}`,
   'component.reset': (n) => `Reset ${n} to its component`,
   'component.detach': (n) => `Detached ${n} from its component`,

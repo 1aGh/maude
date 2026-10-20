@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "948bbdc26e21",
+  "manifestVersion": "f50c17ffc37a",
   "actions": [
     {
       "id": "search.open",
@@ -1268,6 +1268,44 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the <img>’s src to the new assets/<sha8>.<ext> and remove its data-photo-edit (a per-use edit belongs to the old picture); keep the box, the fit and the alt. Over HTTP: POST /_api/edit-op {op: \"image.replace\", targets: [picture], params: {asset}}"
+      }
+    },
+    {
+      "id": "photo.use-edit",
+      "label": "Edit this use of the photo",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write the use’s own edit as assets/<img8>.<edit8>.photo.json (a v1 PhotoEdit, no new keys; <edit8> = the first 8 hex of the sha256 of its canonical JSON, keys sorted, no whitespace; never rewrite one, write a new one), then data-photo-edit=\"<edit8>\" on the <img> / <image> / tiled picture whose src is assets/<img8>.<ext>; remove the attribute to show the every-use look again. Over HTTP: PUT /_api/photo-edit?asset=assets/<img8>.<ext>&perUse=1 with the PhotoEdit answers {edit: \"<edit8>\"}, then POST /_api/edit-op {op: \"photo.use-edit\", targets: [picture], params: {edit: \"<edit8>\" | null}}"
+      }
+    },
+    {
+      "id": "photo.apply-every-use",
+      "label": "Apply to every use…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/photo-every-use",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write the edit as assets/<img8>.photo.json (every use, a v1 PhotoEdit), then remove data-photo-edit from every <img> / <image> / tiled picture whose src is assets/<img8>.<ext> in every canvas (`maude design assets --usage assets/<img8>.<ext>` lists them), only when you may change every one of those canvases. Over HTTP: GET /_api/photo-every-use?asset=assets/<img8>.<ext> names the canvases ({uses, canApply, reason?}); POST /_api/photo-every-use {asset, edit} answers {path, canvases: [{canvas, ok}]}"
       }
     },
     {

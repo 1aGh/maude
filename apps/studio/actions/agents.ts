@@ -629,6 +629,30 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'image.replace': TSX(
     'Change the <img>’s src to the new assets/<sha8>.<ext> and remove its data-photo-edit (a per-use edit belongs to the old picture); keep the box, the fit and the alt. Over HTTP: POST /_api/edit-op {op: "image.replace", targets: [picture], params: {asset}}'
   ),
+  // S8.15 — a photo edit per use (canvas-tsx.md § Edit one use of a photo; contract S8-asset-sidecars §5.1).
+  'photo.use-edit': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    // the attribute is the action (one undo step); its file goes first through PUT /_api/photo-edit?perUse=1
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Write the use’s own edit as assets/<img8>.<edit8>.photo.json (a v1 PhotoEdit, no new keys; <edit8> = the first 8 hex of the sha256 of its canonical JSON, keys sorted, no whitespace; never rewrite one, write a new one), then data-photo-edit="<edit8>" on the <img> / <image> / tiled picture whose src is assets/<img8>.<ext>; remove the attribute to show the every-use look again. Over HTTP: PUT /_api/photo-edit?asset=assets/<img8>.<ext>&perUse=1 with the PhotoEdit answers {edit: "<edit8>"}, then POST /_api/edit-op {op: "photo.use-edit", targets: [picture], params: {edit: "<edit8>" | null}}'
+    ),
+  },
+  'photo.apply-every-use': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/photo-every-use', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Write the edit as assets/<img8>.photo.json (every use, a v1 PhotoEdit), then remove data-photo-edit from every <img> / <image> / tiled picture whose src is assets/<img8>.<ext> in every canvas (`maude design assets --usage assets/<img8>.<ext>` lists them), only when you may change every one of those canvases. Over HTTP: GET /_api/photo-every-use?asset=assets/<img8>.<ext> names the canvases ({uses, canApply, reason?}); POST /_api/photo-every-use {asset, edit} answers {path, canvases: [{canvas, ok}]}'
+    ),
+  },
   // Registered, visible to no shell until S8.17 (Figma import) lands; its verb is S8's.
   'figma.make-editable': { effect: 'external', agent: cli('maude design import-figma') },
   // S8.12 — the Assets tab's ↵ on a picked tile: the same write as `image.place`, started from the tab. The agent edits the TSX.

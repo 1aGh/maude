@@ -553,6 +553,25 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['object'] },
     search: { keywords: ['replace', 'swap', 'picture', 'image', 'photo'] },
   },
+  // S8.15 (ia-photo-inspector, ia-photo-steps) — a photo edit changes this one use; Apply to every use is the
+  // explicit choice (a sheet that names each canvas). Both are the Photo section's controls; the look and the
+  // sliders are a gesture (no ⌘K row), Apply to every use… is ⌘K-able on a selected picture.
+  {
+    id: 'photo.use-edit',
+    label: 'Edit this use of the photo',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'photo.apply-every-use',
+    label: 'Apply to every use…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['apply', 'every', 'use', 'all', 'photo', 'picture', 'image', 'look'] },
+  },
   {
     id: 'figma.make-editable',
     label: 'Make editable',
