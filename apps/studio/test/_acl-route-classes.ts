@@ -254,6 +254,8 @@ const PROJECT = [
   '/_api/cloud/move',
   // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
   '/_api/trash/clear',
+  // S8.13 — Move assets to the trash: the whole `assets/` folder is the project's (a canvas-only session has no say)
+  '/_api/assets/trash',
   '/_api/ai/attach/file',
   '/_api/ai/attach/folder',
   '/_api/ai/attach/folder/detach',

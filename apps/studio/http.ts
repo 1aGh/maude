@@ -2131,6 +2131,15 @@ export function createHttp(
       runtime: () => ctx.syncControl?.current?.() ?? null,
       access: (req) => accessOf(req),
     }),
+    // S8.13 — POST /_api/assets/trash (routes/asset-trash.ts): the verdict is the index's row for the file.
+    assetTrash: {
+      designRoot: ctx.paths.designRoot,
+      access: (req) => accessOf(req),
+      rows: () => projectIndex.assetsAnswer().assets,
+      announce: (rel) => {
+        if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
+      },
+    },
     // S9.19 — /_api/share/*: the desktop's door to the linked hub's access API.
     share: shareDeps,
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
