@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "02e4f07d2e82",
+  "manifestVersion": "800c8de9a213",
   "actions": [
     {
       "id": "search.open",
@@ -2975,6 +2975,18 @@
         "path": "human",
         "because": "view-pref",
         "note": "which empty tracks the timeline draws (the lanes follow the clips)"
+      }
+    },
+    {
+      "id": "timeline.fold-track",
+      "label": "Fold a track",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "which tracks of a long video are put away (the comp is untouched)"
       }
     },
     {

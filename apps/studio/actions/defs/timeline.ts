@@ -180,6 +180,19 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
       keywords: ['track', 'video 2', 'music 2', 'layer', 'lane'],
     },
   },
+  // S7.16 (07 · ve-long) — fold a track you do not need to "Text · 18": one line, no rows. Like "+ track" it is the
+  // person's own view (a comp's tracks are derived), so it has no key and no role gate. With no track named it
+  // folds the busy ones together.
+  {
+    id: 'timeline.fold-track',
+    label: 'Fold a track',
+    kind: 'command',
+    exec: 'shell',
+    search: {
+      where: 'Timeline',
+      keywords: ['fold', 'collapse', 'hide', 'track', 'text', 'graphics', 'lane'],
+    },
+  },
   {
     id: 'timeline.comment-mode',
     label: 'Comment on the timeline',

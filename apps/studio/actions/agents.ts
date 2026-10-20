@@ -1098,6 +1098,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.next-keyframe': PREF('playback'),
   // S7.18 — "+ track": which empty tracks the timeline draws is the person's own view; the lanes follow the clips
   'timeline.add-track': PREF('which empty tracks the timeline draws (the lanes follow the clips)'),
+  // S7.16 — folding a track is the person's own view of a long video; the comp is untouched
+  'timeline.fold-track': PREF('which tracks of a long video are put away (the comp is untouched)'),
   // S7.9 — the timeline's edit gestures (one `clip.*` op each) and the 17-row clip menu. An agent writes the
   // same literal props in the canvas .tsx; `comment` and `generate` have a verb of their own.
   'timeline.trim': VIDEO_OP(

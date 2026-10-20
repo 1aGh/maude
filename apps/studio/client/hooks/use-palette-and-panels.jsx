@@ -14,6 +14,7 @@ import {
 } from '../v2/ds/new-canvas-default.js';
 import { useDsSearchSystems } from '../v2/ds/use-ds-search.js';
 import { dsSearchRows } from '../v2/search/search-ds.js';
+import { clipSearchRows, useClipRowsVersion } from '../v2/timeline/clip-search.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -322,6 +323,7 @@ export function usePaletteAndPanels({
   );
 
   const dsSystems = useDsSearchSystems(cfg);
+  const clipRowsVersion = useClipRowsVersion(); // S7.16 — the clips of the video on the timeline, by name
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
@@ -418,6 +420,8 @@ export function usePaletteAndPanels({
         run: (p) =>
           cfg.dsConverted?.[p.ds] === true ? menuRunner.run('ds.go-to', p) : openSystem(p.ds),
       }),
+      // S7.16 (07 · ve-long) — ⌘K finds a clip of the video on the timeline by name (provider `timeline.clips`)
+      ...clipSearchRows(),
     ].map((r) => ({ ...r, onlyWhenSearched: true }));
     // V2-4.4a — ⌘K "Trash" and "Refresh tree" (CONTRACT §1 C10, §2 ⇧⌘R). Neither is a menu row; both are
     // the left panel's. Same runner as the panel's own controls.
@@ -463,6 +467,7 @@ export function usePaletteAndPanels({
     cfg.designRel,
     cfg.dsConverted,
     dsSystems,
+    clipRowsVersion,
     refreshTree,
   ]);
 
