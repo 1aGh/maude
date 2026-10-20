@@ -24,7 +24,13 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { CAPABILITIES } from '../src/role-matrix.mjs';
-import { capabilitiesUsed, classify, decide, STUDIO_ROUTES } from '../src/studio-manifest.mjs';
+import {
+  capabilitiesUsed,
+  classify,
+  decide,
+  REFUSED,
+  STUDIO_ROUTES,
+} from '../src/studio-manifest.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const HTTP_TS = join(REPO, 'apps', 'studio', 'http.ts');
@@ -449,4 +455,14 @@ test('S1.18 — a cell visitor may resolve a stable link; the studio narrows it 
   assert.deepEqual(STUDIO_ROUTES['/_api/link/resolve'], { safe: 'read', unsafe: 'read' });
   for (const role of ['observer', 'viewer', 'member', 'owner'])
     assert.equal(decide('GET', '/_api/link/resolve', role).allow, true, role);
+});
+
+test('gate-b-sec1 A5 — a cell serves no team-library door: its grant store is every member’s, its fetches leave from the cloud', () => {
+  assert.equal(STUDIO_ROUTES['/_api/ds/library'], REFUSED);
+  for (const role of ['observer', 'viewer', 'member', 'owner'])
+    assert.deepEqual(decide('POST', '/_api/ds/library', role), {
+      allow: false,
+      reason: 'refused',
+      capability: null,
+    });
 });
