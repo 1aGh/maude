@@ -309,6 +309,18 @@ export function createMenuHandlers(d) {
         target: p?.target,
         ds: p?.ds,
       }),
+    // S10.9 — "Used in 5 canvases · Show": the reach view (reach-view.jsx, hosted by review-host.jsx) draws every
+    // place the token (or master) lands, ringed, then opens the same review list beside it. A read.
+    'ds.show-reach': (p) =>
+      requestDsReview({
+        kind: 'reach',
+        ds: p?.ds,
+        canvas: p?.canvas,
+        css: p?.css,
+        component: p?.component,
+        name: p?.name,
+        swatch: p?.swatch,
+      }),
     // Cancel puts the swatch back: what waited is dropped, no canvas changes.
     'ds.cancel-pending': (p) => requestDsReview({ kind: 'cancel', ds: p?.ds, canvas: p?.canvas }),
     // S10.7 — a token edited in place: the inspector's panel and these two rows are one writer (token-write.js)

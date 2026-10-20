@@ -778,7 +778,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
-  'annotations.hide-resolved': PREF('per-person view preference (C29); never written to the annotations'),
+  'annotations.hide-resolved': PREF(
+    'per-person view preference (C29); never written to the annotations'
+  ),
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
@@ -1519,5 +1521,12 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'ds.set-theme-preview': {
     effect: 'none',
     agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),
+  },
+  // S10.9 — the rings are a picture; the places behind them are the usage index, which the verb reads
+  // (`--json` carries the canvases, artboards and element ids the view rings).
+  'ds.show-reach': {
+    effect: 'none',
+    server: { route: '/_api/ds/usage', method: 'GET' },
+    agent: cli('maude design ds usage <ds> --css <--token> --json'),
   },
 };
