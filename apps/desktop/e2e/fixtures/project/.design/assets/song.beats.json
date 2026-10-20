@@ -1,0 +1,13 @@
+{
+  "format": "maude.beats",
+  "v": 1,
+  "asset": "assets/song.mp3",
+  "durationSec": 4,
+  "analyzer": { "id": "maude-beats", "version": 1, "decode": "ffmpeg" },
+  "bpm": 120,
+  "bpmSource": "detected",
+  "tempoStrength": 0.82,
+  "beats": [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5],
+  "bar": { "phase": 0, "confidence": 0.9 },
+  "createdAt": "2026-10-20T09:00:00.000Z"
+}
