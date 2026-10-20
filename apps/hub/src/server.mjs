@@ -133,6 +133,7 @@ import {
   handleDocumentItemRoute,
   handleDocumentsRoute,
 } from './documents.mjs';
+import { createDsGrantRoutes, createDsGrantStore, DS_GRANTS_CAPABILITY } from './ds-grants.mjs';
 import {
   createDsLibraryRoutes,
   createDsLibraryUsage,
@@ -947,15 +948,28 @@ export function createHub(config = {}) {
     ...(rateLimit ? {} : { limits: null }),
   });
   // S10.18a — team libraries (`ds-library.mjs`): a system's head + revisions, to members and
-  // to a non-member's library read grant. No grant verifier is wired yet (the credential is
-  // the lead's open question), so a non-member is refused — fail closed.
+  // to a non-member's library read grant. S10.18a-2 — the grant is a token this hub mints
+  // (`ds-grants.mjs`), dark until MAUDE_DS_LIBRARY_GRANTS=1: until then verifyGrant is null
+  // and a non-member is refused — fail closed.
+  const dsGrants = createDsGrantStore({
+    dataDir,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+  });
   const dsLibraryRoutes = createDsLibraryRoutes({
     projectId: process.env.MAUDE_TENANT_ID || 'local',
     designRoot: () => (studioProxy ? designRootFor() : null),
     systems: () => acceptedProjectConfig()?.designSystems ?? [],
     auth: (req) => acceptedAuth(req),
-    verifyGrant: null,
+    verifyGrant: dsGrants.verifyGrant,
     usage: createDsLibraryUsage({ file: join(dataDir, 'ds-library-usage.json') }),
+    clientIp: (req) => clientIp(req),
+    ...(rateLimit ? {} : { limits: null }),
+  });
+  const dsGrantRoutes = createDsGrantRoutes({
+    store: dsGrants,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    systems: () => acceptedProjectConfig()?.designSystems ?? [],
+    auth: (req) => acceptedAuth(req),
   });
 
   // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
@@ -1263,6 +1277,9 @@ export function createHub(config = {}) {
           // `render-jobs-v1` (S8.5b §4.4): the cloud render door, only while it is on here.
           // `ds-library` (V2-1.6 §5.14, S10.18a): team-library head + revisions at
           // `/api/projects/:p/v1/ds/*`, only where a checkout's design root is served.
+          // `ds-library-grants` (S10.18a-2): this hub mints library grants at
+          // `/api/projects/:p/v1/ds-grants*` and admits them at the ds door — only while
+          // MAUDE_DS_LIBRARY_GRANTS=1 AND it serves a library.
           capabilities: withRolesV2(
             [
               ...(journal
@@ -1270,6 +1287,7 @@ export function createHub(config = {}) {
                 : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]),
               ...(renderDoorEnabled({ studio }) ? [RENDER_JOBS_CAPABILITY] : []),
               ...(dsLibraryRoutes.enabled() ? [DS_LIBRARY_CAPABILITY] : []),
+              ...(dsLibraryRoutes.enabled() && dsGrants.enabled() ? [DS_GRANTS_CAPABILITY] : []),
             ],
             accessService.rolesV2Options
           ),
@@ -1361,6 +1379,7 @@ export function createHub(config = {}) {
             presence: presenceDeps(), // S8.19
             renderJobs: renderJobsRoutes, // S8.5b-2
             dsLibrary: dsLibraryRoutes, // S10.18a
+            dsGrants: dsGrantRoutes, // S10.18a-2
           },
         })
       ) {

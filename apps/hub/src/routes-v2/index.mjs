@@ -33,6 +33,7 @@
 
 import { hubAccessRefusal } from '../access-gate.mjs';
 import { ASSET_PRESENCE_ROWS } from '../asset-presence.mjs';
+import { DS_GRANT_ROWS } from '../ds-grants.mjs';
 import { DS_LIBRARY_ROWS } from '../ds-library.mjs';
 import { CAPABILITIES } from '../role-matrix.mjs';
 import { ACCESS_ROWS } from './access.mjs';
@@ -59,6 +60,7 @@ export const HUB_ROUTE_ROWS = Object.freeze([
   ...PRESENT_ROWS,
   ...RENDER_JOBS_ROWS, // S8.5b-2
   ...DS_LIBRARY_ROWS, // S10.18a
+  ...DS_GRANT_ROWS, // S10.18a-2
 ]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */
