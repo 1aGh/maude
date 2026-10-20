@@ -63,6 +63,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'an op that places or removes artboards: proposeLanes → one action, html + meta lane.replace with the read bases, written raw after acceptance; any other op: the source write path',
     test: 'test/v2-artboard-one-step-hub.test.ts',
   },
+  // S8.15 — Apply to every use: the every-use edit (`assets/<img8>.photo.json`) on the file plane, then
+  // `photo.every-use` once per canvas through the edit-op writer above (one action per canvas)
+  '/_api/photo-every-use': {
+    ...LANE_SOURCE,
+    rows: 'S2-ops',
+    via: 'savePhotoEdit (the file plane carries the sidecar), then the edit-op dispatch per canvas: the source write path',
+    test: 'test/photo-every-use.test.ts',
+  },
   '/_api/reorder': { ...LANE_SOURCE, rows: 'S04' },
   '/_api/delete-element': { ...LANE_SOURCE, rows: 'S05' },
   '/_api/insert-element': { ...LANE_SOURCE, rows: 'S06' },
@@ -281,7 +289,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   '/_api/ds/default': {
     class: 'file-plane',
-    rows: "config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only",
+    rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',
   },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },

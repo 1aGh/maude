@@ -2147,6 +2147,22 @@ export function createHttp(
       },
       // S2.16 — GET /_api/ds/components is minRole edit: the route asks the session's access
       access: (req) => accessOf(req),
+      // S8.15 — /_api/photo-every-use (routes/photo-every-use.ts): Apply to every use
+      photoEveryUse: {
+        access: (req) => accessOf(req),
+        closure: (access) => closureOf(access),
+        usedIn: (rel) =>
+          projectIndex.assetsAnswer().assets.find((a) => a.rel === rel)?.usedIn ?? [],
+        read: (rel) => {
+          try {
+            return readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+          } catch {
+            return null;
+          }
+        },
+        exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
+        saveEveryUse: (asset, edit) => photoStore.savePhotoEdit(asset, edit),
+      },
     },
     // S8.19 — GET /_api/asset-state (routes/asset-state.ts): built once, over the live runtime.
     assetState: assetStateDepsFor({

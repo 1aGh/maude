@@ -35,6 +35,7 @@ import { hasLayoutChange } from './layout-patch.ts';
 import { objectLock } from './lock.ts';
 import { opLabel } from './op-label.ts';
 import { objectInsertPath, pathEdit } from './path.ts';
+import { photoEveryUse } from './photo-every-use.ts';
 import { photoUseEdit } from './photo-use.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
@@ -136,6 +137,7 @@ export const EDIT_OPS: readonly EditOp[] = [
   imageCrop,
   // S8.15 — one use of a picture points at its own edit (data-photo-edit), or back at every use
   photoUseEdit,
+  photoEveryUse,
   // S2.17 — an instance: swap its variant / component, take its overrides back, break the link
   componentSwapVariant,
   componentReset,
