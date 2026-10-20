@@ -251,12 +251,12 @@ test('readers of untrusted content have no Bash or Web* tools', () => {
 });
 
 // Writers are bounded (new files only) and only ever spawned by a command or the main
-// agent, never picked by the model on its own. ds-migrator arrives with S12.12.
+// agent, never picked by the model on its own (ds-migrator: S12.12).
 test('bounded-writer descriptions say they are never auto-delegated', () => {
   const writers = agents.filter((a) =>
     ['draw-agent', 'footage-director', 'reconstruct-agent', 'ds-migrator'].includes(a.name)
   );
-  for (const must of ['draw-agent', 'footage-director', 'reconstruct-agent']) {
+  for (const must of ['draw-agent', 'footage-director', 'reconstruct-agent', 'ds-migrator']) {
     assert.ok(
       writers.some((a) => a.name === must),
       `${must} should exist`

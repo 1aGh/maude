@@ -31,6 +31,7 @@ Default verbs. No prefix. Members:
 | `/design:trash` | See the Trash and restore a canvas or artboard (clearing it out is the owner's, at a terminal) |
 | `/design:comments` | Make the changes the open comments ask for, then reply and resolve each thread |
 | `/design:present` | Set Present order, skipped artboards and speaker notes; open the canvas in Present |
+| `/design:system` | The design systems: where each stands, the default for new canvases, switching canvases, outside changes, moving a system folder onto its Design system canvas (ds-migrator), importing tokens |
 | `/design:open` | Show a canvas, artboard, element or panel in the Maude window |
 | `/design:screenshot` | Capture a screenshot of the active canvas (`--full`/`--screen <id>`/`--element <id>`/`--all-screens`/`--selector <css>`) |
 | `/design:handoff` | Migrate the active canvas to a production target |

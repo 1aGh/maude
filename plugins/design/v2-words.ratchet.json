@@ -1,10 +1,10 @@
 {
   "$comment": "Per-file counts of banned v1 strings under plugins/design (cli/lib/plugin-v2-words.test.mjs). Counts may only go down; they reach 0 at S12.16. Lower with MAUDE_RATCHET_WRITE=1.",
   "patternsHash": "22f088cda25a",
-  "total": 87,
+  "total": 80,
   "files": {
     ".claude-plugin/plugin.json": 1,
-    "agents/design-system-keeper.md": 14,
+    "agents/design-system-keeper.md": 7,
     "CATEGORIES.md": 8,
     "commands/generate.md": 2,
     "commands/handoff.md": 4,

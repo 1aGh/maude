@@ -1,6 +1,6 @@
 ---
 name: brand-critic
-description: Brand-voice and asset review — canonical-mark identity vs the DS logo specimen (DDR-141), logo placement, mark integrity, asset ladder, photography/illustration style consistency, voice/tone alignment with brand POV. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the canvas contains logos / brand assets / hero imagery / marketing copy, and on /design:new initial generation whenever the DS ships brand specimens. Reads the DS preview/logo.* + assets folder and project README for the POV. Writes only its report and its HandoffOut; never edits the canvas.
+description: Brand-voice and asset review — canonical-mark identity vs the DS logo specimen (DDR-141), logo placement, mark integrity, asset ladder, photography/illustration style consistency, voice/tone alignment with brand POV. Spawned by /design:critic with a maude.agent-handoff/1 hand-off when the canvas contains logos / brand assets / hero imagery / marketing copy, and on /design:new initial generation whenever the DS ships brand specimens. Reads the mark from the Design system canvas's Brand section (assets/logos + logo specimens) and the project README for the POV. Writes only its report and its HandoffOut; never edits the canvas.
 tools: Read, Write, Bash, Glob, Grep
 ---
 
@@ -55,7 +55,9 @@ You are spawned with a hand-off (contract V2-1.18 §5.2). The main agent wrote i
 1. Read the hand-off, the canvas and the screenshots in `reads`.
 2. Read **brand source-of-truth** — DS-aware: `<ds>` is `context.ds` (the canvas's `.meta.json` `designSystem` field, default `project`); its path comes from `config.json.designSystems[]`:
    - `<designRoot>/<config.tokensCssRel>` for brand colors (especially the `--accent` and any logo color tokens).
-   - `<designRoot>/system/<ds>/preview/logo.*` — **the canonical brand-mark specimen** (DDR-141; check `preview/` FIRST — this is where the DS scaffold ships the mark).
+   - **The canonical brand mark** (DDR-141). Where it lives depends on whether the system is on its Design system canvas (`maude design ds status <ds> --json` → `converted: true`; contract V2-1.6 §5.2):
+     - **Converted:** the Brand section of the Design system canvas — artboard `ds-brand` on `<designRoot>/system/<ds>/design-system.tsx`. It draws the files in `<designRoot>/system/<ds>/assets/logos/` and the `preview/logo*` / `iconography*` / `textures*` specimen pages the conversion put in Brand. Those files are the mark; to see it as the person does, capture the section: `maude design screenshot --canvas .design/system/<ds>/design-system.tsx --screen ds-brand --out <png under your owns>`. A logo file the section does not show is not canonical.
+     - **Not converted yet:** `<designRoot>/system/<ds>/preview/logo.*` — the canonical brand-mark specimen (check `preview/` FIRST — this is where the DS scaffold ships the mark), then `assets/logos/`.
    - `<designRoot>/system/<ds>/preview/iconography.*` — the icon family's grid/stroke/corner rules.
    - `<designRoot>/system/<ds>/README.md` if present — the POV, voice, and aesthetic rules.
    - `<designRoot>/system/<ds>/assets/` — approved logo variants, glyphs, sport/category marks, illustration style refs.

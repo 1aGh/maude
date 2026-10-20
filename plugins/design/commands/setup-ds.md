@@ -179,4 +179,5 @@ If the person cancels in the app (`--cancel`, `--discard`) the stage is gone and
 
 - **No canvas creation.** Use `/design:new "<Name>" "<brief>" --ds=<this-name>`.
 - **No environment init.** That's `/design:init` (auto-invoked here when needed).
-- **No incremental edits to an existing DS.** That's `/design:edit "<feedback>"` against a specimen file, or hand-editing `colors_and_type.css` directly.
+- **No incremental edits to an existing DS.** On a system that is on its Design system canvas, change tokens there (or with `maude design ds pending <ds> --set <file.json>`) and apply them with **Update N canvases**; a hand edit of its CSS shows up as an outside change to keep or undo. A system still in a folder is edited with `/design:edit "<feedback>"` against a specimen file.
+- **No default, switch, migrate or token import.** That's `/design:system` (`default`, `switch`, `migrate` onto the Design system canvas, `import-tokens`).
