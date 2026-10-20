@@ -8,8 +8,8 @@
 // `d` is the deps object the shell hands every handler (`tlKeyRef`, `setTimelineFrame`, …); nothing here
 // reads the DOM, so each handler is a function of its inputs.
 
-import { playbackStore } from './playhead.js';
-import { playPlan, setLoopIn, setLoopOut, stepTarget } from './transport.js';
+import { loopAt, playbackStore } from './playhead.js';
+import { playPlan, stepTarget } from './transport.js';
 
 /** The comp the transport is on and its frame rate. */
 const target = (d) => {
@@ -51,24 +51,20 @@ export function stepPlayhead(d, event, store = playbackStore) {
   store.markStep();
 }
 
+/** What the key handlers hand `loopAt`: the transport's comp, playhead and length. */
+const atOf = (d) => {
+  const { s, total } = target(d);
+  return { compId: s.compId, frame: s.frame ?? 0, total };
+};
+
 export const TIMELINE_KEY_HANDLERS = {
   'timeline.loop-in': (d, { event: e }) => {
     e.preventDefault();
-    const { s, total } = target(d);
-    if (!s.compId) return;
-    playbackStore.setLoop(
-      s.compId,
-      setLoopIn(playbackStore.loopFor(s.compId), s.frame ?? 0, total)
-    );
+    loopAt('in', atOf(d));
   },
   'timeline.loop-out': (d, { event: e }) => {
     e.preventDefault();
-    const { s, total } = target(d);
-    if (!s.compId) return;
-    playbackStore.setLoop(
-      s.compId,
-      setLoopOut(playbackStore.loopFor(s.compId), s.frame ?? 0, total)
-    );
+    loopAt('out', atOf(d));
   },
   'timeline.loop-clear': (d, { event: e } = {}) => {
     e?.preventDefault?.();

@@ -1,5 +1,6 @@
 // S7.8 — the ruler's steps and words, the frame stepper, the loop band and the play plan (07 · ve-play).
 import { describe, expect, test } from 'bun:test';
+import { createPlaybackStore, loopAt, STEP_READOUT_MS } from '../client/v2/timeline/playhead.js';
 import {
   RULER_STEPS_S,
   readoutLabel,
@@ -148,5 +149,44 @@ describe('tap Space: play with sound, tap again to pause', () => {
     const band = { in: 105, out: 270 };
     expect(playPlan({ ...base, playing: false, frame: 10, band }).seekTo).toBe(105);
     expect(playPlan({ ...base, playing: false, frame: 150, band }).seekTo).toBeNull();
+  });
+});
+
+describe('what the transport remembers (playhead.js)', () => {
+  test('each video has its own loop band; clear forgets it; a hollow band is not kept', () => {
+    const s = createPlaybackStore();
+    s.setLoop('reels', { in: 105, out: 270 });
+    s.setLoop('wide', { in: 0, out: 90 });
+    expect(s.loopFor('reels')).toEqual({ in: 105, out: 270 });
+    expect(s.loopFor('wide')).toEqual({ in: 0, out: 90 });
+    s.setLoop('reels', { in: 5, out: 5 });
+    expect(s.loopFor('reels')).toBeNull();
+    s.clearLoop('wide');
+    expect(s.loopFor('wide')).toBeNull();
+  });
+
+  test('a step shows the frame for a moment, then the time is plain again', () => {
+    let t = 1000;
+    const s = createPlaybackStore({
+      now: () => t,
+      setTimer: (() => 0) as unknown as typeof setTimeout,
+    });
+    expect(s.stepping()).toBe(false);
+    s.markStep();
+    expect(s.stepping()).toBe(true);
+    t += STEP_READOUT_MS + 1;
+    expect(s.stepping()).toBe(false);
+  });
+
+  test('I and O at the followed playhead, and a store that notifies', () => {
+    const s = createPlaybackStore();
+    let seen = 0;
+    s.subscribe(() => seen++);
+    loopAt('in', { compId: 'reels', frame: 105, total: 450 }, s);
+    loopAt('out', { compId: 'reels', frame: 270, total: 450 }, s);
+    expect(s.loopFor('reels')).toEqual({ in: 105, out: 270 });
+    expect(seen).toBe(2);
+    loopAt('in', null as never, s); // nothing followed: nothing happens
+    expect(seen).toBe(2);
   });
 });

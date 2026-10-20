@@ -112,4 +112,86 @@
     align-items: flex-start;
     padding: var(--space-4);
   }
+
+  /* S7.8 — the four tracks (Text · Graphics · Video · Music, + Video 2 / Music 2 when used): a caption strip
+     over the rows each one groups. Rows keep their own labels, drags and testids. */
+  .tl-track {
+    position: relative;
+  }
+  .tl-track-cap {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-height: 14px;
+    padding-left: var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: 14px;
+    pointer-events: none;
+  }
+  .tl-track-name {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .tl-track-hint {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .tl-track[data-track="video2"] .tl-track-name,
+  .tl-track[data-track="music2"] .tl-track-name {
+    color: var(--fg-1);
+  }
+
+  /* S7.8 — the loop range (I / O): a band on the ruler, a tint down the lanes */
+  .tl-loop {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+    border-inline: 1px solid var(--accent);
+    pointer-events: none;
+  }
+  .tl-loop-lane {
+    position: absolute;
+    top: 20px;
+    bottom: 0;
+    z-index: 0;
+    background: color-mix(in oklab, var(--accent) 8%, transparent);
+    pointer-events: none;
+  }
+  .tl-inout {
+    position: absolute;
+    top: -1px;
+    display: grid;
+    place-items: center;
+    min-width: 12px;
+    height: 12px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--bg-0);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .tl-inout--in {
+    left: -1px;
+  }
+  .tl-inout--out {
+    right: -1px;
+  }
+
+  /* S7.8 — the poster frame's flag on the ruler */
+  .tl-poster-flag {
+    position: absolute;
+    top: 0;
+    z-index: 1;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    line-height: 14px;
+    translate: -50% 0;
+    pointer-events: none;
+  }
 }

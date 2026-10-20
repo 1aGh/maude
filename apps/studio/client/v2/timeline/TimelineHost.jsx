@@ -22,7 +22,8 @@ import { anchorCentre, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
 import { playToggle } from './keys.js';
 import { loopJump } from './transport.js';
-import { playbackStore } from './playhead.js';
+import { bindFollowed, playbackStore } from './playhead.js';
+import { bindPosterSource, loadPoster, posterOf, usePosterVersion } from './poster.js';
 import { TimelineIslandContext } from './island-context.js';
 import { TimelineIsland } from './island.jsx';
 import { timelineStore, useTimelineView } from './timeline-store.js';
@@ -155,6 +156,34 @@ export default function TimelineHost({ children }) {
     return () => timelineStore.remember(targetId, frameRef.current);
   }, [targetId, postToActiveCanvas, setCanvasActiveArtboard, setTimelineFrame]);
 
+  // ── the poster frame: read for the ruler's flag, and the playhead `video.poster.set` writes it at ──
+  usePosterVersion();
+  useEffect(() => {
+    if (activePath && targetId) void loadPoster(activePath, targetId);
+  }, [activePath, targetId]);
+  const posterNow = useRef({});
+  posterNow.current = {
+    file: activePath,
+    artboardId: targetId,
+    frame: timelineFrame,
+    fps: (activeComps || []).find((c) => c?.artboardId === targetId)?.fps || 30,
+  };
+  const followedNow = useRef({});
+  followedNow.current = {
+    compId: timelineCompId,
+    frame: timelineFrame,
+    total: tlKeyRef?.current?.total,
+  };
+  useEffect(() => {
+    bindPosterSource(() => (posterNow.current.artboardId ? posterNow.current : null));
+    bindFollowed(() => (followedNow.current.compId ? followedNow.current : null));
+    return () => {
+      bindPosterSource(null);
+      bindFollowed(null);
+    };
+  }, []);
+  const poster = activePath && targetId ? posterOf(activePath, targetId) : null;
+
   // ── the island's words and hands ──
   const canAsk = isNativeApp() && !viewerMode;
   const artboardLabel = view.target?.label ?? 'this video';
@@ -162,10 +191,11 @@ export default function TimelineHost({ children }) {
     () => ({
       size: view.size,
       kept: view.kept,
+      poster,
       onToggleSize: () => timelineStore.toggleSize(),
       empty: <TimelineEmpty artboard={artboardLabel} canAsk={canAsk} />,
     }),
-    [view.size, view.kept, artboardLabel, canAsk]
+    [view.size, view.kept, poster, artboardLabel, canAsk]
   );
 
   // ── where it goes: the window, and the canvas frame the artboard's rect is measured in ──

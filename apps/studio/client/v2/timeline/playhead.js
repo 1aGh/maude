@@ -5,7 +5,7 @@
 // A tiny subscribe store (like `timeline-store.js`) so the keys, the ruler and the Timeline read one answer.
 
 import { useSyncExternalStore } from 'react';
-import { isBand } from './transport.js';
+import { isBand, setLoopIn, setLoopOut } from './transport.js';
 
 /** How long the time keeps showing the frame after the last ← / →. */
 export const STEP_READOUT_MS = 1500;
@@ -74,4 +74,24 @@ export const playbackStore = createPlaybackStore();
 export function usePlayback(store = playbackStore) {
   useSyncExternalStore(store.subscribe, store.version, store.version);
   return store;
+}
+
+// ── the video the transport is on, for the runs that have no key event (⌘K) ──────────────────────────
+let followed = () => null;
+/** The timeline host says which comp the transport is on: `() => ({ compId, frame, total } | null)`. */
+export function bindFollowed(fn) {
+  followed = typeof fn === 'function' ? fn : () => null;
+}
+
+/** I (`which` 'in') or O ('out') at `at` (default: the followed video's playhead). */
+export function loopAt(which, at = followed(), store = playbackStore) {
+  if (!at?.compId) return;
+  const set = which === 'in' ? setLoopIn : setLoopOut;
+  store.setLoop(at.compId, set(store.loopFor(at.compId), at.frame ?? 0, at.total));
+}
+
+/** Clear the followed video's loop range. */
+export function clearFollowedLoop(store = playbackStore) {
+  const at = followed();
+  if (at?.compId) store.clearLoop(at.compId);
 }

@@ -30129,5 +30129,69 @@
       "apps/studio/test/v2-ds-truth.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "timeline-track-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One of the timeline’s tracks (S7.8): `<id>` is text, gfx, video2, video, music or music2 — Video 2 and Music 2 only when something is on them. It groups the rows of that track under a name strip; every row keeps its own testid.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-loop-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The loop range on the ruler (S7.8): set with I / O at the playhead, I and O pins at its ends.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-loop-lane",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The faint tint down the lanes over the loop range (S7.8).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-poster-flag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Poster” flag on the ruler at the video’s poster frame (S7.8; `artboardMeta.poster`).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

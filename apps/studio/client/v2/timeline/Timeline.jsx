@@ -23,6 +23,10 @@ import { ImagePlus, MessageSquarePlus, Plus, Scissors, Sparkles, Type } from 'lu
 
 import ClipInspector from '../../panels/ClipInspector.jsx';
 import { useTimelineIsland } from './island-context.js';
+import { usePlayback } from './playhead.js';
+import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
+import { deriveTracks } from './tracks.js';
+import { isBand } from './transport.js';
 import { KeptStatus, SizeButton } from './island-controls.jsx';
 import { computeSnapTargets, snapFrame } from '../../panels/timeline-snap.js';
 import { activeComp } from '../../panels/timeline-comp-target.js';
@@ -37,8 +41,6 @@ import {
   fitPxPerFrame,
   MAX_PX_PER_FRAME,
   pxToFrame,
-  tickLabel,
-  tickStepFrames,
   ZOOM_STEP,
   zoomAroundScroll,
 } from '../../panels/timeline-scale.js';
@@ -251,6 +253,10 @@ export default function TimelinePanel({
   const rootRef = useRef(null);
   // S7.7 — the island around this body (null when it stands alone): the empty-comp block lives there.
   const island = useTimelineIsland();
+  // S7.8 — the loop band (I / O) and whether the playhead was just stepped by hand live in one store the keys write.
+  const playback = usePlayback();
+  const band = compId ? playback.loopFor(compId) : null;
+  const poster = Number.isFinite(island?.poster) ? island.poster : null;
   // Focus the dock the moment it opens — the transport shortcuts live on the
   // SHELL window and need shell focus (see the pre-restructure history).
   useEffect(() => {
@@ -800,8 +806,13 @@ export default function TimelinePanel({
     return `${sign}${af}f / ${sign}${(af / (fps || 30)).toFixed(2)}s`;
   };
 
-  // Ruler ticks at the adaptive density (1 s → 10 f → 1 f as you zoom in).
-  const step = tickStepFrames(pxf, fps);
+  // S7.8 — ruler ticks step 1/3/5/10/30/60 s by the visible span (07 · ve-play); past a second of zoom the
+  // frame ladder takes over (ruler.js).
+  const step = rulerStepFrames({
+    pxPerFrame: pxf,
+    fps,
+    spanFrames: Math.min(totalFrames, axisViewport / pxf),
+  });
   const ticks = [];
   for (let f = 0; f <= totalFrames - 1; f += step) ticks.push(f);
 
@@ -823,6 +834,24 @@ export default function TimelinePanel({
   // Trailer) — keeps the stacked row-per-sequence projection, which is the
   // truthful, layer-expandable view the user asked back (dogfood 2026-07-30).
   const bandMode = storyline.length > 0 && sequences.some((s) => rowKind(s) !== 'jsx');
+
+  // S7.8 (C35) — the four tracks, derived from what the comp already says: row index → track id, and the
+  // loose <Audio> beds' own. A track is a grouping of the rows below, never a new kind of row, so every row's
+  // testid and drag is unchanged.
+  const trackOfIdx = new Map();
+  const trackOfBed = new Map();
+  for (const t of deriveTracks({ sequences, audio })) {
+    for (const m of t.members) (m.kind === 'seq' ? trackOfIdx : trackOfBed).set(m.index, t.id);
+  }
+  const trackShell = (id, label, children, hint) => (
+    <div className="tl-track" data-track={id} data-testid={`timeline-track-${id}`} key={id}>
+      <div className="tl-track-cap">
+        <span className="tl-track-name">{label}</span>
+        {hint ? <span className="tl-track-hint">{hint}</span> : null}
+      </div>
+      {children}
+    </div>
+  );
 
   // -------------------------------------------------------------------------
   // Task 7 — real media visuals. Async extraction (never blocks the scrub);
@@ -1447,6 +1476,7 @@ export default function TimelinePanel({
               className="tl-btn tl-btn-primary"
               aria-label={playing ? 'Pause' : 'Play'}
               aria-pressed={playing}
+              title={playing ? 'Pause — tap space' : 'Play — tap space'}
               data-testid="timeline-playpause"
               onClick={() => (playing ? onPause?.() : onPlay?.())}
             >
@@ -1512,11 +1542,14 @@ export default function TimelinePanel({
                 {scopedArtboard ?? 'artboard ?'}
               </span>
             ) : null}
-            <span className="tl-readout" data-testid="timeline-readout">
-              <b>{clamped}</b>
+            <span
+              className="tl-readout"
+              data-testid="timeline-readout"
+              title={`Frame ${clamped} of ${totalFrames - 1}`}
+            >
+              <b>{readoutLabel(clamped, fps, playback.stepping())}</b>
               <span className="tl-sep">/</span>
-              {totalFrames - 1}
-              <span className="tl-time">{fmtTime(clamped, fps)}</span>
+              {mss((totalFrames - 1) / fps)}
             </span>
             <span className="tl-spacer" />
             {onSplitAtPlayhead ? (
@@ -1690,7 +1723,34 @@ export default function TimelinePanel({
                 })}
               </div>
             ) : null}
+            {isBand(band) ? (
+              <span
+                className="tl-loop-lane"
+                data-testid="timeline-loop-lane"
+                style={{ left: LABEL_GUTTER + x(band.in), width: x(band.out - band.in) }}
+              />
+            ) : null}
             <div className="tl-ruler" style={{ width: axisPx }}>
+              {isBand(band) ? (
+                <span
+                  className="tl-loop"
+                  data-testid="timeline-loop-band"
+                  title="Loop range"
+                  style={{ left: x(band.in), width: x(band.out - band.in) }}
+                >
+                  <span className="tl-inout tl-inout--in">I</span>
+                  <span className="tl-inout tl-inout--out">O</span>
+                </span>
+              ) : null}
+              {poster !== null ? (
+                <span
+                  className="tl-poster-flag"
+                  data-testid="timeline-poster-flag"
+                  style={{ left: x(clamp(poster, 0, totalFrames - 1)) }}
+                >
+                  Poster
+                </span>
+              ) : null}
               {ticks.map((f) => {
                 const major = f % (fps || 30) === 0;
                 const showLabel = major || step <= 5;
@@ -1700,7 +1760,7 @@ export default function TimelinePanel({
                     className={`tl-tick${major ? ' is-major' : ''}`}
                     style={{ left: x(f) }}
                   >
-                    {showLabel ? <span className="tl-tick-label">{tickLabel(f, fps)}</span> : null}
+                    {showLabel ? <span className="tl-tick-label">{rulerLabel(f, fps)}</span> : null}
                   </span>
                 );
               })}
@@ -1726,190 +1786,226 @@ export default function TimelinePanel({
                   // (standalone <Sequence>s; `loose` bare media has no clip
                   // identity and stays out of the index space).
                   const zLadder = overlay.filter(({ seq }) => !seq.loose);
-                  return [...overlay].reverse().map(({ seq, i }) => {
-                    const docIdx = seq.loose ? null : zLadder.findIndex((o) => o.i === i);
-                    const vNum = docIdx == null ? null : docIdx + 2; // V1 = the storyline
-                    const rowCls =
-                      `tl-row tl-row--overlay` +
-                      (layerDrag && layerDrag.index === i ? ' is-layer-dragging' : '') +
-                      (layerDrag &&
-                      docIdx != null &&
-                      layerDrag.index !== i &&
-                      layerDrag.curTarget === docIdx
-                        ? ' is-layer-target'
-                        : '');
-                    return (
-                      <div
-                        className={rowCls}
-                        key={`o${i}`}
-                        data-testid={`timeline-row-${i}`}
-                        {...(docIdx != null ? { 'data-layer-doc': docIdx } : {})}
-                      >
-                        <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
-                          {docIdx != null ? (
-                            <span
-                              className="tl-lane-id tl-lane-id--grab"
-                              data-testid={`timeline-lane-chip-${i}`}
-                              title="Drag up/down to reorder layers"
-                              onPointerDown={(e) => startLayerDrag(e, i, docIdx)}
-                            >
-                              V{vNum}
-                            </span>
-                          ) : (
-                            <span className="tl-lane-id" title="Loose media — no layer order">
-                              ◌
-                            </span>
-                          )}
-                          <span className="tl-kind" data-kind={rowKind(seq)}>
-                            {rowKindGlyph(seq)}
-                          </span>
-                        </span>
-                        <div
-                          className="tl-row-track"
-                          style={{ width: axisPx, flex: 'none' }}
-                          onDragOver={onLaneDragOver('overlay', `o${i}`)}
-                          onDrop={onLaneDrop({ lane: 'overlay' })}
-                        >
-                          {renderBlock(seq, i, {
-                            lane: 'overlay',
-                            laneName: vNum != null ? `V${vNum}` : 'loose',
-                          })}
-                          {laneCaret('overlay', `o${i}`)}
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-                {/* THE storyline — series beats butted side-by-side. */}
-                <div className="tl-row tl-row--storyline" data-testid="timeline-storyline">
-                  <span className="tl-row-label">
-                    <span className="tl-lane-id tl-lane-id--story">V1</span>
-                    <span className="tl-band-tag tl-band-tag--story">storyline</span>
-                  </span>
-                  <div
-                    className={`tl-row-track tl-storyline-track${reorderDrag ? ' is-reordering' : ''}${moveDrag?.overStory ? ' is-drop-target' : ''}`}
-                    style={{ width: axisPx, flex: 'none' }}
-                    onDragOver={onStoryDragOver}
-                    onDrop={onLaneDrop({ lane: 'storyline' })}
-                  >
-                    {storyline.map(({ seq, i }) =>
-                      renderBlock(seq, i, { lane: 'storyline', laneName: 'V1' })
-                    )}
-                    {reorderDrag ? null : renderSeams()}
-                    {reorderDrag ? null : renderAddSeams()}
-                    {dropCaret?.lane === 'storyline' ? (
-                      <span
-                        className="tl-drop-caret"
-                        data-testid="timeline-drop-caret"
-                        style={{ left: dropCaret.x - 1 }}
-                      />
-                    ) : null}
-                  </div>
-                </div>
-                {/* Dogfood 2026-07-30 (image #22) — a decomposable beat (an
-                    old hand-authored scene component) expands into its layer
-                    sub-rows right under the storyline, exactly like the
-                    stacked fallback used to show; default-expanded. */}
-                {storyline
-                  .filter(
-                    ({ seq, i }) =>
-                      Array.isArray(seq.layers) && seq.layers.length >= 2 && !collapsed.has(i)
-                  )
-                  .map(({ seq, i }) =>
-                    seq.layers.map((ly, li) => {
-                      const lyKind =
-                        ly.kind === 'video' || ly.kind === 'image' || ly.kind === 'audio'
-                          ? ly.kind
-                          : 'jsx';
-                      const lyGlyph =
-                        ly.kind === 'video'
-                          ? '▶'
-                          : ly.kind === 'image'
-                            ? '◫'
-                            : ly.kind === 'audio'
-                              ? '♪'
-                              : 'ƒ';
+                  const overlayOf = (id) => overlay.filter(({ i }) => trackOfIdx.get(i) === id);
+                  const overlayRows = (list) =>
+                    [...list].reverse().map(({ seq, i }) => {
+                      const docIdx = seq.loose ? null : zLadder.findIndex((o) => o.i === i);
+                      const vNum = docIdx == null ? null : docIdx + 2; // V1 = the storyline
+                      const rowCls =
+                        `tl-row tl-row--overlay` +
+                        (layerDrag && layerDrag.index === i ? ' is-layer-dragging' : '') +
+                        (layerDrag &&
+                        docIdx != null &&
+                        layerDrag.index !== i &&
+                        layerDrag.curTarget === docIdx
+                          ? ' is-layer-target'
+                          : '');
                       return (
                         <div
-                          className="tl-row tl-row--layer"
-                          key={`bl${i}-${li}`}
-                          data-testid={`timeline-layer-${i}-${li}`}
+                          className={rowCls}
+                          key={`o${i}`}
+                          data-testid={`timeline-row-${i}`}
+                          {...(docIdx != null ? { 'data-layer-doc': docIdx } : {})}
                         >
-                          <span className="tl-row-label" title={`${seq.label} · ${ly.label}`}>
-                            <span className="tl-layer-indent" aria-hidden="true" />
-                            <span className="tl-kind" data-kind={lyKind}>
-                              {lyGlyph}
-                            </span>
-                            <span className="tl-row-label-text">{ly.label}</span>
-                          </span>
-                          <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
-                            <div
-                              className="tl-seq-block tl-layer-block"
-                              data-kind={lyKind}
-                              data-testid={`timeline-layer-block-${i}-${li}`}
-                              title={`${seq.label} · ${ly.label} (${ly.kind} layer)`}
-                              style={{ left: x(seq.from), width: Math.max(2, x(seq.duration)) }}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setCtxMenu({
-                                  index: i,
-                                  layerIndex: li,
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                });
-                              }}
-                            >
-                              <span className="tl-seq-name">{ly.label}</span>
-                            </div>
-                            {onReplaceLayer && (ly.mediaCdId || ly.mediaArrayRef) ? (
-                              <button
-                                type="button"
-                                className="tl-seq-replace"
-                                data-testid={`timeline-layer-replace-${i}-${li}`}
-                                title={`Replace this ${ly.kind}`}
-                                aria-label={`Replace ${ly.label}`}
-                                style={{ left: x(seq.from) + Math.max(2, x(seq.duration)) - 20 }}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onReplaceLayer(refFor(seq, i), li);
-                                }}
+                          <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
+                            {docIdx != null ? (
+                              <span
+                                className="tl-lane-id tl-lane-id--grab"
+                                data-testid={`timeline-lane-chip-${i}`}
+                                title="Drag up/down to reorder layers"
+                                onPointerDown={(e) => startLayerDrag(e, i, docIdx)}
                               >
-                                ⇄
-                              </button>
-                            ) : null}
+                                V{vNum}
+                              </span>
+                            ) : (
+                              <span className="tl-lane-id" title="Loose media — no layer order">
+                                ◌
+                              </span>
+                            )}
+                            <span className="tl-kind" data-kind={rowKind(seq)}>
+                              {rowKindGlyph(seq)}
+                            </span>
+                          </span>
+                          <div
+                            className="tl-row-track"
+                            style={{ width: axisPx, flex: 'none' }}
+                            onDragOver={onLaneDragOver('overlay', `o${i}`)}
+                            onDrop={onLaneDrop({ lane: 'overlay' })}
+                          >
+                            {renderBlock(seq, i, {
+                              lane: 'overlay',
+                              laneName: vNum != null ? `V${vNum}` : 'loose',
+                            })}
+                            {laneCaret('overlay', `o${i}`)}
                           </div>
                         </div>
                       );
-                    })
-                  )}
-                {/* Audio band — standalone audio clips (movable/trimmable) +
-                    loose <Audio> beds. */}
-                {audioClips.map(({ seq, i }, k) => (
-                  <div
-                    className="tl-row tl-row--overlay tl-row--audio"
-                    key={`ac${i}`}
-                    data-testid={`timeline-row-${i}`}
-                  >
-                    <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
-                      <span className="tl-lane-id tl-lane-id--audio">A{k + 1}</span>
-                      <span className="tl-kind" data-kind="audio">
-                        ♪
-                      </span>
+                    });
+                  return [
+                    trackShell('text', 'Text', overlayRows(overlayOf('text'))),
+                    trackShell('gfx', 'Graphics', overlayRows(overlayOf('gfx'))),
+                    overlayOf('video2').length
+                      ? trackShell('video2', 'Video 2', overlayRows(overlayOf('video2')))
+                      : null,
+                  ];
+                })()}
+                {/* THE storyline — series beats butted side-by-side. */}
+                <div className="tl-track" data-track="video" data-testid="timeline-track-video">
+                  <div className="tl-track-cap">
+                    <span className="tl-track-name">Video</span>
+                  </div>
+                  <div className="tl-row tl-row--storyline" data-testid="timeline-storyline">
+                    <span className="tl-row-label">
+                      <span className="tl-lane-id tl-lane-id--story">V1</span>
+                      <span className="tl-band-tag tl-band-tag--story">storyline</span>
                     </span>
                     <div
-                      className="tl-row-track"
+                      className={`tl-row-track tl-storyline-track${reorderDrag ? ' is-reordering' : ''}${moveDrag?.overStory ? ' is-drop-target' : ''}`}
                       style={{ width: axisPx, flex: 'none' }}
-                      onDragOver={onLaneDragOver('audio', `ac${i}`)}
-                      onDrop={onLaneDrop({ lane: 'audio' })}
+                      onDragOver={onStoryDragOver}
+                      onDrop={onLaneDrop({ lane: 'storyline' })}
                     >
-                      {renderBlock(seq, i, { lane: 'audio', laneName: `A${k + 1}` })}
-                      {laneCaret('audio', `ac${i}`)}
+                      {storyline.map(({ seq, i }) =>
+                        renderBlock(seq, i, { lane: 'storyline', laneName: 'V1' })
+                      )}
+                      {reorderDrag ? null : renderSeams()}
+                      {reorderDrag ? null : renderAddSeams()}
+                      {dropCaret?.lane === 'storyline' ? (
+                        <span
+                          className="tl-drop-caret"
+                          data-testid="timeline-drop-caret"
+                          style={{ left: dropCaret.x - 1 }}
+                        />
+                      ) : null}
                     </div>
                   </div>
-                ))}
-                {audio.map((a, i) => renderAudioRow(a, i))}
+                  {/* Dogfood 2026-07-30 (image #22) — a decomposable beat (an
+                    old hand-authored scene component) expands into its layer
+                    sub-rows right under the storyline, exactly like the
+                    stacked fallback used to show; default-expanded. */}
+                  {storyline
+                    .filter(
+                      ({ seq, i }) =>
+                        Array.isArray(seq.layers) && seq.layers.length >= 2 && !collapsed.has(i)
+                    )
+                    .map(({ seq, i }) =>
+                      seq.layers.map((ly, li) => {
+                        const lyKind =
+                          ly.kind === 'video' || ly.kind === 'image' || ly.kind === 'audio'
+                            ? ly.kind
+                            : 'jsx';
+                        const lyGlyph =
+                          ly.kind === 'video'
+                            ? '▶'
+                            : ly.kind === 'image'
+                              ? '◫'
+                              : ly.kind === 'audio'
+                                ? '♪'
+                                : 'ƒ';
+                        return (
+                          <div
+                            className="tl-row tl-row--layer"
+                            key={`bl${i}-${li}`}
+                            data-testid={`timeline-layer-${i}-${li}`}
+                          >
+                            <span className="tl-row-label" title={`${seq.label} · ${ly.label}`}>
+                              <span className="tl-layer-indent" aria-hidden="true" />
+                              <span className="tl-kind" data-kind={lyKind}>
+                                {lyGlyph}
+                              </span>
+                              <span className="tl-row-label-text">{ly.label}</span>
+                            </span>
+                            <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
+                              <div
+                                className="tl-seq-block tl-layer-block"
+                                data-kind={lyKind}
+                                data-testid={`timeline-layer-block-${i}-${li}`}
+                                title={`${seq.label} · ${ly.label} (${ly.kind} layer)`}
+                                style={{ left: x(seq.from), width: Math.max(2, x(seq.duration)) }}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setCtxMenu({
+                                    index: i,
+                                    layerIndex: li,
+                                    x: e.clientX,
+                                    y: e.clientY,
+                                  });
+                                }}
+                              >
+                                <span className="tl-seq-name">{ly.label}</span>
+                              </div>
+                              {onReplaceLayer && (ly.mediaCdId || ly.mediaArrayRef) ? (
+                                <button
+                                  type="button"
+                                  className="tl-seq-replace"
+                                  data-testid={`timeline-layer-replace-${i}-${li}`}
+                                  title={`Replace this ${ly.kind}`}
+                                  aria-label={`Replace ${ly.label}`}
+                                  style={{ left: x(seq.from) + Math.max(2, x(seq.duration)) - 20 }}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReplaceLayer(refFor(seq, i), li);
+                                  }}
+                                >
+                                  ⇄
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                </div>
+                {/* Audio band — standalone audio clips (movable/trimmable) +
+                    loose <Audio> beds, on Music (and Music 2 when two play at once). */}
+                {(() => {
+                  const clipRow = ({ seq, i }, k) => (
+                    <div
+                      className="tl-row tl-row--overlay tl-row--audio"
+                      key={`ac${i}`}
+                      data-testid={`timeline-row-${i}`}
+                    >
+                      <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
+                        <span className="tl-lane-id tl-lane-id--audio">A{k + 1}</span>
+                        <span className="tl-kind" data-kind="audio">
+                          ♪
+                        </span>
+                      </span>
+                      <div
+                        className="tl-row-track"
+                        style={{ width: axisPx, flex: 'none' }}
+                        onDragOver={onLaneDragOver('audio', `ac${i}`)}
+                        onDrop={onLaneDrop({ lane: 'audio' })}
+                      >
+                        {renderBlock(seq, i, { lane: 'audio', laneName: `A${k + 1}` })}
+                        {laneCaret('audio', `ac${i}`)}
+                      </div>
+                    </div>
+                  );
+                  const musicOf = (id) => [
+                    ...audioClips
+                      .map((entry, k) =>
+                        trackOfIdx.get(entry.i) === id ? clipRow(entry, k) : null
+                      )
+                      .filter(Boolean),
+                    ...audio
+                      .map((a, i) => (trackOfBed.get(i) === id ? renderAudioRow(a, i) : null))
+                      .filter(Boolean),
+                  ];
+                  const music = musicOf('music');
+                  const music2 = musicOf('music2');
+                  return [
+                    trackShell(
+                      'music',
+                      'Music',
+                      music,
+                      music.length || music2.length ? null : 'No sound in this video.'
+                    ),
+                    music2.length ? trackShell('music2', 'Music 2', music2) : null,
+                  ];
+                })()}
                 {/* Debate verdict: the dead space below the lanes gets a JOB —
                     it IS the new-layer drop target, and says so. */}
                 <div

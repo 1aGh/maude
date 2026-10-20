@@ -34,6 +34,7 @@ import {
   type PresentState,
   parsePresentPatch,
   readExportPresets,
+  readPosters,
   readPresentState,
 } from '../present/meta-schema.ts';
 import type { RouteSpec } from './table.ts';
@@ -141,7 +142,10 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             return json(409, { error: 'stale', etag });
 
           const writes =
-            patch.present !== undefined || patch.notes !== undefined || patch.exports !== undefined;
+            patch.present !== undefined ||
+            patch.notes !== undefined ||
+            patch.exports !== undefined ||
+            patch.poster !== undefined;
           let nextText = currentText;
           let next = current;
           if (writes) {
@@ -161,6 +165,7 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             present: presentOut(state),
             notes: state.notes,
             exports: readExportPresets(next),
+            poster: readPosters(next),
             etag: metaEtag(nextText),
           });
         });
