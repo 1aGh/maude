@@ -890,6 +890,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),
   'timeline.zoom-fit': PREF(),
+  'timeline.expand': PREF('the timeline island’s size; a per-person view preference'),
+  'timeline.compact': PREF('the timeline island’s size; a per-person view preference'),
   'timeline.comment-mode': COMMENT_ADD,
   // ── export / share ──
   // S8.1c — the sheet's params are the CLI's flags: {scope, format, canvas, folder, region, at} ↔

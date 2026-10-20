@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "df87ab836f2a",
+  "manifestVersion": "970911b838a9",
   "actions": [
     {
       "id": "search.open",
@@ -2720,6 +2720,30 @@
       "agent": {
         "path": "human",
         "because": "view-pref"
+      }
+    },
+    {
+      "id": "timeline.expand",
+      "label": "Expand the timeline",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the timeline island’s size; a per-person view preference"
+      }
+    },
+    {
+      "id": "timeline.compact",
+      "label": "Make the timeline compact",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the timeline island’s size; a per-person view preference"
       }
     },
     {
