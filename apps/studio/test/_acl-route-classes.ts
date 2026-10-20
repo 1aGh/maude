@@ -160,6 +160,10 @@ const CANVAS = [
   // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).
   '/_api/present-meta',
   '/_api/edit-op',
+  // S8.16 — Generate with N takes: the quote, the run and both reads name the canvas the takes go on
+  '/_api/generate-takes',
+  '/_api/generate-takes/quote',
+  '/_api/generate-takes/of',
   '/.design/:rel',
   '/assets/:asset',
   '/_canvas-shell',
