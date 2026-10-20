@@ -65,4 +65,10 @@ export const DS_ACTIONS: ActionDef[] = [
   // project's default system); "Make a design system" is the empty row's door — it opens the three-input sheet
   // (S10.16b), and the same id is Home's starter (S6). Neither is a ⌘K row: each needs the system / sheet in hand.
   row('ds.set-default', 'Use for new canvases'),
+  // S10.14 — move canvases to another system (13 · ds-multi-switch) and look at the project in one first
+  // (13 · ds-many-switch). Both are rows of a system's own menu, so neither is a ⌘K row. The switch is one
+  // review (Can edit on the whole project); the preview only re-renders open canvases through `?dsPreview`
+  // and stores nothing, so anyone who can open the project may use it.
+  row('ds.switch', 'Switch canvases to another system…'),
+  row('ds.preview', 'Preview in another system…', VIEW),
 ];

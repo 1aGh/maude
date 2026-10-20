@@ -40,6 +40,7 @@ import { presenterAvailable, presenterStore } from '../present/presenter-store.j
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { requestDsReview } from '../ds/review-bus.js';
 import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
+import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
 import { runMasterAction } from '../ds/master-write.js';
 import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
@@ -322,6 +323,9 @@ export function createMenuHandlers(d) {
     // S10.13 — the pinned rows: open the Design system canvas, make a system, "Use for new canvases"
     'ds.open': (p) => d.onDsGoTo?.(p),
     'ds.make': (p) => requestDsMake(p, { toast: d.toast }),
+    // S10.14 — switch canvases to another system (one review) and look at the project in one first (session-only)
+    'ds.switch': (p) => requestDsSwitch({ from: p?.from, to: p?.to, scope: p?.scope }),
+    'ds.preview': (p) => requestDsPreview({ from: p?.from }),
     'ds.set-default': async (p) => {
       const r = await setDefaultSystem(String(p?.ds ?? ''), { label: p?.label });
       d.toast?.(r.message, r.ok);

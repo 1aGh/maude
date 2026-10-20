@@ -778,7 +778,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
-  'annotations.hide-resolved': PREF('per-person view preference (C29); never written to the annotations'),
+  'annotations.hide-resolved': PREF(
+    'per-person view preference (C29); never written to the annotations'
+  ),
   'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
@@ -1515,6 +1517,23 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     undo: 'version',
     server: { route: '/_api/ds/default', method: 'POST' },
     agent: cli('maude design ds default <ds>'),
+  },
+  // S10.14 — the switch is one review and one kernel action (ds/switch.ts); the preview is a session-only URL
+  // override of the canvas URL's `tokens=` / `components=` (canvas-url.js `dsPreview`), so an agent looks at another
+  // system by screenshotting the canvas URL with that system's files.
+  'ds.switch': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/switch', method: 'POST' },
+    agent: cli('maude design ds switch <canvas|folder|--all> --to <ds> [--dry-run]'),
+  },
+  'ds.preview': {
+    effect: 'none',
+    agent: human(
+      'view-pref',
+      'a person looking at the project in another system (session-only, nothing stored); an agent screenshots the canvas URL with that system’s files: `&tokens=<ds.path>/colors_and_type.css&components=<ds.path>/preview/_components.css`'
+    ),
   },
   'ds.set-theme-preview': {
     effect: 'none',
