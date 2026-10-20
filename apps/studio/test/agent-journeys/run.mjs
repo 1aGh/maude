@@ -29,6 +29,7 @@ import {
   studioUp,
   writeJson,
 } from './lanes/common.mjs';
+import { allowRules, answerCard, lintAllow } from './lanes/consent.mjs';
 import { planTerminal, runTerminal, shimDir } from './lanes/terminal.mjs';
 import { faultRecipe, plantAll } from './plant.mjs';
 
@@ -77,6 +78,7 @@ export function lintJourney(j) {
   for (const k of Object.keys(j.dry?.faults ?? {}))
     if (!ids.has(k)) why.push(`fault for unknown grader ${k}`);
   if (!j.graders?.length) why.push('no graders');
+  why.push(...lintAllow(j.allow));
   return why;
 }
 
@@ -86,7 +88,7 @@ function checkPlans(j, project) {
   const env = harnessEnv({ PATH: process.env.PATH }, '/dev/null');
   const t = planTerminal(j, { project, trialDir: join(OUT, '_plan'), env });
   const a = planAcp(j, { project });
-  const allow = JSON.stringify([...MAUDE_DEFAULT_ALLOWED_TOOLS]);
+  const allow = JSON.stringify([...MAUDE_DEFAULT_ALLOWED_TOOLS, ...allowRules(j)]);
   if (t.turns.length !== j.turns.length || a.turns.length !== j.turns.length)
     why.push('a lane drops a turn');
   if (!t.turns.every((x) => x.args.includes(join(REPO, 'plugins', 'design'))))
@@ -96,7 +98,7 @@ function checkPlans(j, project) {
     return JSON.stringify(args.slice(i + 1, args.indexOf('--permission-mode')));
   };
   if (!t.turns.every((x) => allowOf(x.args) === allow))
-    why.push('terminal: allow list ≠ MAUDE_DEFAULT_ALLOWED_TOOLS');
+    why.push('terminal: allow list ≠ MAUDE_DEFAULT_ALLOWED_TOOLS + the journey allow rules');
   if (t.env.NO_OPEN !== '1' || t.env.MAUDE_NO_AUTOBUILD !== '1' || !t.env.MAUDE_MACHINE_FILE)
     why.push('terminal: env lacks NO_OPEN / MAUDE_NO_AUTOBUILD / MAUDE_MACHINE_FILE');
   if ('ANTHROPIC_API_KEY' in t.env) why.push('terminal: ANTHROPIC_API_KEY reaches the agent');
@@ -109,6 +111,23 @@ function checkPlans(j, project) {
     why.push('acp: settingSources is not ["user"]');
   if (!a.brief || a.session._meta?.systemPrompt?.append !== a.brief)
     why.push('acp: the studio brief is not appended');
+  // consent: the named prompt-tier verbs get a one-time allow, any other card is refused
+  if (JSON.stringify(a.allow) !== JSON.stringify(j.allow ?? []))
+    why.push('acp: the plan does not carry the journey allow list');
+  const card = (command) => ({
+    toolCall: { toolCallId: 't', title: command, rawInput: { command } },
+    options: [
+      { optionId: 'ok', kind: 'allow_once', name: 'Allow' },
+      { optionId: 'always', kind: 'allow_always', name: 'Always' },
+      { optionId: 'no', kind: 'reject_once', name: 'Deny' },
+    ],
+  });
+  for (const v of j.allow ?? []) {
+    if (answerCard(a.allow, card(`${v} x`)).optionId !== 'ok')
+      why.push(`acp: a card for "${v}" is not allowed once`);
+  }
+  if (answerCard(a.allow, card('maude design trash empty-everything')).allow)
+    why.push('acp: a card for a verb the journey does not name was allowed');
   return why;
 }
 

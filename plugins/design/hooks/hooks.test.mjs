@@ -1216,6 +1216,30 @@ describe('gate-b-sec2 — bounded writers: maude-verb allowlists, fail closed wi
     }
   });
 
+  // gate-b-fix2: the files a bounded writer's own procedure saves in the run folder must be in the
+  // hand-off its body documents, because the hook refuses a run-folder write `owns` does not name.
+  test('every run-folder file a writer body saves is in its sample owns; a sibling stays refused', async () => {
+    for (const agent of ['ds-migrator', 'draw-agent', 'footage-director', 'reconstruct-agent']) {
+      const body = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+      const doc = IN(agent);
+      const n = doc.n;
+      const id = { 'ds-migrator': 'm1', 'draw-agent': 'd1', 'footage-director': 'f1' }[agent];
+      // `> "$RUN/<name>"` redirects and Write `$RUN/<name>` in the procedure, with N filled in
+      const named = [...body.matchAll(/(?:>\s*"|Write\s+`)\$RUN\/([A-Za-z0-9._$-]+?)(?:"|`)/g)].map(
+        (m) => `.design/_runs/${S}/${m[1].replaceAll('$N', String(n))}`
+      );
+      for (const rel of named) {
+        expect(doc.owns, `${agent} body saves ${rel}`).toContain(rel);
+        free(await write(agent, id, rel));
+        const redirect = `maude design ds status acme --json > ${rel}`;
+        if (agent === 'ds-migrator') free(await sh(agent, id, redirect));
+        const sibling = rel.replace(/\.([a-z]+)$/, '.other.$1');
+        expect(isDeny(await write(agent, id, sibling), 'out-of-scope')).toBe(true);
+      }
+      if (agent === 'ds-migrator') expect(named.length).toBe(4);
+    }
+  });
+
   test('draw-agent and footage-director are held to the verbs their bodies name', async () => {
     free(await sh('draw-agent', 'd1', 'maude design draw-build --script .design/_draw/b.ts'));
     free(

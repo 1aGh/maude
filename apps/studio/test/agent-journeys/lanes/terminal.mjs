@@ -4,7 +4,8 @@
 // Permissions are the AI chat's (S12.15: both lanes run under the same rules): the allow list is
 // acp/bridge.ts `MAUDE_DEFAULT_ALLOWED_TOOLS`, in-project edits are accepted (`acceptEdits`, as the
 // chat's write-scope gate auto-approves them), and nobody answers a prompt — anything else is
-// denied. The design plugin's own hooks run (they ship in plugins/design/hooks/hooks.json).
+// denied. The one addition (decision v2-S12.16-lanes-allow-named-prompt-verbs): the prompt-tier
+// verbs the journey JSON names in `allow` are added to the allow list as `Bash(<verb>:*)`. The design plugin's own hooks run (they ship in plugins/design/hooks/hooks.json).
 // `maude` on PATH is THIS worktree's CLI (a shim written into the trial dir).
 
 import { spawn } from 'node:child_process';
@@ -14,6 +15,7 @@ import { join } from 'node:path';
 
 import { MAUDE_DEFAULT_ALLOWED_TOOLS } from '../../../acp/bridge.ts';
 import { CLI, logDenyIfAny, logTool, REPO } from './common.mjs';
+import { allowRules } from './consent.mjs';
 
 /** Parent-session switches that must not reach the agent under test (agent-evals' list). */
 const STRIP = [
@@ -72,6 +74,7 @@ export function planTerminal(
     // one argv per rule (a variadic flag): a rule like `Bash(maude design open:*)` holds spaces
     '--allowedTools',
     ...MAUDE_DEFAULT_ALLOWED_TOOLS,
+    ...allowRules(journey),
     '--permission-mode',
     'acceptEdits',
     '--max-budget-usd',

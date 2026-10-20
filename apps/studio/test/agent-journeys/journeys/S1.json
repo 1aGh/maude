@@ -5,6 +5,7 @@
   "title": "New canvas → rename → restore a version → move to the trash → restore",
   "ledger": ["00/rule/moved-to-the-trash"],
   "fixture": "app5",
+  "allow": ["maude design history restore"],
   "setup": [],
   "turns": [
     {
@@ -39,6 +40,12 @@
       "path": "ui/Greeting.tsx",
       "has": ["Hello"],
       "lacks": ["Hi there"]
+    },
+    {
+      "id": "restore-by-verb",
+      "grader": "tool-used",
+      "tool": "Bash",
+      "input": "maude design history restore ui/Greeting\\.tsx"
     },
     { "id": "back-from-trash", "grader": "trash", "path": "ui/Greeting.tsx", "state": "restored" },
     { "id": "no-hard-delete", "grader": "no-tool", "tool": "Bash", "input": "\\brm\\b" }
@@ -93,6 +100,12 @@
         "effects": [{ "lane": "html", "op": "restore", "path": "ui/Greeting.tsx" }]
       },
       {
+        "tag": "restore-cmd",
+        "op": "tool",
+        "name": "Bash",
+        "input": { "command": "maude design history restore ui/Greeting.tsx @last-good" }
+      },
+      {
         "tag": "trash",
         "op": "action",
         "kind": "ai",
@@ -140,6 +153,7 @@
         }
       },
       "version-restored": { "drop": ["restore"] },
+      "restore-by-verb": { "drop": ["restore-cmd"] },
       "restored-content": { "drop": ["restore-file"] },
       "back-from-trash": { "drop": ["untrash"] },
       "no-hard-delete": {

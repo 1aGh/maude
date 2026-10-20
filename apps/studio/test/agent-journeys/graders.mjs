@@ -399,8 +399,11 @@ export const GRADERS = {
     return ok(n >= min, `${n} AI sticker(s) on ${path}`);
   },
 
-  /** Each comment thread `ids` on `path` is `status` and carries a reply by `replyBy` ('ai'). */
-  comments({ path, ids: want, status = 'resolved', replyBy = 'ai' }, o) {
+  /**
+   * Each comment thread `ids` on `path` is `status` and carries a reply by `replyBy` ('ai').
+   * `replyHas` ({ id: regex }) also wants one of those replies to say it (what changed).
+   */
+  comments({ path, ids: want, status = 'resolved', replyBy = 'ai', replyHas = {} }, o) {
     const threads = o.comments(path);
     const why = [];
     for (const id of want) {
@@ -414,6 +417,8 @@ export const GRADERS = {
         replyBy === 'ai' ? r.authorKind === 'ai' : r.authorKind !== 'ai'
       );
       if (!replies.length) why.push(`${id} has no ${replyBy} reply`);
+      else if (replyHas[id] && !replies.some((r) => re(replyHas[id]).test(String(r.body ?? ''))))
+        why.push(`${id}: no reply says /${replyHas[id]}/`);
     }
     return ok(!why.length, why.join('; '));
   },
