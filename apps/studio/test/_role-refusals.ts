@@ -154,6 +154,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view', 'comment'],
     body: { canvas: 'x.tsx', artboard: 'a', prompt: 'p' },
   },
+  // S8.10 — Handoff to production writes code into the project: Can edit on the canvas (test/handoff-v2.test.ts)
+  {
+    method: 'POST',
+    route: '/_api/handoff',
+    refused: ['view', 'comment'],
+    body: { canvas: 'x.tsx', target: 'web' },
+  },
   // S3.10a — `element.set-link` / `element.clear-link`: one dispatch route for every structural edit (test/edit-op-route.test.ts;
   // the viewer's 403 through a booted studio is a row of test/access-role-matrix.test.ts).
   { method: 'POST', route: '/_api/edit-op', refused: ['view', 'comment'] },

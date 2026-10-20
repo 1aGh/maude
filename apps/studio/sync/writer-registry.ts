@@ -362,6 +362,12 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S8.16 — N takes land in assets/ with their `.gen.json` sidecars (companion text); the quote and the reads write nothing
   '/_api/generate-takes': { class: 'file-plane', rows: 'S29' },
   '/_api/generate/audio-reuse': { class: 'file-plane', rows: 'S30' },
+  // S8.10 — Handoff to production: the route starts ONE AI run (or keeps the request in this Mac's outbox); it
+  // writes no project file itself. The run's one file travels like every AI write (the registry item is a
+  // versioned sidecar next to the canvas; an app component lands in the repo, outside the design root).
+  '/_api/handoff': { class: 'local' },
+  '/_api/handoff/targets': { class: 'read' },
+  '/_api/handoff/result': { class: 'read' },
   '/_api/stickers': { class: 'file-plane', rows: 'S27' },
   '/_api/generate/prefs': { class: 'local', rows: 'S31 (config.assign schema gap)' },
   // --- git (H09/H10)

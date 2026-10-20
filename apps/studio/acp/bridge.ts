@@ -70,6 +70,12 @@ export interface AcpBridgeOptions {
    */
   readOnlyRoots?: () => readonly string[];
   /**
+   * S8.10 — this chat's own write scope (a Handoff to production run: its target file only), read
+   * live on every write-shaped request. `null` = the project rules alone. A getter that throws
+   * allows nothing (fail closed: every write goes to the prompt).
+   */
+  writeOnlyRoots?: () => readonly string[] | null;
+  /**
    * Session-scoped local plugins auto-loaded into every new session via
    * `_meta.claudeCode.options.plugins` (DDR-143; resolved by
    * plugin-bootstrap.ts). Empty/absent → no injection (power-user no-op, web
@@ -1571,9 +1577,15 @@ export class AcpBridge {
     } catch {
       readOnly = [this.scopeRoot];
     }
+    let only: readonly string[] | null = null;
+    try {
+      only = this.opts.writeOnlyRoots?.() ?? null;
+    } catch {
+      only = [];
+    }
     const verdict = named
-      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName, readOnly)
-      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly);
+      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName, readOnly, only)
+      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly, only);
     if (!verdict.inside) {
       return {
         stripAlways: true,

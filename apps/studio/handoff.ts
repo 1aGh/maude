@@ -35,6 +35,7 @@ import { parseSync } from 'oxc-parser';
 
 import { buildLibMap, inlineDsImport } from './canvas-lib-inline.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
+import { hoverCssForSource } from './edit-ops/hover-rules.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc AST nodes are heterogeneous.
 type AnyNode = any;
@@ -694,6 +695,16 @@ export async function emitRegistryItem(opts: EmitOptions): Promise<RegistryItem>
         }
       }
     }
+  }
+
+  // S8.10 (S2-hover-format §5) — an On hover survives into handoff: the fixed rule set, only for the
+  // presets this canvas uses, appended to the emitted CSS. `data-hover` stays on the element.
+  const hoverCss = hoverCssForSource(rawTsx);
+  if (hoverCss) {
+    const style = files.find((f) => f.path === `styles/${slug}.css`);
+    if (style) style.content = `${style.content}${hoverCss}\n`;
+    else
+      files.push({ path: `styles/${slug}.css`, content: `${hoverCss}\n`, type: 'registry:style' });
   }
 
   const item: RegistryItem = {

@@ -24,6 +24,7 @@ import {
 import type { RunRegistry } from '../ai/runs.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
+import { runWriteScope } from '../handoff/write-scopes.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
 import type { WsData } from '../ws.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
@@ -561,6 +562,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       chatId,
       // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
       readOnlyRoots: options.readOnlyRoots ?? (() => readOnlyRootsFor(ctx.paths.designRoot)),
+      // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
+      writeOnlyRoots: () => runWriteScope(chatId),
       repoRoot: ctx.paths.repoRoot,
       // Static, config-derived environment brief for every new session
       // (feature-acp-context-hardening; see bootstrap-brief.ts guardrails).
