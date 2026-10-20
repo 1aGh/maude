@@ -59,6 +59,8 @@ const DEDICATED: Record<string, string> = {
   'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
   // S10.8: a converted acme project seeded with one pending Accent change.
   'ds-review.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ds-review',
+  // S9.21c: several accounts on one hub (V2-1.7 §7) — an explicit run file from the V2-8 runner.
+  'share-roles.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:share-roles',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

@@ -30,7 +30,7 @@ function rowsOf(menuEl) {
 // The DS Mark, lifted verbatim from the kit (.design/ui/v2/_kit.tsx `Mark`, = assets/logos/mark.svg):
 // the azure tile (round on three corners, square bottom-right) with the white star. DDR-141 Tier-0 —
 // never redrawn, never the AI's spark (that glyph is reserved for the AI, CONTRACT §7).
-function Mark({ size = 22 }) {
+export function Mark({ size = 22 }) {
   return (
     <svg viewBox="0 0 32 32" width={size} height={size} fill="none" aria-hidden="true">
       <path d="M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z" fill="var(--accent)" />

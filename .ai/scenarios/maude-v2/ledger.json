@@ -128,7 +128,7 @@
     {"id":"00/rule/send-and-ask-ai-are-azure","kind":"rule","canvas":"00","title":"Send and Ask AI are azure","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/ai-describes-the-result","kind":"rule","canvas":"00","title":"AI describes the result","src":"§4","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/share-opens-on-invite","kind":"rule","canvas":"00","title":"Share opens on Invite","src":"§6","status":"open","evidence":null,"evidenceHash":null,"commit":null},
-    {"id":"00/rule/access-in-words","kind":"rule","canvas":"00","title":"Access in words","src":"§6","status":"open","evidence":null,"evidenceHash":null,"commit":null},
+    {"id":"00/rule/access-in-words","kind":"rule","canvas":"00","title":"Access in words","src":"§6","status":"built","evidence":"apps/studio/test/v2-rule-access-in-words.test.tsx","evidenceHash":null,"commit":"43ee4d3ab"},
     {"id":"00/rule/save-status-shown-not-operated","kind":"rule","canvas":"00","title":"Save status, shown not operated","src":"§6","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/moved-to-the-trash","kind":"rule","canvas":"00","title":"Moved to the trash","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/the-timeline-comes-with-a-video-artboard","kind":"rule","canvas":"00","title":"The timeline comes with a video artboard","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},

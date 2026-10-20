@@ -22,6 +22,7 @@
     "wdio.switchrepos.conf.ts",
     "wdio.onboarding.conf.ts",
     "wdio.acp-cold-start.conf.ts",
-    "wdio.sidecar-respawn.conf.ts"
+    "wdio.sidecar-respawn.conf.ts",
+    "wdio.share-roles.conf.ts"
   ]
 }
