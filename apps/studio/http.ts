@@ -2181,6 +2181,15 @@ export function createHttp(
         if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
       },
     },
+    // S8.17 — POST /_api/figma/frames + /_api/figma/import-frames (routes/figma.ts): the verb, lazily.
+    figma: {
+      root: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      announce: (rel) => {
+        if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
+      },
+    },
     // S8.16 — /_api/generate-takes* (routes/generate.ts): N takes on the generation queue, the consent quote, ← →.
     generate: generateDepsFor({
       designRoot: ctx.paths.designRoot,

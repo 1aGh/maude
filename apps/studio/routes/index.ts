@@ -34,6 +34,7 @@ import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
+import { createFigmaRoutes, type FigmaRouteDeps } from './figma.ts';
 import { createGenerateRoutes, type GenerateRouteDeps } from './generate.ts';
 import { createHelpGuidesRoutes, type HelpGuidesDeps } from './help-guides.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
@@ -133,6 +134,8 @@ export interface RouteDeps {
   assetState?: AssetStateRouteDeps;
   /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/` */
   assetTrash?: AssetTrashRouteDeps;
+  /** S8.17 — `POST /_api/figma/frames` + `…/import-frames` (main origin, Can edit on the project): frames as pictures */
+  figma?: FigmaRouteDeps;
   /** S8.16 — `/_api/generate-takes*` (main origin, Can edit on the canvas): N takes, the consent quote, ← → */
   generate?: GenerateRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
@@ -218,6 +221,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
+    ...(deps.figma ? createFigmaRoutes(deps.figma) : []),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
