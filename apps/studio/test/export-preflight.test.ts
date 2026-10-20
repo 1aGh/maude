@@ -16,6 +16,7 @@ import {
   safeMarginFindings,
 } from '../exporters/print-preflight.ts';
 import type { SpecCanvas } from '../exporters/scope.ts';
+import { mmToPx } from '../print/units.ts';
 import { createExportRoutes, type ExportRouteDeps } from '../routes/export.ts';
 
 // ── font fixtures: a minimal sfnt with the tables the report reads ────────────────────────────────
@@ -77,7 +78,7 @@ describe('fontFileReport — will this font file embed?', () => {
 
 // ── the safe margin, from canvas-rects geometry ───────────────────────────────────────────────────
 // A6 (105 × 148 mm) with 3 mm bleed: the artboard is trim + 2 × bleed = 111 × 154 mm at 96 dpi.
-const MM = 96 / 25.4;
+const MM = mmToPx(1);
 const A6 = paperOf({ paper: 'a6', orientation: 'portrait', bleedMm: 3 });
 const AB_W = 111 * MM;
 const AB_H = 154 * MM;

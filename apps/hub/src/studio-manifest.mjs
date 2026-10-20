@@ -402,6 +402,10 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/shell-shot': REFUSED,
   '/_api/generate-jobs': REFUSED,
   // S8.16 — Generate with N takes: BYOK keys + provider egress, the same as /_api/generate-jobs.
+  // S8.10 — Handoff to production runs an AI chat that writes code on THIS Mac; a cell runs no handoff
+  '/_api/handoff': REFUSED,
+  '/_api/handoff/result': REFUSED,
+  '/_api/handoff/targets': REFUSED,
   '/_api/generate-takes': REFUSED,
   '/_api/generate-takes/of': REFUSED,
   '/_api/generate-takes/quote': REFUSED,

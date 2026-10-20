@@ -44,7 +44,8 @@ export const SUB_VERBS = {
   captions: { add: NATIVE, list: NATIVE, export: NATIVE },
   // S10.3 (S10 §2.4): the design-system reads; the helper (ds/ds-verb.ts) refuses a write flag
   // after them. Every other `ds` sub-verb falls to the `ds` entry and prompts.
-  ds: { status: NATIVE, usage: NATIVE, revisions: NATIVE },
+  // S10.19: `check-system` reads the system and keeps one runtime answer (_state/ds-check/<ds>.json).
+  ds: { status: NATIVE, usage: NATIVE, revisions: NATIVE, 'check-system': NATIVE },
 };
 
 const STEP_FLAGS = {
