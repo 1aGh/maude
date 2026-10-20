@@ -30789,5 +30789,133 @@
       "apps/studio/test/v2-export-print.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "timeline-track-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One of the timeline’s tracks (S7.8): `<id>` is text, gfx, video2, video, music or music2 — Video 2 and Music 2 only when something is on them. It groups the rows of that track under a name strip; every row keeps its own testid.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-loop-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The loop range on the ruler (S7.8): set with I / O at the playhead, I and O pins at its ends.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-loop-lane",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The faint tint down the lanes over the loop range (S7.8).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-poster-flag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Poster” flag on the ruler at the video’s poster frame (S7.8; `artboardMeta.poster`).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/Timeline.jsx",
+      "symbol": "TimelinePanel"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-tracks-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-play-button",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The centred play button on a paused video artboard (S7.8, 07 ve-play): plays it in place, with sound. Rendered inside the canvas iframe (not DOM-reachable from the shell); never in a capture or while presenting.",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-scrub-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The on-artboard scrub bar once a video has started (S7.8): play / pause, progress, \"0:07 / 0:15\". Canvas iframe; never in a capture or while presenting.",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-scrub-fill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The progress fill inside the on-artboard scrub bar (S7.8); its width is the playhead as a share of the length.",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-scrub-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"0:07 / 0:15\" time inside the on-artboard scrub bar (S7.8).",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

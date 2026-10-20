@@ -149,6 +149,7 @@ import {
 } from './drag-bus.ts';
 import { routeDrop } from './editing/duplicate-rhythm.ts';
 import { growCh, nextRenameId, RENAME_EVENT, requestRename } from './editing/rename-order.ts';
+import { createSpaceTap, sendSpaceTap } from './editing/space-tap.ts';
 import { applyCaptureChrome } from './exporters/capture-chrome.ts';
 import {
   type DomToSvgApi,
@@ -1617,6 +1618,8 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     };
 
     const spaceHeld = { current: false };
+    // S7.8 — a tap on Space (up inside 200 ms, no drag between) is "play", not the Hand; the shell plays.
+    const spaceTap = createSpaceTap();
     const panState: {
       active: boolean;
       pointerId: number;
@@ -1706,6 +1709,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const onPointerDown = (e: PointerEvent) => {
       const isMiddle = e.button === 1;
       const isLeftWithSpace = e.button === 0 && spaceHeld.current;
+      if (isLeftWithSpace) spaceTap.drag(); // the Hand panned: this Space was never a tap
       // Phase 4.1 hand tool: bare left-button initiates pan when the consumer
       // signals hand-mode via `isPanDragActive`. Read per-event so the live
       // tool state controls the gate.
@@ -1750,6 +1754,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // Spacebar pan affordance — only when no input is focused.
       if (e.code === 'Space' && !isEditableTarget(e.target)) {
         spaceHeld.current = true;
+        spaceTap.down(e.timeStamp);
         host.style.cursor = panState.active ? 'grabbing' : 'grab';
         e.preventDefault();
         return;
@@ -1791,6 +1796,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         spaceHeld.current = false;
+        if (spaceTap.up(e.timeStamp)) sendSpaceTap(window);
         host.style.cursor = panState.active ? 'grabbing' : '';
       }
     };

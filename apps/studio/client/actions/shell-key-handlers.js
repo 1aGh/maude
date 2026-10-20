@@ -22,6 +22,7 @@ import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
 import { runAssetsAction } from '../v2/assets/assets-bus.js';
+import { playToggle, stepPlayhead, TIMELINE_KEY_HANDLERS } from '../v2/timeline/keys.js';
 import { runCopyPng } from '../v2/export/copy-png.js';
 import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
@@ -315,25 +316,15 @@ export const SHELL_KEY_HANDLERS = {
     if (ref) s.clipVerb?.(ref, 'split', { atFrame: s.frame });
     else shellToast('Nothing under the playhead to split.');
   },
+  // S7.8 — Space plays / pauses the followed video in place, with sound (the canvas's tap arrives as `space-tap`).
   'timeline.play': (d, { event: e }) => {
-    const s = d.tlKeyRef.current;
     e.preventDefault();
-    if (s.playing) {
-      d.setTimelinePlaying(false);
-      s.post({ dgn: 'timeline-pause', id: s.compId });
-    } else {
-      d.setTimelinePlaying(true);
-      s.post({ dgn: 'timeline-mute', muted: s.muted, id: s.compId });
-      s.post({ dgn: 'timeline-loop', loop: s.loop, id: s.compId });
-      s.post({ dgn: 'timeline-play', id: s.compId });
-    }
+    playToggle(d);
   },
   // ←/→ = ±1 frame (Shift = ±1 s)
   'timeline.step': (d, { event: e }) => {
-    const { s, fps, doSeek } = transport(d);
     e.preventDefault();
-    const step = e.shiftKey ? fps : 1;
-    doSeek(s.frame + (e.key === 'ArrowRight' ? step : -step));
+    stepPlayhead(d, e);
   },
   'timeline.to-start': (d, { event: e }) => {
     const { doSeek } = transport(d);
@@ -352,6 +343,8 @@ export const SHELL_KEY_HANDLERS = {
     if (next != null) doSeek(next);
   },
   'timeline.prev-keyframe': (d, { event: e }) => prevKeyframe(d, e),
+  // S7.8 — I / O loop range (client/v2/timeline/keys.js)
+  ...TIMELINE_KEY_HANDLERS,
 };
 
 // V2-4.5b — the toolbar keys and ⌥⌘P with the SHELL focused (a panel, the pill): the active canvas

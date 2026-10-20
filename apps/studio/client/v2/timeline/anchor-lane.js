@@ -1,4 +1,5 @@
-// client/v2/timeline/anchor-lane.js — S7.7: the shell's side of the canvas's `artboard-anchor`.
+// client/v2/timeline/anchor-lane.js — S7.7: the shell's side of the canvas's `artboard-anchor`; S7.8 adds
+// `space-tap` (a quick Space on the canvas = play) under the same active-frame gate.
 //
 // Only the ACTIVE canvas's frame is believed (a background or synced canvas is untrusted, DDR-054), and the
 // message is validated by the dgn table before any of it is read. What passes goes to the timeline store;
@@ -13,7 +14,7 @@ const LABEL_MAX = 120;
 /**
  * @param {{ canvasOrigin: () => string, activePath: () => string|null,
  *   frameOf: (path: string) => { contentWindow: Window|null }|undefined,
- *   store: { anchor: (m: object) => void } }} deps
+ *   store: { anchor: (m: object) => void }, onSpaceTap?: () => void }} deps
  */
 export function createAnchorLane(deps) {
   const activeWin = () => {
@@ -23,9 +24,14 @@ export function createAnchorLane(deps) {
   return {
     /** The window `message` handler. */
     onMessage(e) {
-      if (e?.data?.dgn !== 'artboard-anchor') return;
+      const kind = e?.data?.dgn;
+      if (kind !== 'artboard-anchor' && kind !== 'space-tap') return;
       const m = acceptFromCanvas(e, { canvasOrigin: deps.canvasOrigin(), active: activeWin() });
       if (!m) return;
+      if (kind === 'space-tap') {
+        deps.onSpaceTap?.();
+        return;
+      }
       deps.store.anchor({
         artboardId: m.artboardId,
         kind: m.kind,

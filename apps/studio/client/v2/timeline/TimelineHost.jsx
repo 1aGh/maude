@@ -20,6 +20,10 @@ import { useShellStore } from '../../stores/shell-store.jsx';
 import { usePanelLayout } from '../shell/use-panel-layout.js';
 import { anchorCentre, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
+import { playToggle } from './keys.js';
+import { loopJump } from './transport.js';
+import { bindFollowed, playbackStore } from './playhead.js';
+import { bindPosterSource, loadPoster, posterOf, usePosterVersion } from './poster.js';
 import { TimelineIslandContext } from './island-context.js';
 import { TimelineIsland } from './island.jsx';
 import { timelineStore, useTimelineView } from './timeline-store.js';
@@ -39,11 +43,17 @@ export default function TimelineHost({ children }) {
       setCanvasActiveArtboard,
       setTimelineFrame,
       setTimelineOpen,
+      setTimelinePlaying,
+      timelineCompId,
       timelineFrame,
+      timelineLoop,
       timelineOpen,
+      timelinePlaying,
       viewerMode,
     },
+    photoAndTimeline,
   } = useShellStore();
+  const tlKeyRef = photoAndTimeline?.tlKeyRef;
   const view = useTimelineView();
   const { hidden: panelsHidden } = usePanelLayout();
   const present = view.visible && !panelsHidden;
@@ -51,8 +61,19 @@ export default function TimelineHost({ children }) {
   // ── the canvas says which artboard is selected ──
   const live = useRef({});
   live.current = { activePath, iframesRef, canvasOrigin: cfg?.canvasOrigin };
+  // S7.8 — a quick Space on the canvas plays the followed video (07 · ve-play); the same toggle the key runs.
+  const deps = useRef({});
+  deps.current = {
+    tlKeyRef,
+    setTimelineFrame,
+    setTimelinePlaying,
+    follows: !!tlKeyRef && !!view.target && present,
+  };
   useEffect(() => {
     const lane = createAnchorLane({
+      onSpaceTap: () => {
+        if (deps.current.follows) playToggle(deps.current);
+      },
       canvasOrigin: () => live.current.canvasOrigin || window.location.origin,
       activePath: () => live.current.activePath,
       frameOf: (p) => live.current.iframesRef?.current?.get(p),
@@ -65,7 +86,25 @@ export default function TimelineHost({ children }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: switching canvases is the trigger
   useEffect(() => {
     timelineStore.reset();
+    playbackStore.reset();
   }, [activePath]);
+
+  // ── a loop band: playback that reaches its end goes back to its start (the Player loops the whole cut) ──
+  useEffect(() => {
+    if (!timelinePlaying || !timelineCompId) return;
+    const to = loopJump(playbackStore.loopFor(timelineCompId), timelineFrame, timelineLoop);
+    if (to === null) return;
+    setTimelineFrame(to);
+    postToActiveCanvas({ dgn: 'timeline-seek', frame: to, id: timelineCompId });
+    postToActiveCanvas({ dgn: 'timeline-play', id: timelineCompId });
+  }, [
+    timelineFrame,
+    timelinePlaying,
+    timelineLoop,
+    timelineCompId,
+    postToActiveCanvas,
+    setTimelineFrame,
+  ]);
 
   // ── mounted while present, and for the length of the slide out ──
   const [mounted, setMounted] = useState(present);
@@ -117,6 +156,34 @@ export default function TimelineHost({ children }) {
     return () => timelineStore.remember(targetId, frameRef.current);
   }, [targetId, postToActiveCanvas, setCanvasActiveArtboard, setTimelineFrame]);
 
+  // ── the poster frame: read for the ruler's flag, and the playhead `video.poster.set` writes it at ──
+  usePosterVersion();
+  useEffect(() => {
+    if (activePath && targetId) void loadPoster(activePath, targetId);
+  }, [activePath, targetId]);
+  const posterNow = useRef({});
+  posterNow.current = {
+    file: activePath,
+    artboardId: targetId,
+    frame: timelineFrame,
+    fps: (activeComps || []).find((c) => c?.artboardId === targetId)?.fps || 30,
+  };
+  const followedNow = useRef({});
+  followedNow.current = {
+    compId: timelineCompId,
+    frame: timelineFrame,
+    total: tlKeyRef?.current?.total,
+  };
+  useEffect(() => {
+    bindPosterSource(() => (posterNow.current.artboardId ? posterNow.current : null));
+    bindFollowed(() => (followedNow.current.compId ? followedNow.current : null));
+    return () => {
+      bindPosterSource(null);
+      bindFollowed(null);
+    };
+  }, []);
+  const poster = activePath && targetId ? posterOf(activePath, targetId) : null;
+
   // ── the island's words and hands ──
   const canAsk = isNativeApp() && !viewerMode;
   const artboardLabel = view.target?.label ?? 'this video';
@@ -124,10 +191,11 @@ export default function TimelineHost({ children }) {
     () => ({
       size: view.size,
       kept: view.kept,
+      poster,
       onToggleSize: () => timelineStore.toggleSize(),
       empty: <TimelineEmpty artboard={artboardLabel} canAsk={canAsk} />,
     }),
-    [view.size, view.kept, artboardLabel, canAsk]
+    [view.size, view.kept, poster, artboardLabel, canAsk]
   );
 
   // ── where it goes: the window, and the canvas frame the artboard's rect is measured in ──

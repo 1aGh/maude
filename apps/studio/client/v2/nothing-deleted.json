@@ -3492,7 +3492,11 @@
     "testid:studio/use-annotation-resize.tsx#canvas iframe chrome/dc-annot-resize-handle-dc-annot-rotate-zone-dc-a": "testid:.dc-annot-resize-handle / .dc-annot-rotate-zone / .dc-annot-conn-dot",
     "testid:studio/use-element-resize.tsx#canvas iframe chrome/dc-el-resize-handle-dc-el-resize-readout-data-co": "testid:.dc-el-resize-handle / .dc-el-resize-readout / [data-corner]",
     "testid:studio/use-spacing-handles.tsx#canvas iframe chrome/dc-spacing-handle": "testid:.dc-spacing-handle",
-    "testid:studio/video-comp.tsx#canvas iframe chrome/dc-video-comp-data-comp-id": "testid:.dc-video-comp / [data-comp-id]"
+    "testid:studio/video-comp.tsx#canvas iframe chrome/dc-video-comp-data-comp-id": "testid:.dc-video-comp / [data-comp-id]",
+    "testid:studio/video-play-chrome.tsx#canvas/video-play-button": "testid:video-play-button",
+    "testid:studio/video-play-chrome.tsx#canvas/video-scrub-bar": "testid:video-scrub-bar",
+    "testid:studio/video-play-chrome.tsx#canvas/video-scrub-fill": "testid:video-scrub-fill",
+    "testid:studio/video-play-chrome.tsx#canvas/video-scrub-time": "testid:video-scrub-time"
   },
   "excluded": {
     "button:studio/client/home/home-app.jsx#HomeApp/dismiss": "v2 code (added after the freeze)",

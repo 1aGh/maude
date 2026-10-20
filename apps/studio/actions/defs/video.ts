@@ -41,7 +41,12 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   row('video.cut-to-beat', 'Cut to the beat', 'Inspector › Music'),
   row('video.snap', 'Snap to the beat', 'Timeline'),
   row('video.reframe', 'Re-frame', 'Timeline › Re-frame'),
-  row('video.poster.set', 'Set as poster frame', 'Inspector › Poster'),
+  // S7.8 — bound: the playhead's frame becomes the poster (`artboardMeta.poster`), from ⌘K and the Poster flag on
+  // the ruler. The inspector's Poster section (S7.5+) places the same id.
+  {
+    ...row('video.poster.set', 'Set as poster frame', 'Timeline'),
+    search: { where: 'Timeline › Poster', keywords: ['poster', 'cover', 'thumbnail'] },
+  },
   row('video.format.add', 'Add a format', 'Inspector › Formats'),
   row('video.format.unlink', 'Make an unlinked copy', 'Inspector › Formats'),
   row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),

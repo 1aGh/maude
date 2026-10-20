@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "6a885e7a382f",
+  "manifestVersion": "05bed8c4dd4b",
   "actions": [
     {
       "id": "search.open",
@@ -2719,6 +2719,42 @@
         "format": "canvas-tsx",
         "skill": "design:video-comp",
         "how": "Split the clip into two sequences at the frame"
+      }
+    },
+    {
+      "id": "timeline.loop-in",
+      "label": "Loop starts here",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the loop range is playback state, never written to the file"
+      }
+    },
+    {
+      "id": "timeline.loop-out",
+      "label": "Loop ends here",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the loop range is playback state, never written to the file"
+      }
+    },
+    {
+      "id": "timeline.loop-clear",
+      "label": "Clear the loop range",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the loop range is playback state, never written to the file"
       }
     },
     {

@@ -253,6 +253,8 @@ export interface CanvasToShell {
   'timeline-comps': { comps: TimelineComp[] };
   'timeline-frame': { id?: Id; frame: number };
   'timeline-ended': { id?: Id };
+  /** S7.8 — the Player started / stopped (its own play and pause events): the shell's transport follows the truth. */
+  'timeline-playing': { id?: Id; playing: boolean };
   // keys forwarded from the iframe (V2-1.3 / V2-2.4 — supersedes toggle-palette / shell-shortcut)
   key: { v: 1; chord: string; hint?: { artboardId?: Id } };
   // mode / tools
@@ -299,6 +301,11 @@ export interface CanvasToShell {
    * the island follows pan and zoom). `{ artboardId: null }` = no whole artboard is selected now. `label` is untrusted.
    */
   'artboard-anchor': { artboardId: Id | null; kind?: string; label?: string; rect?: Rect | null };
+  /**
+   * S7.8 — Space went down and up inside 200 ms with no drag between: a TAP, not the Hand. The shell plays / pauses
+   * the video the timeline follows (07 · ve-play). Carries nothing; a hold or a pan sends nothing at all.
+   */
+  'space-tap': Empty;
   /**
    * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
    * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
@@ -1406,6 +1413,13 @@ const c2s: C2S = {
     parse: p({ ...tlId, frame: num }),
   },
   'timeline-ended': { gate: 'active', status: 'live', owner: BR, parse: p(tlId) },
+  // S7.8 — a click on the artboard's own play button (or any Player play / pause) tells the shell.
+  'timeline-playing': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline (S7.8)',
+    parse: p({ ...tlId, playing: bool }),
+  },
   key: {
     gate: 'active',
     status: 'live',
@@ -1464,6 +1478,13 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/timeline (S7.7)',
     parse: p({ artboardId: nul(str), kind: opt(str), label: opt(str), rect: opt(nul(rect)) }),
+  },
+  // S7.8 — tap Space = play, hold = Hand; the canvas decides on key-up (editing/space-tap.ts), the shell plays.
+  'space-tap': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline (S7.8)',
+    parse: none,
   },
   'ask-selection': {
     gate: 'active',

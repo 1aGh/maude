@@ -21,7 +21,14 @@ export const PRESENT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const MAX_IDS = 2000;
 export const MAX_NOTE = 20000;
 /** The route body's whole vocabulary. */
-export const PATCH_KEYS: readonly string[] = ['file', 'present', 'notes', 'exports', 'expected'];
+export const PATCH_KEYS: readonly string[] = [
+  'file',
+  'present',
+  'notes',
+  'exports',
+  'poster',
+  'expected',
+];
 const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
 
 export interface PresentState {
@@ -51,6 +58,8 @@ export interface PresentPatch {
   notes?: Record<string, string | null>;
   /** artboardId → its sizes; null (or an empty list) takes the artboard back to its kind's default. */
   exports?: Record<string, ExportSize[] | null>;
+  /** S7.8 — artboardId → its poster frame (a comp frame, ≥ 0); null takes it back to the 35 % default. */
+  poster?: Record<string, number | null>;
   expected?: string;
 }
 
@@ -122,6 +131,19 @@ export function readExportPresets(meta: unknown): Record<string, ExportSize[]> {
       .map(sizeOf)
       .filter((x): x is ExportSize => x !== null);
     if (sizes.length) out[id] = sizes;
+  }
+  return out;
+}
+
+/** S7.8 — what a `.meta.json` says about each video artboard's poster frame (`artboardMeta[id].poster`). Never throws. */
+export function readPosters(meta: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  const m = isObj(meta) ? meta : {};
+  if (!isObj(m.artboardMeta)) return out;
+  for (const [id, entry] of Object.entries(m.artboardMeta)) {
+    if (!isId(id) || !isObj(entry)) continue;
+    const p = entry.poster;
+    if (typeof p === 'number' && Number.isInteger(p) && p >= 0) out[id] = p;
   }
   return out;
 }
@@ -213,6 +235,18 @@ export function parsePresentPatch(body: unknown): ParseResult {
     }
     patch.exports = out;
   }
+  if (body.poster !== undefined) {
+    if (!isObj(body.poster) || Object.keys(body.poster).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'poster' };
+    const out: Record<string, number | null> = {};
+    for (const [id, v] of Object.entries(body.poster)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'poster' };
+      if (v !== null && !(typeof v === 'number' && Number.isInteger(v) && v >= 0))
+        return { ok: false, error: 'bad-field', field: `poster.${id}` };
+      out[id] = v;
+    }
+    patch.poster = out;
+  }
   return { ok: true, patch };
 }
 
@@ -260,6 +294,7 @@ export function applyPresentPatch(
   if (dup.length) return { ok: false, error: 'duplicate', ids: [...new Set(dup)] };
   for (const [id, v] of Object.entries(patch.notes ?? {})) if (v) written.push(id);
   for (const [id, v] of Object.entries(patch.exports ?? {})) if (v?.length) written.push(id);
+  for (const [id, v] of Object.entries(patch.poster ?? {})) if (v !== null) written.push(id);
   if (known) {
     const unknown = [...new Set(written.filter((id) => !known.has(id)))];
     if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
@@ -295,6 +330,18 @@ export function applyPresentPatch(
         ? (map[id] as Record<string, unknown>)
         : {};
       const e = withKey(entry, 'exports', v?.length ? v.map((x) => ({ ...x })) : undefined);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  // S7.8 — the video artboard's poster frame: the same entry, the same keep-everything-else rule.
+  if (patch.poster && Object.keys(patch.poster).length) {
+    let map: Record<string, unknown> = isObj(next.artboardMeta) ? next.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.poster)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'poster', v === null ? undefined : v);
       map = withKey(map, id, Object.keys(e).length ? e : undefined);
     }
     next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
