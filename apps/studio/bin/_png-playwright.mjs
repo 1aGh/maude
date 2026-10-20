@@ -30,7 +30,10 @@ const {
   // S8.1 — the JPG adapter: same capture, Chromium's JPEG encoder.
   type: typeArg = 'png',
   quality: qualityArg = '85',
+  // S8.1b — `display-p3` renders + tags in Display P3 (exporters/_runtime.ts colorProfileShimArgs).
+  'color-profile': colorProfile = 'srgb',
 } = args;
+const P3_LAUNCH_ARGS = ['--force-color-profile=display-p3-d65', '--use-angle=swiftshader'];
 const shotType = typeArg === 'jpeg' ? 'jpeg' : 'png';
 const shotOpts =
   shotType === 'jpeg'
@@ -80,7 +83,9 @@ function assertOutputSizeOk(widthCss, heightCss) {
   }
 }
 
-const browser = await launchChromium();
+const browser = await launchChromium(
+  colorProfile === 'display-p3' ? { args: P3_LAUNCH_ARGS } : undefined
+);
 try {
   // 1440x900 matches the canvas viewport the design tool uses everywhere;
   // exporters resize per-target before each shot to fit the artboard exactly.

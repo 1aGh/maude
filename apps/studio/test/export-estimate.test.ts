@@ -232,10 +232,12 @@ describe('planExportV2 — the v2 half of /_api/export(-jobs)', () => {
   });
 
   test('what cannot run yet is refused with its field, never silently dropped', async () => {
+    // S8.1b lifted `at` and Display P3 for PNG/JPG on this Mac — what still refuses them (a workspace
+    // lane, another format) is test/export-past-version-p3.test.ts
     for (const [spec, field] of [
-      [{ v: 2, scope: 'canvas', format: 'png', at: { sha: 'abc1234' } }, 'at'],
+      [{ v: 2, scope: 'canvas', format: 'pdf', at: { sha: 'abc1234' } }, 'at'],
       [
-        { v: 2, scope: 'canvas', format: 'png', options: { colorProfile: 'display-p3' } },
+        { v: 2, scope: 'canvas', format: 'svg', options: { colorProfile: 'display-p3' } },
         'options.colorProfile',
       ],
       [

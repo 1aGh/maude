@@ -10,16 +10,18 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { inflateSync } from 'node:zlib';
 
 import JSZip from 'jszip';
 import { CSS_DPI } from '../print/units.ts';
-import { exportShimPath, runShim } from './_runtime.ts';
+import { colorProfileShimArgs, exportShimPath, runShim } from './_runtime.ts';
 import {
   canvasShellUrl,
   type ExportContext,
   type ExportHooks,
   type ExportOptions,
   type ExportResult,
+  pastVersionOf,
 } from './index.ts';
 import type { Target } from './scope.ts';
 
@@ -34,6 +36,10 @@ interface CaptureOptions {
   /** Fully-resolved Playwright deviceScaleFactor — see resolveDeviceScale. */
   scale?: number;
   timeoutSec?: number;
+  /** S8.1b — the past version (commit sha) the shell renders; absent = now */
+  at?: string;
+  /** S8.1b — the shim's colour-profile arguments (`colorProfileShimArgs`) */
+  colorArgs?: string[];
 }
 
 /**
@@ -104,7 +110,10 @@ async function captureElement(
   const args = [
     PNG_PLAYWRIGHT,
     '--url',
-    canvasShellUrl(ctx, target.file, { annotations: target.annotations }),
+    canvasShellUrl(ctx, target.file, {
+      annotations: target.annotations,
+      ...(options.at ? { at: options.at } : {}),
+    }),
     '--selector',
     target.cssPath,
     '--scale',
@@ -133,6 +142,7 @@ async function captureElement(
   if (options.type === 'jpeg') {
     args.push('--type', 'jpeg', '--quality', String(options.quality ?? 85));
   }
+  if (options.colorArgs?.length) args.push(...options.colorArgs);
   return runShim(args, {
     cwd: path.dirname(PNG_PLAYWRIGHT),
     signal: hooks?.signal,
@@ -195,7 +205,10 @@ export async function runRaster(
     timeoutSec: (options.timeoutSec as number | undefined) ?? 8,
     type,
     quality: Math.min(100, Math.max(1, Math.round(Number(options.quality) || 85))),
+    at: pastVersionOf(options),
+    colorArgs: colorProfileShimArgs(options),
   };
+  const p3 = options.colorProfile === 'display-p3';
 
   try {
     const written: string[] = [];
@@ -205,6 +218,9 @@ export async function runRaster(
       hooks?.onProgress?.({ current: i + 1, total: elementTargets.length });
     }
     const entries = readBytes(written);
+    // S8.1b — a P3 export is handed over only as a P3 file: re-tagging sRGB pixels would change the
+    // colours, and an untagged file would silently be sRGB. Either way the export fails, loud.
+    if (p3) for (const e of entries) assertDisplayP3(e.bytes, type, e.name);
 
     if (entries.length === 0) {
       return { filename: `export.${ext}`, contentType: mime, body: new Uint8Array(0) };
@@ -226,4 +242,85 @@ export async function runRaster(
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+// ── S8.1b: the Display P3 ICC check ─────────────────────────────────────────────────────────────
+
+/** The embedded ICC profile of a PNG (`iCCP`) or a JPEG (APP2 `ICC_PROFILE`, chunks joined), or null. */
+export function iccProfileOf(bytes: Uint8Array, type: RasterType): Uint8Array | null {
+  const b = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  try {
+    if (type === 'png') {
+      for (let o = 8; o + 12 <= b.length; ) {
+        const len = b.readUInt32BE(o);
+        const kind = b.toString('latin1', o + 4, o + 8);
+        if (kind === 'iCCP') {
+          const data = b.subarray(o + 8, o + 8 + len);
+          const nul = data.indexOf(0);
+          if (nul < 0 || data[nul + 1] !== 0) return null; // compression method 0 = zlib, the only one
+          return new Uint8Array(inflateSync(data.subarray(nul + 2)));
+        }
+        if (kind === 'IDAT' || kind === 'IEND') return null; // iCCP must come before the image data
+        o += 12 + len;
+      }
+      return null;
+    }
+    const parts: Buffer[] = [];
+    for (let o = 2; o + 4 <= b.length && b[o] === 0xff; ) {
+      const marker = b[o + 1];
+      if (marker === 0xda || marker === 0xd9) break; // start of scan: no more headers
+      const len = b.readUInt16BE(o + 2);
+      const seg = b.subarray(o + 4, o + 2 + len);
+      if (marker === 0xe2 && seg.toString('latin1', 0, 12) === 'ICC_PROFILE\0')
+        parts.push(seg.subarray(14));
+      o += 2 + len;
+    }
+    return parts.length ? new Uint8Array(Buffer.concat(parts)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Display P3's colorants, D50-adapted (Bradford) as an ICC v4 matrix profile stores them —
+ * Apple's "Display P3" and Chromium's own `display-p3-d65` profile agree to 1e-4. An sRGB profile's
+ * red is (0.436, 0.222, 0.014), far outside the tolerance.
+ */
+const DISPLAY_P3_COLORANTS: Record<string, readonly [number, number, number]> = {
+  rXYZ: [0.5151, 0.2412, -0.0011],
+  gXYZ: [0.292, 0.6922, 0.0419],
+  bXYZ: [0.1571, 0.0666, 0.7844],
+};
+
+/** Is this ICC profile a Display P3 RGB profile? (reads the matrix colorant tags only) */
+export function isDisplayP3Icc(icc: Uint8Array): boolean {
+  const b = Buffer.from(icc.buffer, icc.byteOffset, icc.byteLength);
+  if (b.length < 132 || b.toString('latin1', 36, 40) !== 'acsp') return false;
+  if (b.toString('latin1', 16, 20) !== 'RGB ') return false;
+  const count = b.readUInt32BE(128);
+  if (count > 100 || 132 + count * 12 > b.length) return false;
+  const seen = new Set<string>();
+  for (let i = 0; i < count; i++) {
+    const at = 132 + i * 12;
+    const sig = b.toString('latin1', at, at + 4);
+    const want = DISPLAY_P3_COLORANTS[sig];
+    if (!want) continue;
+    const off = b.readUInt32BE(at + 4);
+    if (off + 20 > b.length || b.toString('latin1', off, off + 4) !== 'XYZ ') return false;
+    for (let k = 0; k < 3; k++) {
+      if (Math.abs(b.readInt32BE(off + 8 + 4 * k) / 65536 - want[k]) > 0.002) return false;
+    }
+    seen.add(sig);
+  }
+  return seen.size === 3;
+}
+
+/** Refuse a file that is not tagged Display P3 (the P3 export's last gate before hand-over). */
+export function assertDisplayP3(bytes: Uint8Array, type: RasterType, name: string): void {
+  const icc = iccProfileOf(bytes, type);
+  if (!icc || !isDisplayP3Icc(icc))
+    throw new Error(
+      `${name}: the capture did not come out in Display P3, so it was not saved. Export it as sRGB, ` +
+        'or try again — Display P3 needs the browser on this Mac.'
+    );
 }

@@ -167,6 +167,9 @@ export function browserLaneRequest(state, ctx = {}) {
   const { format, scope } = state;
   const artboardId = ctx.artboards?.[0] ?? ctx.activeArtboardId ?? null;
   if (ctx.exportLane === 'local' || !ctx.exportLane) return null;
+  // S8.1b — the browser captures today's canvas in sRGB: a past version or Display P3 goes to the
+  // jobs lane, which refuses it with one line in a workspace (never a silent sRGB / "now" file).
+  if (state.at || state.adv?.colorProfile === 'display-p3') return null;
   if ((format === 'png' || format === 'svg') && scope === 'selection' && artboardId) {
     const options = { artboardId };
     if (format === 'png') options.scale = effectiveScale(state, ctx.kind);
