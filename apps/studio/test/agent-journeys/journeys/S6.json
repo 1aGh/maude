@@ -1,0 +1,186 @@
+{
+  "format": "maude.agent-journey/1",
+  "id": "S6",
+  "package": "S6",
+  "title": "Home sentence → a first draft on the new canvas, in one undo step",
+  "ledger": ["01/cf-ai-drafting"],
+  "fixture": "app5",
+  "setup": [
+    {
+      "op": "write",
+      "path": "ui/Landing page.tsx",
+      "text": "import { DesignCanvas } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      {/* Empty. Add <DCSection> / <DCArtboard> here. */}\n    </DesignCanvas>\n  );\n}\n"
+    }
+  ],
+  "turns": [
+    {
+      "say": "I just typed “A landing page for a small coffee roastery in Brno” on Home, and Maude made the empty canvas ui/Landing page.tsx from it. Draft it."
+    }
+  ],
+  "graders": [
+    {
+      "id": "artboards-first",
+      "grader": "artboards",
+      "path": "ui/Landing page.tsx",
+      "min": 3,
+      "sized": true,
+      "kinds": ["web"]
+    },
+    {
+      "id": "filled-in",
+      "grader": "artboards",
+      "path": "ui/Landing page.tsx",
+      "min": 3,
+      "minElements": 4
+    },
+    {
+      "id": "words-from-the-sentence",
+      "grader": "text",
+      "path": "ui/Landing page.tsx",
+      "has": ["[Rr]oast"]
+    },
+    {
+      "id": "design-system-tokens",
+      "grader": "text",
+      "path": "ui/Landing page.tsx",
+      "has": ["var\\(--"],
+      "lacks": ["#[0-9a-fA-F]{6}\\b"]
+    },
+    {
+      "id": "by-the-ai",
+      "grader": "history",
+      "path": "ui/Landing page.tsx",
+      "kind": "ai",
+      "by": "ai"
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "path": "ui/Landing page.tsx",
+      "minRuns": 1,
+      "maxRuns": 1
+    },
+    {
+      "id": "no-second-canvas",
+      "grader": "canvas-exists",
+      "path": "ui/Landing page 2.tsx",
+      "exists": false
+    }
+  ],
+  "dry": {
+    "good": [
+      {
+        "op": "action",
+        "kind": "migration.import",
+        "label": "Version history starts here",
+        "effects": [
+          {
+            "lane": "@manifest",
+            "op": "create",
+            "path": "ui/Landing page.tsx"
+          }
+        ]
+      },
+      {
+        "tag": "draft",
+        "op": "write",
+        "path": "ui/Landing page.tsx",
+        "text": "import { DesignCanvas, DCSection, DCArtboard } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      <DCSection id=\"landing\" title=\"Landing page\">\n        <DCArtboard id=\"desktop\" label=\"Desktop\" kind=\"web\" width={1440} height={900}>\n          <main data-cd-id=\"desktop-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"desktop-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"desktop-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"desktop-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"tablet\" label=\"Tablet\" kind=\"web\" width={834} height={1024}>\n          <main data-cd-id=\"tablet-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"tablet-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"tablet-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"tablet-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"mobile\" label=\"Mobile\" kind=\"web\" width={390} height={844}>\n          <main data-cd-id=\"mobile-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"mobile-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"mobile-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"mobile-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n      </DCSection>\n    </DesignCanvas>\n  );\n}\n"
+      },
+      {
+        "tag": "step",
+        "op": "action",
+        "kind": "ai",
+        "run": "run-1",
+        "label": "Draft the landing page",
+        "effects": [
+          {
+            "lane": "html",
+            "op": "replace",
+            "path": "ui/Landing page.tsx"
+          }
+        ]
+      }
+    ],
+    "faults": {
+      "artboards-first": {
+        "replace": {
+          "draft": {
+            "op": "write",
+            "path": "ui/Landing page.tsx",
+            "text": "import { DesignCanvas, DCSection, DCArtboard } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      <DCSection id=\"landing\" title=\"Landing page\">\n        <DCArtboard id=\"desktop\" label=\"Desktop\" kind=\"web\">\n          <main data-cd-id=\"desktop-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"desktop-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"desktop-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"desktop-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"tablet\" label=\"Tablet\" kind=\"web\">\n          <main data-cd-id=\"tablet-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"tablet-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"tablet-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"tablet-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"mobile\" label=\"Mobile\" kind=\"web\">\n          <main data-cd-id=\"mobile-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"mobile-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"mobile-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"mobile-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n      </DCSection>\n    </DesignCanvas>\n  );\n}\n"
+          }
+        }
+      },
+      "filled-in": {
+        "replace": {
+          "draft": {
+            "op": "write",
+            "path": "ui/Landing page.tsx",
+            "text": "import { DesignCanvas, DCSection, DCArtboard } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      <DCSection id=\"landing\" title=\"Landing page\">\n        <DCArtboard id=\"desktop\" label=\"Desktop\" kind=\"web\" width={1440} height={900}>\n          <div />\n        </DCArtboard>\n        <DCArtboard id=\"tablet\" label=\"Tablet\" kind=\"web\" width={834} height={1024}>\n          <div />\n        </DCArtboard>\n        <DCArtboard id=\"mobile\" label=\"Mobile\" kind=\"web\" width={390} height={844}>\n          <div />\n        </DCArtboard>\n      </DCSection>\n    </DesignCanvas>\n  );\n}\n"
+          }
+        }
+      },
+      "words-from-the-sentence": {
+        "replace": {
+          "draft": {
+            "op": "write",
+            "path": "ui/Landing page.tsx",
+            "text": "import { DesignCanvas, DCSection, DCArtboard } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      <DCSection id=\"landing\" title=\"Landing page\">\n        <DCArtboard id=\"desktop\" label=\"Desktop\" kind=\"web\" width={1440} height={900}>\n          <main data-cd-id=\"desktop-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"desktop-title\">Welcome in Brno</h1>\n            <p data-cd-id=\"desktop-lede\">Small-batch beans, made on Fridays.</p>\n            <button data-cd-id=\"desktop-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"tablet\" label=\"Tablet\" kind=\"web\" width={834} height={1024}>\n          <main data-cd-id=\"tablet-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"tablet-title\">Welcome in Brno</h1>\n            <p data-cd-id=\"tablet-lede\">Small-batch beans, made on Fridays.</p>\n            <button data-cd-id=\"tablet-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"mobile\" label=\"Mobile\" kind=\"web\" width={390} height={844}>\n          <main data-cd-id=\"mobile-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"mobile-title\">Welcome in Brno</h1>\n            <p data-cd-id=\"mobile-lede\">Small-batch beans, made on Fridays.</p>\n            <button data-cd-id=\"mobile-cta\" style={{ background: \"var(--accent)\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n      </DCSection>\n    </DesignCanvas>\n  );\n}\n"
+          }
+        }
+      },
+      "design-system-tokens": {
+        "replace": {
+          "draft": {
+            "op": "write",
+            "path": "ui/Landing page.tsx",
+            "text": "import { DesignCanvas, DCSection, DCArtboard } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      <DCSection id=\"landing\" title=\"Landing page\">\n        <DCArtboard id=\"desktop\" label=\"Desktop\" kind=\"web\" width={1440} height={900}>\n          <main data-cd-id=\"desktop-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"desktop-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"desktop-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"desktop-cta\" style={{ background: \"#6d5dfc\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"tablet\" label=\"Tablet\" kind=\"web\" width={834} height={1024}>\n          <main data-cd-id=\"tablet-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"tablet-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"tablet-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"tablet-cta\" style={{ background: \"#6d5dfc\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n        <DCArtboard id=\"mobile\" label=\"Mobile\" kind=\"web\" width={390} height={844}>\n          <main data-cd-id=\"mobile-page\" style={{ background: \"var(--bg-1)\", color: \"var(--fg-0)\", padding: \"var(--space-6)\" }}>\n            <h1 data-cd-id=\"mobile-title\">Roasted slowly in Brno</h1>\n            <p data-cd-id=\"mobile-lede\">Small-batch coffee, roasted on Fridays.</p>\n            <button data-cd-id=\"mobile-cta\" style={{ background: \"#6d5dfc\" }}>Order a bag</button>\n          </main>\n        </DCArtboard>\n      </DCSection>\n    </DesignCanvas>\n  );\n}\n"
+          }
+        }
+      },
+      "by-the-ai": {
+        "replace": {
+          "step": {
+            "op": "action",
+            "kind": "outside",
+            "label": "Changed outside Maude",
+            "effects": [
+              {
+                "lane": "html",
+                "op": "replace",
+                "path": "ui/Landing page.tsx"
+              }
+            ]
+          }
+        }
+      },
+      "one-undo-step": {
+        "add": [
+          {
+            "op": "action",
+            "kind": "ai",
+            "run": "run-1",
+            "label": "Draft the landing page",
+            "effects": [
+              {
+                "lane": "html",
+                "op": "replace",
+                "path": "ui/Landing page.tsx"
+              }
+            ]
+          }
+        ]
+      },
+      "no-second-canvas": {
+        "add": [
+          {
+            "op": "write",
+            "path": "ui/Landing page 2.tsx",
+            "text": "import { DesignCanvas } from \"@maude/canvas-lib\";\n\nexport default function LandingPage() {\n  return (\n    <DesignCanvas>\n      {/* Empty. Add <DCSection> / <DCArtboard> here. */}\n    </DesignCanvas>\n  );\n}\n"
+          }
+        ]
+      }
+    }
+  }
+}

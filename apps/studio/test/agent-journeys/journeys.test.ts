@@ -29,7 +29,7 @@ test('run.mjs --dry: good runs grade green, every grader goes red on its planted
     expect(r.status).toBe(0);
     // every journey of the wave is there, each with its faults
     const names = res.checks.map((c: { name: string }) => c.name);
-    for (const j of ['S1', 'S2', 'S3', 'S4', 'S5', 'S9']) {
+    for (const j of ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11']) {
       expect(names).toContain(`${j} good run grades green`);
       expect(names.some((n: string) => n.startsWith(`${j} fault `))).toBe(true);
     }
