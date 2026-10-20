@@ -120,6 +120,7 @@ const FILTERED = [
   '/_api/ds/revision',
   '/_api/ds/revisions',
   '/_api/ds/usage',
+  '/_api/ds/make-state',
   '/_api/asset-state',
 ];
 
@@ -240,6 +241,7 @@ const PROJECT = [
   '/_api/ds/trash',
   '/_api/ds/restore',
   '/_api/ds/clear',
+  '/_api/ds/make',
   '/_api/share/invites',
   '/_api/share/invites/:id/resend',
   '/_api/share/invites/:id/revoke',
