@@ -614,6 +614,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Copy CSS',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Inspector › Advanced' },
     enabled: { selection: ['object'] },
   },
   {
@@ -621,6 +622,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Copy element id',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Inspector › Advanced' },
     enabled: { selection: ['object'] },
   },
   {
@@ -628,6 +630,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Edit element id…',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Inspector › Advanced' },
     enabled: { ...EDITS, selection: ['object'] },
   },
   // S4.11 — naming an element so an arrow can point at it (Q12). No menu, no key, no ⌘K row: the canvas asks
@@ -785,6 +788,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Copy code',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Inspector › Advanced' },
     enabled: { minRole: 'comment' as const, selection: ['object'] },
   },
   {
@@ -792,6 +796,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Edit CSS as text…',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Inspector › Advanced' },
     enabled: { ...EDITS, selection: ['object'] },
   },
   {
@@ -799,6 +804,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Detach from shared component',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Inspector › Advanced' },
     enabled: { ...EDITS, selection: ['object'] },
   },
   // S3.11 — the Inspect panel (Preview ⌘-click, Viewing click; 04 md-inspect). Copy code is the same download

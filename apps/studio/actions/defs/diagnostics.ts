@@ -10,7 +10,7 @@ import type { ActionDef, ActionId } from '../types.ts';
 const row = (
   id: ActionId,
   label: string,
-  rest: Pick<ActionDef, 'visible' | 'enabled'> = {}
+  rest: Pick<ActionDef, 'visible' | 'enabled' | 'search'> = {}
 ): ActionDef => ({
   id,
   label,
@@ -18,6 +18,9 @@ const row = (
   exec: 'shell',
   ...rest,
 });
+
+// ⌘K shows where a hidden tool lives, so the way back is learnt (06 ad-search).
+const LOGS_WHERE = 'Menu › Diagnostics › Logs';
 
 export const DIAGNOSTICS_ACTIONS: ActionDef[] = [
   row('diag.sync', 'Sync'),
@@ -27,8 +30,14 @@ export const DIAGNOSTICS_ACTIONS: ActionDef[] = [
   // S11.11 — the Logs sheet's two buttons, also reachable from ⌘K. Copy goes to the clipboard in the
   // shell; Show in Finder is the Tauri command `diagnostics_reveal_logs` (S11.16), so it is `native`
   // and only runs where that command exists (menu-runner.js NATIVE_COMMANDS).
-  row('diag.copy-logs', 'Copy logs'),
-  { id: 'diag.logs-show-in-finder', label: 'Show logs in Finder', kind: 'command', exec: 'native' },
+  row('diag.copy-logs', 'Copy logs', { search: { where: LOGS_WHERE } }),
+  {
+    id: 'diag.logs-show-in-finder',
+    label: 'Show logs in Finder',
+    kind: 'command',
+    exec: 'native',
+    search: { where: LOGS_WHERE },
+  },
   row('diag.ai-recheck', 'Check AI setup again'),
   row('diag.address', 'Address'),
   row('diag.process', 'Process'),

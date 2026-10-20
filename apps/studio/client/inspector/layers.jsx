@@ -191,7 +191,10 @@ export function LayerRow({
         aria-selected={isSynthetic ? undefined : isSel}
         aria-expanded={hasKids ? !isCollapsed : undefined}
         aria-grabbed={canDrag ? isDragging : undefined}
-        tabIndex={0}
+        aria-level={depth + 1}
+        // S11.18 (a11y): the tree container is the one tab stop (it drives the arrows from the selection); a row is
+        // reached by click or by the arrows, so the stops no longer scale with the layers
+        tabIndex={-1}
         title={
           isSynthetic
             ? `${node.tag} · group (unstamped wrapper)`
@@ -226,6 +229,7 @@ export function LayerRow({
           <button
             type="button"
             className="st-layer-caret"
+            tabIndex={-1}
             aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             onClick={(e) => {
               e.stopPropagation();
@@ -292,6 +296,7 @@ export function LayerRow({
             node={node}
             isLocked={isLocked}
             isHidden={isHidden}
+            tabbable={isSel}
             onToggleLock={onToggleLock}
             onToggleVisibility={onToggleVisibility}
           />

@@ -24,7 +24,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
   // canvas. It runs what `canvas.new` ran in v1: the tree's composer asks for a name, then stamps the board.
   {
     id: 'canvas.new-brief',
-    label: 'New brief board',
+    label: 'New brief',
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
@@ -108,6 +108,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     label: 'Copy canvas link',
     kind: 'command',
     exec: 'shell',
+    search: { where: 'Canvases panel › row menu' },
     enabled: { facts: ['canvasOpen'] },
   },
   {

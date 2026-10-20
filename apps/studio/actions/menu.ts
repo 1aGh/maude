@@ -16,6 +16,9 @@ const SEP = { sep: true } as const;
 
 export const PROJECT_MENU: readonly MenuNode[] = [
   { id: 'nav.home' },
+  // S11.18 (04 ad-menus): the kit's four groups — Home · the four menus · Version history, Share, Export ·
+  // Diagnostics, Settings — and Advanced / Report a bug sit apart in their menus.
+  SEP,
   {
     submenu: 'File',
     items: [
@@ -56,6 +59,7 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'select.all' },
       { id: 'select.none' },
       { id: 'select.all-annotations' },
+      SEP,
       {
         submenu: 'Advanced',
         advanced: true,
@@ -96,6 +100,7 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'view.zoom-out' },
       { id: 'view.zoom-fit' },
       { id: 'view.zoom-actual' },
+      SEP,
       {
         submenu: 'Advanced',
         advanced: true,
@@ -123,13 +128,16 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'help.setup' },
       { id: 'help.intro' },
       { id: 'help.sharing' },
+      SEP,
       { id: 'help.report-bug' },
     ],
   },
+  SEP,
   { id: 'history.open' },
   { id: 'share.open' },
   // CONTRACT §1 lists Export… both at the top level and under File.
   { id: 'export.open' },
+  SEP,
   {
     submenu: 'Diagnostics',
     items: [
@@ -139,6 +147,7 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'diag.logs' },
       { id: 'canvas.reload' },
       { id: 'diag.ai-recheck' },
+      SEP,
       {
         submenu: 'Advanced',
         advanced: true,

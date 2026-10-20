@@ -579,43 +579,9 @@ export function InspectorPanel({
           <StIcon name="x" size={14} />
         </button>
       </div>
-      {/* Stage H (INV-3) — edit-scope strip: is an edit local to this element or
-          shared across N rendered places? Visible across every tab so it's never
-          a surprise. Only for a single element selection with a resolved verdict. */}
-      {el?.id && !(Array.isArray(selected) && selected.length > 1) && editScope ? (
-        <div
-          className={`st-scope st-scope--${editScope.scope}`}
-          title={
-            editScope.scope === 'shared'
-              ? `Editing this element's style changes ${editScope.affects} place${
-                  editScope.affects === 1 ? '' : 's'
-                }${
-                  editScope.componentName ? ` (component ${editScope.componentName})` : ''
-                }. Move/resize a whole instance to keep it local.`
-              : 'This edit affects only this element.'
-          }
-        >
-          <span className="st-scope-dot" aria-hidden="true" />
-          {editScope.scope === 'shared'
-            ? `Shared${editScope.componentName ? ` · ${editScope.componentName}` : ''} · edits ${
-                editScope.affects
-              } place${editScope.affects === 1 ? '' : 's'}`
-            : 'Local · this element only'}
-          {/* feature-4 detach-component (2026-07-19) — make THIS instance its
-              own single-usage component so edits (incl. absolute positions)
-              stay local per artboard. */}
-          {editScope.scope === 'shared' && onDetachInstance ? (
-            <button
-              type="button"
-              className="st-scope-detach"
-              title="Clone this component for this instance only — edits stop affecting the other places"
-              onClick={() => onDetachInstance(el.id, el.index)}
-            >
-              Detach
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      {/* S11.18: the edit-scope strip (Stage H, INV-3: "Shared · Card · edits N places", Detach) is retired from
+          the header. Inspector > Advanced > Used in says the same and keeps Detach (v2/inspector/advanced-rows-default.jsx,
+          `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
       <div className="st-rp-body">
         {effTab === 'photo' && photoTarget ? (
           <div onKeyDown={onPhotoKnobKeyDown}>

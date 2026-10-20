@@ -1013,14 +1013,31 @@ const LAYOUT_PANELS = [
 
 // `labelledBy` is the id of the row's visible label, so each group is announced by the panel it moves
 // ("Canvases, Left") instead of seven identical "Panel side" groups.
-function SideToggle({ value, disabled, onChange, testId, labelledBy }) {
+// S11.18 (a11y): a radiogroup is ONE tab stop — the checked side takes Tab, the arrows move and choose (the seven
+// groups here were fourteen stops). Left/Up pick Left, Right/Down pick Right, and focus follows the choice.
+export function SideToggle({ value, disabled, onChange, testId, labelledBy }) {
+  const onKeyDown = (e) => {
+    const to =
+      e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+        ? 'left'
+        : e.key === 'ArrowRight' || e.key === 'ArrowDown'
+          ? 'right'
+          : null;
+    if (!to || disabled) return;
+    e.preventDefault();
+    if (to !== value) onChange(to);
+    const sibs = e.currentTarget.querySelectorAll('[role="radio"]');
+    sibs[to === 'left' ? 0 : 1]?.focus();
+  };
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a two-state segmented control, not a form field
     <span
       className="st-sidetoggle"
       role="radiogroup"
       aria-labelledby={labelledBy}
       aria-label={labelledBy ? undefined : 'Panel side'}
       data-testid={testId}
+      onKeyDown={onKeyDown}
     >
       {['left', 'right'].map((s) => (
         <button
@@ -1028,6 +1045,7 @@ function SideToggle({ value, disabled, onChange, testId, labelledBy }) {
           type="button"
           role="radio"
           aria-checked={value === s}
+          tabIndex={value === s ? 0 : -1}
           disabled={disabled}
           className={'st-sidebtn' + (value === s ? ' is-active' : '')}
           onClick={() => onChange(s)}

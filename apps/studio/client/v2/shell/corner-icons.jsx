@@ -92,8 +92,12 @@ export function CornerIcons({
         edge="left"
         icon="panel-left"
         testid="panel-icon-left"
-        label={hidden ? 'Show panels' : `Open ${LABEL[leftTarget] ?? leftTarget}`}
-        title={hidden ? 'Show panels (⌘\\)' : `${LABEL[leftTarget] ?? leftTarget}`}
+        label={`Open ${LABEL[leftTarget] ?? leftTarget}`}
+        title={
+          hidden
+            ? `${LABEL[leftTarget] ?? leftTarget} (⌘\\ shows all panels)`
+            : `${LABEL[leftTarget] ?? leftTarget}`
+        }
         onClick={reveal(leftActive, leftTarget)}
       />
     );
@@ -106,8 +110,12 @@ export function CornerIcons({
         edge="right"
         icon="sliders"
         testid="panel-icon-right"
-        label={hidden ? 'Show panels' : `Open ${LABEL[rightTarget] ?? rightTarget}`}
-        title={hidden ? 'Show panels (⌘\\)' : `${LABEL[rightTarget] ?? rightTarget}`}
+        label={`Open ${LABEL[rightTarget] ?? rightTarget}`}
+        title={
+          hidden
+            ? `${LABEL[rightTarget] ?? rightTarget} (⌘\\ shows all panels)`
+            : `${LABEL[rightTarget] ?? rightTarget}`
+        }
         onClick={reveal(rightActive, rightTarget)}
       />
     );
@@ -122,11 +130,9 @@ export function CornerIcons({
         label={
           foldState({ needs: needsYou, busy: assistant.busy }).kind === 'needs'
             ? 'Ask AI ⌘/ — AI needs you'
-            : hidden
-              ? 'Show panels'
-              : 'Ask AI ⌘/'
+            : 'Ask AI ⌘/'
         }
-        title={hidden ? 'Show panels (⌘\\)' : 'Ask AI ⌘/'}
+        title={hidden ? 'Ask AI ⌘/ (⌘\\ shows all panels)' : 'Ask AI ⌘/'}
         working={assistant.busy}
         needs={needsYou}
         onClick={() => {

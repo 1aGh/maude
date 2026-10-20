@@ -286,7 +286,13 @@ export function createMenuHandlers(d) {
     // Each panel then remembers its own fold (fold-store.js); ⌘Z does not undo it, Close all does.
     'view.advanced-open-all': () => {
       foldStore.openAll();
-      d.toast?.('All Advanced sections are open.');
+      // 06 ad-open-all: one toast, one action. Close all is the inverse; the folds stay as each panel keeps them.
+      d.toast?.('All Advanced sections are open.', true, {
+        label: 'Close all',
+        onClick: () => {
+          foldStore.closeAll();
+        },
+      });
     },
     // S10.6 — Light | Dark on the Design system canvas: a preview of the active canvas only, nothing written.
     'ds.set-theme-preview': (p) => d.onDsThemePreview?.(p?.mode),

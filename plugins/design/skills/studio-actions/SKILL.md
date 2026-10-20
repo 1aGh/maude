@@ -138,7 +138,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | New artboard: Mobile | `artboard.new-mobile` | `canvas-tsx` | Add a DCArtboard sized 390×844 | `design:design` |
 | New artboard: Tablet | `artboard.new-tablet` | `canvas-tsx` | Add a DCArtboard sized 834×1194 | `design:design` |
 | New artboard: Video | `artboard.new-video` | `canvas-tsx` | Add <DCArtboard kind="video" width={1920} height={1080}> with a <VideoComp component={…} durationInFrames={150} fps={30} width={1920} height={1080} /> inside and the comp function — see canvas-tsx.md § Add an artboard of a kind | `design:design` |
-| New brief board | `canvas.new-brief` | `canvas-tsx` | Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root | `design:design` |
+| New brief | `canvas.new-brief` | `canvas-tsx` | Write a brief .tsx from plugins/design/templates/brief-board.tsx.template under the design root | `design:design` |
 | New canvas | `canvas.new` | `canvas-tsx` | Write a new .tsx under the design root with a DCArtboard per screen | `design:design` |
 | New video | `canvas.new-video` | `canvas-tsx` | Write a new video-comp .tsx canvas | `design:video-comp` |
 | Nudge | `annotation.nudge` | `annotations` | Change the elements’ x / y | `design:whiteboard` |

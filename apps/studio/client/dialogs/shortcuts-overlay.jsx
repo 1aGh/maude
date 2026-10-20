@@ -67,6 +67,8 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
   const foldOpen = fold || searching;
   const nothing =
     searching && shown.groups.length + shown.advanced.length + shown.moved.length === 0;
+  // The keys a row does NOT show — a second binding of the same action — kept once each, in the fold.
+  const others = shown.groups.flatMap((g) => g.rows).filter((r) => r.alt.length > 0);
   return (
     <div
       className="st-scrim"
@@ -85,7 +87,8 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
         tabIndex={-1}
       >
         <div className="so-overlay-hd">
-          <span className="so-title">Keyboard shortcuts</span>
+          {/* S11.18 (a11y): the sheet's group titles are h3 — the title above them is the h2 */}
+          <h2 className="so-title">Keyboard shortcuts</h2>
           <label className="so-find">
             <StIcon name="search" size={14} />
             <input
@@ -120,7 +123,8 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
                   <div key={r.id} className="so-pair" data-testid={`shortcuts-row-${r.id}`}>
                     <dt>{r.label}</dt>
                     <dd>
-                      <ShortcutCombo keys={r.keys} alt={r.alt} path={r.path} />
+                      {/* S11.18 (? sheet W1): a row teaches ONE key; the other ways in are in the fold below */}
+                      <ShortcutCombo keys={r.keys} path={r.path} />
                     </dd>
                   </div>
                 ))}
@@ -128,7 +132,7 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
             </section>
           ))}
         </div>
-        {shown.advanced.length > 0 || shown.moved.length > 0 ? (
+        {shown.advanced.length > 0 || shown.moved.length > 0 || others.length > 0 ? (
           <AdvancedFold
             panel={HELP_FOLD}
             classes={SO_CLASSES}
@@ -138,7 +142,8 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
             onToggle={() => setFold(!fold)}
             hint={
               <>
-                {shown.advanced.length} {shown.advanced.length === 1 ? 'key' : 'keys'} ·{' '}
+                {shown.advanced.length + others.length}{' '}
+                {shown.advanced.length + others.length === 1 ? 'key' : 'keys'} ·{' '}
                 {shown.moved.length} moved
               </>
             }
@@ -154,6 +159,24 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
                 <ShortcutCombo keys={r.keys} alt={r.alt} />
               </div>
             ))}
+            {others.length > 0 ? (
+              <>
+                <h4 className="so-sub" data-testid="shortcuts-others-hd">
+                  Other keys that do the same
+                </h4>
+                {others.map((r) => (
+                  <div
+                    key={`alt-${r.id}`}
+                    className="so-pair so-pair--adv"
+                    data-testid={`shortcuts-alt-${r.id}`}
+                  >
+                    <span className="so-adv-label">{r.label}</span>
+                    <span className="so-adv-path" />
+                    <ShortcutCombo keys={r.alt} />
+                  </div>
+                ))}
+              </>
+            ) : null}
             {shown.moved.length > 0 ? (
               <>
                 <h4 className="so-sub" data-testid="shortcuts-moved-hd">

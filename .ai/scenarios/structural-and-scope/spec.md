@@ -12,7 +12,7 @@
 - **+ Element → Div** (tool-palette "Insert element" popover, or right-click **Insert ▸ Div**) appends a bare div; the stamped-element count grows by 1 and the new element is inspectable.
 - **Delete** (Del/Backspace key or context-menu **Delete**) removes the selected element (count −1) and **Cmd+Z restores it exactly** (whole-file snapshot undo).
 - **Free-hand artboard resize** (drag the E/S/SE handle on a selected artboard frame) writes new `width`/`height` **numeric JSX attrs** (DDR-027), Cmd+Z reversible.
-- **Scope predictability (INV-3):** selecting the shared Card inner title shows a badge **"Shared · Card · edits N places"** (`.st-scope--shared`); selecting an artboard-local element shows **"Local · this element only"** (`.st-scope--local`). Moving/resizing a Card **instance** stays local (Stage H3).
+- **Scope predictability (INV-3):** selecting the shared Card inner title shows, in Inspector › Advanced › Used in (`[data-testid="adv-used-in"]`), **"Edits apply to: Shared · N places"**; selecting an artboard-local element shows **"Only this element"**. Moving/resizing a Card **instance** stays local (Stage H3).
 
 ## Platform matrix
 
@@ -39,7 +39,7 @@ Same as the sibling specs. Structural inserts/deletes are counted by `[data-cd-i
 2. **+ Artboard → Mobile.** Menubar Edit ▸ "New artboard: Mobile". Assert `[data-dc-screen]` becomes 5 and the source gains `<DCArtboard id="…" label="Mobile" width={390} height={844}>`.
 3. **+ Element → Div.** Select `.eel-flow`, right-click ▸ **Insert ▸** — assert the flyout lists **Div / Text / Image…** — click **Div**. Assert `[data-cd-id]` count +1 and a new div in source.
 4. **Delete + undo.** Select `.eel-flow`, press **Delete**. Assert count −1 and `.eel-flow` gone from the DOM + source. Fire **Cmd+Z**. Assert count restored and `.eel-flow` back (whole-file snapshot).
-5. **Shared scope badge (the predictability contract).** ⌘-click `.eel-card-title` (the Card inner title, rendered in 3 artboards with one shared `data-cd-id`). Assert the Inspector header badge reads **"Shared · Card · edits 3 places"** with class `.st-scope--shared`. Screenshot. Then ⌘-click an artboard-local element (`.eel-overflow`) and assert the badge flips to **"Local · this element only"** (`.st-scope--local`).
+5. **Shared scope badge (the predictability contract).** ⌘-click `.eel-card-title` (the Card inner title, rendered in 3 artboards with one shared `data-cd-id`). Open Inspector › Advanced and assert `[data-testid="adv-used-in"]` reads **"Edits apply to Shared · 3 places"**. Screenshot. Then ⌘-click an artboard-local element (`.eel-overflow`) and assert the row flips to **"Only this element"**.
 6. **Free-hand artboard resize.** Select the Mobile artboard frame; assert its resize handles render (artboard scope). Drag the SE handle; assert the `<DCArtboard>` `width`/`height` attrs update in source; Cmd+Z reverts.
 7. **Local instance move (Stage H3).** Capture the three Card wrappers' positions. Reposition **one** Card instance (drag its wrapper). Assert only that instance moved and the other two Cards are unchanged (instance move routes per-occurrence, staying local).
 

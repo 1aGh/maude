@@ -35,9 +35,14 @@ export const GROUPS = Object.freeze([
   { id: 'canvases', title: 'Canvases' },
   { id: 'artboards', title: 'Artboards' },
   { id: 'actions', title: 'Actions' },
+  // S11.18 (06 ad-search): when a search finds hidden tools, the ordinary actions that matched too sit apart
+  { id: 'also', title: 'Also' },
   { id: 'tools', title: 'Tools' },
   { id: 'settings', title: 'Settings' },
 ]);
+
+/** A `search.where` that names a fold or Diagnostics: the thing is hidden until you open it. */
+const ADVANCED_HOME = /^(?!Settings\b).*(?:^|\s›\s)(?:Advanced|Diagnostics)(?:\s›|$)/;
 
 /** Rows per local group on screen — the rest are reachable by typing one more word. */
 export const GROUP_CAP = 8;
@@ -148,9 +153,13 @@ export function actionSearchRows(
     const key = `${isTool ? 'tool' : 'action'}:${def.label.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const advanced =
-      menu.some((p) => p.advanced) || menu.some((p) => /^Menu › Diagnostics/.test(p.path));
     const where = isTool ? toolbar : menu[0] ? parentPath(menu[0].path) : (def.search?.where ?? '');
+    // a hidden tool: its menu home passes through an Advanced group or Diagnostics, or `search.where` names an
+    // Advanced fold (S11.18: "Inspector › Advanced") — Settings rows are their own group, not hidden tools
+    const advanced =
+      menu.some((p) => p.advanced) ||
+      menu.some((p) => /^Menu › Diagnostics/.test(p.path)) ||
+      (!menu.length && !isTool && ADVANCED_HOME.test(where));
     rows.push({
       group: isTool ? 'tools' : 'actions',
       id: `${isTool ? 'tool' : 'action'}:${def.id}`,
@@ -366,13 +375,27 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   for (const h of localHits)
     byGroup.get(h.row.group)?.push({ ...h.row, marks: h.marks, close: h.close, weak: h.weak });
   for (const r of remote) byGroup.get(r.group)?.push(r);
+  // Hidden tools lead under "Actions" with their count; the plain actions that matched too go under "Also".
+  // With no hidden tool among the matches there is nothing to set apart, and they stay under "Actions".
+  const acts = byGroup.get('actions');
+  if (acts?.some((r) => r.advanced) && acts.some((r) => !r.advanced)) {
+    byGroup.set(
+      'also',
+      acts.filter((r) => !r.advanced)
+    );
+    byGroup.set(
+      'actions',
+      acts.filter((r) => r.advanced)
+    );
+  }
   const groups = [];
   let total = 0;
   for (const g of GROUPS) {
     const all = byGroup.get(g.id) ?? [];
     if (all.length === 0) continue;
-    total += all.length;
     const rows = all.slice(0, g.id === 'canvases' || g.id === 'artboards' ? 12 : cap);
+    // S11.18 (a11y): the count is the rows drawn — "31 results" over 13 rows told a screen reader a lie
+    total += rows.length;
     const hidden = all.filter((r) => r.advanced).length;
     groups.push({
       id: g.id,

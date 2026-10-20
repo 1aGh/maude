@@ -193,6 +193,15 @@ export function WhatsNewBadge({ count = 0, onOpen }) {
   );
 }
 
+/** S11.18 (design W5): a toast is one short line, not the changelog — the first sentence, 90 characters at most. */
+export function toastLine(summary) {
+  const text = String(summary ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const first = text.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? text;
+  return first.length > 90 ? `${first.slice(0, 89).trimEnd()}…` : first;
+}
+
 export function WhatsNewToast({ wn }) {
   const id = `whats-new-${wn.feedVersion}`;
   useEffect(() => {
@@ -205,8 +214,8 @@ export function WhatsNewToast({ wn }) {
       group: 'whats-new',
       kind: 'info',
       duration: 10_000,
-      title: `What's new${wn.toastEntry.version ? ` · v${wn.toastEntry.version}` : ''} — ${wn.toastEntry.title}`,
-      description: wn.toastEntry.summary,
+      title: `What’s new${wn.toastEntry.version ? ` · v${wn.toastEntry.version}` : ''} — ${wn.toastEntry.title}`,
+      description: toastLine(wn.toastEntry.summary),
       action: {
         label: wn.unseen.length > 1 ? `See all (${wn.unseen.length})` : 'Details',
         onClick: wn.openPanel,
