@@ -3547,6 +3547,7 @@
     "keydown:studio/client/home/TargetChip.jsx#TargetChip/home-target-menu": "v2 code (added after the freeze)",
     "keydown:studio/client/home/TargetChip.jsx#TargetChip/listener": "v2 code (added after the freeze)",
     "keydown:studio/client/hooks/use-action-keys.jsx#useActionKeys/listener": "v2 code (added after the freeze)",
+    "testid:studio/artboard-growth-tag.tsx#canvas/artboard-growth-tag": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-cloud-open-projectid": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-cloud-row-projectid": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-link-dialog": "v2 code (added after the freeze)",
@@ -3708,6 +3709,10 @@
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-hint": "v2 code (added after the freeze)",
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-stop-px": "v2 code (added after the freeze)",
     "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview": "v2 code (added after the freeze)",
-    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview-tag": "v2 code (added after the freeze)"
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview-tag": "v2 code (added after the freeze)",
+    "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zone-band": "v2 code (added after the freeze)",
+    "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zone-cut": "v2 code (added after the freeze)",
+    "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zone-flag": "v2 code (added after the freeze)",
+    "testid:studio/safe-zones-overlay.tsx#canvas iframe chrome/safe-zones": "v2 code (added after the freeze)"
   }
 }
