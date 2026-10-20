@@ -64,7 +64,35 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
     label: 'Split at playhead',
     kind: 'command',
     exec: 'shell',
-    keys: mods('⌘B', '⇧', 'timeline', T),
+    // S7.8 (C26): S splits ONLY with the timeline focused (it is Section on the canvas); ⌘B splits whenever the
+    // island is up, whatever has focus — the global binding is the "always".
+    keys: [
+      kb('S', 'timeline', T),
+      ...mods('⌘B', '⇧', 'timeline', T),
+      kb('⌘B', 'global', { ...T, alias: true, when: { facts: ['timelineVisible'] } }),
+    ],
+  },
+  // S7.8 (07 · ve-play) — I and O set the loop range at the playhead; the band shows on the ruler and tints
+  // the lane, and with Loop on, playback inside it wraps. Playback state, not file state: a per-person view.
+  {
+    id: 'timeline.loop-in',
+    label: 'Loop starts here',
+    kind: 'command',
+    exec: 'shell',
+    keys: [kb('I', 'timeline', T)],
+  },
+  {
+    id: 'timeline.loop-out',
+    label: 'Loop ends here',
+    kind: 'command',
+    exec: 'shell',
+    keys: [kb('O', 'timeline', T)],
+  },
+  {
+    id: 'timeline.loop-clear',
+    label: 'Clear the loop range',
+    kind: 'command',
+    exec: 'shell',
   },
   // TimelinePanel's own listener (not swapped in V2-2.4): any shell focus outside a text field,
   // select or range — documented here so "?" and the uniqueness test see the keys.

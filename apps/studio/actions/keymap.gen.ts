@@ -772,6 +772,19 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'timeline.split',
+    exec: 'shell',
+    keys: [
+      {
+        chord: '⌘B',
+        layer: 'global',
+        when: { facts: ['timelineVisible'] },
+        inText: false,
+        alias: true,
+      },
+    ],
+  },
+  {
     id: 'export.open',
     exec: 'shell',
     visible: { minRole: 'comment' },
