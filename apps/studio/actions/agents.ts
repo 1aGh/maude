@@ -1630,6 +1630,31 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),
   },
+  // S10.17 — the edges. The contrast fix and a new colour are waiting edits (`maude design ds pending` is the general
+  // door; these two verbs are the one-step forms the buttons are); the substitution is an edit on the canvas.
+  // `maude design ds nearest` / `off-system` are the questions behind the trash sheet and the quiet question.
+  'ds.fix-contrast': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/fix-contrast', method: 'POST' },
+    agent: cli('maude design ds fix-contrast <ds> <css> [--theme <t>] [--dry-run]'),
+  },
+  'ds.add-colour': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/add-colour', method: 'POST' },
+    agent: cli('maude design ds add-colour <ds> <colour> [--label <name>] [--css <--x-name>]'),
+  },
+  'ds.use-nearest': {
+    ...TSX(
+      'Replace the hand-picked colour literal with var(--token) at the place `maude design ds off-system <canvas>` names (line, col). Over HTTP: POST /_api/edit-op {op: "ds.use-nearest", targets: [element], params: {literal, css, line, col}} — refused when the colour is no longer at that place'
+    ),
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+  },
   // S10.9 — the rings are a picture; the places behind them are the usage index, which the verb reads
   // (`--json` carries the canvases, artboards and element ids the view rings).
   'ds.show-reach': {

@@ -75,4 +75,11 @@ export const DS_ACTIONS: ActionDef[] = [
   // and stores nothing, so anyone who can open the project may use it.
   row('ds.switch', 'Switch canvases to another system…'),
   row('ds.preview', 'Preview in another system…', VIEW),
+  // S10.17 — the edges (13 · ds-edge-contrast, ds-edge-trash, ds-edge-suggest). "Lighten to 4.5:1" is one waiting edit on
+  // the selected token; "Add it to the system" is a waiting new colour; "Use Accent" puts the system colour on the
+  // element that has a hand-picked one. Each acts on the thing the surface names, so none is a ⌘K row. The trash
+  // sheet's own action is `ds.trash-token` (above): it only gains the question "what do the canvases follow?".
+  row('ds.fix-contrast', 'Lighten to 4.5:1'),
+  row('ds.add-colour', 'Add it to the system'),
+  row('ds.use-nearest', 'Use the system colour'),
 ];
