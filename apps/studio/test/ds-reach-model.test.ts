@@ -61,7 +61,7 @@ describe('reachModel — places to rings per artboard', () => {
     expect(placesWords(14)).toBe('14 places');
   });
 
-  test('a place the index could not tie to an element still counts, and an element outside every artboard has no frame', () => {
+  test('a place the index could not tie to an element still counts, and one outside every artboard is a frame of the whole canvas', () => {
     const m = reachModel({
       canvases: [
         {
@@ -72,10 +72,23 @@ describe('reachModel — places to rings per artboard', () => {
         },
       ],
     });
-    expect(m.frames).toHaveLength(1);
-    expect(m.frames[0]?.places).toBe(4);
-    expect(m.frames[0]?.ids).toEqual(['h1']);
+    expect(m.frames.map((f) => [f.artboard, f.places, f.ids])).toEqual([
+      ['ab-hero', 4, ['h1']],
+      [null, 2, ['x1']],
+    ]);
+    expect(m.frames[1]?.label).toBe('Landing');
+    expect(m.frames[1]?.key).toBe('ui/Landing.tsx#');
     expect(m.places).toBe(6);
+  });
+
+  test('a canvas with no artboard at all is one frame of the whole canvas', () => {
+    const m = reachModel({
+      canvases: [
+        { rel: 'ui/Bare.tsx', places: 3, artboards: {}, elements: [el(null, 'a'), el(null, 'b')] },
+      ],
+    });
+    expect(m.frames.map((f) => [f.artboard, f.places, f.ids])).toEqual([[null, 3, ['a', 'b']]]);
+    expect(m.tag).toBe('1 pattern · 3 places');
   });
 
   test('only FRAMES_SHOWN frames are drawn; the rest are named in the "in the review too" line', () => {

@@ -7,7 +7,8 @@
 // and the words of the tags ("4 patterns · 21 places", "14 places"). Positions never come from here — only a live
 // render knows them (the canvas answers `ds-rects`), and `ringsFor` turns that answer into rings.
 //
-// A frame is an artboard ("Homepage · Desktop"). A "pattern" is such an artboard: a screen the colour lands on.
+// A frame is an artboard ("Homepage · Desktop"); places outside every artboard make one more frame, the canvas as a
+// whole (`artboard: null`). A "pattern" is such a frame: a screen the colour lands on.
 // The view shows at most FRAMES_SHOWN frames; the rest are named in a line ("… are in the review too"), because
 // the review list (review-sheet / the island beside the frames) is the whole list and the view is a preview of it.
 // Ring ids are capped at RING_CAP in all (the dgn table caps one request at the same number).
@@ -45,8 +46,8 @@ const intOr0 = (n) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
  * @param {{ frames?: number, cap?: number }} [opts]
  * @returns {{
  *   places: number, patterns: number, tag: string, capped: boolean, ringed: number,
- *   frames: Array<{ key: string, rel: string, canvas: string, artboard: string, label: string, places: number, ids: string[] }>,
- *   more: Array<{ rel: string, canvas: string, artboard: string, places: number }>,
+ *   frames: Array<{ key: string, rel: string, canvas: string, artboard: string | null, label: string, places: number, ids: string[] }>,
+ *   more: Array<{ rel: string, canvas: string, artboard: string | null, places: number }>,
  *   canvases: number,
  * }}
  */
@@ -70,13 +71,20 @@ export function reachModel(usage, opts = {}) {
       if (typeof id === 'string' && id && intOr0(n) > 0)
         byBoard.set(id, { places: intOr0(n), ids: [] });
     }
+    // a place outside every artboard (a bare canvas, or chrome around the boards) rides on the canvas as a whole
+    const bare = { places: 0, ids: [] };
     for (const e of Array.isArray(c.elements) ? c.elements : []) {
       if (!e || typeof e.id !== 'string' || !ID.test(e.id)) continue;
-      if (typeof e.artboard !== 'string' || !e.artboard) continue; // outside every artboard: nothing to frame
-      const slot = byBoard.get(e.artboard) ?? { places: 0, ids: [] };
+      const named = typeof e.artboard === 'string' && e.artboard;
+      const slot = named ? (byBoard.get(e.artboard) ?? { places: 0, ids: [] }) : bare;
       if (!slot.ids.includes(e.id)) slot.ids.push(e.id);
-      byBoard.set(e.artboard, slot);
+      if (named) byBoard.set(e.artboard, slot);
     }
+    const inBoards = [...byBoard.values()].reduce(
+      (n, s) => n + Math.max(s.places, s.ids.length),
+      0
+    );
+    bare.places = Math.max(total - inBoards, bare.ids.length);
     for (const [artboard, slot] of byBoard) {
       all.push({
         key: `${c.rel}#${artboard}`,
@@ -88,6 +96,16 @@ export function reachModel(usage, opts = {}) {
         ids: slot.ids,
       });
     }
+    if (bare.places > 0)
+      all.push({
+        key: `${c.rel}#`,
+        rel: c.rel,
+        canvas: nameOf(c.rel),
+        artboard: null,
+        label: nameOf(c.rel),
+        places: bare.places,
+        ids: bare.ids,
+      });
   }
   // the busiest artboard first; ties keep the index order (stable)
   all.sort((a, b) => b.places - a.places);

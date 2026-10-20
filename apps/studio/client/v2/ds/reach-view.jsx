@@ -113,11 +113,13 @@ export function DsReachView({
       const win = wins.current.get(key);
       if (!f || !win) return;
       post(win, { dgn: 'view-chrome', minimap: false, zoom: false, present: false }, origin);
-      post(
-        win,
-        { dgn: 'reveal-artboard', artboardId: f.artboard, glide: false, flash: false },
-        origin
-      );
+      // a frame of the whole canvas (a place outside every artboard) keeps the camera the canvas opened with
+      if (f.artboard)
+        post(
+          win,
+          { dgn: 'reveal-artboard', artboardId: f.artboard, glide: false, flash: false },
+          origin
+        );
       for (const ms of ASK_LADDER_MS) timers.current.push(setTimeout(() => ask(key), ms));
     },
     [ask, byKey, origin]
@@ -278,7 +280,7 @@ export function DsReachView({
                 key={f.key}
                 data-testid="ds-reach-frame"
                 data-key={f.key}
-                data-artboard={f.artboard}
+                data-artboard={f.artboard ?? undefined}
               >
                 <figcaption className="dsx-cap">
                   <b>{a?.label || f.label}</b>
