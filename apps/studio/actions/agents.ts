@@ -312,6 +312,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.new-mobile': TSX('Add a DCArtboard sized 390×844'),
   'artboard.new-a4': TSX('Add a DCArtboard kind="print" sized A4'),
   'artboard.new-letter': TSX('Add a DCArtboard kind="print" sized Letter'),
+  // S7.20 — the F size picker. The kind travels with the pick: one DCArtboard of the preset's kind.
+  'artboard.new-video': TSX(
+    'Add <DCArtboard kind="video" width={1920} height={1080}> with a <VideoComp component={…} durationInFrames={150} fps={30} width={1920} height={1080} /> inside and the comp function — see canvas-tsx.md § Add an artboard of a kind'
+  ),
+  'artboard.insert-preset': TSX(
+    'Add <DCArtboard id label kind width height> of the preset’s kind: kind="digital" fixed for App and Social sizes, kind="web" (width, height is the floor) for a Web page, kind="print" print={{ paper, orientation }} with px = trim + 2 × bleed for Print, kind="video" with a <VideoComp> for Video; a custom print size is print={{ paper: <nearest larger preset>, orientation, sizeMm: [w, h], bleedMm }} and never paper "custom"; its x / y in layout.artboards[] of the .meta.json — see canvas-tsx.md § Add an artboard of a kind'
+  ),
   // ── edit / select / object ──
   'edit.undo': UNDO_KEYS,
   'edit.redo': UNDO_KEYS,

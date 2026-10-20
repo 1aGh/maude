@@ -32,6 +32,7 @@ import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
+import { createKindRoutes } from './kinds.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -157,6 +158,12 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createVideoRoutes({
       designRoot: deps.present.designRoot,
       designRel: deps.ai.designRel,
+    }),
+    // S7.20 — GET /_api/kinds/presets (routes/kinds.ts): the F size picker's catalogue (minRole edit, main origin).
+    ...createKindRoutes({
+      designRoot: deps.edit.designRoot,
+      designRel: deps.edit.designRel,
+      access: deps.edit.access,
     }),
     ...createTrashRoutes(
       deps.trash ?? {

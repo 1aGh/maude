@@ -33,6 +33,7 @@
       "artboard.new-letter",
       "artboard.new-mobile",
       "artboard.new-tablet",
+      "artboard.new-video",
       "canvas.close",
       "canvas.duplicate",
       "canvas.move",
@@ -138,6 +139,7 @@
       "artboard.new-mobile": ["edit", "advanced", "new-artboard"],
       "artboard.new-a4": ["edit", "advanced", "new-artboard"],
       "artboard.new-letter": ["edit", "advanced", "new-artboard"],
+      "artboard.new-video": ["edit", "advanced", "new-artboard"],
       "view.panels": ["view"],
       "view.comments": ["view"],
       "view.assets": ["view"],
@@ -272,6 +274,7 @@
             "artboard.new-mobile",
             "artboard.new-a4",
             "artboard.new-letter",
+            "artboard.new-video",
             "view.panels",
             "view.comments",
             "view.assets",
@@ -660,6 +663,7 @@
             "artboard.new-mobile",
             "artboard.new-a4",
             "artboard.new-letter",
+            "artboard.new-video",
             "view.panels",
             "view.comments",
             "view.assets",
@@ -1051,6 +1055,7 @@
             "artboard.new-mobile",
             "artboard.new-a4",
             "artboard.new-letter",
+            "artboard.new-video",
             "view.panels",
             "view.comments",
             "view.assets",
@@ -1323,6 +1328,7 @@
             "artboard.new-mobile",
             "artboard.new-a4",
             "artboard.new-letter",
+            "artboard.new-video",
             "view.panels",
             "view.comments",
             "view.assets",
@@ -1654,6 +1660,7 @@
             "artboard.new-mobile": "New artboard: Mobile needs edit rights",
             "artboard.new-a4": "New artboard: A4 needs edit rights",
             "artboard.new-letter": "New artboard: Letter needs edit rights",
+            "artboard.new-video": "New artboard: Video needs edit rights",
             "sync.resync": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)",
             "sync.download-all": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)"
           }
@@ -1921,7 +1928,8 @@
             "artboard.new-tablet": "New artboard: Tablet needs edit rights",
             "artboard.new-mobile": "New artboard: Mobile needs edit rights",
             "artboard.new-a4": "New artboard: A4 needs edit rights",
-            "artboard.new-letter": "New artboard: Letter needs edit rights"
+            "artboard.new-letter": "New artboard: Letter needs edit rights",
+            "artboard.new-video": "New artboard: Video needs edit rights"
           }
         },
         "share-cluster": {

@@ -416,6 +416,17 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     search: { hidden: true },
   },
+  // S7.20 — the F size picker's tile (08 ak-picker): a whole artboard of the preset's kind in one edit-op
+  // (`edit-ops/insert-preset.ts`). The picker (shell panel) and the Edit › Advanced ▸ New artboard › Video row run it;
+  // a person starts it with F, so it is not offered in ⌘K.
+  {
+    id: 'artboard.insert-preset',
+    label: 'Add an artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
   // S2.14 (ed-pen) — the Pen's finished path and a point drag: gestures (the P tool and a double-click are how a
   // person starts them), so not offered in ⌘K.
   {

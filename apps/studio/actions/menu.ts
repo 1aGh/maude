@@ -69,6 +69,7 @@ export const PROJECT_MENU: readonly MenuNode[] = [
               { id: 'artboard.new-mobile' },
               { id: 'artboard.new-a4' },
               { id: 'artboard.new-letter' },
+              { id: 'artboard.new-video' },
             ],
           },
         ],
