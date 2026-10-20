@@ -216,6 +216,7 @@ import {
   voteHomeResolver as createVoteHomeResolver,
   type ExportRouteDeps,
   gateSpecV2,
+  generateDepsFor,
   heldByAiRefusal,
   planExportV2,
   riderPatch,
@@ -2164,6 +2165,19 @@ export function createHttp(
         if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
       },
     },
+    // S8.16 — /_api/generate-takes* (routes/generate.ts): N takes on the generation queue, the consent quote, ← →.
+    generate: generateDepsFor({
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      artboard: (canvas, id) => {
+        const ab = projectIndex.canvas(canvas)?.artboards.find((a) => a.id === id);
+        return ab ? { w: ab.w, h: ab.h, label: ab.label } : null;
+      },
+      jobs: generateJobs,
+      saveAsset: (bytes) => api.saveAsset(bytes),
+      emit: (g) => ctx.bus.emit('generate:takes', g),
+    }),
     // S9.19 — /_api/share/*: the desktop's door to the linked hub's access API.
     share: shareDeps,
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
