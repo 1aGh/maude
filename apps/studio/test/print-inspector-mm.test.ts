@@ -8,6 +8,7 @@ import { type DispatchDeps, dispatchEditOp } from '../edit-ops/dispatch.ts';
 import { createWriteLog } from '../edit-ops/revert.ts';
 import { artboardPhysicalSize, physicalSizeWords } from '../kinds/physical.ts';
 import { nextPrint, uniformMarginMm } from '../kinds/print-edit.ts';
+import { resolveMmPx } from '../print/units.ts';
 
 describe('artboardPhysicalSize (kinds/physical.ts — what S9 reads)', () => {
   test('an A6 print artboard is 105 × 148 mm — the trim, not the bleed box', () => {
@@ -78,8 +79,8 @@ describe('nextPrint — the prop and the px size agree (px = trim + 2 × bleed)'
     expect(typeof r.print.paper).toBe('string');
     expect(r.print.bleedMm).toBe(3);
     expect([r.widthPx, r.heightPx]).toEqual([
-      Math.round((99 * 96) / 25.4) + 2 * Math.round((3 * 96) / 25.4),
-      Math.round((210 * 96) / 25.4) + 2 * Math.round((3 * 96) / 25.4),
+      resolveMmPx(99) + 2 * resolveMmPx(3),
+      resolveMmPx(210) + 2 * resolveMmPx(3),
     ]);
   });
   test('orientation on a custom size swaps its two numbers', () => {
