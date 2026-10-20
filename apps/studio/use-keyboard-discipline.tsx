@@ -25,6 +25,7 @@
 
 import { useEffect, useRef } from 'react';
 
+import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { useArtboardsContext, useDragStateContext } from './canvas-lib.tsx';
 import {
   hoverTargetToSelection,
@@ -33,6 +34,12 @@ import {
   selectorIndex,
   shortText,
 } from './dom-selection.ts';
+import {
+  installTakeAssetsLane,
+  pictureAssetOf,
+  postTakeStep,
+  takeStepOf,
+} from './editing/take-keys.ts';
 import { type HoverTarget, isEditableTarget } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
@@ -112,6 +119,9 @@ export function useKeyboardDiscipline(): void {
     top: number;
     timer: ReturnType<typeof setTimeout>;
   } | null>(null);
+
+  // S8.16 — which pictures have other takes (the shell's `gen-takes`); ← → step them instead of nudging
+  useEffect(() => (typeof window === 'undefined' ? undefined : installTakeAssetsLane(window)), []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -256,6 +266,27 @@ export function useKeyboardDiscipline(): void {
           }
         }
         return;
+      }
+
+      // S8.16 — a selected picture with other takes: ← → ask the shell for the next / previous take (the
+      // registry's `selectionHasTakes` fact takes the bare arrows from `object.nudge`). The shell judges role and target.
+      {
+        const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
+        if (one?.id && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          const el = resolveSelectionEl(document, one);
+          const dir = takeStepOf(e, {
+            typing: false,
+            mode: canvasModeStore(window).get().mode ?? 'edit',
+            selection: 'object',
+            asset: pictureAssetOf(el, one),
+            singleKeys: canvasSingleKeys(),
+          });
+          if (dir) {
+            e.preventDefault();
+            if (!e.repeat) postTakeStep(window, dir);
+            return;
+          }
+        }
       }
 
       const delta = nudgeDelta({ key: e.key, shift: e.shiftKey });
