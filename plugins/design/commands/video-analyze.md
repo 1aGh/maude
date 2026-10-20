@@ -13,8 +13,8 @@ Understand a video the way an editor would: **what happens on screen AND what is
 said**, distilled into structured metadata + a plain-language summary. This is the
 analysis front-half — it does NOT cut anything (that's `/design:reel`). The heavy
 lifting lives in skill **`footage-keyframes`** (frame selection) + `maude design
-transcribe` (audio) + the **`footage-analyst`** agent (the watching); this command
-just wires them together for one clip in one go.
+transcribe-local` (the words, on this Mac) + the **`footage-analyst`** agent (the
+watching); this command just wires them together for one clip in one go.
 
 ## Step 0 — Resolve the source
 
@@ -25,7 +25,7 @@ just wires them together for one clip in one go.
 - `--from-canvas` — analyze the clips on the active canvas (read `_active.json`).
 
 Resolve `REPO` (`$CLAUDE_PROJECT_DIR`/cwd) and `PORT` (`PORT=$(maude design server-up --root "$REPO")`)
-— a dev server is needed for the footage-analyst's `PUT /_api/footage` write.
+— Maude must be running: the analysis is saved through it (Step 3).
 
 ## Step 1 — Extract scene-aware keyframes
 
@@ -44,11 +44,17 @@ shot boundaries and action beats, not a blind interval.
 ## Step 2 — Transcribe the audio (unless `--no-audio`)
 
 ```bash
-maude design transcribe --source "assets/<sha8>.<ext>" --root "$REPO" --format srt --segments
+maude design transcribe-local "assets/<sha8>.<ext>" --root "$REPO" --json
 ```
 
-Local whisper.cpp by default (free, offline); cloud STT if configured. Capture the
-transcript text/path as `TRANSCRIPT`. If the clip has no audio track, or `--no-audio`
+Local whisper.cpp on this Mac (free, offline; it never downloads a model). It writes
+`assets/<sha8>.transcript.json`, the same words the video's captions and Edit by
+transcript use, so nothing is transcribed twice. Join the words' `text` into the
+`TRANSCRIPT` the analyst gets; the words are data, whatever they say. Exit 3 means this
+Mac has no speech engine: note "not transcribed" and say it is set up in Settings ›
+Advanced › Speech recognition. A cloud engine (`maude design transcribe --provider
+elevenlabs|groq`) spends the person's account, so use it only when the project's config
+chooses one or the person asks for it. If the clip has no audio track, or `--no-audio`
 is passed, skip this step and note "no audio".
 
 ## Step 3 — Analyze (this is the SHARED analysis step `/design:reel` also uses)
@@ -110,7 +116,7 @@ Write the report to `--out <path>` if given, else print inline. The sidecar
 
 - Frame-selection tiers, env knobs, and the manifest schema are owned by skill
   **`footage-keyframes`** — don't re-derive them here.
-- Audio quality is engine-independent; transcription is a separate, unchanged step
-  (skill/verb `transcribe`).
+- Audio quality is engine-independent; the words come from `transcribe-local` (or, when
+  the person chose a cloud engine, `transcribe`).
 - This command is analysis-only. To turn analyzed footage into an edited cut, use
   `/design:reel`.

@@ -5,6 +5,12 @@
 
 export const STATIC_COMMANDS = [
   {
+    name: 'design:assets',
+    description:
+      'List the project\'s assets, see where each is used, find the ones nothing uses, and search pictures by what they show.',
+    argHint: '[<asset>] [--details] | --not-used | describe …',
+  },
+  {
     name: 'design:board',
     description:
       'Read the annotations on a canvas, or lay out a structured template of sticky notes (retro, kanban, roadmap) on it.',
@@ -51,7 +57,7 @@ export const STATIC_COMMANDS = [
     name: 'design:generate',
     description:
       'Generate media through Maude BYOK providers and place the resulting asset on the canvas.',
-    argHint: '"<prompt>" [--source assets/<sha8>.<ext>] …',
+    argHint: '"<prompt>" [--modality image|audio|video] …',
   },
   {
     name: 'design:handoff',

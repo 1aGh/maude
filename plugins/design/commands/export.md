@@ -5,13 +5,13 @@ description: "Export a canvas to images, documents, slides, video or a handoff b
 argument-hint: "<png|jpg|pdf|svg|html|pptx|mp4|gif|webm|canva|zip|audio> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--kind <kind>=<format>[:k=v,k=v]] [--name <template>] [--estimate] [--out <path>] [--option key=value]"
 ---
 
-# /design:export — export active canvas
+# /design:export — export from Maude
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Sends one export spec to the running dev-server (`POST /_api/export`), the same spec the Export sheet sends. The server writes the file and this slash command pulls it down to disk (default cwd, or `--out <path>`).
+Runs `maude design export`, which sends one export spec to the studio: the same spec the Export sheet (**Menu › File › Export…**) sends. The export lands in the Exports panel like any other, and the file is written to disk (default: the current directory, or `--out <path>`).
 
-**Prerequisite:** the dev-server is running (`maude design serve` or `/design:new` brings it up). The slash command reads the port from `.design/_server.json`.
+**Prerequisite:** Maude is running for this project (`maude design serve`, or the Maude window). The verb finds it through `.design/_server.json`. A person who can only view or comment on the project is refused on the server, and the refusal is printed as it is.
 
 ## Input `$ARGUMENTS`
 
@@ -24,7 +24,8 @@ Sends one export spec to the running dev-server (`POST /_api/export`), the same 
 | `--name '<template>'` | File names, with `{project} {folder} {canvas} {artboard} {kind} {size} {scale} {date}`. |
 | `--estimate` | Print the number of files, size and time for the spec, and export nothing. |
 | `--preflight` | For a print artboard: print its paper (trim, bleed, safe margin), its back, elements closer to the cut than the safe margin and fonts that will not embed, and export nothing. Warnings inform — the export still runs. The Export sheet's Print section shows the same. |
-| `--at <sha>` / `--wait ai` | A past version / wait for the AI. The server answers "not available yet" until they are built, and the CLI prints that sentence. |
+| `--at <sha>` | Export a past version of the canvas (a ref from `maude design history list`). |
+| `--wait ai` | When AI is changing the artboard, hold the export until that run ends and then export the finished result. Without it the export takes the last finished version. If the run ends without one (stopped or failed), nothing is exported and the reason is printed. |
 | `--scope <s>` (older spellings, same request as before) | `selection` / `artboard` / `canvas-as-separate` / `canvas-whole` / `selection-bounds` / `project-raw`. `canvas-whole` (PNG/PDF) = the whole canvas as ONE image/page, layout between artboards kept; `selection-bounds` (PNG/PDF) = one image of the bounding box around everything selected (no selection → whole canvas). Default = `canvas-as-separate` for element-shape formats, `artboard` for the temporal formats (`mp4`/`gif`/`webm`), `project-raw` for `zip`. |
 | `--out <path>` | Where to write. Default = cwd + the filename the server returns in `Content-Disposition`. |
 | `--option key=value` | Per-format option. Can be repeated. Examples: `--option pageFit=a4` (PDF), `--option mode=raster` (Canva → legacy raster bundle), `--option include=system` (ZIP filter), `--option fps=30` / `--option durationMs=4000` / `--option gifColors=128` (MP4/GIF/WebM), `--option dpi=300` (PNG — feature-2-print-artboards T4), `--option marks=crop,registration` / `--option includeBleed=true` (PDF — T5), `--option text=outline` (PDF — issue #116), `--option includeAnnotations=true` (`canvas-whole` / `selection-bounds` — paint the annotation layer in; comment pins never export — issue #125). |
@@ -110,10 +111,11 @@ Sends one export spec to the running dev-server (`POST /_api/export`), the same 
 
 ## What the command does
 
-1. **Detects the port** from `.design/_server.json` (or a `--port N` override).
-2. **Resolve scope:** if the user didn't pass `--scope`, use the plan-defined default (`canvas-as-separate` for element formats, `project-raw` for `zip`); `jpg`, `audio` and the spec flags (`--folder`, `--region`, `--name` …) mean `--scope canvas`.
-3. **POST** `http://localhost:<port>/_api/export` with body `{ v: 2, spec }` for the new scopes (`/_api/export-estimate` with `{ spec }` for `--estimate`), or `{ format, scope, options }` for the older ones.
-4. **Writes the bytes** to the `--out` path (or cwd + the server-supplied filename, `filename*` first).
-5. **Stdout:** `wrote <abs-path> (<bytes> bytes)`. Stderr on error.
+1. Runs `maude design export $ARGUMENTS`. It shows the permission card (it writes a file and may use a render).
+2. With `--estimate` or `--preflight` it prints the numbers and exports nothing. Run `--estimate` first for a folder or the whole project.
+3. Otherwise the studio makes the file and the verb writes it to `--out` (a folder name puts the file inside it) or to the current directory, and prints `maude design export: wrote <abs-path> (<bytes> bytes)`. A failure prints what happened and exits 1; usage errors exit 2.
+4. A batch can be partial ("Exported 114 of 115"). `maude design exports list` shows recent exports and which items did not make it; `maude design exports retry <id|index> [--item <id,…>]` runs only those; `maude design exports again <id|index> [--out <file|folder/>] [--no-wait]` repeats one with the same spec.
 
-No network calls outside localhost. No OAuth / token storage — the Canva handoff returns a PPTX + markdown with a prompt block for your MCP (see `plugins/design/docs/canva-handoff.md`).
+Print reaches the canvas as written: bleed, marks and trim come from the artboard's own paper, and **Print never includes annotations**; a print export still succeeds and says so. Captions are Off unless the export asks for them.
+
+No network calls outside localhost. No OAuth / token storage: the Canva handoff returns a PPTX + markdown with a prompt block for your MCP (see `plugins/design/docs/canva-handoff.md`).
