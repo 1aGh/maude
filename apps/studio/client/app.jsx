@@ -76,6 +76,7 @@ import SetupChecklistDialog, { useSetupReadiness } from './panels/SetupChecklist
 import TimelinePanel from './v2/timeline/Timeline.jsx';
 import TimelineHost from './v2/timeline/TimelineHost.jsx';
 import { useTimelineKept } from './v2/timeline/timeline-store.js';
+import TranscriptHost from './v2/transcript/TranscriptHost.jsx';
 import { parseCompTimeline } from './panels/timeline-parse.js';
 import {
   activeComp,
@@ -3028,6 +3029,8 @@ function ShellTree() {
           <TimelineHost>
             <ShellTimelinePanel />
           </TimelineHost>
+          {/* S7.11 — the Transcript panel (left slot, Q17) and the feed that keeps a video's words fresh. */}
+          <TranscriptHost />
           {/* S6.3 — the intent Home parked for this window (a canvas from one sentence, an import): taken once. */}
           <IntentHost />
           {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}

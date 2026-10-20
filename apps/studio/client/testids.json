@@ -33590,5 +33590,469 @@
       "apps/studio/test/timeline-clip-select.test.tsx"
     ],
     "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "transcript-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the Transcript island in the left slot — a video's words as text; ⌫ cuts the selected words, typing over a word fixes it.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-source",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the name of the clip the words come from, in the panel's header.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: × on the Transcript panel; the Canvases panel returns.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-working",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: \"Finding the words…\" while speech is being read.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-no-engine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: \"Captions need speech recognition on this Mac.\" with Set up… (no engine = no write).",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-set-up",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: Set up… — opens Settings, where the person downloads a speech model themselves.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-paragraph",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: one paragraph of the transcript (a pause or a sentence end starts the next), with its time.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-word-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.11: one word of the transcript (data-state on · struck · hidden · noise; data-selected; data-playing; data-low for p < 0.5).",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "Word"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-edit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the field a word becomes while it is typed over; Enter fixes it in this video's captions, Esc leaves it.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "Word"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: \"No words yet.\" with Find speech.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-find-speech",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: Find speech — reads the words of the clips that have none (this Mac, never the cloud).",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-noise",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the line under a repetition whisper heard: \"May be noise, not speech\".",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-keep",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: \"It is speech\" — a fix that names the word, so the captions show it.",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the line after a cut — \"Struck “Ehm…” — cut 0.4 s from the interview\".",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-notice",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: one quiet line (no speech found, words already cut).",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "transcript-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: \"Select words and press delete to cut them. Fix a misheard word by typing over it.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/transcript/TranscriptPanel.jsx",
+      "symbol": "TranscriptPanel"
+    },
+    "region": "left-panel",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/transcript-panel.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "timeline-captions-lane",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the captions — the Text track's second lane, one chip per word where the clip shows it.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/caption-lane.jsx",
+      "symbol": "CaptionLane"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/caption-lane.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "timeline-caption-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.11: one caption word on the Text track; click selects it for the Captions inspector, double-click opens the Transcript.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/caption-lane.jsx",
+      "symbol": "CaptionLane"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/caption-lane.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "timeline-captions-tool",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the island's Captions from speech button (video.captions.add).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/caption-lane.jsx",
+      "symbol": "CaptionsTool"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/caption-lane.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the Captions inspector's rows — Font · Highlight · Position · Words at a time (· Also as a file).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: \"This video has no captions yet.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions-font",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: Font — the design system's font tokens, written as var(--font-…).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions-position",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: Position — Top · Middle · Bottom.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions-words",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: Words at a time — 1 · 3 · Line.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: Also as a file — the export sheet's switch (S8), drawn once S8 registers it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-adv-captions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the Captions' Advanced fold — srt · lang · maxChars.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionsAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-adv-captions-srt",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the .srt the export writes.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionsAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-adv-captions-lang",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: the language the words were read in.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionsAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
+  },
+  {
+    "hook": "insp-captions-maxchars",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.11: characters per caption line (8–200, 32 by default).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/caption.jsx",
+      "symbol": "CaptionsAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/captions-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.11)"
   }
 ]

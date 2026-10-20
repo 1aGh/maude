@@ -30,7 +30,21 @@ const row = (
 });
 
 export const VIDEO_ACTIONS: ActionDef[] = [
-  row('video.captions.add', 'Captions from speech', 'Timeline › Captions'),
+  // S7.11 — bound: the island's Captions from speech tool, and the Transcript panel (07 ve-captions)
+  {
+    ...row('video.captions.add', 'Captions from speech', 'Timeline › Captions'),
+    search: {
+      where: 'Timeline › Captions',
+      keywords: ['captions', 'subtitles', 'speech', 'transcribe'],
+    },
+  },
+  {
+    ...row('video.transcript.open', 'Transcript', 'Timeline › Transcript', 'comment'),
+    search: {
+      where: 'Timeline › Transcript',
+      keywords: ['transcript', 'words', 'captions', 'text'],
+    },
+  },
   row('video.captions.style', 'Caption style', 'Inspector › Captions'),
   row('video.captions.fix-word', 'Fix a caption word', 'Transcript panel'),
   row('video.captions.export', 'Export captions', 'Export sheet', 'comment'),

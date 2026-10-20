@@ -296,6 +296,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'comment',
     agent: cli('maude design captions export'),
   },
+  // S7.11 — the panel is a per-person view of the same words `captions list` prints; reading them needs no write
+  'video.transcript.open': PREF(
+    'the Transcript panel is a per-person view; an agent reads the same words with `maude design captions list`'
+  ),
   'video.transcript.cut': VIDEO_OP(cli('maude design cut-words')),
   'video.transcript.find-speech': {
     effect: 'project',

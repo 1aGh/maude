@@ -53,6 +53,7 @@ import { panelLayout } from './use-panel-layout.js';
 import { clearFollowedLoop, loopAt } from '../timeline/playhead.js';
 import { setPosterAtPlayhead } from '../timeline/poster.js';
 import { timelineStore } from '../timeline/timeline-store.js';
+import { addCaptionsFromSpeech, transcriptUi } from '../transcript/captions-api.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
 export const ARTBOARD_PRESET = {
@@ -378,6 +379,9 @@ export function createMenuHandlers(d) {
     'timeline.loop-out': () => loopAt('out'),
     'timeline.loop-clear': () => clearFollowedLoop(),
     'video.poster.set': async () => d.toast?.(await setPosterAtPlayhead()),
+    // S7.11 — Captions from speech (the island's tool) and the Transcript panel (left slot, Q17)
+    'video.captions.add': () => void addCaptionsFromSpeech(),
+    'video.transcript.open': () => transcriptUi.toggle(),
     'view.annotations': () => d.onToggleAnnotations(),
     'view.minimap': () => d.onToggleMinimap(),
     'view.zoom-controls': () => d.onToggleZoomCtl(),

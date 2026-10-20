@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 164,
+  "humanMax": 165,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
