@@ -475,7 +475,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 
 ### help/shortcuts
 
-V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still emits none (the Help menu trigger is listed under menubar).
+V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits only the S6.15 “Add the guide canvases” hooks (the Help menu trigger is listed under menubar).
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
@@ -491,6 +491,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `shortcuts-moved-hd` | testid | The “Keys and tools that moved” heading. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-moved` | testid | The list of moved keys and tools (old → new). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-none` | testid | The sheet’s “Nothing called …” line. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `help-add-guides` | testid | Help › Help and guides: "Add the guide canvases to this project" (Can edit and up; a new project starts empty, Q10). `help.add-guides` in ⌘K runs the same function. | `client/dialogs/help-modal.jsx` · `HelpModal` | test:v2-help-add-guides | new in v2 (S6.15) |
+| `help-add-guides-status` | testid | The line under that button (`role="status"`): adding, added, already there, or why not. | `client/dialogs/help-modal.jsx` · `HelpModal` | test:v2-help-add-guides | new in v2 (S6.15) |
 
 ### settings
 
@@ -939,18 +941,18 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `onboarding-wizard` | testid | The first-run onboarding overlay (`role="dialog"`). | `client/panels/OnboardingWizard.jsx` · `OnboardingWizard` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `onboarding-watch-intro` | testid | "Watch the intro" button on the welcome step. | `client/panels/OnboardingWizard.jsx` · `Welcome` | — | moves — map in Phase 4 |
-| `ob-door-github` | testid | Door: continue with GitHub. | `client/panels/OnboardingWizard.jsx` · `Welcome` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-door-team` | testid | Door: open a project you were invited to. | `client/panels/OnboardingWizard.jsx` · `Welcome` | e2e-mp:cloud-entry, e2e-mp:selfhost-entry, e2e:s20-deployment, e2e:team-project | moves — map in Phase 4 |
-| `ob-door-local` | testid | Door: open a folder on this computer. | `client/panels/OnboardingWizard.jsx` · `Welcome` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-door-hub` | testid | Door: connect to a team hub (advanced). | `client/panels/OnboardingWizard.jsx` · `Welcome` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-back` | testid | Back button in a door. | `client/panels/OnboardingWizard.jsx` · `BackBar` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-github-create` | testid | GitHub door: start a new project. | `client/panels/OnboardingWizard.jsx` · `GitHubDoor` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-local-setup` | testid | Local door: "Set up Maude here". | `client/panels/OnboardingWizard.jsx` · `LocalDoor` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-local-choose` | testid | Local door: choose a project folder. | `client/panels/OnboardingWizard.jsx` · `LocalDoor` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-device-modal` | testid | GitHub device-code modal. | `client/panels/OnboardingWizard.jsx` · `DeviceCodeModal` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
-| `ob-device-code` | testid | The GitHub device code. | `client/panels/OnboardingWizard.jsx` · `DeviceCodeModal` | skill:desktop-e2e, e2e:onboarding | moves — map in Phase 4 |
+| `onboarding-wizard` | testid | The first-run onboarding overlay (`role="dialog"`). *Retired (S6.15): now Home's sign-in card on a first launch (`signin-card`); the wizard is no longer mounted.* | `client/panels/OnboardingWizard.jsx` · `OnboardingWizard` | e2e:onboarding (asserts it is gone) | retired — S6.15 |
+| `onboarding-watch-intro` | testid | "Watch the intro" button on the welcome step. *Retired (S6.15): now Help › Watch the intro (`project-menu-row-help.intro`).* | `client/panels/OnboardingWizard.jsx` · `Welcome` | — | retired — S6.15 |
+| `ob-door-github` | testid | Door: continue with GitHub. *Retired (S6.15): now Home › Advanced options › Open a folder or GitHub project (`signin-adv-folder-github`, sheet `onb-folder-tab-github`).* | `client/panels/OnboardingWizard.jsx` · `Welcome` | — | retired — S6.15 |
+| `ob-door-team` | testid | Door: open a project you were invited to. *Retired (S6.15): now Home › Advanced options › Use a self-hosted hub (`signin-adv-hub`, sheet `onb-hub`); a cloud team's invited project is Home's `home-cloud-open-<id>`.* | `client/panels/OnboardingWizard.jsx` · `Welcome` | — | retired — S6.15 |
+| `ob-door-local` | testid | Door: open a folder on this computer. *Retired (S6.15): now Home › Open a folder (`home-open-folder`).* | `client/panels/OnboardingWizard.jsx` · `Welcome` | — | retired — S6.15 |
+| `ob-door-hub` | testid | Door: connect to a team hub (advanced). *Retired (S6.15): now Home › Advanced options › Use a self-hosted hub (`signin-adv-hub`, sheet `onb-hub`).* | `client/panels/OnboardingWizard.jsx` · `Welcome` | — | retired — S6.15 |
+| `ob-back` | testid | Back button in a door. *Retired (S6.15): now each Home sheet's own Cancel (`onb-<sheet>-cancel`).* | `client/panels/OnboardingWizard.jsx` · `BackBar` | — | retired — S6.15 |
+| `ob-github-create` | testid | GitHub door: start a new project. *Retired (S6.15): now Home › Advanced options › Open a folder or GitHub project › New (`onb-github-new`).* | `client/panels/OnboardingWizard.jsx` · `GitHubDoor` | — | retired — S6.15 |
+| `ob-local-setup` | testid | Local door: "Set up Maude here". *Retired (S6.15): now Home › Create a local project (`home-new-project`); a folder with no `.design/` is set up by Home's Open a folder.* | `client/panels/OnboardingWizard.jsx` · `LocalDoor` | — | retired — S6.15 |
+| `ob-local-choose` | testid | Local door: choose a project folder. *Retired (S6.15): now Home › Open a folder (`home-open-folder`).* | `client/panels/OnboardingWizard.jsx` · `LocalDoor` | — | retired — S6.15 |
+| `ob-device-modal` | testid | GitHub device-code modal. *Retired (S6.15): now Home's sign-in card while it waits (`signin-waiting`); a project window keeps the browser sign-in sheet `cloud-device-dialog`.* | `client/panels/OnboardingWizard.jsx` · `DeviceCodeModal` | — | retired — S6.15 |
+| `ob-device-code` | testid | The GitHub device code. *Retired (S6.15): now Home's sign-in card › Use a code instead (`signin-code`).* | `client/panels/OnboardingWizard.jsx` · `DeviceCodeModal` | — | retired — S6.15 |
 | `setup-cl-row-<id>` | testid (pattern) | One setup-checklist row. | `client/panels/SetupChecklist.jsx` · `SetupChecklist` | — | moves — map in Phase 4 |
 | `setup-cl-start-tour` | testid | Checklist button that starts the tour. | `client/panels/SetupChecklist.jsx` · `SetupChecklist` | — | moves — map in Phase 4 |
 | `onboarding-bring-brand` | testid | Checklist button "Bring my existing brand" (two render forms). | `client/panels/SetupChecklist.jsx` · `SetupChecklist` | whats-new | moves — map in Phase 4 |
@@ -989,7 +991,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `figma-import-run` | testid | Import button. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
 | `figma-import-error` | testid | Error line. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
 | `figma-import-summary` | testid | Import summary. | `client/panels/FigmaImportPanel.jsx` · `Summary` | — | stable — re-emit |
-| `welcome-artboard-content` | testid | Content of the starter `Welcome` canvas that `scaffoldDesign` writes into a new project (renders inside the canvas iframe). | `scaffold-design.ts` · `STARTER_CANVAS_TSX` | e2e:onboarding | stable — re-emit |
+| `welcome-artboard-content` | testid | Content of the starter `Welcome` canvas that `scaffoldDesign` writes into a new project (renders inside the canvas iframe). *Retired (S6.15): now nothing: a new project starts empty (Q10); Help › Help and guides › Add the guide canvases to this project (`help-add-guides`) adds the two guides.* | `scaffold-design.ts` · `STARTER_CANVAS_TSX` | — | retired — S6.15 |
 
 ### share
 

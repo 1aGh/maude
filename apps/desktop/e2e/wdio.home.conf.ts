@@ -3,7 +3,7 @@
  *
  * Like the onboarding lane this one does NOT set MAUDE_PROJECT_ROOT and starts from an empty
  * e2e app-state — so the boot opens the `home` window (no welcome-project sidecar) and the
- * WebDriver session starts on it. Unlike onboarding it does not set MAUDE_FORCE_ONBOARDING.
+ * WebDriver session starts on it.
  *
  * Two fixture projects are seeded into a fresh MAUDE_INDEX_DIR (fixtures/seed-home-index.ts, bun):
  * a snapshot, one canvas with a cover picture and a `_recent.json` each. The app inherits
@@ -23,7 +23,6 @@ import { config as base } from './wdio.conf';
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 delete process.env.MAUDE_PROJECT_ROOT;
-delete process.env.MAUDE_FORCE_ONBOARDING;
 
 // This module is evaluated twice: by the launcher (which starts the app — its env is what the
 // app and every server it spawns inherit) and again by the worker (which runs the spec, with the

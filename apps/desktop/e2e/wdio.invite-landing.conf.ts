@@ -36,7 +36,6 @@ const GONE = {
 };
 
 delete process.env.MAUDE_PROJECT_ROOT;
-delete process.env.MAUDE_FORCE_ONBOARDING;
 
 // Evaluated by the launcher (which starts the app) AND the worker: the stub and the scratch dirs are
 // made once, in the launcher; the worker inherits their env.

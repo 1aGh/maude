@@ -40,6 +40,9 @@ export const LABEL_FILES = [
 
 /** Exact entry id → target. Used where a label is ambiguous inside one component. */
 export const HAND = {
+  // S6.15 (Q10): a new project starts empty, so the starter canvas's hook is retired (testids.json notes); the
+  // guides are added from Help › Help and guides
+  'testid:studio/scaffold-design.ts#onboarding/welcome-artboard-content': 'action:help.add-guides',
   // S8.2 retired the export dialog's hook; its job is the Advanced › Image size row (testids.json notes)
   'testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution':
     'A-png-at-150-300-600-dpi',

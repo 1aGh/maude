@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { HelpModal } from '../client/dialogs/help-modal.jsx';
 import {
   ADD_GUIDES_ROUTE,
@@ -10,6 +11,8 @@ import {
   GUIDES_WORDS,
   guidesLine,
 } from '../client/v2/help/add-guides.js';
+import { actionSearchRows } from '../client/v2/search/search-model.js';
+import { menuCtx } from '../client/v2/shell/project-menu-model.js';
 
 const answer =
   (status: number, body: unknown = {}) =>
@@ -86,5 +89,35 @@ describe('the Help dialog', () => {
   test('says nothing about it below Can edit', () => {
     expect(html(false)).not.toContain('help-add-guides');
     expect(html(undefined)).not.toContain('help-add-guides');
+  });
+});
+
+describe('the ⌘K row', () => {
+  const rowsFor = (ctx: unknown) =>
+    actionSearchRows(ctx, { isRunnable: () => true }) as Array<{ actionId: string; name: string }>;
+
+  test('“Add the guide canvases to this project” is offered where a person can edit', () => {
+    const hit = rowsFor(menuCtx({ native: true, canvasOpen: false })).filter(
+      (r) => r.actionId === 'help.add-guides'
+    );
+    expect(hit).toHaveLength(1);
+    expect(hit[0]?.name).toBe(GUIDES_WORDS.label);
+    expect(rowsFor(menuCtx({ native: false })).some((r) => r.actionId === 'help.add-guides')).toBe(
+      true
+    );
+  });
+
+  test('a read-only session is not offered it (the server refuses it too)', () => {
+    expect(
+      rowsFor(menuCtx({ native: true, readOnly: true })).some(
+        (r) => r.actionId === 'help.add-guides'
+      )
+    ).toBe(false);
+  });
+
+  test('the registry action is worded as the contract says and gated at Can edit', () => {
+    const def = ACTIONS_BY_ID.get('help.add-guides');
+    expect(def?.label).toBe(GUIDES_WORDS.label);
+    expect(def?.visible?.minRole).toBe('edit');
   });
 });

@@ -58,12 +58,12 @@ When a new feature adds UI a scenario must reach, add a `data-testid` to that el
 
 ### Scenarios that need native dialogs / OAuth — debug-only stubs (BUILT)
 
-The pilot avoids native chrome by opening the fixture via `MAUDE_PROJECT_ROOT` and calling Tauri commands directly. A scenario that genuinely needs the native file picker or the GitHub device flow (first-run onboarding) drives the wizard via two **deterministic stubs** gated behind `#[cfg(debug_assertions)]` (so NEVER in the release `.app`):
+The pilot avoids native chrome by opening the fixture via `MAUDE_PROJECT_ROOT` and calling Tauri commands directly. A scenario that genuinely needs the native file picker or the GitHub device flow drives Home's sheets via two **deterministic stubs** gated behind `#[cfg(debug_assertions)]` (so NEVER in the release `.app`):
 
 - **`MAUDE_E2E_PICK_DIR`** → `pick_directory` (`src-tauri/src/lib.rs`) returns this path instead of opening the native folder dialog.
 - **`MAUDE_E2E_FAKE_GITHUB_LOGIN`** → `github_sign_in` (`src-tauri/src/oauth.rs`) emits a deterministic device-code (`E2E-CODE`) for ~2.5 s, then "authorizes" and reports the fake login — no browser, no network, no keychain write.
 
-The first-run scenario is **`onboarding.e2e.ts`** + **`wdio.onboarding.conf.ts`** (`pnpm test:e2e:desktop:onboarding`). The config DROPS `MAUDE_PROJECT_ROOT` (so `app_is_first_run` is true → the wizard renders over the welcome project), wipes the `com.maude.app.e2e` app-state, and points `MAUDE_E2E_PICK_DIR` at a fresh empty temp dir so Door B's "Set up Maude here" fires and `scaffoldDesign` seeds the starter `Welcome` canvas the scenario asserts on. Wizard `data-testid`s: `onboarding-wizard`, `ob-door-{github,local,hub}`, `ob-device-modal`/`ob-device-code`, `ob-github-create`, `ob-local-choose`/`ob-local-setup`, `ob-back`. A `project-switch`-style scenario can reuse `MAUDE_E2E_PICK_DIR`.
+The first-run scenario is **`onboarding.e2e.ts`** + **`wdio.onboarding.conf.ts`** (`pnpm test:e2e:desktop:onboarding`). First launch IS Home (S6.8; S6.15 retired the v1 `OnboardingWizard`, `app_is_first_run` and `MAUDE_FORCE_ONBOARDING`): the config DROPS `MAUDE_PROJECT_ROOT`, wipes the `com.maude.app.e2e` app-state and points `MAUDE_HOME_PROJECTS_DIR` at a throwaway dir, so the boot opens the `home` window with the sign-in card (`signin-card`, `signin-local`, `signin-advanced`, `signin-adv-<id>`). A new project starts EMPTY (Q10, `scaffoldDesign` seeds no canvas); Help › Help and guides (`help-add-guides`) adds the two guide canvases. Lanes that start on a clean profile enter a project through `helpers/home-entry.ts` (`connectHubFromHome`, `focusHome`, `followNewTab`). The retired wizard hooks (`onboarding-wizard`, `ob-door-*`, `ob-device-*`, …) are marked `retired` in `client/testids.json` with their new home. A `project-switch`-style scenario can still reuse `MAUDE_E2E_PICK_DIR`.
 
 ## Known gotchas (all VERIFIED on the first real run, 2026-06-29)
 

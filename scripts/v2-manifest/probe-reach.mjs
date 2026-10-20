@@ -177,8 +177,6 @@ const restoreDist = () => {
   if (BUILD) spawnSync('git', ['checkout', '--', 'apps/studio/dist/'], { cwd: REPO });
 };
 
-const { scaffoldDesign } = await import(join(STUDIO, 'scaffold-design.ts'));
-
 // ── fixture + server ─────────────────────────────────────────────────────────────────────
 const runDir = mkdtempSync(join(tmpdir(), 'maude-v2-reach-'));
 const CANVAS = (
@@ -380,12 +378,29 @@ function makeFixture(project) {
   // section), a gallery sticker the AI placed, stamps from three people, an arrow with words on it, an arrow bound to
   // an artboard, an arrow whose element is gone (the dangling card) and a vote that is open
   put('.design/ui-home.annotations.json', annotationsFixture());
-  // the canvas a freshly created project opens to (scaffold-design.ts) — its welcome artboard
-  const scaffolded = join(runDir, 'scaffold');
-  mkdirSync(scaffolded, { recursive: true });
-  scaffoldDesign(scaffolded, 'reachability');
-  for (const f of ['Welcome.tsx', 'Welcome.meta.json'])
-    put(`.design/ui/${f}`, readFileSync(join(scaffolded, '.design/ui', f), 'utf8'));
+  // a plain one-artboard canvas the 'welcome' opener opens. A new project starts EMPTY since S6.15 (Q10), so
+  // this is a fixture of the probe's own, not scaffold-design.ts's.
+  put(
+    '.design/ui/Welcome.tsx',
+    `import { DCArtboard, DCSection, DesignCanvas } from '@maude/canvas-lib';
+
+export default function Welcome() {
+  return (
+    <DesignCanvas>
+      <DCSection id="welcome" title="Welcome">
+        <DCArtboard id="welcome" label="WELCOME/01" width={680} height={440}>
+          <main style={{ padding: 32 }}>Welcome</main>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+`
+  );
+  put(
+    '.design/ui/Welcome.meta.json',
+    `${JSON.stringify({ title: 'Welcome', layout: { artboards: [{ id: 'welcome', x: 0, y: 0 }] } }, null, 2)}\n`
+  );
   put(
     '.design/ui/Flyer.tsx',
     `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
