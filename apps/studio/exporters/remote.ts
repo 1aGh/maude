@@ -33,7 +33,7 @@ import type { ExportSpecV2 } from './spec-v2.ts';
  * the cell. Read per-call (not a module const) so the deployment can tune it
  * and tests can exercise the ceiling.
  */
-function artifactCap(): number {
+export function artifactCap(): number {
   return Math.max(
     1_000_000,
     Number(process.env.MAUDE_RENDER_MAX_ARTIFACT_BYTES) || 512 * 1024 * 1024
@@ -94,7 +94,7 @@ function safeDegradation(raw: unknown): ExportDegradation | undefined {
 }
 
 /** Read a response body with a hard byte ceiling — `arrayBuffer()` has none. */
-async function readCapped(res: Response, max: number): Promise<Uint8Array> {
+export async function readCapped(res: Response, max: number): Promise<Uint8Array> {
   const declared = Number(res.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > max) {
     throw new Error(`render artifact too large (${declared} bytes > ${max})`);
@@ -444,9 +444,31 @@ export type CloudJobStatus =
  * ever names the real render service.
  */
 export interface CloudRenderDoor {
-  submit(job: { jobId: string; spec: ExportSpecV2; label: string }): Promise<TargetAnswer>;
+  submit(job: {
+    jobId: string;
+    spec: ExportSpecV2;
+    label: string;
+    /** what this Mac holds of the canvas's files at SEND time (S8.5b §6); the cell judges it */
+    expect?: CloudFingerprintEntry[];
+  }): Promise<TargetAnswer>;
   status(jobId: string): Promise<CloudJobStatus>;
   artifact(jobId: string): Promise<{ filename: string | null; body: Uint8Array } | null>;
+}
+
+/** One file of a canvas's closure as this Mac holds it: sha256, or null for presence-only (an asset). */
+export interface CloudFingerprintEntry {
+  rel: string;
+  sha256: string | null;
+}
+/** Past this many entries a render is not offered to the cloud (S8.5b §6): it renders on this Mac. */
+export const CLOUD_FINGERPRINT_MAX = 2000;
+
+/** The cloud answers a poll with this when the artifact is past the byte ceiling: the job is over. */
+export class CloudArtifactTooLargeError extends Error {
+  constructor() {
+    super('cloud artifact too large');
+    this.name = 'CloudArtifactTooLargeError';
+  }
 }
 
 /** The words of a cloud row while it waits (09 ex-offline, CONTRACT §4). */
@@ -454,6 +476,26 @@ export const CLOUD_QUEUED_WORDS = 'Queued — starts when this Mac is online';
 export const CLOUD_GONE_WORDS = 'The cloud no longer has this export. Export it again.';
 export const CLOUD_FAILED_WORDS = 'The cloud couldn’t render it.';
 export const CLOUD_EXPIRED_WORDS = 'Not exported — it waited a day.';
+export const CLOUD_ACCESS_REMOVED_WORDS = 'Not sent — you’re no longer in this project.';
+export const CLOUD_TOO_BIG_WORDS =
+  'Not exported — this is too much to send to the cloud at once. Render it on this Mac.';
+export const CLOUD_CAP_WORDS = 'Not exported — it is longer than one export may be.';
+/** How long a `not-synced` answer is retried (while online) before it is final (S8.5b §6). */
+export const CLOUD_NOT_SYNCED_AFTER_MS = 10 * 60 * 1000;
+
+/**
+ * "Your latest changes to {file} haven’t reached the cloud." `file` is the name the cell reported —
+ * untrusted text: only a short printable basename is kept, else the sentence names no file.
+ */
+export function cloudNotSyncedWords(file?: string | null): string {
+  const name = String(file ?? '')
+    .split(/[\\/]/)
+    .pop()
+    ?.replace(/[^\p{L}\p{N} ._()+-]/gu, '')
+    .trim()
+    .slice(0, 80);
+  return `Not exported — your latest changes to ${name || 'this canvas'} haven’t reached the cloud. Render it on this Mac.`;
+}
 /** The day a render may take before it is "Export again" (`MAX_JOB_AGE_MS`, V2-1.14 §5.7). */
 export const CLOUD_JOB_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -577,7 +619,7 @@ function failedWords(r: IntentRecord): string {
     case 'access-reduced':
       return 'Not exported — Can view can’t download from this project.';
     case 'access-removed':
-      return 'Not sent — you’re no longer in this project.';
+      return CLOUD_ACCESS_REMOVED_WORDS;
     default:
       return CLOUD_FAILED_WORDS;
   }
@@ -715,7 +757,10 @@ export function createCloudExports(opts: CloudExportsOptions) {
     let art: Awaited<ReturnType<CloudRenderDoor['artifact']>> = null;
     try {
       art = await door.artifact(id);
-    } catch {
+    } catch (err) {
+      // a file past the ceiling will never fit: asking every poll for a day would only re-download it
+      if (err instanceof CloudArtifactTooLargeError)
+        return finish(t, { phase: 'failed', error: CLOUD_FAILED_WORDS });
       art = null;
     }
     if (!art) return schedule(id); // offline between the poll and the download: ask again

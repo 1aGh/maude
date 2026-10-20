@@ -103,6 +103,7 @@ import { createReferenceLanes } from './edit-ops/references.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
+import { createHubRenderDoorGetter } from './exporters/hub-render-door.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
 import { createRectsRunner } from './exporters/rects-runner.ts';
@@ -1787,15 +1788,23 @@ export function createHttp(
   outboxSenders['share.ask-to-edit'] = shareAskToEditSender(shareDeps);
   // S8.5 — a cloud video asked while the cloud could not hear it: `export.cloud`, record id = job id.
   // The sender hands it over; the tracker follows it to the file (and resumes after a restart).
+  // S8.5b-3 — the default door is the linked hub's, and only while its `/health` lists `render-jobs-v1`
+  // (otherwise null: the Render row stays hidden). Never in a cell (it IS the hub). A test or embedder
+  // can still inject its own via `opts.cloudRenderDoor`.
+  const hubRenderDoor = createHubRenderDoorGetter({
+    hub: () => (isWorkspaceMode() ? null : shareDeps.hub()),
+  });
+  hubRenderDoor.warm();
   const cloudExports = createCloudExports({
     designRoot: ctx.paths.designRoot,
     outbox,
-    door: () => opts.cloudRenderDoor?.() ?? null,
+    door: () => opts.cloudRenderDoor?.() ?? hubRenderDoor.door(),
     emit: (row) => ctx.bus.emit('export:job', row),
   });
   outboxSenders['export.cloud'] = exportCloudSender({
     door: cloudExports.door,
     accepted: cloudExports.accepted,
+    settle: opts.cloudRenderDoor ? undefined : hubRenderDoor.settle,
   });
   cloudExports.resume();
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
