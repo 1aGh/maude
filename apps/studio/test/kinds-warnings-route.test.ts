@@ -8,8 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { resolveAccess } from '../access/scope.ts';
-import { CANVAS_SAFE_API } from '../http.ts';
 import type { RectsManifest } from '../exporters/print-preflight.ts';
+import { CANVAS_SAFE_API } from '../http.ts';
 import { allSpecs } from '../routes/index.ts';
 import { createKindRoutes } from '../routes/kinds.ts';
 import { mountRoutes } from '../routes/table.ts';
@@ -46,7 +46,16 @@ const MANIFEST: RectsManifest = {
     { id: 'flag', x: 0, y: 1500, w: 419, h: 581 },
   ],
   elements: [
-    { cdId: 'qr', artboard: 'flag', x: 332, y: 1500 + 480, w: 84, h: 84, tag: 'img', naturalW: 900 },
+    {
+      cdId: 'qr',
+      artboard: 'flag',
+      x: 332,
+      y: 1500 + 480,
+      w: 84,
+      h: 84,
+      tag: 'img',
+      naturalW: 900,
+    },
     { cdId: 'foto', artboard: 'ig', x: 90, y: 300, w: 900, h: 600, tag: 'img', naturalW: 640 },
     { cdId: 'hl', artboard: 'ig', x: 900, y: 40, w: 160, h: 60, tag: 'h1', text: 'COMBINE' },
   ],
@@ -120,7 +129,9 @@ describe('GET /_api/kinds/warnings', () => {
   });
 
   test('?artboard= narrows it; unmeasured (no render) still raises what the props say', async () => {
-    const one = await (await sandbox('viewer').warnings('canvas=.design/ui/Kampan.tsx&artboard=karta')).json();
+    const one = await (
+      await sandbox('viewer').warnings('canvas=.design/ui/Kampan.tsx&artboard=karta')
+    ).json();
     expect((one as { artboards: unknown[] }).artboards).toHaveLength(1);
     const dark = (await (await sandbox('viewer', null).warnings()).json()) as {
       measured: boolean;
@@ -156,7 +167,11 @@ describe('GET /_api/kinds/convert-plan', () => {
     expect((await sandbox('viewer').plan(Q)).status).toBe(403);
     expect((await sandbox('observer').plan(Q)).status).toBe(403);
     expect((await sandbox('member').plan(Q.replace('paper=a6', 'paper=a99'))).status).toBe(422);
-    expect((await sandbox('member').plan(Q.replace('artboard=ig', 'artboard=karta'))).status).toBe(422);
-    expect((await sandbox('member').plan(Q.replace('artboard=ig', 'artboard=zz'))).status).toBe(404);
+    expect((await sandbox('member').plan(Q.replace('artboard=ig', 'artboard=karta'))).status).toBe(
+      422
+    );
+    expect((await sandbox('member').plan(Q.replace('artboard=ig', 'artboard=zz'))).status).toBe(
+      404
+    );
   });
 });
