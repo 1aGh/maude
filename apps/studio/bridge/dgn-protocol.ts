@@ -300,6 +300,11 @@ export interface CanvasToShell {
    */
   'artboard-anchor': { artboardId: Id | null; kind?: string; label?: string; rect?: Rect | null };
   /**
+   * S7.8 — Space went down and up inside 200 ms with no drag between: a TAP, not the Hand. The shell plays / pauses
+   * the video the timeline follows (07 · ve-play). Carries nothing; a hold or a pan sends nothing at all.
+   */
+  'space-tap': Empty;
+  /**
    * S2.19 (14 `ed-edge-ask`) — ⌘/ with elements selected: which (`refs`, with the canvas's locators for the
    * prompt's `[selected: …]` lines) and where (`rect`, iframe viewport px). The SHELL draws the bubble and owns
    * the words: a canvas never carries a prompt to the shell. `-rect`: the live AI outline over the asked
@@ -1463,6 +1468,13 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/timeline (S7.7)',
     parse: p({ artboardId: nul(str), kind: opt(str), label: opt(str), rect: opt(nul(rect)) }),
+  },
+  // S7.8 — tap Space = play, hold = Hand; the canvas decides on key-up (editing/space-tap.ts), the shell plays.
+  'space-tap': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/timeline (S7.8)',
+    parse: none,
   },
   'ask-selection': {
     gate: 'active',
