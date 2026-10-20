@@ -8376,9 +8376,9 @@
     "hook": ".st-scope",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Edit-scope pill (`st-scope--local` / `st-scope--shared`, built as `st-scope--${scope}`).",
+    "meaning": "Edit-scope pill (`st-scope--local` / `st-scope--shared`, built as `st-scope--${scope}`). Deleted (S11.18): the same words and Detach live in the Inspector's Advanced fold, `adv-used-in` / `adv-detach`.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
+      "file": "apps/studio/client/inspector/inspector-panel.jsx",
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
@@ -8386,7 +8386,7 @@
       ".ai/scenarios/element-editing-resize-and-position/spec.md",
       ".ai/scenarios/structural-and-scope/spec.md"
     ],
-    "v2": "moves"
+    "v2": "retired"
   },
   {
     "hook": "[aria-label=\"Inspector\"]",

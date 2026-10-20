@@ -786,8 +786,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": "component.detach",
-        "testid": ".st-scope",
-        "where": "Select an element in a shared component → Inspector header — the Local / Shared pill, and Detach on a shared instance; an instance of a design-system component has Detach under Main component (S2.17, component.detach)"
+        "testid": "adv-used-in",
+        "where": "Select an element in a shared component → Inspector › Advanced › Used in — \"Edits apply to: Shared · 4 places\" or \"Only this element\", and Detach on a shared instance (adv-detach); an instance of a design-system component has Detach under Main component (S2.17, component.detach). The header pill (.st-scope) is retired (S11.18)"
       }
     },
     {
