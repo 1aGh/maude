@@ -106,4 +106,11 @@ export const DS_ACTIONS: ActionDef[] = [
   // system opens the sheet (S10.15b); its primary button applies a proven stage as one action. A system's own
   // row, never ⌘K. Can edit on the whole project.
   row('ds.upgrade', 'Bring it up to the schema'),
+  // S10.18c — a team library (13 · ds-many-library, ds-many-linked): link one (the link dialog), take its update (the
+  // review "Update from <system>? N changes", then this project's own), unlink it (the copy becomes an own system).
+  // Each acts on a library or a system the surface names, so none is a ⌘K row. Can edit on the whole project
+  // (S10 Q15) — the review included, since it reaches another project's hub with this Mac's grant.
+  row('ds.library-link', 'Link a team library'),
+  row('ds.library-update', 'Update from the library'),
+  row('ds.library-unlink', 'Unlink the library'),
 ];

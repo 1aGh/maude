@@ -43,6 +43,7 @@ import { requestDsAdvanced } from '../ds/advanced-bus.js';
 import { requestDsReview } from '../ds/review-bus.js';
 import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
 import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
+import { requestDsLibrary } from '../ds/library-bus.js';
 import { requestDsUpgrade } from '../ds/upgrade-bus.js';
 import { requestDsConvert, restoreSystemFolder } from '../ds/convert-model.js';
 import { runMasterAction } from '../ds/master-write.js';
@@ -376,6 +377,10 @@ export function createMenuHandlers(d) {
     'ds.preview': (p) => requestDsPreview({ from: p?.from }),
     // S10.15b — the amber dot / the row's menu: "Bring <system> up to the schema?" (the AI does it, the person applies)
     'ds.upgrade': (p) => requestDsUpgrade({ ds: String(p?.ds ?? '') }),
+    // S10.18c — a team library: the link dialog, "Update from <system>? N changes", "Unlink <system>?" (library-host.jsx)
+    'ds.library-link': () => requestDsLibrary({ kind: 'link' }),
+    'ds.library-update': (p) => requestDsLibrary({ kind: 'update', ds: p?.ds }),
+    'ds.library-unlink': (p) => requestDsLibrary({ kind: 'unlink', ds: p?.ds }),
     // S10.12 — convert the system folders (the folder view's banner opens the dialog) / Restore one to its folder
     'ds.convert': (p) => requestDsConvert(p, { toast: d.toast }),
     'ds.convert-restore': async (p) => {

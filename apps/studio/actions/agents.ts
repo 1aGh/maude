@@ -1730,6 +1730,31 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage> | --status | --cancel <stage> | --discard <stage>'
     ),
   },
+  // S10.18c — team libraries (ds/library.ts, V2-1.6 §5.14): link copies the verified head revision BY ID (an invalid
+  // upstream revision is never written, an older hub fails closed); update is the review → ONE action (the unticked
+  // canvases stay at the old head), ⌘Z through the undo hook; unlink makes the copy an ordinary local system. The
+  // grant is read from a file, never an argument, and lives on this Mac only.
+  'ds.library-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/library', method: 'POST' },
+    agent: cli('maude design ds library link <url> [--grant-file <f>] [--label <l>]'),
+  },
+  'ds.library-update': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/library', method: 'POST' },
+    agent: cli('maude design ds library check|update [<ds>] [--force|--dry-run]'),
+  },
+  'ds.library-unlink': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/library', method: 'POST' },
+    agent: cli('maude design ds library unlink [<ds>]'),
+  },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',
