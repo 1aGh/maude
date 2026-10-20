@@ -171,7 +171,12 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-from-mac` | testid | "From this Mac..." row under the photos in the Assets tab: the same picker and upload as Add files (hidden for a viewer). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-empty` | testid | The Assets tab's empty state ("No images or footage yet."). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-nohits` | testid | The Assets tab's "Nothing called ..." state. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
-| `assets-tile` | testid | One asset tile in the Assets tab (`aria-pressed` when picked). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-tile` | testid | One asset tile in the Assets tab (`aria-pressed` when picked; `data-asset` is its `assets/<name>` path, `data-kind` image \| video \| audio). Hover and focus show its name and where it is used; right-click opens `assets-tile-menu`. | `client/v2/assets/tile.jsx` · `AssetTile` | — | stable — re-emit |
+| `assets-tile-menu` | testid | The menu a right-click on an Assets tile opens (S8.12): Place, Show details. A viewer and a video or sound tile get Show details only. | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
+| `assets-menu-place` | testid | The tile menu's Place row (`assets.place`, ↵): the picture onto the selected artboard. Hidden for a viewer. | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
+| `assets-menu-details` | testid | The tile menu's Show details row (`assets.details`, ⌘I). | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
+| `assets-details` | testid | The plain details card for the picked tile (name, kind, size, where it is used). S8.21 replaces it with the per-kind sheet. | `client/v2/assets/details-card.jsx` · `AssetDetailsCard` | — | stable — re-emit |
+| `assets-details-close` | testid | Close on the details card. | `client/v2/assets/details-card.jsx` · `AssetDetailsCard` | — | stable — re-emit |
 | `canvases-count` | testid | The "N of M shown" readout with the live dot in the foot of Canvases > Advanced (the status bar's files count and live dot, moved). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | new |
 | `canvas-row-unsaved` | testid | The unsaved-change badge (M / A / D / U) on a canvas or file row in Canvases (`data-kind` carries the letter). | `client/tree/tree.jsx` · `FileRow` | — | new |
 
