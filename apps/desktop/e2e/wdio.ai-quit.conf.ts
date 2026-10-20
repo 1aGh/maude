@@ -20,7 +20,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const { primary, secondary } = lifecycleFixtureOnce();
 process.env.MAUDE_PROJECT_ROOT = primary;
 process.env.MAUDE_E2E_SECONDARY_ROOT = secondary;
-delete process.env.MAUDE_FORCE_ONBOARDING;
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
 process.env.MAUDE_E2E_RUN_DIR = resolve(HERE, '../../../.ai/device/scenario-runs/ai-quit', stamp);

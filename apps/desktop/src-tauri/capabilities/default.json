@@ -43,7 +43,6 @@
     "allow-take-tabs-restored",
     "allow-take-pending-navigate",
     "allow-take-link-opened",
-    "allow-app-is-first-run",
     "allow-app-get-last-project",
     "allow-app-recent-projects",
     "allow-restart-to-update",

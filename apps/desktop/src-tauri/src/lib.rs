@@ -74,20 +74,11 @@ enum BootPlan {
 /// Pure half of the boot decision:
 ///   - `MAUDE_PROJECT_ROOT` (e2e lanes, a power user launching at a known
 ///     project): the app was told what to open — that project, first window.
-///   - `MAUDE_FORCE_ONBOARDING` (debug builds only): the welcome project, so
-///     the onboarding lane can still drive the OnboardingWizard.
-///   - otherwise Home — first launch included (no welcome-project sidecar).
-fn boot_plan(
-    env_root: Option<PathBuf>,
-    force_onboarding: bool,
-    last: Option<PathBuf>,
-    welcome: impl FnOnce() -> PathBuf,
-) -> BootPlan {
+///   - otherwise Home — first launch included (no welcome-project sidecar; S6.15
+///     retired the v1 OnboardingWizard and its `MAUDE_FORCE_ONBOARDING` boot).
+fn boot_plan(env_root: Option<PathBuf>, last: Option<PathBuf>) -> BootPlan {
     if let Some(root) = env_root {
         return BootPlan::Project(root);
-    }
-    if force_onboarding {
-        return BootPlan::Project(welcome());
     }
     BootPlan::Home { reopen: last }
 }
@@ -97,12 +88,8 @@ fn resolve_boot_plan(app: &tauri::AppHandle) -> BootPlan {
         .ok()
         .filter(|p| !p.is_empty())
         .map(PathBuf::from);
-    #[cfg(debug_assertions)]
-    let force_onboarding = std::env::var("MAUDE_FORCE_ONBOARDING").is_ok_and(|v| !v.is_empty());
-    #[cfg(not(debug_assertions))]
-    let force_onboarding = false;
     let last = app_state::last_project(app).filter(|p| p.join(".design").is_dir());
-    boot_plan(env_root, force_onboarding, last, || app_state::welcome_project(app))
+    boot_plan(env_root, last)
 }
 
 /// Catch SIGTERM/SIGINT so an abrupt `kill`/Ctrl+C still tears the sidecar down.
@@ -597,7 +584,6 @@ pub fn run() {
             github_home::github_clone,
             github_home::github_create,
             notify::e2e_notification_click,
-            app_state::app_is_first_run,
             app_state::app_get_last_project,
             app_state::app_set_last_project,
             app_state::app_recent_projects,
@@ -957,21 +943,18 @@ mod tests {
     #[test]
     fn boot_opens_home_first_unless_told_what_to_open() {
         let p = |s: &str| PathBuf::from(s);
-        let welcome = || p("/welcome");
-        // First launch: Home only — no welcome-project sidecar.
-        assert_eq!(boot_plan(None, false, None, welcome), BootPlan::Home { reopen: None });
+        // First launch: Home only — no welcome-project sidecar, no wizard (S6.15).
+        assert_eq!(boot_plan(None, None), BootPlan::Home { reopen: None });
         // A last project: Home, then that project as a tab after it.
         assert_eq!(
-            boot_plan(None, false, Some(p("/last")), welcome),
+            boot_plan(None, Some(p("/last"))),
             BootPlan::Home { reopen: Some(p("/last")) }
         );
         // MAUDE_PROJECT_ROOT (every e2e lane): that project's window first.
         assert_eq!(
-            boot_plan(Some(p("/e2e")), false, Some(p("/last")), welcome),
+            boot_plan(Some(p("/e2e")), Some(p("/last"))),
             BootPlan::Project(p("/e2e"))
         );
-        // MAUDE_FORCE_ONBOARDING (debug, the onboarding lane): the welcome project.
-        assert_eq!(boot_plan(None, true, None, welcome), BootPlan::Project(p("/welcome")));
     }
 
     // The save_export download tests moved with it to export_save.rs (S8.23).

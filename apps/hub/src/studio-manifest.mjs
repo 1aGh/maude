@@ -121,6 +121,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // PATCH only (a body without changes is how the sheet reads them), and an edit: unlike
   // canvas-meta there is no per-user lane to split out.
   '/_api/present-meta': { safe: null, unsafe: 'edit' },
+  // S6.15 — Help › Help and guides adds the two guide canvases to the project: an edit, never a canvas-only session's
+  '/_api/help/add-guides': { safe: null, unsafe: 'edit' },
   // S7.4 — the comp's words, speech and beats, derived from its cut (routes/video.ts). A transcript is
   // the project's content, not chrome: Can view is refused, Can comment and up read it.
   '/_api/comp-media': { safe: 'comment', unsafe: null },

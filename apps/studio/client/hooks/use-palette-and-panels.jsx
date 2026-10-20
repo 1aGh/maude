@@ -51,6 +51,7 @@ import { CommentsPanel } from '../shell/comments-panel.jsx';
 import { commentPanelActions } from '../v2/comments/comment-client.js';
 import { useBoardLabels } from '../v2/ai/RunList.jsx';
 import { artboardLabel as artboardLabelOf } from '../v2/ai/runs-model.js';
+import { addGuides } from '../v2/help/add-guides.js';
 
 export function usePaletteAndPanels({
   activeArtboards,
@@ -362,6 +363,10 @@ export function usePaletteAndPanels({
       'help.whats-new': () => whatsNew.openPanel(),
       'help.shortcuts': () => setShortcutsOpen(true),
       'help.guides': () => setHelpOpen(true),
+      // S6.15 (Q10): the same function as the Help dialog's button; the answer is a toast.
+      'help.add-guides': () => {
+        void addGuides().then((r) => shellToast(r.words, r.ok));
+      },
       'help.report-bug': () => setReportBugOpen(true),
     };
     const searchCtx = menuCtx({

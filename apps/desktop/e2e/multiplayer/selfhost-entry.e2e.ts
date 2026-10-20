@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
+import { connectHubFromHome } from '../helpers/home-entry';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 import { pinCurrentWindow } from '../helpers/windows';
@@ -43,16 +44,15 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
     expect(existsSync(process.env.HUBS_CONFIG_PATH as string)).toBe(false);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 120_000 });
     await capture('clean-first-run');
-    await door.click();
-    // The fields a teammate's invitation told them: address, email, password.
-    await (await $(tid('team-hub-url'))).setValue(target.hubUrl);
-    await (await $(tid('team-hub-email'))).setValue(target.email);
-    await (await $(tid('team-hub-password'))).setValue(target.password);
+    // Home → Advanced options → Use a self-hosted hub: the fields a teammate's invitation told them —
+    // address, email, password. (The v1 first-run wizard door is retired with the wizard, S6.15.)
+    await connectHubFromHome({
+      hub: target.hubUrl,
+      email: target.email,
+      password: target.password,
+    });
     await capture('team-server-form');
-    await (await $(tid('team-hub-open'))).click();
     // The project is open once its canvases arrive. A consent step, when this
     // server asks for one, is the same choice a person makes.
     try {
@@ -67,9 +67,7 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     } catch (error) {
       writeFileSync(
         join(run.out, 'open-failure.txt'),
-        await browser.execute(
-          () => document.querySelector('[data-testid="team-projects"]')?.textContent ?? ''
-        )
+        await browser.execute(() => document.body.innerText.slice(0, 4000))
       );
       await capture('open-failure');
       throw error;

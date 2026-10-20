@@ -1,9 +1,8 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
-
 import { capture, startReport } from '../helpers/evidence';
-import { isNativeShell } from '../helpers/native';
+import { connectHubFromHome, focusHome } from '../helpers/home-entry';
 import { waitForSidecar } from '../helpers/sidecar';
 import { pinCurrentWindow } from '../helpers/windows';
 
@@ -193,27 +192,16 @@ describe('s20-deployment (native-desktop)', () => {
     );
   });
 
-  it('1 · first run offers the invited-project door', async () => {
-    await waitForSidecar();
-    expect(await isNativeShell()).toBe(true);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 180_000 });
-    expect(await door.getText()).toContain('invited');
-    await capture('01-first-run-team-door');
-    await door.click();
-    await (await $(tid('team-projects'))).waitForDisplayed({ timeout: 15_000 });
-    await capture('02-team-projects');
+  it('1 · a clean profile opens Home, which offers the self-hosted hub', async () => {
+    await focusHome();
+    await capture('01-home-first-run');
   });
 
   it('2 · email + password opens the real project’s own copy', async () => {
     const t = S20 as NonNullable<typeof S20>;
-    await (await $(tid('team-hub-url'))).setValue(t.hub);
-    await (await $(tid('team-hub-email'))).setValue(t.email);
-    await (await $(tid('team-hub-password'))).setValue(t.password);
-    await (await $(tid('team-hub-open'))).click();
-    // The shell switches the sidecar and the webview reloads onto the project.
-    await browser.pause(6_000);
-    await waitForSidecar();
+    // The v1 first-run wizard door is retired with the wizard (S6.15): Home's "Use a self-hosted hub" is
+    // the way in, and the project opens as a tab of its own.
+    await connectHubFromHome({ hub: t.hub, email: t.email, password: t.password });
     // A real project's checkout takes as long as it takes.
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 300_000 });
     await eventually(

@@ -1223,7 +1223,7 @@ export const OPENERS = [
   { id: 'left-row-menu', steps: [{ click: '[data-testid^="tree-row-menu-"]' }, { wait: 300 }] },
   // a print artboard: its bleed / trim / margin guides are the artboard's own overlay
   { id: 'print-canvas', steps: [{ click: tid('canvas-row-ui-flyer') }, { wait: 3500 }] },
-  // the canvas a new project opens to
+  // a plain one-artboard canvas (probe fixture; a new project starts empty, S6.15)
   { id: 'welcome', steps: [{ click: tid('canvas-row-ui-welcome') }, { wait: 3500 }] },
   // a row in the Canvases tree: hover shows its Delete
   {

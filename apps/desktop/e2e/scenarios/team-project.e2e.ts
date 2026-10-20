@@ -19,9 +19,9 @@ import { activeTab, HOME, labels, pinCurrentWindow, waitWindow } from '../helper
 
 /**
  * Plan T21/T22 — a designer who was added to a project opens the desktop app,
- * picks the project and works. On a clean install, through the real wizard DOM:
+ * picks the project and works. On a clean install, through Home's DOM:
  *
- *   1. first run → "Open a project you were invited to"
+ *   1. Home → Advanced options → "Use a self-hosted hub"
  *   2. the team server's address + email + password — no token, no folder
  *   3. the app opens the project's OWN copy (keyed by server + project) and the
  *      teammate's canvases arrive
@@ -46,14 +46,11 @@ import { activeTab, HOME, labels, pinCurrentWindow, waitWindow } from '../helper
 const tid = (s: string) => `[data-testid="${s}"]`;
 
 /**
- * S6.9 — "hub from Home": the same designer, the same hub, but entering through Home's Advanced options
- * (card → Advanced options → Use a self-hosted hub) instead of the v1 first-run wizard door. Legs 1h–3h
- * replace legs 1–3; legs 4+ then run unchanged in the project's tab. Run with MAUDE_E2E_TEAM_FROM=home
- * (the wizard legs stay for the lane that still boots the wizard until S6.15 retires it).
+ * S6.9 / S6.15 — the designer enters through Home's Advanced options (card → Advanced options → Use a
+ * self-hosted hub); legs 1h–3h are the way in and legs 4+ run unchanged in the project's tab. The v1
+ * first-run wizard door ("Open a project you were invited to", `ob-door-team`) is retired with the wizard;
+ * its job is Home's "Use a self-hosted hub" (nothing-deleted row A-your-team-s-own-server-email-password).
  */
-const FROM_HOME = process.env.MAUDE_E2E_TEAM_FROM === 'home';
-const wizardIt = FROM_HOME ? it.skip : it;
-const homeIt = FROM_HOME ? it : it.skip;
 
 /**
  * Settle entry animations. WKWebView does not advance a CSS animation while
@@ -130,7 +127,7 @@ describe('team-project (native-desktop)', () => {
     );
   });
 
-  homeIt('1h · Home: Advanced options → Use a self-hosted hub opens the sheet', async () => {
+  it('1h · Home: Advanced options → Use a self-hosted hub opens the sheet', async () => {
     await waitWindow(HOME);
     await browser.switchToWindow(HOME);
     await (
@@ -150,115 +147,53 @@ describe('team-project (native-desktop)', () => {
     await capture('01h-home-hub-sheet');
   });
 
-  homeIt(
-    '2h · Test connection reads Reachable; a wrong password says so and nothing opens',
-    async () => {
-      const t = TEAM as NonNullable<typeof TEAM>;
-      await (await $(tid('onb-hub-url'))).setValue(t.hub);
-      await (await $(tid('onb-hub-test'))).click();
-      const ok = await $(tid('onb-hub-reachable'));
-      await ok.waitForDisplayed({ timeout: 20_000 });
-      expect(await ok.getText()).toContain('Reachable');
-      await (await $(tid('onb-hub-email'))).setValue('designer@x.test');
-      await (await $(tid('onb-hub-password'))).setValue('not-the-password');
-      await (await $(tid('onb-hub-go'))).click();
-      const err = await $(tid('onb-hub-error'));
-      await err.waitForDisplayed({ timeout: 20_000 });
-      expect((await err.getText()).toLowerCase()).not.toContain('token');
-      // the field was emptied the moment Connect was pressed
-      expect(await (await $(tid('onb-hub-password'))).getValue()).toBe('');
-      expect(existsSync(t.managedDir)).toBe(false);
-      await capture('02h-home-wrong-password');
-    }
-  );
-
-  homeIt(
-    '3h · the right password opens the project’s own copy as a tab with the teammate’s canvases',
-    async () => {
-      const t = TEAM as NonNullable<typeof TEAM>;
-      const before = await labels();
-      await (await $(tid('onb-hub-password'))).setValue(t.password);
-      await (await $(tid('onb-hub-go'))).click();
-      await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
-        timeout: 60_000,
-        interval: 250,
-        timeoutMsg: 'no project tab after Connect',
-      });
-      const created = (await labels()).find((l) => !before.includes(l)) as string;
-      await browser.waitUntil(async () => (await activeTab()) === created, { timeout: 15_000 });
-      await browser.switchToWindow(created);
-      await pinCurrentWindow();
-      await waitForSidecar();
-      await (await canvasRow('canvas-row-ui-welcome')).waitForDisplayed({ timeout: 120_000 });
-      await (await canvasRow('canvas-row-screens-home')).waitForDisplayed({ timeout: 60_000 });
-      await capture('03h-home-project-open');
-      const copy = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
-      await eventually('the welcome canvas on disk in the managed copy', () => read(copy) !== null);
-      expect(read(copy)).toContain('Welcome, team');
-      const cfg = JSON.parse(read(join(t.managedDir, '.design', 'config.json')) ?? '{}');
-      expect(cfg.linkedHub?.url).toBe(t.hub);
-      // The password was never written anywhere; only the minted credential.
-      const hubs = read(process.env.HUBS_CONFIG_PATH ?? '') ?? '';
-      expect(hubs).toContain(t.hub);
-      expect(hubs).not.toContain(t.password);
-    }
-  );
-
-  wizardIt('1 · first run offers the invited-project door', async () => {
-    await waitForSidecar();
-    expect(await isNativeShell()).toBe(true);
-    const door = await $(tid('ob-door-team'));
-    await door.waitForDisplayed({ timeout: 180_000 });
-    expect(await door.getText()).toContain('invited');
-    await capture('01-first-run-team-door');
-    await door.click();
-    await (await $(tid('team-projects'))).waitForDisplayed({ timeout: 15_000 });
-    await capture('02-team-projects');
-  });
-
-  wizardIt('2 · a wrong password says so, and nothing opens', async () => {
+  it('2h · Test connection reads Reachable; a wrong password says so and nothing opens', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;
-    await (await $(tid('team-hub-url'))).setValue(t.hub);
-    await (await $(tid('team-hub-email'))).setValue('designer@x.test');
-    await (await $(tid('team-hub-password'))).setValue('not-the-password');
-    await (await $(tid('team-hub-open'))).click();
-    const err = await $(tid('team-error'));
+    await (await $(tid('onb-hub-url'))).setValue(t.hub);
+    await (await $(tid('onb-hub-test'))).click();
+    const ok = await $(tid('onb-hub-reachable'));
+    await ok.waitForDisplayed({ timeout: 20_000 });
+    expect(await ok.getText()).toContain('Reachable');
+    await (await $(tid('onb-hub-email'))).setValue('designer@x.test');
+    await (await $(tid('onb-hub-password'))).setValue('not-the-password');
+    await (await $(tid('onb-hub-go'))).click();
+    const err = await $(tid('onb-hub-error'));
     await err.waitForDisplayed({ timeout: 20_000 });
-    const text = (await err.getText()).toLowerCase();
-    expect(text).not.toContain('token');
+    expect((await err.getText()).toLowerCase()).not.toContain('token');
+    // the field was emptied the moment Connect was pressed
+    expect(await (await $(tid('onb-hub-password'))).getValue()).toBe('');
     expect(existsSync(t.managedDir)).toBe(false);
-    await capture('03-wrong-password');
+    await capture('02h-home-wrong-password');
   });
 
-  wizardIt(
-    '3 · email + password opens the project’s own copy with the teammate’s canvases',
-    async () => {
-      const t = TEAM as NonNullable<typeof TEAM>;
-      const pw = await $(tid('team-hub-password'));
-      await pw.clearValue();
-      await pw.setValue(t.password);
-      await (await $(tid('team-hub-open'))).click();
-      // The shell switches the sidecar and the webview reloads onto the project.
-      await browser.pause(6_000);
-      await waitForSidecar();
-      const welcome = await canvasRow('canvas-row-ui-welcome');
-      await welcome.waitForDisplayed({ timeout: 120_000 });
-      await (await canvasRow('canvas-row-screens-home')).waitForDisplayed({ timeout: 60_000 });
-      await capture('04-project-open-with-canvases');
-
-      // The copy lives where the app keeps team projects — nobody chose a folder.
-      const copy = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
-      await eventually('the welcome canvas on disk in the managed copy', () => read(copy) !== null);
-      expect(read(copy)).toContain('Welcome, team');
-      const cfg = JSON.parse(read(join(t.managedDir, '.design', 'config.json')) ?? '{}');
-      expect(cfg.managed?.projectId).toBe('local');
-      expect(cfg.linkedHub?.url).toBe(t.hub);
-      // The password was never written anywhere; only the minted credential.
-      const hubs = read(process.env.HUBS_CONFIG_PATH ?? '') ?? '';
-      expect(hubs).toContain(t.hub);
-      expect(hubs).not.toContain(t.password);
-    }
-  );
+  it('3h · the right password opens the project’s own copy as a tab with the teammate’s canvases', async () => {
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const before = await labels();
+    await (await $(tid('onb-hub-password'))).setValue(t.password);
+    await (await $(tid('onb-hub-go'))).click();
+    await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
+      timeout: 60_000,
+      interval: 250,
+      timeoutMsg: 'no project tab after Connect',
+    });
+    const created = (await labels()).find((l) => !before.includes(l)) as string;
+    await browser.waitUntil(async () => (await activeTab()) === created, { timeout: 15_000 });
+    await browser.switchToWindow(created);
+    await pinCurrentWindow();
+    await waitForSidecar();
+    await (await canvasRow('canvas-row-ui-welcome')).waitForDisplayed({ timeout: 120_000 });
+    await (await canvasRow('canvas-row-screens-home')).waitForDisplayed({ timeout: 60_000 });
+    await capture('03h-home-project-open');
+    const copy = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
+    await eventually('the welcome canvas on disk in the managed copy', () => read(copy) !== null);
+    expect(read(copy)).toContain('Welcome, team');
+    const cfg = JSON.parse(read(join(t.managedDir, '.design', 'config.json')) ?? '{}');
+    expect(cfg.linkedHub?.url).toBe(t.hub);
+    // The password was never written anywhere; only the minted credential.
+    const hubs = read(process.env.HUBS_CONFIG_PATH ?? '') ?? '';
+    expect(hubs).toContain(t.hub);
+    expect(hubs).not.toContain(t.password);
+  });
 
   it('4 · changes travel both ways', async () => {
     const t = TEAM as NonNullable<typeof TEAM>;

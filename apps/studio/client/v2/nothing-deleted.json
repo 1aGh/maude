@@ -409,7 +409,7 @@
       "v2": {
         "action": "project.pull-copy",
         "testid": "project-menu-row-project.pull-copy",
-        "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1",
+        "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1 · first launch: Home › Advanced options › Open a folder or GitHub project › pick a repository (the v1 wizard's GitHub door, retired in S6.15)",
         "reach": [
           "desktop"
         ]
@@ -441,7 +441,7 @@
       "v2": {
         "action": "project.open",
         "testid": null,
-        "where": "Menu > File > Open project… ⌘O (the desktop app; Home lists team projects)"
+        "where": "Menu > File > Open project… ⌘O (the desktop app; Home lists team projects) · first launch: Home › Open a folder (the v1 wizard's local door, retired in S6.15)"
       }
     },
     {
@@ -454,7 +454,7 @@
       "v2": {
         "action": null,
         "testid": "settings-github",
-        "where": "Settings › Connections › GitHub › Sign in"
+        "where": "Settings › Connections › GitHub › Sign in · first launch: Home › Advanced options › Open a folder or GitHub project (the sheet signs in; the v1 first-run wizard door is retired, S6.15)"
       }
     },
     {
@@ -488,7 +488,7 @@
       "v2": {
         "action": "project.new",
         "testid": null,
-        "where": "Menu › File › New project… (desktop) — the dialog: name, GitHub or this computer only, Private / Public, description"
+        "where": "Menu › File › New project… (desktop) — the dialog: name, GitHub or this computer only, Private / Public, description · first launch: Home › Advanced options › Open a folder or GitHub project › New (the v1 wizard's GitHub door, retired in S6.15)"
       }
     },
     {
@@ -1693,7 +1693,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server…"
+        "where": "Settings › Connections › Your team’s own server › Add a team server… · first launch: Home › Advanced options › Use a self-hosted hub (the v1 wizard's \"invited project\" door, retired in S6.15)"
       }
     },
     {
@@ -2005,6 +2005,7 @@
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-submit": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/marks": "A-crop-and-registration-marks",
     "button:studio/client/dialogs/help-modal.jsx#HelpModal/close-esc": "action:help.guides",
+    "button:studio/client/dialogs/help-modal.jsx#HelpModal/help-add-guides": "action:help.guides",
     "button:studio/client/dialogs/help-modal.jsx#HelpModal/take-the-tour": "action:help.tour",
     "button:studio/client/dialogs/shortcuts-overlay.jsx#ShortcutsOverlay/close": "action:help.shortcuts",
     "button:studio/client/export-center.jsx#ExportBadge/x": "A-export-jobs-badge",
@@ -3097,6 +3098,8 @@
     "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-marks": "action:export.open",
     "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-quality": "action:export.open",
     "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution": "A-png-at-150-300-600-dpi",
+    "testid:studio/client/dialogs/help-modal.jsx#help/shortcuts/help-add-guides": "action:help.guides",
+    "testid:studio/client/dialogs/help-modal.jsx#help/shortcuts/help-add-guides-status": "action:help.guides",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-advanced": "testid:shortcuts-advanced",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-advanced-toggle": "testid:shortcuts-advanced-toggle",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-find": "testid:shortcuts-find",
@@ -3474,7 +3477,7 @@
     "testid:studio/present/pointer-dot.tsx#other/present-pointer": "testid:present-pointer",
     "testid:studio/present/pointer-dot.tsx#other/present-pointer-dot": "testid:present-pointer-dot",
     "testid:studio/present/pointer-dot.tsx#other/present-pointer-trail": "testid:present-pointer-trail",
-    "testid:studio/scaffold-design.ts#onboarding/welcome-artboard-content": "testid:welcome-artboard-content",
+    "testid:studio/scaffold-design.ts#onboarding/welcome-artboard-content": "action:help.add-guides",
     "testid:studio/text-caret.ts#canvas iframe chrome/data-maude-caret": "testid:[data-maude-caret]",
     "testid:studio/tool-palette.tsx#canvas iframe chrome/aria-pressed-aria-selected-on-canvas-tools": "testid:toolbar-slot-<toolId>",
     "testid:studio/tool-palette.tsx#canvas iframe chrome/dc-tool-palette": "testid:.dc-tool-palette",

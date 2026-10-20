@@ -3,7 +3,7 @@
  *
  * No wizard any more: a first launch with an empty app-state and an empty index opens the `home`
  * window with the sign-in card on it. So — like the Home lane — this config drops MAUDE_PROJECT_ROOT
- * and does NOT set MAUDE_FORCE_ONBOARDING (the pre-v2 wizard boot), and starts from an empty e2e
+ * and starts from an empty e2e
  * app-state. Unlike the Home lane nothing is seeded: the index is a fresh empty dir (no project, so
  * the card shows) and "Just a local project" creates under a throwaway MAUDE_HOME_PROJECTS_DIR, never
  * `~/Maude`.
@@ -25,7 +25,6 @@ import { config as base } from './wdio.conf';
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 delete process.env.MAUDE_PROJECT_ROOT;
-delete process.env.MAUDE_FORCE_ONBOARDING;
 
 // This module is evaluated by the launcher and again by the worker; clear and create ONCE.
 if (!process.env.MAUDE_E2E_FIRST_RUN_PROJECTS) {

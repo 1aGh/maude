@@ -34,6 +34,7 @@ import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
+import { createHelpGuidesRoutes, type HelpGuidesDeps } from './help-guides.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createKindRoutes } from './kinds.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
@@ -137,6 +138,8 @@ export interface RouteDeps {
   ds?: DsRouteDeps;
   /** S4.14 — `/_api/votes*`: formal votes (local board ballots, or a proxy to a `votes-v1` hub) */
   votes?: VoteRouteDeps;
+  /** S6.15 — `POST /_api/help/add-guides`: Help › Help and guides adds the two guide canvases (Q10) */
+  helpGuides?: HelpGuidesDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -206,6 +209,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.settings ? createSettingsRoutes(deps.settings) : []),
     ...createCloudMoveRoutes(deps.cloudMove),
     ...(deps.cloudPlan ? createCloudPlanRoutes(deps.cloudPlan) : []),
+    ...(deps.helpGuides ? createHelpGuidesRoutes(deps.helpGuides) : []),
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),

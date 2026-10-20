@@ -1,13 +1,7 @@
-// app_state.rs — first-run detection + the project registry / last-project
-// persistence (Phase 29, epic E4; schema v2 since V2-3.1).
-//
-// Chicken-and-egg: the OnboardingWizard is a CLIENT surface served BY the dev-server,
-// but the dev-server needs a project with a `.design/` to boot. So on first launch
-// (nothing remembered) the shell boots the sidecar against a minimal **welcome
-// project** in app-data, and the client — querying `app_is_first_run` — renders the
-// wizard OVER the (empty) canvas browser. Completing a door calls `set_last_project`
-// + switches the sidecar to the real project, so the next launch skips the wizard
-// (the fast path).
+// app_state.rs — the project registry / last-project persistence (Phase 29, epic E4; schema v2
+// since V2-3.1). S6.15 retired the v1 first-run wizard with its `app_is_first_run` command and the
+// welcome-project sidecar: first launch boots Home (lib.rs `boot_plan`), which owns sign-in and
+// "Create a local project".
 //
 // State lives in `<app_config_dir>/app-state.json` — schema v2 (contract
 // V2-1.1-home-window §5.5), atomic tmp + rename, 0600:
@@ -62,14 +56,6 @@ const VANISHED_AGE_OUT_MS: u64 = 90 * 24 * 60 * 60 * 1000;
 /// supervisor, the menu and webview commands can all reach `set_last_project` /
 /// `bind_profile` concurrently, and a lost update here silently drops a binding.
 static STATE_LOCK: Mutex<()> = Mutex::new(());
-
-// Set once a project has been opened in THIS process run (via set_last_project). The
-// debug-only MAUDE_FORCE_ONBOARDING affordance reads it so that completing an onboarding
-// door DISMISSES the wizard to the studio instead of re-rendering it forever — it forces
-// first-run only until the user actually opens a project this run.
-#[cfg(debug_assertions)]
-static PROJECT_OPENED_THIS_RUN: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -758,38 +744,6 @@ pub fn last_project(app: &tauri::AppHandle) -> Option<PathBuf> {
     }
 }
 
-/// First run (show the wizard) = there is no usable remembered project.
-pub fn is_first_run(app: &tauri::AppHandle) -> bool {
-    // Dev/test affordance (debug builds only): force the onboarding wizard to render
-    // regardless of remembered state, so `pnpm dev:desktop:onboarding` can walk the
-    // first-run flow without moving app-state files on disk. Gated on `debug_assertions`,
-    // so it is NEVER honored in the release `.app`.
-    #[cfg(debug_assertions)]
-    if std::env::var("MAUDE_FORCE_ONBOARDING")
-        .map(|v| !v.is_empty())
-        .unwrap_or(false)
-    {
-        // Force the wizard only until the user opens a project THIS run; once a door
-        // completes (set_last_project), let it dismiss to the studio instead of looping.
-        return !PROJECT_OPENED_THIS_RUN.load(std::sync::atomic::Ordering::Relaxed);
-    }
-    // An explicit project target via the `MAUDE_PROJECT_ROOT` override (e2e/tests,
-    // or a power-user launching at a known project) means the app was told what to
-    // open — so it's not a first run, and the onboarding wizard must not render over
-    // it. Mirrors resolve_project_root()'s precedence (env first). Harmless in
-    // release: the env var is an existing documented override.
-    if std::env::var("MAUDE_PROJECT_ROOT")
-        .map(|v| !v.is_empty())
-        .unwrap_or(false)
-    {
-        return false;
-    }
-    // V2-3.3: a launch opens Home, and every project Home opens is registered
-    // before its window exists — a registered project is never a first run (the
-    // wizard must not cover a project the person just picked).
-    last_project(app).is_none() && load(app).projects.is_empty()
-}
-
 /// Remember `path` as the last project: registry upsert, MRU head, one-tab session
 /// (and, via `save_to`, the v1 keys).
 pub fn set_last_project(app: &tauri::AppHandle, path: &Path) {
@@ -805,9 +759,6 @@ pub fn set_last_project_with(app: &tauri::AppHandle, path: &Path, binding: Bindi
         let pid = st.open_with(&s, now, binding);
         st.session = Some(one_tab_session(&pid, now));
     });
-    // A project was opened this run — lets MAUDE_FORCE_ONBOARDING dismiss the wizard.
-    #[cfg(debug_assertions)]
-    PROJECT_OPENED_THIS_RUN.store(true, std::sync::atomic::Ordering::Relaxed);
     // Keep the legacy marker in sync so any older read path still resolves.
     if let Some(marker) = legacy_marker(app) {
         if let Some(dir) = marker.parent() {
@@ -839,26 +790,7 @@ pub fn recent_projects(app: &tauri::AppHandle) -> Vec<String> {
         .collect()
 }
 
-/// A minimal, always-bootable project the dev-server serves on first run so the
-/// webview has something to render the wizard over. Reuses the same minimal
-/// `.design/` scaffold as the "Set up Maude here" fallback (lib::write_minimal_design).
-pub fn welcome_project(app: &tauri::AppHandle) -> PathBuf {
-    let base = app
-        .path()
-        .app_config_dir()
-        .unwrap_or_else(|_| PathBuf::from("."));
-    let dir = base.join("welcome-project");
-    let _ = crate::write_minimal_design(&dir);
-    dir
-}
-
 // ── Tauri commands (webview → shell) ────────────────────────────────────────────
-#[tauri::command]
-pub fn app_is_first_run(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
-    windows::caller_project(&webview, false)?;
-    Ok(is_first_run(&app))
-}
-
 /// V2-3.6 N-M1: the calling project window's own profile only — a page never
 /// learns where another profile's projects live.
 #[tauri::command]

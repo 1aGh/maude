@@ -13,107 +13,20 @@ import { basename, join } from 'node:path';
 const CONFIG_SCHEMA =
   'https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/config.schema.json';
 
-// A neutral, token-free starter canvas seeded into `ui/` so a freshly-created project
-// opens to a real artboard instead of an empty studio (the "empty-studio after Start a
-// new project" onboarding gap). It depends ONLY on @maude/canvas-lib + inline styles —
-// no design-system tokens — so it renders before /design:setup-ds exists. The button
-// vocabulary mirrors the shipped GitPanel (Save version · Publish · Get latest).
-const STARTER_CANVAS_TSX = `/**
- * @canvas   welcome · Your first canvas — seeded when a new Maude project is created.
- * @platform desktop
- * @stack    React 19 · TSX · Bun.build
- *
- * Neutral + token-free so it renders the moment the project is created — before
- * /design:setup-ds builds a design system. Edit it, replace it, or delete it once you
- * have your own canvases.
- */
-import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
-
-export default function Welcome() {
-  return (
-    <DesignCanvas>
-      <DCSection id="welcome" title="Welcome to Maude" subtitle="START HERE">
-        <DCArtboard id="welcome" label="WELCOME/01" width={680} height={440}>
-          <div
-            data-testid="welcome-artboard-content"
-            style={{
-              height: "100%",
-              boxSizing: "border-box",
-              padding: 48,
-              display: "flex",
-              flexDirection: "column",
-              gap: 24,
-              fontFamily: "system-ui, -apple-system, sans-serif",
-              color: "#16181d",
-              background: "#fbfbfc",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8a8f98" }}>
-                Your first canvas
-              </span>
-              <h1 style={{ margin: 0, fontSize: 30, lineHeight: 1.1, fontWeight: 650 }}>
-                You're in. This is a canvas.
-              </h1>
-              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: "#4a4f57", maxWidth: 460 }}>
-                Everything you design lives on canvases like this one. Edit it, or start fresh —
-                your work saves on its own, and you can version and share it without ever opening a terminal.
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                ["Save version", "keep a checkpoint, just for you"],
-                ["Publish", "share it with your team"],
-                ["Get latest", "pull in everyone else's work"],
-              ].map(([title, desc]) => (
-                <div key={title} style={{ flex: 1, padding: 16, border: "1px solid #e6e7ea", borderRadius: 10, background: "#fff" }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{title}</div>
-                  <div style={{ fontSize: 12.5, lineHeight: 1.4, color: "#6b7078" }}>{desc}</div>
-                </div>
-              ))}
-            </div>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "#8a8f98" }}>
-              Next: build a design system, or just start editing this canvas.
-            </p>
-          </div>
-        </DCArtboard>
-      </DCSection>
-    </DesignCanvas>
-  );
-}
-`;
-
-const STARTER_CANVAS_META = {
-  title: 'Welcome',
-  subtitle: 'Your first canvas — seeded on project creation',
-  brief:
-    'Neutral, token-free welcome canvas written by scaffoldDesign() so a new project opens to a real artboard instead of an empty studio. Safe to edit or delete.',
-  platform: 'desktop',
-  sections: [
-    {
-      id: 'welcome',
-      title: 'Welcome to Maude · START HERE',
-      artboards: [{ id: 'welcome', label: 'WELCOME/01', width: 680, height: 440 }],
-    },
-  ],
-  css_mode: 'inline',
-  layout: { artboards: [{ id: 'welcome', x: 0, y: 0 }] },
-};
-
-// ── "How to use Maude" — a 10-artboard reference canvas, seeded alongside
-// Welcome.tsx (Phase 1, DDR-166's onboarding plan — replaces the earlier
+// ── "How to use Maude" — a 10-artboard reference canvas, added on request (Help and guides),
+// (Phase 1, DDR-166's onboarding plan — replaces the earlier
 // explainer-video plan item). Genuinely self-contained: no `system/maude/`
 // import (doesn't exist yet on a fresh project), tokens inlined as custom
 // properties. Source of truth for edits: .design/ui/How to use Maude.tsx in
 // this repo — re-sync this constant by hand after editing there.
 const HOW_TO_USE_MAUDE_TSX = `/**
- * @canvas      How to use Maude · seeded into every new project (scaffold-design.ts) · 10 artboards, one per capability
+ * @canvas      How to use Maude · added from Help and guides (scaffold-design.ts) · 10 artboards, one per capability
  * @ds          maude
  * @platform    desktop
  * @opt_out     palette
  * @artboards   start-here | design-system | edit-canvas | ai-assistant | point-comment-draw | generate-images | photo-editing | media-and-templates | save-share-collab | draw-as-code
- * @brief       A "how to use Maude" reference canvas seeded alongside Welcome.tsx on every new project. One artboard per capability cluster (start here, design system, editing, AI assistant, annotation-driven iteration, AI image generation, photo editing, media/templates, git+collab, draw-as-code). Real domain nouns, no Lorem, honest mini-mockups instead of live screenshots (the seeded copy has to work with zero server state).
- * @stack       React 19 · TSX · Bun.build · css_mode=inline (matches Welcome.tsx's seeded-canvas precedent — no sibling CSS to keep in sync across the scaffold template)
+ * @brief       A "how to use Maude" reference canvas added from Help and guides. One artboard per capability cluster (start here, design system, editing, AI assistant, annotation-driven iteration, AI image generation, photo editing, media/templates, git+collab, draw-as-code). Real domain nouns, no Lorem, honest mini-mockups instead of live screenshots (the seeded copy has to work with zero server state).
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (inline styles — no sibling CSS to keep in sync across the scaffold template)
  * @history     .design/_history/how-to-use-maude/
  *
  * Genuinely self-contained (no DS import): this canvas is SEEDED into a
@@ -589,10 +502,9 @@ export default function Canvas() {
 
 const HOW_TO_USE_MAUDE_META = {
   title: 'How to use Maude',
-  subtitle:
-    'Reference canvas seeded into every new project \u2014 10 artboards, one per capability',
+  subtitle: 'Reference canvas added from Help and guides \u2014 10 artboards, one per capability',
   brief:
-    'Onboarding reference canvas (replaces the Phase 1 explainer-video plan item). Seeded alongside Welcome.tsx by scaffold-design.ts on every new project. One artboard per capability cluster: start here, design system, editing, AI assistant, point/comment/draw iteration, AI image generation (Nano Banana), photo editing, media & templates, save/share/collaborate, draw-as-code. Honest inline mini-mockups (no live screenshots \u2014 has to work with zero server state on a freshly scaffolded project).',
+    'Onboarding reference canvas (replaces the Phase 1 explainer-video plan item). Added by Help and guides (scaffold-design.ts). One artboard per capability cluster: start here, design system, editing, AI assistant, point/comment/draw iteration, AI image generation (Nano Banana), photo editing, media & templates, save/share/collaborate, draw-as-code. Honest inline mini-mockups (no live screenshots \u2014 has to work with zero server state on a freshly scaffolded project).',
   platform: 'desktop',
   designSystem: 'maude',
   opt_out_scope: 'none',
@@ -706,13 +618,13 @@ const HOW_TO_USE_MAUDE_META = {
 // ── "How to make video" — the video-comp companion (7 artboards). Same
 // self-contained shape. Source of truth: .design/ui/How to make video.tsx.
 const HOW_TO_MAKE_VIDEO_TSX = `/**
- * @canvas      How to make video · seeded into every new project (scaffold-design.ts) · 7 artboards, one per video capability
+ * @canvas      How to make video · added from Help and guides (scaffold-design.ts) · 7 artboards, one per video capability
  * @ds          maude
  * @platform    desktop
  * @opt_out     palette
  * @artboards   start-video-comp | timeline | ai-assistant-video | footage-to-cut | generate-video-audio | captions | export
- * @brief       A "how to make video" reference canvas seeded alongside How to use Maude.tsx on every new project. One artboard per capability cluster: what a video-comp is, the Timeline, the Assistant for video, turning raw footage into a cut, AI video/audio generation, automatic captions (whisper.cpp / cloud), export. Honest inline mini-mockups, no live screenshots.
- * @stack       React 19 · TSX · Bun.build · css_mode=inline (matches Welcome.tsx's seeded-canvas precedent)
+ * @brief       A "how to make video" reference canvas added from Help and guides, beside How to use Maude.tsx. One artboard per capability cluster: what a video-comp is, the Timeline, the Assistant for video, turning raw footage into a cut, AI video/audio generation, automatic captions (whisper.cpp / cloud), export. Honest inline mini-mockups, no live screenshots.
+ * @stack       React 19 · TSX · Bun.build · css_mode=inline (inline styles, no sibling CSS)
  * @history     .design/_history/how-to-make-video/
  *
  * Genuinely self-contained (no DS import) — same reasoning as How to use
@@ -1143,9 +1055,9 @@ export default function Canvas() {
 const HOW_TO_MAKE_VIDEO_META = {
   title: 'How to make video',
   subtitle:
-    'Reference canvas seeded into every new project \u2014 7 artboards, one per video capability',
+    'Reference canvas added from Help and guides \u2014 7 artboards, one per video capability',
   brief:
-    'Onboarding reference canvas (companion to How to use Maude.tsx). Seeded by scaffold-design.ts on every new project. One artboard per video-comp capability: starting a comp, the Timeline, the Assistant for video, turning raw footage into a cut, AI video/audio generation, automatic captions, export.',
+    'Onboarding reference canvas (companion to How to use Maude.tsx). Added by Help and guides (scaffold-design.ts). One artboard per video-comp capability: starting a comp, the Timeline, the Assistant for video, turning raw footage into a cut, AI video/audio generation, automatic captions, export.',
   platform: 'desktop',
   designSystem: 'maude',
   opt_out_scope: 'none',
@@ -1239,6 +1151,58 @@ export interface ScaffoldResult {
   error?: string;
 }
 
+/** The two guide canvases Help › Help and guides adds on request (S6.15, Q10), in the order shown. */
+export const GUIDE_CANVASES = ['How to use Maude', 'How to make video'] as const;
+
+export interface AddGuidesResult {
+  ok: boolean;
+  /** the guides written now */
+  added: string[];
+  /** the guides already there (a file of that name exists — never overwritten) */
+  skipped: string[];
+  error?: string;
+}
+
+/**
+ * Add the guide canvases to a project's UI folder (`uiDir`, absolute). A new project starts empty
+ * (Q10); the guides come from the same template strings the old scaffold seeded. A guide whose
+ * `.tsx` already exists is skipped and left byte-for-byte as the person left it, so asking twice —
+ * or after editing one — loses nothing.
+ */
+export function addGuideCanvases(uiDir: string): AddGuidesResult {
+  const added: string[] = [];
+  const skipped: string[] = [];
+  const created = new Date().toISOString().slice(0, 10);
+  const guides = [
+    { name: GUIDE_CANVASES[0], tsx: HOW_TO_USE_MAUDE_TSX, meta: HOW_TO_USE_MAUDE_META },
+    { name: GUIDE_CANVASES[1], tsx: HOW_TO_MAKE_VIDEO_TSX, meta: HOW_TO_MAKE_VIDEO_META },
+  ];
+  try {
+    mkdirSync(uiDir, { recursive: true });
+    for (const g of guides) {
+      const tsxPath = join(uiDir, `${g.name}.tsx`);
+      if (existsSync(tsxPath)) {
+        skipped.push(g.name);
+        continue;
+      }
+      // 'wx': a file that appears between the check and the write is not clobbered either
+      writeFileSync(tsxPath, g.tsx, { encoding: 'utf8', flag: 'wx' });
+      const metaPath = join(uiDir, `${g.name}.meta.json`);
+      if (!existsSync(metaPath))
+        writeFileSync(metaPath, `${JSON.stringify({ ...g.meta, created }, null, 2)}\n`, 'utf8');
+      added.push(g.name);
+    }
+    return { ok: true, added, skipped };
+  } catch (e) {
+    return {
+      ok: false,
+      added,
+      skipped,
+      error: e instanceof Error ? e.message : 'Could not add the guides.',
+    };
+  }
+}
+
 /** Scaffold a minimal bootable `.design/` (no design system yet). Refuses to
  *  clobber an existing project. `name` is the human project label. */
 export function scaffoldDesign(dir: string, name?: string): ScaffoldResult {
@@ -1263,30 +1227,10 @@ export function scaffoldDesign(dir: string, name?: string): ScaffoldResult {
       completenessProfile: 'standard',
     };
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-    // Seed a starter canvas so the studio opens to a real artboard, not an empty list.
-    writeFileSync(join(designDir, 'ui', 'Welcome.tsx'), STARTER_CANVAS_TSX, 'utf8');
-    writeFileSync(
-      join(designDir, 'ui', 'Welcome.meta.json'),
-      `${JSON.stringify(STARTER_CANVAS_META, null, 2)}\n`,
-      'utf8'
-    );
-    // Seed the two onboarding reference canvases (Phase 1, DDR-166) — every
-    // new project gets a live, in-app "how to" alongside the blank Welcome
-    // canvas, covering the full capability surface with honest mini-mockups
-    // (no live screenshots — has to work with zero server state).
-    writeFileSync(join(designDir, 'ui', 'How to use Maude.tsx'), HOW_TO_USE_MAUDE_TSX, 'utf8');
-    writeFileSync(
-      join(designDir, 'ui', 'How to use Maude.meta.json'),
-      `${JSON.stringify({ ...HOW_TO_USE_MAUDE_META, created: new Date().toISOString().slice(0, 10) }, null, 2)}\n`,
-      'utf8'
-    );
-    writeFileSync(join(designDir, 'ui', 'How to make video.tsx'), HOW_TO_MAKE_VIDEO_TSX, 'utf8');
-    writeFileSync(
-      join(designDir, 'ui', 'How to make video.meta.json'),
-      `${JSON.stringify({ ...HOW_TO_MAKE_VIDEO_META, created: new Date().toISOString().slice(0, 10) }, null, 2)}\n`,
-      'utf8'
-    );
-    // `system/` is genuinely empty until /design:setup-ds — keep it in git.
+    // A new project starts EMPTY (S6.15, Q10): no Welcome, no guides — Help › Help and guides adds
+    // the guides on request (addGuideCanvases). `ui/` and `system/` stay in git with a .gitkeep;
+    // `system/` is genuinely empty until /design:setup-ds.
+    writeFileSync(join(designDir, 'ui', '.gitkeep'), '', 'utf8');
     writeFileSync(join(designDir, 'system', '.gitkeep'), '', 'utf8');
     return { ok: true };
   } catch (e) {

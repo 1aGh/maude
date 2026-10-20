@@ -175,11 +175,9 @@ export async function openTeamProject(input) {
   }
 }
 
-// ── Tauri shell: app-state (first-run / last-project / recent) — Phase 29 (E4) ──
-// In a plain browser these throw via tauri(); the wizard only mounts in the native
-// app (isNativeApp()), so call sites guard accordingly.
-/** True on a fresh install with no usable last project → show the onboarding wizard. */
-export const appIsFirstRun = () => invoke('app_is_first_run');
+// ── Tauri shell: app-state (last-project / recent) — Phase 29 (E4) ──
+// In a plain browser these throw via tauri(), so call sites guard on isNativeApp().
+// (S6.15 retired `appIsFirstRun`: first launch boots Home, there is no wizard to show.)
 export const appGetLastProject = () => invoke('app_get_last_project');
 export const appRecentProjects = () => invoke('app_recent_projects');
 

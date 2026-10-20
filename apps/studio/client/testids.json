@@ -4427,10 +4427,10 @@
     },
     "region": "onboarding",
     "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
       "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
     ],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home's sign-in card on a first launch (`signin-card`); the wizard is no longer mounted."
   },
   {
     "hook": "onboarding-watch-intro",
@@ -4443,7 +4443,8 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Help › Watch the intro (`project-menu-row-help.intro`)."
   },
   {
     "hook": "ob-door-github",
@@ -4455,11 +4456,9 @@
       "symbol": "Welcome"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Advanced options › Open a folder or GitHub project (`signin-adv-folder-github`, sheet `onb-folder-tab-github`)."
   },
   {
     "hook": "ob-door-team",
@@ -4471,13 +4470,9 @@
       "symbol": "Welcome"
     },
     "region": "onboarding",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts",
-      "apps/desktop/e2e/multiplayer/selfhost-entry.e2e.ts",
-      "apps/desktop/e2e/scenarios/s20-deployment.e2e.ts",
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Advanced options › Use a self-hosted hub (`signin-adv-hub`, sheet `onb-hub`); a cloud team's invited project is Home's `home-cloud-open-<id>`."
   },
   {
     "hook": "ob-door-local",
@@ -4489,11 +4484,9 @@
       "symbol": "Welcome"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Open a folder (`home-open-folder`)."
   },
   {
     "hook": "ob-door-hub",
@@ -4505,11 +4498,9 @@
       "symbol": "Welcome"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Advanced options › Use a self-hosted hub (`signin-adv-hub`, sheet `onb-hub`)."
   },
   {
     "hook": "ob-back",
@@ -4521,11 +4512,9 @@
       "symbol": "BackBar"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now each Home sheet's own Cancel (`onb-<sheet>-cancel`)."
   },
   {
     "hook": "ob-github-create",
@@ -4537,11 +4526,9 @@
       "symbol": "GitHubDoor"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Advanced options › Open a folder or GitHub project › New (`onb-github-new`)."
   },
   {
     "hook": "ob-local-setup",
@@ -4553,11 +4540,9 @@
       "symbol": "LocalDoor"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Create a local project (`home-new-project`); a folder with no `.design/` is set up by Home's Open a folder."
   },
   {
     "hook": "ob-local-choose",
@@ -4569,11 +4554,9 @@
       "symbol": "LocalDoor"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home › Open a folder (`home-open-folder`)."
   },
   {
     "hook": "ob-device-modal",
@@ -4585,11 +4568,9 @@
       "symbol": "DeviceCodeModal"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home's sign-in card while it waits (`signin-waiting`); a project window keeps the browser sign-in sheet `cloud-device-dialog`."
   },
   {
     "hook": "ob-device-code",
@@ -4601,11 +4582,9 @@
       "symbol": "DeviceCodeModal"
     },
     "region": "onboarding",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md",
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now Home's sign-in card › Use a code instead (`signin-code`)."
   },
   {
     "hook": "setup-cl-row-<id>",
@@ -4915,10 +4894,9 @@
       "symbol": "STARTER_CANVAS_TSX"
     },
     "region": "onboarding",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
-    "v2": "stable"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired S6.15 (decision:maude/v2-S6.15-first-run-doors-retired): the v1 first-run wizard is no longer mounted and a new project starts empty. Its job is now nothing: a new project starts empty (Q10); Help › Help and guides › Add the guide canvases to this project (`help-add-guides`) adds the two guides."
   },
   {
     "hook": "share-dialog",
@@ -31108,5 +31086,37 @@
       "apps/studio/test/kind-inspector-rows.test.ts"
     ],
     "v2": "new in v2 (S7.21)"
+  },
+  {
+    "hook": "help-add-guides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Help › Help and guides: \"Add the guide canvases to this project\" (Can edit and up; a new project starts empty, Q10). `help.add-guides` in ⌘K runs the same function.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/help-modal.jsx",
+      "symbol": "HelpModal"
+    },
+    "region": "help/shortcuts",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/onboarding.e2e.ts",
+      "test:v2-help-add-guides"
+    ],
+    "v2": "new in v2 (S6.15)"
+  },
+  {
+    "hook": "help-add-guides-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under that button (`role=\"status\"`): adding, added, already there, or why not.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/help-modal.jsx",
+      "symbol": "HelpModal"
+    },
+    "region": "help/shortcuts",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/onboarding.e2e.ts",
+      "test:v2-help-add-guides"
+    ],
+    "v2": "new in v2 (S6.15)"
   }
 ]

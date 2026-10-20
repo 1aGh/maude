@@ -20,7 +20,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 const { primary, secondary } = lifecycleFixtureOnce();
 delete process.env.MAUDE_PROJECT_ROOT;
-delete process.env.MAUDE_FORCE_ONBOARDING;
 process.env.MAUDE_E2E_PRIMARY_ROOT = primary;
 process.env.MAUDE_E2E_SECONDARY_ROOT = secondary;
 process.env.MAUDE_USE_SYSTEM_GIT = '1';
