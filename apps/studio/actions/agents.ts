@@ -1111,6 +1111,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'makes the person’s own copy of a cloud project on this Mac, then opens it'
     ),
   },
+  // S6.8 — the person signs in to their own cloud account in their own browser; an agent never holds one.
+  'home.signin': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent'
+    ),
+  },
   'nav.home': { effect: 'none', agent: human('native-window') },
   // V2-4.2: a person's sign-in; an agent never picks an account.
   'account.switch': {

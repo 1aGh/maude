@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8ff7af0aa2b4",
+  "manifestVersion": "c1ad6fde2a01",
   "actions": [
     {
       "id": "search.open",
@@ -4110,6 +4110,18 @@
         "path": "human",
         "because": "hub-link",
         "note": "makes the person’s own copy of a cloud project on this Mac, then opens it"
+      }
+    },
+    {
+      "id": "home.signin",
+      "label": "Sign in to cloud.maude.sh",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent"
       }
     },
     {

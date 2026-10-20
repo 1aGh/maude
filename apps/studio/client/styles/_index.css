@@ -127,6 +127,8 @@
 @import url("../v2/shell/contrast.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
 @import url("../home/home.css");
+/* S6.8 — the sign-in card, the create-local sheet, the toast and the What's New line (client/v2/signin/). */
+@import url("../v2/signin/signin.css");
 @import url("./5-utilities.css");
 /* S3.7a — the Present follower page (follow bar, Live, watching; the audience window has no chrome). */
 @import url("../v2/present/follow.css");

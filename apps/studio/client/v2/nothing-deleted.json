@@ -3490,7 +3490,6 @@
   "excluded": {
     "button:studio/client/home/home-app.jsx#HomeApp/dismiss": "v2 code (added after the freeze)",
     "button:studio/client/home/home-app.jsx#HomeApp/dismiss~2": "v2 code (added after the freeze)",
-    "button:studio/client/home/home-app.jsx#HomeApp/home-create-cancel": "v2 code (added after the freeze)",
     "button:studio/client/home/home-app.jsx#HomeApp/home-link-dismiss": "v2 code (added after the freeze)",
     "button:studio/client/home/home-app.jsx#HomeApp/home-link-open": "v2 code (added after the freeze)",
     "button:studio/client/home/home-app.jsx#HomeApp/home-new-project": "v2 code (added after the freeze)",
@@ -3530,10 +3529,6 @@
     "keydown:studio/client/hooks/use-action-keys.jsx#useActionKeys/listener": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-cloud-open-projectid": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-cloud-row-projectid": "v2 code (added after the freeze)",
-    "testid:studio/client/home/home-app.jsx#home/home-create-cancel": "v2 code (added after the freeze)",
-    "testid:studio/client/home/home-app.jsx#home/home-create-dialog": "v2 code (added after the freeze)",
-    "testid:studio/client/home/home-app.jsx#home/home-create-name": "v2 code (added after the freeze)",
-    "testid:studio/client/home/home-app.jsx#home/home-create-submit": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-link-dialog": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-link-dismiss": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-link-note": "v2 code (added after the freeze)",

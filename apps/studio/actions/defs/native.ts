@@ -85,6 +85,18 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // S6.8 — the sign-in card's cloud door, and the quiet link in Home's top bar once there is a project
+    // but no account. Opens the system browser on the device page (Rust `home_cloud_sign_in_open`); the
+    // credential reaches the Home server and Rust, never the page (contract S6-S9 §5.1).
+    id: 'home.signin',
+    label: 'Sign in to cloud.maude.sh',
+    kind: 'command',
+    icon: 'cloud',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { hidden: true },
+  },
+  {
     // V2-4.2: "Back to Home" is the first row of the project pill's menu (CONTRACT §1) — the SAME
     // command as File ▸ Show Home (`home.open`, `new_home_tab`), worded for the Menu. ⌘T stays
     // `home.open`'s. A plain browser tab has no Home window. V2-4.8a: a CLOUD tab has one — the
