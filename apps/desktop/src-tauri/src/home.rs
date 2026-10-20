@@ -899,14 +899,16 @@ pub struct OpenIntent {
 /// The intent kinds Home parks (S6-slices Q8): a canvas from one sentence, an
 /// empty canvas (⌘N on Home), and the two imports. `create-canvas` needs its
 /// sentence; `create-empty` carries none; an import may carry one (≤ 4000).
-pub const INTENT_KINDS: &[&str] = &["create-canvas", "create-empty", "import-brand", "import-figma"];
+/// `make-ds` (S10.16c, Home's "A design system" starter) opens the make sheet in the
+/// target's window and carries none: the sheet asks its own sentence.
+pub const INTENT_KINDS: &[&str] = &["create-canvas", "create-empty", "import-brand", "import-figma", "make-ds"];
 
 pub fn validate_intent(i: OpenIntent) -> Result<OpenIntent, String> {
     let blank = i.prompt.trim().is_empty();
     let prompt_ok = INTENT_KINDS.contains(&i.kind.as_str())
         && match i.kind.as_str() {
             "create-canvas" => !blank,
-            "create-empty" => i.prompt.is_empty(),
+            "create-empty" | "make-ds" => i.prompt.is_empty(),
             _ => true, // the imports: an optional sentence
         };
     let ok = prompt_ok
@@ -1874,10 +1876,13 @@ mod tests {
             assert!(validate_intent(i(k, "the spring palette")).is_ok(), "{k}");
             assert!(validate_intent(i(k, &"x".repeat(4001))).is_err(), "{k}");
         }
-        for k in ["", "Create-Canvas", "run-shell", "move-to-cloud", "import-figma "] {
+        // S10.16c: Home's "A design system" starter — the sheet asks its own sentence
+        assert!(validate_intent(i("make-ds", "")).is_ok());
+        assert!(validate_intent(i("make-ds", "a calm studio")).is_err(), "the make sheet carries no prompt");
+        for k in ["", "Create-Canvas", "run-shell", "move-to-cloud", "import-figma ", "make-ds "] {
             assert!(validate_intent(i(k, "x")).is_err(), "{k:?}");
         }
-        assert_eq!(INTENT_KINDS.len(), 4);
+        assert_eq!(INTENT_KINDS.len(), 5);
         let v1: OpenIntent = serde_json::from_str(r#"{"kind":"create-canvas","prompt":"x"}"#).unwrap();
         assert!(!v1.move_to_cloud);
         assert_eq!(serde_json::to_string(&v1).unwrap(), r#"{"kind":"create-canvas","prompt":"x"}"#);

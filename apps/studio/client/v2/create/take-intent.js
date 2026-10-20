@@ -9,9 +9,10 @@
 //   create-empty    a blank canvas (⌘N on Home)
 //   import-brand    the Import a brand sheet (`import.brand`)
 //   import-figma    the Figma import (`import.figma`)
+//   make-ds         Home's "A design system" starter (`ds.make`: the three-input sheet), S10.16c
 //
 // The intent is UNTRUSTED here as well: Rust already refused a bad one, but a page can hold any value, so the kind
-// is re-checked against the same four, the sentence against the same rules, and anything else is dropped — never
+// is re-checked against the same five, the sentence against the same rules, and anything else is dropped — never
 // run. A Can view / Can comment project refuses with the shell's one denial line and makes nothing (the server
 // refuses the create too; this only says so).
 
@@ -24,6 +25,7 @@ export const INTENT_KINDS = Object.freeze([
   'create-empty',
   'import-brand',
   'import-figma',
+  'make-ds',
 ]);
 
 /** Mirrors Rust's cap on the sentence (characters). */
@@ -34,6 +36,10 @@ export const IMPORT_ACTION = Object.freeze({
   'import-brand': 'import.brand',
   'import-figma': 'import.figma',
 });
+
+/** Every kind that runs a registry action instead of making a canvas. S10.16c: `make-ds` is Home's "A design
+ *  system" starter — `ds.make` opens the three-input sheet (13 · ds-make-inputs) in the target's window. */
+export const INTENT_ACTION = Object.freeze({ ...IMPORT_ACTION, 'make-ds': 'ds.make' });
 
 /** The toast after a project Home just made has moved to the cloud (02 ob-first-draw). */
 export const firstProjectWords = (project) =>
@@ -51,6 +57,7 @@ export function validateIntent(raw) {
   if (typeof prompt !== 'string' || [...prompt].length > INTENT_PROMPT_MAX) return null;
   if (kind === 'create-canvas' && !prompt.trim()) return null; // the sentence is the point
   if (kind === 'create-empty' && prompt !== '') return null; // an empty canvas carries no prompt
+  if (kind === 'make-ds' && prompt !== '') return null; // the sheet asks its own sentence
   return { kind, prompt, moveToCloud: raw.moveToCloud === true };
 }
 
@@ -80,7 +87,7 @@ export async function runIntent(raw, deps) {
     if (!made.ok) return { ok: false, reason: 'create' };
   } else {
     // An import carries no sentence into the sheet: whatever a parked prompt said is never put in a form.
-    deps.runAction(IMPORT_ACTION[intent.kind]);
+    deps.runAction(INTENT_ACTION[intent.kind]);
   }
   // The canvas never waits on the cloud: the move runs after, in the background, and may fail quietly.
   if (intent.moveToCloud) void moveToCloud(deps);

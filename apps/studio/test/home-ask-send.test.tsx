@@ -317,7 +317,8 @@ describe('starters, ⌘N and the way in without AI', () => {
     await flush();
     const starters = host.querySelectorAll('[data-testid^="home-starter-"]');
     expect(starters).toHaveLength(3);
-    act(() => (starters[0] as HTMLElement).click());
+    // the first is "A design system" (an action, S10.16c); the rest are sentences
+    act(() => (starters[1] as HTMLElement).click());
     await flush();
     expect(opens()).toHaveLength(0);
     expect(($('home-ask-input') as HTMLTextAreaElement).value.length).toBeGreaterThan(8);
@@ -342,6 +343,17 @@ describe('starters, ⌘N and the way in without AI', () => {
     act(() => brand?.click());
     await flush();
     expect(opens()[0].args).toEqual({ pid: P2, intent: { kind: 'import-brand', prompt: '' } });
+  });
+
+  test('S10.16c: "A design system" is a make-ds intent in the target — the make sheet, not the prompt', async () => {
+    mount();
+    await flush();
+    const ds = $('home-starter-ds');
+    expect(ds?.textContent).toContain('A design system');
+    act(() => ds?.click());
+    await flush();
+    expect(opens()[0].args).toEqual({ pid: P2, intent: { kind: 'make-ds', prompt: '' } });
+    expect(($('home-ask-input') as HTMLTextAreaElement).value).toBe('');
   });
 
   test('⌘N on Home (menu://action canvas.new) is a create-empty intent in the target', async () => {
