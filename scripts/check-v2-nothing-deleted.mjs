@@ -19,13 +19,16 @@
 //   1. every manifest entry maps to an existing row,
 //   2. every row has `v2.where` and a registry action id or a testid,
 //   3. every row is reachable in a headless boot per shell and role (reachability.json, written by
-//      the Phase 4 probe; until it exists this check is red).
+//      the Phase 4 probe; until it exists this check is red),
+//   4. no row's `v2.where` names a v1 component (S11.19; the list is derived from the v1 manifest and
+//      component files, scripts/v2-manifest/v1-names.mjs): a `where` is a path a person follows.
 // Exit 0 = 100 %; 1 = below (printed); 2 = could not run.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_PROOFS, proofHolds } from './v2-manifest/reach-rules.mjs';
+import { v1ComponentNames, v1NamesInWhere } from './v2-manifest/v1-names.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = join(ROOT, 'apps/studio/client/v2/v1-manifest.json');
@@ -161,6 +164,7 @@ const kept = [
 ];
 const live = nd.rows.filter((r) => !r.orphaned);
 const unhomed = live.filter((r) => !r.v2?.where || !(r.v2?.action || r.v2?.testid));
+const v1Named = v1NamesInWhere(live, v1ComponentNames(ROOT, manifest));
 let unreached = live;
 let unreachedKept = kept;
 let reachNote = 'reachability probe not run yet (Phase 4 headless boot per shell and role)';
@@ -211,13 +215,19 @@ const result = {
     pct: pct(unreached.length, live.length),
     note: reachNote,
   },
+  where: { v1Named: v1Named.length, rows: v1Named.map((h) => `${h.id}:${h.name}`) },
   keptReachable: {
     total: kept.length,
     unreached: unreachedKept.length,
     pct: pct(unreachedKept.length, kept.length),
   },
 };
-const green = !unmapped.length && !unhomed.length && !unreached.length && !unreachedKept.length;
+const green =
+  !unmapped.length &&
+  !unhomed.length &&
+  !unreached.length &&
+  !unreachedKept.length &&
+  !v1Named.length;
 
 if (args.includes('--json')) {
   console.log(JSON.stringify({ ...result, green }, null, 2));
@@ -233,6 +243,9 @@ if (args.includes('--json')) {
   );
   console.log(
     `kept actions/hooks reachable      ${result.keptReachable.pct} %  (${unreachedKept.length} of ${kept.length} open)`
+  );
+  console.log(
+    `v2.where free of v1 names         ${v1Named.length ? `${v1Named.length} open (${result.where.rows.join(', ')})` : '100.0 %'}`
   );
   console.log(
     green

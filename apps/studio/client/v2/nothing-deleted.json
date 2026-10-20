@@ -1810,7 +1810,7 @@
       "v2": {
         "action": "ai.chat",
         "testid": "chat-overflow-menu",
-        "where": "AI chat (⇧⌘A) › the title ⌄ opens the chat list; a row's ⋯ menu: Open, Rename…, Copy transcript, Archive, Move to trash (Delete is Move to trash — Trash keeps it until cleared out); the suggest-only banner's Allow changes is the old ModeBanner; the empty state’s buttons and “Implement N comments” sit in the feed (S5.12)",
+        "where": "AI chat (⇧⌘A) › the title ⌄ opens the chat list; a row's ⋯ menu: Open, Rename…, Copy transcript, Archive, Move to trash (Delete is Move to trash — Trash keeps it until cleared out); the suggest-only banner's Allow changes sits at the top of the AI chat; the empty state’s buttons and “Implement N comments” sit in the feed (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1826,7 +1826,7 @@
       "v2": {
         "action": "history.open",
         "testid": "vh-panel",
-        "where": "Menu › Version history ⌥⌘H → the Version history panel (S1.14): “Versions appear here as you work.”, “Couldn’t load versions” + Retry versions, result banners as one-action toasts (“Restored 5 Oct, 18:40 · Undo”), Undo a restore; › Advanced keeps today’s git body and DiffView compare (testid git-panel) until S1.15 / S11 reword it"
+        "where": "Menu › Version history ⌥⌘H → the Version history panel (S1.14): “Versions appear here as you work.”, “Couldn’t load versions” + Retry versions, result banners as one-action toasts (“Restored 5 Oct, 18:40 · Undo”), Undo a restore; › Advanced keeps the full change list and Compare pictures (testid git-panel)"
       }
     },
     {
@@ -1852,7 +1852,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server… (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list, SyncBanner and the status words are V2-4.7b / status-word packages — V2-4.8b: SyncBanner diverged / rejected / long offline → callouts (callout-sync-diverged · callout-sync-rejected · callout-sync-offline-long, one action Details → Diagnostics › Sync; the reconnect flash is callout-sync-back; a short offline spell is the Share cluster word “Offline — kept on this Mac”); CloudRoleBanner → callout-role (once per role) + the always-visible access word (Can view / Can comment)"
+        "where": "Settings › Connections › Your team’s own server › Add a team server… (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list and the status words are V2-4.7b / status-word packages — V2-4.8b: the sync notice (diverged / rejected / long offline) is a callout (callout-sync-diverged · callout-sync-rejected · callout-sync-offline-long, one action Details → Diagnostics › Sync; the reconnect flash is callout-sync-back; a short offline spell is the Share cluster word “Offline — kept on this Mac”); the role notice is callout-role (once per role) + the always-visible access word (Can view / Can comment)"
       }
     },
     {
