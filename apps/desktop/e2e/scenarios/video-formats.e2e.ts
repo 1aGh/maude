@@ -91,7 +91,8 @@ describe('video-formats — Add a format, Make an unlinked copy, Re-frame a clip
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + box.w / 2, box.y + box.h / 2);
+    // the artboard's name strip selects the WHOLE artboard; its body would pick the video player inside it
+    await clickAt(box.x + 12, box.y - 10);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
     await $('[data-testid="insp-formats"]').waitForExist({
       timeout: 15_000,

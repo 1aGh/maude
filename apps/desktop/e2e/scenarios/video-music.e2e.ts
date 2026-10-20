@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { waitForArtboard } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { pointerClick } from '../helpers/pointer';
@@ -84,7 +84,7 @@ describe('video-music — a music bed with its beat: ticks, Music inspector, Low
     const row = await canvasRow('canvas-row-ui-videomusic');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
-    await waitForCanvasRects();
+    await waitForArtboard('reel'); // a comp with no element boxes never fills the rects hook
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
     await clickAt(box.x + 12, box.y - 10);

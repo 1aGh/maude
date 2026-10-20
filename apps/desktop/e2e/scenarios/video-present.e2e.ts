@@ -76,7 +76,8 @@ describe('video-present — a video presents its formats only; the export sheet 
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await clickAt(box.x + box.w / 2, box.y + box.h / 2);
+    // the artboard's name strip selects the WHOLE artboard; its body would pick the video player inside it
+    await clickAt(box.x + 12, box.y - 10);
     await $(tid('insp-format-add')).waitForExist({ timeout: 15_000 });
     await (await $(tid('insp-format-add'))).click();
     await (await $(tid('insp-format-add-1920x1080'))).click();

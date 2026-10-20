@@ -46,6 +46,25 @@ export async function waitForCanvasRects(timeout = 30_000): Promise<void> {
 }
 
 /**
+ * Wait until an ARTBOARD is on the page. `waitForCanvasRects` lists element boxes, so a canvas whose artboards hold
+ * nothing with a box (empty frames, a blank video comp) never satisfies it: this reads the artboard itself.
+ */
+export async function waitForArtboard(id: string, timeout = 30_000): Promise<void> {
+  await browser.waitUntil(
+    async () =>
+      browser.execute((artboard: string) => {
+        const frame = document.querySelector<HTMLIFrameElement>('[data-testid="canvas-frame"]');
+        try {
+          return !!frame?.contentDocument?.querySelector(`[data-dc-screen="${artboard}"]`);
+        } catch {
+          return false;
+        }
+      }, id),
+    { timeout, interval: 250, timeoutMsg: `the artboard "${id}" never rendered` }
+  );
+}
+
+/**
  * `waitForCanvasRects` plus the editing chrome: the toolbar (`toolbar-edit`) mounts a beat after the
  * artboards render, so a spec that clicks a tool straight after opening a canvas can find no slot.
  */

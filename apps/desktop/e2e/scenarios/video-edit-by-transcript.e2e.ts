@@ -81,9 +81,11 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
 
   it('Captions from speech: one write adds <Captions>, the Transcript opens with the three words', async () => {
     const before = onDisk();
-    expect(before).not.toContain('<Captions');
+    // the file's own header comment names <Captions>: count the element, not the word
+    const captionTags = (src: string) => (src.match(/<Captions\s/g) ?? []).length;
+    expect(captionTags(before)).toBe(0);
     await (await $('[data-testid="timeline-captions-tool"]')).click();
-    await browser.waitUntil(async () => onDisk().includes('<Captions'), {
+    await browser.waitUntil(async () => captionTags(onDisk()) === 1, {
       timeout: 20_000,
       timeoutMsg: 'the captions never reached the file',
     });

@@ -3,7 +3,7 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { waitForArtboard } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
@@ -136,7 +136,7 @@ describe('video-ai-cut-stop — reel-place × 7, Stop, one action, one ⌘Z', ()
     const row = await canvasRow('canvas-row-ui-videoaicut');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
-    await waitForCanvasRects();
+    await waitForArtboard('recap'); // a blank comp has no element boxes, so not the rects hook
     const box = (await artboardBox('recap')) as Box;
     expect(box).not.toBeNull();
     await clickAt(box.x + 12, box.y - 10);
