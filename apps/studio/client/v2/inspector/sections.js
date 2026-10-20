@@ -114,6 +114,21 @@ export const SECTIONS = Object.freeze(
         'Where a platform’s own interface covers the artboard. Drawn on the canvas for you; never exported.',
     },
     {
+      // S7.10 (07 ve-transition, ve-text): a clip you select on the Timeline, and a title — drawn for those kinds only.
+      n: 23,
+      id: 'clip',
+      title: 'Clip',
+      explain:
+        'How long it plays, how fast, how loud and how the picture sits. The file, the in and out points, Grade, Crop and the join after it are under Advanced.',
+    },
+    {
+      n: 24,
+      id: 'title-motion',
+      title: 'Title',
+      explain:
+        'The words, how they come in — None, Fade, Slide up, Pop, Type on or Per word — and how long the title stays.',
+    },
+    {
       n: 10,
       id: 'export',
       title: 'Export',

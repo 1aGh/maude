@@ -371,6 +371,20 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Wrap the title’s content in <Place at={[x, y]} formats={{ "16:9": [x, y] }}> (centre anchor, fractions of the output frame)'
     )
   ),
+  'video.title.motion': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Wrap the title’s content in <TitleMotion preset="none|fade|slide-up|pop|type-on|per-word" frames={12}> (inside its <Place> when it has one); none takes the wrapper off'
+    )
+  ),
+  'video.transition.set': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set presentation={fade() | slide() | wipe() | flip() | clockWipe(…) | none()} and the timing frames on the <TransitionSeries.Transition> at the join (Cut is none())'
+    )
+  ),
   'artboard.new-desktop': TSX('Add a DCArtboard sized 1440×1024'),
   'artboard.new-laptop': TSX('Add a DCArtboard sized 1280×800'),
   'artboard.new-tablet': TSX('Add a DCArtboard sized 834×1194'),

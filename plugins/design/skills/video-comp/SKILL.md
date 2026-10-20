@@ -39,3 +39,4 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When writing `<Captions>`, `<Duck>`, `<Reframe>` or `<Place>` by hand, or choosing how many focus keys (Maude 2) | [The four comp components](./_guide-17-captions-duck-reframe-place-components.md) |
 | When naming scenes so they land on the right track, setting a poster frame, or explaining how a video plays on the canvas (Maude 2) | [The four tracks, the poster frame, and playing in place](./_guide-18-tracks-poster-and-playing-in-place.md) |
 | When trimming, moving or dropping clips, or doing what the Timeline's clip menu does (Maude 2) | [Trimming, moving, dropping footage and the clip menu](./_guide-19-edit-gestures-and-the-clip-menu.md) |
+| When giving a title a motion, changing a join's transition, or deciding how a vertical clip sits in a wide video (Maude 2) | [Title motion, a join's transition, and how a vertical clip sits](./_guide-20-title-motion-and-the-joins.md) |

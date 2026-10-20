@@ -238,7 +238,16 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'bottom').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        {kind.bare ? null : (
+        {kind.bare ? null : kind.Advanced ? (
+          // S7.10 — a kind with a fold of its own (a clip on the Timeline: no CSS, a file and its in and out)
+          <kind.Advanced
+            el={el}
+            selection={selected}
+            ctx={ctx}
+            open={adv.open}
+            onToggle={adv.toggle}
+          />
+        ) : (
           <InspectorAdvanced
             selected={selected}
             el={el}

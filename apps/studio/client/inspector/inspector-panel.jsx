@@ -1,6 +1,6 @@
 // inspector/inspector-panel.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackRecordableWrite } from './css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
 import { Kbd, StIcon } from '../shell/icons.jsx';
@@ -15,6 +15,7 @@ import { useDsTruthCards } from '../v2/ds/truth-card.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
 import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
 import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
+import { timelineSelectionElement, useTimelineSelection } from '../v2/timeline/selection.js';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
@@ -65,7 +66,7 @@ export function InspectorPanel({
   /** E4 — `inspector-panel` / `layers-panel`, so one parity spec can assert
    *  both shells show them. Undefined elsewhere; the attribute simply absent. */
   testId,
-  selected,
+  selected: selectedFromCanvas,
   onClose,
   layersTree,
   // feature-4 T7a — { [cdId]: { component, root, usages } } for purple rows.
@@ -126,6 +127,15 @@ export function InspectorPanel({
   // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
   onRenameElementId = renameElementId,
 }) {
+  // S7.10 — a clip selected on the Timeline takes this panel (07 · ve-select: "clip select → right inspector"); a
+  // canvas selection hands it back (TimelineHost listens for it and releases the clip). The standalone Layers panel
+  // keeps the canvas's own selection.
+  const tlSel = useTimelineSelection();
+  const tlEl = useMemo(
+    () => (layersOnly ? null : timelineSelectionElement(tlSel)),
+    [tlSel, layersOnly]
+  );
+  const selected = tlEl ?? selectedFromCanvas;
   // Tab is controllable from the parent (the guided tour drives it to 'css' /
   // 'layers' so a spotlight step lands on a real row) but falls back to local
   // state for normal use. A user click both updates local state and notifies the

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "5cfbb11e0cac",
+  "manifestVersion": "ba7f2074a588",
   "actions": [
     {
       "id": "search.open",
@@ -3525,6 +3525,44 @@
         "format": "canvas-tsx",
         "skill": "design:video-comp",
         "how": "Wrap the title’s content in <Place at={[x, y]} formats={{ \"16:9\": [x, y] }}> (centre anchor, fractions of the output frame)"
+      }
+    },
+    {
+      "id": "video.title.motion",
+      "label": "Title motion",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the title’s content in <TitleMotion preset=\"none|fade|slide-up|pop|type-on|per-word\" frames={12}> (inside its <Place> when it has one); none takes the wrapper off"
+      }
+    },
+    {
+      "id": "video.transition.set",
+      "label": "Set the transition",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set presentation={fade() | slide() | wipe() | flip() | clockWipe(…) | none()} and the timing frames on the <TransitionSeries.Transition> at the join (Cut is none())"
       }
     },
     {

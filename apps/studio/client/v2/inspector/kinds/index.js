@@ -22,15 +22,17 @@ export const ARTBOARD_KIND_CHIPS = Object.freeze({
 /** The id of the kind nothing else claims. */
 export const KIND_FALLBACK = 'frame';
 
-/** @type {Array<{ id: string, label: string | ((s: any) => string), order: number, match: (s: any) => boolean, bare: boolean, seq: number }>} */
+/** @type {Array<{ id: string, label: string | ((s: any) => string), order: number, match: (s: any) => boolean, bare: boolean, Advanced?: any, seq: number }>} */
 const kinds = [];
 let seq = 0;
 
 /**
- * @param {{ id: string, label: string | ((selection: any) => string), match: (selection: any) => boolean, order?: number, bare?: boolean }} kind
+ * @param {{ id: string, label: string | ((selection: any) => string), match: (selection: any) => boolean, order?: number, bare?: boolean, Advanced?: any }} kind
  *   `match` gets the selection as the panel holds it: one element, or an array of them. `order` defaults to 100;
  *   the built-ins sit between 10 and 90, the fallback at 1000. `bare` (S10.7): the kind draws everything itself
- *   (a design-system token) — the frame leaves out the ten object sections and the raw code fold.
+ *   (a design-system token) — the frame leaves out the ten object sections and the raw code fold. `Advanced`
+ *   (S7.10): the kind's own fold in place of the code fold — `({ el, selection, ctx, open, onToggle }) => element`
+ *   (a clip on the Timeline has no CSS to show; it has src · in · out and its Grade).
  * @returns {() => void} unregister (tests, hot reload)
  */
 export function registerKind(kind) {
@@ -43,6 +45,7 @@ export function registerKind(kind) {
     match: kind.match,
     order: Number.isFinite(kind.order) ? kind.order : 100,
     bare: kind.bare === true,
+    Advanced: typeof kind.Advanced === 'function' ? kind.Advanced : undefined,
     seq: seq++,
   };
   kinds.push(entry);
