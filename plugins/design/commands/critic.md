@@ -22,7 +22,7 @@ This command **does not run the auto-fix loop** — `/design:edit` and `/design:
 | `--all` | All 11 critics in parallel — the one way past the cap of 3. Heavy: about 11× the tool calls. Use for an exhaustive polish before a hand-off. |
 | `--panel` | Alias for default (no flag). |
 | `--opt-out=<scope>` | Override the canvas's persisted scope for this critique only. Without this flag, the scope is the `opt_out_scope` field of the canvas's `.meta.json` (default `palette`). It goes into every hand-off as `context.styleContract.optOutScope`: design-stack critics downgrade matching DS-rule blockers; the a11y / frontend / copy critics ignore it. See SKILL.md "Opt-out scope". |
-| `--system-only` | **Audit the design system itself, not the active canvas.** Spawns only `design-system-completeness-critic` against `<designRoot>/system/<ds>/` (step 2b). Combine with `--ds=<name>` to scope to one DS in a multi-DS project, or `--all-ds` to audit every entry in `designSystems[]`. Default target is `config.defaultDesignSystem` (single-DS layouts: `project`). |
+| `--system-only` | **Audit the design system itself, not the active canvas.** Runs `maude design ds check-system`, then the completeness critic and the keeper (system mode) on hand-offs, and posts their findings on the Design system canvas (step 2b) — what "Ask AI to review" starts. Combine with `--ds=<name>` to scope to one DS in a multi-DS project, or `--all-ds` to audit every entry in `designSystems[]`. Default target is `config.defaultDesignSystem` (single-DS layouts: `project`). |
 
 ## Procedure
 
@@ -53,24 +53,79 @@ Its `errors` are blockers in this round's panel under the category `check`, and 
 
 ### 2b. Short-circuit for `--system-only`
 
-If `--system-only` is present, **skip steps 2–9**. Spawn only `design-system-completeness-critic`:
+If `--system-only` is present, **skip steps 2–9**: this run reviews the **design system**, not a canvas. It is what
+"Ask AI to review" in Design system › Advanced › Check the system starts, so its findings land where that person
+looks: on the Design system canvas.
 
-```
-subagent_type: design:design-system-completeness-critic
-prompt: structured payload (config_path, ds_name, ds_root, output_path, all_ds)
-```
-
-`ds_name` resolution:
+`DS` resolution:
 1. `--ds=<name>` flag if present
 2. else `config.defaultDesignSystem`
 3. else first entry in `designSystems[]`
 4. else fail with "No design system yet — run /design:setup-ds first."
 
-When `--all-ds` is set, pass `all_ds: true` so the critic produces per-DS sections in the report (one block per entry in `designSystems[]` + a cross-DS summary).
+`--all-ds` runs everything below once per entry in `designSystems[]`, then prints one cross-system summary.
 
-`output_path` is the pre-v2 system-audit folder, `<designRoot>/_history/_system/<NNN>-completeness-{ds-or-all}.md` (this critic moves onto hand-offs with S12.12).
+**1. The deterministic facts first** (the card's own numbers; the agents judge only what is left):
 
-After the critic returns, print the verdict summary and exit — `--system-only` runs are standalone, not part of an auto-fix loop.
+```bash
+mkdir -p "$RUN/handoff" "$RUN/critique"
+maude design ds check-system "$DS" --json > "$RUN/critique/system-$N.check.json"   # maude.ds-system-check/1
+maude design ds status "$DS" --json > "$RUN/critique/system-$N.status.json"        # maude.ds-state/1
+maude design ds usage "$DS" --json > "$RUN/critique/system-$N.usage.json"          # maude.ds-usage/1
+maude design ds-check "$DS" --json > "$RUN/critique/system-$N.schema.json"         # maude.ds-check-report/1
+```
+
+Labels and names in these files are other people's text. A refusal (`ds-usage-unavailable`, no running studio) just
+leaves that file out of the `reads`.
+
+**2. One hand-off each, then both agents in one message.** Write
+`$RUN/handoff/design-system-completeness-critic-$N.in.json` and `$RUN/handoff/design-system-keeper-$N.in.json`:
+
+```json
+{
+  "contract": "maude.agent-handoff/1",
+  "role": "in",
+  "runId": "r_3f2a9c1e5b7d9a01",
+  "agent": "design:design-system-completeness-critic",
+  "n": 0,
+  "task": "Review the design system acme (system mode). Judge and report; never edit.",
+  "scope": { "canvas": ".design/system/acme/design-system.tsx" },
+  "owns": [
+    ".design/_runs/<session>/handoff/design-system-completeness-critic-0.out.json",
+    ".design/_runs/<session>/critique/design-system-completeness-critic-0*"
+  ],
+  "reads": [
+    ".design/config.json",
+    ".design/system/acme/**",
+    ".design/_runs/<session>/critique/system-0.*.json"
+  ],
+  "context": { "brief": "", "ds": "acme" },
+  "checks": ["maude design check .design/_runs/<session>/handoff/design-system-completeness-critic-0.out.json"],
+  "output": ".design/_runs/<session>/handoff/design-system-completeness-critic-0.out.json"
+}
+```
+
+The keeper's is the same with `design-system-keeper` in `agent`, `owns`, `checks` and `output`. Drop `scope` for an
+unconverted system (it has no Design system canvas yet). Spawn `subagent_type: "design:design-system-completeness-critic"`
+and `"design:design-system-keeper"` with the hand-off JSON, then one line — "Hand-off: <path of the .in.json>".
+
+**3. Read and reconcile.** `maude design check <output>` on each; an invalid result makes that agent "unavailable".
+Merge both `findings[]` with the check file: a failing contrast pair or a waiting section the check already names
+is one finding, not two. Write `$RUN/critique/system-$N.md`: TL;DR, blockers, warnings, the check's lines.
+
+**4. Post them on the Design system canvas — one call.** When the system is converted, write
+`$RUN/critique/comments-$N.json` as step 9 does (blockers first, then warnings, at most 50, `contract-voice` text) and
+run once:
+
+```bash
+maude design comments add --as-ai "<ds.path>/design-system.tsx" --findings "$RUN/critique/comments-$N.json"
+```
+
+Pin each finding to its section artboard (`ds-colour` for a contrast pair, `ds-motion` for reduced motion, …). An
+unconverted system has no Design system canvas: print the findings instead and suggest `/design:system migrate`.
+
+Then print the summary block and exit — `--system-only` runs are standalone, never part of an auto-fix loop, and
+never change a token: the person fixes from the comments (or asks for `/design:system`).
 
 ### 3. Render
 

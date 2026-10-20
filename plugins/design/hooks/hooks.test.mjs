@@ -958,7 +958,12 @@ describe('S12.7 — bounded writers and untrusted-input readers', () => {
     const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(/^#+ Sample hand-off/m)));
     return JSON.parse(m[1].replaceAll('<session>', S));
   };
-  const WRITERS = { 'draw-agent': 'w1', 'footage-director': 'w2', 'reconstruct-agent': 'w3' };
+  const WRITERS = {
+    'draw-agent': 'w1',
+    'footage-director': 'w2',
+    'reconstruct-agent': 'w3',
+    'ds-migrator': 'w4',
+  };
   const who = (agent) => ({
     session_id: S,
     agent_id: WRITERS[agent] ?? `r-${agent}`,
@@ -1050,6 +1055,38 @@ describe('S12.7 — bounded writers and untrusted-input readers', () => {
     });
     expect(isDeny(sh, 'out-of-scope')).toBe(true);
     expect(sh.json.hookSpecificOutput.permissionDecisionReason).toContain('untrusted');
+  });
+
+  // S12.12 — ds-migrator owns the NEW Design system canvas of one system and its review. The
+  // canvas files are created by `maude design ds convert`; the hook keeps every other write out.
+  test('ds-migrator: owns the new Design system canvas + its review; an existing canvas or the system files → denied', async () => {
+    const doc = IN('ds-migrator');
+    expect(doc.agent).toBe('design:ds-migrator');
+    expect(doc.owns.some((g) => g.endsWith('/design-system.tsx'))).toBe(true);
+    expect(doc.owns.some((g) => g.endsWith('.review.md'))).toBe(true);
+    for (const [i, own] of doc.owns.entries())
+      free(await hook('pre-edit', write('ds-migrator', `g${i}`, own)));
+    const onCanvas = await hook('pre-edit', {
+      ...edit(project, S, 'g5', 'Hi', 'Yo'),
+      ...who('ds-migrator'),
+    });
+    expect(isDeny(onCanvas, 'out-of-scope')).toBe(true);
+    expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
+    for (const [id, rel] of [
+      ['g6', '.design/ui/C.tsx'],
+      ['g7', '.design/system/acme/colors_and_type.css'],
+      ['g8', '.design/system/acme/tokens.json'],
+      ['g9', '.design/config.json'],
+      ['g10', 'src/tokens.css'],
+    ])
+      expect(isDeny(await hook('pre-edit', write('ds-migrator', id, rel)), 'out-of-scope')).toBe(
+        true
+      );
+    const head = await hook(
+      'pre-edit',
+      write('ds-migrator', 'g11', '.design/system/acme/revisions/head.json', '{}')
+    );
+    expect(head.json?.hookSpecificOutput?.permissionDecision).toBe('deny');
   });
 
   test('footage-analyst / reconstruct-critic with no hand-off: no Bash, no write outside .design/', async () => {

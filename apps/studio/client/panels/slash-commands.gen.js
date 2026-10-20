@@ -136,6 +136,11 @@ export const STATIC_COMMANDS = [
     argHint: '[--include-system 0|1] [--timeout <secs>] …',
   },
   {
+    name: 'design:system',
+    description:
+      'Work with the project\'s design systems: where each stands, the default for new canvases, switching canvases, outside changes, moving a system folder onto its Design system canvas, importing tokens.',
+  },
+  {
     name: 'design:to-lottie',
     description: 'Export animation keyframes to a verified Lottie artifact for web and mobile.',
     argHint: '"<animated mark | IR handle | canvas>" …',
