@@ -86,6 +86,17 @@ describe('nearestForToken (the trash replacement)', () => {
     expect(nearestForToken('--x', sys, THEMES)?.css).toBe('--mate');
   });
 
+  test("the token's own group stands in first, even when another group is nearer; a token alone in its group looks everywhere", () => {
+    const sys = [
+      tok('--x', '#888888', undefined, { group: 'line' }),
+      tok('--other-near', '#898989', undefined, { group: 'fg' }),
+      tok('--mate-far', '#cccccc', undefined, { group: 'line' }),
+    ];
+    expect(nearestForToken('--x', sys, THEMES)?.css).toBe('--mate-far');
+    const alone = [tok('--x', '#888888', undefined, { group: 'solo' }), ...sys.slice(1)];
+    expect(nearestForToken('--x', alone, THEMES)?.css).toBe('--other-near');
+  });
+
   test('an unknown token has no replacement', () => {
     expect(nearestForToken('--nope', SYSTEM, THEMES)).toBeNull();
   });

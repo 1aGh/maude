@@ -98,7 +98,8 @@ function rank(
 
 /**
  * The colour that should take over from `css` when it goes to the trash. null when `css` is not a colour of the
- * system or nothing else is left to follow. Ties go to the same group ("the closest LINE colour").
+ * system or nothing else is left to follow. The token's own group comes first ("the closest LINE colour"); a token
+ * alone in its group is matched against the whole system.
  */
 export function nearestForToken(
   css: string,
@@ -106,7 +107,7 @@ export function nearestForToken(
   themes: NearestThemes
 ): Nearest | null {
   const target = tokens.find((t) => t.css === css);
-  if (!target || target.kind !== 'color') return null;
+  if (target?.kind !== 'color') return null;
   const at = colourIn(tokens, themes);
   const modes = themes.all.filter((m) => target.values[m] !== undefined);
   if (!modes.length) modes.push(themes.default);
@@ -128,7 +129,10 @@ export function nearestForToken(
     if (!n) continue;
     scored.push({ css: cand.css, group: cand.group, score: sum / n, exact });
   }
-  return rank(scored, target.group);
+  // "the closest LINE colour": a colour of the token's own group stands in when the group has another; only a
+  // token alone in its group looks across the whole system
+  const kin = scored.filter((x) => x.group === target.group);
+  return rank(kin.length ? kin : scored, target.group);
 }
 
 /**

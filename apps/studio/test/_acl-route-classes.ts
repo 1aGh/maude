@@ -122,6 +122,9 @@ const FILTERED = [
   '/_api/ds/revisions',
   '/_api/ds/usage',
   '/_api/ds/make-state',
+  // S10.17 — the nearest system colour, and the off-system colours of a canvas (reads)
+  '/_api/ds/nearest',
+  '/_api/ds/off-system',
   '/_api/asset-state',
 ];
 
@@ -247,6 +250,9 @@ const PROJECT = [
   '/_api/ds/default',
   // S10.14 — move canvases to another design system
   '/_api/ds/switch',
+  // S10.17 — Lighten to 4.5:1 and Add it to the system: waiting edits, judged on the DS canvas like `pending`
+  '/_api/ds/fix-contrast',
+  '/_api/ds/add-colour',
   '/_api/share/invites',
   '/_api/share/invites/:id/resend',
   '/_api/share/invites/:id/revoke',

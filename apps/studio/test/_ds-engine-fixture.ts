@@ -80,7 +80,7 @@ export interface Project {
 }
 
 export async function makeProject(
-  o: { machine?: string; kernel?: DsKernelPort | null } = {}
+  o: { machine?: string; kernel?: DsKernelPort | null; tokensCss?: string } = {}
 ): Promise<Project> {
   const root = mkdtempSync(path.join(tmpdir(), 'maude-ds-engine-'));
   dirs.push(root);
@@ -96,7 +96,8 @@ export async function makeProject(
     return existsSync(abs) ? readFileSync(abs, 'utf8') : null;
   };
   write('config.json', `${JSON.stringify(CONFIG, null, 2)}\n`);
-  write(`${DS_PATH}/colors_and_type.css`, TOKENS_CSS);
+  const tokensCss = o.tokensCss ?? TOKENS_CSS;
+  write(`${DS_PATH}/colors_and_type.css`, tokensCss);
   write(`${DS_PATH}/preview/_components.css`, COMPONENTS_CSS);
   write(`${DS_PATH}/design-system.tsx`, canvasTsx('Design system'));
   write(
@@ -109,7 +110,7 @@ export async function makeProject(
   }
   // conversion (S10.12's job; done by hand here): R0 = the working files, head = base = R0
   const R0 = buildRevision(DS, {
-    'colors_and_type.css': TOKENS_CSS,
+    'colors_and_type.css': tokensCss,
     'preview/_components.css': COMPONENTS_CSS,
   });
   for (const w of revisionWritePlan(() => null, R0, {})) write(`${DS_PATH}/${w.path}`, w.text);
