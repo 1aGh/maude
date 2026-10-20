@@ -14,6 +14,9 @@ import { createContext, useContext } from 'react';
  *   onToggleSize: () => void,
  *   fileDrag?: boolean,                                   // footage is being dragged over the window (S7.9)
  *   dropRect?: { left: number, top: number, width: number, height: number } | null,   // the artboard, in window px
+ *   canvas?: string | null,                               // the open canvas (S7.10: a per-viewer "asked once" key)
+ *   canEdit?: boolean,                                    // the role may write (S7.10: the picker's tiles, the Music link)
+ *   canAsk?: boolean,                                     // the AI chat exists here (S7.10: "or ask AI for a track")
  *   empty: import('react').ReactNode,
  * }} IslandValue
  */

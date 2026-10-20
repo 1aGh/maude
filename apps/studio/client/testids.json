@@ -33086,5 +33086,469 @@
       "apps/studio/test/export-lane-choice.test.ts"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "insp-clip-length",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the clip inspector's Length field (\"2.5 s\"). A fixed number trims the END (clip.retime); typed seconds, `75f` or `1:05` all read.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "LengthRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-clip-speed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the clip inspector's Speed select — 0.25× · 0.5× · 1× · 1.5× · 2× · 4×, and the clip's own rate when it is none of those. One clip.speed per pick.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "SpeedRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-clip-volume",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the clip inspector's Volume slider and percentage (0 mutes). Drawn for a clip with sound only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "VolumeRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-clip-framing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the clip inspector's Framing select — All formats (Fill, the default) · Fit · Blur behind. One video.fit per pick.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "FramingRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-clip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the clip inspector's Advanced body: src · in · out, then Audio · Crop · Grade · Transition frames.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "ClipAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-clip-<k>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.10: one fact under the clip inspector's Advanced; `<k>` = src, in, out (the file's own seconds, `0:02.0`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "ClipAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-audio",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: Advanced › Audio — Muted and Detach audio (the v1 dialog's Audio tab).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "AudioAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-crop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: Advanced › Crop — scale, X %, Y %, Reset, 1.2×, 1.5× (the v1 dialog's Crop tab); the neutral frame writes none.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "CropAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-grade",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: Advanced › Grade — the looks and six sliders (the v1 dialog's Grade tab).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "GradeAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-transition",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: Advanced › Transition frames — the join after the clip: its frames and the hard cut. Absent when no join follows.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "TransitionAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: a title's Advanced body: enter · easing, and Speed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "TitleAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-adv-title-enter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: a title's Advanced › enter line, `slide-up 12f` (or `none`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/clip.jsx",
+      "symbol": "TitleAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-title-motion",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the title inspector's Motion grid — None · Fade · Slide up · Pop · Type on · Per word (a radiogroup).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/title-rows.jsx",
+      "symbol": "MotionGrid"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-title-motion-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.10: one Motion tile; `<id>` = none, fade, slide-up, pop, type-on, per-word. `aria-checked` and `data-on` on the title's own. One video.title.motion per pick.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/title-rows.jsx",
+      "symbol": "MotionGrid"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/clip-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-picker",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the join picker — an anchored popover on the dot between two clips, titled with them. Esc or a click elsewhere closes it.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "TransitionPicker"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the picker's title, \"Oslava → Logo\".",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "TransitionPicker"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the two real shots a hovered tile plays on: the outgoing clip's last frame under the incoming clip's first.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "TransitionPicker"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-shot-a",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the outgoing shot of the picker's preview.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "Shot"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-shot-b",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the incoming shot of the picker's preview.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "Shot"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-length",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the picker's Length slider (0.1 to 2 s); the write is made when it is let go.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "TransitionPicker"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-transition-length-words",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the picker's Length in words, \"0.5 s\".",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/joins/transition-picker.jsx",
+      "symbol": "TransitionPicker"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-fit-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: \"IMG_5120 is vertical — how should it sit?\" — the one-time ask over a vertical clip on a wide video. Esc closes it without an answer.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/fit-fill.jsx",
+      "symbol": "FitFillAsk"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-fit-ask-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the ask's title.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/fit-fill.jsx",
+      "symbol": "FitFillAsk"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-fit-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.10: one way to sit — `<key>` = fill (crops to the player), fit (whole picture, bars), blur (a blurred copy fills the sides). Fill writes nothing; Fit and Blur are one video.fit.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/fit-fill.jsx",
+      "symbol": "FitFillAsk"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-fit-same",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the tick \"Same for every vertical clip\" (per viewer, never a file).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/fit-fill.jsx",
+      "symbol": "FitFillAsk"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-music-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the Music track's line for a video that makes no sound: \"No sound in this video.\" with the two ways out.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/music-hint.jsx",
+      "symbol": "MusicHint"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-music-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: Add music — opens a file picker; the file goes to the audio band like a dropped one.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/music-hint.jsx",
+      "symbol": "MusicHint"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-music-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: the hidden audio file input behind Add music.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/music-hint.jsx",
+      "symbol": "MusicHint"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "timeline-music-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.10: \"or ask AI for a track\" — pre-fills the AI chat, never sends. Only where the chat exists.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/music-hint.jsx",
+      "symbol": "MusicHint"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/timeline-clip-select.test.tsx"
+    ],
+    "v2": "new in v2 (S7.10)"
   }
 ]

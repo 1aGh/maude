@@ -139,6 +139,8 @@
 @import url("../v2/inspector/inspector.css");
 /* S2.3 — the section bodies: rows, token chips, the Gap menu, constraints (client/v2/inspector/sections/). */
 @import url("../v2/inspector/sections/sections.css");
+/* S7.10 — the clip / title inspector's Motion grid, text field and chips (client/v2/inspector/kinds/clip.css). */
+@import url("../v2/inspector/kinds/clip.css");
 /* S8.19c — the Inspector's box for a picture that is waiting or missing, and the relink sheet (client/v2/assets/). */
 @import url("../v2/assets/missing-frame.css");
 /* Phase 4 gate — the a11y contrast floor (WCAG 1.4.3), utilities layer: wins over shell + components. */
@@ -156,3 +158,5 @@
 @import url("../v2/comments/comments.css");
 /* S7.7 — the timeline island: placement, notch, Kept open / Expand, the empty block (client/v2/timeline/). */
 @import url("../v2/timeline/timeline.css");
+/* S7.10 — the join picker, the "how should it sit?" ask and the Music line (client/v2/timeline/joins/). */
+@import url("../v2/timeline/joins/joins.css");

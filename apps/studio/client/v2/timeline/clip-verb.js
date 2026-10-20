@@ -34,9 +34,21 @@ export const CLIP_VERB_LABELS = {
   retime: 'trim clip',
   move: 'move clip',
   insert: 'add clip',
+  // S7.10 — the video.* ops the clip inspector and the join picker write (a verb with a dot IS its op id)
+  'video.fit': 'set how the picture sits',
+  'video.title.motion': 'set title motion',
+  'video.transition.set': 'set transition',
 };
 
-const REFUSAL_WORD = { retime: 'Trim', move: 'Move', insert: 'Drop', remove: 'Remove' };
+const REFUSAL_WORD = {
+  retime: 'Trim',
+  move: 'Move',
+  insert: 'Drop',
+  remove: 'Remove',
+  'video.fit': 'Framing',
+  'video.title.motion': 'Motion',
+  'video.transition.set': 'Transition',
+};
 
 /** The title of the notice a refused verb raises: "Trim refused", never "retime refused". */
 export function clipVerbRefusal(verb) {
@@ -85,7 +97,7 @@ export function clipVerbRequest({ canvas, artboardId, clip, verb, params }) {
   if (artboardId) p.artboard = artboardId;
   if (clip?.stableId) p.stableId = clip.stableId;
   if (typeof clip?.contentHash === 'string' && clip.contentHash) p.contentHash = clip.contentHash;
-  return { file: canvas, op: `clip.${verb}`, targets: [], params: p };
+  return { file: canvas, op: verb.includes('.') ? verb : `clip.${verb}`, targets: [], params: p };
 }
 
 /**

@@ -52,4 +52,7 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),
   row('video.fit', 'Fit the picture', 'Inspector › Clip'),
   row('video.place', 'Place the title', 'Inspector › Formats'),
+  // S7.10 — the Title inspector's Motion grid and the join's picker (07 ve-text, ve-transition)
+  row('video.title.motion', 'Title motion', 'Inspector › Title'),
+  row('video.transition.set', 'Set the transition', 'Timeline › Join'),
 ];
