@@ -28,54 +28,14 @@ import {
 } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { type ConvertPlan, planConvert } from '../kinds/convert.ts';
+import { artboardFactsOf } from './artboard-facts.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { refuse } from './constraints.ts';
-import { artboardLabels, copyName, openingTagAttrs, stripBraces } from './duplicate-at-width.ts';
+import { artboardLabels, copyName } from './duplicate-at-width.ts';
 import type { EditOp, ResolvedEditOp } from './types.ts';
 
 export const CONVERT_LABEL = 'Change kind';
 const PAPER_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
-
-interface Facts {
-  kind: string;
-  widthPx: number | null;
-  heightPx: number | null;
-  background: string | null;
-  safeZones: string | null;
-}
-
-/** What the artboard's opening tag says about itself — numbers and strings written as literals only. */
-function factsOf(source: string, id: string): Facts | null {
-  const open = /<DCArtboard\b/g;
-  for (let m = open.exec(source); m; m = open.exec(source)) {
-    const attrs = openingTagAttrs(source, m.index + m[0].length);
-    if (attrs === null) continue;
-    const top = stripBraces(attrs);
-    const mine = /\bid=(?:"([^"]*)"|'([^']*)')/.exec(top);
-    if ((mine?.[1] ?? mine?.[2]) !== id) continue;
-    const num = (name: string): number | null => {
-      const r = new RegExp(
-        `\\b${name}=(?:\\{\\s*(\\d+(?:\\.\\d+)?)\\s*\\}|"(\\d+(?:\\.\\d+)?)")`
-      ).exec(attrs);
-      const v = r ? Number(r[1] ?? r[2]) : Number.NaN;
-      return Number.isFinite(v) ? v : null;
-    };
-    const str = (name: string): string | null => {
-      const r = new RegExp(
-        `\\b${name}=(?:"([^"]*)"|'([^']*)'|\\{\\s*(?:"([^"]*)"|'([^']*)')\\s*\\})`
-      ).exec(attrs);
-      return r ? (r[1] ?? r[2] ?? r[3] ?? r[4] ?? null) : null;
-    };
-    return {
-      kind: str('kind') ?? 'digital',
-      widthPx: num('width'),
-      heightPx: num('height'),
-      background: str('background'),
-      safeZones: str('safeZones'),
-    };
-  }
-  return null;
-}
 
 /** A free id for the copy: `<id>-a6`, then `<id>-a6-2`… */
 function freshId(base: string, taken: ReadonlySet<string>): string {
@@ -124,7 +84,7 @@ export const artboardConvertKind: EditOp = {
   artboards: heldBy,
   apply(source, req) {
     const p = paramsOf(req);
-    const facts = factsOf(source, p.id);
+    const facts = artboardFactsOf(source, p.id);
     if (!facts) return refuse(req, 'That artboard is not on this canvas.', p.id);
     if (facts.kind !== 'digital')
       return refuse(

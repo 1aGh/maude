@@ -71,6 +71,7 @@ export function parseRects(stdout: string): RectsManifest | null {
       h: e.h,
       tag: typeof e.tag === 'string' ? e.tag.slice(0, 24) : undefined,
       text: typeof e.text === 'string' ? e.text.slice(0, 80) : undefined,
+      ...(finite(e.naturalW) && e.naturalW > 0 ? { naturalW: Math.round(e.naturalW) } : {}),
     });
   }
   return { artboards, elements };
