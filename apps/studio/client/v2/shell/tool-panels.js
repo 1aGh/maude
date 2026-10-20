@@ -12,16 +12,18 @@ export const PANEL_HOSTS = Object.freeze({
   stickers: 'popover', // the Stickers gallery (S4.3), anchored
   assets: 'left-panel', // the Canvases panel's Assets tab (V2-4.4a)
   components: 'popover', // the Component picker (S2.16, inspector/component-picker.jsx), anchored
+  sizes: 'popover', // the F size picker (S7.20, kinds/SizePicker.jsx), anchored
   // The Templates panel is S4's (canvas 15 owns it; S4.4, annotations/templates-panel.jsx). Placed like
   // Stickers; it opens only once the shell wires `openTemplates` (app.jsx).
   templates: 'popover',
 });
 
-/** A panel's preferred width (shell px); absent = `placePanel`'s default. Stickers is 440, Templates 640 (canvas 15), the Component picker 300 (canvas 14). */
+/** A panel's preferred width (shell px); absent = `placePanel`'s default. Stickers is 440, Templates 640 (canvas 15), the Component picker 300 (canvas 14), the size picker 456 (canvas 08). */
 export const PANEL_SIZE = Object.freeze({
   stickers: { w: 440 },
   templates: { w: 640 },
   components: { w: 300 },
+  sizes: { w: 456 },
 });
 
 export const PANEL_GAP = 10;

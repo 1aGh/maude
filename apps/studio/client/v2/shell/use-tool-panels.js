@@ -8,6 +8,7 @@
 //                                  templates:  the Templates panel's host (S4.4 wires the opener)
 //                                  assets:     the left panel's Assets tab (V2-4.4a)
 //                                  components: the Component picker (S2.16), anchored the same way
+//                                  sizes:      the F size picker (S7.20), anchored the same way
 //
 // EH-P4-2 gate (S4.3): a panel opens only (a) while the canvas iframe has focus, (b) at most once per
 // PANEL_MIN_GAP_MS, (c) anchored on the reported `toolbar-rect` (the message's own anchor is believed
@@ -40,6 +41,7 @@ import { showRoleDenial } from './role-denial.js';
  *   `replace` (S4.13) is the id of the sticker being replaced
  * @param deps.openTemplates ({canvas, anchor}) => void — optional until the Templates panel exists (S4.4)
  * @param deps.openComponents ({canvas, anchor}) => void — the Component picker (S2.16); optional like Templates
+ * @param deps.openSizes ({canvas, anchor}) => void — the F size picker (S7.20); optional like Templates
  * @param deps.openAssets () => void
  * @param deps.hasFocus (canvas) => boolean — the canvas iframe is the shell's `document.activeElement`
  * @param deps.now () => number — ms clock (the 500 ms quiet period)
@@ -89,6 +91,7 @@ export function createToolPanelLane(deps) {
       );
       if (m.panel === 'templates') deps.openTemplates?.({ canvas, anchor: placement });
       else if (m.panel === 'components') deps.openComponents?.({ canvas, anchor: placement });
+      else if (m.panel === 'sizes') deps.openSizes?.({ canvas, anchor: placement });
       else deps.openStickers({ canvas, anchor: placement, replace: m.replace });
     } else if (host === 'left-panel') {
       deps.openAssets();
@@ -111,6 +114,7 @@ export function useToolPanels({
   openStickers,
   openTemplates,
   openComponents,
+  openSizes,
   openAssets,
 }) {
   const live = useRef({});
@@ -122,6 +126,7 @@ export function useToolPanels({
     openStickers,
     openTemplates,
     openComponents,
+    openSizes,
     openAssets,
   };
   const laneRef = useRef(null);
@@ -136,6 +141,7 @@ export function useToolPanels({
       openStickers: (req) => live.current.openStickers(req),
       openTemplates: (req) => live.current.openTemplates?.(req),
       openComponents: (req) => live.current.openComponents?.(req),
+      openSizes: (req) => live.current.openSizes?.(req),
       // the canvas iframe is the shell's focused element (the key was pressed / the slot clicked in it)
       hasFocus: (canvas) => {
         const frame = live.current.iframesRef.current?.get(canvas);

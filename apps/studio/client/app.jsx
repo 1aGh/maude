@@ -88,6 +88,7 @@ import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';
 import VoteHost from './v2/annotations/vote-bar.jsx';
 import ComponentPicker from './v2/inspector/component-picker.jsx';
+import SizePickerHost from './v2/kinds/SizePickerHost.jsx';
 import { getPaletteEnv } from './v2/search/search-env.js';
 import {
   AlignPad,
@@ -2956,6 +2957,8 @@ function ShellTree() {
   const [templatesReq, setTemplatesReq] = useState(null);
   // S2.16 — the Component picker (⇧I): same gate, same anchoring as Stickers.
   const [componentsReq, setComponentsReq] = useState(null);
+  // S7.20 — the F size picker (F over empty canvas): same gate, same anchoring.
+  const [sizesReq, setSizesReq] = useState(null);
   useToolPanels({
     activePath,
     iframesRef,
@@ -2964,6 +2967,7 @@ function ShellTree() {
     openStickers: setStickerPickerReq,
     openTemplates: setTemplatesReq,
     openComponents: setComponentsReq,
+    openSizes: setSizesReq,
     openAssets: () => {
       panelLayout.show();
       openPanelExclusive('assets');
@@ -3301,6 +3305,7 @@ function ShellTree() {
           onClose={() => setComponentsReq(null)}
         />
       )}
+      <SizePickerHost req={sizesReq} onClose={() => setSizesReq(null)} />
       {diffTarget && (
         <DiffView
           target={diffTarget}

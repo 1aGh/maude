@@ -53,6 +53,10 @@ export const ARTBOARD_PRESET = {
   'artboard.new-letter': 'print-letter',
 };
 
+/** S7.20 — Edit ▸ Advanced ▸ New artboard › Video: a catalogue preset (kinds/presets.ts) the open canvas places with
+ *  `artboard.insert-preset` (it picks the spot and writes the one op), not a v1 `onInsertArtboard` key. */
+export const ARTBOARD_PRESET_ID = { 'artboard.new-video': 'video-landscape' };
+
 /** exec 'native' actions → the Tauri command that does them (lib.rs / home.rs). `nav.home` and
  *  `home.open` are one command: the pinned Home tab. */
 export const NATIVE_COMMANDS = {
@@ -364,6 +368,11 @@ export function createMenuHandlers(d) {
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);
+  for (const [id, presetId] of Object.entries(ARTBOARD_PRESET_ID))
+    h[id] = () => {
+      if (d.canvasOpen !== false)
+        d.postToActiveCanvas(runActionMessage('artboard.insert-preset', { presetId }));
+    };
   // S4.4: ⌘K "<Template> template" — the same `insert-template` a Templates-panel tile sends, so the
   // pick trails the pointer until a click (S4.13). Only an open canvas has anywhere to put it.
   for (const t of TEMPLATES)
