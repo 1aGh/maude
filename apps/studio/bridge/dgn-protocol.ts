@@ -610,7 +610,9 @@ export interface ShellToCanvas {
   // presenter seen), whether it is live, and whether it is the locked audience window.
   'present-follow': { sid: string | null; live: boolean; locked: boolean };
   // S3.3 — the shell's transport (and presenter view: `mute` on the Mac's canvas) drives the clip.
-  'present-media-cmd': { op: 'play' | 'pause' | 'mute' | 'unmute' };
+  'present-media-cmd': {
+    op: 'play' | 'pause' | 'mute' | 'unmute' | 'captions-on' | 'captions-off';
+  };
   // V2-4 gate (WCAG 2.1.4) — the per-Mac "Single-key shortcuts" switch: `false` → the canvas resolves no
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
@@ -848,7 +850,7 @@ const annotationPrefs = shape({
 });
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
-const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
+const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str), only: opt(lit('formats')) });
 const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
 const PRESENT_SID = /^[a-z0-9]{8,32}$/;
 const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
@@ -2233,7 +2235,7 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'live',
     owner: 'present/present-media (S3.3)',
-    parse: p({ op: lit('play', 'pause', 'mute', 'unmute') }),
+    parse: p({ op: lit('play', 'pause', 'mute', 'unmute', 'captions-on', 'captions-off') }),
   },
   'key-prefs': {
     gate: 'parent',
