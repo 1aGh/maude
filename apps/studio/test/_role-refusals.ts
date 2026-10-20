@@ -136,6 +136,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
+  // S8.13 — Move assets to the trash: an edit on the project (test/asset-trash-route.test.ts is the handler's own gate)
+  {
+    method: 'POST',
+    route: '/_api/assets/trash',
+    refused: ['view', 'comment'],
+    body: { assets: ['assets/a1b2c3d4.jpg'] },
+  },
   // S3.10a — `element.set-link` / `element.clear-link`: one dispatch route for every structural edit (test/edit-op-route.test.ts;
   // the viewer's 403 through a booted studio is a row of test/access-role-matrix.test.ts).
   { method: 'POST', route: '/_api/edit-op', refused: ['view', 'comment'] },

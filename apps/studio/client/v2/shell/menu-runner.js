@@ -269,6 +269,7 @@ export function createMenuHandlers(d) {
     // S8.12 — the picked tile's Place / Show details (the key and the tile menu run the same two functions)
     'assets.place': () => runAssetsAction('assets.place'),
     'assets.details': () => runAssetsAction('assets.details'),
+    'assets.trash': () => runAssetsAction('assets.trash'),
     'view.layers-panel': () => d.onToggleLayersMode(),
     'view.trash': () => {
       panelLayout.show();

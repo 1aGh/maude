@@ -20,6 +20,7 @@ import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
+import { type AssetTrashRouteDeps, createAssetTrashRoutes } from './asset-trash.ts';
 import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
 import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
@@ -27,8 +28,8 @@ import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { type CloudPlanDeps, createCloudPlanRoutes } from './cloud-plan.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
-import { createDiagnosticsRoutes, type DiagnosticsRouteDeps } from './diagnostics.ts';
 import { type ConnectionsRouteDeps, createConnectionsRoutes } from './connections.ts';
+import { createDiagnosticsRoutes, type DiagnosticsRouteDeps } from './diagnostics.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
@@ -126,6 +127,8 @@ export interface RouteDeps {
   connections?: ConnectionsRouteDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
   assetState?: AssetStateRouteDeps;
+  /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/` */
+  assetTrash?: AssetTrashRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
   share: ShareRouteDeps;
   /** S9.24 — the object-conflict card: `GET /_api/sync/conflicts`, `POST …/resolve` (one lane edit) */
@@ -205,6 +208,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.cloudPlan ? createCloudPlanRoutes(deps.cloudPlan) : []),
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
+    ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
     ...createDsRoutes(

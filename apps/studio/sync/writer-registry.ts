@@ -306,6 +306,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/asset/chunk': { class: 'local' },
   '/_api/asset/chunk-finish': { class: 'file-plane', rows: 'S27' },
   '/_api/assets': { class: 'file-plane', rows: 'S27' },
+  // S8.13 — Move assets to the trash: the files leave `assets/` (parked in this machine's `_trash/`), and the file plane
+  // carries the removal to peers as a tombstone, exactly like a trashed canvas (sync/tombstone-apply.ts quarantines it there)
+  '/_api/assets/trash': { class: 'file-plane', rows: 'S27 (delete lane)' },
   '/_api/import-asset': { class: 'file-plane', rows: 'S28/I08' },
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },
   '/_api/figma/import': { class: 'file-plane', rows: 'I04/I05 (canvases join by cold start)' },

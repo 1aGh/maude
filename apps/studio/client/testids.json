@@ -11482,6 +11482,305 @@
     "v2": "stable"
   },
   {
+    "hook": "assets-group-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The group heading in the Assets tab, a button: `<kind>` is image | video | audio. \"Photos 120 ›\" widens into the Browse view (S8.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-chip-notused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Not used\" chip under the Assets search (`aria-pressed`): lists only pictures no canvas uses today. Drawn only when the index has usage (S8.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-notcounted",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line over the Not used list: what was left out (kept only by older versions, today's AI takes) or \"Checking older versions…\" (S8.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tidy.jsx",
+      "symbol": "NotCountedNote"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-tidy-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The foot of the Not used view: \"31 assets · 212 MB\" and the button (S8.13). A viewer sees the numbers only.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tidy.jsx",
+      "symbol": "TidyFoot"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-tidy-trash",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Move N to the trash…\" on the Not used foot: opens the confirm sheet. Disabled while older versions are being checked (S8.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tidy.jsx",
+      "symbol": "TidyFoot"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-tidy-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Not used view when nothing is listed (\"Nothing to tidy.\" or \"Checking older versions…\") (S8.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-trash-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm sheet \"Move N assets to the trash?\" (S8.13), `role=dialog`.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tidy.jsx",
+      "symbol": "ConfirmTrash"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-trash-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel on the Move to the trash sheet (focused first).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tidy.jsx",
+      "symbol": "ConfirmTrash"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-trash-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Move to trash\" on the confirm sheet: sends `POST /_api/assets/trash`.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tidy.jsx",
+      "symbol": "ConfirmTrash"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-trashed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The status line after a move: \"“IMG_2231.jpg” moved to the trash.\" with Undo (S8.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-trashed-undo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo on that line: restores every moved bundle (picture and sidecars) through the Trash's per-file restore.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-menu-trash",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The tile menu's Move to trash row (`assets.trash`): an editor's; with several picked in Browse it reads \"Move N to the trash\".",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/tile-menu.jsx",
+      "symbol": "AssetTileMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The wide Browse view (S8.13): `data-kind` is image | video | audio. Sits over the canvas beside the panel; esc clears the pick, then goes back.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"‹ Assets\" in the Browse view: back to the narrow tab.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Browse view's search field (names).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-sort",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Browse view's sort (Newest first, Oldest first, By name, Biggest first); a native select.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-size-large",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Large in the Browse view's size switch (`aria-pressed`).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-size-small",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Small in the Browse view's size switch (`aria-pressed`).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-nohits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Browse view when nothing matches the search.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Browse view's foot while pictures are picked: count and size, Clear, Place.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"6 selected · 18.4 MB\" on the Browse foot.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Clear on the Browse foot: drops the pick.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "assets-browse-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Place 6 in <artboard> ↵\" on the Browse foot: `image.place` fill-in-order, the picked pictures in reading order. Disabled until an artboard is selected.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/browse-view.jsx",
+      "symbol": "BrowseView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "project-menu-status-<action-id>",
     "kind": "testid",
     "pattern": true,

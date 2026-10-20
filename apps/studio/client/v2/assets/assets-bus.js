@@ -9,7 +9,7 @@
 // is picked AND keyboard focus is inside the tab. A tile still picked while focus moved to the canvas or a toolbar
 // button must leave ↵ to whatever has focus.
 
-/** @type {{ place: () => void, details: () => void, tileSelected: () => boolean } | null} */
+/** @type {{ place: () => void, details: () => void, trash: () => void, tileSelected: () => boolean } | null} */
 let bound = null;
 
 /** The panel binds itself on mount. @returns the unbind. */
@@ -29,9 +29,16 @@ export function assetTileSelected() {
   }
 }
 
-/** Run `assets.place` / `assets.details` on the picked tile. @returns whether a mounted panel took it. */
+/** Run `assets.place` / `assets.details` / `assets.trash` on the picked tile. @returns whether a mounted panel took it. */
 export function runAssetsAction(id) {
-  const fn = id === 'assets.place' ? bound?.place : id === 'assets.details' ? bound?.details : null;
+  const fn =
+    id === 'assets.place'
+      ? bound?.place
+      : id === 'assets.details'
+        ? bound?.details
+        : id === 'assets.trash'
+          ? bound?.trash
+          : null;
   if (!fn) return false;
   fn();
   return true;

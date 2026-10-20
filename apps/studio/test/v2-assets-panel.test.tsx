@@ -172,16 +172,24 @@ describe('usageWords — never a false "Not used"', () => {
 });
 
 describe('the tile menu', () => {
-  test('a picture offers Place and Show details; a viewer and a clip only details', () => {
+  test('a picture offers Place, Show details and Move to trash; a viewer only details; a clip no Place', () => {
     expect(tileMenuItems({ kind: 'image' }, { placeLabel: 'MVP zápasu' })).toEqual([
       { id: 'place', label: 'Place in MVP zápasu', keys: '↵' },
       { id: 'details', label: 'Show details', keys: '⌘I' },
+      { id: 'trash', label: 'Move to trash' },
     ]);
-    expect(tileMenuItems({ kind: 'image' }).map((i) => i.label)).toEqual(['Place', 'Show details']);
+    expect(tileMenuItems({ kind: 'image' }).map((i) => i.label)).toEqual([
+      'Place',
+      'Show details',
+      'Move to trash',
+    ]);
     expect(tileMenuItems({ kind: 'image' }, { readOnly: true }).map((i) => i.id)).toEqual([
       'details',
     ]);
-    expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual(['details']);
+    expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual(['details', 'trash']);
+    expect(tileMenuItems({ kind: 'video' }, { readOnly: true }).map((i) => i.id)).toEqual([
+      'details',
+    ]);
   });
 
   test('right-click opens it on the tile; Place runs the same edit-op as ↵', async () => {

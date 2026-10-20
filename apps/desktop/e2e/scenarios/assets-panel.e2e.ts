@@ -1,4 +1,12 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
@@ -17,6 +25,13 @@ import { canvasRow } from '../helpers/tree';
  *      (UI vs file-edit parity: the file on disk is the assertion, not the toast).
  *   3. right-click on a tile opens Place / Show details; ⌘I opens the plain details of the picked tile.
  *   4. with no artboard selected, ↵ writes nothing and the tab says what to do.
+ *   Part 2 (S8.13, 12 · ia-assets-browse, ia-assets-tidy):
+ *   5. "Photos N ›" widens into the Browse view; ⇧-click picks a range; esc clears the pick, then goes back.
+ *   6. with an artboard of two picture frames selected, ↵ on two picked pictures fills the frames in reading order
+ *      (the file on disk is the assertion).
+ *   7. Not used lists what no canvas needs; "Move N to the trash…" asks, then the pictures AND their sidecars are
+ *      in `_trash/` (not in `assets/`), and Undo brings them all back.
+ *   8. Move to trash refuses a picture a canvas uses — the picture stays on disk and the tab says why.
  *
  * The canvas iframe is unreachable by DOM selectors once the origin split is on (memory): the artboard is picked by
  * its label's pointer events, everything else is the shell's own DOM or the file on disk.
@@ -130,5 +145,149 @@ describe('the Assets tab (S8.12)', () => {
     await card.waitForExist({ timeout: 5000 });
     expect(await card.getText()).toContain('pic.png');
     await (await $('[data-testid="assets-details-close"]')).click();
+  });
+});
+
+// ── Part 2 (S8.13) ───────────────────────────────────────────────────────────────────────────────────────────────
+const DESIGN = join(HERE, '../fixtures/project/.design');
+const ASSETS = join(DESIGN, 'assets');
+const PIC_FILE = join(ASSETS, 'pic.png');
+const MADE = [
+  'brw-a.png',
+  'brw-b.png',
+  'brw-c.png',
+  'tidy-a.png',
+  'tidy-a.photo.json',
+  'tidy-b.png',
+];
+const TWO_FRAMES = `import { DCArtboard, DesignCanvas } from "@maude/canvas-lib";
+
+export default function Smoke() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="smoke" label="SMOKE/01 · ASSETS" width={480} height={320}>
+        <img data-cd-id="slot-1" src="assets/pic.png" alt="" style={{ width: 100, height: 100 }} />
+        <img data-cd-id="slot-2" src="assets/pic.png" alt="" style={{ width: 100, height: 100 }} />
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+const tileOf = (name: string) => $(`[data-testid="assets-browse"] [data-asset="assets/${name}"]`);
+// a ⇧-click is a click whose event says so: WebDriver cannot hold a key across an element click reliably, and the
+// shell's handler reads only `event.shiftKey`
+const shiftClick = (el: WebdriverIO.Element) =>
+  browser.execute(
+    (node) =>
+      node.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true })
+      ),
+    el as never
+  );
+const trashed = () => {
+  const root = join(DESIGN, '_trash');
+  return existsSync(root) ? readdirSync(root).filter((d) => d.includes('__asset-')) : [];
+};
+
+describe('the Browse view and Not used (S8.13)', () => {
+  before(async () => {
+    await waitForSidecar();
+    writeFileSync(CANVAS, TWO_FRAMES);
+    writeFileSync(META, '{}\n');
+    // three pictures with known ages (newest first = brw-c, brw-b, brw-a) plus two to tidy, one with a sidecar
+    const t0 = Date.now() / 1000;
+    for (const [i, n] of ['brw-a.png', 'brw-b.png', 'brw-c.png'].entries()) {
+      copyFileSync(PIC_FILE, join(ASSETS, n));
+      utimesSync(join(ASSETS, n), t0 - 100 + i, t0 - 100 + i);
+    }
+    copyFileSync(PIC_FILE, join(ASSETS, 'tidy-a.png'));
+    copyFileSync(PIC_FILE, join(ASSETS, 'tidy-b.png'));
+    writeFileSync(join(ASSETS, 'tidy-a.photo.json'), '{"v":1}\n');
+    await (await canvasRow('canvas-row-ui-smoke')).click();
+    await waitForEditChrome();
+    await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await (await $('[data-testid="panel-tab-assets"]')).click();
+    await (await $('[data-testid="assets-panel"]')).waitForExist({ timeout: 10_000 });
+  });
+  after(() => {
+    for (const n of MADE) rmSync(join(ASSETS, n), { force: true });
+    fixtures.restore();
+  });
+
+  it('Photos N › widens into big pictures; ⇧ picks a range; esc clears, then goes back', async () => {
+    const report = startReport('assets-browse');
+    await (await $('[data-testid="assets-group-image"]')).click();
+    const view = await $('[data-testid="assets-browse"]');
+    await view.waitForExist({ timeout: 10_000 });
+    await (await tileOf('brw-c.png')).waitForExist({ timeout: 10_000 });
+    await (await tileOf('brw-c.png')).click();
+    await shiftClick(await tileOf('brw-a.png'));
+    expect(await (await $('[data-testid="assets-browse-count"]')).getText()).toContain('selected');
+    await capture(report, 'picked');
+    await browser.keys(['Escape']);
+    await (await $('[data-testid="assets-browse-bar"]')).waitForExist({
+      reverse: true,
+      timeout: 5000,
+    });
+    expect(await view.isExisting()).toBe(true);
+    await browser.keys(['Escape']);
+    await view.waitForExist({ reverse: true, timeout: 5000 });
+  });
+
+  it('↵ with two pictures picked fills the two frames in reading order', async () => {
+    const report = startReport('assets-browse-fill');
+    await selectArtboard();
+    await browser.pause(700);
+    await (await $('[data-testid="assets-group-image"]')).click();
+    // newest first: brw-c, brw-b, brw-a — pick c then b, so reading order is c, b
+    await (await tileOf('brw-c.png')).click();
+    await shiftClick(await tileOf('brw-b.png'));
+    await browser.keys(['Enter']);
+    await browser.waitUntil(async () => source().includes('assets/brw-c.png'), {
+      timeout: 8000,
+      timeoutMsg: '↵ on two picked pictures never wrote',
+    });
+    const src = source();
+    expect(src.indexOf('assets/brw-c.png')).toBeGreaterThan(-1);
+    expect(src.indexOf('assets/brw-c.png')).toBeLessThan(src.indexOf('assets/brw-b.png'));
+    expect(src.split('<img').length).toBe(3); // still two frames: filled, not added
+    await capture(report, 'filled');
+    await browser.keys(['Escape', 'Escape']);
+  });
+
+  it('Not used lists what nothing needs; Move N to the trash takes the sidecars, and Undo brings them back', async () => {
+    const report = startReport('assets-tidy');
+    await (await $('[data-testid="assets-chip-notused"]')).click();
+    const button = await $('[data-testid="assets-tidy-trash"]');
+    await button.waitForEnabled({ timeout: 30_000 }); // waits for the older versions to be read
+    // pic.png is placed? no: the two frames now show brw-c / brw-b, so brw-a, tidy-a, tidy-b, pic.png are free
+    await capture(report, 'not-used');
+    await button.click();
+    await (await $('[data-testid="assets-trash-dialog"]')).waitForExist({ timeout: 5000 });
+    await (await $('[data-testid="assets-trash-confirm"]')).click();
+    await (await $('[data-testid="assets-trashed"]')).waitForExist({ timeout: 10_000 });
+    expect(existsSync(join(ASSETS, 'tidy-a.png'))).toBe(false);
+    expect(existsSync(join(ASSETS, 'tidy-a.photo.json'))).toBe(false); // the sidecar went with its picture
+    expect(trashed().length).toBeGreaterThan(0);
+    // the picture a canvas uses was never offered, and is still there
+    expect(existsSync(join(ASSETS, 'brw-c.png'))).toBe(true);
+    await (await $('[data-testid="assets-trashed-undo"]')).click();
+    await browser.waitUntil(async () => existsSync(join(ASSETS, 'tidy-a.png')), {
+      timeout: 10_000,
+      timeoutMsg: 'Undo did not bring the picture back',
+    });
+    expect(existsSync(join(ASSETS, 'tidy-a.photo.json'))).toBe(true);
+    await capture(report, 'undone');
+  });
+
+  it('a picture a canvas uses is refused: it stays on disk and the tab says why', async () => {
+    await (await $('[data-testid="assets-chip-notused"]')).click(); // back to everything
+    const t = await $('[data-testid="assets-tile"][data-asset="assets/brw-c.png"]');
+    await t.click({ button: 'right' });
+    await (await $('[data-testid="assets-menu-trash"]')).click();
+    const line = await $('[data-testid="assets-panel"] [role="alert"]');
+    await line.waitForExist({ timeout: 10_000 });
+    expect(await line.getText()).toContain('is used on a canvas');
+    expect(existsSync(join(ASSETS, 'brw-c.png'))).toBe(true);
   });
 });

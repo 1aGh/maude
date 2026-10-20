@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "359e20c52457",
+  "manifestVersion": "66a1b7a4f81d",
   "actions": [
     {
       "id": "search.open",
@@ -1785,6 +1785,25 @@
       "agent": {
         "path": "cli",
         "verb": "maude design assets --usage <asset>"
+      }
+    },
+    {
+      "id": "assets.trash",
+      "label": "Move to trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/assets/trash",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: \"asset\", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: [\"assets/<name>\"]} answers per item: moved, or used | kept-by-versions | checking"
       }
     },
     {

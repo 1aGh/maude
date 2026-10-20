@@ -3,7 +3,7 @@
 // "Place in MVP zápasu ↵" and "Show details ⌘I" — the same two actions the keys run (`assets.place`, `assets.details`,
 // through assets-bus.js), so the menu, ↵ and ⌘I are one code path. A viewer is offered Show details only; sound and video
 // are not placed from here (a clip goes on a video artboard's timeline). Reached by the right-click, the keyboard
-// (↑ ↓ walk, esc closes). Move to trash is not here yet: an asset in the Trash is S8.13's.
+// (↑ ↓ walk, esc closes). Move to trash (S8.13) is an editor's: the studio takes the picture and its sidecars together.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Kbd } from '../../shell/icons.jsx';
@@ -14,7 +14,7 @@ import { placeMenu } from '../../tree-row-menu.jsx';
  * @param {{ kind: string }} asset
  * @param {{ readOnly?: boolean, placeLabel?: string | null }} o `placeLabel` is the selected artboard's name
  */
-export function tileMenuItems(asset, { readOnly = false, placeLabel = null } = {}) {
+export function tileMenuItems(asset, { readOnly = false, placeLabel = null, count = 1 } = {}) {
   const items = [];
   if (!readOnly && asset?.kind === 'image')
     items.push({
@@ -23,6 +23,9 @@ export function tileMenuItems(asset, { readOnly = false, placeLabel = null } = {
       keys: '↵',
     });
   items.push({ id: 'details', label: 'Show details', keys: '⌘I' });
+  // S8.13 — Move to trash (`assets.trash`): an editor's; with several picked in the Browse view it takes them all
+  if (!readOnly)
+    items.push({ id: 'trash', label: count > 1 ? `Move ${count} to the trash` : 'Move to trash' });
   return items;
 }
 
