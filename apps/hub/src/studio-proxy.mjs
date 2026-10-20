@@ -488,6 +488,8 @@ export function createStudioProxy({
   mintRenderToken = null,
   forward = defaultForward,
   forwardUpgrade = defaultForwardUpgrade,
+  /** S8.5b-2 — `forwardAs`'s hop (tests inject a recorder). */
+  forwardRaw = defaultForwardRaw,
   /**
    * Cloud Phase 27 B3 — called after a browser upload has actually landed.
    *
@@ -668,6 +670,92 @@ export function createStudioProxy({
       }
     }
     return true;
+  }
+
+  /**
+   * S8.5b-2 — one request to the studio AS a session the hub built itself (the cloud render
+   * door, `routes-v2/render-jobs.mjs`; contract S8.5b §4.1, T9). The same one-table `decide()`,
+   * the same plan-pause gate and the same upstream check as `handle`, and the same
+   * `upstreamHeaders` — over a request the hub writes from scratch, so the caller's
+   * `authorization` and `cookie` (the hub's bearer, the browser's session) never reach the
+   * studio or the render service. Nothing else from the inbound request rides along either.
+   *
+   * `renderGrants`: a canvas-only session's render capability carries these grants as `g`, so
+   * the canvas origin enforces the closure even if a door bug let a target through (§8.4).
+   *
+   * @returns {Promise<{ ok: false, status: number, body: object, headers?: object }
+   *   | { ok: true, status: number, headers: object, stream: import('node:http').IncomingMessage }>}
+   */
+  async function forwardAs(
+    session,
+    { method, path, body = null, doorJob = null, renderGrants = [] } = {}
+  ) {
+    const doorRole = doorRoleOf(session);
+    if (!doorRole) return { ok: false, status: 401, body: { reason: 'no-session' } };
+    const canvasOnly = !session.role;
+    const pathname = String(path ?? '').split('?')[0];
+    const verdict = decide(method, pathname, doorRole);
+    if (!verdict.allow) {
+      if (verdict.reason === 'method') return { ok: false, status: 405, body: { code: 'method' } };
+      if (verdict.reason === 'unclassified' || verdict.reason === 'refused')
+        return { ok: false, status: 404, body: { code: 'not-found' } };
+      return {
+        ok: false,
+        status: 403,
+        body: { error: readOnlyMessageFor(doorRole), reason: 'read-only', code: 'forbidden' },
+      };
+    }
+    const paused = planPauseRefusal({
+      capability: verdict.capability,
+      role: session.role,
+      paused: planPausedFromEnv(env),
+    });
+    if (paused) return { ok: false, status: paused.status, body: paused.body };
+    const up = upstream();
+    if (!up?.ok) {
+      return {
+        ok: false,
+        status: 503,
+        body: { code: 'upstream-starting', retryAfterMs: 2000 },
+        headers: { 'retry-after': '2' },
+      };
+    }
+    const payload = body === null ? null : Buffer.from(JSON.stringify(body), 'utf8');
+    // From scratch: never the inbound request's headers (no authorization, no cookie).
+    const incoming = {
+      accept: 'application/json',
+      ...(payload
+        ? { 'content-type': 'application/json', 'content-length': String(payload.length) }
+        : {}),
+    };
+    const headers = upstreamHeaders(incoming, {
+      role: doorRole,
+      access: session.access,
+      canvasOnly,
+      user: session.email,
+      sessionKey: session.sessionKey,
+      publicUrl,
+      // A canvas-only session's capability exists only WITH its grants: without them it would
+      // floor to viewer of the whole project (the reason `handle` mints it none).
+      renderToken:
+        canvasOnly && !(renderGrants?.length > 0)
+          ? null
+          : (mintRenderToken?.(session, { grants: canvasOnly ? renderGrants : [] }) ?? null),
+    });
+    // Set AFTER upstreamHeaders, whose property-2 strip would drop it: the hub, not a client,
+    // names the job (the studio honours it only off the local lane).
+    if (doorJob) headers[`${INJECTED_HEADER_PREFIX}door-job`] = doorJob;
+    try {
+      const res = await forwardRaw({ port: up.port, method, path, headers, payload });
+      return {
+        ok: true,
+        status: res.statusCode ?? 502,
+        headers: filterResponseHeaders(res.headers),
+        stream: res,
+      };
+    } catch {
+      return { ok: false, status: 502, body: { code: 'upstream' } };
+    }
   }
 
   /**
@@ -1139,7 +1227,17 @@ export function createStudioProxy({
     return true;
   }
 
-  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade, closeUpgrades };
+  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade, closeUpgrades, forwardAs };
+}
+
+/** S8.5b-2 — `forwardAs`'s loopback hop: a request the hub wrote, the upstream's response. */
+function defaultForwardRaw({ port, method, path, headers, payload }) {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port, method, path, headers }, resolve);
+    req.on('error', reject);
+    req.setTimeout(30_000, () => req.destroy(new Error('upstream timeout')));
+    req.end(payload ?? undefined);
+  });
 }
 
 /** Straight byte pipe to loopback. Streams both ways — the asset lane moves
