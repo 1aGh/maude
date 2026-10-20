@@ -77,21 +77,28 @@ export function createDsCheckRoutes(deps: DsRouteDeps): RouteSpec[] {
   };
   const unavailable = () =>
     json(503, { error: 'Design systems are not available here.', code: 'ds-unavailable' });
-  const read = (path: string, op: 'files' | 'last'): RouteSpec => ({
-    method: 'GET',
-    path,
-    origin: 'main',
-    readOnly: 'allowed',
-    handle(req) {
-      const c = ctx(req);
-      if (!c) return unavailable();
-      const a = runCheckOp(op, { ds: new URL(req.url).searchParams.get('ds') }, c);
-      return json(a.status, a.body);
-    },
-  });
+  const read = (op: 'files' | 'last') => (req: Request) => {
+    const c = ctx(req);
+    if (!c) return unavailable();
+    const a = runCheckOp(op, { ds: new URL(req.url).searchParams.get('ds') }, c);
+    return json(a.status, a.body);
+  };
+  // Literal `method`/`path` pairs: the writer-registry, hub-manifest and CSRF scrapers read them.
   return [
-    read('/_api/ds/system-files', 'files'),
-    read('/_api/ds/check-system', 'last'),
+    {
+      method: 'GET',
+      path: '/_api/ds/system-files',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: read('files'),
+    },
+    {
+      method: 'GET',
+      path: '/_api/ds/check-system',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: read('last'),
+    },
     {
       method: 'POST',
       path: '/_api/ds/check-system',

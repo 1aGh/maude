@@ -122,6 +122,9 @@ const FILTERED = [
   '/_api/ds/revisions',
   '/_api/ds/usage',
   '/_api/ds/make-state',
+  // S10.19 — the system's files view and Check the system answer like `state`: a system is seen only through its DS canvas
+  '/_api/ds/system-files',
+  '/_api/ds/check-system',
   '/_api/asset-state',
 ];
 

@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { canvasDsSystem } from '../../canvas-url.js';
 import { loadReach } from './reach-data.js';
+import { DsAdvancedHost } from './advanced-host.jsx';
 import { DsReachView } from './reach-view.jsx';
 import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
@@ -242,14 +243,18 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
   const close = useCallback(() => setSheet(null), []);
   const closeReach = useCallback(() => setReach(null), []);
   // S10.11 — the outside-change review and the conflict pick live in the inspector's empty place; their host rides here
+  // S10.19 — Design system › Advanced and Check the system (the system panel in the same place) ride the same mount
   const truth = (
-    <DsTruthHost
-      cfg={cfg}
-      activePath={activePath}
-      toast={toast}
-      frameFor={frameFor}
-      fetchImpl={fetchImpl}
-    />
+    <>
+      <DsTruthHost
+        cfg={cfg}
+        activePath={activePath}
+        toast={toast}
+        frameFor={frameFor}
+        fetchImpl={fetchImpl}
+      />
+      <DsAdvancedHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+    </>
   );
   // S10.14 — "Switch canvases to …?" and "Preview in …" ride the same mount
   const switcher = (

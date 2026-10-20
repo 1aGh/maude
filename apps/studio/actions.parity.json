@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 164,
+  "humanMax": 165,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -207,6 +207,12 @@
       "from": 163,
       "by": "decision:maude/v2-S10.14-preview-is-a-view-state",
       "why": "S10.14 registers ds.preview (13 · ds-many-switch): looking at the project in another design system is a session-only render override of the canvas URL's tokens / components the person steps through with the arrow keys — human 'view-pref'. An agent screenshots the canvas URL with that system's files via `maude design screenshot --url`. The switch itself (ds.switch) is cli. One human row."
+    },
+    {
+      "to": 165,
+      "from": 164,
+      "by": "decision:maude/v2-S10.19-reveal-files-is-a-native-door",
+      "why": "S10.19 registers ds.reveal-files (13 · ds-advanced): Finder opens on the person's Mac (the Mac app's confined project_reveal_path) — human 'native-window', like canvas.reveal-in-finder. An agent already holds system/<ds>/ and reads it in place. ds.check-system is cli and ds.handoff-tokens is a file path. One human row."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. V2-5 A5 integration: measured 113 human actions in the merged registry (107 on feat + trash.clear from S1.7b + four ai.attach-* from S5.10 + present.presenter-view from S3.6b); every other A5 slice adds no human row. V2-5 A6a integration: measured 118 human actions in the merged registry (113 on feat + artboard.ask-ai S2.10 + element.set-id S2.2b/lead + edit.undo-history S2.20 + history.filter S1.12b − view.trash S1.17 (cli) + tab.overview + tab.rename S1.22b); every other A6a slice adds no human row."

@@ -231,6 +231,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ds/revisions': { class: 'read' },
   '/_api/ds/usage': { class: 'read' },
   '/_api/ds/make-state': { class: 'read' }, // S10.16a section states (ds/make.ts)
+  // S10.19 — Design system › Advanced: the files view (GET) and Check the system (GET the last answer, POST a run).
+  // The run keeps one file under `_state/ds-check/` — per Mac, ignored, never synced (ds/check-system.ts).
+  '/_api/ds/system-files': { class: 'read' },
+  '/_api/ds/check-system': {
+    class: 'local',
+    rows: 'S10.19 (_state/ds-check/<ds>.json, runtime state)',
+  },
   '/_api/ds/publish': {
     class: 'lane',
     via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
@@ -281,7 +288,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   '/_api/ds/default': {
     class: 'file-plane',
-    rows: "config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only",
+    rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',
   },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },

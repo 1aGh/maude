@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8639a071f3a4",
+  "manifestVersion": "99cd5888af36",
   "actions": [
     {
       "id": "search.open",
@@ -6134,6 +6134,47 @@
         "because": "view-pref",
         "note": "a person looking at the project in another system (session-only, nothing stored); an agent screenshots the canvas URL with that system’s files: `&tokens=<ds.path>/colors_and_type.css&components=<ds.path>/preview/_components.css`"
       }
+    },
+    {
+      "id": "ds.check-system",
+      "label": "Check the system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/ds/check-system",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds check-system <ds> [--json]"
+      }
+    },
+    {
+      "id": "ds.reveal-files",
+      "label": "Reveal in Finder",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens Finder on the person’s Mac; an agent already holds system/<ds>/ and reads it in place"
+      }
+    },
+    {
+      "id": "ds.handoff-tokens",
+      "label": "Hand off tokens",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "tokens",
+        "skill": "design:design-system",
+        "how": "the handoff of tokens IS system/<ds>/tokens.json (design tokens, both modes) and colors_and_type.css: read them, or run maude design ds-check <ds> --emit to regenerate tokens.json first"
+      }
     }
   ],
   "verbs": [
@@ -6664,6 +6705,12 @@
     {
       "scope": "design",
       "verb": "design ds usage",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds check-system",
       "effect": "none",
       "tier": "auto"
     },
