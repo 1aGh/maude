@@ -265,6 +265,20 @@ describe('the question', () => {
     expect(opens()[0].args).toMatchObject({ pid: P1 });
   });
 
+  test('the menu opens on the chosen project and Escape closes it, choosing nothing', async () => {
+    mount();
+    await flush();
+    act(() => $('home-target-chip')?.click());
+    await flush(2);
+    expect(document.activeElement).toBe($(`home-target-item-local:${P2}`));
+    expect($(`home-target-item-local:${P2}`)?.getAttribute('aria-checked')).toBe('true');
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect($('home-target-menu')).toBeNull();
+    expect($('home-target-chip')?.textContent).toContain('Studio site');
+  });
+
   test('"a project on this Mac" makes a project named from the sentence, then opens it', async () => {
     shellOverride = EMPTY_SHELL;
     mount();

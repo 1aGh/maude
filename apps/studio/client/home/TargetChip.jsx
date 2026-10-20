@@ -41,6 +41,17 @@ export function TargetChip({ choices, value, onChange, variant = 'full', disable
     };
   }, [open]);
 
+  // opening puts the focus on the chosen item, so the arrows work at once
+  useEffect(() => {
+    if (!open) return;
+    const items = [
+      ...(wrap.current?.querySelectorAll('[role="menuitemradio"]:not([aria-disabled="true"])') ??
+        []),
+    ];
+    const on = items.find((el) => el.getAttribute('aria-checked') === 'true');
+    (on ?? items[0])?.focus?.();
+  }, [open]);
+
   // the menu's arrows: up/down walk the enabled items
   const walk = (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -79,7 +90,7 @@ export function TargetChip({ choices, value, onChange, variant = 'full', disable
           onKeyDown={walk}
         >
           {choices.map((c, i) => (
-            <span key={c.key} className="home-target-li">
+            <span key={c.key} className="home-target-li" role="none">
               {c.kind === 'new' && i > 0 ? (
                 <span className="home-target-sep" aria-hidden="true" />
               ) : null}
