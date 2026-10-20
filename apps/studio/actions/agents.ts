@@ -1182,6 +1182,23 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/ds/pending', method: 'POST' },
     agent: cli('maude design ds pending <ds> --cancel'),
   },
+  // S10.7 — a token edited in place. One waiting edit in the system's pending changes (`tokens[<css>]`:
+  // `<theme>: <value>`, `valueNames`, `darkFollows`; `expect[<css>]` = the entry's `at` you read, null when none),
+  // then the same `ds publish` as any other change. A locked token answers `ds-token-locked`.
+  'ds.set-token': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/pending', method: 'POST' },
+    agent: cli('maude design ds pending <ds> --set <file.json>'),
+  },
+  'ds.set-dark-follows': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/pending', method: 'POST' },
+    agent: cli('maude design ds pending <ds> --set <file.json>'),
+  },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',

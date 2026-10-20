@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "addc490e34c5",
+  "manifestVersion": "3ef350a1b186",
   "actions": [
     {
       "id": "search.open",
@@ -5104,6 +5104,40 @@
       "server": {
         "route": "/_api/edit-op",
         "method": "POST"
+      }
+    },
+    {
+      "id": "ds.set-token",
+      "label": "Change a token",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --set <file.json>"
+      }
+    },
+    {
+      "id": "ds.set-dark-follows",
+      "label": "Dark follows Light",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --set <file.json>"
       }
     }
   ],
