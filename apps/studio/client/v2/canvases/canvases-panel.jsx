@@ -56,6 +56,7 @@ import { moveTargets } from './move-model.js';
 import { siblingNames } from './rename-model.js';
 import { useRowSlots } from './row-slots.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
+import { leftOutOf } from '../ds/update-model.js';
 import { SORT_ASIDE, SORT_BYS, SORT_LABELS, KIND_NOTE } from './sort.js';
 import {
   allCanvases,
@@ -110,6 +111,8 @@ export function CanvasesPanel({
   onDuplicate,
   onTrash,
   onCopyLink,
+  dsCfg = null, // S10.21b — the design-system index maps: a left-out canvas's menu offers Update
+  onDsAction, // (id, params) — the shell's action runner (menu-runner); absent: no Update row
   onJumpArtboard, // (path, artboardId) — default: the shell's tab hook, over the left-panel bus
   activeArtboard = null, // the artboard in view on the open canvas
   onNewCanvasIn,
@@ -450,7 +453,8 @@ export function CanvasesPanel({
     const items = fileMenuItems({ role: panelRole({ role, edit }), native: doors.available });
     return items.map((it, i) => (i === 0 ? { ...it, sepBefore: true } : it));
   }, [advancedOpen, menuRow, role, edit, doors]);
-  const menuItems = menuRow ? canvasMenuItems(menuRow, { edit, extra: fileMenu }) : [];
+  const dsUpdate = !!(edit && onDsAction && menuRow && leftOutOf(menuRow.path, dsCfg));
+  const menuItems = menuRow ? canvasMenuItems(menuRow, { edit, extra: fileMenu, dsUpdate }) : [];
   const targets = useMemo(
     () => (menuRow ? moveTargets(tree, { fromDir: menuRow.dir, projectLabel }) : []),
     [tree, menuRow, projectLabel]
@@ -469,6 +473,8 @@ export function CanvasesPanel({
     else if (id === 'duplicate') onDuplicate?.(row.path);
     else if (id === 'copy-link') onCopyLink?.(row.path);
     else if (id === 'trash') onTrash?.(row.path, row.name);
+    else if (id === 'ds-update')
+      onDsAction?.('ds.canvas-update', { canvas: relOf(row.path, designRel) });
     else if (fileMenu.some((it) => it.id === id))
       runFileMenuItem(id, row, {
         designRel,

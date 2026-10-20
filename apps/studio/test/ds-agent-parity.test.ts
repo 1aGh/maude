@@ -18,6 +18,12 @@ import { runCheck } from '../client/v2/ds/advanced-host.jsx';
 import { convertSystems, restoreSystemFolder } from '../client/v2/ds/convert-model.js';
 import { setDefaultSystem } from '../client/v2/ds/default-write.js';
 import {
+  canvasUpdateNow,
+  clearTokenNow,
+  restoreTokenNow,
+  trashedTokenItems,
+} from '../client/v2/ds/door-write.js';
+import {
   addColourNow,
   applyNearestNow,
   fixContrastNow,
@@ -43,6 +49,7 @@ import { switchRows } from '../client/v2/ds/switch-model.js';
 import { writeToken } from '../client/v2/ds/token-write.js';
 import { writeOutside, writePick } from '../client/v2/ds/truth-host.jsx';
 import { writeInstanceUpdate } from '../client/v2/ds/update-available.jsx';
+import { fetchDsState } from '../client/v2/ds/use-ds-state.js';
 import { execCheckPlan, planCheckVerb } from '../ds/check-system-verb.ts';
 import { execDsPlan, planDsVerb } from '../ds/ds-verb.ts';
 import type { DsLibrary } from '../ds/library.ts';
@@ -234,12 +241,19 @@ const making = async (w: World, drafts: Record<string, unknown> = { a: DIRECTION
     await post(w, '/_api/ds/make', { action: 'draft', ds: NOVA, direction, tokens });
 };
 
+/** The Trash's token row for `css`, built from the state route as the Trash view builds it. */
+const trashRow = async (f: typeof fetch, css: string) => {
+  const row = trashedTokenItems(await fetchDsState(f)).find((t) => t.css === css);
+  if (!row) throw new Error(`no Trash row for ${css}`);
+  return row;
+};
+
 /** Doors with no client writer. A gap is a finding (named in the hand-back), never silently passed. */
 const NO_CLIENT_WRITER: Record<string, string> = {
-  'ds.canvas-update': 'gap — no client code posts /_api/ds/canvas and menu-runner has no handler',
-  'ds.canvas-leave': 'gap — no client code posts /_api/ds/canvas and menu-runner has no handler',
-  'ds.restore-token': 'gap — the Trash "Restore" is not wired: nothing posts /_api/ds/restore',
-  'ds.clear-token': 'gap — nothing posts /_api/ds/clear; menu-runner has no handler',
+  // S10.21b wired canvas-update (row menu), restore-token and clear-token (Trash) through door-write.js
+  'ds.canvas-leave':
+    'open question (S10.21b hand-back) — no canvas or contract row places a standalone "Keep this version"; ' +
+    'the review sheet’s untick (ds.publish --leave-out) is the person’s door today',
   'ds.draft': 'by design — the AI writes directions (S10.16a); the person picks one',
 };
 
@@ -358,7 +372,8 @@ const CASES: Record<string, Case> = {
         by: PERSON,
       });
     },
-    ui: async () => null,
+    // the row menu's Update (canvases-panel.jsx) posts the design-root-relative path
+    ui: (f) => canvasUpdateNow({ canvas: 'ui/Landing.tsx' }, f),
     verb: ['canvas', 'update', '.design/ui/Landing.tsx'],
   },
   'ds.canvas-leave': {
@@ -378,7 +393,8 @@ const CASES: Record<string, Case> = {
         replacement: '--x-line-mid',
       });
     },
-    ui: async () => null,
+    // the Trash's row, read the way the Trash reads it (GET /_api/ds/state → trashedTokenItems)
+    ui: async (f) => restoreTokenNow(await trashRow(f, '--x-line-fine'), f),
     verb: ['restore', DS, '--x-line-fine'],
   },
   'ds.clear-token': {
@@ -389,7 +405,7 @@ const CASES: Record<string, Case> = {
         replacement: '--x-line-mid',
       });
     },
-    ui: async () => null,
+    ui: async (f) => clearTokenNow(await trashRow(f, '--x-line-fine'), f),
     verb: ['clear', DS, '--x-line-fine'],
   },
   'ds.make': {
@@ -514,16 +530,10 @@ const CASES: Record<string, Case> = {
 
 /** The no-writer doors post the route body the registry's `server` names, built from the same words. */
 const ROUTE_BODY: Record<string, (w: World) => { route: string; body: unknown }> = {
-  'ds.canvas-update': () => ({
-    route: '/_api/ds/canvas',
-    body: { canvas: 'ui/Landing.tsx', action: 'update' },
-  }),
   'ds.canvas-leave': () => ({
     route: '/_api/ds/canvas',
     body: { canvas: 'ui/Home.tsx', action: 'leave' },
   }),
-  'ds.restore-token': () => ({ route: '/_api/ds/restore', body: { ds: DS, css: '--x-line-fine' } }),
-  'ds.clear-token': () => ({ route: '/_api/ds/clear', body: { ds: DS, css: '--x-line-fine' } }),
   'ds.draft': () => ({
     route: '/_api/ds/make',
     body: { action: 'draft', ds: NOVA, direction: 'a', tokens: DIRECTION_A },

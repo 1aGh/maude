@@ -9,10 +9,15 @@
 //
 // `legacy` (an older team server, a legacy-mode project) falls back to today's per-Mac list — the very
 // same component Canvases › Advanced › "Kept on this Mac" shows (canvases/kept-on-this-mac.jsx).
+//
+// S10.21b: `tokens` are the design-system tokens moved to the trash (door-write.js `trashedTokenItems`, from
+// GET /_api/ds/state). They are rows like the others (`data-kind="token"`): Restore is `ds.restore-token`, and an
+// owner's Clear out… clears them too (`ds.clear-token`, one per token).
 
 import { useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { KeptOnThisMac } from '../canvases/kept-on-this-mac.jsx';
+import { clearTokenNow, restoreTokenNow } from '../ds/door-write.js';
 import { clearOut, restoreItem } from './use-trash.js';
 import {
   clearOutcome,
@@ -32,6 +37,32 @@ export { CLEAR_OUT_KEEPS_DAYS } from '../canvases/kept-on-this-mac.jsx';
  * "for everyone on …"); `people` maps an actor id to a name when the server sent no `who`; `roots` are the
  * project's canvas groups (design-root-relative) — a row names its folder without them ("legacy", not "ui/legacy").
  */
+const tokenOutcome = (r) => ({ ok: r.ok, tone: r.ok ? 'quiet' : 'warn', line: r.message });
+
+/**
+ * Clear out: the shared Trash (`trash.clear`) when it holds anything, then each token (`ds.clear-token`). Without
+ * tokens the answer is the shared one, word for word.
+ */
+async function clearAll(items) {
+  const toks = items.filter((it) => it.kind === 'token');
+  const shared = items.length > toks.length;
+  const res = shared ? await clearOut() : null;
+  const said = res ? clearOutcome(res) : null;
+  if (!toks.length || (said && (!said.ok || res.body?.queued))) return said;
+  let n = res && Array.isArray(res.body?.cleared) ? res.body.cleared.length : 0;
+  const left = res && Array.isArray(res.body?.skipped) ? res.body.skipped.length : 0;
+  for (const t of toks) {
+    const r = await clearTokenNow(t);
+    if (!r.ok) return tokenOutcome(r);
+    n += 1;
+  }
+  return {
+    ok: true,
+    tone: 'quiet',
+    line: `Cleared out ${n}.${left ? ` ${left} left as ${left === 1 ? 'it was' : 'they were'}.` : ''}`,
+  };
+}
+
 export function TrashView({
   trash,
   readOnly = false,
@@ -41,12 +72,16 @@ export function TrashView({
   onBack,
   onChanged,
   now,
+  tokens = [],
 }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   const [asking, setAsking] = useState(false);
   const legacy = trash?.legacy === true;
-  const items = trash?.items ?? [];
+  const time = (it) => (typeof it.at === 'number' ? it.at : Date.parse(it.at) || 0);
+  const items = tokens.length
+    ? [...(trash?.items ?? []), ...tokens].sort((a, b) => time(b) - time(a))
+    : (trash?.items ?? []);
   const groups = groupTrash(items, now);
   const head = legacy ? '' : trashHeadCount(items);
   const dialog = clearOutDialog(items, projectName);
@@ -54,7 +89,10 @@ export function TrashView({
   const restore = async (item) => {
     setBusy(true);
     setNote(null);
-    const out = restoreOutcome(item, await restoreItem(item.id));
+    const out =
+      item.kind === 'token'
+        ? tokenOutcome(await restoreTokenNow(item))
+        : restoreOutcome(item, await restoreItem(item.id));
     setBusy(false);
     setNote(out);
     await onChanged?.();
@@ -64,7 +102,7 @@ export function TrashView({
     setAsking(false);
     setBusy(true);
     setNote(null);
-    const out = clearOutcome(await clearOut());
+    const out = await clearAll(items);
     setBusy(false);
     setNote(out);
     await onChanged?.();
@@ -124,7 +162,7 @@ export function TrashView({
                         data-id={it.id}
                       >
                         <span className="lp-two">
-                          <span className="lp-name" title={it.path}>
+                          <span className="lp-name" title={it.path ?? it.css}>
                             {itemName(it)}
                           </span>
                           <span className="lp-sub" data-testid="canvases-trash-sub">

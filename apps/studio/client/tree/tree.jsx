@@ -26,6 +26,7 @@ import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-
 import { dsPinnedModel } from '../v2/left-panel/left-panel-model.js';
 import { newCanvasDesignSystem } from '../v2/ds/new-canvas-default.js';
 import { systemMenuItems } from '../v2/ds/system-menu.jsx';
+import { trashedTokenItems } from '../v2/ds/door-write.js';
 import { useDsState } from '../v2/ds/use-ds-state.js';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { TrashView } from '../v2/left-panel/trash-view.jsx';
@@ -1375,6 +1376,7 @@ export function Sidebar({
             .filter(Boolean)}
           onBack={() => setTrashOpen(false)}
           onChanged={reloadTrash}
+          tokens={trashedTokenItems(dsState)}
         />
       ) : (
         <>
@@ -1460,6 +1462,8 @@ export function Sidebar({
                 onDuplicate={onDuplicateCanvas}
                 onTrash={onDeleteBoard}
                 onCopyLink={onCopyLink}
+                dsCfg={dsCfg}
+                onDsAction={readOnly ? undefined : onDsAction}
                 activeArtboard={activeArtboard}
                 commentsByFile={commentsByFile}
                 dirtyByPath={dirtyByPath}

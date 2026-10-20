@@ -82,6 +82,8 @@ export function folderOf(path, roots = DEFAULT_GROUP_ROOTS) {
 
 /** A row's name: the canvas name, or the artboard's label (its id when it had none). */
 export function itemName(item) {
+  // S10.21b — a design-system token moved to the trash: its label, else its CSS name
+  if (item.kind === 'token') return item.label || item.css || 'Untitled token';
   if (item.kind === 'artboard') return item.label || item.artboard || 'Untitled artboard';
   return baseName(item.path) || 'Untitled canvas';
 }
@@ -89,6 +91,7 @@ export function itemName(item) {
 /** A row's second line: "root · You, just now" / "artboard of Combine-kampan · Jonas, 14:05". */
 export function itemSub(item, { people, now, roots } = {}) {
   const by = `${whoLabel(item, people)}, ${whenLabel(item.at, now)}`;
+  if (item.kind === 'token') return `token of ${item.systemLabel || item.system} · ${by}`;
   if (item.kind === 'artboard') {
     const from = baseName(item.path) || 'a canvas';
     return `artboard of ${from}${item.canvasTrashed ? ' (in the trash)' : ''} · ${by}`;
@@ -115,27 +118,36 @@ const noun = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export function trashCounts(items) {
   let canvases = 0;
   let artboards = 0;
+  let tokens = 0;
   for (const it of items || []) {
     if (it.kind === 'artboard') artboards += 1;
+    else if (it.kind === 'token') tokens += 1;
     else canvases += 1;
   }
-  return { canvases, artboards };
+  return { canvases, artboards, tokens };
+}
+
+/** The parts there are: ["3 canvases", "1 artboard", "2 tokens"]. */
+function countParts(items) {
+  const { canvases, artboards, tokens } = trashCounts(items);
+  return [
+    canvases ? noun(canvases, 'canvas', 'canvases') : '',
+    artboards ? noun(artboards, 'artboard', 'artboards') : '',
+    tokens ? noun(tokens, 'token', 'tokens') : '',
+  ].filter(Boolean);
 }
 
 /** "3 canvases · 1 artboard" — only the parts there are; '' while empty. */
 export function trashHeadCount(items) {
-  const { canvases, artboards } = trashCounts(items);
-  return [
-    canvases ? noun(canvases, 'canvas', 'canvases') : '',
-    artboards ? noun(artboards, 'artboard', 'artboards') : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  return countParts(items).join(' · ');
 }
 
-/** "3 canvases and 1 artboard" — the sentence form. */
+/** "3 canvases and 1 artboard" ("3 canvases, 1 artboard and 2 tokens") — the sentence form. */
 export function trashSentenceCount(items) {
-  return trashHeadCount(items).replace(' · ', ' and ');
+  const parts = countParts(items);
+  return parts.length < 2
+    ? (parts[0] ?? '')
+    : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
 /**
