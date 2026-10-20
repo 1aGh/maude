@@ -132,9 +132,16 @@ describe('four tracks', () => {
     expect(q('[data-track="video2"] .tl-track-name')?.textContent).toBe('Video 2');
   });
 
-  test('a bed is Music; a second one at the same time is Music 2; an empty Music says so', () => {
+  test('a bed is Music; a second one at the same time is Music 2; an empty Music says so only when the video is silent', () => {
+    // S7.10 (07 · ve-fit-fill): clips with sound leave an empty Music track quiet; only a silent video gets the line.
     mount(SEQ.slice(0, 2));
-    expect(q('[data-track="music"] .tl-track-hint')?.textContent).toBe('No sound in this video.');
+    expect(q('[data-track="music"] .tl-track-hint')).toBeNull();
+    act(() => root?.unmount());
+    host?.remove();
+    mount(SEQ.slice(0, 2).map((s) => ({ ...s, mediaProps: { muted: true } })));
+    expect(q('[data-track="music"] [data-testid="timeline-music-hint"]')?.textContent).toStartWith(
+      'No sound in this video.'
+    );
     act(() => root?.unmount());
     host?.remove();
     mount(SEQ.slice(0, 2), {

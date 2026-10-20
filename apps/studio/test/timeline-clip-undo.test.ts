@@ -136,7 +136,9 @@ describe('a Timeline clip verb is an edit op', () => {
       params: { atFrame: 150, artboard: 'reel', stableId: 'name:two', contentHash: 'h1' },
     });
     const ids = new Set(EDIT_OPS.map((o) => o.id));
-    for (const verb of Object.keys(CLIP_VERB_LABELS)) expect(ids.has(`clip.${verb}`)).toBe(true);
+    // S7.10: a dotted verb (`video.fit`, `video.title.motion`, …) is already the op id; a bare one is `clip.<verb>`.
+    for (const verb of Object.keys(CLIP_VERB_LABELS))
+      expect(ids.has(verb.includes('.') ? verb : `clip.${verb}`)).toBe(true);
   });
 
   test('only a writeId records; a seq is not an undo any more', () => {
