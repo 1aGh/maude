@@ -1689,7 +1689,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     undo: 'step',
     server: { route: '/_api/ds/upgrade', method: 'POST' },
     agent: cli(
-      'maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage>'
+      'maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage> | --status | --cancel <stage> | --discard <stage>'
     ),
   },
   'ds.keep-outside': {

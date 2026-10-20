@@ -159,8 +159,18 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('ds-upgrade analyse', 'none'),
   d('ds-upgrade plan', 'none'),
   d('ds-upgrade validate', 'none'),
+  d('ds-upgrade status', 'none'),
+  // S10.15b (lead): a stage, its proof, its discard and a cancel write only the OS temp dir + _state/ds-upgrade/
+  d('ds-upgrade stage', 'project', {
+    note: 'copies the design root to a throwaway stage outside the project',
+  }),
+  d('ds-upgrade prove', 'project', {
+    note: 'two headless studios on the stage; writes review.json under _state/',
+  }),
+  d('ds-upgrade discard', 'project', { note: 'removes a stage' }),
+  d('ds-upgrade cancel', 'project', { note: 'stops a running proof and discards its stage' }),
   d('ds-upgrade', 'destructive', {
-    note: '`apply` rewrites system files (V2-1.13 §5.10); `stage` and the flag forms prompt too',
+    note: '`apply` rewrites system files (V2-1.13 §5.10); the flag forms prompt too',
   }),
   d('bulk-deletes', 'shared'),
   d('history restore', 'destructive', {

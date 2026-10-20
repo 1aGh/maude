@@ -20,6 +20,13 @@ export const SUB_VERBS = {
     analyse: { step: '--analyse', plan: false },
     plan: { step: '--plan-mechanical', plan: false },
     validate: { step: '--validate', plan: true },
+    // S10.15b (lead): the steps that write only a throwaway stage under the OS temp dir and `_state/`
+    // get their own sub-verbs, so they tier `project`; `--apply` (system files) stays on the catch-all.
+    stage: { step: '--stage', plan: true },
+    prove: { step: '--prove', plan: true },
+    discard: { step: '--discard', plan: true },
+    cancel: { step: '--cancel', plan: true },
+    status: { step: '--status', plan: false },
   },
   // V2-2.4b (contract V2-1.11 §5.3). Each sub-verb has its own tier entry.
   history: {

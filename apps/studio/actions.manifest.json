@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "02e4f07d2e82",
+  "manifestVersion": "573be850fe94",
   "actions": [
     {
       "id": "search.open",
@@ -6557,7 +6557,7 @@
       },
       "agent": {
         "path": "cli",
-        "verb": "maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage>"
+        "verb": "maude design ds-upgrade <ds> --analyse | --stage <plan.json> | --prove <stage> | --apply <stage> | --status | --cancel <stage> | --discard <stage>"
       }
     }
   ],
@@ -7006,6 +7006,36 @@
       "scope": "design",
       "verb": "design ds-upgrade validate",
       "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade stage",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade prove",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade discard",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade cancel",
+      "effect": "project",
       "tier": "auto"
     },
     {

@@ -53,8 +53,20 @@ test('the flag form and other verbs pass through unchanged', () => {
   assert.deepEqual(subVerbArgs('slug', ['analyse']), { args: ['analyse'] });
 });
 
-test('SUB_VERBS names exactly the auto sub-verbs of the tier table', () => {
-  assert.deepEqual(Object.keys(SUB_VERBS['ds-upgrade']).sort(), ['analyse', 'plan', 'validate']);
+test('SUB_VERBS names exactly the tiered ds-upgrade steps of the tier table', () => {
+  // analyse/plan/validate/status are auto (none); stage/prove/discard/cancel are project (S10.15b, lead) —
+  // `--apply` stays on the verb's destructive catch-all, so it is never a sub-verb.
+  assert.deepEqual(Object.keys(SUB_VERBS['ds-upgrade']).sort(), [
+    'analyse',
+    'cancel',
+    'discard',
+    'plan',
+    'prove',
+    'stage',
+    'status',
+    'validate',
+  ]);
+  assert.equal('apply' in SUB_VERBS['ds-upgrade'], false);
 });
 
 test('a native sub-verb (V2-2.4b history) passes through: its helper parses its own words', () => {
