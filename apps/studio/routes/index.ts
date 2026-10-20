@@ -31,6 +31,7 @@ import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { type CloudPlanDeps, createCloudPlanRoutes } from './cloud-plan.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { type ConnectionsRouteDeps, createConnectionsRoutes } from './connections.ts';
+import { createDescribeRoutes, type DescribeRouteDeps } from './describe.ts';
 import { createDiagnosticsRoutes, type DiagnosticsRouteDeps } from './diagnostics.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createDsCheckRoutes } from './ds-check.ts';
@@ -142,6 +143,8 @@ export interface RouteDeps {
   assetTrash?: AssetTrashRouteDeps;
   /** S8.17 — `POST /_api/figma/frames` + `…/import-frames` (main origin, Can edit on the project): frames as pictures */
   figma?: FigmaRouteDeps;
+  /** S8.20 — `/_api/describe*` (main origin, a project session on a Mac): search in pictures, opt-in */
+  describe?: DescribeRouteDeps;
   /** S8.21 — `GET /_api/asset-details` and `GET /_api/asset-generated` (main origin, reads): details per kind, the Generated runs */
   assetDetails?: AssetDetailsRouteDeps;
   /** S8.22 — `POST /_api/import-asset` v2 (main origin, Can edit on the project): PSD/HEIC converters, the dedupe answer */
@@ -242,6 +245,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
     ...(deps.figma ? createFigmaRoutes(deps.figma) : []),
+    ...(deps.describe ? createDescribeRoutes(deps.describe) : []),
     ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),
     ...(deps.assetImport ? createAssetImportRoutes(deps.assetImport) : []),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),

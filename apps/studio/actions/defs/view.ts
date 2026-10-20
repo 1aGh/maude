@@ -158,6 +158,25 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // S8.20 (12 · ia-assets-find, CONTRACT §7) — search what's IN the pictures, not only their names: asked once per
+    // project, per person, on this Mac ("Describe the pictures in <project>?"), never assumed. On, AI describes each
+    // picture once with the person's Claude account; off, search reads names and tags. The sheet is the only way on.
+    id: 'assets.describe',
+    label: 'Search in pictures',
+    kind: 'toggle',
+    icon: 'search',
+    exec: 'shell',
+    search: { keywords: ['describe', 'pictures', 'photos', 'what is in', 'ai', 'search'] },
+  },
+  {
+    // S8.20 — Stop / Resume in "Describing 12 of 193 pictures" (the Assets tab's foot). Consent stays; describing waits.
+    id: 'assets.describe-stop',
+    label: 'Stop describing pictures',
+    kind: 'command',
+    exec: 'shell',
+    search: { hidden: true },
+  },
+  {
     id: 'view.layers-panel',
     label: 'Layers as a panel',
     kind: 'toggle',

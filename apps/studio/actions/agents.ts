@@ -533,7 +533,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   // S7.25 — Change kind makes a copy: the original keeps every byte; the print is the copy with kind, print, px size and ONE scaling wrapper.
   'artboard.convert-kind': TSX(
-    'Copy the DCArtboard right after itself with a new id and label, set kind="print", print={{ paper, orientation, bleedMm }} and width/height to the paper plus 2 × bleed in px, drop safeZones, and put the copy’s children in one <div style={{ position: \'relative\', flex: \'none\', width, height, zoom }}> that scales the design to the paper’s width; optionally artboardMeta.<copy>.madeFrom = { artboard, label } in the .meta.json — see canvas-tsx.md § Change an artboard’s kind'
+    "Copy the DCArtboard right after itself with a new id and label, set kind=\"print\", print={{ paper, orientation, bleedMm }} and width/height to the paper plus 2 × bleed in px, drop safeZones, and put the copy’s children in one <div style={{ position: 'relative', flex: 'none', width, height, zoom }}> that scales the design to the paper’s width; optionally artboardMeta.<copy>.madeFrom = { artboard, label } in the .meta.json — see canvas-tsx.md § Change an artboard’s kind"
   ),
   // S7.25 — the one verb of a warning row: each is an ordinary edit, so an agent makes the same edit.
   'warning.fix': TSX(
@@ -813,6 +813,21 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'view',
     // a read for every role (GET /_api/asset-details): no per-role refusal row, so no `server` key (as S10.9's ds.show-reach)
     agent: cli('maude design assets --usage <asset> --details'),
+  },
+  // S8.20 — search in pictures: the person's own yes (or Stop) to describing their pictures with THEIR Claude account on
+  // THEIR Mac (V2-1.17 §5.9, Q9). An agent cannot say yes for the person whose account it spends.
+  'assets.describe': {
+    effect: 'external',
+    server: { route: '/_api/describe/consent', method: 'POST' },
+    agent: human(
+      'consent',
+      "the person's yes to AI describing their pictures; once on, re-describing is S12.13's `maude design describe`"
+    ),
+  },
+  'assets.describe-stop': {
+    effect: 'none',
+    server: { route: '/_api/describe/stop', method: 'POST' },
+    agent: human('consent', 'Stop / Resume of the describing the person said yes to'),
   },
   // S8.13 — Move to trash on an asset: the picture and its sidecars go to `_trash/` together (the manifest says where each
   // lives, so Trash and Undo bring them all back). Never a picture a canvas uses or an older version still shows.

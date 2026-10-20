@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "7bc6955c25a0",
+  "manifestVersion": "e8351ae36eef",
   "actions": [
     {
       "id": "search.open",
@@ -1981,6 +1981,38 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Move assets/<name> and the sidecars that share its stem (<name>.photo.json, <stem>.<edit8>.photo.json, <name>.gen.json, transcripts) into <designRoot>/_trash/<stamp>__asset-<name>/ and write _trash-manifest.json {kind: \"asset\", asset, slug, trashed[]} beside them — only a picture no canvas uses and no older version shows (`maude design assets --not-used` lists them; nothing is listed until older versions are checked). Over HTTP: POST /_api/assets/trash {assets: [\"assets/<name>\"]} answers per item: moved, or used | kept-by-versions | checking"
+      }
+    },
+    {
+      "id": "assets.describe",
+      "label": "Search in pictures",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "external",
+      "server": {
+        "route": "/_api/describe/consent",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "consent",
+        "note": "the person's yes to AI describing their pictures; once on, re-describing is S12.13's `maude design describe`"
+      }
+    },
+    {
+      "id": "assets.describe-stop",
+      "label": "Stop describing pictures",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "server": {
+        "route": "/_api/describe/stop",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "consent",
+        "note": "Stop / Resume of the describing the person said yes to"
       }
     },
     {

@@ -204,7 +204,10 @@ export type HumanReason =
   | 'git'
   // S4.14: a formal vote is people's decision (Gate 0 A18). The agent has no vote verb; it reads the
   // result section the vote leaves (`maude design read-annotations`) — decision:maude/v2-S4.14-votes-human
-  | 'vote';
+  | 'vote'
+  // S8.20 (V2-1.17 §9 Q9): the yes to AI describing a project's pictures with the person's own Claude account, and its
+  // Stop. Consent is the person's; an agent cannot give it for them — decision:maude/v2-S8.20-describe-consent-human
+  | 'consent';
 
 export type AgentPath =
   | { path: 'file'; format: FormatId; skill: SkillRef; how: string }
