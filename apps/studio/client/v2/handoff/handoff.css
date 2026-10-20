@@ -1,0 +1,129 @@
+/* client/v2/handoff/handoff.css — S8.10: Handoff to production (09 Export · ex-handoff, ex-handoff-ready,
+ * ex-handoff-edges). It sits inside the Export sheet's frame (.ex-sheet); this adds the target rows, the
+ * review line, the queued line and the ready card. Tokens only; mono only inside Advanced. */
+
+@layer shell {
+  .ho-sheet {
+    width: min(600px, 100%);
+  }
+  .ho-targets {
+    display: grid;
+    gap: var(--space-2, 8px);
+  }
+  .ho-target {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    box-shadow: inset 0 0 0 1px var(--line, var(--bg-3));
+    cursor: pointer;
+    transition:
+      box-shadow var(--dur-fast) ease,
+      background var(--dur-fast) ease;
+  }
+  .ho-target:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 2px;
+  }
+  .ho-target--on {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ho-target--off {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .ho-target-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+  .ho-target-s,
+  .ho-check-s,
+  .ho-review-s,
+  .ho-queued-s,
+  .ho-ready-d {
+    color: var(--fg-2);
+    font-size: var(--text-sm, 12px);
+  }
+  .ho-chip {
+    font-weight: 500;
+  }
+  .ho-check {
+    display: flex;
+    gap: var(--space-2, 8px);
+    align-items: flex-start;
+  }
+  .ho-check > span {
+    display: grid;
+  }
+  .ho-review,
+  .ho-queued,
+  .ho-drafting {
+    margin: 0;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .ho-review[data-tone="warn"] {
+    display: grid;
+    gap: var(--space-1, 4px);
+    background: var(--warn-muted, var(--bg-2));
+    box-shadow: inset 0 0 0 1px var(--warn, var(--line));
+  }
+  .ho-review-t,
+  .ho-queued-t {
+    margin: 0;
+  }
+  .ho-review .btn {
+    justify-self: start;
+  }
+  .ho-adv-body {
+    display: grid;
+    gap: var(--space-2, 8px);
+    padding-top: var(--space-2, 8px);
+  }
+  .ho-kv {
+    display: flex;
+    gap: var(--space-2, 8px);
+    color: var(--fg-2);
+  }
+  .ho-cmd {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-2, 8px);
+    align-items: center;
+  }
+  .ho-cmd-n {
+    color: var(--fg-2);
+    font-size: var(--text-sm, 12px);
+  }
+  .ho-cmd code,
+  .ho-pre {
+    overflow-wrap: anywhere;
+    margin: 0;
+  }
+  .ho-ready {
+    display: grid;
+    gap: var(--space-2, 8px);
+  }
+  .ho-ready-t {
+    margin: 0;
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+  .ho-ready-d {
+    margin: 0;
+  }
+  .ho-connect {
+    display: grid;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ho-target {
+      transition-duration: 1ms;
+    }
+  }
+}

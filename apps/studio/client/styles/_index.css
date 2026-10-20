@@ -70,6 +70,8 @@
 @import url("../v2/export/print.css");
 /* S8.6 — the Video part: ticked formats + the filmstrip (client/v2/export/). */
 @import url("../v2/export/video.css");
+/* S8.10 — Handoff to production: targets, the review line, the ready card (client/v2/handoff/). */
+@import url("../v2/handoff/handoff.css");
 @import url("../v2/inspect/inspect.css");
 @import url("../v2/presence/presence.css");
 /* V2-4.5c — tool panels the canvas toolbar opens (Stickers), pinned next to the toolbar island. */
