@@ -119,7 +119,7 @@
     {"id":"S8","kind":"package","title":"Export, import, assets","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"S9","kind":"package","title":"Share, collaboration, cloud","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"S10","kind":"package","title":"Design system canvas","status":"open","evidence":null,"evidenceHash":null,"commit":null},
-    {"id":"S12","kind":"package","title":"AI & tooling evolution","status":"open","evidence":null,"evidenceHash":null,"commit":null},
+    {"id":"S12","kind":"package","title":"AI & tooling evolution","status":"built","evidence":".ai/plans/notes/v2-evidence/S12-journeys/dry-results.txt","evidenceHash":null,"commit":"6379f5051"},
     {"id":"S11","kind":"package","title":"Advanced, Diagnostics, Settings, empty states","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/ai-offline","kind":"rule","canvas":"00","title":"AI offline","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"00/rule/ai-not-connected-yet","kind":"rule","canvas":"00","title":"AI not connected yet","src":"§7","status":"open","evidence":null,"evidenceHash":null,"commit":null},
