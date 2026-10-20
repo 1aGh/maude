@@ -24,6 +24,7 @@ import {
   ACCESS_FRAME_EVENT,
   canvasName,
   canvasRel,
+  REFUSAL_PROBE,
   setTrashedOpen,
   shellAccessFrame,
   VIEW_ONLY_EVENT,
@@ -141,7 +142,7 @@ export function AccessHost({
   // A desktop shell keeps the S9.21b notice path only.
   useEffect(() => {
     if (window.__TAURI__) return undefined;
-    return watchRefusals(window, (outcome) => {
+    const stop = watchRefusals(window, (outcome) => {
       const prev = live.current.state;
       const next = accessHostRefusal(prev, outcome);
       if (next !== prev) {
@@ -149,6 +150,23 @@ export function AccessHost({
         setState(next);
       }
     });
+    // The kick closes this tab's sockets but makes no request; a quiet tab asks the door itself.
+    const probe = () => {
+      const s = live.current.state;
+      if (s.ended || s.linkOff || document.visibilityState === 'hidden') return;
+      Promise.resolve()
+        .then(() => window.fetch(REFUSAL_PROBE.path, { cache: 'no-store' }))
+        .catch(() => {});
+    };
+    const t = setInterval(probe, REFUSAL_PROBE.ms);
+    window.addEventListener('focus', probe);
+    document.addEventListener('visibilitychange', probe);
+    return () => {
+      stop();
+      clearInterval(t);
+      window.removeEventListener('focus', probe);
+      document.removeEventListener('visibilitychange', probe);
+    };
   }, []);
 
   useEffect(() => {

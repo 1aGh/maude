@@ -178,6 +178,13 @@ export function doorRefusal(status, body) {
   return o && (o.kind === 'link-off' || o.kind === 'ended') ? o : null;
 }
 
+/**
+ * S9.21d — a quiet browser tab asks the door itself: on focus, on becoming visible and on this slow tick while
+ * showing, one GET of the studio's `/_health` (studio-owned, so it passes the cell door; nothing in it is read).
+ * Stops once the window shows a card.
+ */
+export const REFUSAL_PROBE = Object.freeze({ path: '/_health', ms: 30_000 });
+
 const WATCHED = Symbol.for('maude.access.refusal-watch');
 
 const sameOrigin = (input, origin) => {

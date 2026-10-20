@@ -12,7 +12,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { doorRefusal, watchRefusals } from '../client/v2/access/access-client.js';
+import { doorRefusal, REFUSAL_PROBE, watchRefusals } from '../client/v2/access/access-client.js';
 import { AccessHost, accessHostRefusal } from '../client/v2/access/access-host.jsx';
 
 beforeAll(() => {
@@ -118,14 +118,16 @@ describe('the watch over the window’s own answers', () => {
 describe('the host, in a browser and in the desktop shell', () => {
   const realFetch = globalThis.fetch;
   let refuse: Response | null = null;
+  let asked: string[] = [];
   afterEach(() => {
     globalThis.fetch = realFetch;
     refuse = null;
+    asked = [];
     delete (window as unknown as { __TAURI__?: unknown }).__TAURI__;
   });
   function mount() {
     globalThis.fetch = (async (url: string) =>
-      refuse && String(url) !== '/_api/trash'
+      asked.push(String(url)) && refuse && String(url) !== '/_api/trash'
         ? refuse
         : json(
             200,
@@ -189,6 +191,62 @@ describe('the host, in a browser and in the desktop shell', () => {
     (window as unknown as { __TAURI__?: unknown }).__TAURI__ = { core: {} };
     const h = mount();
     expect(window.fetch).toBe(h.stub);
+    asked = [];
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(asked).not.toContain(REFUSAL_PROBE.path);
     h.unmount();
+  });
+});
+
+describe('a quiet browser tab still asks', () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+  test('focus probes the door once; after the card, no more probes', async () => {
+    const asked: string[] = [];
+    let refuse = false;
+    globalThis.fetch = (async (url: string) => {
+      asked.push(String(url));
+      return refuse && String(url) === REFUSAL_PROBE.path
+        ? json(401, { reason: 'link-off' })
+        : json(200, String(url) === '/_api/trash' ? { legacy: true } : {});
+    }) as unknown as typeof fetch;
+    const el = document.createElement('div');
+    document.body.append(el);
+    const root = createRoot(el);
+    act(() => {
+      root.render(
+        createElement(AccessHost, {
+          activePath: '.design/ui/Combine-kampan.tsx',
+          designRel: '.design',
+          tabs: [],
+          project: 'Alligators brand',
+          canEdit: false,
+          toast: () => {},
+          run: () => {},
+          onOpenTab: () => {},
+        })
+      );
+    });
+    expect(REFUSAL_PROBE.path).toBe('/_health');
+    expect(REFUSAL_PROBE.ms).toBeGreaterThanOrEqual(15_000);
+    refuse = true;
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await flush();
+      await flush();
+    });
+    expect(asked.filter((u) => u === REFUSAL_PROBE.path).length).toBe(1);
+    expect(el.querySelector('[data-testid="access-link-off"]')).not.toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await flush();
+    });
+    expect(asked.filter((u) => u === REFUSAL_PROBE.path).length).toBe(1);
+    act(() => root.unmount());
+    el.remove();
   });
 });
