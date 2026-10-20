@@ -671,25 +671,37 @@ export function VideoComp({
   }, [compId]);
 
   // S7.8 — the poster moved (set from the timeline, or by a peer): a video nobody has played or scrubbed
-  // rests on the new picture. One whose playhead was moved keeps its place.
+  // rests on the new picture; one whose playhead was moved keeps its place. The poster is keyed by the
+  // enclosing artboard's id (the `<VideoComp id>` when it matches), so it is looked up once mounted too.
+  const resting = useRef<number | null>(null);
   useEffect(() => {
     if (typeof document === 'undefined' || capturing) return undefined;
-    const onMeta = () => {
-      if (liveTimelineFrame.has(compId)) return;
+    const rest = () => {
+      const p = ref.current;
+      if (!p) return;
+      const seen = liveTimelineFrame.get(compId);
+      if (seen !== undefined && seen !== resting.current) return; // moved by hand, or playing
+      const artboard = findArtboardOf(hostRef.current).artboardId ?? compId;
+      const to = clamp(
+        resolvedPoster(
+          readCanvasArtboardMeta(),
+          artboard,
+          Math.max(1, Math.round(durationInFrames))
+        ),
+        0,
+        Math.max(0, durationInFrames - 1)
+      );
+      if (to === resting.current && seen === to) return;
+      resting.current = to;
       try {
-        ref.current?.seekTo(
-          resolvedPoster(
-            readCanvasArtboardMeta(),
-            compId,
-            Math.max(1, Math.round(durationInFrames))
-          )
-        );
+        p.seekTo(to);
       } catch {
         /* Player transitional */
       }
     };
-    document.addEventListener('maude:meta-refreshed', onMeta);
-    return () => document.removeEventListener('maude:meta-refreshed', onMeta);
+    rest();
+    document.addEventListener('maude:meta-refreshed', rest);
+    return () => document.removeEventListener('maude:meta-refreshed', rest);
   }, [compId, durationInFrames, capturing]);
 
   // S7.8 — the Player is the truth about playing: tell the shell on every play / pause, so a click on the

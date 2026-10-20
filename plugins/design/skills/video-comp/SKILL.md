@@ -37,3 +37,4 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When a comp reads speech words or a beat grid (Maude 2) | [Transcript and beats sidecars](./_guide-15-transcript-and-beats-sidecars.md) |
 | When adding captions, cutting by transcript, cutting to the beat, re-framing or adding a format (Maude 2) | [Video tools: captions, edit by transcript, Cut to the beat](./_guide-16-video-tools-captions-cut-words-cut-to-beat.md) |
 | When writing `<Captions>`, `<Duck>`, `<Reframe>` or `<Place>` by hand, or choosing how many focus keys (Maude 2) | [The four comp components](./_guide-17-captions-duck-reframe-place-components.md) |
+| When naming scenes so they land on the right track, setting a poster frame, or explaining how a video plays on the canvas (Maude 2) | [The four tracks, the poster frame, and playing in place](./_guide-18-tracks-poster-and-playing-in-place.md) |

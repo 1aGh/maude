@@ -30193,5 +30193,69 @@
       "apps/studio/test/timeline-tracks-render.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "video-play-button",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The centred play button on a paused video artboard (S7.8, 07 ve-play): plays it in place, with sound. Rendered inside the canvas iframe (not DOM-reachable from the shell); never in a capture or while presenting.",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-scrub-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The on-artboard scrub bar once a video has started (S7.8): play / pause, progress, \"0:07 / 0:15\". Canvas iframe; never in a capture or while presenting.",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-scrub-fill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The progress fill inside the on-artboard scrub bar (S7.8); its width is the playhead as a share of the length.",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "video-scrub-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"0:07 / 0:15\" time inside the on-artboard scrub bar (S7.8).",
+    "producer": {
+      "file": "apps/studio/video-play-chrome.tsx",
+      "symbol": "VideoPlayChrome"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/video-play-chrome.test.tsx"
+    ],
+    "v2": "new"
   }
 ]
