@@ -104,6 +104,8 @@ export function Swatch({ token, model }: { token: BoardToken; model: BoardModel 
     <span
       className="ds-sw"
       data-ds-token={token.css}
+      data-ds-label={token.label}
+      data-ds-kind={token.kind}
       data-locked={token.locked ? 'true' : undefined}
       data-pending={token.pending ? (token.pending.trashTo ? 'trash' : 'true') : undefined}
     >

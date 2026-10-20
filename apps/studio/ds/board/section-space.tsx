@@ -28,6 +28,8 @@ export function SpaceSection({ model, mode }: SectionProps) {
               key={t.css}
               className="ds-rad"
               data-ds-token={t.css}
+              data-ds-label={t.label}
+              data-ds-kind={t.kind}
               data-pending={t.pending ? 'true' : undefined}
             >
               <i style={{ borderRadius: `var(${t.css})` }} />
@@ -39,7 +41,13 @@ export function SpaceSection({ model, mode }: SectionProps) {
         {s.length ? <p className="ds-k ds-k--gap">Spacing</p> : null}
         <div className="ds-space">
           {s.map((t) => (
-            <span key={t.css} data-ds-token={t.css} data-pending={t.pending ? 'true' : undefined}>
+            <span
+              key={t.css}
+              data-ds-token={t.css}
+              data-ds-label={t.label}
+              data-ds-kind={t.kind}
+              data-pending={t.pending ? 'true' : undefined}
+            >
               <i style={{ height: `var(${t.css})` }} />
               <em>{val(t, theme)}</em>
             </span>
@@ -53,6 +61,8 @@ export function SpaceSection({ model, mode }: SectionProps) {
               className="ds-el"
               style={{ boxShadow: `var(${t.css})` }}
               data-ds-token={t.css}
+              data-ds-label={t.label}
+              data-ds-kind={t.kind}
             >
               {t.label}
             </span>
@@ -60,7 +70,13 @@ export function SpaceSection({ model, mode }: SectionProps) {
         </div>
         {o.length ? <p className="ds-k ds-k--gap">Layout</p> : null}
         {o.map((t) => (
-          <p key={t.css} className="ds-kv" data-ds-token={t.css}>
+          <p
+            key={t.css}
+            className="ds-kv"
+            data-ds-token={t.css}
+            data-ds-label={t.label}
+            data-ds-kind={t.kind}
+          >
             <b>{t.label}</b>
             <em>{val(t, theme)}</em>
           </p>

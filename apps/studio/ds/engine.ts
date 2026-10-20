@@ -96,6 +96,7 @@ export type EngineErrorCode =
   | 'ds-revision-invalid'
   | 'ds-pending-conflict'
   | 'ds-pending-invalid'
+  | 'ds-token-locked'
   | 'ds-no-canvas'
   | 'ds-not-in-system'
   | 'ds-no-outside'
@@ -111,6 +112,7 @@ const STATUS: Partial<Record<EngineErrorCode, number>> = {
   'ds-not-in-system': 404,
   'ds-unknown-token': 404,
   'ds-pending-invalid': 422,
+  'ds-token-locked': 422,
   'ds-revision-invalid': 422,
   'ds-head-invalid': 422,
   'ds-kernel-unavailable': 503,
@@ -1060,6 +1062,10 @@ export function createDsEngine(opts: EngineOptions) {
       }
       checkEntry(L.s, css, e);
       if (!baseTokens[css] && !e.add) throw fail('ds-unknown-token', `${css} is not in the system`);
+      // a frozen brand value (V2-1.6 §5.3 `locked`): the editor refuses until it is unlocked — here,
+      // before a pending entry exists that the publish would then refuse (S10.7)
+      if (L.baseModel.tokens[css]?.data.locked === true)
+        throw fail('ds-token-locked', `${css} is a locked brand colour — unlock it first`, { css });
       if (e.trash) {
         const repl = e.trash.replacement;
         if (tier1().has(css))

@@ -79,6 +79,7 @@ describe('ds routes — roles (Q15)', () => {
     expect(specs.every((s) => s.origin === 'main')).toBe(true);
     expect(specs.map((s) => `${s.method} ${s.path}`).sort()).toEqual(
       [
+        'GET /_api/ds/board',
         'GET /_api/ds/revision',
         'GET /_api/ds/revisions',
         'GET /_api/ds/state',

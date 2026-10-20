@@ -519,3 +519,10 @@
     animation-duration: 1ms !important;
   }
 }
+
+/* S10.7: a token or a master is ONE selectable thing. Its parts take no pointer, so a click anywhere on
+   the swatch lands on the element that carries data-ds-token / data-ds-master (the inspector's kind). */
+[data-ds-token] > *,
+[data-ds-master] > * {
+  pointer-events: none;
+}

@@ -5,7 +5,7 @@
 // when no studio runs (ds/ds-verb.ts), so the route and the verb cannot drift (S10.3 parity).
 //
 // Permissions (Q15, rule 12 — whatever the UI hides, the server refuses):
-//   reads (state, revision, revisions, usage, publish --dry-run)  anyone who can open the project
+//   reads (state, board, revision, revisions, usage, publish --dry-run)  anyone who can open the project
 //   pending                                                       Can edit on the DS canvas
 //   publish, outside keep|undo, pick, trash, restore              Can edit on the WHOLE project
 //   canvas update|leave                                           Can edit on that canvas
@@ -18,6 +18,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Access } from '../access/scope.ts';
+import { buildBoardModel } from '../ds/board/build-model.ts';
 import { checkSystem } from '../ds/check.ts';
 import {
   type DsEngine,
@@ -44,6 +45,7 @@ export const DS_FORMATS = {
 
 export type DsOp =
   | 'state'
+  | 'board'
   | 'publish'
   | 'pending'
   | 'outside'
@@ -327,6 +329,14 @@ export async function runDsOp(
           body: { format: DS_FORMATS.state, v: 1, systems: names.map((n) => stateRow(c, n)) },
         };
       }
+      case 'board': {
+        // S10.7: the model the Design system canvas draws from (values per theme, pending, locked,
+        // usage) for the inspector's token editor — the same builder, so the panel and the board agree
+        const ds = systemFor(c, input.ds);
+        const s = c.engine.systems().find((x) => x.name === ds);
+        if (!s) throw unknownSystem(ds);
+        return { status: 200, body: buildBoardModel(c.engine.designRoot, s) };
+      }
       case 'revision': {
         const ds = systemFor(c, input.ds);
         const rev = str(input.rev, 'rev', 64);
@@ -566,6 +576,7 @@ async function byOf(deps: DsRouteDeps, req: Request): Promise<By> {
 // Literal `method`/`path` pairs: the writer-registry, hub-manifest and CSRF scrapers read them.
 const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> = [
   { method: 'GET', path: '/_api/ds/state', op: 'state' },
+  { method: 'GET', path: '/_api/ds/board', op: 'board' },
   { method: 'GET', path: '/_api/ds/revision', op: 'revision' },
   { method: 'GET', path: '/_api/ds/revisions', op: 'revisions' },
   { method: 'GET', path: '/_api/ds/usage', op: 'usage' },

@@ -40,6 +40,9 @@ export function titleOf(selection, layersTree) {
       el.attrs?.['data-dc-screen'] ||
       'Artboard'
     );
+  // S10.7 — a token of the Design system canvas is named by the designer's label (data-ds-label)
+  const token = collapse(el.attrs?.['data-ds-token'] ? el.attrs['data-ds-label'] : '');
+  if (token) return token;
   const hit = el.id ? findNode(layersTree?.nodes, el.id, el.index) : null;
   const label = collapse(hit?.node?.label);
   if (label) return label;

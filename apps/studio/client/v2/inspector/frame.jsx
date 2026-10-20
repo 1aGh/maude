@@ -20,6 +20,8 @@ import { bindInspectorActions } from './inspector-actions.js';
 import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
 import { useInstanceSelection } from './kinds/instance.jsx';
+// S10.7 — a token of the Design system canvas is a kind of its own (client/v2/ds/kinds/token.jsx)
+import '../ds/kinds/token.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { sectionsFor } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
@@ -218,7 +220,7 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        {sectionsFor(kind.id).map((def) => {
+        {(kind.bare ? [] : sectionsFor(kind.id)).map((def) => {
           const entries = slotsFor(def.id, kind.id, selected, ctx);
           if (!entries.length) return null;
           return (
@@ -236,20 +238,22 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'bottom').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        <InspectorAdvanced
-          selected={selected}
-          el={el}
-          layersTree={layersTree}
-          cfg={cfg}
-          canvasFile={canvasFile}
-          open={adv.open}
-          onToggle={adv.toggle}
-          onRenameElementId={onRenameElementId}
-          edit={edit}
-          artboard={artboard}
-          editScope={editScope}
-          onDetachInstance={onDetachInstance}
-        />
+        {kind.bare ? null : (
+          <InspectorAdvanced
+            selected={selected}
+            el={el}
+            layersTree={layersTree}
+            cfg={cfg}
+            canvasFile={canvasFile}
+            open={adv.open}
+            onToggle={adv.toggle}
+            onRenameElementId={onRenameElementId}
+            edit={edit}
+            artboard={artboard}
+            editScope={editScope}
+            onDetachInstance={onDetachInstance}
+          />
+        )}
       </fieldset>
     </div>
   );
