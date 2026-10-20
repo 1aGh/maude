@@ -20,6 +20,7 @@
 // only this block (kinds/index.js `bare`).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { followDark, formatLike, resolveColour } from '../../../../ds/contrast.ts';
 import { usedWords } from '../../../../ds/board/types.ts';
 import { toHex } from '../../../../draw/palette.ts';
@@ -29,6 +30,10 @@ import { registerBlock } from '../../inspector/blocks.js';
 import { registerKind, singleOf } from '../../inspector/kinds/index.js';
 import { Quiet, Row } from '../../inspector/sections/row.jsx';
 import { contrastLine } from '../contrast.js';
+import { ContrastWarning } from '../contrast-warning.jsx';
+import { EDGE_WORDS, fixOffer } from '../edge-model.js';
+import { fetchTrashQuestion, fixContrastNow, trashTokenNow } from '../edge-write.js';
+import { TrashTokenSheet } from '../trash-token-sheet.jsx';
 import { systemOfCanvas, useDsBoard } from '../use-ds-model.js';
 import {
   cleanValue,
@@ -79,7 +84,19 @@ function Chip({ model, theme, value }) {
 }
 
 /** The panel for ONE token of one system. Exported for tests with an injected model and writer. */
-export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow }) {
+export function TokenPanel({
+  css,
+  ds,
+  model,
+  onWrite,
+  onRefresh,
+  onAdopt,
+  onShow,
+  // S10.17 — the edges: Lighten to 4.5:1, and Move to trash… (all three are the server's to judge again)
+  onFix = fixContrastNow,
+  onAskTrash = fetchTrashQuestion,
+  onTrash = trashTokenNow,
+}) {
   const token = model?.tokens.find((t) => t.css === css) ?? null;
   const themes = model?.themes;
   const hasDark =
@@ -92,6 +109,7 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow
   const timer = useRef(null);
   const liveRef = useRef(null);
   const [colourEl, setColourEl] = useState(null);
+  const [trashQ, setTrashQ] = useState(null); // the trash sheet's question, while it is open
 
   // a new token (or a model that moved under us) starts from what is saved
   // biome-ignore lint/correctness/useExhaustiveDependencies: css is the trigger
@@ -100,6 +118,7 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow
     setLive(null);
     setTyped(null);
     setNote(null);
+    setTrashQ(null);
   }, [css]);
   const theme = editing && themes?.all.includes(editing) ? editing : themes?.light;
 
@@ -195,6 +214,24 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow
 
   const locked = token.locked;
   const shown = typed ?? valueIn(theme);
+  const showReach = () =>
+    onShow?.({
+      css,
+      name: token.label,
+      swatch: {
+        before: waiting ? (token.values?.[themes.light] ?? null) : null,
+        after: lightV,
+        beforeName: was,
+        afterName: valueName(themes.light) || null,
+      },
+    });
+  // S10.17 — "Move to trash…": ask the server what the canvases would follow, then show the sheet
+  const askTrash = async () => {
+    setNote(null);
+    const r = await onAskTrash({ ds, css });
+    if (r.ok) setTrashQ(r.question);
+    else setNote(r.message);
+  };
 
   return (
     <section
@@ -306,14 +343,23 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow
           />
         </Row>
       ) : null}
-      {line ? (
-        <p
-          className="insp-quiet ds-tk-line"
-          data-testid="ds-token-contrast"
-          data-tone={line.ok ? 'ok' : 'warn'}
-        >
-          <StIcon name={line.ok ? 'check' : 'problem'} size={12} /> {line.line}
+      {line?.ok ? (
+        <p className="insp-quiet ds-tk-line" data-testid="ds-token-contrast" data-tone="ok">
+          <StIcon name="check" size={12} /> {line.line}
         </p>
+      ) : null}
+      {line && !line.ok ? (
+        <ContrastWarning
+          line={line}
+          offer={fixOffer(model, css, line.fails, live ?? {})}
+          used={token.used}
+          onFix={async () => {
+            const r = await onFix({ ds, css });
+            if (r.ok) await onRefresh();
+            return r;
+          }}
+          onShow={onShow && token.used ? showReach : null}
+        />
       ) : null}
       {used ? (
         <Quiet testid="ds-token-used">
@@ -326,18 +372,7 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow
                 type="button"
                 className="ds-tk-show"
                 data-testid="ds-token-show"
-                onClick={() =>
-                  onShow({
-                    css,
-                    name: token.label,
-                    swatch: {
-                      before: waiting ? (token.values?.[themes.light] ?? null) : null,
-                      after: lightV,
-                      beforeName: was,
-                      afterName: valueName(themes.light) || null,
-                    },
-                  })
-                }
+                onClick={showReach}
               >
                 Show
               </button>
@@ -370,7 +405,38 @@ export function TokenPanel({ css, ds, model, onWrite, onRefresh, onAdopt, onShow
         <Row k="Token" name="ds-adv-token">
           <code>{css}</code>
         </Row>
+        {isColour && !locked && !token.pending?.added ? (
+          <Row k="Trash" name="ds-adv-trash">
+            <button
+              type="button"
+              className="ds-tk-show"
+              data-testid="ds-token-trash"
+              onClick={askTrash}
+            >
+              {EDGE_WORDS.trashOpen}
+            </button>
+          </Row>
+        ) : null}
       </details>
+      {trashQ && typeof document !== 'undefined'
+        ? createPortal(
+            <TrashTokenSheet
+              question={trashQ}
+              swatch={lightV}
+              onClose={() => setTrashQ(null)}
+              onConfirm={async (replacement) => {
+                const r = await onTrash({ ds, css, replacement });
+                if (r.ok) {
+                  setTrashQ(null);
+                  setNote(EDGE_WORDS.moved);
+                  await onRefresh();
+                }
+                return r;
+              }}
+            />,
+            document.body
+          )
+        : null}
     </section>
   );
 }
