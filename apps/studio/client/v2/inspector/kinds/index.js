@@ -114,9 +114,10 @@ registerKind({
   order: 5,
   label: (s) => {
     const kindsOf = new Set(s.map((el) => el?.attrs?.['data-dc-kind'] || 'digital'));
+    // S7.21 (08 ak-mixed-select): two kinds read "2 kinds", never "Mixed"
     return kindsOf.size === 1
       ? (ARTBOARD_KIND_CHIPS[[...kindsOf][0]] ?? ARTBOARD_KIND_CHIPS.digital)
-      : 'Mixed';
+      : `${kindsOf.size} kinds`;
   },
   match: (s) => Array.isArray(s) && s.length > 1 && s.every((el) => isArtboardSelection(el)),
 });

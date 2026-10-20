@@ -43,17 +43,23 @@ export interface ArtboardActionDeps {
 
 /** `{ artboard, at }` for every board to copy, → the request, → the toast / record / selection. */
 export async function writeCopies(
-  places: ReadonlyArray<{ artboard: string; at: { x: number; y: number } }>,
+  places: ReadonlyArray<{ artboard: string; at: { x: number; y: number }; width?: number }>,
   deps: ArtboardActionDeps,
   width?: number
 ): Promise<EditOpResult | null> {
   if (places.length === 0) return null;
   const run = deps.run ?? ((ask: EditOpAsk) => runEditOp(ask));
+  // S7.21: a place may carry its own width ("Tablet and Mobile" is two copies of one board in ONE request)
+  const widthOf = (p: { width?: number }) => p.width ?? width;
+  const atWidth = places.some((p) => widthOf(p) !== undefined);
   const result = await run({
-    op: width === undefined ? 'artboard.duplicate' : 'artboard.duplicate-at-width',
+    op: atWidth ? 'artboard.duplicate-at-width' : 'artboard.duplicate',
     targets: [],
     params: {
-      items: places.map((p) => ({ ...p, ...(width === undefined ? {} : { width }) })),
+      items: places.map((p) => {
+        const w = widthOf(p);
+        return { artboard: p.artboard, at: p.at, ...(w === undefined ? {} : { width: w }) };
+      }),
       pin: pinsFor(deps.boards(), new Set()).slice(0, MAX_PINS),
     },
   });
@@ -75,6 +81,38 @@ export async function writeCopies(
 export function duplicatePlaces(ids: readonly string[], boards: readonly Box[], width?: number) {
   const sources = ids.map((id) => boards.find((b) => b.id === id)).filter((b): b is Box => !!b);
   return copyPlaces(sources, boards, width === undefined ? undefined : () => width);
+}
+
+/**
+ * S7.21 (08 ak-web-widths): the same board at several widths in one go — "Tablet and Mobile are beside Desktop".
+ * The first copy lands right of the source at the row's gap, the next right of that one; each carries its own width.
+ */
+export function duplicatePlacesAtWidths(
+  ids: readonly string[],
+  boards: readonly Box[],
+  widths: readonly number[]
+): Array<{ artboard: string; at: { x: number; y: number }; width: number }> {
+  const out: Array<{ artboard: string; at: { x: number; y: number }; width: number }> = [];
+  let all: Box[] = boards.map((b) => ({ ...b }));
+  for (const width of widths) {
+    const places = duplicatePlaces(ids, all, width);
+    for (const p of places) {
+      out.push({ ...p, width });
+      const src = all.find((b) => b.id === p.artboard);
+      // the copy counts as a board for the next width (its height is the source's: a hug page grows later)
+      all = [
+        ...all,
+        {
+          id: `copy-${out.length}-of-${p.artboard}`,
+          x: p.at.x,
+          y: p.at.y,
+          w: width,
+          h: src?.h ?? 0,
+        },
+      ];
+    }
+  }
+  return out;
 }
 
 /** Where "Reset position" sends a board: its default-grid slot (canvas-lib's `synthDefaultGrid`). */
@@ -108,6 +146,8 @@ export interface ArtboardActions {
   idsFor(id: string | null | undefined): string[];
   duplicate(ids?: string[]): Promise<void>;
   duplicateAtWidth(ids: string[] | undefined, width: number): Promise<void>;
+  /** S7.21: several widths of the same board(s) in ONE request (one ⌘Z). */
+  duplicateAtWidths(ids: string[] | undefined, widths: readonly number[]): Promise<void>;
   duplicateOnDrop(moved: ReadonlyArray<{ id: string; x: number; y: number }>): Promise<void>;
   resetPosition(ids?: string[]): void;
   rename(id?: string): void;
@@ -144,6 +184,10 @@ export function useArtboardActions(): ArtboardActions {
     const duplicateAtWidth: ArtboardActions['duplicateAtWidth'] = async (ids, width) => {
       const list = ids ?? selectedIds();
       await writeCopies(duplicatePlaces(list, boards(), width), deps(), width);
+    };
+    const duplicateAtWidths: ArtboardActions['duplicateAtWidths'] = async (ids, widths) => {
+      const list = ids ?? selectedIds();
+      await writeCopies(duplicatePlacesAtWidths(list, boards(), widths), deps());
     };
     const duplicateOnDrop: ArtboardActions['duplicateOnDrop'] = async (moved) => {
       await writeCopies(dropPlaces(moved), deps());
@@ -185,6 +229,7 @@ export function useArtboardActions(): ArtboardActions {
       idsFor,
       duplicate,
       duplicateAtWidth,
+      duplicateAtWidths,
       duplicateOnDrop,
       resetPosition,
       rename,

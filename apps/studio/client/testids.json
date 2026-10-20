@@ -20136,14 +20136,16 @@
     "hook": "insp-ab-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Artboard inspector controls: `<name>` ∈ preset (the Preset select), height (Fits content | Fixed), height-note (\"Drag the bottom edge to fix the height at a number.\"), kind (the Kind select), add-width (\"Add a width…\"), theme (Advanced › Theme), theme-note. The W / H fields are `insp-num-ab-w` / `insp-num-ab-h`; the rows `insp-row-ab-*`; Clip content `insp-ctl-ab-clip`.",
+    "meaning": "Artboard inspector controls: `<name>` ∈ preset (the Width / Size select), height (Fits content | Fixed), height-note (web page: \"1573 now — grows as you add.\"), kind (the Kind select, under Advanced), add-width (\"Add a width…\" — Tablet and Mobile, or one width), theme (Advanced › Theme), theme-note; video: length (m:ss, read-only), poster (the poster frame time), poster-change (the Change button — registry `video.poster.set`), sound (the music, or \"None yet\"); Advanced facts: fact-<key> (kind, width, height, display, fps, durationInFrames, codec, poster). The W / H fields are `insp-num-ab-w` / `insp-num-ab-h` (in the Artboard section for a fixed size, under Advanced for a web page and a video); the rows `insp-row-ab-*`; Clip content `insp-ctl-ab-clip`.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/kinds/artboard.jsx",
       "symbol": "ArtboardSizeRows"
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-inspector-rows.test.ts"
+    ],
     "v2": "new"
   },
   {
@@ -31058,5 +31060,53 @@
       "apps/studio/test/kind-filter.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "insp-mk-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The rows of the inspector over boards of different kinds: `<name>` ∈ kinds (the glyph and word of each: Fixed size · Print), horizontal / vertical (Left | Centre | Right, Top | Middle | Bottom — the align bar's verbs, asked of the canvas), note (\"Size and paper differ. Select one to change it.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-multi.jsx",
+      "symbol": "MultiKindRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/multi-kind-shared.test.ts"
+    ],
+    "v2": "new in v2 (S7.21)"
+  },
+  {
+    "hook": "insp-adv-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The block under Advanced › Artboard that holds a web page's, fixed size's or video's exact size, Clip content, Kind and the kind's facts.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-advanced-rows.jsx",
+      "symbol": "ArtboardAdvancedRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.21)"
+  },
+  {
+    "hook": "artboard-growth-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"+ 373 px\" beside a web page that just grew; up for a few seconds. A mark on the canvas, carried by `.dc-artboard-guides`, so no export has it.",
+    "producer": {
+      "file": "apps/studio/artboard-growth-tag.tsx",
+      "symbol": "ArtboardGrowthTag"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/kind-inspector-rows.test.ts"
+    ],
+    "v2": "new in v2 (S7.21)"
   }
 ]

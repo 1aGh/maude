@@ -86,7 +86,20 @@ const K = [MULTI_ARTBOARD];
 export const MULTI_ARTBOARD_SLOTS = Object.freeze([
   [
     'size',
-    { id: 'size.multi-artboard', order: 10, kinds: K, title: 'Artboards', Body: MultiArtboardRows },
+    {
+      id: 'size.multi-artboard',
+      order: 10,
+      kinds: K,
+      title: 'Artboards',
+      // S7.21: boards of different kinds share no size or paper — artboard-multi.jsx draws their rows (ak-mixed-select)
+      when: ({ selection }) =>
+        new Set(
+          (Array.isArray(selection) ? selection : []).map(
+            (el) => el?.attrs?.['data-dc-kind'] || 'digital'
+          )
+        ).size < 2,
+      Body: MultiArtboardRows,
+    },
   ],
   ['fill', { id: 'fill.multi-artboard', order: 10, kinds: K, Body: MultiArtboardFill }],
 ]);

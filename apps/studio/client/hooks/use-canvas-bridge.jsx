@@ -12,7 +12,10 @@ import {
   turnIntoComment,
   undoConversion,
 } from '../v2/annotations/annotation-asks.js';
-import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
+import { browseFirstRunHint, layersTreeSig, shellToast } from '../shell/util.js';
+// S7.21 — the toast after the inspector's "Add a width" (08 ak-web-widths) and the video artboard's length
+import { settleAddedWidths } from '../v2/inspector/kinds/add-width.js';
+import { publishVideoComps } from '../v2/inspector/kinds/video-facts.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
 import { applyEditRequest } from '../apply-edit-request.ts';
@@ -449,6 +452,9 @@ export function useCanvasBridge({
               .then(readEditOpAnswer)
               .then((result) => {
                 reply(result);
+                // S7.21 — "Tablet and Mobile are beside Desktop." + Undo, when the inspector asked for the copies
+                const added = settleAddedWidths(body, result);
+                if (added) shellToast(added.message, true, added.action);
                 // S2.24 G1 — a write to the selected text changes what the inspector measured (the style it wears,
                 // what differs from it, the size): put the selection back so the canvas probes it again.
                 if (result?.ok && /^text\./.test(body.op) && body.file) {
@@ -1027,6 +1033,8 @@ export function useCanvasBridge({
             artboardLabel: sanitizeArtboardText(c.artboardLabel),
           }));
         setActiveComps(safe);
+        // S7.21 — the Video inspector's Length reads what the comp announces
+        publishVideoComps(activePath, safe);
         // rca/issue-video-artboard-frame-reset-on-edit — the SAME comp
         // re-announcing means its Player just remounted (an edit-triggered
         // HMR remount, or a ⌘R hard iframe reload that wiped video-comp.tsx's

@@ -288,7 +288,17 @@ const ARTBOARD = ['artboard'];
 export const ARTBOARD_SLOTS = Object.freeze([
   [
     'size',
-    { id: 'size.artboard', order: 10, kinds: ARTBOARD, title: 'Artboard', Body: ArtboardSizeRows },
+    {
+      id: 'size.artboard',
+      order: 10,
+      kinds: ARTBOARD,
+      title: 'Artboard',
+      // S7.21: a web page, a fixed size and a video have their own rows (artboard-{web,fixed,video}.jsx, 08 ak-*);
+      // paper keeps this body until S7.23's print inspector takes it over
+      when: ({ selection }) =>
+        (Array.isArray(selection) ? selection[0] : selection)?.attrs?.['data-dc-kind'] === 'print',
+      Body: ArtboardSizeRows,
+    },
   ],
   ['fill', { id: 'fill.artboard', order: 10, kinds: ARTBOARD, Body: ArtboardFillRow }],
   ['layout', { id: 'layout.artboard', order: 10, kinds: ARTBOARD, Body: ArtboardLayoutRows }],

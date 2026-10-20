@@ -106,6 +106,7 @@ import {
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
 import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
+import { ArtboardGrowthTag, useGrowthDelta } from './artboard-growth-tag.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
@@ -2831,6 +2832,8 @@ export function DCArtboard({
     if (measured.height <= 0) return;
     ctx.reportMeasuredHeight(id, Math.round(measured.height));
   }, [ctx, dragHook.dragState.kind, measured.height, id]);
+  // S7.21 (08 ak-web-hug) — "+ 373 px" beside a web page that just grew (a hugging page only; never exported)
+  const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height);
 
   // The design surface (`.dc-artboard-body`) inside the frame, in world px —
   // offsets are layout values, untouched by the world's pan/zoom transform.
@@ -3141,6 +3144,7 @@ export function DCArtboard({
           safeZones: chrome?.safeZones ?? true,
         }}
       />
+      <ArtboardGrowthTag x={liveX + rect.w} bottom={liveY + rect.h} delta={growth} />
     </>
   );
 }

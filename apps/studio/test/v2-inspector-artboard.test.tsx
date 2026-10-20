@@ -120,9 +120,19 @@ async function seat() {
   const art = await import('../client/v2/inspector/kinds/artboard.jsx');
   const exp = await import('../client/v2/inspector/sections/export-slot.jsx');
   const { registerSlot } = await import('../client/v2/inspector/slots.js');
+  // S7.21: a web page, a fixed size and a video have their own rows (artboard-{web,fixed,video}.jsx)
+  const web = await import('../client/v2/inspector/kinds/artboard-web.jsx');
+  const fixed = await import('../client/v2/inspector/kinds/artboard-fixed.jsx');
+  const video = await import('../client/v2/inspector/kinds/artboard-video.jsx');
   art.offArtboardSections();
+  web.offArtboardWeb();
+  fixed.offArtboardFixed();
+  video.offArtboardVideo();
   exp.offExportSlot();
   seated.push(art.registerArtboardSlots());
+  seated.push(web.registerArtboardWebSlots());
+  seated.push(fixed.registerArtboardFixedSlots());
+  seated.push(video.registerArtboardVideoSlots());
   seated.push(
     registerSlot('export', { id: 'export.presets', order: 100, Body: exp.ExportSlotBody })
   );
@@ -159,10 +169,7 @@ describe('what an artboard shows', () => {
     expect(q(host, 'insp-sec-size')?.getAttribute('aria-label')).toBe('Artboard');
     for (const row of [
       'insp-row-ab-preset',
-      'insp-row-ab-size',
       'insp-row-ab-height',
-      'insp-row-ab-clip',
-      'insp-row-ab-kind',
       'insp-row-ab-add-width',
       'insp-row-ab-background',
       'insp-row-ab-content',
@@ -173,13 +180,17 @@ describe('what an artboard shows', () => {
     expect(q(host, 'insp-sec-fill')).not.toBeNull();
     expect(q(host, 'insp-sec-layout')).not.toBeNull();
     expect(q(host, 'insp-sec-export')).not.toBeNull();
+    // S7.21 — the exact W × H, Clip content and Kind are under Advanced ("Every number, under Advanced.")
+    for (const row of ['insp-row-ab-size', 'insp-row-ab-clip', 'insp-row-ab-kind'])
+      expect(q(host, row), row).toBeNull();
     // an artboard is no object: no Position / Corners / Border / Effects / Type / Interaction
     for (const s of ['position', 'corners', 'border', 'effects', 'type', 'interaction'])
       expect(q(host, `insp-sec-${s}`), s).toBeNull();
   });
 
-  test('Size reads "1440 × 1573" and the Preset row names Desktop', async () => {
+  test('Size reads "1440 × 1573" (under Advanced) and the Width row names Desktop', async () => {
     const host = await frame();
+    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     expect((field(host, 'insp-num-ab-w') as HTMLInputElement).value).toBe('1440');
     expect((field(host, 'insp-num-ab-h') as HTMLInputElement).value).toBe('1573');
     const sel = q(host, 'insp-ab-preset') as HTMLSelectElement;
@@ -197,9 +208,7 @@ describe('what an artboard shows', () => {
     expect(q(hug, 'insp-ab-height')?.querySelector('[aria-checked="true"]')?.textContent).toBe(
       'Fits content'
     );
-    expect(q(hug, 'insp-ab-height-note')?.textContent).toBe(
-      'Drag the bottom edge to fix the height at a number.'
-    );
+    expect(q(hug, 'insp-ab-height-note')?.textContent).toBe('1573 now — grows as you add.');
     const fixed = await frame({ attrs: { ...DESKTOP.attrs, 'data-dc-fixed': 'true' } });
     const last = [
       ...fixed.querySelectorAll('[data-testid="insp-ab-height"] [aria-checked="true"]'),
@@ -213,6 +222,7 @@ describe('what an artboard shows', () => {
     const sel = q(host, 'insp-ab-add-width') as HTMLSelectElement;
     expect([...sel.options].map((o) => o.textContent)).toEqual([
       'Add a width…',
+      'Tablet and Mobile',
       'Laptop · 1280',
       'Tablet · 834',
       'Mobile · 390',
@@ -235,9 +245,9 @@ describe('what an artboard shows', () => {
 
   test('Clip content is honest: on, because an artboard always clips (no prop to turn it off)', async () => {
     const host = await frame();
-    expect((q(host, 'insp-ctl-ab-clip')?.querySelector('input') as HTMLInputElement).checked).toBe(
-      true
-    );
+    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
+    const input = must(q(host, 'insp-ctl-ab-clip')?.querySelector('input') ?? null, 'clip switch');
+    expect((input as HTMLInputElement).checked).toBe(true);
   });
 });
 
@@ -250,24 +260,27 @@ describe('what an edit sends', () => {
 
   test('Preset: a fixed-size artboard takes the whole screen', async () => {
     const host = await frame({ attrs: { 'data-dc-kind': 'digital' } });
-    await pick(q(host, 'insp-ab-preset'), 'screen:834');
+    await pick(q(host, 'insp-ab-preset'), 'app-tablet');
     expect(calls).toEqual([['resize', 'desktop', 834, 1194]]);
   });
 
   test('W commits the width only', async () => {
     const host = await frame();
+    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await enter(field(host, 'insp-num-ab-w'), '1300');
     expect(calls).toEqual([['resize', 'desktop', 1300, undefined]]);
   });
 
   test('H on a hugging page pins it: Fixed at that number (issue #79 stays fixed)', async () => {
     const host = await frame();
+    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await enter(field(host, 'insp-num-ab-h'), '1200');
     expect(calls).toEqual([['hug', 'desktop', true, 1200]]);
   });
 
   test('H on a fixed page is an ordinary resize', async () => {
     const host = await frame({ attrs: { ...DESKTOP.attrs, 'data-dc-fixed': 'true' } });
+    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await enter(field(host, 'insp-num-ab-h'), '1200');
     expect(calls).toEqual([['resize', 'desktop', undefined, 1200]]);
   });
@@ -284,6 +297,7 @@ describe('what an edit sends', () => {
 
   test('Kind: Print seeds an A4 print prop through the same gesture', async () => {
     const host = await frame({ attrs: { 'data-dc-kind': 'digital' } });
+    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await pick(q(host, 'insp-ab-kind'), 'print');
     const [name, id, kind, seed] = calls[0] as [
       string,
@@ -295,10 +309,12 @@ describe('what an edit sends', () => {
   });
 
   test('Kind: Fixed size clears the explicit prop; Web page frees a Fixed height too', async () => {
+    // paper keeps its Kind row in the Artboard section until S7.23; the others have it under Advanced
     const host = await frame({ attrs: { 'data-dc-kind': 'print' } });
     await pick(q(host, 'insp-ab-kind'), 'digital');
     expect(calls[0]).toEqual(['kind', 'desktop', null, null]);
     const fixed = await frame({ attrs: { 'data-dc-kind': 'digital', 'data-dc-fixed': 'true' } });
+    await click(q(fixed, 'fold-inspector-toggle'), 'Advanced');
     await pick(q(fixed, 'insp-ab-kind'), 'web');
     expect(calls).toEqual([
       ['kind', 'desktop', 'web', null],

@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Select } from '../../../inspector-controls.jsx';
 import { Quiet, Row } from '../sections/row.jsx';
+import { ArtboardAdvancedRows } from './artboard-advanced-rows.jsx';
 import { THEME_OPTIONS, artboardFacts } from './artboard-model.js';
 
 /** Advanced › Theme (A-artboard-theme): the pin the artboard menu's Theme submenu has always set. */
@@ -35,6 +36,8 @@ export function ArtboardAdvanced({ el, ctx }) {
       <Quiet testid="insp-ab-theme-note">
         Follow chrome tracks the studio's light or dark; the others pin this artboard.
       </Quiet>
+      {/* S7.21 — exact size, Clip content, Kind and the kind's facts (web page · fixed size · video) */}
+      <ArtboardAdvancedRows el={el} ctx={ctx} />
     </div>
   );
 }

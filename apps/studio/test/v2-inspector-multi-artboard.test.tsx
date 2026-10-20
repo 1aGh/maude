@@ -100,14 +100,14 @@ describe('the model', () => {
     expect(aligned.y).toEqual({ mixed: false, value: 980 });
   });
 
-  test('the title and the chip: "4 artboards" · Fixed size; boards of different kinds are Mixed', async () => {
+  test('the title and the chip: "4 artboards" · Fixed size; boards of different kinds are "2 kinds"', async () => {
     const { titleOf } = await import('../client/v2/inspector/model.js');
     const { kindChipOf, resolveKind } = await import('../client/v2/inspector/kinds/index.js');
     expect(titleOf(FOUR, null)).toBe('4 artboards');
     expect(resolveKind(FOUR).id).toBe('multi-artboard');
     expect(kindChipOf(FOUR)).toBe('Fixed size');
     const web = { ...FOUR[0], attrs: { ...FOUR[0]?.attrs, 'data-dc-kind': 'web' } };
-    expect(kindChipOf([web, FOUR[1]])).toBe('Mixed');
+    expect(kindChipOf([web, FOUR[1]])).toBe('2 kinds'); // S7.21 (08 ak-mixed-select)
     // objects stay "N objects" and Mixed; a mix of a board and an object is still the objects' inspector
     const obj = { selector: '[data-cd-id="x"]', tag: 'div', id: 'x', artboardId: 'a', attrs: {} };
     expect(titleOf([obj, { ...obj, id: 'y' }], null)).toBe('2 objects');
