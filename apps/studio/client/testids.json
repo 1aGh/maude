@@ -26524,7 +26524,6 @@
     ],
     "v2": "new"
   },
-<<<<<<< HEAD
   {"hook": "ds-review-scrim", "kind": "testid", "pattern": false, "meaning": "S10.8: the dim backdrop behind the \"Update N canvases\" sheet.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
   {"hook": "ds-review", "kind": "testid", "pattern": false, "meaning": "S10.8: the \"Update N canvases\" sheet (dialog); `data-view` is the swatch view, before or after.", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
   {"hook": "ds-review-title", "kind": "testid", "pattern": false, "meaning": "S10.8: the sheet title, \"Update canvases with the new Accent?\" (the verb the button repeats).", "producer": {"file": "apps/studio/client/v2/ds/review-sheet.jsx", "symbol": "DsReviewSheet"}, "region": "other", "consumers": [], "sourceConsumers": ["apps/studio/test/v2-ds-review-sheet.test.tsx", "apps/studio/test/v2-ds-review-host.test.tsx"], "v2": "new"},
@@ -26687,7 +26686,7 @@
       "test:v2-s11-14-connections"
     ],
     "v2": "new in v2 (S11.14)"
-=======
+  },
   {
     "hook": "size-picker-search",
     "kind": "testid",
@@ -26991,6 +26990,5 @@
       "apps/studio/test/size-ghost.test.tsx"
     ],
     "v2": "new"
->>>>>>> s7-20
   }
 ]
