@@ -127,6 +127,8 @@ export function InspectorAdvanced({
     onRenameElementId,
     cssText,
     fetchImpl,
+    // S7.23: a print artboard's Look and layout row writes through the artboard's own handlers
+    artboard,
     runAction: runAction ?? ((id) => menuRunner.run(id)),
   };
 

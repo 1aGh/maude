@@ -57,6 +57,21 @@ const ROWS: Readonly<Record<string, Say>> = {
     const hit = safeZonePreset(p.preset);
     return hit ? `Safe zones: ${hit.label}` : 'Removed safe zones';
   },
+  'artboard.set-print': (n, p) => {
+    if (typeof p.paper === 'string') return `Set ${n} to ${p.paper.toUpperCase()}`;
+    if (Array.isArray(p.sizeMm)) return `Resized ${n} to ${p.sizeMm[0]} × ${p.sizeMm[1]} mm`;
+    if (p.orientation === 'landscape' || p.orientation === 'portrait')
+      return `Turned ${n} ${p.orientation}`;
+    if (p.bleedMm !== undefined) return `Set bleed on ${n} to ${p.bleedMm} mm`;
+    if (p.marginMm !== undefined) return `Set safe margin on ${n} to ${p.marginMm} mm`;
+    return `Changed print settings on ${n}`;
+  },
+  'artboard.set-print-guides': (n, p) =>
+    p.visible === null
+      ? `${n} follows View for print guides`
+      : `Print guides ${p.visible ? 'on' : 'off'} for ${n}`,
+  'artboard.set-guides': (n, p) =>
+    p.guides === null ? `Removed guides from ${n}` : `Set guides on ${n}`,
   'object.place-freely': (n) => `Placed ${n} freely`,
   'object.constrain': (n) => `Pinned ${n}`,
   'object.reorder-earlier': (n) => `Moved ${n} earlier`,

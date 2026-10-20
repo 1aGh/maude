@@ -2926,6 +2926,8 @@ export function DCArtboard({
     'data-dc-print': print ? JSON.stringify(print) : undefined,
     // S7.22 — read-back for the Inspector's Safe zones row (same "stamp the resolved prop" shape as print).
     'data-dc-safe-zones': typeof safeZones === 'string' && safeZones ? safeZones : undefined,
+    // S7.23 — read-back for the Inspector's Advanced › Guides row (same "stamp the resolved prop" shape as print).
+    'data-dc-guides': guides ? JSON.stringify(guides) : undefined,
   };
 
   if (!ctx || !rect) {

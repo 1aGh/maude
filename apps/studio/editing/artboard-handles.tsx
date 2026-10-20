@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDragStateContext } from '../canvas-lib.tsx';
+import { physicalSizeWords } from '../kinds/physical.ts';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolMode } from '../use-tool-mode.tsx';
@@ -31,6 +32,12 @@ import {
 } from './artboard-resize.ts';
 import { runEditOp } from './edit-op.ts';
 import { PresetRuler, type RulerHud, type ScreenRect } from './preset-ruler.tsx';
+
+/** The two attributes a size on paper is read from (`kind`, `print`), off the artboard's frame. */
+const attrsOf = (el: HTMLElement) => ({
+  'data-dc-kind': el.getAttribute('data-dc-kind') ?? undefined,
+  'data-dc-print': el.getAttribute('data-dc-print') ?? undefined,
+});
 
 // ── measuring + the live preview (exported for tests) ─────────────────────────────────────────
 
@@ -242,7 +249,8 @@ export function ArtboardHandles(): React.ReactNode {
         marked = m.article;
         lastSize = '';
       }
-      const size = sizeText(m.box.w, m.box.h);
+      // S7.23: a print artboard says its size on paper ("105 × 148 mm"), not in px
+      const size = physicalSizeWords({ attrs: attrsOf(m.article) }) || sizeText(m.box.w, m.box.h);
       if (size !== lastSize) {
         lastSize = size;
         const label = m.article.querySelector(':scope > .dc-artboard-label');

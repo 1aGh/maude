@@ -13,6 +13,8 @@ import { offTextBody, offTextStyle } from '../kinds/text.jsx';
 import { offArtboardSections } from '../kinds/artboard.jsx';
 import { offMultiArtboard } from '../kinds/multi-artboard.jsx';
 import { offArtboardFixed } from '../kinds/artboard-fixed.jsx';
+import { offArtboardPrint } from '../kinds/artboard-print.jsx';
+import { offPrintAdvancedRows } from '../../kinds/advanced-rows.js';
 import { offMultiKind } from '../kinds/artboard-multi.jsx';
 import { offArtboardVideo } from '../kinds/artboard-video.jsx';
 import { offMusic } from '../kinds/music.jsx';
@@ -56,6 +58,8 @@ export function unregisterSections() {
   offClip();
   offCaption();
   offArtboardFixed();
+  offArtboardPrint();
+  offPrintAdvancedRows();
   offArtboardVideo();
   offMultiKind();
   offMusic();

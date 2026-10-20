@@ -17,6 +17,7 @@
  */
 
 import { type KindOverlayRenderFn, registerKindOverlay } from './artboard-guides-overlay.tsx';
+import { effectivePrintGuides } from './kinds/print-guides.ts';
 import { resolveBleedMm, resolveMarginsMm, resolveMmPx } from './print/units.ts';
 
 // Adobe print-tool convention (Design Decision 3): bleed = red, trim = solid
@@ -28,7 +29,8 @@ const TRIM_LINE = 'oklch(25% 0 0)';
 const MARGIN_LINE = 'oklch(58% 0.24 340)';
 
 const PrintOverlayContent: KindOverlayRenderFn = ({ rect, print, visibility }) => {
-  if (visibility.print !== true || !print) return null;
+  // C25 — View › Advanced › Print guides is the default; the artboard's own switch (`print.showGuides`) wins.
+  if (!print || !effectivePrintGuides(print, visibility.print === true)) return null;
 
   const bleedMm = resolveBleedMm(print);
   const bleedPx = resolveMmPx(bleedMm);

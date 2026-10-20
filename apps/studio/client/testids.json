@@ -36672,5 +36672,373 @@
       "apps/studio/test/music-inspector.test.ts"
     ],
     "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-num-pr-w",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The width of a print artboard in millimetres (the trim). Typing one makes a custom size.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-num-pr-h",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The height of a print artboard in millimetres (the trim).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-ctl-pr-guides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The print artboard's own Print guides switch (C25). It shows View's default until the artboard has its own value, and wins over View either way.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guides-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the Print guides switch: \"Follows View › Advanced › Print guides.\" or \"Set for this artboard.\" with a Follow View link.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guides-follow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Follow View\": removes this artboard's own Print guides value so it follows View again.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-margin-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Shown when the four safe margins differ: typing one number sets all four.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-colour",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The colour line of a print artboard: \"RGB — the print shop converts to CMYK.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why a print change was refused, in a plain line (held by AI, locked, stale, out of range, read-only).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print.jsx",
+      "symbol": "PrintRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-exact",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Exact size block of a print artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintExactSize"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-exact-<fact>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One exact-size line: artboard, trim, bleed-margin (px and mm).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintExactSize"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-resolution",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Resolution block of a print artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintResolution"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-res-<fact>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One resolution line: canvas \"96 px per inch\", print-PDF \"300 dpi · vector text\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintResolution"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-colour-adv",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Colour block: \"Designed in sRGB. RGB — the print shop converts to CMYK; …\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintColour"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guides-adv",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Guides block of a print artboard (columns, rows, grid).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintGuides"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guides-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Add…\" select of Advanced › Guides: Columns, Rows or Grid, whichever is off.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintGuides"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guide-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One guide line (columns, rows, grid): its numbers or \"off\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintGuides"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guide-<kind>-remove",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Remove\" on a guide that is set.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintGuides"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-guides-said",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why a guides change was refused, in a plain line.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintGuides"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-look",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Look and layout block of a print artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-body-layout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Body layout row of Look and layout.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-body-layout-select",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Body layout select of Look and layout (writes the artboard layout prop).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintLookAndLayout"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › In code block of a print artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintInCode"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
+  },
+  {
+    "hook": "insp-pr-code-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The DCArtboard as the file carries it (kind, print, width, height, guides).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard-print-advanced.jsx",
+      "symbol": "PrintInCode"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-print.test.tsx"
+    ],
+    "v2": "new in v2 (S7.23)"
   }
 ]

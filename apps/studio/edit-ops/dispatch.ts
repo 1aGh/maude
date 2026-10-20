@@ -27,6 +27,7 @@ import { dsInstanceUpdate } from './ds-instance-update.ts';
 import { dsUseNearest } from './ds-use-nearest.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
+import { artboardSetGuides } from './guides.ts';
 import { objectHide } from './hide.ts';
 import { imagePlace, imageReplace } from './image-fit.ts';
 import { componentInsert } from './insert-component.ts';
@@ -39,6 +40,7 @@ import { objectInsertPath, pathEdit } from './path.ts';
 import { photoEveryUse } from './photo-every-use.ts';
 import { photoUseEdit } from './photo-use.ts';
 import { objectPlaceFreely } from './place-freely.ts';
+import { artboardSetPrint, artboardSetPrintGuides } from './print.ts';
 import type { ReferenceLanes } from './references.ts';
 import { assetRelink } from './relink.ts';
 import { reorderOps } from './reorder.ts';
@@ -100,6 +102,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   artboardDuplicateAtWidth,
   // S7.22 — Safe zones: which platform's own interface covers the artboard (the `safeZones` prop)
   artboardSetSafeZones,
+  // S7.23 — the print inspector: paper, millimetres, bleed, margin and the artboard's own guides switch
+  artboardSetPrint,
+  artboardSetPrintGuides,
+  artboardSetGuides,
   // S2.11 — Place freely, constraints, reorder (earlier / later / to a slot)
   objectPlaceFreely,
   objectConstrain,
