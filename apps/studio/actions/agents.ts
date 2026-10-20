@@ -1383,6 +1383,46 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     server: { route: '/_api/ds/pending', method: 'POST' },
     agent: cli('maude design ds pending <ds> --set <file.json>'),
   },
+  // S10.16a — making a system (ds/make.ts; one route, an `action` in the body). A new system starts as an outline with
+  // no published revision (head null); the AI writes each direction with `draft` (`{label?, tokens: {"--name": "v" |
+  // {light, dark}}}`), the person picks one (`use`) or takes whole groups from others (`mix --take colour=c`), the
+  // sections fill through the working files, and `done` publishes the first revision (a `make` log entry) and makes
+  // it the project default. Nothing here reaches a canvas: a system being made has no followers.
+  'ds.make': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/ds/make', method: 'POST' },
+    agent: cli('maude design ds make <ds> [--label <name>]'),
+  },
+  'ds.draft': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/make', method: 'POST' },
+    agent: cli('maude design ds draft <ds> --direction <x> --tokens <file.json>'),
+  },
+  'ds.use-direction': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/make', method: 'POST' },
+    agent: cli('maude design ds use <ds> <x>'),
+  },
+  'ds.mix': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/make', method: 'POST' },
+    agent: cli('maude design ds mix <ds> <x> --take <group>=<y>…'),
+  },
+  'ds.make-done': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/ds/make', method: 'POST' },
+    agent: cli('maude design ds done <ds> [--no-default]'),
+  },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',

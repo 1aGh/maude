@@ -53,4 +53,12 @@ export const DS_ACTIONS: ActionDef[] = [
   // S10.10 — edit a component master on the Design system canvas (13 · ds-edit-master): Corners · Fill · Text ·
   // Height from the inspector. One waiting edit per property; Update canvases (ds.publish) is what reaches canvases.
   row('ds.set-master', 'Change a component'),
+  // S10.16a — making a system (13 · ds-make-*). The door (Home starter, the empty pinned row) and the direction bar
+  // name the system and the direction, so none is a ⌘K row; the engine is ds/make.ts, the AI writes through the
+  // verbs. Can edit on the whole project.
+  row('ds.make', 'Make a design system'),
+  row('ds.draft', 'Write a direction'),
+  row('ds.use-direction', 'Use this direction'),
+  row('ds.mix', 'Mix directions'),
+  row('ds.make-done', 'Finish the design system'),
 ];

@@ -200,7 +200,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     note: 'only `revisions list <ds>`; the helper refuses any other form',
   }),
   d('ds', 'shared', {
-    note: 'publish / pending / keep / undo / pick / canvas / trash / restore / clear change the system for everyone',
+    note: 'publish / pending / keep / undo / pick / canvas / trash / restore / clear / make / draft / use / mix / done change the system for everyone',
   }),
   // S9.7b — one `POST /_api/comments/op` each, as the session, marked AI-written (C3: no mentions).
   d('comments reply', 'shared', { note: 'posts a reply where others see it' }),
