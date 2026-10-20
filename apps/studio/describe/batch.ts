@@ -199,16 +199,20 @@ export function createDescribeService(o: DescribeServiceOptions): DescribeServic
   const now = o.now ?? Date.now;
   const prepare = o.prepare ?? defaultPrepare(o.pid);
   const cache = new Map<string, DescribeRecord | null>();
-  /** pictures that could not go this session (no tile, too big, dropped): not retried until the studio restarts */
+  /** pictures that may not go this session (too big, or the answer said nothing valid): not retried until a restart */
   const skipped = new Set<string>();
   let running = false;
   let usedUp = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
 
+  // only what was found is kept: a description another process wrote (S12.13's verb) shows up on the next read
   const record = (sha: string) => {
-    if (!cache.has(sha)) cache.set(sha, readDescription(o.pid, sha));
-    return cache.get(sha) ?? null;
+    const hit = cache.get(sha);
+    if (hit) return hit;
+    const read = readDescription(o.pid, sha);
+    if (read) cache.set(sha, read);
+    return read;
   };
   const candidates = () => {
     const seen = new Set<string>();
@@ -272,7 +276,9 @@ export function createDescribeService(o: DescribeServiceOptions): DescribeServic
         } catch {
           bytes = null;
         }
-        if (!bytes || !pictureFits(bytes).ok) {
+        // no tile yet: the renderer makes it later (a poke brings the loop back) · one that does not fit never goes
+        if (!bytes) continue;
+        if (!pictureFits(bytes).ok) {
           skipped.add(r.sha256);
           continue;
         }
