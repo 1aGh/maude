@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "837c6efd89c3",
+  "manifestVersion": "fb309e36ebce",
   "actions": [
     {
       "id": "search.open",
@@ -5051,6 +5051,134 @@
       "server": {
         "route": "/_api/diagnostics/disk-retry",
         "method": "POST"
+      }
+    },
+    {
+      "id": "sync.keep-mine",
+      "label": "Keep mine",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/conflict",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"mine\"}'"
+      }
+    },
+    {
+      "id": "sync.use-theirs",
+      "label": "Use theirs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/conflict",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"theirs\"}'"
+      }
+    },
+    {
+      "id": "sync.keep-both",
+      "label": "Keep both",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/conflict",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/conflict -d '{\"file\":\"<slug>\",\"choice\":\"keep-both\"}'"
+      }
+    },
+    {
+      "id": "sync.publish-ai-edit",
+      "label": "Publish",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/project/ai-action",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/ai-action -d '{\"choice\":\"publish\"}'"
+      }
+    },
+    {
+      "id": "sync.discard-ai-edit",
+      "label": "Discard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/project/ai-action",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/project/ai-action -d '{\"choice\":\"discard\"}'"
+      }
+    },
+    {
+      "id": "sync.cancel-transfer",
+      "label": "Cancel the transfer",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/cancel-assets",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design curl-local -X POST http://127.0.0.1:<port>/_api/sync/cancel-assets"
+      }
+    },
+    {
+      "id": "sync.get-latest",
+      "label": "Get latest",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/pull",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git pull"
+      }
+    },
+    {
+      "id": "sync.sign-in-again",
+      "label": "Sign in again",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "signing in to the cloud is the person’s own credential"
       }
     },
     {

@@ -12,7 +12,9 @@
 
 import { useState } from 'react';
 import { rovingTabKey, useModalFocus } from '../shell/modal-focus.js';
-import SyncPanel from '../../panels/SyncPanel.jsx';
+import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
+import { isNativeApp } from '../../github.js';
+import SyncDetails from './sync-details/sync-details.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import ReadinessList from '../../panels/ReadinessList.jsx';
 import {
@@ -363,9 +365,10 @@ function ResyncCard({ view }) {
   );
 }
 
-function SyncView({ sync, onClose }) {
+function SyncView({ sync }) {
   const [latest, setLatest] = useState('');
   const [busy, setBusy] = useState(false);
+  const [signInAt, setSignInAt] = useState(null);
   if (!sync.status) {
     return (
       <div className="dg-card" data-testid="diag-sync-solo">
@@ -410,14 +413,21 @@ function SyncView({ sync, onClose }) {
           {latest}
         </p>
       ) : null}
-      <SyncPanel
+      {/* S11.12 — Sync details (06 ad-syncd); the v1 Sync panel is no longer mounted here. */}
+      <SyncDetails
         status={sync.status}
         project={sync.project}
         cloud={sync.cloud}
-        groupPaths={sync.groupPaths}
-        resizing={false}
-        onClose={onClose}
+        native={sync.native ?? isNativeApp()}
+        onSignInAgain={(url) => setSignInAt(url)}
       />
+      {signInAt !== null ? (
+        <TeamProjectsDialog
+          title="Sign in again"
+          initialServer={signInAt}
+          onClose={() => setSignInAt(null)}
+        />
+      ) : null}
       {/* The terminal hints the old banners and Help named (ad-syncd "Hub, commands"). */}
       <AdvancedFold
         panel={DIAGNOSTICS_FOLD}
@@ -556,7 +566,7 @@ export default function DiagnosticsSheet({
             onRecheck={ai.recheck}
           />
         ) : null}
-        {view === 'sync' ? <SyncView sync={sync} onClose={onClose} /> : null}
+        {view === 'sync' ? <SyncView sync={sync} /> : null}
       </div>
     </section>
   );

@@ -994,8 +994,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": "sync-panel",
-        "where": "Menu > Diagnostics > Sync — the Sync panel, whole: Held, rate-limited and failed lists (sync-held-<kind>, sync-files-rate-limited, sync-files-failed)"
+        "testid": "diag-sync-counts",
+        "where": "Menu > Diagnostics > Sync — Sync details › Counts: Held · rate-limited · failed, with the lists (diag-sync-held-<kind>, diag-sync-rate-limited, diag-sync-failed)"
       }
     },
     {
@@ -1007,8 +1007,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": "sync-panel",
-        "where": "Menu > Diagnostics > Sync — Assets section, with Cancel (sync-assets-cancel)"
+        "testid": "diag-sync-cancel-transfer",
+        "where": "Menu > Diagnostics > Sync — Sync details › Moving now: the transfer with its ✕ (registry sync.cancel-transfer)"
       }
     },
     {
@@ -1020,8 +1020,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": "sync-panel",
-        "where": "Menu > Diagnostics > Sync — Needs you: Keep mine · Use theirs · Keep both (sync-resolve-<slug>)"
+        "testid": "diag-sync-conflict-<slug>",
+        "where": "Menu > Diagnostics > Sync — Sync details › Needs you: Keep mine · Use theirs · Keep both + Compare (registry sync.keep-mine · sync.use-theirs · sync.keep-both; diag-sync-keep-both-<slug>)"
       }
     },
     {
@@ -1033,8 +1033,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": "sync-panel",
-        "where": "Menu > Diagnostics > Sync — unfinished AI edit with Publish (sync-ai-publish) and Discard (sync-ai-discard)"
+        "testid": "diag-sync-ai",
+        "where": "Menu > Diagnostics > Sync — Sync details › Needs you: the unfinished AI edit with Publish (diag-sync-publish-ai) and Discard (diag-sync-discard-ai) — registry sync.publish-ai-edit · sync.discard-ai-edit"
       }
     },
     {
@@ -1046,8 +1046,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": "sync-panel",
-        "where": "Menu > Diagnostics > Sync — Sign in again (sync-signin-again)"
+        "testid": "diag-sync-signin-again",
+        "where": "Menu > Diagnostics > Sync — Sync details: \"Sync stopped — the sign-in to the cloud ran out.\" with Sign in again (registry sync.sign-in-again)"
       }
     },
     {
@@ -3308,7 +3308,7 @@
     "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-ownership-confirm-yes": "testid:sync-ownership-confirm-yes",
     "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-ownership-detach": "testid:sync-ownership-detach",
     "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-ownership-mode": "testid:sync-ownership-mode",
-    "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-panel": "A-held-rate-limited-failed-lists",
+    "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-panel": "testid:sync-panel",
     "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-resolve-doc": "testid:sync-resolve-<doc>",
     "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-resync": "testid:sync-resync",
     "testid:studio/client/panels/SyncPanel.jsx#sync/cloud/sync-row-slug": "testid:sync-row-<slug>",

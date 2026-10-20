@@ -273,7 +273,16 @@ function sheetProps(over: Record<string, unknown> = {}) {
     repoChanged: { reload: () => calls.push('reload'), dismiss: () => calls.push('dismiss') },
     ai: { report: REPORT, loading: false, recheck: () => calls.push('recheck') },
     sync: {
-      status: linked({ url: 'https://alligators.cloud.maude.sh', files: { progress: null } }),
+      // S11.12 — every Sync details card renders from this one payload (the home-resolves test)
+      status: linked({
+        url: 'https://alligators.cloud.maude.sh',
+        docs: { synced: 3, pending: 0, rejected: 1 },
+        notices: [{ id: 'source-conflict-ui-pricing', severity: 'warn', text: 'held' }],
+        aiAction: { state: 'held', label: 'Cut the trailer', canvases: ['ui/a.tsx'] },
+        assets: { total: 4, done: 1, pushed: 1, skipped: 0, failedCount: 0, finished: false },
+        files: { synced: 3, pulled: 0, conflicts: 0, failed: 0, progress: null },
+      }),
+      native: true,
       word: status()['diag.sync'],
       project: 'Alligators',
       cloud: null,
@@ -441,12 +450,13 @@ describe('the Diagnostics sheet', () => {
     expect(q('rdy-row-plugins')).toBeNull(); // the satisfied one stays out of the way
   });
 
-  test('Sync: today’s Sync panel, whole, with Get latest and the hints', async () => {
+  test('Sync: Sync details (S11.12), with Get latest and the hints', async () => {
     const calls = await mountSheet({ view: 'sync' });
-    expect(q('sync-panel')).toBeTruthy();
-    // the panel keeps its own Resync / Download all (the desktop copy, not the cloud)
-    expect(q('sync-resync')).toBeTruthy();
-    expect(q('sync-offline')).toBeTruthy();
+    // S11.12 — the v1 panel is no longer mounted here; Resync now / Download all stay in the
+    // menu's Diagnostics › Advanced rows (sync.resync / sync.download-all)
+    expect(q('diag-sync-details')).toBeTruthy();
+    expect(q('sync-panel')).toBeNull();
+    expect(q('diag-sync-title')?.textContent).toBe('Sync · Alligators');
     expect(q('diag-get-latest-row')).toBeTruthy();
     await click('diag-get-latest');
     expect(calls).toEqual(['get-latest']);
@@ -504,6 +514,7 @@ describe('the Diagnostics sheet', () => {
     });
     expect(q('diag-sync-solo')?.textContent).toContain('nothing to sync');
     expect(q('sync-panel')).toBeNull();
+    expect(q('diag-sync-details')).toBeNull();
   });
 });
 

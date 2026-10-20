@@ -26,4 +26,18 @@ export const SYNC_ACTIONS: ActionDef[] = [
   // S11.17 (C37) — the Not saved status's Retry while a full disk holds writes (the Share cluster runs
   // it; hidden from ⌘K like the picks: it only means something while the status says Not saved).
   pick('save.retry-held', 'Retry saving'),
+  // S11.12 (06 ad-syncd) — Sync details. A held SOURCE conflict (the whole canvas file, not one
+  // element): `POST /_api/project/conflict { choice: mine | theirs | keep-both }`. Keep both writes
+  // this Mac's version as a new canvas "<name> this Mac" (sync/keep-both.ts).
+  pick('sync.keep-mine', 'Keep mine'),
+  pick('sync.use-theirs', 'Use theirs'),
+  pick('sync.keep-both', 'Keep both', 'duplicate'),
+  // the unfinished AI edit held on this Mac: `POST /_api/project/ai-action { choice }`
+  pick('sync.publish-ai-edit', 'Publish'),
+  pick('sync.discard-ai-edit', 'Discard'),
+  // Moving now's ✕: `POST /_api/sync/cancel-assets` (the sweep stops; uploads are idempotent)
+  pick('sync.cancel-transfer', 'Cancel the transfer'),
+  // Get latest (moved here from Version history) and Sign in again: every role keeps them
+  { id: 'sync.get-latest', label: 'Get latest', kind: 'command', exec: 'shell', search: ROW },
+  { id: 'sync.sign-in-again', label: 'Sign in again', kind: 'command', exec: 'shell', search: ROW },
 ];

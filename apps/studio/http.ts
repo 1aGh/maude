@@ -242,6 +242,7 @@ import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
+import { createKeepBothResolver } from './sync/keep-both.ts';
 import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
@@ -1762,6 +1763,13 @@ export function createHttp(
   void outbox.drain.wake().catch(() => null);
   // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
   // it, `/_sync-status` below reports it ("Resyncing… 1 204 of 1 318", then the result).
+  // S11.12 — the held source conflict's third answer (one attempt per canvas at a time).
+  const keepBothConflict = createKeepBothResolver({
+    runtime: () => ctx.syncControl?.current?.() ?? null,
+    designRoot: ctx.paths.designRoot,
+    fileForSlug: (slug) => api.fileForSlug(slug),
+    duplicate: (input) => api.duplicateCanvas(input),
+  });
   const resyncTrace = createResyncTrace({
     // ctx.syncControl's structural type (context.ts) omits `status()`; the live runtime has it
     read: () =>
@@ -3292,6 +3300,22 @@ export function createHttp(
       if (!sameOriginWrite(req))
         return new Response('cross-origin write rejected', { status: 403 });
       const body = await readJson<{ file?: string; choice?: string }>(req);
+      // S11.12 — Keep both: theirs becomes the canvas, mine a sibling "<name> this Mac" (sync/keep-both.ts).
+      if (body?.file && body.choice === 'keep-both') {
+        const kb = await keepBothConflict(body.file);
+        if (kb.status === 'none')
+          return Response.json(
+            { ok: false, error: 'No conflict on that canvas.' },
+            { status: 404 }
+          );
+        return Response.json(
+          { ok: kb.status === 'kept-both', ...kb },
+          {
+            status: kb.status === 'kept-both' ? 200 : 409,
+            headers: { 'Cache-Control': 'no-store' },
+          }
+        );
+      }
       const choice = body?.choice === 'mine' ? 'mine' : body?.choice === 'theirs' ? 'theirs' : null;
       if (!body?.file || !choice)
         return Response.json({ ok: false, error: 'file and choice required' }, { status: 400 });
