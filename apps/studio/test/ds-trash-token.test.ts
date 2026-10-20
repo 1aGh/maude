@@ -4,6 +4,7 @@
 // drops the tombstone but keeps the alias line. Tier-1 roles can't be trashed.
 import { afterAll, describe, expect, test } from 'bun:test';
 
+import { resolveColour } from '../ds/contrast.ts';
 import { DsEngineError } from '../ds/engine.ts';
 import { cleanup, DS, DS_PATH, makeProject, PERSON } from './_ds-engine-fixture.ts';
 
@@ -119,5 +120,43 @@ describe('ds trash token', () => {
     } finally {
       off();
     }
+  });
+
+  // S10.17 (13 · ds-edge-trash, canvas 27): nothing breaks — a canvas that reads the trashed name, in either mode,
+  // still resolves to a colour: the replacement's. Restore puts the token's own values back everywhere.
+  test('no canvas breaks: the trashed name resolves to the replacement in both modes; Restore brings its own back', async () => {
+    const p = await makeProject();
+    const declared = (css: string, block: 'light' | 'dark') => {
+      const dark = css.split('[data-theme="dark"]');
+      const part = block === 'dark' ? (dark.at(-1) ?? '') : (dark[0] ?? '');
+      const map: Record<string, string> = {};
+      for (const m of part.matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)) map[m[1]] = m[2].trim();
+      return map;
+    };
+    const colourOf = (css: string, block: 'light' | 'dark', name: string) => {
+      const map = declared(css, block);
+      const rgb = resolveColour(`var(${name})`, (n) => map[n]);
+      return rgb ? `${rgb.r},${rgb.g},${rgb.b}` : null;
+    };
+    const before = p.read(CSS) as string;
+    const t = await p.engine.trashToken(DS, {
+      css: '--x-line-fine',
+      replacement: '--x-line-mid',
+      expectHead: p.R0,
+      by: PERSON,
+    });
+    const trashed = p.read(CSS) as string;
+    for (const mode of ['light', 'dark'] as const) {
+      const gone = colourOf(trashed, mode, '--x-line-fine');
+      expect(gone).not.toBeNull();
+      expect(gone).toBe(colourOf(trashed, mode, '--x-line-mid'));
+      expect(gone).not.toBe(colourOf(before, mode, '--x-line-fine'));
+    }
+    await p.engine.restoreToken(DS, { css: '--x-line-fine', expectHead: t.rev, by: PERSON });
+    const restored = p.read(CSS) as string;
+    for (const mode of ['light', 'dark'] as const)
+      expect(colourOf(restored, mode, '--x-line-fine')).toBe(
+        colourOf(before, mode, '--x-line-fine')
+      );
   });
 });

@@ -17,6 +17,7 @@ import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
 import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
 import { useDsRowDots } from './row-dots.js';
+import { DsOffSystemHost } from './off-system-host.jsx';
 import { DsSwitchHost } from './switch-host.jsx';
 import { DsConvertHost } from './convert-host.jsx';
 import { DsTruthHost } from './truth-host.jsx';
@@ -256,9 +257,12 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
       <DsConvertHost toast={toast} fetchImpl={fetchImpl} />
     </>
   );
-  // S10.14 — "Switch canvases to …?" and "Preview in …" ride the same mount
+  // S10.14 — "Switch canvases to …?" and "Preview in …" ride the same mount; so does S10.17's off-system question
   const switcher = (
-    <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+    <>
+      <DsSwitchHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+      <DsOffSystemHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+    </>
   );
   if (reach) {
     return (

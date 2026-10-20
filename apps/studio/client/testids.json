@@ -32622,5 +32622,389 @@
       "apps/studio/test/v2-export-video.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "ds-contrast-fix",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Lighten to 4.5:1\" (or Darken) on the contrast warning: the smallest lightness move, written as one waiting edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/contrast-warning.jsx",
+      "symbol": "ContrastWarning"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-contrast-short",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Falls short in 3 canvases\" under the contrast warning.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/contrast-warning.jsx",
+      "symbol": "ContrastWarning"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-contrast-show",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Show\" on that line: walks the canvases that use the token (the reach view).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/contrast-warning.jsx",
+      "symbol": "ContrastWarning"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-contrast-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: A refusal of the fix, in words, under the warning.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/contrast-warning.jsx",
+      "symbol": "ContrastWarning"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-token-trash",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Move to trash…\" in the token inspector's Advanced fold: opens the trash sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/kinds/token.jsx",
+      "symbol": "TokenPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The veil behind the trash sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Move “Linka — jemná” to the trash?\" — the sheet (role=dialog); data-css names the token.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The sheet's question.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"40 canvases use it. They switch to <closest colour>, so nothing breaks.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-pair",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The two chips: the colour going, an arrow, the closest colour that takes over.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-chip-from",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The swatch of the colour going to the trash.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-chip-to",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The swatch of the colour the canvases follow.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Restore from the Trash puts it back in all 40.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-blocked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: Why it cannot go (a main colour of the system, a locked brand colour, nothing to stand in for it).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: A refusal from the server, in words, under the sentence.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: Cancel (or Close when it cannot go); nothing changes.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-trash-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The primary, \"Move to trash\": the engine's trash, one ⌘Z.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/trash-token-sheet.jsx",
+      "symbol": "TrashTokenSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The quiet question about a hand-picked colour that is not in the system (role=status); data-literal names it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"A colour picked by hand isn't in <System>. The closest is <Accent>.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: The swatch of the hand-picked colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Use <closest>\": puts var(--token) in place of the literal (ds.use-nearest, one ⌘Z).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Add it to the system\": a waiting new colour (ds.add-colour).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-dismiss",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: \"Not now\": the question goes away until the canvas is opened again.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-off-system-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S10.17: A refusal in words under the buttons.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/off-system.jsx",
+      "symbol": "OffSystemQuestion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-edges.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f50c17ffc37a",
+  "manifestVersion": "eafe6a21ad45",
   "actions": [
     {
       "id": "search.open",
@@ -6205,6 +6205,59 @@
       "agent": {
         "path": "cli",
         "verb": "maude design ds convert <ds> --restore"
+      }
+    },
+    {
+      "id": "ds.fix-contrast",
+      "label": "Lighten to 4.5:1",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/fix-contrast",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds fix-contrast <ds> <css> [--theme <t>] [--dry-run]"
+      }
+    },
+    {
+      "id": "ds.add-colour",
+      "label": "Add it to the system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/add-colour",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds add-colour <ds> <colour> [--label <name>] [--css <--x-name>]"
+      }
+    },
+    {
+      "id": "ds.use-nearest",
+      "label": "Use the system colour",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the hand-picked colour literal with var(--token) at the place `maude design ds off-system <canvas>` names (line, col). Over HTTP: POST /_api/edit-op {op: \"ds.use-nearest\", targets: [element], params: {literal, css, line, col}} — refused when the colour is no longer at that place"
+      },
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
       }
     }
   ],

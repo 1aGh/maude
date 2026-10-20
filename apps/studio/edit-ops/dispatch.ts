@@ -24,6 +24,7 @@ import { imageCrop } from './crop.ts';
 import { componentDetach } from './detach-instance.ts';
 import { distributeOps } from './distribute.ts';
 import { dsInstanceUpdate } from './ds-instance-update.ts';
+import { dsUseNearest } from './ds-use-nearest.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
@@ -144,6 +145,7 @@ export const EDIT_OPS: readonly EditOp[] = [
   componentDetach,
   // S10.8 — an instance on a left-out canvas takes the current look
   dsInstanceUpdate,
+  dsUseNearest,
   // S7.20 — the F size picker's tile: a whole artboard of a preset's kind, in one write
   artboardInsertPreset,
 ];

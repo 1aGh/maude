@@ -1,0 +1,115 @@
+import { $, browser, expect } from '@wdio/globals';
+import { capture, startReport } from '../helpers/evidence';
+import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
+
+/**
+ * 13 · ds-edge-contrast, ds-edge-trash (S10.17) — select the text colour that falls short on the Design system canvas:
+ * the inspector says so quietly and offers "Lighten to 4.5:1"/"Darken to 4.5:1"; pressing it leaves ONE change waiting
+ * and the warning gone. Then select the line colour two canvases use: "Move to trash…" opens the sheet that says which
+ * colour the canvases follow, and Cancel changes nothing.
+ * WRITTEN, NOT RUN in the S10.17 hand-back (the lead runs the desktop lane, under the lock).
+ *
+ * Boots into wdio.ds-edges.conf.ts's project. Driving model as ds-reach.e2e.ts: the pilot runs with the origin split
+ * off, so the Design system canvas frame is same-origin and a swatch is found by its `data-ds-token`; everything after
+ * the click is the shell's own DOM. The off-system question needs a git history for "changed lines" and is proven in
+ * ds-edges.test.ts / v2-ds-edges.test.tsx, not here.
+ */
+const swatchCentre = (css: string) =>
+  browser.execute((token) => {
+    const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    const el = f?.contentDocument?.querySelector(
+      `[data-ds-token="${token}"]`
+    ) as HTMLElement | null;
+    const r = el?.getBoundingClientRect();
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  }, css);
+
+async function clickInFrame(x: number, y: number): Promise<void> {
+  await browser.execute(
+    (px, py) => {
+      const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      const doc = f.contentDocument as Document;
+      const target = doc.elementFromPoint(px, py) ?? doc.body;
+      for (const type of ['pointerdown', 'pointerup', 'click'])
+        target.dispatchEvent(
+          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
+        );
+    },
+    x,
+    y
+  );
+}
+
+async function select(css: string): Promise<void> {
+  await browser.waitUntil(async () => (await swatchCentre(css)) !== null, {
+    timeout: 30_000,
+    timeoutMsg: `the ${css} swatch never drew on the Design system canvas`,
+  });
+  const at = (await swatchCentre(css)) as { x: number; y: number };
+  await clickInFrame(at.x, at.y);
+}
+
+describe('ds-edges — a quiet contrast warning with the fix, and a colour to the trash', () => {
+  before(() => {
+    startReport('ds-edges');
+  });
+
+  it('selects the text colour that falls short: the warning offers the fix', async () => {
+    await waitForSidecar();
+    const row = await canvasRow('canvas-row-system-acme-design-system');
+    await row.waitForExist({ timeout: 60_000 });
+    await row.click();
+    await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await select('--fg-2');
+    const line = await $('[data-testid="ds-token-contrast"]');
+    await line.waitForExist({ timeout: 20_000 });
+    expect(await line.getAttribute('data-tone')).toBe('warn');
+    expect(await (await $('[data-testid="ds-contrast-fix"]')).getText()).toMatch(
+      /^(Lighten|Darken) to 4\.5:1$/
+    );
+    expect(await (await $('[data-testid="ds-contrast-short"]')).getText()).toContain(
+      'Falls short in 2 canvases'
+    );
+    await capture('ds-edges-contrast-warning');
+  });
+
+  it('pressing it leaves one change waiting, and the pair now clears', async () => {
+    await (await $('[data-testid="ds-contrast-fix"]')).click();
+    await browser.waitUntil(
+      async () =>
+        (await $('[data-testid="ds-token-contrast"]'))
+          .getAttribute('data-tone')
+          .then((t) => t === 'ok'),
+      { timeout: 20_000, timeoutMsg: 'the contrast line never turned ok after the fix' }
+    );
+    await browser.waitUntil(
+      () =>
+        browser.execute(() => {
+          const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+          return (
+            f?.contentDocument?.querySelector('[data-testid="ds-bar-pending"]')?.textContent ===
+            '1 change waiting'
+          );
+        }),
+      { timeout: 15_000, timeoutMsg: 'the fix did not leave exactly one change waiting' }
+    );
+    await capture('ds-edges-contrast-fixed');
+  });
+
+  it('Move to trash… says which colour the canvases follow; Cancel changes nothing', async () => {
+    await select('--x-line-fine');
+    await (await $('[data-testid="ds-token-advanced"]')).click();
+    await (await $('[data-testid="ds-token-trash"]')).click();
+    await (await $('[data-testid="ds-trash"]')).waitForExist({ timeout: 15_000 });
+    expect(await (await $('[data-testid="ds-trash-line"]')).getText()).toMatch(
+      /^2 canvases use it\. They switch to .+, the closest colour, so nothing breaks\.$/
+    );
+    expect(await (await $('[data-testid="ds-trash-back"]')).getText()).toBe(
+      'Restore from the Trash puts it back in all 2.'
+    );
+    await capture('ds-edges-trash-sheet');
+    await (await $('[data-testid="ds-trash-cancel"]')).click();
+    await (await $('[data-testid="ds-trash"]')).waitForExist({ reverse: true, timeout: 10_000 });
+  });
+});

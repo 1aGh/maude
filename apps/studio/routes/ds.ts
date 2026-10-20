@@ -36,6 +36,7 @@ import { verifyRevision } from '../ds/revision.ts';
 import { diskFs, loadSystem } from '../ds/system.ts';
 import type { DsUsageIndex } from '../index/ds-usage.ts';
 import { runConvertOp } from './ds-convert.ts';
+import { runEdgeOp } from './ds-edges.ts';
 import { runMakeOp } from './ds-make.ts';
 import { runSwitchOp } from './ds-switch.ts';
 import type { RouteSpec } from './table.ts';
@@ -66,7 +67,11 @@ export type DsOp =
   | 'make'
   | 'make-state'
   | 'switch'
-  | 'convert';
+  | 'convert'
+  | 'fix-contrast'
+  | 'add-colour'
+  | 'nearest'
+  | 'off-system';
 
 export interface DsOpContext {
   engine: DsEngine;
@@ -614,6 +619,12 @@ export async function runDsOp(
         return await runSwitchOp(input, c);
       case 'convert':
         return await runConvertOp(input, c);
+      case 'fix-contrast':
+      case 'add-colour':
+      case 'nearest':
+        return await runEdgeOp(op, systemFor(c, input.ds), input, c);
+      case 'off-system':
+        return await runEdgeOp(op, null, input, c);
     }
   } catch (err) {
     const a = errorAnswer(err);
@@ -681,6 +692,10 @@ const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> =
   { method: 'POST', path: '/_api/ds/default', op: 'default' },
   { method: 'POST', path: '/_api/ds/switch', op: 'switch' },
   { method: 'POST', path: '/_api/ds/convert', op: 'convert' },
+  { method: 'GET', path: '/_api/ds/nearest', op: 'nearest' },
+  { method: 'GET', path: '/_api/ds/off-system', op: 'off-system' },
+  { method: 'POST', path: '/_api/ds/fix-contrast', op: 'fix-contrast' },
+  { method: 'POST', path: '/_api/ds/add-colour', op: 'add-colour' },
 ];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
@@ -717,7 +732,7 @@ export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
       if (!c) return unavailable();
       const q = new URL(req.url).searchParams;
       const input: Record<string, unknown> = {};
-      for (const k of ['ds', 'rev', 'css', 'component']) {
+      for (const k of ['ds', 'rev', 'css', 'component', 'value', 'canvas']) {
         const v = q.get(k);
         if (v !== null) input[k] = v;
       }
@@ -732,7 +747,8 @@ export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
     // The local gate judges a canvas-scoped session on THIS target, never on a body key: the DS
     // canvas for `pending`, the canvas for `canvas`, and nothing (project-level) for the rest.
     async target(req) {
-      if (op !== 'pending' && op !== 'canvas') return undefined;
+      if (op !== 'pending' && op !== 'canvas' && op !== 'fix-contrast' && op !== 'add-colour')
+        return undefined;
       const b = await bodyOf(req.clone());
       if (!b) return null;
       if (op === 'canvas') return normRel(b.canvas);

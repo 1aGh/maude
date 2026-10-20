@@ -77,6 +77,9 @@ const WRITES: Array<[string, Record<string, unknown>]> = [
   ['/_api/ds/switch', { to: DS, all: true }],
   // S10.12 — convert system folders (the dry run is refused too: it lists every system)
   ['/_api/ds/convert', { systems: [DS], dryRun: true }],
+  // S10.17 — Lighten to 4.5:1 / Add it to the system (waiting edits: Can edit on the DS canvas)
+  ['/_api/ds/fix-contrast', { ds: DS, css: '--fg-0' }],
+  ['/_api/ds/add-colour', { ds: DS, value: '#3b6fe0', label: 'Badge blue' }],
 ];
 
 describe('ds routes — roles (Q15)', () => {
@@ -88,6 +91,8 @@ describe('ds routes — roles (Q15)', () => {
       [
         'GET /_api/ds/board',
         'GET /_api/ds/make-state',
+        'GET /_api/ds/nearest',
+        'GET /_api/ds/off-system',
         'GET /_api/ds/revision',
         'GET /_api/ds/revisions',
         'GET /_api/ds/state',
@@ -142,6 +147,14 @@ describe('ds routes — roles (Q15)', () => {
     const pend = await call(specs, 'POST', '/_api/ds/pending', WRITES[1][1]);
     expect(pend.status).toBe(200);
     expect(pend.json).toMatchObject({ format: 'maude.ds-result', v: 1 });
+    // S10.17: "Add it to the system" is a waiting edit too
+    const add = await call(specs, 'POST', '/_api/ds/add-colour', {
+      ds: DS,
+      value: '#3b6fe0',
+      label: 'Badge blue',
+    });
+    expect(add.status).toBe(200);
+    expect(add.json).toMatchObject({ format: 'maude.ds-edge', edge: 'add-colour' });
     for (const route of [
       '/_api/ds/publish',
       '/_api/ds/outside',

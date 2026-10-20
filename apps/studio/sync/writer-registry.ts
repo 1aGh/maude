@@ -291,6 +291,18 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'file-plane',
     rows: 'per system: revisions + tokens.json + a NEW design-system.tsx/.meta.json (observed into existence like createCanvas), head.json last; Restore moves head.json + the canvas to _trash — Plane B only, all or nothing (ds/convert.ts, S10.12)',
   },
+  '/_api/ds/fix-contrast': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles) — the lightness fix is a waiting edit (ds/edges.ts, S10.17)',
+    test: 'test/ds-edges.test.ts',
+  },
+  '/_api/ds/add-colour': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending add entry) as ONE kernel action (proposeFiles) (ds/edges.ts, S10.17)',
+    test: 'test/ds-edges.test.ts',
+  },
+  '/_api/ds/nearest': { class: 'read' }, // S10.17 the closest system colour (ds/nearest.ts)
+  '/_api/ds/off-system': { class: 'read' }, // S10.17 hand-picked colours on the changed lines (ds/edges.ts)
   '/_api/ds/default': {
     class: 'file-plane',
     rows: 'config.json defaultDesignSystem, written atomically (ds/default.ts, S10.13) — Plane B only',

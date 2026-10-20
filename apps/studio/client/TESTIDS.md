@@ -129,6 +129,30 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-preview-banner` | testid | S10.14: "Previewing Studio site in Warm paper." with "5 canvases shown in it · esc to stop". | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-preview-switch` | testid | S10.14: The banner's "Switch…": opens the switch review for the previewed system. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-preview-stop` | testid | S10.14: The banner's "Stop previewing": every canvas renders in its own system again. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-contrast-fix` | testid | S10.17: "Lighten to 4.5:1" (or Darken) on the contrast warning: the smallest lightness move, written as one waiting edit. | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |
+| `ds-contrast-short` | testid | S10.17: "Falls short in 3 canvases" under the contrast warning. | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |
+| `ds-contrast-show` | testid | S10.17: "Show" on that line: walks the canvases that use the token (the reach view). | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |
+| `ds-contrast-note` | testid | S10.17: A refusal of the fix, in words, under the warning. | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |
+| `ds-token-trash` | testid | S10.17: "Move to trash…" in the token inspector's Advanced fold: opens the trash sheet. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-edges.test | new |
+| `ds-trash-scrim` | testid | S10.17: The veil behind the trash sheet. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash` | testid | S10.17: "Move “Linka — jemná” to the trash?" — the sheet (role=dialog); data-css names the token. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-title` | testid | S10.17: The sheet's question. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-line` | testid | S10.17: "40 canvases use it. They switch to <closest colour>, so nothing breaks." | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-pair` | testid | S10.17: The two chips: the colour going, an arrow, the closest colour that takes over. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-chip-from` | testid | S10.17: The swatch of the colour going to the trash. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-chip-to` | testid | S10.17: The swatch of the colour the canvases follow. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-back` | testid | S10.17: "Restore from the Trash puts it back in all 40." | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-blocked` | testid | S10.17: Why it cannot go (a main colour of the system, a locked brand colour, nothing to stand in for it). | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-error` | testid | S10.17: A refusal from the server, in words, under the sentence. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-cancel` | testid | S10.17: Cancel (or Close when it cannot go); nothing changes. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-trash-go` | testid | S10.17: The primary, "Move to trash": the engine's trash, one ⌘Z. | `client/v2/ds/trash-token-sheet.jsx` · `TrashTokenSheet` | test:v2-ds-edges.test | new |
+| `ds-off-system` | testid | S10.17: The quiet question about a hand-picked colour that is not in the system (role=status); data-literal names it. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-text` | testid | S10.17: "A colour picked by hand isn't in <System>. The closest is <Accent>." | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-chip` | testid | S10.17: The swatch of the hand-picked colour. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-use` | testid | S10.17: "Use <closest>": puts var(--token) in place of the literal (ds.use-nearest, one ⌘Z). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-add` | testid | S10.17: "Add it to the system": a waiting new colour (ds.add-colour). | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-dismiss` | testid | S10.17: "Not now": the question goes away until the canvas is opened again. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
+| `ds-off-system-error` | testid | S10.17: A refusal in words under the buttons. | `client/v2/ds/off-system.jsx` · `OffSystemQuestion` | test:v2-ds-edges.test | new |
 | `canvases-trash-row` | testid | The Canvases panel's last row: Trash and its count. Click opens the Trash list. | `client/v2/left-panel/canvases-pinned.jsx` · `TrashRow` | — | stable — re-emit |
 | `canvases-trash` | testid | The Trash list that replaces the Canvases list while it is open. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
 | `canvases-trash-back` | testid | Back from the Trash list to the Canvases list. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
