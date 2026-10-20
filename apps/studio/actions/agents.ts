@@ -555,6 +555,22 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   // Registered, visible to no shell until S8.17 (Figma import) lands; its verb is S8's.
   'figma.make-editable': { effect: 'external', agent: cli('maude design import-figma') },
+  // S8.12 — the Assets tab's ↵ on a picked tile: the same write as `image.place`, started from the tab. The agent edits the TSX.
+  'assets.place': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Same as image.place: add <img src="assets/<sha8>.<ext>" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> to the selected frame, or first inside the selected artboard (position: "absolute", left: "0", top: "0"). Which files exist and where they are used: `maude design assets`. Over HTTP: POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset, mode: "fill" | "loose", artboard?}}'
+    ),
+  },
+  'assets.details': {
+    effect: 'none',
+    agent: cli('maude design assets --usage <asset>'),
+  },
   'tool.create-default': TSX(
     'Add the element’s JSX at its default size: a frame or rectangle is 100 × 100 (see object.insert-shape), a text is a <p> with the words “Text”'
   ),

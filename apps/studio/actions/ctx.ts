@@ -34,6 +34,8 @@ export interface ShellKeyState {
   mode?: Mode;
   /** V2-4 gate — the "Single-key shortcuts" switch (KeyCtx.singleKeys); absent = on. */
   singleKeys?: boolean;
+  /** S8.12 — a tile is picked in the Assets tab AND focus is inside it (client/v2/assets/assets-bus.js). */
+  assetTileSelected?: boolean;
 }
 
 /** The shell document's KeyCtx for a keydown it received. */
@@ -51,6 +53,7 @@ export function shellKeyCtx(probe: FocusProbe, s: ShellKeyState): KeyCtx {
   if (s.commentFocused) facts.add('commentFocused');
   if (tag === 'SELECT') facts.add('selectFocused');
   if (range) facts.add('rangeFocused');
+  if (s.assetTileSelected) facts.add('assetTileSelected');
   const selection: SelKind = s.clipSelected ? 'clip' : s.artboardSelected ? 'artboard' : 'none';
   return {
     role: s.readOnly ? 'comment' : 'owner',

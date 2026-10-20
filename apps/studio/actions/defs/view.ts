@@ -104,6 +104,36 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // No key.
   },
   {
+    // S8.12 (ia-assets-keys) — select an artboard, then a tile: ↵ places it there (the same `image.place` edit-op as a
+    // drop). The tile menu's first row is this action. Only while a tile is picked and focus is in the tab
+    // (`assetTileSelected`); the canvas never sees it. A write: Can edit and up, refused by the server as well.
+    id: 'assets.place',
+    label: 'Place',
+    kind: 'command',
+    icon: 'image',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    keys: [
+      kb('↵', 'selection', {
+        when: { focus: ['chrome', 'timeline'], facts: ['assetTileSelected'] },
+      }),
+    ],
+    search: { hidden: true },
+  },
+  {
+    // S8.12 — ⌘I on the picked tile: its details (a read, so every role). S8.21 draws the full sheet.
+    id: 'assets.details',
+    label: 'Show details',
+    kind: 'command',
+    exec: 'shell',
+    keys: [
+      kb('⌘I', 'selection', {
+        when: { focus: ['chrome', 'timeline'], facts: ['assetTileSelected'] },
+      }),
+    ],
+    search: { hidden: true },
+  },
+  {
     id: 'view.layers-panel',
     label: 'Layers as a panel',
     kind: 'toggle',

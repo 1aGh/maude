@@ -21,6 +21,7 @@ import { SHELL_KEY_HANDLERS } from '../actions/shell-key-handlers.js';
 import { isNativeApp } from '../github.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast, totalCounts } from '../shell/util.js';
+import { assetTileSelected } from '../v2/assets/assets-bus.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 import { installFocusRescue } from '../v2/shell/modal-focus.js';
@@ -48,6 +49,8 @@ function shellState(d) {
     commentFocused: !!d.focusedCommentId,
     // V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts.
     singleKeys: singleKeysStore.get(),
+    // S8.12: a tile is picked in the Assets tab and focus is inside it (↵ places, ⌘I opens details)
+    assetTileSelected: assetTileSelected(),
   };
 }
 

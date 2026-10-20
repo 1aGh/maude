@@ -21,6 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
+import { runAssetsAction } from '../v2/assets/assets-bus.js';
 import { runCopyPng } from '../v2/export/copy-png.js';
 import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
@@ -168,6 +169,15 @@ export const SHELL_KEY_HANDLERS = {
   'history.open': (d, { event: e }) => {
     e.preventDefault();
     d.toggleRightPanel('changes');
+  },
+  // S8.12 — ↵ / ⌘I on a picked Assets tile: the tab runs the same functions its tile menu does
+  'assets.place': (_d, { event: e }) => {
+    e.preventDefault();
+    runAssetsAction('assets.place');
+  },
+  'assets.details': (_d, { event: e }) => {
+    e.preventDefault();
+    runAssetsAction('assets.details');
   },
   // Cloud Phase 27 C1 — a viewer gets the inspector too (read-only means cannot CHANGE, not
   // cannot SEE).
