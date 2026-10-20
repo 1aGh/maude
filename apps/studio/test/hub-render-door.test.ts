@@ -42,6 +42,8 @@ interface Seen {
   method: string;
   path: string;
   auth: string | null;
+  /** `x-maude-sync-park` — what lets the cell's DO answer the probe without waking (S8.5b-4 F1) */
+  park: string | null;
   body: unknown;
 }
 type Handler = (req: Request, url: URL) => Response | Promise<Response>;
@@ -59,6 +61,7 @@ function fakeHub(handler: Handler) {
         method: req.method,
         path: url.pathname + url.search,
         auth: req.headers.get('authorization'),
+        park: req.headers.get('x-maude-sync-park'),
         body: text ? JSON.parse(text) : null,
       });
       return handler(req, url);
@@ -302,6 +305,13 @@ describe('status — the hub is untrusted', () => {
     const probe = hub.seen[0]!;
     expect(probe.path).toBe('/_cell/state');
     expect(probe.auth).toBe(`Bearer ${TOKEN}`);
+    // S8.5b-4 F1 — without the park header the cell's DO does not recognise the probe
+    // (cells/cell-config.mjs isCellStateProbe) and every `/_*` path WAKES a sleeping cell (T10).
+    expect(probe.park).toBe('1');
+    // …and only the probe says it: a status or file call is no park probe.
+    expect(hub.seen.filter((s) => s.park !== null).every((s) => s.path === '/_cell/state')).toBe(
+      true
+    );
   });
 
   test('the probe is asked after silence only: not before every 5-s poll', async () => {

@@ -90,7 +90,7 @@ export function createHubRenderDoor(opts: HubRenderDoorOptions): CloudRenderDoor
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
-    extra: { timeoutMs?: number } = {}
+    extra: { timeoutMs?: number; headers?: Record<string, string> } = {}
   ): Promise<'signed-out' | 'network' | Response> {
     const token = opts.token();
     if (!token) return 'signed-out';
@@ -101,6 +101,7 @@ export function createHubRenderDoor(opts: HubRenderDoorOptions): CloudRenderDoor
           authorization: `Bearer ${token}`,
           accept: 'application/json',
           ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+          ...extra.headers,
         },
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         // the bearer never follows a Location to another host
@@ -194,7 +195,13 @@ export function createHubRenderDoor(opts: HubRenderDoorOptions): CloudRenderDoor
       // A Mac that slept or went offline may have outlived its cell: ask (without waking it) before a
       // poll would. A sleeping cell lost its jobs and files; a self-hosted hub (404) is skipped.
       if (lastHeard === null || now() - lastHeard >= QUIET_PROBE_MS) {
-        const p = await reach('GET', '/_cell/state', undefined, { timeoutMs: 10_000 });
+        // `x-maude-sync-park: 1` is what makes this THE park probe the cell's DO answers by itself
+        // (cells/cell-config.mjs `isCellStateProbe`); without it the request is an ordinary `/_*`
+        // path, and those wake a sleeping cell — the one thing this probe exists not to do (T10).
+        const p = await reach('GET', '/_cell/state', undefined, {
+          timeoutMs: 10_000,
+          headers: { 'x-maude-sync-park': '1' },
+        });
         if (p === 'signed-out' || p === 'network') return { state: 'unreachable' };
         const parsed = parseCellState(
           p.status,
