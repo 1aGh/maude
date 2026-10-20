@@ -5,7 +5,7 @@
 // over the artboard's rect, client/v2/timeline/edit/drop.jsx), so no file ever reaches this untrusted document.
 // The chip follows pan and zoom while it is up (a drag takes a few seconds, the camera can move under it).
 
-import { useEffect, useState } from 'react';
+import { type ReactElement, useEffect, useState } from 'react';
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 
@@ -49,7 +49,7 @@ const CSS_TEXT = `
 }
 `;
 
-export function DropChip(): JSX.Element | null {
+export function DropChip(): ReactElement | null {
   const [artboardId, setArtboardId] = useState<string | null>(null);
   const [, tick] = useState(0);
 
