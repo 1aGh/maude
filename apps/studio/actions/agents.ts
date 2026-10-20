@@ -85,6 +85,9 @@ const VIDEO_OP = (agent: AgentPath): ActionDefAI => ({
   agent,
 });
 
+const CLIP_MENU_TSX = (how: string): ActionDefAI =>
+  VIDEO_OP(file('canvas-tsx', 'design:video-comp', how));
+
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── diagnostics (V2-4.7b) ──
   'diag.sync': { effect: 'none', agent: cli('maude design sync status') },
@@ -957,6 +960,78 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.to-end': PREF('playback'),
   'timeline.prev-keyframe': PREF('playback'),
   'timeline.next-keyframe': PREF('playback'),
+  // S7.9 — the timeline's edit gestures (one `clip.*` op each) and the 17-row clip menu. An agent writes the
+  // same literal props in the canvas .tsx; `comment` and `generate` have a verb of their own.
+  'timeline.trim': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set the clip’s durationInFrames (later beats close up; the comp’s total follows the last clip)'
+    )
+  ),
+  'timeline.move-clip': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Move a series beat before or after another (with its transition), or set a layer’s from'
+    )
+  ),
+  'timeline.add-clips': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Add a <Sequence> with the media at the end (or between two beats); the total grows by its length'
+    )
+  ),
+  'timeline.clip-menu.comment': {
+    effect: 'none',
+    minRole: 'comment',
+    agent: cli('maude design comments add --as-ai'),
+  },
+  'timeline.clip-menu.generate': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: cli('maude design generate'),
+  },
+  'timeline.clip-menu.adjust': CLIP_MENU_TSX(
+    'Set the clip’s playbackRate, volume, crop (<Reframe>) or filter props directly'
+  ),
+  'timeline.clip-menu.hide': CLIP_MENU_TSX(
+    'Gate the clip’s body behind {false && …}; the tag and its time slot stay'
+  ),
+  'timeline.clip-menu.show': CLIP_MENU_TSX('Remove the {false && …} gate from the clip’s body'),
+  'timeline.clip-menu.remove': CLIP_MENU_TSX(
+    'Delete the clip’s <Sequence>; a series beat also shortens the comp’s total'
+  ),
+  'timeline.clip-menu.replace': CLIP_MENU_TSX(
+    'Change the clip’s media src to a contained asset path'
+  ),
+  'timeline.clip-menu.mute': CLIP_MENU_TSX('Add muted to the clip’s <Video>'),
+  'timeline.clip-menu.unmute': CLIP_MENU_TSX(
+    'Remove muted (and volume={0}) from the clip’s <Video>'
+  ),
+  'timeline.clip-menu.detach-audio': CLIP_MENU_TSX(
+    'Mute the <Video> and add an <Audio> Sequence with the same src and timing'
+  ),
+  'timeline.clip-menu.to-overlay': CLIP_MENU_TSX(
+    'Move the beat out of the series into a standalone <Sequence from> at the same frames'
+  ),
+  'timeline.clip-menu.to-storyline': CLIP_MENU_TSX(
+    'Move the standalone <Sequence> into the series as a beat'
+  ),
+  'timeline.clip-menu.layer-up': CLIP_MENU_TSX(
+    'Reorder the standalone <Sequence>s: document order is the stacking order'
+  ),
+  'timeline.clip-menu.layer-down': CLIP_MENU_TSX(
+    'Reorder the standalone <Sequence>s: document order is the stacking order'
+  ),
+  'timeline.clip-menu.earlier': CLIP_MENU_TSX(
+    'Swap the beat with the one before it (with its transition); a layer moves up the stack'
+  ),
+  'timeline.clip-menu.later': CLIP_MENU_TSX(
+    'Swap the beat with the one after it (with its transition); a layer moves down the stack'
+  ),
+  'timeline.clip-menu.replace-layer': CLIP_MENU_TSX('Change that layer’s media src'),
   'timeline.split': TSX('Split the clip into two sequences at the frame', 'design:video-comp'),
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),

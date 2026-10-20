@@ -88,6 +88,21 @@ const ROWS: Row[] = [
     viewer: 'refused',
     editor: true,
   },
+  // S7.9 — the three timeline gestures (trim / move, drag a beat, drop footage) are ops too: Can comment says no
+  ...(
+    [
+      ['clip.retime', { stableId: 'name:a', durationInFrames: 30 }],
+      ['clip.move', { stableId: 'name:a', refStableId: 'name:b', position: 'before' }],
+      ['clip.insert', { lane: 'storyline', durationInFrames: 30 }],
+    ] as const
+  ).map(([op, params]) => ({
+    family: 'canvas (clip gesture)',
+    method: 'POST' as const,
+    path: '/_api/edit-op',
+    body: { file: 'ui/fixture.tsx', op, targets: [], params },
+    viewer: 'refused' as const,
+    editor: true,
+  })),
   {
     family: 'canvas (video op)',
     method: 'POST',

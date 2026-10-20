@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "323922264e4e",
+  "manifestVersion": "8639a071f3a4",
   "actions": [
     {
       "id": "search.open",
@@ -2835,6 +2835,372 @@
       "agent": {
         "path": "cli",
         "verb": "maude design comments add --as-ai"
+      }
+    },
+    {
+      "id": "timeline.trim",
+      "label": "Trim a clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set the clip’s durationInFrames (later beats close up; the comp’s total follows the last clip)"
+      }
+    },
+    {
+      "id": "timeline.move-clip",
+      "label": "Move a clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Move a series beat before or after another (with its transition), or set a layer’s from"
+      }
+    },
+    {
+      "id": "timeline.add-clips",
+      "label": "Add footage to the video",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Add a <Sequence> with the media at the end (or between two beats); the total grows by its length"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.comment",
+      "label": "Comment on clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "comment",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments add --as-ai"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.generate",
+      "label": "Generate this clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design generate"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.adjust",
+      "label": "Adjust the clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set the clip’s playbackRate, volume, crop (<Reframe>) or filter props directly"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.hide",
+      "label": "Hide clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Gate the clip’s body behind {false && …}; the tag and its time slot stay"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.show",
+      "label": "Show clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Remove the {false && …} gate from the clip’s body"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.remove",
+      "label": "Remove clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Delete the clip’s <Sequence>; a series beat also shortens the comp’s total"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.replace",
+      "label": "Replace the clip’s media",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Change the clip’s media src to a contained asset path"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.mute",
+      "label": "Mute clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Add muted to the clip’s <Video>"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.unmute",
+      "label": "Unmute clip",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Remove muted (and volume={0}) from the clip’s <Video>"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.detach-audio",
+      "label": "Detach audio",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Mute the <Video> and add an <Audio> Sequence with the same src and timing"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.to-overlay",
+      "label": "Move to overlay layer",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Move the beat out of the series into a standalone <Sequence from> at the same frames"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.to-storyline",
+      "label": "Move to storyline",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Move the standalone <Sequence> into the series as a beat"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.layer-up",
+      "label": "Move layer up",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Reorder the standalone <Sequence>s: document order is the stacking order"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.layer-down",
+      "label": "Move layer down",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Reorder the standalone <Sequence>s: document order is the stacking order"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.earlier",
+      "label": "Move clip earlier",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Swap the beat with the one before it (with its transition); a layer moves up the stack"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.later",
+      "label": "Move clip later",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Swap the beat with the one after it (with its transition); a layer moves down the stack"
+      }
+    },
+    {
+      "id": "timeline.clip-menu.replace-layer",
+      "label": "Replace a layer’s media",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Change that layer’s media src"
       }
     },
     {

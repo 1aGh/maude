@@ -28,6 +28,7 @@ import { ASK_SELECTION_ACTION, AskBubble } from './ask-bubble.tsx';
 import { CornerDots } from './corner-dots.tsx';
 import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
+import { DropChip } from './drop-chip.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { FinderDrop } from './finder-drop.tsx';
 import { KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
@@ -297,6 +298,8 @@ export function EditingLayer() {
       <EmptyArtboardReporter />
       {/* S7.7 — tells the shell which artboard is selected and where: the timeline island rises from a video */}
       <ArtboardAnchorReporter />
+      {/* S7.9 — footage in flight over the window: the followed video wears "Or drop here — adds at the end" */}
+      {isReadOnlyCanvas() ? null : <DropChip />}
       <ArtboardHandles />
       {editChrome ? <StickyName /> : null}
       {editChrome ? <MinimapContext /> : null}

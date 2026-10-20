@@ -37,6 +37,7 @@ import { applyCutSourceRange } from './cut-source-range.ts';
 import { applyCutToBeat } from './cut-to-beat.ts';
 import { applyDuck, duckPatch } from './duck.ts';
 import { applyFormatAdd, applyFormatUnlink } from './formats.ts';
+import { CLIP_GESTURE_OPS } from './gestures.ts';
 import { applyPlace, placePatch } from './place.ts';
 import { applyReframe, reframePatch } from './reframe.ts';
 import { applyTakeSwap } from './take-swap.ts';
@@ -425,4 +426,5 @@ export const VIDEO_OPS: readonly EditOp[] = [
 ];
 
 /** Everything S7.6 appends to `EDIT_OPS`. */
-export const CLIP_OPS: readonly EditOp[] = [...CLIP_VERB_OPS, ...VIDEO_OPS];
+export { CLIP_GESTURE_OPS };
+export const CLIP_OPS: readonly EditOp[] = [...CLIP_VERB_OPS, ...CLIP_GESTURE_OPS, ...VIDEO_OPS];

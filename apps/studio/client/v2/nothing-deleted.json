@@ -409,7 +409,7 @@
       "v2": {
         "action": "project.pull-copy",
         "testid": "project-menu-row-project.pull-copy",
-        "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1 · first launch: Home › Advanced options › Open a folder or GitHub project › pick a repository (the v1 wizard's GitHub door, retired in S6.15)",
+        "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1",
         "reach": [
           "desktop"
         ]
@@ -441,7 +441,7 @@
       "v2": {
         "action": "project.open",
         "testid": null,
-        "where": "Menu > File > Open project… ⌘O (the desktop app; Home lists team projects) · first launch: Home › Open a folder (the v1 wizard's local door, retired in S6.15)"
+        "where": "Menu > File > Open project… ⌘O (the desktop app; Home lists team projects)"
       }
     },
     {
@@ -454,7 +454,7 @@
       "v2": {
         "action": null,
         "testid": "settings-github",
-        "where": "Settings › Connections › GitHub › Sign in · first launch: Home › Advanced options › Open a folder or GitHub project (the sheet signs in; the v1 first-run wizard door is retired, S6.15)"
+        "where": "Settings › Connections › GitHub › Sign in"
       }
     },
     {
@@ -488,7 +488,7 @@
       "v2": {
         "action": "project.new",
         "testid": null,
-        "where": "Menu › File › New project… (desktop) — the dialog: name, GitHub or this computer only, Private / Public, description · first launch: Home › Advanced options › Open a folder or GitHub project › New (the v1 wizard's GitHub door, retired in S6.15)"
+        "where": "Menu › File › New project… (desktop) — the dialog: name, GitHub or this computer only, Private / Public, description"
       }
     },
     {
@@ -1693,7 +1693,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server… · first launch: Home › Advanced options › Use a self-hosted hub (the v1 wizard's \"invited project\" door, retired in S6.15)"
+        "where": "Settings › Connections › Your team’s own server › Add a team server…"
       }
     },
     {
@@ -3636,6 +3636,7 @@
     "testid:studio/editing/draw-tools.tsx#canvas/edit-draw-input": "v2 code (added after the freeze)",
     "testid:studio/editing/draw-tools.tsx#canvas/edit-draw-line": "v2 code (added after the freeze)",
     "testid:studio/editing/draw-tools.tsx#canvas/edit-draw-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/drop-chip.tsx#canvas/edit-drop-chip": "v2 code (added after the freeze)",
     "testid:studio/editing/finder-drop.tsx#canvas/edit-drop-hint": "v2 code (added after the freeze)",
     "testid:studio/editing/focus-model.tsx#canvas/edit-focus-ring": "v2 code (added after the freeze)",
     "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-band": "v2 code (added after the freeze)",

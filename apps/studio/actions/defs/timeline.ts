@@ -11,6 +11,36 @@ import { kb, mods, TRANSPORT } from './_v1.ts';
 
 const T = { when: TRANSPORT, inText: false } as const;
 
+const GESTURE = (id: string, label: string, where: string): ActionDef => ({
+  id,
+  label,
+  kind: 'command',
+  exec: 'shell',
+  enabled: { minRole: 'edit' },
+  search: { hidden: true, where, note: 'a pointer gesture on the timeline' },
+});
+
+/** The 17 right-click rows, in menu order: [id, label, least role]. Commenting is a Can comment right. */
+const CLIP_MENU: ReadonlyArray<readonly [string, string, 'edit' | 'comment']> = [
+  ['comment', 'Comment on clip', 'comment'],
+  ['generate', 'Generate this clip', 'edit'],
+  ['adjust', 'Adjust the clip', 'edit'],
+  ['hide', 'Hide clip', 'edit'],
+  ['show', 'Show clip', 'edit'],
+  ['remove', 'Remove clip', 'edit'],
+  ['replace', 'Replace the clip’s media', 'edit'],
+  ['mute', 'Mute clip', 'edit'],
+  ['unmute', 'Unmute clip', 'edit'],
+  ['detach-audio', 'Detach audio', 'edit'],
+  ['to-overlay', 'Move to overlay layer', 'edit'],
+  ['to-storyline', 'Move to storyline', 'edit'],
+  ['layer-up', 'Move layer up', 'edit'],
+  ['layer-down', 'Move layer down', 'edit'],
+  ['earlier', 'Move clip earlier', 'edit'],
+  ['later', 'Move clip later', 'edit'],
+  ['replace-layer', 'Replace a layer’s media', 'edit'],
+];
+
 export const TIMELINE_ACTIONS: ActionDef[] = [
   {
     id: 'timeline.play',
@@ -148,4 +178,20 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
       when: { notFacts: ['selectFocused', 'rangeFocused'] },
     }),
   },
+  // S7.9 (07 · ve-drop, ve-trim-split, ve-move-transition) — the three edit gestures. Each is one `clip.*` edit op
+  // (edit-ops/clip/gestures.ts): refused below Can edit by the server whatever the timeline shows, one undo step.
+  // Pointer gestures with no key; ⌘K lists none of them (they have no "do it now" form without a target).
+  GESTURE('timeline.trim', 'Trim a clip', 'Timeline › Drag a clip’s edge'),
+  GESTURE('timeline.move-clip', 'Move a clip', 'Timeline › Drag a clip'),
+  GESTURE('timeline.add-clips', 'Add footage to the video', 'Timeline › Drop footage'),
+  // S7.9 (Gate 0 D15) — the clip right-click menu keeps all 17 v1 items: six drawn, eleven under Advanced ▸
+  // (client/v2/timeline/edit/clip-menu.js holds the order; test/clip-menu-rows.test.ts pins it to this list).
+  ...CLIP_MENU.map(([id, label, minRole]) => ({
+    id: `timeline.clip-menu.${id}`,
+    label,
+    kind: 'command' as const,
+    exec: 'shell' as const,
+    enabled: { minRole },
+    search: { hidden: true, where: 'Timeline › Right-click a clip', note: 'the clip menu runs it' },
+  })),
 ];

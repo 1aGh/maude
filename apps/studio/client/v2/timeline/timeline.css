@@ -194,4 +194,46 @@
     translate: -50% 0;
     pointer-events: none;
   }
+  /* S7.9 — what a gesture says before the pointer lets go: a tip (title over a dimmer line), the insert line where
+     a dragged beat lands, and the catcher that takes a drop over the artboard (the canvas draws the chip). */
+  .tl-tip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    top: -34px;
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-ui, inherit);
+    font-size: var(--type-xs);
+    line-height: 14px;
+  }
+  .tl-tip-title {
+    color: var(--fg-0);
+    font-weight: 600;
+  }
+  .tl-tip-dim {
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-tip.is-clamped .tl-tip-title,
+  .tl-tip.is-clamped .tl-tip-dim {
+    color: inherit;
+  }
+  .tl-insert-line {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--accent);
+    z-index: 5;
+    pointer-events: none;
+  }
+  .tl-seq-block.is-dragging {
+    box-shadow: var(--shadow-lift, 0 6px 16px color-mix(in oklab, var(--bg-0) 60%, transparent));
+  }
+  .tl-artboard-drop {
+    position: fixed;
+    z-index: 13;
+    border-radius: var(--radius-sm, 4px);
+  }
 }

@@ -28,6 +28,10 @@ import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
 import { deriveTracks } from './tracks.js';
 import { isBand } from './transport.js';
 import { KeptStatus, SizeButton } from './island-controls.jsx';
+import { ClipMenu } from './edit/clip-menu.jsx';
+import { ArtboardDropCatcher, DropLanding, fileCount } from './edit/drop.jsx';
+import { landingOf, MoveLanding } from './edit/move.jsx';
+import { TrimTip } from './edit/trim.jsx';
 import { computeSnapTargets, snapFrame } from '../../panels/timeline-snap.js';
 import { activeComp } from '../../panels/timeline-comp-target.js';
 import {
@@ -44,11 +48,6 @@ import {
   ZOOM_STEP,
   zoomAroundScroll,
 } from '../../panels/timeline-scale.js';
-// DDR-150 dogfood — reuse the SAME context-menu component the canvas uses
-// (viewport-aware positioning, keyboard nav, outside-click/Esc dismiss, shared
-// .dc-context-menu styling) instead of a bespoke shell menu.
-import { ContextMenuView } from '../../../context-menu.tsx';
-
 // DDR-150 dogfood #6 — per-row media-kind identity so the timeline reads like
 // an editor: what's footage, what's a still, what's audio, what's plain JSX.
 function rowKind(seq) {
@@ -799,13 +798,6 @@ export default function TimelinePanel({
     });
   };
 
-  /** Task 8 — live trim/move delta: `+12f / +0.40s`. */
-  const fmtDelta = (frames) => {
-    const sign = frames >= 0 ? '+' : '−';
-    const af = Math.abs(Math.round(frames));
-    return `${sign}${af}f / ${sign}${(af / (fps || 30)).toFixed(2)}s`;
-  };
-
   // S7.8 — ruler ticks step 1/3/5/10/30/60 s by the visible span (07 · ve-play); past a second of zoom the
   // frame ladder takes over (ruler.js).
   const step = rulerStepFrames({
@@ -946,6 +938,15 @@ export default function TimelinePanel({
     return map;
   })();
 
+  // S7.9 — the line + words for a lifted beat: "Drop before Touchdown", at the gap its siblings left for it.
+  const landing = (() => {
+    if (!reorderDrag) return null;
+    const rows = sequences.map((s, i) => ({ s, i })).filter(({ s }) => s.series);
+    const l = landingOf({ story: rows.map(({ s }) => s), reorderDrag });
+    const at = rows[reorderDrag.slot];
+    return l && at ? { ...l, frame: previewFroms?.get(at.i) ?? at.s.from } : null;
+  })();
+
   // DDR-150 P4 / Task 6 — file drops. Lanes set an insertion caret and hand a
   // POSITION to onDropMedia(files, pos); the panel-level drop stays as the
   // append fallback.
@@ -990,7 +991,19 @@ export default function TimelinePanel({
         slot = k;
       }
     });
-    setDropCaret({ lane: 'storyline', slot, x: pts[slot] ?? px });
+    const story = sequences.filter((q) => q.series);
+    const frames = story.map((q) => q.from);
+    if (story.length) {
+      const last = story[story.length - 1];
+      frames.push(last.from + last.duration);
+    }
+    setDropCaret({
+      lane: 'storyline',
+      slot,
+      x: pts[slot] ?? px,
+      frame: frames[slot] ?? 0,
+      count: fileCount(e.dataTransfer),
+    });
   };
 
   const onLaneDragOver = (lane, row) => (e) => {
@@ -1001,16 +1014,19 @@ export default function TimelinePanel({
     const rect = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const f = clamp(Math.round(pxToFrame(px, pxf)), 0, totalFrames - 1);
-    setDropCaret({ lane, row, frame: f, x: px });
+    setDropCaret({ lane, row, frame: f, x: px, count: fileCount(e.dataTransfer) });
   };
 
   const laneCaret = (lane, row) =>
     dropCaret && dropCaret.lane === lane && dropCaret.row === row ? (
-      <span
-        className="tl-drop-caret"
-        data-testid="timeline-drop-caret"
-        style={{ left: dropCaret.x - 1 }}
-      />
+      <>
+        <span
+          className="tl-drop-caret"
+          data-testid="timeline-drop-caret"
+          style={{ left: dropCaret.x - 1 }}
+        />
+        <DropLanding x={dropCaret.x} count={dropCaret.count} atFrame={dropCaret.frame} fps={fps} />
+      </>
     ) : null;
 
   const onLaneDrop = (pos) => (e) => {
@@ -1268,27 +1284,38 @@ export default function TimelinePanel({
           />
         ) : null}
         {trimming ? (
-          <span
-            className={`tl-trim-tip${trimDelta >= trimInDrag.maxDelta && trimDelta > 0 ? ' is-clamped' : ''}`}
-            data-testid="timeline-trim-in-tip"
-            style={{ left }}
-          >
-            {fmtDelta(trimDelta)}
-          </span>
+          <TrimTip
+            testid="timeline-trim-in-tip"
+            sequences={sequences}
+            index={i}
+            newDuration={Math.max(1, seq.duration - trimDelta)}
+            fps={fps}
+            left={left}
+            clamped={trimDelta >= trimInDrag.maxDelta && trimDelta > 0}
+          />
         ) : null}
         {isResizing ? (
-          <span
-            className={`tl-trim-tip${retimeDrag.atClamp ? ' is-clamped' : ''}`}
-            data-testid="timeline-trim-tip"
-            style={{ left: left + width + 8 }}
-          >
-            {fmtDelta(dur - retimeDrag.startDur)}
-          </span>
+          <TrimTip
+            testid="timeline-trim-tip"
+            sequences={sequences}
+            index={i}
+            newDuration={dur}
+            fps={fps}
+            left={left + width + 8}
+            clamped={retimeDrag.atClamp}
+          />
         ) : null}
         {moving ? (
-          <span className="tl-trim-tip" data-testid="timeline-move-tip" style={{ left }}>
-            {fmtDelta(blockFrom - moveDrag.startFrom)}
-          </span>
+          <TrimTip
+            testid="timeline-move-tip"
+            sequences={sequences}
+            index={i}
+            newDuration={seq.duration}
+            newFrom={blockFrom}
+            deltaFrames={blockFrom - moveDrag.startFrom}
+            fps={fps}
+            left={left}
+          />
         ) : null}
         {onReplace && seq.replaceable && !decomposable ? (
           <button
@@ -1871,11 +1898,22 @@ export default function TimelinePanel({
                       {reorderDrag ? null : renderSeams()}
                       {reorderDrag ? null : renderAddSeams()}
                       {dropCaret?.lane === 'storyline' ? (
-                        <span
-                          className="tl-drop-caret"
-                          data-testid="timeline-drop-caret"
-                          style={{ left: dropCaret.x - 1 }}
-                        />
+                        <>
+                          <span
+                            className="tl-drop-caret"
+                            data-testid="timeline-drop-caret"
+                            style={{ left: dropCaret.x - 1 }}
+                          />
+                          <DropLanding
+                            x={dropCaret.x}
+                            count={dropCaret.count}
+                            atFrame={dropCaret.frame}
+                            fps={fps}
+                          />
+                        </>
+                      ) : null}
+                      {landing ? (
+                        <MoveLanding x={x(landing.frame ?? 0)} text={landing.text} />
                       ) : null}
                     </div>
                   </div>
@@ -2347,49 +2385,43 @@ export default function TimelinePanel({
             (() => {
               const seq = sequences[ctxMenu.index];
               const i = ctxMenu.index;
-              const li = ctxMenu.layerIndex;
-              let sections;
-              if (seq.loose) {
-                // A bare media sibling outside every <Sequence> — visible for
-                // orientation, but it has no clip identity for server ops.
-                sections = [
-                  [
-                    {
-                      id: 'noop',
-                      label: 'Loose media (no clip wrapper) — edit via /design:edit',
-                      disabled: true,
-                      onSelect: () => {},
+              const ref = refFor(seq, i);
+              // Vertical z-order (overlay clips only) — mirrors the V-chip drag.
+              const zLadder = overlay.filter((o) => !o.seq.loose);
+              const docIdx = zLadder.findIndex((o) => o.i === i);
+              // the series beats, in order: "earlier" and "later" are relative to THEM, not to every row
+              const beats = sequences
+                .map((s2, i2) => ({ s: s2, i: i2 }))
+                .filter(({ s: s2 }) => s2.series);
+              const at = beats.findIndex((b) => b.i === i);
+              const prevBeat = at > 0 ? beats[at - 1] : null;
+              const nextBeat = at >= 0 && at < beats.length - 1 ? beats[at + 1] : null;
+              // S7.9 — the 17 v1 items, six drawn and eleven under Advanced ▸ (edit/clip-menu.js).
+              return (
+                <ClipMenu
+                  x={ctxMenu.x}
+                  y={ctxMenu.y}
+                  onClose={() => setCtxMenu(null)}
+                  model={{
+                    seq,
+                    index: seq.series ? Math.max(0, at) : i,
+                    count: seq.series ? beats.length : sequences.length,
+                    rowKind: rowKind(seq),
+                    layerIndex: ctxMenu.layerIndex ?? null,
+                    zLadder: docIdx >= 0 ? { docIdx, len: zLadder.length } : null,
+                    has: {
+                      comment: !!onAddComment,
+                      generate: !!onGeneratePlaceholder,
+                      verb: !!onClipVerb,
+                      replace: !!onReplace,
+                      reorder: !!onReorder,
+                      hide: !!onToggleHide,
+                      remove: !!onRemove,
+                      replaceLayer: !!onReplaceLayer,
                     },
-                  ],
-                ];
-              } else if (li != null) {
-                // A LAYER (sub-clip) menu — a stacked layer shares the clip's
-                // timing, so only media-replace applies here.
-                const ly = (Array.isArray(seq.layers) ? seq.layers : [])[li];
-                const items = [];
-                if (onReplaceLayer && ly && (ly.mediaCdId || ly.mediaArrayRef)) {
-                  items.push({
-                    id: 'replace-layer',
-                    label: `Replace ${ly.kind}…`,
-                    onSelect: () => onReplaceLayer(refFor(seq, i), li),
-                  });
-                }
-                if (items.length === 0) {
-                  items.push({
-                    id: 'noop',
-                    label: 'No replaceable media in this layer',
-                    disabled: true,
-                    onSelect: () => {},
-                  });
-                }
-                sections = [items];
-              } else {
-                const primary = [];
-                if (onAddComment) {
-                  primary.push({
-                    id: 'comment',
-                    label: 'Comment on clip…',
-                    onSelect: () => {
+                  }}
+                  run={{
+                    comment: () =>
                       // Same anchored composer as the C tool — no modal.
                       setCommentDraft({
                         x: clamp(ctxMenu.x - 130, 8, window.innerWidth - 280),
@@ -2400,37 +2432,9 @@ export default function TimelinePanel({
                           frame: clamped,
                         },
                         at: clamped,
-                      });
-                    },
-                  });
-                }
-                if (seq.placeholder && onGeneratePlaceholder) {
-                  primary.push({
-                    id: 'generate',
-                    label: `Generate ✨ (${seq.placeholder.kind || 'veo'})`,
-                    onSelect: () => onGeneratePlaceholder(refFor(seq, i)),
-                  });
-                }
-                if (onClipVerb && seq.mediaSrc) {
-                  if (seq.series) {
-                    primary.push({
-                      id: 'to-overlay',
-                      label: 'Move to overlay layer',
-                      onSelect: () => onClipVerb(refFor(seq, i), 'to-overlay', {}),
-                    });
-                  } else {
-                    primary.push({
-                      id: 'to-storyline',
-                      label: 'Move to storyline',
-                      onSelect: () => onClipVerb(refFor(seq, i), 'to-storyline', {}),
-                    });
-                  }
-                }
-                if (onClipVerb) {
-                  primary.push({
-                    id: 'adjust',
-                    label: 'Adjust… (Speed · Audio · Crop · Grade)',
-                    onSelect: () => {
+                      }),
+                    generate: () => onGeneratePlaceholder(ref),
+                    adjust: () => {
                       onSelect?.(seq.stableId ?? null);
                       setInspector({
                         mode: 'clip',
@@ -2439,106 +2443,37 @@ export default function TimelinePanel({
                         y: Math.max(60, ctxMenu.y - 320),
                       });
                     },
-                  });
-                  if (seq.mediaProps) {
-                    primary.push({
-                      id: 'mute',
-                      label: seq.mediaProps.muted ? 'Unmute clip' : 'Mute clip',
-                      onSelect: () =>
-                        onClipVerb(refFor(seq, i), 'audio', { muted: !seq.mediaProps.muted }),
-                    });
-                    if (rowKind(seq) === 'video' && seq.mediaSrc) {
-                      primary.push({
-                        id: 'detach-audio',
-                        label: 'Detach audio',
-                        onSelect: () => onClipVerb(refFor(seq, i), 'detach-audio', {}),
-                      });
-                    }
-                  }
-                }
-                if (
-                  onReplace &&
-                  seq.replaceable &&
-                  !(Array.isArray(seq.layers) && seq.layers.length >= 2)
-                ) {
-                  primary.push({
-                    id: 'replace',
-                    label: `Replace ${rowKind(seq)}…`,
-                    onSelect: () => onReplace(refFor(seq, i)),
-                  });
-                }
-                {
-                  // Vertical z-order (overlay clips only) — mirrors the V-chip drag.
-                  const zLadder = overlay.filter((o) => !o.seq.loose);
-                  const docIdx = zLadder.findIndex((o) => o.i === i);
-                  if (onClipVerb && docIdx >= 0) {
-                    primary.push({
-                      id: 'layer-up',
-                      label: 'Move layer up',
-                      disabled: docIdx >= zLadder.length - 1,
-                      onSelect: () =>
-                        onClipVerb(refFor(seq, i), 'layer-order', { toIndex: docIdx + 1 }),
-                    });
-                    primary.push({
-                      id: 'layer-down',
-                      label: 'Move layer down',
-                      disabled: docIdx <= 0,
-                      onSelect: () =>
-                        onClipVerb(refFor(seq, i), 'layer-order', { toIndex: docIdx - 1 }),
-                    });
-                  }
-                }
-                if (onReorder) {
-                  primary.push({
-                    id: 'earlier',
-                    label: seq.series ? 'Move earlier' : 'Bring forward',
-                    disabled: seq.series ? i <= 0 : i >= sequences.length - 1,
-                    onSelect: () => onReorder(refFor(seq, i), seq.series ? 'backward' : 'forward'),
-                  });
-                  primary.push({
-                    id: 'later',
-                    label: seq.series ? 'Move later' : 'Send backward',
-                    disabled: seq.series ? i >= sequences.length - 1 : i <= 0,
-                    onSelect: () => onReorder(refFor(seq, i), seq.series ? 'forward' : 'backward'),
-                  });
-                }
-                sections = [primary];
-                const tail = [];
-                if (onToggleHide) {
-                  tail.push({
-                    id: 'hide',
-                    label: seq.hidden ? 'Show clip' : 'Hide clip',
-                    onSelect: () => onToggleHide(refFor(seq, i)),
-                  });
-                }
-                if (onRemove) {
-                  tail.push({
-                    id: 'remove',
-                    label: 'Remove clip',
-                    destructive: true,
-                    onSelect: () => onRemove(refFor(seq, i)),
-                  });
-                }
-                if (tail.length) sections.push(tail);
-              }
-              return (
-                <ContextMenuView
-                  target={{
-                    kind: 'element',
-                    el: null,
-                    cdId: null,
-                    artboardId: null,
-                    clientX: ctxMenu.x,
-                    clientY: ctxMenu.y,
+                    hide: () => onToggleHide(ref),
+                    show: () => onToggleHide(ref),
+                    remove: () => onRemove(ref),
+                    replace: () => onReplace(ref),
+                    mute: () => onClipVerb(ref, 'audio', { muted: true }),
+                    unmute: () => onClipVerb(ref, 'audio', { muted: false }),
+                    'detach-audio': () => onClipVerb(ref, 'detach-audio', {}),
+                    'to-overlay': () => onClipVerb(ref, 'to-overlay', {}),
+                    'to-storyline': () => onClipVerb(ref, 'to-storyline', {}),
+                    'layer-up': () => onClipVerb(ref, 'layer-order', { toIndex: docIdx + 1 }),
+                    'layer-down': () => onClipVerb(ref, 'layer-order', { toIndex: docIdx - 1 }),
+                    // a series beat swaps places with its neighbour through the ONE move op; a layer re-stacks
+                    earlier: () =>
+                      seq.series
+                        ? prevBeat && onReorderMove?.(ref, refFor(prevBeat.s, prevBeat.i), 'before')
+                        : onReorder(ref, 'forward'),
+                    later: () =>
+                      seq.series
+                        ? nextBeat && onReorderMove?.(ref, refFor(nextBeat.s, nextBeat.i), 'after')
+                        : onReorder(ref, 'backward'),
+                    'replace-layer': () => onReplaceLayer(ref, ctxMenu.layerIndex),
                   }}
-                  sections={sections}
-                  onClose={() => setCtxMenu(null)}
                 />
               );
             })(),
             document.body
           )
         : null}
+      {island?.fileDrag && island.dropRect && onDropMedia ? (
+        <ArtboardDropCatcher rect={island.dropRect} onFiles={(files) => onDropMedia(files, null)} />
+      ) : null}
     </aside>
   );
 }

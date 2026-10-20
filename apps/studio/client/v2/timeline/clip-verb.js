@@ -30,7 +30,49 @@ export const CLIP_VERB_LABELS = {
   'layer-order': 'reorder layers',
   'resolve-placeholder': 'fill placeholder',
   remove: 'remove clip',
+  // S7.9 — the gestures: trim an edge / move a layer, drag a beat, drop footage (edit-ops/clip/gestures.ts)
+  retime: 'trim clip',
+  move: 'move clip',
+  insert: 'add clip',
 };
+
+const REFUSAL_WORD = { retime: 'Trim', move: 'Move', insert: 'Drop', remove: 'Remove' };
+
+/** The title of the notice a refused verb raises: "Trim refused", never "retime refused". */
+export function clipVerbRefusal(verb) {
+  const label = clipVerbLabel(verb);
+  return `${REFUSAL_WORD[verb] || label.charAt(0).toUpperCase() + label.slice(1)} refused`;
+}
+
+/** Verbs that name no existing clip (a drop adds one). */
+const CLIPLESS_VERBS = new Set(['insert']);
+
+const mmss = (frame, fps) => {
+  const s = Math.max(0, Math.floor(Math.max(0, frame) / Math.max(1, Math.round(fps || 30)) + 1e-9));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/**
+ * The toast a landed verb gets. S names what it split and carries the one Undo (07 · ve-trim-split);
+ * the rest say what happened and need none (⌘Z is the undo).
+ * @returns {{ text: string, undo: boolean }}
+ */
+export function clipVerbToast(verb, { name, atFrame, fps, params } = {}) {
+  if (verb === 'split' && name != null && Number.isFinite(atFrame))
+    return { text: `Split ${name} at ${mmss(atFrame, fps)}.`, undo: true };
+  if (verb === 'remove') return { text: 'Clip removed.', undo: false };
+  if (verb === 'retime')
+    return { text: params?.from != null ? 'Clip moved.' : 'Clip trimmed.', undo: false };
+  if (verb === 'move') return { text: 'Clip moved.', undo: false };
+  if (verb === 'insert') {
+    const n = Array.isArray(params?.items) ? params.items.length : 1;
+    return {
+      text: n > 1 ? `${n} clips added to the timeline.` : 'Clip added to the timeline.',
+      undo: false,
+    };
+  }
+  return { text: `Applied: ${clipVerbLabel(verb)}.`, undo: false };
+}
 
 export const clipVerbLabel = (verb) => CLIP_VERB_LABELS[verb] || verb;
 
@@ -41,8 +83,8 @@ export const clipVerbLabel = (verb) => CLIP_VERB_LABELS[verb] || verb;
 export function clipVerbRequest({ canvas, artboardId, clip, verb, params }) {
   const p = { ...(params && typeof params === 'object' ? params : {}) };
   if (artboardId) p.artboard = artboardId;
-  p.stableId = clip.stableId;
-  if (typeof clip.contentHash === 'string' && clip.contentHash) p.contentHash = clip.contentHash;
+  if (clip?.stableId) p.stableId = clip.stableId;
+  if (typeof clip?.contentHash === 'string' && clip.contentHash) p.contentHash = clip.contentHash;
   return { file: canvas, op: `clip.${verb}`, targets: [], params: p };
 }
 
@@ -90,12 +132,29 @@ export async function runClipVerb({
   const cc = await get(compClipsUrl(canvas, artboardId))
     .then((r) => r.json())
     .catch(() => ({}));
-  const clip = resolveClip(cc, clipRef);
-  if (!clip?.stableId) return null;
+  let clip = null;
+  if (!CLIPLESS_VERBS.has(verb)) {
+    clip = resolveClip(cc, clipRef);
+    if (!clip?.stableId) return null;
+  }
+  // `refRef` names the clip a move drops beside; the writer takes its stableId + fingerprint, read fresh above.
+  let sent = params;
+  if (params && typeof params === 'object' && 'refRef' in params) {
+    const { refRef, ...rest } = params;
+    const ref = resolveClip(cc, refRef);
+    if (!ref?.stableId) return null;
+    sent = {
+      ...rest,
+      refStableId: ref.stableId,
+      ...(typeof ref.contentHash === 'string' && ref.contentHash
+        ? { refContentHash: ref.contentHash }
+        : {}),
+    };
+  }
   const res = await get('/_api/edit-op', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(clipVerbRequest({ canvas, artboardId, clip, verb, params })),
+    body: JSON.stringify(clipVerbRequest({ canvas, artboardId, clip, verb, params: sent })),
   });
   const j = await res.json().catch(() => ({ ok: false, message: 'That edit did not go through.' }));
   if (j?.ok === true) {
