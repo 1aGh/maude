@@ -166,7 +166,7 @@ describe('the pinned system rows', () => {
     expect(opened).toEqual(['combine-2026']);
   });
 
-  test('the menu: Open · Use for new canvases (now …); the default row says "Default for new canvases"', async () => {
+  test('the menu: Open · Use for new canvases (now …) · Switch… · Preview in…; the default row says "Default for new canvases"', async () => {
     installFetch({ '/_api/ds/state': STATE, '/_api/sync/trash': { entries: [], total: 0 } });
     const ran: Array<[string, Record<string, unknown>]> = [];
     const host = await sidebar({
@@ -178,6 +178,9 @@ describe('the pinned system rows', () => {
     expect(items.map((i) => i.querySelector('.st-dd-lead')?.textContent)).toEqual([
       'Open Combine 2026',
       'Use for new canvases',
+      // S10.14 registered ds.switch / ds.preview: the rows S10.13 left to the registry appear on their own
+      'Switch canvases to another system…',
+      'Preview in…',
     ]);
     expect(items[1].querySelector('.lp-dd-note')?.textContent).toBe('now Alligators brand system');
     await click(items[1]);
@@ -190,14 +193,14 @@ describe('the pinned system rows', () => {
     expect(dflt?.hasAttribute('disabled')).toBe(true);
   });
 
-  test('Can view sees the rows and Open — and no way to change the default', async () => {
+  test('Can view sees the rows, Open and Preview in… — and no way to change the default or to switch', async () => {
     installFetch({ '/_api/ds/state': STATE, '/_api/sync/trash': { entries: [], total: 0 } });
     const host = await sidebar({ readOnly: true, onDsAction: () => {} });
     await click(qa(host, 'canvases-ds-row-menu')[1]);
     const labels = Array.from(document.querySelectorAll('[role="menuitem"]')).map(
       (i) => i.querySelector('.st-dd-lead')?.textContent
     );
-    expect(labels).toEqual(['Open Combine 2026']);
+    expect(labels).toEqual(['Open Combine 2026', 'Preview in…']);
   });
 
   test('a project without a system shows "Make a design system", and the door runs ds.make', async () => {

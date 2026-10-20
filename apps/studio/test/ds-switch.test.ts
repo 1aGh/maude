@@ -7,73 +7,12 @@ import { afterAll, describe, expect, test } from 'bun:test';
 
 import { resolveAccess } from '../access/scope.ts';
 import { DsUsageError, planDsVerb } from '../ds/ds-verb.ts';
-import type { DsKernelPort } from '../ds/engine.ts';
 import { createDsSwitch, DsSwitchError, pairIndex } from '../ds/switch.ts';
 import { createDsRoutes } from '../routes/ds.ts';
-import { cleanup, makeProject, PERSON, type Project } from './_ds-engine-fixture.ts';
-import { conformantFiles, fixtureConfig } from './_ds-fixture.ts';
+import { cleanup, PERSON, type Project } from './_ds-engine-fixture.ts';
+import { canvas, pairsCanvas, switchProject } from './_ds-switch-fixture.ts';
 
 afterAll(cleanup);
-
-const sys = (name: string, extra: string) => {
-  const cfg = fixtureConfig({
-    name,
-    path: `system/${name}`,
-    tokensCssRel: `system/${name}/colors_and_type.css`,
-    rootClass: name,
-  });
-  const files = conformantFiles(cfg);
-  files[cfg.tokensCssRel] += `\n:root {\n${extra}}\n`;
-  return { cfg, files };
-};
-const ramp = (prefix: string, n: number) =>
-  Array.from({ length: n }, (_, i) => `  --${prefix}-${i + 1}: ${i + 1}px;\n`).join('');
-
-const canvas = (body = '') =>
-  `export default () => <section className="ds"><button className="btn">Go</button>${body}</section>;\n`;
-const pairsCanvas = canvas(
-  '<h1 style={{ fontSize: "var(--display-4)", color: "var(--palette-5)" }}>Hi</h1>'
-);
-
-/** acme (level 11) + alpha (4 display, 5 palette) + beta (3 display, 2 palette), and canvases on alpha */
-async function setup(o: { kernel?: DsKernelPort | null } = {}): Promise<Project> {
-  const p = await makeProject(o.kernel === undefined ? {} : { kernel: o.kernel });
-  const alpha = sys('alpha', ramp('display', 4) + ramp('palette', 5));
-  const beta = sys('beta', ramp('display', 3) + ramp('palette', 2));
-  for (const s of [alpha, beta])
-    for (const [rel, text] of Object.entries(s.files)) p.write(rel, text);
-  const cfg = JSON.parse(p.read('config.json') as string);
-  for (const s of [alpha, beta])
-    cfg.designSystems.push({
-      name: s.cfg.name,
-      path: s.cfg.path,
-      themes: ['light', 'dark'],
-      themeDefault: 'light',
-      rootClass: s.cfg.name,
-    });
-  p.write('config.json', `${JSON.stringify(cfg, null, 2)}\n`);
-  const seen: string[] = [];
-  const follow = (rel: string, tsx: string, meta: Record<string, unknown> = {}) => {
-    const metaRel = rel.replace(/\.tsx$/, '.meta.json');
-    p.write(rel, tsx);
-    p.write(
-      metaRel,
-      `${JSON.stringify({ title: rel, designSystem: 'alpha', ...meta }, null, 2)}\n`
-    );
-    seen.push(rel, metaRel);
-  };
-  follow('ui/Home.tsx', canvas());
-  follow('ui/Pairs.tsx', pairsCanvas, { dsRev: 'f'.repeat(64) });
-  follow('ui/Pinned.tsx', canvas(), { dsPinned: true });
-  follow('ui/Blocked.tsx', canvas('<i style={{ color: "var(--nope-undefined)" }} />'));
-  follow('ui/Pin.tsx', canvas('<b data-ds-rev="head">x</b>'));
-  follow('ui/combine/One.tsx', canvas());
-  follow('ui/combine/Two.tsx', canvas());
-  // the project's home learns the new files (the way its watcher would)
-  for (const rel of seen) p.home.observe(rel);
-  await p.home.flush();
-  return p;
-}
 
 describe('pairing by kind counts (V2-1.13 §5.3.5)', () => {
   test('display pairs by rank, palette by index-mod, accent / chart by nearest index, none when the target has none', () => {
@@ -91,7 +30,7 @@ describe('pairing by kind counts (V2-1.13 §5.3.5)', () => {
   });
 
   test('the review writes a pair only for names the target lacks', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const r = createDsSwitch(p.engine).review({
       to: 'beta',
       scope: { kind: 'canvas', path: 'ui/Pairs.tsx' },
@@ -115,7 +54,7 @@ describe('pairing by kind counts (V2-1.13 §5.3.5)', () => {
 
 describe('the review', () => {
   test('blocked and pinned are unticked with a reason; a canvas already there is not listed', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const r = createDsSwitch(p.engine).review({
       to: 'beta',
       scope: { kind: 'folder', path: 'ui' },
@@ -150,7 +89,7 @@ describe('the review', () => {
   });
 
   test('a system at level 11 is refused, as target and as the only source', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const sw = createDsSwitch(p.engine);
     // acme is private-only (level 11)
     const toAcme = sw.review({ to: 'acme', scope: { kind: 'canvas', path: 'ui/Home.tsx' } });
@@ -168,7 +107,7 @@ describe('the review', () => {
   });
 
   test('an unknown system or canvas is a 404', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const sw = createDsSwitch(p.engine);
     expect(() => sw.review({ to: 'nope', scope: { kind: 'all' } })).toThrow(DsSwitchError);
     expect(() => sw.review({ to: 'beta', scope: { kind: 'canvas', path: 'ui/Nope.tsx' } })).toThrow(
@@ -182,7 +121,7 @@ describe('the review', () => {
 
 describe('the switch', () => {
   test('one action: designSystem moves, dsRev + pins go, dsPairing is written, locked rows stay', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const before = (await p.home.runtime.acceptedHistory({ limit: 200 })).length;
     const r = await createDsSwitch(p.engine).apply({
       to: 'beta',
@@ -209,7 +148,7 @@ describe('the switch', () => {
   });
 
   test('a person’s unticked canvas stays; a tick cannot move a locked one', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const r = await createDsSwitch(p.engine).apply({
       to: 'beta',
       scope: { kind: 'folder', path: 'ui/combine' },
@@ -233,13 +172,13 @@ describe('the switch', () => {
   });
 
   test('no project home answers → nothing is written; nothing ticked → nothing to switch', async () => {
-    const p = await setup({ kernel: null });
+    const p = await switchProject({ kernel: null });
     const sw = createDsSwitch(p.engine);
     await expect(
       sw.apply({ to: 'beta', scope: { kind: 'canvas', path: 'ui/Home.tsx' }, by: PERSON })
     ).rejects.toMatchObject({ code: 'ds-kernel-unavailable', status: 503 });
     expect(p.meta('ui/Home.tsx').designSystem).toBe('alpha');
-    const q = await setup();
+    const q = await switchProject();
     await expect(
       createDsSwitch(q.engine).apply({
         to: 'beta',
@@ -293,7 +232,7 @@ describe('the verb and the route', () => {
   };
 
   test('anyone who sees the system may read the review; only Can edit switches', async () => {
-    const p = await setup();
+    const p = await switchProject();
     const review = await call(p, 'view', { to: 'beta', canvas: 'ui/Home.tsx', dryRun: true });
     expect(review.status).toBe(200);
     expect(review.json).toMatchObject({ format: 'maude.ds-switch-review', v: 1, to: 'beta' });
