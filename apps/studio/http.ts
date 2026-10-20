@@ -104,7 +104,7 @@ import { frameAncestors } from './embed-origins.ts';
 import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
-import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
+import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
 import { createRectsRunner } from './exporters/rects-runner.ts';
 import {
   type CloudRenderDoor,
@@ -5804,6 +5804,18 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
+        // S8.5b-1 (§7, T11) — the hub mints a fresh viewer render token on every status read;
+        // a job that has not finished renders with it (owner-scoped, like every read here).
+        const fresh = req.headers.get('x-maude-render-token');
+        const one = new URL(req.url).searchParams.get('id');
+        if (one !== null) {
+          // S8.5b-1 — one job by id (the render door's status read); another member's is missing
+          const job = exportJobs.get(one);
+          if (!job) return new Response('Not found', { status: 404 });
+          if (fresh) exportJobs.refreshRenderToken(one, fresh);
+          return Response.json({ jobs: [job] }, { headers: { 'Cache-Control': 'no-store' } });
+        }
+        if (fresh) for (const j of exportJobs.list()) exportJobs.refreshRenderToken(j.id, fresh);
         return Response.json(
           // S8.5 — this Mac's cloud rows (queued in the outbox, rendering, done) beside its own jobs
           { jobs: [...cloudExports.rows(), ...exportJobs.list()] },
@@ -5833,23 +5845,33 @@ export function createHttp(
           project: { id: null, hub: ctx.cfg.linkedHub?.url ?? null },
         });
         if (cloud) return cloud;
+        // S8.5b-1 — the cloud render door names its job (the desktop's outbox record id). The hub
+        // proxy strips every inbound x-maude-*, so only the door sets it, and only a cell (a render
+        // lane that is not this Mac's) honours it.
+        const doorJob =
+          resolveRenderLane() !== 'local' ? req.headers.get('x-maude-door-job') : null;
         try {
-          const { id, result } = exportJobs.enqueue({
+          const { id, result, already } = exportJobs.enqueue({
             ...buildExportArgs(req, {
               format: v2.first.format as Format,
               scope: v2.first.scope,
               options: v2.first.options,
             }),
             group: v2.group,
+            ...(doorJob !== null ? { clientId: doorJob } : {}),
           });
           result.catch(() => {});
-          return Response.json(
-            { jobId: id },
-            { status: 202, headers: { 'Cache-Control': 'no-store' } }
-          );
+          return Response.json(already ? { jobId: id, already: true } : { jobId: id }, {
+            status: already ? 200 : 202,
+            headers: { 'Cache-Control': 'no-store' },
+          });
         } catch (err) {
           if (err instanceof ExportQueueFullError)
             return new Response(err.message, { status: 429 });
+          if (err instanceof ExportJobIdError)
+            return err.reason === 'taken'
+              ? Response.json({ code: 'id-taken' }, { status: 409 })
+              : Response.json({ code: 'bad-job-id' }, { status: 400 });
           throw err;
         }
       }
