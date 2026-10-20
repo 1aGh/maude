@@ -24,21 +24,21 @@ export function tileLabel(asset) {
   return used ? `${asset.name}. ${used}` : asset.name;
 }
 
-export function AssetTile({ asset, url, picked, canDrag, onPick, onMenu }) {
+export function AssetTile({ asset, url, picked, canDrag, onPick, onMenu, caption = false }) {
   const used = usageWords(asset);
   const isImage = asset.kind === 'image';
   return (
     <button
       type="button"
-      className="lp-tile"
+      className={caption ? 'lp-tile lp-tile--cap' : 'lp-tile'}
       data-testid="assets-tile"
       data-asset={asset.path}
       data-kind={asset.kind}
       aria-pressed={picked}
       aria-label={tileLabel(asset)}
-      onClick={() => onPick(asset.path)}
+      onClick={(e) => onPick(asset.path, e)}
       onContextMenu={(e) => {
-        onPick(asset.path);
+        onPick(asset.path, e, true);
         onMenu(e, asset);
       }}
       {...(isImage && canDrag ? tileDragProps(asset.path) : {})}
@@ -52,10 +52,17 @@ export function AssetTile({ asset, url, picked, canDrag, onPick, onMenu }) {
       ) : (
         <img className="lp-thumb" src={url} alt="" loading="lazy" draggable={false} />
       )}
-      <span className="lp-tile-tip" aria-hidden="true">
-        <strong>{asset.name}</strong>
-        {used ? <span>{used}</span> : null}
-      </span>
+      {caption ? (
+        // the wide Browse view names every picture under it; the hover tip would cover the next row
+        <span className="lp-tile-cap" aria-hidden="true">
+          {asset.name}
+        </span>
+      ) : (
+        <span className="lp-tile-tip" aria-hidden="true">
+          <strong>{asset.name}</strong>
+          {used ? <span>{used}</span> : null}
+        </span>
+      )}
     </button>
   );
 }

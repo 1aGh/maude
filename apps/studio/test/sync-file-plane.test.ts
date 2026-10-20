@@ -29,6 +29,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { trashAssets } from '../asset-trash.ts';
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
 import {
   createFilePlane,
@@ -933,6 +934,84 @@ describe('deletion propagates — Increment 6', () => {
     const res = await p.reconcile();
     expect(hub.deletes).toEqual([]);
     expect(res.deleted).toEqual([]);
+  });
+});
+
+describe('a trashed asset propagates like a trashed canvas — S8.13, both directions', () => {
+  const propagating = (hub: ReturnType<typeof fakeHub>) => plane(hub, { propagateDeletes: true });
+  const PIC = 'assets/a1b2c3d4.png';
+  const SIDE = 'assets/a1b2c3d4.photo.json';
+  const free = () => ({ usedIn: [], usedElsewhere: false, olderVersions: false, notUsed: true });
+  // a project of a realistic size: the deletion breakers are a rate against what this machine tracks
+  const others = Object.fromEntries(
+    Array.from({ length: 14 }, (_, i) => [`system/ds/other${i}.css`, `:root{--n:${i}}`])
+  );
+  const seeded = () => fakeHub({ [PIC]: 'PNG', [SIDE]: '{"v":1}', ...others });
+
+  test('out: Move to the trash on this Mac tells the hub about the picture AND its sidecar', async () => {
+    const hub = seeded();
+    const p = propagating(hub);
+    await p.reconcile();
+    expect(existsSync(join(root, PIC))).toBe(true);
+
+    const { results } = trashAssets({ designRoot: root, rels: [PIC], rowOf: free });
+    expect(results[0]?.ok).toBe(true);
+    expect(existsSync(join(root, PIC))).toBe(false);
+    expect(existsSync(join(root, SIDE))).toBe(false);
+
+    const res = await p.reconcile();
+    expect(res.deleted.map((d) => d.rel).sort()).toEqual([PIC, SIDE].sort());
+    expect(hub.deletes.slice().sort()).toEqual([PIC, SIDE].sort());
+  });
+
+  test('in: a peer that never touched them parks both in ITS _trash/, never unlinks', async () => {
+    const hub = seeded();
+    const p = propagating(hub);
+    await p.reconcile();
+
+    hub.tombstone(PIC);
+    hub.tombstone(SIDE);
+    const res = await p.reconcile();
+
+    expect(existsSync(join(root, PIC))).toBe(false);
+    expect(existsSync(join(root, SIDE))).toBe(false);
+    const parked = res.deleted.map((d) => d.parked);
+    expect(parked).toHaveLength(2);
+    for (const rel of parked) expect(rel?.startsWith('_trash/')).toBe(true);
+    expect(read(res.deleted.find((d) => d.rel === PIC)?.parked as string)).toBe('PNG');
+  });
+
+  test('a bulk move past the breaker is HELD, not lost: nothing is told to the project until the owner confirms', async () => {
+    const files = Object.fromEntries(
+      Array.from({ length: 12 }, (_, i) => [
+        `assets/bulk${String(i).padStart(2, '0')}.png`,
+        `PNG${i}`,
+      ])
+    );
+    const hub = fakeHub({ ...files, ...others });
+    const p = propagating(hub);
+    await p.reconcile();
+    const { results } = trashAssets({ designRoot: root, rels: Object.keys(files), rowOf: free });
+    expect(results.every((r) => r.ok)).toBe(true);
+    const res = await p.reconcile();
+    expect(res.deleteHeld?.direction).toBe('out');
+    expect(res.deleteHeld?.count).toBe(12);
+    expect(hub.deletes).toEqual([]); // the picture files sit in _trash/ here; the project still has them
+    expect(Object.keys(files).every((rel) => hub.rows.has(rel))).toBe(true);
+  });
+
+  test('in: a peer that edited the sidecar meanwhile keeps it and pushes it back', async () => {
+    const hub = seeded();
+    const p = propagating(hub);
+    await p.reconcile();
+
+    write(SIDE, '{"v":1,"mine":true}');
+    hub.tombstone(PIC);
+    hub.tombstone(SIDE);
+    await p.reconcile();
+
+    expect(read(SIDE)).toBe('{"v":1,"mine":true}');
+    expect(existsSync(join(root, PIC))).toBe(false);
   });
 });
 

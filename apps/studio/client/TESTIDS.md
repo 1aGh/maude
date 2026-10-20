@@ -177,6 +177,29 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-menu-details` | testid | The tile menu's Show details row (`assets.details`, ⌘I). | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | stable — re-emit |
 | `assets-details` | testid | The plain details card for the picked tile (name, kind, size, where it is used). S8.21 replaces it with the per-kind sheet. | `client/v2/assets/details-card.jsx` · `AssetDetailsCard` | — | stable — re-emit |
 | `assets-details-close` | testid | Close on the details card. | `client/v2/assets/details-card.jsx` · `AssetDetailsCard` | — | stable — re-emit |
+| `assets-group-<kind>` | testid (pattern) | The group heading in the Assets tab, a button: `<kind>` is image | video | audio. "Photos 120 ›" widens into the Browse view (S8.13). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-chip-notused` | testid | The "Not used" chip under the Assets search (`aria-pressed`): lists only pictures no canvas uses today. Drawn only when the index has usage (S8.13). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-notcounted` | testid | The line over the Not used list: what was left out (kept only by older versions, today's AI takes) or "Checking older versions…" (S8.13). | `client/v2/assets/tidy.jsx` · `NotCountedNote` | — | new |
+| `assets-tidy-foot` | testid | The foot of the Not used view: "31 assets · 212 MB" and the button (S8.13). A viewer sees the numbers only. | `client/v2/assets/tidy.jsx` · `TidyFoot` | — | new |
+| `assets-tidy-trash` | testid | "Move N to the trash…" on the Not used foot: opens the confirm sheet. Disabled while older versions are being checked (S8.13). | `client/v2/assets/tidy.jsx` · `TidyFoot` | — | new |
+| `assets-tidy-empty` | testid | The Not used view when nothing is listed ("Nothing to tidy." or "Checking older versions…") (S8.13). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-trash-dialog` | testid | The confirm sheet "Move N assets to the trash?" (S8.13), `role=dialog`. | `client/v2/assets/tidy.jsx` · `ConfirmTrash` | — | new |
+| `assets-trash-cancel` | testid | Cancel on the Move to the trash sheet (focused first). | `client/v2/assets/tidy.jsx` · `ConfirmTrash` | — | new |
+| `assets-trash-confirm` | testid | "Move to trash" on the confirm sheet: sends `POST /_api/assets/trash`. | `client/v2/assets/tidy.jsx` · `ConfirmTrash` | — | new |
+| `assets-trashed` | testid | The status line after a move: "“IMG_2231.jpg” moved to the trash." with Undo (S8.13). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-trashed-undo` | testid | Undo on that line: restores every moved bundle (picture and sidecars) through the Trash's per-file restore. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | new |
+| `assets-menu-trash` | testid | The tile menu's Move to trash row (`assets.trash`): an editor's; with several picked in Browse it reads "Move N to the trash". | `client/v2/assets/tile-menu.jsx` · `AssetTileMenu` | — | new |
+| `assets-browse` | testid | The wide Browse view (S8.13): `data-kind` is image | video | audio. Sits over the canvas beside the panel; esc clears the pick, then goes back. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-back` | testid | "‹ Assets" in the Browse view: back to the narrow tab. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-search` | testid | The Browse view's search field (names). | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-sort` | testid | The Browse view's sort (Newest first, Oldest first, By name, Biggest first); a native select. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-size-large` | testid | Large in the Browse view's size switch (`aria-pressed`). | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-size-small` | testid | Small in the Browse view's size switch (`aria-pressed`). | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-nohits` | testid | The Browse view when nothing matches the search. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-bar` | testid | The Browse view's foot while pictures are picked: count and size, Clear, Place. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-count` | testid | "6 selected · 18.4 MB" on the Browse foot. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-clear` | testid | Clear on the Browse foot: drops the pick. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
+| `assets-browse-place` | testid | "Place 6 in <artboard> ↵" on the Browse foot: `image.place` fill-in-order, the picked pictures in reading order. Disabled until an artboard is selected. | `client/v2/assets/browse-view.jsx` · `BrowseView` | — | new |
 | `canvases-count` | testid | The "N of M shown" readout with the live dot in the foot of Canvases > Advanced (the status bar's files count and live dot, moved). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | new |
 | `canvas-row-unsaved` | testid | The unsaved-change badge (M / A / D / U) on a canvas or file row in Canvases (`data-kind` carries the letter). | `client/tree/tree.jsx` · `FileRow` | — | new |
 
