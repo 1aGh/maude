@@ -216,3 +216,48 @@ export function boardThemeCss(model: BoardModel): string {
   }
   return blocks.join('\n');
 }
+
+/**
+ * Tokens the studio says changed outside the app (S10.11, 13 · ds-truth-outside) or sit in two places
+ * (13 · ds-truth-conflict). They arrive from the shell as `maude:ds-marks`; the board only flags them.
+ */
+export interface BoardMarks {
+  outside: string[];
+  conflicts: string[];
+}
+
+export const NO_MARKS: BoardMarks = Object.freeze({ outside: [], conflicts: [] }) as BoardMarks;
+
+/** A message from the shell → clean marks: registry-shaped names only, capped; anything else is dropped. */
+export function cleanMarks(raw: unknown): BoardMarks {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const names = (v: unknown): string[] =>
+    Array.isArray(v)
+      ? [...new Set(v.filter((x): x is string => typeof x === 'string' && safeCssName(x)))].slice(
+          0,
+          200
+        )
+      : [];
+  return { outside: names(r.outside), conflicts: names(r.conflicts) };
+}
+
+/**
+ * The flags, as CSS scoped to the system's board: a ring and a small word on each marked token
+ * ("Changed outside", "2 versions"). Only names that pass `safeCssName` reach a selector.
+ */
+export function marksCss(model: BoardModel, marks: BoardMarks): string {
+  const scope = `.ds-board[data-ds-board="${ident(model.system)}"]`;
+  const rule = (css: string, word: string, warn: boolean): string => {
+    const sel = `${scope} [data-ds-token="${css}"]`;
+    const bg = warn ? 'var(--status-warn,#b7791f)' : 'var(--accent,Highlight)';
+    return [
+      `${sel}{position:relative;outline:1.5px solid ${bg};outline-offset:3px;border-radius:var(--radius-sm,6px)}`,
+      `${sel}::after{content:"${word}";position:absolute;${warn ? 'right:0' : 'left:0'};top:-19px;padding:0 6px;border-radius:999px;background:${bg};color:var(--accent-fg,#fff);font-size:10px;line-height:15px;font-weight:600;white-space:nowrap;pointer-events:none}`,
+    ].join('\n');
+  };
+  const conflict = new Set(marks.conflicts);
+  return [
+    ...marks.outside.filter((c) => !conflict.has(c)).map((c) => rule(c, 'Changed outside', false)),
+    ...marks.conflicts.map((c) => rule(c, '2 versions', true)),
+  ].join('\n');
+}
