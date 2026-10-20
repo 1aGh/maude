@@ -3,7 +3,10 @@
 //   systemHeads  system → id | null   the published head (null while a system is being made)
 //   dsRevGaps    id → peer | null     a revision this index REFERENCES (a head, or a canvas's `dsRev`) that
 //                                     this disk cannot render yet: `<id>.json` missing or invalid, or a
-//                                     sibling missing. The value is the person who made it when head.json's
+//                                     sibling missing (S10.4b: a 0-byte sibling is PRESENT when the
+//                                     revision's own text for it is empty — a made system's
+//                                     `_components.css` — and missing only when it stands in for
+//                                     content; emptiness never beats content). The value is the person who made it when head.json's
 //                                     log names one ("Waiting for Jonas's Mac"), else null.
 // `client/canvas-url.js` turns them into URLs (dsRev → head → working files). Read-only, synchronous, and
 // cheap enough for a request that already walks the tree: per revision three `stat`s, plus a read and a
@@ -13,12 +16,14 @@ import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { readHead } from './head.ts';
-import { verifyRevision } from './revision.ts';
+import { COMPONENTS_CSS_KEY, DEFAULT_TOKENS_KEY, verifyRevision } from './revision.ts';
 
 export interface DsRenderSystem {
   name: string;
   /** designRoot-relative folder */
   path: string;
+  /** designRoot-relative tokens stylesheet (names the revision's tokens entry); default `<path>/colors_and_type.css` */
+  tokensCssRel?: string;
 }
 
 export interface DsRenderIndex {
@@ -37,13 +42,26 @@ interface Stamp {
 const verdicts = new Map<string, Stamp>();
 const VERDICTS_MAX = 512;
 
-function statSig(file: string): string | null {
+interface FileStat {
+  sig: string;
+  empty: boolean;
+}
+
+/** Present = a regular file, whatever its size (an empty file is there; only an absent one is missing). */
+function statOf(file: string): FileStat | null {
   try {
     const st = statSync(file);
-    return st.isFile() && st.size > 0 ? `${st.size}:${st.mtimeMs}` : null;
+    return st.isFile() ? { sig: `${st.size}:${st.mtimeMs}`, empty: st.size === 0 } : null;
   } catch {
     return null;
   }
+}
+
+/** The revision's tokens entry key for a system (`tokensCssRel` relative to its folder). */
+function tokensKeyOf(s: DsRenderSystem): string {
+  if (typeof s.tokensCssRel !== 'string' || !s.tokensCssRel.startsWith(`${s.path}/`))
+    return DEFAULT_TOKENS_KEY;
+  return path.posix.relative(s.path, s.tokensCssRel) || DEFAULT_TOKENS_KEY;
 }
 
 /**
@@ -51,23 +69,34 @@ function statSig(file: string): string | null {
  * its canonical body, every file's sha256 names its text) and both sibling stylesheets must be there. A
  * missing sibling is healed by the revision plane (V2-1.6 §5.6), not here: this only reports.
  */
-export function revisionRenderable(dsAbs: string, id: string): boolean {
+export function revisionRenderable(
+  dsAbs: string,
+  id: string,
+  tokensKey: string = DEFAULT_TOKENS_KEY
+): boolean {
   if (!ID_RE.test(id)) return false;
   const dir = path.join(dsAbs, 'revisions');
   const json = path.join(dir, `${id}.json`);
-  const sigs = [
+  const [rev, tokens, comps] = [
     json,
     path.join(dir, `${id}.tokens.css`),
     path.join(dir, `${id}.components.css`),
-  ].map(statSig);
-  if (sigs.some((s) => s === null)) return false;
-  const sig = sigs.join('|');
-  const key = `${dsAbs}\0${id}`;
+  ].map(statOf);
+  if (!rev || !tokens || !comps) return false;
+  const sig = `${rev.sig}|${tokens.sig}|${comps.sig}`;
+  const key = `${dsAbs}\0${id}\0${tokensKey}`;
   const seen = verdicts.get(key);
   if (seen && seen.sig === sig) return seen.ok;
   let ok = false;
   try {
-    ok = verifyRevision(id, readFileSync(json, 'utf8')).ok;
+    const v = verifyRevision(id, readFileSync(json, 'utf8'));
+    // a 0-byte sibling is the revision's own empty text, or it is not there yet
+    const emptyText = (k: string) =>
+      v.ok && Object.hasOwn(v.body.files, k) && v.body.files[k].text === '';
+    ok =
+      v.ok &&
+      (!tokens.empty || emptyText(tokensKey)) &&
+      (!comps.empty || emptyText(COMPONENTS_CSS_KEY));
   } catch {
     ok = false;
   }
@@ -101,7 +130,7 @@ export function dsRenderIndex(
     const ids = new Set<string>(wanted.get(s.name) ?? []);
     if (h.doc.head) ids.add(h.doc.head);
     for (const id of ids) {
-      if (revisionRenderable(dsAbs, id)) continue;
+      if (revisionRenderable(dsAbs, id, tokensKeyOf(s))) continue;
       const entry = h.doc.log.find((l) => l.rev === id);
       const by = entry?.by;
       const peer =

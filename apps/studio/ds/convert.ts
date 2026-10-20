@@ -10,8 +10,9 @@
 //      `components.json` as it is, and `tokens.json` re-emitted as the canvas's own (`source:
 //      "canvas"`, every label / value name kept — the S10.16a rule: a converted system's manifest is
 //      fresh only when it says canvas). A system with no `_components.css` gets a one-line comment
-//      one, so R0 has both siblings and is renderable on every Mac (render-rev.ts reads a 0-byte
-//      sibling as missing — DDR-223, emptiness never beats content);
+//      one, so R0 has both siblings and is renderable on every Mac (render-rev.ts before S10.4b read
+//      any 0-byte sibling as missing; it now accepts one the revision itself has empty, but a peer
+//      on an older build still waits on it — DDR-223, emptiness never beats content);
 //   3. `revisions/head.json` `{head: R0, base: R0}` with one `convert` log entry — LAST, per system,
 //      through ds/head.ts. A system is converted once its head exists.
 //
