@@ -19,6 +19,7 @@ export function KindChips({
   onPick,
   label = 'Filter by kind',
   testid = 'kind-chips',
+  chipPrefix = 'kind-chip', // Layers passes its own, so two panels never share a testid
 }) {
   return (
     // biome-ignore lint/a11y/useSemanticElements: a toolbar-style row of toggle buttons, not a form group
@@ -33,7 +34,7 @@ export function KindChips({
             key={k}
             type="button"
             className="kf-chip"
-            data-testid={`kind-chip-${k}`}
+            data-testid={`${chipPrefix}-${k}`}
             data-on={active ? 'true' : undefined}
             data-zero={n === 0 ? 'true' : undefined}
             aria-pressed={active}
