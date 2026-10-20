@@ -159,18 +159,21 @@ export function linesOf(c: Omit<SystemCheck, 'lines' | 'format' | 'v' | 'ds' | '
       });
   }
   const { done, of, waiting } = c.complete.sections;
-  const missing: string[] = [];
-  if (done < of) missing.push(`${done} of ${of} sections`);
-  if (!c.complete.bothModes) missing.push('one mode only');
-  if (!c.complete.reducedMotion) missing.push('no reduced motion');
   const complete = done === of && c.complete.bothModes && c.complete.reducedMotion;
+  const gaps: string[] = [];
+  if (done < of) {
+    const shown = waiting.slice(0, 3);
+    const more = waiting.length - shown.length;
+    const names = more > 0 ? `${shown.join(', ')} and ${more} more` : joinWords(shown);
+    gaps.push(`${done} of ${of} sections${names ? ` — ${names} waiting` : ''}`);
+  }
+  if (!c.complete.bothModes) gaps.push('one mode only');
+  if (!c.complete.reducedMotion) gaps.push('no reduced motion');
   out.push({
     id: 'complete',
     ok: complete,
     title: 'Complete',
-    text: complete
-      ? `${of} sections, both modes, reduced motion`
-      : `${joinWords(missing)}${waiting.length ? ` — ${joinWords(waiting)} waiting` : ''}`,
+    text: complete ? `${of} sections, both modes, reduced motion` : gaps.join(' · '),
   });
   const s = schemaWords(c.schema.level);
   out.push({ id: 'schema', ok: s.ok, title: 'Schema', text: s.text });

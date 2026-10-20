@@ -15,6 +15,7 @@ const emit = () => {
 };
 
 export const getAdvanced = () => snapshot.value;
+export const getAdvancedActions = () => snapshot.actions;
 
 /** Replace the value, or update it from the old one (`setAdvanced((v) => …)`). */
 export function setAdvanced(next) {

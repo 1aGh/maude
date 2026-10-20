@@ -45,8 +45,10 @@ export function CheckCard({ check, now, onShow, onAskAi }) {
           <span className={`dsa-chk-ic dsa-chk-ic--${r.ok ? 'ok' : 'warn'}`} aria-hidden="true">
             <StIcon name={r.ok ? 'check' : 'problem'} size={14} />
           </span>
-          <b>{r.title}</b>
-          <span className="dsa-chk-t">{r.text}</span>
+          <span className="dsa-chk-body">
+            <b>{r.title}</b>
+            <span className="dsa-chk-t">{r.text}</span>
+          </span>
           {r.show && onShow ? (
             <button
               type="button"

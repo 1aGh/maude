@@ -134,6 +134,42 @@ describe('check-system — the contrast matrix', () => {
   });
 });
 
+describe('check-system — what the Complete line says', () => {
+  const base = {
+    schema: { level: 0 as const, reasons: [] },
+    contrast: { themes: ['light', 'dark'], total: 0, pass: 0, unjudged: 0, fails: [] },
+  };
+  const line = (complete: Parameters<typeof linesOf>[0]['complete']) =>
+    linesOf({ ...base, complete }).find((l) => l.id === 'complete');
+
+  test('it names what is waiting, then what is missing besides', () => {
+    expect(
+      line({
+        sections: { done: 4, of: 7, waiting: ['Motion', 'Components', 'Patterns'] },
+        bothModes: false,
+        reducedMotion: false,
+      })
+    ).toMatchObject({
+      ok: false,
+      text: '4 of 7 sections — Motion, Components and Patterns waiting · one mode only · no reduced motion',
+    });
+    expect(
+      line({
+        sections: {
+          done: 0,
+          of: 7,
+          waiting: ['Brand', 'Colour', 'Type', 'Space & shape', 'Motion', 'Components', 'Patterns'],
+        },
+        bothModes: true,
+        reducedMotion: true,
+      })?.text
+    ).toBe('0 of 7 sections — Brand, Colour, Type and 4 more waiting');
+    expect(
+      line({ sections: { done: 7, of: 7, waiting: [] }, bothModes: true, reducedMotion: false })
+    ).toMatchObject({ ok: false, text: 'no reduced motion' });
+  });
+});
+
 describe('check-system — completeness and the schema', () => {
   const dirs: string[] = [];
   afterAll(() => {
