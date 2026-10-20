@@ -130,6 +130,17 @@ export function useCanvasBridge({
     [selectedRef, iframesRef]
   );
   useEffect(() => () => selectionRestoreRef.current?.(), []);
+  // S7.22 — the inspector's "Show on canvas" is the person's own view state (view.json, already stored); this tells the
+  // open canvas to redraw its safe zones now. Only that one boolean is forwarded, and only to the canvas it names.
+  useEffect(() => {
+    const onChrome = (e) => {
+      const d = e.detail;
+      if (!d || d.canvas !== activePath || typeof d.patch?.safeZones !== 'boolean') return;
+      postToActiveCanvas({ dgn: 'view-chrome', safeZones: d.patch.safeZones });
+    };
+    window.addEventListener('maude:canvas-view-chrome', onChrome);
+    return () => window.removeEventListener('maude:canvas-view-chrome', onChrome);
+  }, [activePath, postToActiveCanvas]);
   // ----- Inbound messages from iframes -----
   useEffect(() => {
     // Does this comment id belong to the canvas the user is actually looking

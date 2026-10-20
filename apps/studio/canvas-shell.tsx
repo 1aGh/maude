@@ -2746,9 +2746,11 @@ function CanvasRouter({
     };
     const overlays = w.__canvas_meta__?.overlays;
     if (!overlays) return;
-    const patch: { guides?: boolean; print?: boolean } = {};
+    const patch: { guides?: boolean; print?: boolean; safeZones?: boolean } = {};
     if (overlays.guides === true) patch.guides = true;
     if (overlays.print === true) patch.print = true;
+    // S7.22 — the one overlay that defaults to SHOWN; only an explicit false (the person turned it off) hides.
+    if (overlays.safeZones === false) patch.safeZones = false;
     if (Object.keys(patch).length > 0) chromeCtx.setChrome(patch);
   }, [chromeCtx]);
 
@@ -3228,6 +3230,7 @@ function CanvasRouter({
           present?: boolean;
           guides?: boolean;
           print?: boolean;
+          safeZones?: boolean;
         };
         const patch: {
           minimap?: boolean;
@@ -3235,6 +3238,7 @@ function CanvasRouter({
           present?: boolean;
           guides?: boolean;
           print?: boolean;
+          safeZones?: boolean;
         } = {};
         if (typeof mm.minimap === 'boolean') patch.minimap = mm.minimap;
         if (typeof mm.zoom === 'boolean') patch.zoom = mm.zoom;
@@ -3243,6 +3247,8 @@ function CanvasRouter({
         // feature-2-print-artboards T3 — "Show print guides" (bleed/trim/
         // margin overlay). Same per-canvas-persisted shape as `guides`.
         if (typeof mm.print === 'boolean') patch.print = mm.print;
+        // S7.22 — "Show on canvas" on the Safe zones row; mirrored below like guides/print.
+        if (typeof mm.safeZones === 'boolean') patch.safeZones = mm.safeZones;
         // Dogfood follow-up — mirror `guides`/`print` into the in-iframe
         // `window.__canvas_meta__.overlays` snapshot, exactly like the
         // existing viewport/layout mirror in canvas-lib.tsx's onSettle (DDR-
@@ -3256,7 +3262,11 @@ function CanvasRouter({
         // guide back to hidden even though the View-menu checkbox still
         // shows it checked. Same class of bug DDR-138 fixed for the camera;
         // this is its `overlays` counterpart.
-        if (patch.guides !== undefined || patch.print !== undefined) {
+        if (
+          patch.guides !== undefined ||
+          patch.print !== undefined ||
+          patch.safeZones !== undefined
+        ) {
           const w = window as unknown as {
             __canvas_meta__?: { overlays?: Record<string, boolean> };
           };
@@ -3265,6 +3275,7 @@ function CanvasRouter({
               ...w.__canvas_meta__.overlays,
               ...(patch.guides !== undefined ? { guides: patch.guides } : {}),
               ...(patch.print !== undefined ? { print: patch.print } : {}),
+              ...(patch.safeZones !== undefined ? { safeZones: patch.safeZones } : {}),
             };
           }
         }

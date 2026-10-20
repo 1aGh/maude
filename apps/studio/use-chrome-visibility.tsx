@@ -43,6 +43,12 @@ export interface ChromeVisibilityState {
    * bridge.
    */
   print: boolean;
+  /**
+   * S7.22 — "Show on canvas" for an artboard's safe zones. Per-CANVAS, per-person (view.json
+   * `overlays.safeZones`), and UNLIKE `guides`/`print` it defaults to SHOWN: naming a preset on the artboard is
+   * the opt-in, only an explicit `false` hides it.
+   */
+  safeZones: boolean;
 }
 
 export interface ChromeVisibilityValue extends ChromeVisibilityState {
@@ -71,6 +77,7 @@ export function ChromeVisibilityProvider({
     present: initial?.present ?? false,
     guides: initial?.guides ?? false,
     print: initial?.print ?? false,
+    safeZones: initial?.safeZones ?? true,
   });
   const setChrome = useCallback((patch: Partial<ChromeVisibilityState>) => {
     setState((prev) => ({ ...prev, ...patch }));

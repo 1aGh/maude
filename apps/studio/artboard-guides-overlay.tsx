@@ -22,7 +22,9 @@
 import type { ReactNode } from 'react';
 
 import type { ArtboardKind } from './canvas-lib.tsx';
+import { safeZonePreset } from './kinds/safe-zones.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
+import { SafeZonesOverlay } from './safe-zones-overlay.tsx';
 
 export interface OverlayRect {
   x: number;
@@ -72,6 +74,10 @@ export interface KindOverlayProps {
   /** feature-2-print-artboards T2/T3 — the artboard's `print` JSX prop, when
    *  present. Only meaningful to the 'print' kind's registered renderer. */
   print?: ArtboardPrintProp;
+  /** S7.22 — the artboard's `safeZones` JSX prop (a preset id from kinds/safe-zones.ts). Any kind. */
+  safeZones?: string;
+  /** S7.22 — the DCArtboard id, how the text under a safe-zone band is found. */
+  artboardId?: string;
   visibility: OverlayVisibility;
 }
 
@@ -233,14 +239,26 @@ GenericGuides.displayName = 'GenericGuides';
  * (no `guides` prop, no downstream plan loaded yet) costs one map lookup and
  * no extra DOM.
  */
-export function ArtboardGuidesOverlay({ rect, kind, guides, print, visibility }: KindOverlayProps) {
+export function ArtboardGuidesOverlay({
+  rect,
+  kind,
+  guides,
+  print,
+  safeZones,
+  artboardId,
+  visibility,
+}: KindOverlayProps) {
   const KindContent = kindOverlayRegistry.get(kind);
+  // S7.22 — a safe zone is shown whenever the artboard names one, unless THIS person turned "Show on canvas"
+  // off (view.json `overlays.safeZones === false`). Unlike the guides, absence means shown: the preset is
+  // design intent someone chose on purpose. It is the same mount every exporter hides.
+  const zones = visibility.safeZones === false ? null : safeZonePreset(safeZones);
   // T6 Gotcha — a view.json predating the `overlays` lane has no `guides`
   // key at all; that absence must resolve to HIDDEN, not shown, so opening
   // an old canvas doesn't suddenly paint guides nobody asked to see. Only an
   // explicit `true` (the View-menu toggle) shows them.
   const showGenericGuides = visibility.guides === true && !!guides;
-  if (!showGenericGuides && !KindContent) return null;
+  if (!showGenericGuides && !KindContent && !zones) return null;
   return (
     <div
       className="dc-artboard-guides"
@@ -259,6 +277,9 @@ export function ArtboardGuidesOverlay({ rect, kind, guides, print, visibility }:
       {/* Kind-specific renderers see the full, ungated `visibility` bag and
           decide their own show/hide (e.g. print's bleed toggle is a
           different key than `guides`). */}
+      {zones ? (
+        <SafeZonesOverlay preset={zones} w={rect.w} h={rect.h} artboardId={artboardId} />
+      ) : null}
       {KindContent ? (
         <KindContent
           rect={rect}

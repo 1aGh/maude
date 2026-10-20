@@ -2660,6 +2660,7 @@ export function DCArtboard({
   kind,
   guides,
   print,
+  safeZones,
   children,
 }: {
   id: string;
@@ -2694,6 +2695,11 @@ export function DCArtboard({
    *  Only meaningful when `kind="print"`; the overlay (T3) reads it to draw
    *  bleed/trim/margin guides against THIS artboard's own resolved px size. */
   print?: ArtboardPrintProp;
+  /** S7.22 — where a platform's own interface covers this artboard: one preset id from
+   *  `kinds/safe-zones.ts` ("instagram-story", "instagram-reels", "instagram-grid", "tiktok",
+   *  "youtube-shorts", "facebook-event-cover"). Design intent (DDR-181); whether it is DRAWN is per-person
+   *  view state (`overlays.safeZones`). The bands are canvas-only and never exported. A 1.x peer ignores it. */
+  safeZones?: string;
   children: ReactNode;
 }) {
   countRender('artboardRenders');
@@ -2903,6 +2909,8 @@ export function DCArtboard({
     // Inspector editor. Small object (≤ ~150 bytes), so a plain JSON attr is
     // simpler than adding parallel data-dc-print-* scalar attrs per field.
     'data-dc-print': print ? JSON.stringify(print) : undefined,
+    // S7.22 — read-back for the Inspector's Safe zones row (same "stamp the resolved prop" shape as print).
+    'data-dc-safe-zones': typeof safeZones === 'string' && safeZones ? safeZones : undefined,
   };
 
   if (!ctx || !rect) {
@@ -3119,7 +3127,13 @@ export function DCArtboard({
         kind={resolvedKind}
         guides={guides}
         print={print}
-        visibility={{ guides: chrome?.guides ?? false, print: chrome?.print ?? false }}
+        safeZones={safeZones}
+        artboardId={id}
+        visibility={{
+          guides: chrome?.guides ?? false,
+          print: chrome?.print ?? false,
+          safeZones: chrome?.safeZones ?? true,
+        }}
       />
     </>
   );

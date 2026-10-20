@@ -49,6 +49,7 @@ import {
   walkIdElements,
   withIdAttr,
 } from './element-ids.ts';
+import { isSafeZoneId } from './kinds/safe-zones.ts';
 import { sourceHold } from './sync/write-hold.ts';
 
 export class CanvasEditError extends Error {
@@ -4119,6 +4120,55 @@ export function applySetArtboardKind(
   if (check.errors && check.errors.length > 0) {
     throw new CanvasEditError(
       `artboard kind edit produced invalid source (${check.errors[0]?.message ?? 'parse error'})`,
+      { canvas: canvasAbsPath, id: artboardId }
+    );
+  }
+  return { source: out };
+}
+
+/**
+ * S7.22 — write/clear the DCArtboard `safeZones` prop (`safeZones="instagram-reels"`). A plain string
+ * prop like `kind`, so it shares that toolkit: `editStringAttr` / `removeStringAttr`, addressed by the
+ * `id` prop. `safeZones: null` removes the prop. The id must be one this build knows
+ * (`kinds/safe-zones.ts`); a typo is refused rather than written, because a stored unknown id would draw
+ * nothing and say nothing. Pure; reparse-gated.
+ */
+export function applySetArtboardSafeZones(
+  canvasAbsPath: string,
+  source: string,
+  artboardId: string,
+  safeZones: string | null
+): { source: string } {
+  if (safeZones !== null && !isSafeZoneId(safeZones)) {
+    throw new CanvasEditError(`unknown safe zone "${safeZones}"`, {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
+  }
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new CanvasEditError(
+      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
+      { canvas: canvasAbsPath, id: artboardId }
+    );
+  }
+  const target = collectJsxByTag(parsed.program, 'DCArtboard').find(
+    (a) => getStringAttr(a.openingElement, 'id') === artboardId
+  );
+  if (!target) {
+    throw new CanvasEditError(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
+  }
+  const s = new MagicString(source);
+  if (safeZones === null) removeStringAttr(s, target.openingElement, 'safeZones', source);
+  else editStringAttr(s, target.openingElement, 'safeZones', safeZones, canvasAbsPath, artboardId);
+  const out = s.toString();
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0) {
+    throw new CanvasEditError(
+      `safe zone edit produced invalid source (${check.errors[0]?.message ?? 'parse error'})`,
       { canvas: canvasAbsPath, id: artboardId }
     );
   }

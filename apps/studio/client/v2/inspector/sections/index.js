@@ -20,6 +20,7 @@ import { offFill } from './fill.jsx';
 import { offInteraction } from './interaction.jsx';
 import { offLayout } from './layout.jsx';
 import { offPosition } from './position.jsx';
+import { offSafeZones } from './safe-zones.jsx';
 import { offSize } from './size.jsx';
 import { offType } from './type.jsx';
 
@@ -40,6 +41,7 @@ export function unregisterSections() {
   offInteraction();
   offInspectorExport();
   offExportSlot();
+  offSafeZones();
   offPlaceFreely();
   offConvert();
   offArtboardSections();
