@@ -105,23 +105,21 @@ Use the Edit tool with `old_string` matching a unique substring of the selected 
 
 **Selection screenshot is mandatory** before building the scoped prompt. The selection JSON gives you WHAT (selector + outerHTML + bounds); only a screenshot gives you WHERE-IN-CONTEXT (neighbors, alignment, the visual conversation the element is part of). Call `maude design screenshot --full --out "<out>"` (plus an `--element <id>` shot when the selector contains `data-dc-element="…"`) and `Read` the PNG into your context BEFORE the Edit tool call. See `/design:edit` step 3.5 for the canonical snippet. Editing from JSON describe alone is *tapping in the dark*; the studio iter-4 active-item incident (3 rollback iterations before landing) is the canonical cost of skipping. Reference: `.ai/logs/system-reviews/design-edit-screenshot-habits-review.md`.
 
-### `/design:new <name> "<brief>"` — scaffold new canvas project
+### `/design:new <name> "<brief>"` — make a new canvas of artboards
 
-Creates a brand-new TSX canvas file in `<designRoot>/<newCanvasDir>/<Name>.tsx` (or `<newComponentDir>/<Name>.tsx` if the user explicitly says component). TSX is the only supported canvas format; envelope primitives import from `@maude/canvas-lib` (virtual specifier → the dev-server-bundled canvas-lib at `apps/studio/canvas-lib.tsx`). Generated via the `frontend-design` Skill (preferred) or the orchestrator's direct authoring (documented fallback) — see "Generation invocation" in Cross-skill calls.
+Makes a brand-new canvas with the app's own create (`POST /_api/canvas`, the call ⌘N makes), so its name ("Untitled canvas", then " 2"), its folder, its design system and its `.meta.json` match what the UI would have made; then drafts the artboards into it with Edit. TSX is the only supported canvas format; envelope primitives import from `@maude/canvas-lib` (virtual specifier → the dev-server-bundled canvas-lib at `apps/studio/canvas-lib.tsx`). Drafted via the `frontend-design` Skill (preferred) or the orchestrator's direct authoring (documented fallback) — see "Generation invocation" in Cross-skill calls. Every artboard has a kind and a size from the catalogue: [Artboards of a kind](./_guide-28-artboards.md).
 
-**The new file MUST be a multi-artboard canvas project**, not a single-page wrapper. It uses the `DesignCanvas` + `DCSection` + `DCArtboard` pattern (see existing examples in `<designRoot>/ui/`) so multiple screens live in one panable canvas. A bare single-page wrapper is an anti-pattern unless the user explicitly says so.
+**The new canvas MUST have its artboards**, not be a single-page wrapper. It uses the `DesignCanvas` + `DCSection` + `DCArtboard` pattern (see existing examples in `<designRoot>/ui/`) so multiple screens live in one panable canvas. A bare single-page wrapper is an anti-pattern unless the person explicitly says so.
 
-1. Validate `<name>`:
-   - For canvas project: title-case with optional spaces (`Match Recap`, `Scout Radar`). File: `<Name>.tsx`.
-   - For shared component: PascalCase (`MatchRecap`). File: `<newComponentDir>/<Name>.tsx`.
-2. Reject if file already exists. Suggest `<Name> v2`.
-3. **Build the envelope** following "Envelope discipline" — creative brief, not wireframe spec. Include the aspiration directives 9–14 verbatim. Reference at least one existing canvas as wrapper pattern.
-4. **Generate** via the preferred path; fall back transparently if the Skill is unavailable. Always note which path was taken in the final report.
-5. Validate output (link to tokens, correct rootClass, no hardcoded values, includes at least one `DCArtboard`).
-6. Write the file.
-7. **Post-write reality check** — capture confirmation screenshot (see "Post-write reality check" above). Same guarantees as `/design`: always fires, even with `--no-critic`. For canvases with > 3 artboards, scroll all artboards into view first (see "Lazy-mount caveat") or explicitly state in the report that the snapshot covers only the first ~3.
-8. **Auto-critic loop — `/design:new` defaults to `--perfect`** (max 8 iter, target 4.5/5, full panel: signature-moment + design + frontend + a11y). Higher bar than `/design` because new canvases are high-leverage scaffolds. Opt-out flags: `--quick` (signature-moment only, 2 iter), `--no-critic` (skip), `--perfect-iter N` (override iter count). See "Default flow vs. --perfect" table for the full matrix and "Auto-critic loop" for stop conditions.
-9. Print path + generation path used + screenshot path + critic mode + verdict + "click on it in the browser tree to make it active, then iterate with /design".
+1. Validate `<name>` (letters, numbers, spaces, `-` and `_`; the create says why a name is refused). No name: the create names the canvas.
+   - For shared component: PascalCase (`MatchRecap`). File: `<newComponentDir>/<Name>.tsx`; a component is not a canvas, so it is written, not created.
+2. A name already taken is a `409` from the create: nothing is overwritten. Ask for another, or pick one from the brief.
+3. **Build the envelope** following "Envelope discipline" — creative brief, not wireframe spec. Include the aspiration directives 9–14 verbatim, the Artboard plan (kinds and sizes from the catalogue) and the output contract (artboard subtree only). Reference at least one existing canvas as wrapper pattern.
+4. **Draft artboard by artboard** — every artboard empty first with its kind and size, then big before small, words last — via the preferred path; fall back transparently if the Skill is unavailable. Always note which path was taken in the final report.
+5. Validate the result (link to tokens, correct rootClass, no hardcoded values, every artboard of the plan present) with `maude design check`.
+6. **Post-write reality check** — capture confirmation screenshots (see "Post-write reality check" above). Same guarantees as `/design`: always fires, even with `--no-critic`. For canvases with > 3 artboards, scroll all artboards into view first (see "Lazy-mount caveat") or explicitly state in the report that the snapshot covers only the first ~3.
+7. **Auto-critic loop — `/design:new` defaults to `--perfect`** (max 8 iter, target 4.5/5, full panel: signature-moment + design + frontend + a11y). Higher bar than `/design` because new canvases are high-leverage. Opt-out flags: `--quick` (signature-moment only, 2 iter), `--no-critic` (skip), `--perfect-iter N` (override iter count). See "Default flow vs. --perfect" table for the full matrix and "Auto-critic loop" for stop conditions.
+8. Print the path, the generation path used, the screenshot path, the critic mode and the verdict, show the canvas with `maude design open`, and point to `/design:edit` for the next change.
 
 ### `/design:history`, `/design:rollback`, `/design:trash` — going back
 
