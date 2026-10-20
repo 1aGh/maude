@@ -32,6 +32,7 @@ import { registerLiveRuns } from './acp/running.ts';
 import { createActivity } from './activity.ts';
 import { artboardSpans } from './agent-runs.ts';
 import { createLocalLeaseHome, selectLeaseHome } from './ai/lease-home.ts';
+import { createRunProgress } from './ai/run-progress.ts';
 import { createRunRegistry } from './ai/runs.ts';
 import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
 import { runContext, runTagOf, stageRunAnnotations } from './annotations/run-tag.ts';
@@ -293,6 +294,8 @@ const runRegistry = createRunRegistry({
     }
   },
   emit: (e, p) => ctx.bus.emit(e, p),
+  // S7.14 — your runs' studio-local progress (the AI cut's shots), derived from their files
+  progressOf: createRunProgress({ designRoot: ctx.paths.designRoot }),
   // S5.5b — THE end of every run's stage, by its run id (publish / partial / hold), announced as
   // `project:action`. The ACP tracker leaves a registry run's stage to this hook, so without it no chat
   // turn's edits would ever publish (http.ts wires the same hook only on its test fallback registry).
