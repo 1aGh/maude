@@ -71,7 +71,10 @@ function fakeFetch(opts: {
         opts.publish?.body ?? { result: { updated: 2, leftOut: 1 } }
       );
     if (url === '/_api/ds/pending' && body?.from)
-      return json(opts.push?.status ?? 200, opts.push?.body ?? { action: 'pending', mapped: { entries: 2, skipped: [] } });
+      return json(
+        opts.push?.status ?? 200,
+        opts.push?.body ?? { action: 'pending', mapped: { entries: 2, skipped: [] } }
+      );
     if (url === '/_api/ds/pending') return json(200, { action: 'pending' });
     return json(404, {});
   };
@@ -366,7 +369,9 @@ describe('the host', () => {
     });
     // the push comes first; the review is read after it
     const order = f.calls.map((c) => `${c.method} ${c.url}`);
-    expect(order.indexOf('POST /_api/ds/pending')).toBeLessThan(order.indexOf('POST /_api/ds/publish'));
+    expect(order.indexOf('POST /_api/ds/pending')).toBeLessThan(
+      order.indexOf('POST /_api/ds/publish')
+    );
     expect(q('ds-review')).not.toBeNull();
   });
 
@@ -400,7 +405,9 @@ describe('the host', () => {
         })
     );
     await settle();
-    expect(toasts).toEqual(['Nothing on this element differs from the system, so there is nothing to update.']);
+    expect(toasts).toEqual([
+      'Nothing on this element differs from the system, so there is nothing to update.',
+    ]);
     expect(q('ds-review')).toBeNull();
     expect(f.calls.some((c) => c.url === '/_api/ds/publish')).toBe(false);
   });

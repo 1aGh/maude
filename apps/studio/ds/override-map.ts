@@ -198,7 +198,8 @@ export function mapOverrides(input: {
       name: t.name,
       ...(typeof t.variant === 'string' ? { variant: t.variant } : {}),
     });
-  else if (t.kind === 'typeRole' && typeof t.role === 'string') mapped = mapTypeRole(base, { role: t.role });
+  else if (t.kind === 'typeRole' && typeof t.role === 'string')
+    mapped = mapTypeRole(base, { role: t.role });
   else return invalid('target is a type role or a component');
   if (mapped.entries === 0)
     throw new DsEngineError(

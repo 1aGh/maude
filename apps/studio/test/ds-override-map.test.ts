@@ -5,8 +5,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 
 import { resolveAccess } from '../access/scope.ts';
-import { DsEngineError } from '../ds/engine.ts';
 import { planDsVerb } from '../ds/ds-verb.ts';
+import { DsEngineError } from '../ds/engine.ts';
 import { mapOverrides } from '../ds/override-map.ts';
 import { createDsRoutes } from '../routes/ds.ts';
 import { cleanup, DS, DS_PATH, makeProject, type Project } from './_ds-engine-fixture.ts';
@@ -192,7 +192,11 @@ describe('POST /_api/ds/pending {from}', () => {
     const p = await project(HEADING);
     const r = await routes(p)({
       ds: DS,
-      from: { canvas: 'ui/Home.tsx', elementId: 'h1', target: { kind: 'typeRole', role: 'heading' } },
+      from: {
+        canvas: 'ui/Home.tsx',
+        elementId: 'h1',
+        target: { kind: 'typeRole', role: 'heading' },
+      },
     });
     expect(r.status).toBe(200);
     expect(waiting(p)).toMatchObject({
@@ -203,7 +207,10 @@ describe('POST /_api/ds/pending {from}', () => {
   test('Can view cannot push; a canvas path outside the design root is refused; nothing waits', async () => {
     const p = await project(BUTTON);
     const target = { kind: 'component', name: 'Button' };
-    const view = await routes(p, 'view')({
+    const view = await routes(
+      p,
+      'view'
+    )({
       ds: DS,
       from: { canvas: 'ui/Home.tsx', elementId: 'b1', target },
     });
@@ -240,7 +247,11 @@ describe('POST /_api/ds/pending {from}', () => {
     const r = await routes(p)({
       ds: DS,
       components: { Button: { '.btn': { height: { value: '1px' } } } },
-      from: { canvas: 'ui/Home.tsx', elementId: 'b1', target: { kind: 'component', name: 'Button' } },
+      from: {
+        canvas: 'ui/Home.tsx',
+        elementId: 'b1',
+        target: { kind: 'component', name: 'Button' },
+      },
     });
     expect(r.status).toBe(400);
   });

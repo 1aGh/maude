@@ -117,7 +117,10 @@ export async function publishReview({ ds, expectHead }, rows, fetchImpl = global
  * (a master or a type role) and nothing else — the server reads the canvas and works the CSS out (routes/ds.ts,
  * ds/override-map.ts), so no CSS crosses from here.
  */
-export async function pushOverride({ ds, canvas, elementId, target }, fetchImpl = globalThis.fetch) {
+export async function pushOverride(
+  { ds, canvas, elementId, target },
+  fetchImpl = globalThis.fetch
+) {
   const r = await call(fetchImpl, 'POST', '/_api/ds/pending', {
     ds,
     from: { canvas, elementId, target },

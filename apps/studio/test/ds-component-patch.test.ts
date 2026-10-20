@@ -24,9 +24,13 @@ const publish = async (p: Awaited<ReturnType<typeof makeProject>>) =>
 describe('component master patches reach _components.css', () => {
   test('a value is replaced inside the matching top-level rule', async () => {
     const p = await makeProject();
-    await p.engine.mergePending(DS, { components: edit('.btn', 'border-radius', '6px'), by: PERSON });
-    expect((p.meta(`${DS_PATH}/design-system.tsx`).dsPending as { components: object }).components)
-      .toMatchObject({ Button: { '.btn': { 'border-radius': { value: '6px' } } } });
+    await p.engine.mergePending(DS, {
+      components: edit('.btn', 'border-radius', '6px'),
+      by: PERSON,
+    });
+    expect(
+      (p.meta(`${DS_PATH}/design-system.tsx`).dsPending as { components: object }).components
+    ).toMatchObject({ Button: { '.btn': { 'border-radius': { value: '6px' } } } });
     await publish(p);
     expect(p.read(FILE)).toBe('.btn {\n  border-radius: 6px;\n}\n');
   });
@@ -40,7 +44,10 @@ describe('component master patches reach _components.css', () => {
 
   test('a rule the file lacks is appended at the end; the rest stays byte for byte', async () => {
     const p = await makeProject();
-    await kept(p, '/* acme */\n.btn {\n  border-radius: 4px;\n}\n\n@media (min-width: 600px) {\n  .btn { border-radius: 2px; }\n}\n');
+    await kept(
+      p,
+      '/* acme */\n.btn {\n  border-radius: 4px;\n}\n\n@media (min-width: 600px) {\n  .btn { border-radius: 2px; }\n}\n'
+    );
     await p.engine.mergePending(DS, {
       components: edit('.btn--ghost', 'background', 'transparent'),
       by: PERSON,
@@ -53,8 +60,14 @@ describe('component master patches reach _components.css', () => {
 
   test('a rule inside @media is not the master rule: the top-level one is patched', async () => {
     const p = await makeProject();
-    await kept(p, '.btn {\n  border-radius: 4px;\n}\n@media (min-width: 600px) {\n  .btn { border-radius: 2px; }\n}\n');
-    await p.engine.mergePending(DS, { components: edit('.btn', 'border-radius', '6px'), by: PERSON });
+    await kept(
+      p,
+      '.btn {\n  border-radius: 4px;\n}\n@media (min-width: 600px) {\n  .btn { border-radius: 2px; }\n}\n'
+    );
+    await p.engine.mergePending(DS, {
+      components: edit('.btn', 'border-radius', '6px'),
+      by: PERSON,
+    });
     await publish(p);
     expect(p.read(FILE)).toBe(
       '.btn {\n  border-radius: 6px;\n}\n@media (min-width: 600px) {\n  .btn { border-radius: 2px; }\n}\n'

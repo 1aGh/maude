@@ -77,7 +77,13 @@ function model(pending?: object) {
   mkdirSync(path.join(root, dsPath, 'preview'), { recursive: true });
   const config = {
     designSystems: [
-      { name: 'acme', path: dsPath, themes: ['light', 'dark'], themeDefault: 'light', rootClass: 'acme' },
+      {
+        name: 'acme',
+        path: dsPath,
+        themes: ['light', 'dark'],
+        themeDefault: 'light',
+        rootClass: 'acme',
+      },
     ],
     defaultDesignSystem: 'acme',
   };
@@ -126,7 +132,8 @@ describe('component-states (pure)', () => {
   });
 
   test('a value that could end its declaration never becomes a state rule', () => {
-    const css = '.btn:hover { background: red; } .btn:active { background: url(x.png); content: "a}b"; color: blue; }';
+    const css =
+      '.btn:hover { background: red; } .btn:active { background: url(x.png); content: "a}b"; color: blue; }';
     const rules = stateRulesOf(css, ['btn']);
     expect(rules.flatMap((r) => r.decls)).toEqual([
       ['background', 'red'],
@@ -138,7 +145,9 @@ describe('component-states (pure)', () => {
 describe('the model', () => {
   test('a master carries its states, look and waiting edits; the file’s rules are inlined once', () => {
     const m = model({
-      components: { Button: { '.btn': { 'border-radius': { value: '6px', by: { kind: 'person' } } } } },
+      components: {
+        Button: { '.btn': { 'border-radius': { value: '6px', by: { kind: 'person' } } } },
+      },
     });
     const b = m.components.find((c) => c.name === 'Button');
     expect(b?.states).toEqual(['hover', 'active', 'focus', 'disabled']);
@@ -178,7 +187,9 @@ describe('the section', () => {
     expect(out).toContain('data-ds-label="Tlačítko"');
     expect(out).toContain('class="ds-m-sample btn btn--primary"');
     for (const s of ['hover', 'active', 'focus', 'disabled'])
-      expect(out).toContain(`class="ds-m-sample btn ds-force-${s}" data-ds-axis="state" data-ds-state="${s}"`);
+      expect(out).toContain(
+        `class="ds-m-sample btn ds-force-${s}" data-ds-axis="state" data-ds-state="${s}"`
+      );
     expect(out).toContain('class="ds-m-sample btn btn--sm"');
     expect(out).toContain('2 variants · 4 states · 1 size');
   });

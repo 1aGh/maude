@@ -22,12 +22,7 @@ import { StIcon } from '../../../shell/icons.jsx';
 import { registerBlock } from '../../inspector/blocks.js';
 import { registerKind, singleOf } from '../../inspector/kinds/index.js';
 import { Quiet, Row } from '../../inspector/sections/row.jsx';
-import {
-  currentMasterValue,
-  MASTER_ROWS,
-  MASTER_WORDS,
-  writeMaster,
-} from '../master-write.js';
+import { currentMasterValue, MASTER_ROWS, MASTER_WORDS, writeMaster } from '../master-write.js';
 import { systemOfCanvas, useDsBoard } from '../use-ds-model.js';
 
 export const masterNameOf = (el) => {

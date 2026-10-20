@@ -20,7 +20,6 @@ import path from 'node:path';
 import type { Access } from '../access/scope.ts';
 import { buildBoardModel } from '../ds/board/build-model.ts';
 import { checkSystem } from '../ds/check.ts';
-import { mapOverrides } from '../ds/override-map.ts';
 import {
   type DsEngine,
   DsEngineError,
@@ -30,6 +29,7 @@ import {
 } from '../ds/engine.ts';
 import { type By, readHead } from '../ds/head.ts';
 import type { DsOutsideWatcher } from '../ds/outside.ts';
+import { mapOverrides } from '../ds/override-map.ts';
 import { indexRegistry, loadRegistry } from '../ds/registry.ts';
 import { verifyRevision } from '../ds/revision.ts';
 import { diskFs, loadSystem } from '../ds/system.ts';

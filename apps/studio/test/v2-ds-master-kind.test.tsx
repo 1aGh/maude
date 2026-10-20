@@ -41,7 +41,12 @@ const MODEL = (patches: Patch[] = []) => ({
       pending: patches.length > 0,
       specimen: null,
       states: ['hover', 'active', 'focus', 'disabled'],
-      look: { 'border-radius': '2px', background: 'var(--bg-3)', color: 'var(--fg-0)', height: '32px' },
+      look: {
+        'border-radius': '2px',
+        background: 'var(--bg-3)',
+        color: 'var(--fg-0)',
+        height: '32px',
+      },
       patches,
     },
     {
@@ -252,7 +257,9 @@ describe('the frame draws only the master block', () => {
   test('"Update canvases…" asks the shell for the review (ds.publish) of this system', async () => {
     board = MODEL([{ selector: '.btn', prop: 'border-radius', value: '6px' }]);
     const asked: Array<[string, unknown]> = [];
-    const host = await frame(BUTTON, { onShellAction: (id: string, p: unknown) => asked.push([id, p]) });
+    const host = await frame(BUTTON, {
+      onShellAction: (id: string, p: unknown) => asked.push([id, p]),
+    });
     await click(q(host, 'ds-master-update'));
     expect(asked).toEqual([['ds.publish', { ds: 'studio' }]]);
   });
@@ -284,7 +291,9 @@ describe('the frame draws only the master block', () => {
 
   test('a component with no class says so and cannot be edited', async () => {
     const host = await frame(tile('Orphan', 'Orphan'));
-    expect(q(host, 'ds-master-noclass')?.textContent).toBe('This component has no style to change.');
+    expect(q(host, 'ds-master-noclass')?.textContent).toBe(
+      'This component has no style to change.'
+    );
     expect((q(host, 'ds-master-corners') as HTMLInputElement).disabled).toBe(true);
   });
 });

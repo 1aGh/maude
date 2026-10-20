@@ -79,8 +79,7 @@ export function stateRulesOf(css: string | null, classes: readonly string[]): St
       if (PROP_RE.test(d.prop) && safeCssValue(value)) decls.push([d.prop, value]);
     }
     if (decls.length === 0) return;
-    for (const [state, entries] of byState)
-      out.push({ selector: entries.join(','), state, decls });
+    for (const [state, entries] of byState) out.push({ selector: entries.join(','), state, decls });
   });
   return out;
 }

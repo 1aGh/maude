@@ -174,7 +174,7 @@ function patchesOf(entry: unknown): ComponentPatch[] {
   return out;
 }
 
-const countCanvases =(m: Record<string, { places?: number; instances?: number }> | undefined) =>
+const countCanvases = (m: Record<string, { places?: number; instances?: number }> | undefined) =>
   m ? Object.values(m).filter((u) => ((u?.places ?? u?.instances ?? 0) as number) > 0).length : 0;
 
 function logosOf(designRoot: string, sys: SystemConfig, names: string[]): BoardLogo[] {

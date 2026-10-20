@@ -132,9 +132,7 @@ export async function writeMaster({ ds, name, edit, model = null }, fetchImpl = 
   const built = buildMasterPatch(master, edit);
   if (built.refused) return { ok: false, code: 'refused', message: built.refused };
   const r = await postPending(ds, { components: built.components }, fetchImpl);
-  return r.ok
-    ? { ok: true, master }
-    : { ok: false, code: r.code, message: masterWords(r.code) };
+  return r.ok ? { ok: true, master } : { ok: false, code: r.code, message: masterWords(r.code) };
 }
 
 /** Registry `ds.set-master` (menu-runner): the same write, a sentence back. */

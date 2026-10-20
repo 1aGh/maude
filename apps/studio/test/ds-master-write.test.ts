@@ -30,7 +30,9 @@ afterAll(cleanup);
 const COMPONENTS_JSON = {
   schemaVersion: 1,
   system: 'acme',
-  components: { Button: { class: 'btn', label: 'Tlačítko', variants: { primary: 'btn--primary' } } },
+  components: {
+    Button: { class: 'btn', label: 'Tlačítko', variants: { primary: 'btn--primary' } },
+  },
 };
 
 function bridge(p: Project, role: 'view' | 'edit' = 'edit'): typeof fetch {
@@ -97,9 +99,12 @@ describe('the pure half', () => {
     expect(buildMasterPatch(master, { prop: 'margin', value: '4px' }).refused).toBe(
       MASTER_WORDS.invalid
     );
-    expect(buildMasterPatch({ ...master, className: null }, { prop: 'height', value: '4' }).refused)
-      .toBe(MASTER_WORDS.noClass);
-    expect(buildMasterPatch(null, { prop: 'height', value: '4' }).refused).toBe(MASTER_WORDS.unknown);
+    expect(
+      buildMasterPatch({ ...master, className: null }, { prop: 'height', value: '4' }).refused
+    ).toBe(MASTER_WORDS.noClass);
+    expect(buildMasterPatch(null, { prop: 'height', value: '4' }).refused).toBe(
+      MASTER_WORDS.unknown
+    );
   });
 });
 
@@ -107,7 +112,10 @@ describe('through the real routes', () => {
   test('Corners 2 → 6 waits as one patch; Update writes it; a folder left out keeps 2 px', async () => {
     const p = await project();
     const f = bridge(p);
-    const r = await writeMaster({ ds: DS, name: 'Button', edit: { prop: 'border-radius', value: '6' } }, f);
+    const r = await writeMaster(
+      { ds: DS, name: 'Button', edit: { prop: 'border-radius', value: '6' } },
+      f
+    );
     expect(r.ok).toBe(true);
     // the board the inspector and the canvas read now carries the waiting edit
     const board = await fetchBoard(DS, f);
@@ -139,14 +147,23 @@ describe('through the real routes', () => {
   test('the registry action ds.set-master is the same write, with a sentence back', async () => {
     const p = await project();
     const f = bridge(p);
-    const ok = await runMasterAction({ ds: DS, component: 'Button', prop: 'height', value: '44' }, f);
+    const ok = await runMasterAction(
+      { ds: DS, component: 'Button', prop: 'height', value: '44' },
+      f
+    );
     expect(ok).toEqual({ ok: true, message: '1 change waiting.' });
     expect(
       (p.meta(`${DS_PATH}/design-system.tsx`).dsPending as { components: object }).components
     ).toMatchObject({ Button: { '.btn': { height: { value: '44px' } } } });
-    const bad = await runMasterAction({ ds: DS, component: 'Nope', prop: 'height', value: '44' }, f);
+    const bad = await runMasterAction(
+      { ds: DS, component: 'Nope', prop: 'height', value: '44' },
+      f
+    );
     expect(bad).toEqual({ ok: false, message: MASTER_WORDS.unknown });
-    const worse = await runMasterAction({ ds: DS, component: 'Button', prop: 'height', value: '4;}' }, f);
+    const worse = await runMasterAction(
+      { ds: DS, component: 'Button', prop: 'height', value: '4;}' },
+      f
+    );
     expect(worse).toEqual({ ok: false, message: MASTER_WORDS.invalid });
   });
 
@@ -154,7 +171,10 @@ describe('through the real routes', () => {
     const p = await project();
     const f = bridge(p, 'view');
     expect((await fetchBoard(DS, f))?.components[0].name).toBe('Button');
-    const r = await writeMaster({ ds: DS, name: 'Button', edit: { prop: 'height', value: '40' } }, f);
+    const r = await writeMaster(
+      { ds: DS, name: 'Button', edit: { prop: 'height', value: '40' } },
+      f
+    );
     expect(r).toEqual({ ok: false, code: 'forbidden', message: MASTER_WORDS.forbidden });
     expect(p.meta(`${DS_PATH}/design-system.tsx`).dsPending).toBeUndefined();
   });
