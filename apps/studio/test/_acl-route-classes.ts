@@ -257,6 +257,10 @@ const CANVAS = [
 ];
 
 const PROJECT = [
+  // S8.20 — search in pictures: the person's own consent, budget and describe search; canvas-only guests get no 2xx
+  '/_api/describe',
+  '/_api/describe/consent',
+  '/_api/describe/stop',
   // S7.11b — a transcript / the beats of one project asset (routes/video.ts): the asset is the project's, so a
   // canvas-only session never gets a 2xx (Can edit on the whole project)
   '/_api/media-analysis',
