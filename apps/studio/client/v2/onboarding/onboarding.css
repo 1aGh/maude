@@ -1,0 +1,248 @@
+/* client/v2/onboarding/onboarding.css — the five Advanced sheets (S6.9). Lifted from 02 Onboarding
+ * (`ob-sheet*`, `ob-row2`, `ob-opt*`, `ob-inst*`, `ob-cmds*`, `ob-seg`) with tokens only; the sheet plane itself is
+ * the Connect-AI sheet's (`ai-conn-*`, v2/ai/needs-you.css). Mono lives only inside these bodies. */
+
+@layer components {
+  .ob-modal {
+    z-index: 30;
+  }
+  .ob-sheet {
+    position: relative;
+    margin: 0;
+  }
+  .ob-sheet-b {
+    gap: var(--space-3);
+  }
+  .ob-sheet h2.ai-conn-t {
+    margin: 0;
+  }
+  .ob-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .ob-field-label {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .ob-row2 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .ob-row2 .ob-input {
+    flex: 1;
+    min-width: 0;
+  }
+  .ob-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 32px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .ob-input::placeholder {
+    color: var(--fg-2);
+  }
+  .ob-input:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--focus-ring);
+  }
+  .ob-input:disabled {
+    color: var(--fg-2);
+  }
+  .ob-mono,
+  .ob-mono-txt {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .ob-mono-txt {
+    color: var(--fg-0);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ob-ok {
+    display: block;
+  }
+  .ob-err {
+    font-size: var(--type-xs);
+    color: var(--status-error-text);
+  }
+  .ob-fine {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+
+  /* A status word: a dot and a word. */
+  .ob-sw {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    white-space: nowrap;
+  }
+  .ob-sw i {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--presence-offline);
+  }
+  .ob-sw[data-state="ok"] {
+    color: var(--status-success-text);
+  }
+  .ob-sw[data-state="ok"] i {
+    background: var(--status-success);
+  }
+  .ob-sw[data-state="busy"] i {
+    background: var(--status-info);
+  }
+  .ob-sw[data-state="bad"] {
+    color: var(--status-warn-text);
+  }
+  .ob-sw[data-state="bad"] i {
+    background: var(--status-warn);
+  }
+
+  /* The two-segment switch. */
+  .ob-seg {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 2px;
+    gap: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .ob-seg-b {
+    height: 26px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .ob-seg-b[aria-pressed="true"] {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-sm);
+    color: var(--fg-0);
+  }
+  .ob-seg-b[aria-disabled="true"] {
+    color: var(--fg-2);
+    cursor: default;
+  }
+
+  /* AI choice: the API-key option rests. */
+  .ob-opt {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ob-opt[aria-disabled="true"] {
+    opacity: 0.7;
+  }
+  .ob-radio {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1.5px var(--border-strong);
+    background: var(--bg-2);
+  }
+  .ob-opt-txt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ob-opt-txt strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ob-opt-txt > span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ob-opt-txt .ob-input {
+    margin-top: var(--space-2);
+  }
+
+  /* Install rows + the Terminal lines. */
+  .ob-inst {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+  }
+  .ob-inst-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .ob-inst-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .ob-inst-t strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ob-inst-t span {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ob-cmds {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .ob-cmds-h {
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .ob-cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    height: 32px;
+    padding: 0 var(--space-1) 0 var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+}

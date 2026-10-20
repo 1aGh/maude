@@ -37,9 +37,11 @@ import {
 } from './home-api.js';
 import { parseMaudeLink } from '../share-link.js';
 import { browserDoorOf } from '../v2/cloud/browser-door.js';
+import { AdvancedSheets } from '../v2/onboarding/AdvancedSheets.jsx';
 import { CreateLocalSheet } from '../v2/signin/CreateLocalSheet.jsx';
 import { SignInCard, SignInQuiet } from '../v2/signin/SignInCard.jsx';
 import { SignInToast } from '../v2/signin/SignInToast.jsx';
+import { ADVANCED_ROWS } from '../v2/signin/advanced-rows.js';
 import { cardMode, isFirstRun, signedInToast } from '../v2/signin/signin-model.js';
 import { useCloudSignIn } from '../v2/signin/use-signin.js';
 import { useWhatsNewLine } from '../v2/signin/use-whats-new-line.js';
@@ -66,6 +68,9 @@ import { pickStarters } from './home-starters.js';
 import { ProjectsEmpty, SharedWithYou } from './Shelves.jsx';
 
 // ── theme: the Home window follows the Mac's appearance (light is the v2 default) ──────────────
+// S6.9 — every row of the Advanced options flyout now opens its sheet
+const ADVANCED_IDS = ADVANCED_ROWS.map((r) => r.id);
+
 function systemTheme() {
   try {
     return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
@@ -336,6 +341,13 @@ export function HomeApp() {
   // S6.8 — the sign-in card, its toast, the Advanced flyout (closed on every launch) and the What's New line
   const [toast, setToast] = useState(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // S6.9 — the Advanced sheet that is open (a row id from advanced-rows.js), or null
+  const [sheet, setSheet] = useState(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
+  const openSheet = useCallback((id) => {
+    setAdvancedOpen(false);
+    setSheet(id);
+  }, []);
   const closeToast = useCallback(() => setToast(null), []);
   const signin = useCloudSignIn({
     native: data.native,
@@ -565,6 +577,8 @@ export function HomeApp() {
     (s) => startIn({ kind: s.intent || 'import-brand', prompt: '' }),
     [startIn]
   );
+  // S6.9 — Import from Figma lands in the same target the question does, as the `import-figma` intent (Q8)
+  const startFigma = useCallback(() => startIn({ kind: 'import-figma', prompt: '' }), [startIn]);
   useMenuActions(data.native, { 'project.new': askNewProject, 'canvas.new': startEmpty });
 
   // A file link whose project IS here (its tab failed to open from the link) opens like a
@@ -684,6 +698,8 @@ export function HomeApp() {
                   onShowCode={signin.showCode}
                   advancedOpen={advancedOpen}
                   onToggleAdvanced={() => setAdvancedOpen((o) => !o)}
+                  advancedAvailable={ADVANCED_IDS}
+                  onAdvanced={openSheet}
                 />
               ) : null}
               {whatsNew.show ? (
@@ -941,6 +957,17 @@ export function HomeApp() {
           onChange={setCreating}
           onSubmit={createProject}
           onCancel={() => setCreating(null)}
+        />
+      ) : null}
+
+      {sheet ? (
+        <AdvancedSheets
+          open={sheet}
+          onClose={closeSheet}
+          profile={linkProfile(data.shell, data.clouds, '')}
+          target={target}
+          openPrepared={openPrepared}
+          startFigma={startFigma}
         />
       ) : null}
 

@@ -133,6 +133,8 @@
 @import url("../home/home.css");
 /* S6.8 — the sign-in card, the create-local sheet, the toast and the What's New line (client/v2/signin/). */
 @import url("../v2/signin/signin.css");
+/* S6.9 — the five Advanced sheets: hub, folder or GitHub, Connect AI, the maude command, Figma (client/v2/onboarding/). */
+@import url("../v2/onboarding/onboarding.css");
 @import url("./5-utilities.css");
 /* S3.7a — the Present follower page (follow bar, Live, watching; the audience window has no chrome). */
 @import url("../v2/present/follow.css");
