@@ -49,6 +49,8 @@ export const timelineSelection = {
         Object.assign(current, {
           onVerb: next.onVerb,
           onOp: next.onOp,
+          probeSources: next.probeSources,
+          changeSong: next.changeSong,
           onJoin: next.onJoin,
           onRemoveJoin: next.onRemoveJoin,
           deselect: next.deselect,

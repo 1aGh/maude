@@ -15,6 +15,7 @@ import { offMultiArtboard } from '../kinds/multi-artboard.jsx';
 import { offArtboardFixed } from '../kinds/artboard-fixed.jsx';
 import { offMultiKind } from '../kinds/artboard-multi.jsx';
 import { offArtboardVideo } from '../kinds/artboard-video.jsx';
+import { offMusic } from '../kinds/music.jsx';
 import { offArtboardWeb } from '../kinds/artboard-web.jsx';
 import { offClip } from '../kinds/clip.jsx';
 import { offBorder } from './border.jsx';
@@ -55,6 +56,7 @@ export function unregisterSections() {
   offArtboardFixed();
   offArtboardVideo();
   offMultiKind();
+  offMusic();
   offShape();
   offPath();
   offImage();

@@ -94,3 +94,30 @@ export function applyDuck(
   }
   return { source: finish(file, s, stableId), ducked: true };
 }
+
+/** `video.music.volume` (S7.12, 07 ve-music "Volume"): the literal `volume` of the one music `<Audio>`, for a
+ *  clip or a loose bed alike (`clip.audio` only reaches clips). 1 = full = no prop. Pure: no IO. */
+export function applyMusicVolume(
+  file: string,
+  source: string,
+  artboard: string | undefined,
+  stableId: string,
+  hash: string | undefined,
+  volume: unknown
+): { source: string } {
+  if (typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0 || volume > 1)
+    bad(file, 'Volume is between 0 and 100 %.', stableId);
+  const v = volume as number;
+  const span = resolveSpan(file, source, artboard, stableId, hash);
+  const els = jsxElements(parseProgram(file, source));
+  const hit = firstIn(els, span.start, span.end, AUDIO);
+  if (!hit) bad(file, 'Only a music track has a volume here.', stableId);
+  const s = new MagicString(source);
+  setProp(
+    s,
+    (hit as { el: Node }).el,
+    'volume',
+    v === 1 ? null : `{${Math.round(v * 1000) / 1000}}`
+  );
+  return { source: finish(file, s, stableId) };
+}

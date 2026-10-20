@@ -33550,5 +33550,357 @@
       "apps/studio/test/timeline-clip-select.test.tsx"
     ],
     "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "insp-music-volume",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the Music inspector's Volume slider and percentage (80 %). One video.music.volume per commit — a clip or a loose bed alike.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "VolumeRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-duck",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the Music inspector's \"Lower under speech\" switch — on wraps the song in <Duck> (video.music.duck), off unwraps it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "DuckRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-snap",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the Music inspector's \"Snap to the beat\" switch (video.snap → artboardMeta.snap). On by default when a song has a clear beat.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "SnapRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-snap-off",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the line that stands in for the Snap switch when no song has a clear beat: \"No clear beat in this song.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "SnapRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-change",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the Music inspector's Song › \"Change…\" (replace the song; the v1 Replace-audio control).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "SongRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-find",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: \"Find the beat\" — shown for a song with no beat sidecar yet; becomes \"Finding the beat…\" while it runs (video.music.beats).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "BeatRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-cut-to-beat",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: \"Cut to the beat\" — rolls every cut of the video to the nearest beat; the video stays the same length (video.cut-to-beat).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "BeatRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-half",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: Advanced › bpm › \"Half\" — re-tracks the song at half the detected tempo (fixes an octave error).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-music-double",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: Advanced › bpm › \"Double\" — re-tracks the song at twice the detected tempo.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-adv-music",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the Music inspector's Advanced body: bpm · duck · gainDb, then the song's length and speed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-adv-music-bpm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: Advanced › bpm, \"120 (detected)\" or \"60 (set)\" after Half / Double.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-adv-music-duck",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: Advanced › duck, \"−12 dB · 200 ms\" (the dip and its attack), \"off\" without a <Duck>.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-adv-music-gain",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: Advanced › gainDb — the Volume read in decibels (\"−2\" for 80 %).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-adv-music-clip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: Advanced › Clip — the length and speed of a song that is a clip of its own (a bed under the whole video has neither).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "insp-adv-music-bed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the line that stands in for Advanced › Clip on a loose bed: its length follows the video.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/music.jsx",
+      "symbol": "MusicAdvanced"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-music-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "S7.12: the Music track's overlay on one song (ticks, tempo, dip); `<id>` = the song's stable id (`loose:…` for a bed). Pointer-transparent.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-beat-ticks",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: one path of the Music track's beat ticks (the short ones; one segment per beat that is not a bar).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-bar-ticks",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: one path of the tall bar ticks — drawn only where the bar confidence is 0.4 or more (Q8).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-duck-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the volume line dipping under speech over a song that sits in a <Duck>.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-duck-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the \"Lower under speech\" label on the dip.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-music-bpm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: the tempo chip on a song (\"120 BPM\"), drawn only for a clear beat.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
+  },
+  {
+    "hook": "timeline-music-finding",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S7.12: \"Finding the beat…\" on a song the studio is listening to.",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/lanes/music-lane.jsx",
+      "symbol": "MusicLaneOverlay"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/music-inspector.test.ts"
+    ],
+    "v2": "new in v2 (S7.12)"
   }
 ]

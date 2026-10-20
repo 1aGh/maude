@@ -134,7 +134,7 @@ describe('GET /_api/comp-media — the answer', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(Object.keys(body).sort()).toEqual(
-      ['beats', 'clips', 'fps', 'speech', 'unresolved', 'words'].sort()
+      ['beats', 'clips', 'fps', 'music', 'speech', 'unresolved', 'words'].sort()
     );
     expect(body.fps).toBe(30);
     expect(body.unresolved).toEqual([]);
