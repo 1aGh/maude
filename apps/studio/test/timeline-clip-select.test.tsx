@@ -327,6 +327,21 @@ describe('a vertical clip on a wide video (ve-fit-fill)', () => {
     expect(q('timeline-fit-ask')).toBeNull();
   });
 
+  test('with a standing answer the next vertical clip is not asked: it gets the answer, once', async () => {
+    localStorage.setItem('maude.fitStanding', 'fit');
+    await probeSize('/.design/assets/Tunel.mp4', { make: fake(1080, 1920) });
+    const verbs = mount({ selectedClipId: 'b0' });
+    await settle();
+    expect(q('timeline-fit-ask')).toBeNull();
+    expect(verbs).toEqual([[{ stableId: 'b0', index: 0 }, 'video.fit', { fit: 'fit' }]]);
+    // selecting it again later does not write again
+    act(() => root?.unmount());
+    host?.remove();
+    const again = mount({ selectedClipId: 'b0' });
+    await settle();
+    expect(again).toEqual([]);
+  });
+
   test('a wide clip, a clip with a fit already, or a vertical video asks nothing', async () => {
     await probeSize('/.design/assets/Tunel.mp4', { make: fake(1920, 1080) });
     mount({ selectedClipId: 'b0' });
