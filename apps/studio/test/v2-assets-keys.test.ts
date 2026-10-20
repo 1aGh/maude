@@ -83,12 +83,13 @@ describe('the agent path', () => {
   });
 
   test('assets.details is a read for every role: GET /_api/asset-details, `maude design assets --usage <asset> --details`', () => {
+    // A read for every role carries no `server` key (no per-role refusal row; S10.9 ds.show-reach precedent).
     expect(AGENT_PATHS['assets.details']).toMatchObject({
       effect: 'none',
       minRole: 'view',
-      server: { route: '/_api/asset-details', method: 'GET' },
       agent: { path: 'cli', verb: 'maude design assets --usage <asset> --details' },
     });
+    expect('server' in (AGENT_PATHS['assets.details'] ?? {})).toBe(false);
   });
 });
 
