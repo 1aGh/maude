@@ -242,6 +242,7 @@ import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
 import { undoProjection } from './v2/undo/use-undo-projection.jsx';
 import { ShellInspectPanel } from './v2/inspect/inspect-host.jsx';
 import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-host.jsx';
+import { ShellTakes } from './v2/assets/takes-overlay.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
@@ -3010,6 +3011,8 @@ function ShellTree() {
           {/* S3.9 — Preview's own islands: "Previewing <canvas> · esc to edit" top centre, the zoom readout
               bottom left. Nothing in the other modes. */}
           <ShellPreviewChrome />
+          {/* S8.16 — a generated picture selected: "Take 3 of 4" ‹ › ← → and "Picture made by AI". */}
+          <ShellTakes />
           {/* S3.11 — Inspect: the specs of the element a ⌘-click (Preview) / click (Viewing) points at. */}
           <ShellInspectPanel />
           {/* S1.14 — "Viewing “…” · 5 Oct, 18:40 · Jonas · esc back to now" while the mode store holds a past version. */}

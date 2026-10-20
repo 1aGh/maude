@@ -22,6 +22,7 @@ import { isNativeApp } from '../github.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast, totalCounts } from '../shell/util.js';
 import { assetTileSelected } from '../v2/assets/assets-bus.js';
+import { selectionHasTakes } from '../v2/assets/takes.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 import { installFocusRescue } from '../v2/shell/modal-focus.js';
@@ -51,6 +52,8 @@ function shellState(d) {
     singleKeys: singleKeysStore.get(),
     // S8.12: a tile is picked in the Assets tab and focus is inside it (↵ places, ⌘I opens details)
     assetTileSelected: assetTileSelected(),
+    // S8.16: the one selected picture has other takes — ← → step them (image.next-take / image.prev-take)
+    selectionHasTakes: selectionHasTakes(sel, d.activePath),
   };
 }
 

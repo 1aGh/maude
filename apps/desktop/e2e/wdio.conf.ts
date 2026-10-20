@@ -55,6 +55,8 @@ const DEDICATED: Record<string, string> = {
   'relaunch.e2e.ts': 'pnpm test:e2e:desktop:relaunch',
   // S5.14: ⌘Q while AI works, then a relaunch — needs a signed-in `claude`.
   'ai-quit.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:ai-quit',
+  // S8.16: the sidecar must run the stub image provider (MAUDE_GENERATE_STUB=1) — no real provider is reached.
+  'generate-takes.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:generate-takes',
   // S9.17: a cloud cell tab's browser door — needs a cell.
   'cell-tab-browser-door.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:cell-tab',
   // S10.8: a converted acme project seeded with one pending Accent change.

@@ -22,6 +22,7 @@ import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
 import { runAssetsAction } from '../v2/assets/assets-bus.js';
+import { runTakeStep } from '../v2/assets/use-takes-lane.js';
 import { playToggle, stepPlayhead, TIMELINE_KEY_HANDLERS } from '../v2/timeline/keys.js';
 import { runCopyPng } from '../v2/export/copy-png.js';
 import { createBlankCanvas } from '../v2/create/new-canvas.js';
@@ -180,6 +181,15 @@ export const SHELL_KEY_HANDLERS = {
   'assets.details': (_d, { event: e }) => {
     e.preventDefault();
     runAssetsAction('assets.details');
+  },
+  // S8.16 — ← → on a selected picture with other takes: the neighbouring take in its place (image.replace, one undo step)
+  'image.next-take': (d, { event: e }) => {
+    e.preventDefault();
+    if (!e.repeat) void runTakeStep('next', d);
+  },
+  'image.prev-take': (d, { event: e }) => {
+    e.preventDefault();
+    if (!e.repeat) void runTakeStep('prev', d);
   },
   // Cloud Phase 27 C1 — a viewer gets the inspector too (read-only means cannot CHANGE, not
   // cannot SEE).

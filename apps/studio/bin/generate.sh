@@ -17,6 +17,13 @@
 #     [--modality image|audio|video] [--aspect 16:9] [--source assets/<sha8>.<ext>]
 #     [--kind music|sfx|tts] [--voice <voice_id>] [--duration <seconds>]
 #     [--root <repo>] [--timeout <sec>]
+#   generate.sh --take next|prev [--root <repo>]
+#
+# --take (S8.16) swaps the picture selected in the studio (_active.json) for its
+# next / previous take — the same write as ← → on the canvas: GET
+# /_api/generate-takes/of names the takes, then POST /_api/edit-op
+# {op: "image.replace"} puts the neighbour in its place (one undo step). Prints
+# the take now shown (`assets/<sha8>.<ext>`). No provider is called.
 #
 # --source turns an IMAGE call into a maskless EDIT (Nano Banana): the content-
 # addressed source image is read server-side into the request and the prompt
@@ -46,7 +53,7 @@
 
 set -euo pipefail
 
-PROMPT="" PROVIDER="gemini" MODEL="" MODALITY="image" ASPECT="" SOURCE="" REPO="" TIMEOUT=""
+PROMPT="" PROVIDER="gemini" MODEL="" MODALITY="image" ASPECT="" SOURCE="" REPO="" TIMEOUT="" TAKE=""
 # Audio params (Phase 2) — kind = music|sfx|tts; voice = an ElevenLabs voice_id
 # (required for tts); duration = seconds (music/sfx length).
 KIND="" VOICE="" DURATION=""
@@ -64,7 +71,8 @@ while [ $# -gt 0 ]; do
     --duration) DURATION="$2"; shift 2 ;;
     --root)     REPO="$2"; shift 2 ;;
     --timeout)  TIMEOUT="$2"; shift 2 ;;
-    --help|-h)  sed -n '2,41p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    --take)     TAKE="$2"; shift 2 ;;
+    --help|-h)  sed -n '2,49p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) echo "generate.sh: unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -73,7 +81,11 @@ done
 # different shape (audio → captions) reached via `maude design transcribe`, which
 # writes SRT/VTT files — not this verb, whose contract is "print the produced
 # asset path".
-[ -n "$PROMPT" ] || { echo "generate.sh: --prompt is required" >&2; exit 2; }
+case "$TAKE" in
+  ""|next|prev) ;;
+  *) echo "generate.sh: --take is next or prev" >&2; exit 2 ;;
+esac
+[ -n "$PROMPT" ] || [ -n "$TAKE" ] || { echo "generate.sh: --prompt is required" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || { echo "generate.sh: jq is required" >&2; exit 1; }
 
 # Async video (Veo) takes minutes — default the poll window wider than the
@@ -92,6 +104,36 @@ STATE="$DESIGN_ROOT/_server.json"
 [ -f "$STATE" ] || { echo "generate.sh: no _server.json (start the dev server first)" >&2; exit 1; }
 PORT=$(jq -r '.port // empty' "$STATE" 2>/dev/null)
 [ -n "$PORT" ] || { echo "generate.sh: could not read port from $STATE" >&2; exit 1; }
+
+# ── --take: ← → between a generated picture's takes, on the studio's selection ──
+if [ -n "$TAKE" ]; then
+  ACTIVE_FILE="$DESIGN_ROOT/_active.json"
+  [ -f "$ACTIVE_FILE" ] || { echo "generate.sh: nothing is selected in the studio (no _active.json)" >&2; exit 2; }
+  CANVAS=$(jq -r '.active // empty' "$ACTIVE_FILE")
+  SEL=$(jq -c '.selected // empty | if type == "array" then (if length == 1 then .[0] else empty end) else . end' "$ACTIVE_FILE")
+  [ -n "$CANVAS" ] && [ -n "$SEL" ] || { echo "generate.sh: select one generated picture in the studio first" >&2; exit 2; }
+  ASSET=$(printf '%s' "$SEL" | jq -r '[.photoAsset, .attrs.src, .html] | map(select(type == "string")) | join(" ")' \
+    | grep -oE 'assets/[0-9a-f]{8}\.[A-Za-z0-9]{1,8}' | head -1 || true)
+  REF=$(printf '%s' "$SEL" | jq -c 'if (.refs | type) == "array" and (.refs | length) > 0 then .refs[0]
+    elif .id and .artboardId then ({ artboard: .artboardId, element: .id } + (if (.index // 0) > 0 then { occurrence: .index } else {} end))
+    else empty end')
+  [ -n "$ASSET" ] && [ -n "$REF" ] || { echo "generate.sh: the selection is not a picture" >&2; exit 2; }
+  OF=$(curl -s -G "http://127.0.0.1:$PORT/_api/generate-takes/of" --data-urlencode "asset=$ASSET" --data-urlencode "canvas=$CANVAS")
+  NEXT=$(printf '%s' "$OF" | jq -r --arg a "$ASSET" --arg dir "$TAKE" '
+    (.takes // []) as $t | ($t | index($a)) as $i
+    | if $i == null or ($t | length) < 2 then empty
+      else $t[(($i + (if $dir == "next" then 1 else -1 end)) + ($t | length)) % ($t | length)] end' 2>/dev/null || true)
+  [ -n "$NEXT" ] || { echo "generate.sh: that picture has no other takes" >&2; exit 3; }
+  BODY=$(jq -n --arg file "$CANVAS" --argjson ref "$REF" --arg asset "$NEXT" \
+    '{ file: $file, op: "image.replace", targets: [$ref], params: { asset: $asset } }')
+  RESP=$(curl -s -X POST -H 'Content-Type: application/json' -d "$BODY" "http://127.0.0.1:$PORT/_api/edit-op")
+  if [ "$(printf '%s' "$RESP" | jq -r '.ok // false' 2>/dev/null)" != "true" ]; then
+    echo "generate.sh: not changed: $RESP" >&2
+    exit 3
+  fi
+  printf '%s\n' "$NEXT"
+  exit 0
+fi
 
 BASE="http://127.0.0.1:$PORT/_api/generate-jobs"
 

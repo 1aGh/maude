@@ -36,6 +36,8 @@ export interface ShellKeyState {
   singleKeys?: boolean;
   /** S8.12 — a tile is picked in the Assets tab AND focus is inside it (client/v2/assets/assets-bus.js). */
   assetTileSelected?: boolean;
+  /** S8.16 — the one selected picture has other takes (client/v2/assets/takes.js): ← → step between them. */
+  selectionHasTakes?: boolean;
 }
 
 /** The shell document's KeyCtx for a keydown it received. */
@@ -54,6 +56,7 @@ export function shellKeyCtx(probe: FocusProbe, s: ShellKeyState): KeyCtx {
   if (tag === 'SELECT') facts.add('selectFocused');
   if (range) facts.add('rangeFocused');
   if (s.assetTileSelected) facts.add('assetTileSelected');
+  if (s.selectionHasTakes) facts.add('selectionHasTakes');
   const selection: SelKind = s.clipSelected ? 'clip' : s.artboardSelected ? 'artboard' : 'none';
   return {
     role: s.readOnly ? 'comment' : 'owner',
@@ -78,6 +81,8 @@ export interface CanvasKeyState {
   singleKeys?: boolean;
   /** S2.21 — F · R · T (a create tool) is armed: ↵ adds one at its default size (`tool.create-default`). */
   toolArmed?: boolean;
+  /** S8.16 — the selected picture has other takes (the shell's `gen-takes`): ← → are not a nudge then. */
+  selectionHasTakes?: boolean;
 }
 
 /** The canvas iframe's KeyCtx for a keydown it received. */
@@ -88,7 +93,10 @@ export function canvasKeyCtx(s: CanvasKeyState): KeyCtx {
     mode: s.mode ?? 'edit',
     focus: s.typing ? 'text' : 'canvas',
     selection: s.selection ?? 'none',
-    facts: new Set<Fact>(s.toolArmed ? ['toolArmed'] : []),
+    facts: new Set<Fact>([
+      ...(s.toolArmed ? (['toolArmed'] as const) : []),
+      ...(s.selectionHasTakes ? (['selectionHasTakes'] as const) : []),
+    ]),
     ...(s.singleKeys === false ? { singleKeys: false } : {}),
   };
 }

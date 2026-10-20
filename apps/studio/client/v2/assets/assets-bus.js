@@ -9,7 +9,7 @@
 // is picked AND keyboard focus is inside the tab. A tile still picked while focus moved to the canvas or a toolbar
 // button must leave ↵ to whatever has focus.
 
-/** @type {{ place: () => void, details: () => void, trash: () => void, tileSelected: () => boolean } | null} */
+/** @type {{ place: () => void, details: () => void, trash: () => void, generate?: () => void, tileSelected: () => boolean } | null} */
 let bound = null;
 
 /** The panel binds itself on mount. @returns the unbind. */
@@ -29,8 +29,29 @@ export function assetTileSelected() {
   }
 }
 
-/** Run `assets.place` / `assets.details` / `assets.trash` on the picked tile. @returns whether a mounted panel took it. */
+/** S8.16 — `assets.generate` asked while no Assets tab was mounted: the tab opens the ask when it mounts. */
+let wantsGenerate = false;
+
+/** The panel, on mount: was Generate asked for before it was there? (read once) */
+export function takeGenerateRequest() {
+  const w = wantsGenerate;
+  wantsGenerate = false;
+  return w;
+}
+
+/**
+ * Run `assets.place` / `assets.details` / `assets.trash` on the picked tile, or `assets.generate` (the ask).
+ * @returns whether a mounted panel took it. `assets.generate` with no panel mounted is held for the next mount.
+ */
 export function runAssetsAction(id) {
+  if (id === 'assets.generate') {
+    if (bound?.generate) {
+      bound.generate();
+      return true;
+    }
+    wantsGenerate = true;
+    return false;
+  }
   const fn =
     id === 'assets.place'
       ? bound?.place

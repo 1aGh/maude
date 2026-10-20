@@ -34253,5 +34253,252 @@
       "apps/studio/test/timeline-clip-select.test.tsx"
     ],
     "v2": "new in v2 (S7.10)"
+  },
+  {
+    "hook": "assets-generate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The spark in the Assets tab head: Assets › Generate (`assets.generate`) opens the Generate ask; `aria-pressed` while it is open (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask in the Assets tab (12 ia-gen-ask): the picture to make, its shape from the selected artboard, the count and the consent lines.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-prompt",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: what should be in the picture (⌘↵ generates, esc closes).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-shape",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the shape chip, \"4:5 · from Gameweek 5\" — the selected artboard sets the aspect.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the count chip (\"4 variants\"), 1 to 4 takes.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the quote line before anything is sent — how long and whose account pays (\"About 30 s · billed to your Google key\").",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-licence",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the provider's one licence line (absent when the provider has none).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask's Advanced fold: the model select and \"Video or sound…\" (Gate 0 D14).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-model",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask › Advanced: the model select (a change asks for a fresh quote).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-other",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask › Advanced: \"Video or sound…\" opens the earlier Generate dialog (provider · model · aspect), re-homed here.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: the one line that says why nothing was sent or placed (no provider, the quote changed, busy, no take came back).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-making",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: \"Making 4 takes…\" while the takes are on their way.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "generate-ask-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Generate ask: Generate — off until a quote and the words are there; hands the single-use quote back.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/generate-ask.jsx",
+      "symbol": "GenerateAsk"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "takes-island",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Over the canvas, with a generated picture selected (12 ia-gen-placed): the \"Picture made by AI\" line and, when it has other takes, the Take pill. Edit mode only.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/takes-overlay.jsx",
+      "symbol": "TakesIsland"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "takes-made-by-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The island's \"Picture made by AI\" — the picture carries it, not the artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/takes-overlay.jsx",
+      "symbol": "TakesIsland"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "takes-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The island's Take pill: ‹ Take 3 of 4 › with ← →.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/takes-overlay.jsx",
+      "symbol": "TakesIsland"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "takes-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Take pill's words, \"Take 3 of 4\" (role status: a step reads it out).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/takes-overlay.jsx",
+      "symbol": "TakesIsland"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "takes-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Take pill's ‹: the previous take in its place (`image.prev-take`, one undo step).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/takes-overlay.jsx",
+      "symbol": "TakesIsland"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "takes-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Take pill's ›: the next take in its place (`image.next-take`, one undo step).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/takes-overlay.jsx",
+      "symbol": "TakesIsland"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
   }
 ]

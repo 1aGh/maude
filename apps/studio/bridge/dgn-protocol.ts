@@ -182,6 +182,9 @@ export interface CanvasToShell {
   'undo-barrier': { requestId: string };
   /** S2.20b — ⌘Z (`redo: false`) / ⇧⌘Z pressed in an op-log canvas: the shell's projection runs it */
   'undo-key': { redo: boolean };
+  /** S8.16 — ← / → pressed in the canvas on a selected picture with other takes: the shell steps the take
+   *  (`image.next-take` / `image.prev-take`, judged by the shell's own selection + role) */
+  'take-step': { dir: 'next' | 'prev' };
   /** S2.1 — one structural edit; the shell pins `file` to the active canvas (S2-edit-ops.md §6) */
   'edit-op': {
     requestId: string;
@@ -646,6 +649,10 @@ export interface ShellToCanvas {
   // shell sends the whole list on open, every 60 s while something waits, at reconnect and after a
   // sweep ends. ≤ 256 items; a name with an `@` is refused whole (the canvas never sees an e-mail).
   'asset-state': { items: AssetStateItem[] };
+  // S8.16 — the pictures of the open canvas that have other takes (`assets/<sha8>.<ext>`): with one of them
+  // selected, ← → are `take-step`, not a nudge. State, not an event: the whole set each time. ≤ 256 items,
+  // each an asset path; a planted or oversized list is refused whole.
+  'gen-takes': { assets: string[] };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -1008,6 +1015,16 @@ const assetStateItem = shape({
 const assetStateList: V = (v) =>
   Array.isArray(v) && v.length <= ASSET_STATE_MAX ? arrOf(assetStateItem)(v) : BAD;
 
+/** S8.16 — `gen-takes`: content-addressed picture paths only, refused whole past the cap. */
+export const GEN_TAKES_ASSETS_MAX = 256;
+const GEN_TAKE_ASSET_RE = /^assets\/[0-9a-f]{8}\.[A-Za-z0-9]{1,8}$/;
+const genTakeAssets: V = (v) =>
+  Array.isArray(v) &&
+  v.length <= GEN_TAKES_ASSETS_MAX &&
+  v.every((x) => typeof x === 'string' && GEN_TAKE_ASSET_RE.test(x))
+    ? v.slice()
+    : BAD;
+
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
   fields: NoInfer<{ [K in keyof Required<T>]: V }>
@@ -1211,6 +1228,12 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/undo/use-undo-mode-lane (S2.20b)',
     parse: p({ redo: bool }),
+  },
+  'take-step': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/assets/takes (S8.16)',
+    parse: p({ dir: lit('next', 'prev') }),
   },
   'edit-op': {
     gate: 'active',
@@ -2213,6 +2236,12 @@ const s2c: S2C = {
     status: 'live',
     owner: 'canvas-lib asset placeholder frame (S8.19, L1)',
     parse: p({ items: assetStateList }),
+  },
+  'gen-takes': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/take-keys (S8.16, L1)',
+    parse: p({ assets: genTakeAssets }),
   },
 };
 

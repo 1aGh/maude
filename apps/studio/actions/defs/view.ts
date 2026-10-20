@@ -121,6 +121,18 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { hidden: true },
   },
   {
+    // S8.16 (ia-gen-ask) — Assets › Generate: say the picture, the selected artboard sets the shape; before anything is
+    // sent one line says how long and whose account pays, one line the licence. The best take lands in the frame. A
+    // paid call to a provider: Can edit and up, and the server refuses a run without its single-use quote.
+    id: 'assets.generate',
+    label: 'Generate an image…',
+    kind: 'command',
+    icon: 'sparkle',
+    exec: 'shell',
+    enabled: { minRole: 'edit' },
+    search: { keywords: ['generate', 'ai', 'image', 'picture', 'takes'] },
+  },
+  {
     // S8.12 — ⌘I on the picked tile: its details (a read, so every role). S8.21 draws the full sheet.
     id: 'assets.details',
     label: 'Show details',

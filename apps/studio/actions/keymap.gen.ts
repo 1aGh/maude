@@ -137,7 +137,11 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '←',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
       },
       {
         chord: '⇧←',
@@ -148,7 +152,11 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       {
         chord: '→',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: {
+          focus: ['canvas'],
+          selection: ['object', 'artboard'],
+          notFacts: ['selectionHasTakes'],
+        },
       },
       {
         chord: '⇧→',

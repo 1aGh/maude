@@ -2,8 +2,9 @@
 // origin. Boots a real server (no CANVAS_ORIGIN_SPLIT; loopback host). Proves:
 // validation rejects bad bodies; a key POST reports {configured} and GET never
 // echoes the value; the provider catalogue serializes with a presence flag; and
-// a generate POST enqueues a job (202 {jobId}) that fails cleanly with no key
-// configured (no real Google call). Points MAUDE_GEN_KEYS_PATH at the sandbox
+// a generate POST enqueues a job (202 {jobId}). The job runs on the env-gated
+// stub provider (MAUDE_GENERATE_STUB=1, generation/adapters/stub.ts) — no test
+// reaches a real provider (S8.16b). Points MAUDE_GEN_KEYS_PATH at the sandbox
 // so the user's real key store is never touched.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -25,6 +26,7 @@ describe('/_api/generate* main-origin routes', () => {
     const port = nextPort();
     const proc = await bootServer(root, port, {
       MAUDE_GEN_KEYS_PATH: join(keysDir, 'keys.json'),
+      MAUDE_GENERATE_STUB: '1',
     });
     const base = `http://localhost:${port}`;
     try {
@@ -71,13 +73,11 @@ describe('/_api/generate* main-origin routes', () => {
       });
       expect(unkRes.status).toBe(400);
 
-      // A well-formed request enqueues → 202 { jobId }. (The run will hit the
-      // real Gemini endpoint with a bogus key and fail in the background — we
-      // only assert the queue accepted it and surfaces the job.)
+      // A well-formed request enqueues → 202 { jobId }, on the stub provider: no egress, no real key used.
       const okRes = await fetch(`${base}/_api/generate-jobs`, {
         method: 'POST',
         headers: { 'content-type': 'text/plain' },
-        body: JSON.stringify({ modality: 'image', provider: 'gemini', prompt: 'a red circle' }),
+        body: JSON.stringify({ modality: 'image', provider: 'stub', prompt: 'a red circle' }),
       });
       expect(okRes.status).toBe(202);
       const okJson = (await okRes.json()) as { jobId: string };
@@ -85,8 +85,11 @@ describe('/_api/generate* main-origin routes', () => {
 
       // The job shows up in the list.
       const listRes = await fetch(`${base}/_api/generate-jobs`);
-      const listJson = (await listRes.json()) as { jobs: Array<{ id: string }> };
-      expect(listJson.jobs.some((j) => j.id === okJson.jobId)).toBe(true);
+      const listJson = (await listRes.json()) as {
+        jobs: Array<{ id: string; provider: string }>;
+      };
+      const job = listJson.jobs.find((j) => j.id === okJson.jobId);
+      expect(job?.provider).toBe('stub');
 
       // Remove the key.
       const delRes = await fetch(`${base}/_api/generate/keys`, {
