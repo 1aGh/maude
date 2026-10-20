@@ -210,6 +210,7 @@ function designRel(p: string): string {
 
 const ROUTE: Record<DsOp, { method: 'GET' | 'POST'; path: string }> = {
   state: { method: 'GET', path: '/_api/ds/state' },
+  board: { method: 'GET', path: '/_api/ds/board' },
   revision: { method: 'GET', path: '/_api/ds/revision' },
   revisions: { method: 'GET', path: '/_api/ds/revisions' },
   usage: { method: 'GET', path: '/_api/ds/usage' },

@@ -22,14 +22,15 @@ export const ARTBOARD_KIND_CHIPS = Object.freeze({
 /** The id of the kind nothing else claims. */
 export const KIND_FALLBACK = 'frame';
 
-/** @type {Array<{ id: string, label: string | ((s: any) => string), order: number, match: (s: any) => boolean, seq: number }>} */
+/** @type {Array<{ id: string, label: string | ((s: any) => string), order: number, match: (s: any) => boolean, bare: boolean, seq: number }>} */
 const kinds = [];
 let seq = 0;
 
 /**
- * @param {{ id: string, label: string | ((selection: any) => string), match: (selection: any) => boolean, order?: number }} kind
+ * @param {{ id: string, label: string | ((selection: any) => string), match: (selection: any) => boolean, order?: number, bare?: boolean }} kind
  *   `match` gets the selection as the panel holds it: one element, or an array of them. `order` defaults to 100;
- *   the built-ins sit between 10 and 90, the fallback at 1000.
+ *   the built-ins sit between 10 and 90, the fallback at 1000. `bare` (S10.7): the kind draws everything itself
+ *   (a design-system token) — the frame leaves out the ten object sections and the raw code fold.
  * @returns {() => void} unregister (tests, hot reload)
  */
 export function registerKind(kind) {
@@ -41,6 +42,7 @@ export function registerKind(kind) {
     label: kind.label,
     match: kind.match,
     order: Number.isFinite(kind.order) ? kind.order : 100,
+    bare: kind.bare === true,
     seq: seq++,
   };
   kinds.push(entry);
@@ -80,6 +82,9 @@ const ARTBOARD_SELECTOR = /^\[data-dc-screen="[^"]+"\]$/;
 export function isArtboardSelection(el) {
   if (!el || Array.isArray(el)) return false;
   if (el.id) return false;
+  // S10.7 — a token or a master on the Design system canvas has no id but is not a board
+  if (el.attrs?.['data-ds-token'] !== undefined || el.attrs?.['data-ds-master'] !== undefined)
+    return false;
   return ARTBOARD_SELECTOR.test(el.selector || '') || !!el.artboardId;
 }
 

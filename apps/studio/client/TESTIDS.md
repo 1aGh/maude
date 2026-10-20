@@ -1804,6 +1804,20 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ds-update-do` | testid | S10.8: Update — gives this instance the current look (`ds.instance-update`). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 | `ds-update-detach` | testid | S10.8: Detach — S2's `component.detach` on this instance. | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
 | `ds-update-error` | testid | S10.8: a refusal of Update in words (AI holds it, locked, viewer). | `client/v2/ds/update-available.jsx` · `DsUpdateAvailable` | test:v2-ds-update-available.test | new |
+| `insp-sec-ds-token` | testid | S10.7: The inspector block for a token selected on the Design system canvas (kind `ds-token`): `data-token` is the CSS name, `data-locked` when it is a frozen brand colour. Its rows are `insp-row-ds-editing \| ds-light \| ds-dark \| ds-value \| ds-name \| ds-follows \| ds-adv-light \| ds-adv-dark \| ds-adv-token`. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-light` | testid | S10.7: The token's Light value as the person reads it: the colour's own name, else the value text. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-dark` | testid | S10.7: The token's Dark value: "Follows Light" while Dark follows, else its name or value. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-picker` | testid | S10.7: The native colour picker for the mode being edited. Dragging it updates contrast live and writes nothing; one write when the drag ends. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-value` | testid | S10.7: The value box for the mode being edited (a colour, a length, a duration…); written on blur or Enter. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-name` | testid | S10.7: The colour's own name for the mode being edited ("Deeper azure"); written on blur. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-contrast` | testid | S10.7: The quiet contrast line, both modes, live while the picker is dragged: "Light 5.6:1 · Dark 4.8:1", or "3.1:1 on Pole and Hover in Dark" with `data-tone="warn"`. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-used` | testid | S10.7: "Used in 5 canvases" (and "· was Azure" while an edit waits). The Show door is S10.9's. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-note` | testid | S10.7: A refusal or a clash in words, under the token (someone changed it just now; not a value; can't edit). | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-locked` | testid | S10.7: The lock badge on a frozen brand colour. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-locked-line` | testid | S10.7: "Locked brand colour. It can't be changed here." — replaces every field of a locked token. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-advanced` | testid | S10.7: The token's Advanced fold: Light and Dark as the files write them, and the CSS name. | `client/v2/ds/kinds/token.jsx` · `TokenPanel` | test:v2-ds-token-kind | new |
+| `ds-token-nosystem` | testid | S10.7: The token's canvas follows no design system: nothing to edit. | `client/v2/ds/kinds/token.jsx` · `TokenBody` | test:v2-ds-token-kind | new |
+| `ds-token-loading` | testid | S10.7: The system is being read, or the studio could not give its model. | `client/v2/ds/kinds/token.jsx` · `TokenBody` | test:v2-ds-token-kind | new |
 
 ## What's New spotlights
 

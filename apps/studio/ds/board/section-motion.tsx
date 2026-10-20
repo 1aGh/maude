@@ -51,6 +51,8 @@ export function MotionSection({ model, mode }: SectionProps) {
               key={t.css}
               className="ds-mo"
               data-ds-token={t.css}
+              data-ds-label={t.label}
+              data-ds-kind={t.kind}
               data-pending={t.pending ? 'true' : undefined}
             >
               {b ? <Curve b={b} /> : null}

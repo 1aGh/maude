@@ -108,7 +108,19 @@ function pendingOf(entry: unknown, themes: string[]): PendingView | null {
       ? entry.trash.replacement
       : null;
   const by = isObj(entry.by) && typeof entry.by.name === 'string' ? entry.by.name : null;
-  return { values, trashTo: trash, added: isObj(entry.add), by };
+  const valueNames: Record<string, string> = {};
+  if (isObj(entry.valueNames))
+    for (const [t, n] of Object.entries(entry.valueNames))
+      if (typeof n === 'string') valueNames[t] = n;
+  return {
+    values,
+    trashTo: trash,
+    added: isObj(entry.add),
+    by,
+    at: typeof entry.at === 'string' ? entry.at : null,
+    valueNames,
+    darkFollows: typeof entry.darkFollows === 'boolean' ? entry.darkFollows : null,
+  };
 }
 
 interface UsageSlice {
@@ -221,6 +233,7 @@ export function buildBoardModel(
       label,
       valueNames,
       locked: data.locked === true,
+      darkFollows: typeof data.darkFollows === 'boolean' ? data.darkFollows : null,
       values,
       used: usage ? countCanvases(usage.tokens[css]) : null,
       pending: pv,

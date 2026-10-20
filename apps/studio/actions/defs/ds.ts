@@ -45,4 +45,9 @@ export const DS_ACTIONS: ActionDef[] = [
   row('ds.review-update', 'Update for every canvas…'),
   row('ds.go-to', 'Go to the design system', VIEW),
   row('ds.instance-update', 'Update to the current look'),
+  // S10.7 — edit a token on the Design system canvas (13 · ds-edit-colour): the inspector's picker, value box and
+  // "Dark follows automatically" switch. Each is one waiting edit (`dsPending`), never a file write; the review
+  // ("Update N canvases", S10.8) is what reaches canvases. Reached from the selected token, so not ⌘K rows.
+  row('ds.set-token', 'Change a token'),
+  row('ds.set-dark-follows', 'Dark follows Light'),
 ];

@@ -25,6 +25,8 @@ export function TypeSection({ model, mode }: SectionProps) {
             key={t.css}
             className="ds-trow"
             data-ds-token={t.css}
+            data-ds-label={t.label}
+            data-ds-kind={t.kind}
             data-pending={t.pending ? 'true' : undefined}
           >
             <span className="ds-tname">

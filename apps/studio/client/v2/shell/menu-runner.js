@@ -39,6 +39,7 @@ import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { requestDsReview } from '../ds/review-bus.js';
+import { runTokenAction } from '../ds/token-write.js';
 import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { runPreviewBack } from '../preview/preview-back.js';
 import { requestShareFocus } from '../share/share-model.js';
@@ -294,6 +295,10 @@ export function createMenuHandlers(d) {
       }),
     // Cancel puts the swatch back: what waited is dropped, no canvas changes.
     'ds.cancel-pending': (p) => requestDsReview({ kind: 'cancel', ds: p?.ds, canvas: p?.canvas }),
+    // S10.7 — a token edited in place: the inspector's panel and these two rows are one writer (token-write.js)
+    'ds.set-token': async (p) => d.toast?.((await runTokenAction('ds.set-token', p)).message),
+    'ds.set-dark-follows': async (p) =>
+      d.toast?.((await runTokenAction('ds.set-dark-follows', p)).message),
     // S10.8 — Go to the design system / a token / a master (the shell opens the tab and selects it)
     'ds.go-to': (p) => d.onDsGoTo?.(p),
     'view.advanced-close-all': () => {

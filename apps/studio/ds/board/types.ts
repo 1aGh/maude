@@ -61,6 +61,12 @@ export interface PendingView {
   /** a token the edit adds */
   added: boolean;
   by: string | null;
+  /** the entry's `at` — what an editor sends back as `expect` so a second editor re-reads (S10.7) */
+  at: string | null;
+  /** theme → the colour's own name the edit gives it */
+  valueNames: Record<string, string>;
+  /** the edit says whether Dark follows Light (null = it says nothing) */
+  darkFollows: boolean | null;
 }
 
 export interface BoardToken {
@@ -75,6 +81,8 @@ export interface BoardToken {
   /** theme → the colour's own name ("Azure") */
   valueNames: Record<string, string>;
   locked: boolean;
+  /** `tokens.json` `darkFollows`: false = the person set Dark by hand; null = never said (it follows) */
+  darkFollows: boolean | null;
   /** theme → the CSS value text, as the files declare it */
   values: Record<string, string>;
   /** canvases that use it; null when the usage index has not run */

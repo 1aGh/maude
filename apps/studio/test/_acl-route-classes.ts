@@ -116,6 +116,7 @@ const FILTERED = [
   '/_api/share/requests',
   '/_api/sync/conflicts',
   '/_api/ds/state',
+  '/_api/ds/board',
   '/_api/ds/revision',
   '/_api/ds/revisions',
   '/_api/ds/usage',
