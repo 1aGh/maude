@@ -80,7 +80,6 @@ import { createLocalLeaseHome } from './ai/lease-home.ts';
 import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { importBrandRequest } from './bin/_brand-site.mjs';
-import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
 import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
@@ -2286,6 +2285,15 @@ export function createHttp(
     },
     // S8.17 — POST /_api/figma/frames + /_api/figma/import-frames (routes/figma.ts): the verb, lazily.
     figma: {
+      root: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      announce: (rel) => {
+        if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
+      },
+    },
+    // S8.22 — POST /_api/import-asset (routes/assets.ts): v2 body, PSD/HEIC through the sandboxed sips, dedupe answer.
+    assetImport: {
       root: ctx.paths.repoRoot,
       designRel: ctx.paths.designRel,
       access: (req) => accessOf(req),
@@ -5665,74 +5673,8 @@ export function createHttp(
       );
     },
 
-    // DDR-167 (Phase 3 / T10) — hardened LOCAL-file SVG ingestion for the
-    // in-app Brand-upload panel (T12). Privileged + main-origin-only (Decision
-    // 4): absent from CANVAS_SAFE_API + startCanvasServer's routes map — the
-    // untrusted canvas iframe must never reach it. Raw-bytes body only, never
-    // multipart (this dev server has no multipart parsing anywhere). The
-    // `X-Import-Kind` header is a dispatch HINT ONLY — never trusted for the
-    // security-relevant decision; the sanitize pipeline's own pre-parse
-    // structural sniff decides. PDF import is wired but not yet available —
-    // see the DDR's addendum on why the planned rasterization mechanism
-    // (headless-Chromium navigating a file:// PDF) doesn't render content
-    // under browser automation; a `kind: pdf` request 501s naming that.
-    '/_api/import-asset': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const kind = (req.headers.get('x-import-kind') || 'svg').toLowerCase();
-      if (kind !== 'svg') {
-        return Response.json(
-          {
-            ok: false,
-            error: 'PDF import is not yet available (DDR-167 addendum) — only SVG import is wired.',
-          },
-          { status: 501, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      const declared = Number(req.headers.get('content-length') || '0');
-      if (Number.isFinite(declared) && declared > SVG_MAX_BYTES) {
-        return Response.json(
-          { ok: false, error: `SVG exceeds the ${SVG_MAX_BYTES / (1024 * 1024)} MB cap` },
-          { status: 413, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      if (!req.body) return new Response('empty body', { status: 400 });
-      let svgText: string;
-      try {
-        svgText = await new Response(req.body).text();
-      } catch {
-        return new Response('could not read body', { status: 400 });
-      }
-      try {
-        const result = await importSvg(svgText, {
-          root: ctx.paths.repoRoot,
-          designRootRel: ctx.paths.designRel,
-        });
-        return Response.json(
-          { ok: true, path: result.path },
-          { status: 201, headers: { 'Cache-Control': 'no-store' } }
-        );
-      } catch (err) {
-        const status =
-          err instanceof ImportAssetError
-            ? err.code === 3
-              ? 400
-              : err.code === 5
-                ? 415
-                : err.code === 6
-                  ? 500
-                  : 400
-            : 500;
-        const message = err instanceof Error ? err.message : String(err);
-        return Response.json(
-          { ok: false, error: message },
-          { status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-    },
+    // DDR-167 (Phase 3 / T10) — hardened local-file ingestion, privileged + main-origin-only (Decision 4).
+    // S8.22: `/_api/import-asset` moved to the route table (routes/assets.ts) with its v2 body.
 
     // DDR-173 (Phase 3 / T12) — brand-file typed-cue extraction for the
     // in-app Brand-upload panel. Privileged + main-origin-only, same posture

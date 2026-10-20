@@ -12,7 +12,7 @@
 // See DDR-167 for the full threat model. Every numbered "Decision N, step M"
 // comment below points at the exact DDR clause it implements.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -25,7 +25,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
@@ -34,9 +34,17 @@ import { recordAssetOrigin } from '../asset-origins.ts';
 import { isValidSvg, optimizeSvg } from '../draw/optimize.ts';
 
 export class ImportAssetError extends Error {
-  constructor(code, message) {
+  /**
+   * @param {number} code  the CLI exit code (below)
+   * @param {string} message
+   * @param {string} [reason]  S8.22 — the machine word the import answer carries, so the client's one line
+   *   (`client/v2/assets/import-lines.js`) never parses `message`: too-large · too-many-pixels · timeout ·
+   *   not-on-mac · no-flat-picture · unreadable · external-reference · unsupported · busy
+   */
+  constructor(code, message, reason) {
     super(message);
     this.code = code;
+    this.reason = reason ?? null;
   }
 }
 
@@ -78,7 +86,9 @@ export function writeContainedAsset(root, designRootRel, bytes, ext) {
   const name = assetName(bytes, ext);
   const { assetsDir, fileAbs } = containedAssetPath(root, designRootRel, name);
   mkdirSync(assetsDir, { recursive: true });
-  if (!existsSync(fileAbs)) {
+  // S8.22 — the dedupe answer: same bytes, same name, so a second drop is the one already in Assets.
+  const reused = existsSync(fileAbs);
+  if (!reused) {
     const tmp = join(
       assetsDir,
       `.tmp-${createHash('sha256').update(name).digest('hex').slice(0, 12)}`
@@ -86,7 +96,7 @@ export function writeContainedAsset(root, designRootRel, bytes, ext) {
     writeFileSync(tmp, bytes);
     renameSync(tmp, fileAbs);
   }
-  return { ref: `/assets/${name}`, path: `assets/${name}`, name, bytes: bytes.length, ext };
+  return { ref: `/assets/${name}`, path: `assets/${name}`, name, bytes: bytes.length, ext, reused };
 }
 
 // ============================================================================
@@ -325,7 +335,12 @@ export function svgPreParseReject(text) {
 }
 
 /** Removes `el` and everything not in ALLOWED_ELEMENTS, at any depth. */
-function walkAllowlist(root) {
+function walkAllowlist(root, removed = null) {
+  // S8.22 — what was left out, counted for the one line ("two links to other sites and a script were left
+  // out"). Counting never changes what is removed.
+  const note = (what) => {
+    if (removed) removed[what] += 1;
+  };
   // querySelectorAll('*') returns every descendant regardless of depth —
   // exactly the "not root-only" guarantee DDR-167 requires.
   const all = [...root.querySelectorAll('*'), root];
@@ -334,6 +349,14 @@ function walkAllowlist(root) {
     const tag = el.tagName;
     const allowed = ALLOWED_ELEMENTS.has(tag) && el.namespaceURI === SVG_NS;
     if (!allowed) {
+      if (tag.toLowerCase() === 'script') note('scripts');
+      else if (
+        tag.toLowerCase() === 'a' &&
+        el.getAttribute('href')?.trim() &&
+        !el.getAttribute('href').trim().startsWith('#')
+      )
+        note('links');
+      else note('other');
       el.remove();
       continue;
     }
@@ -349,11 +372,15 @@ function walkAllowlist(root) {
         continue;
       }
       if (/^on/i.test(local)) {
+        note('scripts');
         el.removeAttribute(attr.name);
         continue;
       }
       if (local === 'href') {
-        if (!isSafeFragmentOrRasterData(attr.value)) el.removeAttribute(attr.name);
+        if (!isSafeFragmentOrRasterData(attr.value)) {
+          note(/^\s*javascript:/i.test(attr.value) ? 'scripts' : 'links');
+          el.removeAttribute(attr.name);
+        }
         continue;
       }
       if (FUNCIRI_ATTR_NAMES.has(local)) {
@@ -375,14 +402,23 @@ function walkAllowlist(root) {
  * browser-driven, see runSvgExecutionCanary below. Throws on any hard reject.
  */
 export function sanitizeSvgAllowlist(svgText) {
+  return sanitizeSvgWithReport(svgText).svg;
+}
+
+/**
+ * S8.22 — the same sanitize, plus what it left out: `{ svg, removed: { scripts, links, other } }`. A logo
+ * "loses anything that isn't drawing, and one line says so" (12 · ia-more-ways); the counts are that line.
+ */
+export function sanitizeSvgWithReport(svgText) {
   svgPreParseReject(svgText);
+  const removed = { scripts: 0, links: 0, other: 0 };
   const window = new Window();
   const doc = new window.DOMParser().parseFromString(svgText, 'image/svg+xml');
   const root = doc.documentElement;
   if (root?.tagName !== 'svg' || root.namespaceURI !== SVG_NS || doc.querySelector('parsererror')) {
     throw new ImportAssetError(3, 'SVG failed to parse');
   }
-  walkAllowlist(root);
+  walkAllowlist(root, removed);
   if (!root.isConnected && root.tagName !== 'svg') {
     throw new ImportAssetError(3, 'root element was not a valid <svg> after sanitizing');
   }
@@ -390,7 +426,7 @@ export function sanitizeSvgAllowlist(svgText) {
   if (!isValidSvg(serialized)) {
     throw new ImportAssetError(3, 'sanitized output failed the SVGO validity gate');
   }
-  return optimizeSvg(serialized, { multipass: true });
+  return { svg: optimizeSvg(serialized, { multipass: true }), removed };
 }
 
 // ============================================================================
@@ -627,9 +663,12 @@ export async function rasterizePdfPage(_pdfPath, _pageNumber, _opts = {}) {
 
 /** Full SVG import: sanitize → canary → content-address → contained write. */
 export async function importSvg(svgText, { root, designRootRel = '.design' }) {
-  const sanitized = sanitizeSvgAllowlist(svgText);
+  const { svg: sanitized, removed } = sanitizeSvgWithReport(svgText);
   await runSvgExecutionCanary(sanitized);
-  return writeContainedAsset(root, designRootRel, Buffer.from(sanitized, 'utf8'), 'svg');
+  return {
+    ...writeContainedAsset(root, designRootRel, Buffer.from(sanitized, 'utf8'), 'svg'),
+    removed,
+  };
 }
 
 /**
@@ -826,6 +865,373 @@ export function importRaster(inputPath, { root, designRootRel = '.design' }) {
 }
 
 // ============================================================================
+// S8.22 (Q9) — PSD and HEIC: macOS `sips`, sandboxed and bounded.
+//
+// Every converted file is attacker-controlled. The order is the control:
+//   1. sniff the bytes (never the name or the kind hint) — `8BPS` / an ISOBMFF `ftyp` with a HEIF brand
+//   2. byte cap per kind, BEFORE anything parses
+//   3. read the declared size from the header ourselves (bounded box walk, no recursion past a depth) and
+//      refuse past the pixel budget — the decompression-bomb guard, whatever the compression inside
+//   4. HEIF external data references (`dref` entries that are not self-contained) are refused — the file
+//      would make the decoder open another file
+//   5. the bytes go to a fresh temp dir under a FIXED name (`in.<kind>`); the original name never shapes a path
+//   6. `sips` runs under `sandbox-exec`: no network, no reads in the home folder, writes only in the temp dirs;
+//      a minimal env; SIGKILL past the time cap; one-at-a-time per kind past MAX_CONCURRENT
+//   7. the output is re-checked: a regular file (never a symlink), the image cap, a PNG/JPEG magic, the pixel
+//      budget again — then the usual content-addressed contained write (dedupe by sha)
+// Off macOS (a cell, Linux) the file is refused with one line: no new dependency, DDR-177 holds.
+// ============================================================================
+
+export const CONVERT_MAX_BYTES = { psd: 200 * 1024 * 1024, heic: 50 * 1024 * 1024 };
+/** 100 megapixels: a 12k × 8k poster passes, a 30k × 30k bomb does not. */
+export const CONVERT_MAX_PIXELS = 100_000_000;
+export const CONVERT_MAX_SIDE = 30_000;
+export const CONVERT_TIMEOUT_MS = 60_000;
+/** The output is an image asset: the same ceiling `/_api/asset` applies to images (api.ts `ASSET_MAX_BYTES`). */
+export const CONVERT_OUT_MAX_BYTES = (() => {
+  const env = Number(process.env.MAUDE_ASSET_MAX_IMAGE_BYTES);
+  return Number.isFinite(env) && env > 0 ? env : 50 * 1024 * 1024;
+})();
+const MAX_CONCURRENT = 2;
+const HEIF_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'mif1', 'msf1']);
+const NOT_HEIC_BRANDS = new Set(['avif', 'avis', 'crx ']);
+
+const u32 = (b, o) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
+const u16 = (b, o) => ((b[o] << 8) | b[o + 1]) >>> 0;
+const fourcc = (b, o) => String.fromCharCode(b[o], b[o + 1], b[o + 2], b[o + 3]);
+
+/** `'psd'` · `'heic'` · `null`, from the bytes alone. */
+export function sniffConvertibleKind(bytes) {
+  if (!bytes || bytes.length < 26) return null;
+  if (fourcc(bytes, 0) === '8BPS') {
+    const version = u16(bytes, 4);
+    return version === 1 || version === 2 ? 'psd' : null;
+  }
+  if (fourcc(bytes, 4) === 'ftyp') {
+    const size = u32(bytes, 0);
+    if (size < 16 || size > bytes.length || size > 4096) return null;
+    const brands = [fourcc(bytes, 8)];
+    for (let o = 16; o + 4 <= size; o += 4) brands.push(fourcc(bytes, o));
+    if (brands.some((b) => NOT_HEIC_BRANDS.has(b))) return null;
+    return brands.some((b) => HEIF_BRANDS.has(b)) ? 'heic' : null;
+  }
+  return null;
+}
+
+/** A PSD/PSB header's `{ w, h }` (offsets 18 / 14), or `null` when the header is not one. */
+export function psdDims(bytes) {
+  if (!bytes || bytes.length < 26 || fourcc(bytes, 0) !== '8BPS') return null;
+  const channels = u16(bytes, 12);
+  if (channels < 1 || channels > 56) return null;
+  return { w: u32(bytes, 18), h: u32(bytes, 14) };
+}
+
+/**
+ * Walk ISOBMFF boxes in `[start, end)`: `visit(type, bodyStart, boxEnd)`. Bounded: at most `budget.n` boxes
+ * in total and a nesting depth of 6; a box that claims more than its parent holds ends the walk (fail closed).
+ */
+function walkBoxes(bytes, start, end, visit, budget, depth = 0) {
+  if (depth > 6) return;
+  let o = start;
+  while (o + 8 <= end) {
+    if (--budget.n < 0)
+      throw new ImportAssetError(3, 'too many boxes in a HEIC file', 'unreadable');
+    let size = u32(bytes, o);
+    const type = fourcc(bytes, o + 4);
+    let header = 8;
+    if (size === 1) {
+      if (o + 16 > end) return;
+      const hi = u32(bytes, o + 8);
+      if (hi !== 0) return; // > 4 GB in a capped buffer: a lie
+      size = u32(bytes, o + 12);
+      header = 16;
+    } else if (size === 0) {
+      size = end - o;
+    }
+    if (size < header || o + size > end) return;
+    visit(type, o + header, o + size, depth);
+    o += size;
+  }
+}
+
+/**
+ * A HEIC's `{ w, h, external }`: the largest `ispe` (image spatial extents — a grid image's full size), and
+ * whether a `dref` points outside the file. `null` when no size is declared (refused: we never guess).
+ */
+export function heicDims(bytes) {
+  const budget = { n: 10_000 };
+  let best = null;
+  let external = false;
+  const containers = new Set(['meta', 'iprp', 'ipco', 'dinf', 'dref']);
+  const fullBoxes = new Set(['meta', 'dref']);
+  const visit = (type, body, end, depth) => {
+    if (type === 'ispe' && body + 12 <= end) {
+      const w = u32(bytes, body + 4);
+      const h = u32(bytes, body + 8);
+      if (!best || w * h > best.w * best.h) best = { w, h };
+      return;
+    }
+    if ((type === 'url ' || type === 'urn ') && body + 4 <= end) {
+      // a data-entry box: flag 0x000001 = "self-contained" (the data is in this file). Anything else names a
+      // location the decoder would open.
+      const flags = u32(bytes, body) & 0xffffff;
+      if ((flags & 1) === 0) external = true;
+      return;
+    }
+    if (containers.has(type)) {
+      // full boxes carry 4 bytes of version/flags; `dref` also an entry count
+      const skip = type === 'dref' ? 8 : fullBoxes.has(type) ? 4 : 0;
+      walkBoxes(bytes, body + skip, end, visit, budget, depth + 1);
+    }
+  };
+  walkBoxes(bytes, 0, bytes.length, visit, budget);
+  return best ? { ...best, external } : null;
+}
+
+/** A PNG's / JPEG's declared `{ w, h }` (IHDR / the first SOFn), or `null`. Bounded marker scan. */
+export function rasterDims(bytes, kind) {
+  if (kind === 'png') {
+    if (bytes.length < 24 || fourcc(bytes, 12) !== 'IHDR') return null;
+    return { w: u32(bytes, 16), h: u32(bytes, 20) };
+  }
+  if (kind === 'jpg') {
+    let o = 2;
+    for (let steps = 0; steps < 10_000 && o + 9 <= bytes.length; steps++) {
+      if (bytes[o] !== 0xff) return null;
+      const m = bytes[o + 1];
+      if (m === 0xff) {
+        o += 1;
+        continue;
+      }
+      if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) {
+        o += 2;
+        continue;
+      }
+      const len = u16(bytes, o + 2);
+      if (len < 2) return null;
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+        return { w: u16(bytes, o + 7), h: u16(bytes, o + 5) };
+      }
+      o += 2 + len;
+    }
+    return null;
+  }
+  return null;
+}
+
+/** Refuses a declared size past the budget (or a zero side). */
+export function assertPixelBudget(
+  dims,
+  { maxPixels = CONVERT_MAX_PIXELS, maxSide = CONVERT_MAX_SIDE } = {}
+) {
+  if (!dims || !(dims.w > 0) || !(dims.h > 0)) {
+    throw new ImportAssetError(3, 'the file does not say how big its picture is', 'unreadable');
+  }
+  if (dims.w > maxSide || dims.h > maxSide || dims.w * dims.h > maxPixels) {
+    throw new ImportAssetError(
+      3,
+      `the picture is ${dims.w} × ${dims.h} — past the ${Math.round(maxPixels / 1e6)} megapixel cap`,
+      'too-many-pixels'
+    );
+  }
+}
+
+/**
+ * The `sandbox-exec` profile one conversion runs under: no network at all, no reads in the home folder (a
+ * subverted decoder must not read `~/.ssh` into the picture it writes, which then syncs), writes only in its
+ * own work dir and the per-user temp dir `sips` stages through. Later rules win in SBPL.
+ */
+export function sandboxProfile({ work, userTemp, home }) {
+  for (const p of [work, userTemp, home]) {
+    if (typeof p !== 'string' || !p.startsWith('/') || /["\\\n]/.test(p)) {
+      throw new ImportAssetError(6, 'sandbox path is not usable', 'unsupported');
+    }
+  }
+  return [
+    '(version 1)',
+    '(allow default)',
+    '(deny network*)',
+    `(deny file-write* (require-all (require-not (subpath "${work}")) (require-not (subpath "${userTemp}"))))`,
+    `(deny file-read* (subpath "${home}"))`,
+    `(allow file-read* (subpath "${work}"))`,
+  ].join('');
+}
+
+function userTempDir() {
+  try {
+    const t = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], {
+      encoding: 'utf8',
+      timeout: 2_000,
+    }).trim();
+    return realpathSync(t);
+  } catch {
+    return realpathSync(tmpdir());
+  }
+}
+
+/**
+ * Run `cmd args` under the conversion sandbox, killed with SIGKILL past `timeoutMs`. Resolves
+ * `{ code, timedOut, stderr }` (stderr capped at 4 kB). Exported so the tests can prove the profile with
+ * `curl` / `cat` / `touch` — the same wrapper `sips` runs in.
+ */
+export function runSandboxed(
+  cmd,
+  args,
+  { work, timeoutMs = CONVERT_TIMEOUT_MS, sandboxPath = SANDBOX_EXEC } = {}
+) {
+  const home = (() => {
+    try {
+      return realpathSync(homedir());
+    } catch {
+      return homedir();
+    }
+  })();
+  const profile = sandboxProfile({ work, userTemp: userTempDir(), home });
+  return new Promise((resolvePromise) => {
+    let stderr = '';
+    let timedOut = false;
+    // its own process group, so the time cap kills everything it started (a grandchild holding the pipe
+    // open must not outlive the cap)
+    const child = spawn(sandboxPath, ['-p', profile, cmd, ...args], {
+      cwd: work,
+      env: { PATH: '/usr/bin:/bin', TMPDIR: `${work}/` },
+      stdio: ['ignore', 'ignore', 'pipe'],
+      detached: true,
+    });
+    const killAll = () => {
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        child.kill('SIGKILL');
+      }
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killAll();
+    }, timeoutMs);
+    child.stderr.on('data', (d) => {
+      if (stderr.length < 4096) stderr += String(d).slice(0, 4096 - stderr.length);
+    });
+    child.on('error', () => {
+      clearTimeout(timer);
+      resolvePromise({ code: -1, timedOut, stderr });
+    });
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      if (timedOut) killAll(); // the group, once more: nothing it forked outlives it
+      resolvePromise({ code: code ?? -1, timedOut, stderr });
+    });
+  });
+}
+
+const SIPS = '/usr/bin/sips';
+const SANDBOX_EXEC = '/usr/bin/sandbox-exec';
+const running = { psd: 0, heic: 0 };
+
+/**
+ * Convert a PSD (→ PNG, keeps transparency) or a HEIC (→ JPEG) to bytes the canvas can show. Throws
+ * `ImportAssetError` with a `reason`. `opts` exist for the tests (a fake `sips`, a short timeout, another
+ * platform) — the route and the CLI pass none.
+ */
+export async function convertWithSips(bytes, opts = {}) {
+  const platform = opts.platform ?? process.platform;
+  const sipsPath = opts.sipsPath ?? SIPS;
+  const sandboxPath = opts.sandboxPath ?? SANDBOX_EXEC;
+  const timeoutMs = opts.timeoutMs ?? CONVERT_TIMEOUT_MS;
+  const maxBytes = opts.maxBytes ?? null;
+  const kind = sniffConvertibleKind(bytes);
+  if (!kind) throw new ImportAssetError(5, 'not a Photoshop or HEIC file', 'unsupported');
+  if (bytes.length > (maxBytes ?? CONVERT_MAX_BYTES[kind])) {
+    throw new ImportAssetError(
+      4,
+      `the file is past the ${kind.toUpperCase()} size cap`,
+      'too-large'
+    );
+  }
+  if (platform !== 'darwin' || !existsSync(sipsPath) || !existsSync(sandboxPath)) {
+    throw new ImportAssetError(5, 'PSD and HEIC files come in on a Mac', 'not-on-mac');
+  }
+  const declared = kind === 'psd' ? psdDims(bytes) : heicDims(bytes);
+  if (kind === 'heic' && declared?.external) {
+    throw new ImportAssetError(
+      3,
+      'the HEIC file points at data outside itself',
+      'external-reference'
+    );
+  }
+  assertPixelBudget(declared, opts);
+  if (running[kind] >= MAX_CONCURRENT) {
+    throw new ImportAssetError(1, 'another file is being prepared — try again in a moment', 'busy');
+  }
+  running[kind] += 1;
+  const work = realpathSync(mkdtempSync(join(tmpdir(), 'maude-convert-')));
+  try {
+    const outExt = kind === 'psd' ? 'png' : 'jpg';
+    const inAbs = join(work, `in.${kind}`);
+    const outAbs = join(work, `out.${outExt}`);
+    writeFileSync(inAbs, bytes);
+    const run = await runSandboxed(
+      sipsPath,
+      ['-s', 'format', outExt === 'png' ? 'png' : 'jpeg', inAbs, '--out', outAbs],
+      { work, timeoutMs, sandboxPath }
+    );
+    if (run.timedOut) {
+      throw new ImportAssetError(
+        1,
+        `preparing it took longer than ${Math.round(timeoutMs / 1000)} s`,
+        'timeout'
+      );
+    }
+    if (run.code !== 0 || !existsSync(outAbs)) {
+      throw kind === 'psd'
+        ? new ImportAssetError(4, 'the Photoshop file has no flat picture', 'no-flat-picture')
+        : new ImportAssetError(4, 'the HEIC file could not be read', 'unreadable');
+    }
+    const st = lstatSync(outAbs);
+    if (!st.isFile() || st.isSymbolicLink()) {
+      throw new ImportAssetError(
+        3,
+        'the converter wrote something that is not a file',
+        'unreadable'
+      );
+    }
+    if (st.size === 0 || st.size > CONVERT_OUT_MAX_BYTES) {
+      throw new ImportAssetError(4, 'the prepared picture is past the image size cap', 'too-large');
+    }
+    const out = readFileSync(outAbs);
+    if (sniffRasterKind(out) !== outExt) {
+      throw new ImportAssetError(
+        3,
+        'the converter wrote something that is not a picture',
+        'unreadable'
+      );
+    }
+    assertPixelBudget(rasterDims(out, outExt), opts);
+    return { bytes: out, ext: outExt, from: kind };
+  } finally {
+    running[kind] -= 1;
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+/** Convert + content-addressed contained write: `{ ref, path, name, bytes, ext, reused, converted }`. */
+export async function importConvertible(bytes, { root, designRootRel = '.design', ...opts }) {
+  const out = await convertWithSips(bytes, opts);
+  return { ...writeContainedAsset(root, designRootRel, out.bytes, out.ext), converted: out.from };
+}
+
+/** PNG/JPEG bytes as they are, behind the same pixel budget (a deflate bomb declares its size in IHDR). */
+export function importRasterBytes(bytes, { root, designRootRel = '.design', ...opts }) {
+  const kind = sniffRasterKind(bytes);
+  if (!kind) throw new ImportAssetError(5, 'not a PNG or JPEG', 'unsupported');
+  if (bytes.length > CONVERT_OUT_MAX_BYTES) {
+    throw new ImportAssetError(4, 'the picture is past the image size cap', 'too-large');
+  }
+  assertPixelBudget(rasterDims(bytes, kind), opts);
+  return writeContainedAsset(root, designRootRel, bytes, kind);
+}
+
+// ============================================================================
 // CLI entry
 // ============================================================================
 
@@ -863,10 +1269,11 @@ const HELP = `import-asset — hardened local-file SVG/PDF/raster ingestion (rea
 
 Usage:
   maude design import-asset <local-path> --root <repo> [--design-root .design]
-                            [--kind svg|pdf|raster] [--json]
+                            [--kind svg|pdf|raster|psd|heic] [--json]
 
 Sanitizes (SVG), rasterizes (PDF, one PNG per page), or content-addresses as-is
-(raster PNG/JPEG — DDR-174 T15's vision-reconstruction source image path) a
+(raster PNG/JPEG — DDR-174 T15's vision-reconstruction source image path), or
+converts (PSD → PNG, HEIC → JPEG through the sandboxed macOS \`sips\`, S8.22) a
 LOCAL file, writing the result(s) to <designRoot>/assets/<sha8>.<ext> and
 printing the reference path(s). See DDR-167 for the full security posture.
 
@@ -897,9 +1304,17 @@ async function main() {
       ? 'pdf'
       : lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')
         ? 'raster'
-        : 'svg';
+        : lower.endsWith('.psd') || lower.endsWith('.psb')
+          ? 'psd'
+          : lower.endsWith('.heic') || lower.endsWith('.heif')
+            ? 'heic'
+            : 'svg';
     const kind = opts.kind || defaultKind;
-    if (kind === 'pdf') {
+    if (kind === 'psd' || kind === 'heic') {
+      // S8.22 — the same symlink-safe capped read, then the sandboxed converter (the bytes decide the kind)
+      const buf = readRasterCapped(opts.file, CONVERT_MAX_BYTES.psd);
+      results = [await importConvertible(buf, { root, designRootRel: opts.designRoot })];
+    } else if (kind === 'pdf') {
       results = await importPdf(opts.file, { root, designRootRel: opts.designRoot });
     } else if (kind === 'raster' || kind === 'png' || kind === 'jpg') {
       results = [importRaster(opts.file, { root, designRootRel: opts.designRoot })];

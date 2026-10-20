@@ -22,6 +22,7 @@ import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.
 import { type AssetDetailsRouteDeps, createAssetDetailsRoutes } from './asset-details.ts';
 import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type AssetTrashRouteDeps, createAssetTrashRoutes } from './asset-trash.ts';
+import { type AssetImportRouteDeps, createAssetImportRoutes } from './assets.ts';
 import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
 import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
@@ -143,6 +144,8 @@ export interface RouteDeps {
   figma?: FigmaRouteDeps;
   /** S8.21 — `GET /_api/asset-details` and `GET /_api/asset-generated` (main origin, reads): details per kind, the Generated runs */
   assetDetails?: AssetDetailsRouteDeps;
+  /** S8.22 — `POST /_api/import-asset` v2 (main origin, Can edit on the project): PSD/HEIC converters, the dedupe answer */
+  assetImport?: AssetImportRouteDeps;
   /** S8.16 — `/_api/generate-takes*` (main origin, Can edit on the canvas): N takes, the consent quote, ← → */
   generate?: GenerateRouteDeps;
   /** S8.10 — `/_api/handoff*` (main origin, Can edit): Handoff to production as one scoped AI run */
@@ -238,6 +241,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
     ...(deps.figma ? createFigmaRoutes(deps.figma) : []),
     ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),
+    ...(deps.assetImport ? createAssetImportRoutes(deps.assetImport) : []),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
     ...(deps.handoff ? createHandoffRoutes(deps.handoff) : []),
     ...createShareRoutes(deps.share),
