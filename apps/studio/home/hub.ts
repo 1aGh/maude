@@ -3,6 +3,9 @@
 //   POST /_home/hub/test     { url }                              → is a Maude hub answering there?
 //   POST /_home/hub/prepare  { profile, url, email?, password? }  → prepareManagedProject for THAT
 //                                                                   profile (kind hub / known-hub)
+//   POST /_home/hub/join     { profile, url, token, email, password } → S6.11b: redeem a hub invite
+//                                                                   (the hub's JSON POST /join), then
+//                                                                   the same prepare-shaped answer
 //
 // Rules (contract S6-slices S6.6):
 //   - the address is https, or http only on loopback — checked before any byte leaves; never
@@ -13,7 +16,9 @@
 //     is kept, in THIS profile's hubs.json. Every request to the hub refuses redirects, so a 307
 //     cannot replay the password (or the token) at another host.
 
+import { ACCESS_VERSION } from '../access/scope.ts';
 import { type PrepareResult, prepareManagedProject } from '../managed-projects.ts';
+import { saveHubCredential } from '../sync/hub-link.ts';
 import { normalizeUrl } from '../sync/hubs-config.ts';
 import { profileCloudPath, profileHubsPath } from './cloud.ts';
 import type { HomeAnswer } from './signin.ts';
@@ -56,6 +61,8 @@ export function hubAddress(raw: unknown): { ok: true; url: string } | { ok: fals
 export interface HomeHub {
   test(body: unknown): Promise<HomeAnswer>;
   prepare(body: unknown): Promise<HomeAnswer>;
+  /** S6.11b — redeem a hub invite (`POST /join`), keep the session, prepare the project. */
+  join(body: unknown): Promise<HomeAnswer>;
 }
 
 const answer = (status: number, body: unknown): HomeAnswer => ({ status, body });
@@ -143,5 +150,170 @@ export function createHomeHub(opts: { fetchImpl?: typeof fetch } = {}): HomeHub 
     return answer(200, { ...r, profile });
   }
 
-  return { test, prepare };
+  // S6.11b — "Invite link or key": redeem a hub invite through the hub's own JSON `POST /join`
+  // (apps/hub auth-routes.mjs), after the same tokenless probe. The invite token, the email and the
+  // password ride that one POST body and nowhere else — never a URL, never a log line, never an
+  // answer. Only the minted session is kept, in THIS profile's hubs.json; the project then prepares
+  // exactly like a hub this Mac already holds a sign-in for.
+  async function join(raw: unknown): Promise<HomeAnswer> {
+    const body = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const profile = typeof body.profile === 'string' ? body.profile : '';
+    const cloudConfigPath = profileCloudPath(profile);
+    const hubsConfigPath = profileHubsPath(profile);
+    if (!cloudConfigPath || !hubsConfigPath)
+      return answer(400, { ok: false, error: 'unknown profile' });
+    const a = hubAddress(body.url);
+    if (!a.ok) return answer(400, { ok: false, error: a.error });
+    const token = hubInviteToken(body.token, a.url);
+    if (!token.ok) return answer(400, { ok: false, error: token.error });
+    const { email, password } = body;
+    if (typeof email !== 'string' || !email.trim() || email.length > MAX_EMAIL)
+      return answer(400, { ok: false, error: 'Enter your email address.' });
+    if (typeof password !== 'string' || !password || password.length > MAX_PASSWORD)
+      return answer(400, { ok: false, error: 'Enter your password.' });
+
+    // the same tokenless probe Test connection sends: nothing secret goes to a non-hub
+    const probe = await test({ url: a.url });
+    if (probe.status !== 200) {
+      const b = probe.body as { error?: string };
+      return answer(probe.status, { ok: false, error: b.error ?? JOIN_WORDS.unreachable });
+    }
+
+    let res: Response;
+    try {
+      res = await hubFetch(`${a.url}/join`, {
+        method: 'POST',
+        // the caller honours a canvas invite's access claim (S9.6b), or the hub refuses to spend it
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json',
+          'x-maude-access': String(ACCESS_VERSION),
+        },
+        body: JSON.stringify({ token: token.value, email: email.trim(), password }),
+        signal: AbortSignal.timeout(JOIN_TIMEOUT_MS),
+      });
+    } catch {
+      return answer(502, { ok: false, error: JOIN_WORDS.unreachable });
+    }
+    let j: Record<string, unknown> | null = null;
+    try {
+      const text = await res.text();
+      j = text.length <= MAX_HEALTH_BYTES ? (JSON.parse(text) as Record<string, unknown>) : null;
+    } catch {
+      j = null;
+    }
+    if (res.status !== 201 || j?.ok !== true || typeof j.token !== 'string' || !j.token) {
+      return answer(joinStatus(res.status), {
+        ok: false,
+        reason: joinReason(res.status, j?.reason),
+        error: joinError(res.status, j?.reason, j?.error),
+      });
+    }
+    const user = (j.user && typeof j.user === 'object' ? j.user : {}) as { role?: unknown };
+    const role = typeof user.role === 'string' ? user.role : 'member';
+    const expiresAt = typeof j.expiresAt === 'number' ? j.expiresAt : undefined;
+    try {
+      saveHubCredential(a.url, j.token, role, expiresAt, hubsConfigPath);
+    } catch {
+      return answer(500, {
+        ok: false,
+        error: "Couldn't save the hub connection on this computer.",
+      });
+    }
+    const r = await prepareManagedProject(
+      {},
+      { kind: 'known-hub', url: a.url },
+      { cloudConfigPath, hubsConfigPath, fetchImpl: hubFetch }
+    );
+    if (!r.ok) return answer(r.status || 502, { ok: false, error: r.error });
+    return answer(200, { ...r, role: r.role ?? role, profile });
+  }
+
+  return { test, prepare, join };
+}
+
+const JOIN_TIMEOUT_MS = 15_000;
+const MAX_INVITE = 256;
+const INVITE_RE = /^inv_[A-Za-z0-9_-]{16,200}$/;
+
+const JOIN_WORDS = {
+  unreachable: "Couldn't reach that hub. Check the address, or whether it's online.",
+  badInvite: "That doesn't look like an invite link or key.",
+  otherHub: 'That invite is for a different hub address.',
+  dead: "This invite doesn't work any more. Ask whoever invited you for a new one.",
+  rateLimited: 'Too many attempts. Wait a minute and try again.',
+  refused: 'The hub refused the invite.',
+};
+
+/**
+ * The invite a person pasted: the key itself (`inv_…`), or the hub's own invite link
+ * `<hub>/join/<key>` — which must name THIS hub, so a link can't send the password to another host.
+ */
+export function hubInviteToken(
+  raw: unknown,
+  hubUrl: string
+): { ok: true; value: string } | { ok: false; error: string } {
+  if (typeof raw !== 'string') return { ok: false, error: JOIN_WORDS.badInvite };
+  const s = raw.trim();
+  if (!s || s.length > MAX_INVITE) return { ok: false, error: JOIN_WORDS.badInvite };
+  if (INVITE_RE.test(s)) return { ok: true, value: s };
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    return { ok: false, error: JOIN_WORDS.badInvite };
+  }
+  const m = /^(.*)\/join\/([^/]+)$/.exec(u.pathname);
+  if (!m || u.username || u.password || u.search || u.hash)
+    return { ok: false, error: JOIN_WORDS.badInvite };
+  let key: string;
+  try {
+    key = decodeURIComponent(m[2] ?? '');
+  } catch {
+    return { ok: false, error: JOIN_WORDS.badInvite };
+  }
+  if (!INVITE_RE.test(key)) return { ok: false, error: JOIN_WORDS.badInvite };
+  const at = hubAddress(`${u.origin}${m[1] ?? ''}`);
+  if (!at.ok || at.url !== hubUrl) return { ok: false, error: JOIN_WORDS.otherHub };
+  return { ok: true, value: key };
+}
+
+const joinStatus = (status: number) =>
+  status === 410 || status === 400 || status === 403 || status === 429 || status === 426
+    ? status
+    : 502;
+
+const REASONS = new Set([
+  'expired',
+  'already-used',
+  'revoked',
+  'unknown',
+  'email-mismatch',
+  'email-required',
+  'account-failed',
+  'no-access',
+  'password-refused-oidc-strict',
+]);
+const joinReason = (status: number, reason: unknown) =>
+  typeof reason === 'string' && REASONS.has(reason)
+    ? reason
+    : status === 429
+      ? 'rate-limited'
+      : status === 410
+        ? 'gone'
+        : 'refused';
+
+/** The hub's own sentence when it is a plain one (as signInToWorkspace relays a 400), else ours. */
+function joinError(status: number, reason: unknown, error: unknown): string {
+  if (status === 429) return JOIN_WORDS.rateLimited;
+  if (
+    typeof error === 'string' &&
+    error.trim() &&
+    error.length <= 300 &&
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: refusing control characters
+    !/[\u0000-\u001f\u007f]/.test(error)
+  )
+    return error.trim();
+  if (status === 410 || reason === 'expired' || reason === 'revoked') return JOIN_WORDS.dead;
+  return JOIN_WORDS.refused;
 }

@@ -1213,7 +1213,8 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `onb-hub-reachable` | testid | "Reachable — hub 1.4": the probe found a Maude hub. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
 | `onb-hub-test-error` | testid | The probe's refusal, in words (unreachable, or not a Maude hub). | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
 | `onb-hub-mode-password` | testid | "Email and password" segment of the hub sheet. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
-| `onb-hub-mode-invite` | testid | "Invite link or key" segment: drawn and resting until the hub invite has a Home route. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
+| `onb-hub-mode-invite` | testid | "Invite link or key" segment: switches the hub sheet to redeeming a hub invite (S6.11b, /_home/hub/join). | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
+| `onb-hub-invite` | testid | Invite link or key on the hub sheet (invite mode): masked, posted once with Connect, emptied at once, never echoed. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.11b) |
 | `onb-hub-email` | testid | Email on the hub sheet. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
 | `onb-hub-password` | testid | Password on the hub sheet: posted once, emptied the moment Connect is pressed, never echoed. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |
 | `onb-hub-error` | testid | Connect's refusal, in the server's words. | `client/v2/onboarding/HubSheet.jsx` · `HubSheet` | test:v2-onboarding-sheets | new in v2 (S6.9) |

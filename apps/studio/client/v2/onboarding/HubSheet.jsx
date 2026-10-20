@@ -2,27 +2,45 @@
 // Settings › Connections mounts as "Add a team server…" (G0-D/D12), so it is a view: it owns its fields and
 // calls back; what Test connection and Connect DO is the caller's (Home: `/_home/hub/{test,prepare}`).
 //
-//   <HubSheet onTest={(url) => {ok, version?, error?}} onConnect={({url, email?, password?}) => {ok, error?}} onCancel />
+//   <HubSheet onTest={(url) => {ok, version?, error?}} onConnect={({url, email?, password?}) => {ok, error?}}
+//             onJoin={({url, token, email, password}) => {ok, error?}} onCancel />
+//   (no `onJoin` → the invite segment rests, as before S6.11b)
 //
 // The password lives in this component's state only until Connect is pressed: it is read once, handed to
 // `onConnect`, and the field is emptied at once — nothing the sheet draws, before or after, contains it, and
-// an error line is the server's own words, never an echo. "Invite link or key" rests until the hub's invite
-// redeem has a Home route (the hub's own `/join` door in a browser is what carries an invite today).
+// an error line is the server's own words, never an echo. S6.11b: "Invite link or key" redeems a hub invite
+// (`onJoin` — Home: `/_home/hub/join`, the hub's own JSON `POST /join`); the invite key is a bearer secret
+// and is treated exactly like the password — a masked field, read once on Connect and emptied at once.
 
 import { useEffect, useRef, useState } from 'react';
 
 import { AdvModal, AdvSheet, Sw } from './AdvSheet.jsx';
 import { HUB_WORDS as W } from './onboarding-model.js';
 
+/** `https://hub.example/join/inv_…` → `https://hub.example` (the hub's own invite link); else null. */
+export function hubOfInviteLink(raw) {
+  try {
+    const u = new URL(String(raw ?? '').trim());
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    const m = /^(.*)\/join\/[^/]+$/.exec(u.pathname);
+    return m ? `${u.origin}${m[1]}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * @param {{ onTest: (url: string) => Promise<{ok: boolean, version?: string|null, error?: string}>,
  *           onConnect: (v: {url: string, email?: string, password?: string}) => Promise<{ok: boolean, error?: string}>,
+ *           onJoin?: (v: {url: string, token: string, email: string, password: string}) => Promise<{ok: boolean, error?: string}>,
  *           onCancel: () => void, initialUrl?: string }} props
  */
-export function HubSheet({ onTest, onConnect, onCancel, initialUrl = '' }) {
+export function HubSheet({ onTest, onConnect, onJoin, onCancel, initialUrl = '' }) {
   const [url, setUrl] = useState(initialUrl);
+  const [mode, setMode] = useState('password'); // 'password' | 'invite'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [invite, setInvite] = useState('');
   const [test, setTest] = useState({ phase: 'idle', version: null, error: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -52,15 +70,20 @@ export function HubSheet({ onTest, onConnect, onCancel, initialUrl = '' }) {
     );
   };
 
+  const inviteMode = mode === 'invite' && !!onJoin;
   const connect = async () => {
-    // read once, empty the field now — the password never outlives this call in the page
+    // read once, empty the fields now — the password (and an invite key) never outlives this call in the page
     const creds = email.trim() || password ? { email: email.trim(), password } : null;
+    const key = invite.trim();
     setPassword('');
+    setInvite('');
     setError(null);
     setBusy(true);
     let r;
     try {
-      r = await onConnect(creds ? { url: url.trim(), ...creds } : { url: url.trim() });
+      if (inviteMode)
+        r = await onJoin({ url: url.trim(), token: key, email: email.trim(), password });
+      else r = await onConnect(creds ? { url: url.trim(), ...creds } : { url: url.trim() });
     } catch {
       r = { ok: false, error: W.unreachable };
     }
@@ -77,7 +100,9 @@ export function HubSheet({ onTest, onConnect, onCancel, initialUrl = '' }) {
         verb={W.verb}
         busyVerb={W.busy}
         busy={busy}
-        canSubmit={!!url.trim()}
+        canSubmit={
+          inviteMode ? !!(url.trim() && invite.trim() && email.trim() && password) : !!url.trim()
+        }
         onSubmit={connect}
         onCancel={onCancel}
       >
@@ -139,21 +164,50 @@ export function HubSheet({ onTest, onConnect, onCancel, initialUrl = '' }) {
           <button
             type="button"
             className="ob-seg-b"
-            aria-pressed="true"
+            aria-pressed={inviteMode ? 'false' : 'true'}
             data-testid="onb-hub-mode-password"
+            onClick={() => setMode('password')}
           >
             {W.modePassword}
           </button>
           <button
             type="button"
             className="ob-seg-b"
-            aria-pressed="false"
-            aria-disabled="true"
+            aria-pressed={inviteMode ? 'true' : 'false'}
+            aria-disabled={onJoin ? undefined : 'true'}
             data-testid="onb-hub-mode-invite"
+            onClick={() => {
+              if (onJoin) setMode('invite');
+            }}
           >
             {W.modeInvite}
           </button>
         </span>
+
+        {inviteMode ? (
+          <input
+            className="ob-input"
+            data-testid="onb-hub-invite"
+            // a bearer secret, like the password: masked, never drawn back
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label={W.modeInvite}
+            placeholder={W.modeInvite}
+            value={invite}
+            onChange={(e) => {
+              const v = e.target.value;
+              setInvite(v);
+              // a pasted hub link names its hub: fill an empty address (the address is not secret)
+              const at = url.trim() ? null : hubOfInviteLink(v);
+              if (at) {
+                seq.current += 1;
+                setUrl(at);
+                setTest({ phase: 'idle', version: null, error: null });
+              }
+            }}
+          />
+        ) : null}
 
         <span className="ob-row2">
           <input

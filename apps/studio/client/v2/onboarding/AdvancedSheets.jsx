@@ -3,7 +3,8 @@
 // shell command a sheet's button runs. Each sheet is a view (exported from ./index.js for S11.14), so Settings ›
 // Connections mounts the same sheets with its own wiring.
 //
-//   hub            → /_home/hub/{test,prepare}   then Home's own open of the managed copy (a tab)
+//   hub            → /_home/hub/{test,prepare,join}   then Home's own open of the managed copy (a tab);
+//                    `join` (S6.11b) redeems a hub invite ("Invite link or key")
 //   folder-github  → the shell's folder picker (`open_project_folder`); the GitHub segment rests until S6.10
 //   ai             → /_home/ai/{status,connect}  (install Claude Code, then the browser sign-in)
 //   cli            → /_home/cli/{status,install} (a link to the bundled maude; the plugin when claude is there)
@@ -19,6 +20,7 @@ import {
   aiStatus,
   cliInstall,
   cliStatus,
+  hubJoin,
   hubPrepare,
   hubTest,
   openProjectFolder,
@@ -181,6 +183,15 @@ export function AdvancedSheets({
         }}
         onConnect={async ({ url, email, password }) => {
           const r = await hubPrepare(profile, url, email || password ? { email, password } : null);
+          if (!r.ok || !r.json?.ok)
+            return { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
+          await openPrepared(r, r.json.name, profile);
+          onClose();
+          return { ok: true };
+        }}
+        // S6.11b — "Invite link or key": the hub's own invite redeem, then the same open
+        onJoin={async ({ url, token, email, password }) => {
+          const r = await hubJoin(profile, url, { token, email, password });
           if (!r.ok || !r.json?.ok)
             return { ok: false, error: r.json?.error || HUB_WORDS.unreachable };
           await openPrepared(r, r.json.name, profile);

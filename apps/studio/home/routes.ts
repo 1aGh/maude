@@ -413,6 +413,9 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     // `prepare` and is handed straight to the hub (home/hub.ts); nothing here stores or logs it.
     post('/_home/hub/test', 'home', (b) => hub.test(b)),
     post('/_home/hub/prepare', 'home', (b) => hub.prepare(b)),
+    // S6.11b — the hub sheet's "Invite link or key": the invite key, email and password ride this
+    // one body to the hub's own POST /join (home/hub.ts); nothing here stores or logs them.
+    post('/_home/hub/join', 'home', (b) => hub.join(b)),
     get('/_home/ai/status', () => ai.status()),
     post('/_home/ai/connect', 'home', (b) => ai.connect(b)),
     get('/_home/cli/status', () => cli.status()),
