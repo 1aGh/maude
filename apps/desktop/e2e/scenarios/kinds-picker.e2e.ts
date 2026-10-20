@@ -2,7 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
-import { waitForEditChrome } from '../helpers/canvas-frame';
+import { focusCanvasFrame, waitForEditChrome } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -44,8 +44,12 @@ function inFrame<T>(fn: string, ...args: unknown[]): Promise<T> {
   ) as Promise<T>;
 }
 
-const pressFrame = () =>
-  inFrame(`doc.querySelector('[data-testid="toolbar-slot-frame"]').click(); return true;`);
+// The shell refuses a tool-panel request from a canvas that does not hold focus (use-tool-panels.js `hasFocus`), and a
+// scripted click inside the frame moves none: hand the focus to the frame first, as a person's click would.
+const pressFrame = async () => {
+  await focusCanvasFrame();
+  return inFrame(`doc.querySelector('[data-testid="toolbar-slot-frame"]').click(); return true;`);
+};
 const tile = (id: string) => $(`[data-testid="size-picker-tile-${id}"]`);
 
 describe('kinds-picker — F opens the size picker; a tile lands an artboard with its kind', () => {

@@ -77,6 +77,27 @@ const selectArtboard = () =>
       );
   });
 
+/**
+ * A right-click: the embedded WebDriver's `click({ button: 'right' })` never raises `contextmenu` in WKWebView, so
+ * the event is dispatched on the tile itself (the same way edit-artboards and video-edit-basics reach a context menu).
+ */
+const rightClick = (el: WebdriverIO.Element) =>
+  browser.execute(
+    (node: HTMLElement) => {
+      const r = node.getBoundingClientRect();
+      node.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+          clientX: r.left + r.width / 2,
+          clientY: r.top + r.height / 2,
+        })
+      );
+    },
+    el as unknown as HTMLElement
+  );
+
 describe('the Assets tab (S8.12)', () => {
   before(async () => {
     await waitForSidecar();
@@ -130,7 +151,7 @@ describe('the Assets tab (S8.12)', () => {
 
   it('right-click opens Place and Show details; ⌘I opens the details of the picked tile', async () => {
     const t = await tile();
-    await t.click({ button: 'right' });
+    await rightClick(t);
     const menu = await $('[data-testid="assets-tile-menu"]');
     await menu.waitForExist({ timeout: 5000 });
     expect(await (await $('[data-testid="assets-menu-place"]')).getText()).toContain('Place');
@@ -283,7 +304,7 @@ describe('the Browse view and Not used (S8.13)', () => {
   it('a picture a canvas uses is refused: it stays on disk and the tab says why', async () => {
     await (await $('[data-testid="assets-chip-notused"]')).click(); // back to everything
     const t = await $('[data-testid="assets-tile"][data-asset="assets/brw-c.png"]');
-    await t.click({ button: 'right' });
+    await rightClick(t);
     await (await $('[data-testid="assets-menu-trash"]')).click();
     const line = await $('[data-testid="assets-panel"] [role="alert"]');
     await line.waitForExist({ timeout: 10_000 });
@@ -312,7 +333,8 @@ describe('search in pictures (S8.20)', () => {
     const report = startReport('assets-describe');
     rmSync(CONSENT, { force: true });
     const search = await $('[data-testid="assets-search"]');
-    await search.setValue('picture');
+    // a word that hits a NAME: the offer sits under the results; a search with no hits shows the "Nothing called" card instead
+    await search.setValue('pic');
     const offer = await $('[data-testid="assets-describe-offer"]');
     await offer.waitForExist({ timeout: 10_000 });
     await capture(report, 'offer');

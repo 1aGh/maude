@@ -2,7 +2,6 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
-import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -161,10 +160,15 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     writeFileSync(CANVAS, SIX_EMPTY);
     writeFileSync(META, '{}\n');
     await (await canvasRow('canvas-row-ui-smoke')).click();
-    await waitForCanvasRects();
-    await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
-      timeout: 15000,
-    });
+    // empty frames have no box of their own, so the rects hook (which lists boxes) stays empty: wait for the artboard itself
+    await browser.waitUntil(
+      async () =>
+        browser.execute(() => {
+          const frame = document.querySelector<HTMLIFrameElement>('[data-testid="canvas-frame"]');
+          return !!frame?.contentDocument?.querySelector('.dc-artboard-body [data-cd-id="cell-1"]');
+        }),
+      { timeout: 30_000, timeoutMsg: 'the canvas never rendered its six frames' }
+    );
     await browser.pause(1500);
   });
   after(() => fixtures.restore());

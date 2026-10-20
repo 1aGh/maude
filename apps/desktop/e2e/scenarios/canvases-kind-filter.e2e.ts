@@ -23,6 +23,15 @@ async function countOf(kind: string): Promise<number> {
   return Number(label.split(', ').pop());
 }
 
+/** The chips print 0 until the sidecar's kind probe lands; wait for Video's count, never read it cold. */
+async function settledCount(kind: string): Promise<number> {
+  await browser.waitUntil(async () => (await countOf(kind)) > 0, {
+    timeout: 30_000,
+    timeoutMsg: `the ${kind} chip never got a count`,
+  });
+  return countOf(kind);
+}
+
 describe('canvases-kind-filter — the kind chips over the Canvases list', () => {
   before(() => {
     startReport('canvases-kind-filter');
@@ -41,13 +50,13 @@ describe('canvases-kind-filter — the kind chips over the Canvases list', () =>
       'Video',
     ]);
     expect(await chip('all').getAttribute('aria-pressed')).toBe('true');
-    expect(await countOf('video')).toBeGreaterThan(0);
+    expect(await settledCount('video')).toBeGreaterThan(0);
     await capture('kind-chips-all');
   });
 
   it('Video: only canvases that have video, each with "N of M"; the foot says how many', async () => {
-    const videos = await countOf('video');
-    const all = await countOf('all');
+    const videos = await settledCount('video');
+    const all = await settledCount('all');
     await chip('video').click();
     await browser.waitUntil(
       async () => (await chip('video').getAttribute('aria-pressed')) === 'true'

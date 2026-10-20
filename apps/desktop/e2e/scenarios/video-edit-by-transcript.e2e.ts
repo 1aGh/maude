@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -68,26 +69,23 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
 
   it('select the video: the island comes out under it', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-transcript');
+    const row = await canvasRow('canvas-row-ui-videotranscript');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
-    await browser
-      .action('pointer')
-      .move({ x: Math.round(box.x + 12), y: Math.round(box.y - 10) })
-      .down()
-      .up()
-      .perform();
+    await pointerClick(box.x + 12, box.y - 10);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
   });
 
   it('Captions from speech: one write adds <Captions>, the Transcript opens with the three words', async () => {
     const before = onDisk();
-    expect(before).not.toContain('<Captions');
+    // the file's own header comment names <Captions>: count the element, not the word
+    const captionTags = (src: string) => (src.match(/<Captions\s/g) ?? []).length;
+    expect(captionTags(before)).toBe(0);
     await (await $('[data-testid="timeline-captions-tool"]')).click();
-    await browser.waitUntil(async () => onDisk().includes('<Captions'), {
+    await browser.waitUntil(async () => captionTags(onDisk()) === 1, {
       timeout: 20_000,
       timeoutMsg: 'the captions never reached the file',
     });

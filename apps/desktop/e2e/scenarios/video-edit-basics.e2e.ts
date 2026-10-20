@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -49,12 +50,7 @@ async function artboardBox(id: string): Promise<Box | null> {
 }
 
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 
 const key = (init: Record<string, unknown>) =>
@@ -86,7 +82,7 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
 
   it('select the video: the island comes out under it with its three beats', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-edit');
+    const row = await canvasRow('canvas-row-ui-videoedit');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();
@@ -104,19 +100,15 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
   it('trim: the tip names the clip, the change and the new length; one write; ⌘Z restores the bytes', async () => {
     const before = onDisk();
     const edge = await centre('timeline-resize-1');
-    await browser
-      .action('pointer')
-      .move({ x: Math.round(edge.x), y: Math.round(edge.y) })
-      .down()
-      .move({ x: Math.round(edge.x - 30), y: Math.round(edge.y) })
-      .perform();
+    await pointerDown(edge.x, edge.y);
+    for (const dx of [-10, -20, -30]) await pointerMove(edge.x + dx, edge.y);
     const tip = await $('[data-testid="timeline-trim-tip"]');
     await tip.waitForExist({ timeout: 5000, timeoutMsg: 'no tip while trimming' });
     const text = await tip.getText();
     expect(text).toMatch(/beat-two · \d+\.\d s/);
     expect(text).toMatch(/−\d+\.\d s · video 0:\d\d/);
     await capture('video-edit-trim-tip');
-    await browser.action('pointer').up().perform();
+    await pointerUp(edge.x - 30, edge.y);
     await browser.waitUntil(async () => onDisk() !== before, {
       timeout: 15_000,
       timeoutMsg: 'the trim never reached the file',

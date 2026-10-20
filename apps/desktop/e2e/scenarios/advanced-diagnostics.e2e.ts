@@ -121,6 +121,8 @@ describe('advanced-diagnostics', () => {
     const toggle = await $(tid('canvases-advanced'));
     await toggle.waitForDisplayed({ timeout: 10_000 });
     if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    // the fold opens on the next render, not inside the click
+    await (await $(tid('canvases-folder'))).waitForDisplayed({ timeout: 5000 });
     for (const id of ['canvases-folder', 'canvases-folder-copy', 'canvases-refresh']) {
       expect({ id, shown: await (await $(tid(id))).isDisplayed() }).toEqual({ id, shown: true });
     }

@@ -5,6 +5,8 @@ import { $, $$, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { pointerClick } from '../helpers/pointer';
+import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -49,12 +51,7 @@ async function artboardBox(id: string): Promise<Box | null> {
 }
 
 async function clickAt(x: number, y: number): Promise<void> {
-  await browser
-    .action('pointer')
-    .move({ x: Math.round(x), y: Math.round(y) })
-    .down()
-    .up()
-    .perform();
+  await pointerClick(x, y);
 }
 
 const key = (init: Record<string, unknown>) =>
@@ -76,7 +73,7 @@ describe('video-clip-inspector â€” the clip inspector, the join picker, a titleâ
 
   it('select the video: the island comes out under it', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-ui-video-clip-inspect');
+    const row = await canvasRow('canvas-row-ui-videoclipinspect');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await waitForCanvasRects();
@@ -98,8 +95,7 @@ describe('video-clip-inspector â€” the clip inspector, the join picker, a titleâ
     await $('[data-testid="insp-clip-length"]').waitForExist({ timeout: 5000 });
     await $('[data-testid="insp-clip-speed"]').waitForExist({ timeout: 5000 });
     await capture('video-clip-inspector-clip');
-    const speed = await $('[data-testid="insp-clip-speed"]');
-    await speed.selectByAttribute('value', '2');
+    expect(await setSelect('insp-clip-speed', '2')).toBe(true);
     await browser.waitUntil(async () => onDisk() !== before, {
       timeout: 15_000,
       timeoutMsg: 'the speed never reached the file',

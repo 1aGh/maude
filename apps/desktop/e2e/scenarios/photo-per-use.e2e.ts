@@ -219,9 +219,7 @@ describe('photo edits change one use (S8.15)', () => {
     const sheet = await $('[data-testid="photo-every-use-sheet"]');
     await sheet.waitForExist({ timeout: 5000 });
     const rows = await $$('[data-testid="photo-every-use-row"]');
-    expect(await Promise.all(rows.map((r) => r.getAttribute('data-canvas')))).toContain(
-      'ui/Smoke-other.tsx'
-    );
+    expect(await rows.map((r) => r.getAttribute('data-canvas'))).toContain('ui/Smoke-other.tsx');
     await capture(report, 'sheet');
     await (await $('[data-testid="photo-every-use-apply"]')).click();
     await browser.waitUntil(async () => existsSync(everyUse), { timeout: 10000 });
