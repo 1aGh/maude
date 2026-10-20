@@ -6,22 +6,15 @@
 // `export.presets`; S8 registers its own entry and calls `offExportSlot()` for the placeholder, or sits beside it with a
 // lower `order`.
 
+import { exportDefaults } from '../../../../kinds/export-defaults.ts';
 import { registerSlot } from '../slots.js';
 import { Quiet, Row } from './row.jsx';
 
-const ARTBOARD_PRESET = Object.freeze({
-  web: 'PNG · 1×',
-  digital: 'PNG · 1×',
-  print: 'Print PDF',
-  video: 'MP4',
-});
-
 /** The default presets for what is selected: the words of the buttons 08 and the video inspector carry. */
 export function exportPresets({ el, selection, kind }) {
-  if (kind === 'multi') return [`${Array.isArray(selection) ? selection.length : 1} files…`];
-  if (kind === 'artboard') {
-    return [ARTBOARD_PRESET[el?.attrs?.['data-dc-kind'] || 'digital'] ?? ARTBOARD_PRESET.digital];
-  }
+  if (kind === 'multi' || kind === 'multi-artboard')
+    return [`${Array.isArray(selection) ? selection.length : 1} files…`];
+  if (kind === 'artboard') return [exportDefaults(el?.attrs?.['data-dc-kind']).word];
   return ['PNG · 2×', 'SVG'];
 }
 

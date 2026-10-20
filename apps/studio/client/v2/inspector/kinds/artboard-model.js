@@ -12,6 +12,7 @@
 
 import { PAPER_PRESETS } from '../../../../print/units.ts';
 import { WIDTH_PRESETS } from '../../../../editing/artboard-resize.ts';
+import { PRESET_GROUPS } from '../../../../kinds/presets.ts';
 
 /** Kind row: the chip's words (C16), the value DCArtboard's `kind` takes. `digital` is the implicit default. */
 export const KIND_OPTIONS = Object.freeze([
@@ -36,9 +37,6 @@ export const THEME_OPTIONS = Object.freeze([
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ]);
-
-// Heights the "Add a width" row offers alongside a width: the screens the "+ Artboard" menu knows.
-const SCREEN_HEIGHT = Object.freeze({ 1440: 1024, 1280: 800, 834: 1194, 390: 844 });
 
 const num = (v) => (Number.isFinite(v) ? v : null);
 
@@ -69,11 +67,22 @@ export function artboardFacts(el) {
   };
 }
 
-const sizeLabel = (name, w, h) => `${name} · ${h ? `${w} × ${h}` : w}`;
+/** The catalogue's rows (S7.20) for these groups, as the Size select's options. */
+function catalogueOptions(groups, labelOf) {
+  return PRESET_GROUPS.filter((g) => groups.includes(g.id)).flatMap((g) =>
+    g.presets.map((p) => ({
+      value: p.id,
+      label: labelOf(p),
+      width: p.widthPx,
+      height: p.heightPx,
+    }))
+  );
+}
 
 /**
- * The Preset row. A web artboard hugs its height, so its presets are breakpoints (a width); a fixed-size one
- * takes the whole screen; a print one the paper ladder. Video has no presets here (its Timeline owns the frame).
+ * The Size / Width row's choices for this kind. A web artboard hugs its height, so its presets are breakpoints (a
+ * width); a fixed-size one reads the App + Social half of the ONE catalogue (S7.20, `kinds/presets.ts`: "Story 9:16
+ * (still)", "Desktop"); a video the Video half ("Reels 9:16"); print the paper ladder.
  * @returns {Array<{ value: string, label: string, width: number, height?: number, paper?: string }>}
  */
 export function presetOptions(kind) {
@@ -84,16 +93,12 @@ export function presetOptions(kind) {
       width: 0,
       paper: p.id,
     }));
-  if (kind === 'video') return [];
-  const web = kind === 'web';
-  return [...WIDTH_PRESETS]
-    .sort((a, b) => b.w - a.w)
-    .map((p) => ({
-      value: `screen:${p.w}`,
-      label: web ? `${p.label} · ${p.w}` : sizeLabel(p.label, p.w, SCREEN_HEIGHT[p.w]),
-      width: p.w,
-      ...(web || !SCREEN_HEIGHT[p.w] ? {} : { height: SCREEN_HEIGHT[p.w] }),
-    }));
+  if (kind === 'video') return catalogueOptions(['video'], (p) => p.label);
+  if (kind === 'web')
+    return [...WIDTH_PRESETS]
+      .sort((a, b) => b.w - a.w)
+      .map((p) => ({ value: `screen:${p.w}`, label: `${p.label} · ${p.w}`, width: p.w }));
+  return catalogueOptions(['app', 'social'], (p) => p.name);
 }
 
 /** The preset the artboard is, as an option value; '' = Custom. */

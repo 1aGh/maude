@@ -111,7 +111,7 @@ export function ArtboardCommands({ readOnly = false }: { readOnly?: boolean }) {
       const m = acceptFromShell(e, window);
       if (m?.dgn !== 'run-action' || !isArtboardAction(m.id) || live.current.readOnly) return;
       const a = live.current.actions;
-      const p = (m.params ?? {}) as { width?: unknown; artboard?: unknown };
+      const p = (m.params ?? {}) as { width?: unknown; widths?: unknown; artboard?: unknown };
       const ids = typeof p.artboard === 'string' ? [p.artboard] : undefined;
       if (m.id === 'artboard.trash') {
         // The write is the shell's (main origin only, DDR-054): the same ask ⌫ posts.
@@ -126,6 +126,14 @@ export function ArtboardCommands({ readOnly = false }: { readOnly?: boolean }) {
       else if (m.id === 'artboard.rename') a.rename(ids?.[0]);
       else if (m.id === 'artboard.reset-position') a.resetPosition(ids);
       else if (typeof p.width === 'number') void a.duplicateAtWidth(ids, p.width);
+      else if (Array.isArray(p.widths)) {
+        // S7.21: the inspector's "Tablet and Mobile" — a few widths, ONE request (a planted list is clamped)
+        const widths = p.widths
+          .filter((w): w is number => typeof w === 'number')
+          .slice(0, 4)
+          .map((w) => Math.max(WIDTH_MIN, Math.min(WIDTH_MAX, Math.round(w))));
+        if (widths.length) void a.duplicateAtWidths(ids, widths);
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
