@@ -303,17 +303,28 @@ const joinReason = (status: number, reason: unknown) =>
         ? 'gone'
         : 'refused';
 
-/** The hub's own sentence when it is a plain one (as signInToWorkspace relays a 400), else ours. */
-function joinError(status: number, reason: unknown, error: unknown): string {
+/** A refused join's reason → our words. */
+const REASON_WORDS: Record<string, string> = {
+  expired: JOIN_WORDS.dead,
+  revoked: JOIN_WORDS.dead,
+  'already-used': 'This invite was already used. Ask whoever invited you for a new one.',
+  'email-mismatch': 'This invite is for a different email address.',
+  'email-required': 'Enter your email address.',
+  'account-failed': "The hub couldn't create your account. Try again in a minute.",
+  'no-access': "This account can't open that hub.",
+  'password-refused-oidc-strict':
+    'This hub signs you in through your organisation, not a password.',
+};
+
+/**
+ * Always OUR words (gate-b-sec1): the hub's own `error` text is never shown — Home is a trusted surface and a
+ * hostile or compromised hub could put phishing words there ("call support at …"). Only the status and the
+ * reason code pick the sentence.
+ */
+function joinError(status: number, reason: unknown, _error?: unknown): string {
   if (status === 429) return JOIN_WORDS.rateLimited;
-  if (
-    typeof error === 'string' &&
-    error.trim() &&
-    error.length <= 300 &&
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: refusing control characters
-    !/[\u0000-\u001f\u007f]/.test(error)
-  )
-    return error.trim();
-  if (status === 410 || reason === 'expired' || reason === 'revoked') return JOIN_WORDS.dead;
+  if (typeof reason === 'string' && Object.hasOwn(REASON_WORDS, reason))
+    return REASON_WORDS[reason] as string;
+  if (status === 410) return JOIN_WORDS.dead;
   return JOIN_WORDS.refused;
 }

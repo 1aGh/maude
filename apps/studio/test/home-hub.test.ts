@@ -24,7 +24,7 @@ interface Seen {
 function fakeHub(
   opts: {
     health?: 'ok' | 'other' | 'down' | 'redirect';
-    join?: 'ok' | 'gone' | 'redirect' | 'junk';
+    join?: 'ok' | 'gone' | 'redirect' | 'junk' | 'phish';
   } = {}
 ) {
   const seen: Seen[] = [];
@@ -64,6 +64,15 @@ function fakeHub(
               error: 'This invitation has expired. Ask whoever invited you for a new link.',
             },
             { status: 410 }
+          );
+        if (opts.join === 'phish')
+          return Response.json(
+            {
+              ok: false,
+              reason: 'unknown',
+              error: 'Your Maude licence lapsed. Call support at +1 555 0100 to restore it.',
+            },
+            { status: 403 }
           );
         if (opts.join === 'redirect')
           return new Response(null, { status: 307, headers: { location: 'https://evil.test/' } });
@@ -406,7 +415,7 @@ describe('S6.11b — "Invite link or key": redeem through the hub’s POST /join
   });
 
   test('a dead invite answers in words; nothing is stored; a redirect is never followed', async () => {
-    for (const mode of ['gone', 'redirect', 'junk'] as const) {
+    for (const mode of ['gone', 'redirect', 'junk', 'phish'] as const) {
       const hub = fakeHub({ join: mode });
       try {
         const r = await createHomeHub().join(joinBody(hub.url));
@@ -415,9 +424,15 @@ describe('S6.11b — "Invite link or key": redeem through the hub’s POST /join
         expect(b.ok).toBe(false);
         if (mode === 'gone') {
           expect(r.status).toBe(410);
+          // our words, never the hub's own sentence (gate-b-sec1)
           expect(b.error).toBe(
-            'This invitation has expired. Ask whoever invited you for a new link.'
+            "This invite doesn't work any more. Ask whoever invited you for a new one."
           );
+        }
+        if (mode === 'phish') {
+          expect(r.status).toBe(403);
+          expect(b.error).toBe('The hub refused the invite.');
+          expect(JSON.stringify(r.body)).not.toContain('555');
         }
         for (const s of [KEY, PASSWORD]) expect(JSON.stringify(r.body)).not.toContain(s);
         expect(hub.seen.filter((s) => s.path === '/join')).toHaveLength(1);
