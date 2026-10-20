@@ -332,6 +332,32 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-adv-print-dpi` | testid | Advanced › Print PDF: resolution of the images inside. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
 | `export-adv-bleed` | testid | Advanced › Print PDF: bleed switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
 | `export-adv-crop` | testid | Advanced › Print PDF: crop marks switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-print` | testid | The Print section: the paper preview beside the rows, for a spec that reaches only print artboards. `data-pages` = 1 or 2. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-preview` | testid | The paper column of the Print section: the page, its pages, the caption, the legend. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-pages` | testid | The page thumbnails under the paper (only when the back is page 2). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-page-<n>` | testid | One page thumbnail (1 = the front, 2 = the back); a press shows that page. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-caption` | testid | "Page 1 of 2 · A6 · 105 × 148 mm" under the paper. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-legend` | testid | What the marks on the paper mean (Bleed, Cut, Safe). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-format` | testid | The Format group of the Print section: Print PDF · PDF · PNG (`data-value` = the picked id). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-format-<id>` | testid | One format of the Print section. `<id>` is print-pdf, pdf or png; Other… keeps `export-format-<id>`. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-row-print` | testid | The Print row (Bleed, Crop marks, Add the back); absent for a plain PDF or a PNG. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-bleed` | testid | Print › Bleed: colour runs past the cut. Writes the same field as Advanced › Print PDF › Bleed. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-crop` | testid | Print › Crop marks. Writes the same field as Advanced › Print PDF › Crop marks. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-back` | testid | Print › Add "<back>": the paired back artboard as page 2. Absent when no back was found. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-safe-warn` | testid | The safe-margin warning (an element closer to the cut than the margin) with Show on canvas. Informs; never blocks. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-font-warn` | testid | The font warning (a font file that will not embed: the text prints as shapes). Informs; never blocks. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-font-ok` | testid | The line that says Text as outlines makes every font safe (shown instead of the font warning when outlines are on). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-row-colour` | testid | The Colour row of the Print section. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-colour` | testid | The one colour line: "RGB — the print shop converts to CMYK." | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-paper` | testid | The paper preview. `data-bleed`, `data-marks`, `data-registration` say what is drawn. | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-paper-art` | testid | The art on the paper: trim plus bleed (trim only with Bleed off). | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-paper-tint` | testid | The tinted bleed frame on the paper. | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-paper-crop` | testid | One crop-mark stroke on the paper (eight when crop marks are on). | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-paper-registration` | testid | One registration mark on the paper (four when registration marks are on). | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-paper-margin` | testid | The dashed safe margin on the paper. | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-paper-flag` | testid | A ring on the paper round an element past the safe margin. | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
+| `export-adv-print-text` | testid | Advanced › Print PDF: Text — keep · check the fonts are embedded · turn text into shapes. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-print | new |
+| `export-adv-registration` | testid | Advanced › Print PDF: registration marks switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-print | new |
 | `export-adv-video` | testid | Advanced › Video: frame rate, codec, bitrate. Shown for MP4 · GIF · WebM. | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |
 | `export-adv-fps` | testid | Advanced › Video: frame rate. | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |
 | `export-adv-codec` | testid | Advanced › Video: the codec the format uses (shown, not chosen). | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |

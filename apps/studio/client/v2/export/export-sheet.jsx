@@ -15,6 +15,7 @@
 //                    "Needs Can edit" on Handoff; Can view gets no sheet at all (the server refuses too)
 //   lastFinishedAt   S8.9 — ms timestamp of the last finished version, for "From 14:05" while AI is working
 //   aiRuns           S8.9 — a `GET /_api/ai/runs` view (tests); default = the shell's runs store
+//   printGuidesVisible  S8.7 — View › Print guides is on? "Show on canvas" turns it on when it is not (false only)
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultScopeForFormat, isScopeValidForFormat } from '../../../exporters/format-scopes.ts';
@@ -22,6 +23,7 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { useAiRuns } from '../ai/runs-store.js';
 import { basename, displayName } from '../../shell/util.js';
+import { dispatchArtboardJump } from '../left-panel/left-panel-bus.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 import {
@@ -47,8 +49,10 @@ import { ScopeBar } from './scope-bar.jsx';
 import { picksForOther } from './sections/batch-model.js';
 import { BatchSection } from './sections/batch.jsx';
 import { ImageSection } from './sections/image.jsx';
+import { PrintSection } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { WebSection } from './sections/web.jsx';
+import { usePreflight } from './preflight/use-preflight.js';
 import { ShareHint } from './share-hint.jsx';
 import {
   browserLaneRequest,
@@ -89,6 +93,7 @@ export function ExportSheet({
   access = null,
   lastFinishedAt = null,
   aiRuns = null,
+  printGuidesVisible = null,
   onClose,
 }) {
   // Handoff writes code into the project: a Can comment opener lands on Export, never on Handoff (S8.9)
@@ -162,6 +167,16 @@ export function ExportSheet({
     activeArtboardId,
   });
   const waitForAi = aiInfo.working && aiInfo.mine && state.wait === 'ai';
+  // S8.7 — a print page: paper, the back, the safe margin and the fonts, asked once per thing exported
+  const preflight = usePreflight(spec, { enabled: mode === 'export' && section === 'print' });
+  // the back is page 2 by default ("back as page 2", 09 ex-formats): once the pairing is found and the person has
+  // not said otherwise, the box is ticked in the state — so the spec the button sends is the preview they see
+  const foundBack = preflight?.boards?.[0]?.back ?? null;
+  const backTouched = state.adv?.back != null;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a back appearing matters
+  useEffect(() => {
+    if (foundBack && !backTouched) set({ adv: { ...(state.adv ?? {}), back: true } });
+  }, [foundBack?.id, backTouched]);
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, msg }
@@ -267,7 +282,16 @@ export function ExportSheet({
     });
   };
 
+  // S8.7 — Show on canvas: the sheet gets out of the way, the camera goes to the artboard (and its flash),
+  // and the print guides — the dashed safe margin — come on if they were off
+  const showOnCanvas = (finding) => {
+    if (printGuidesVisible === false) menuRunner.run('view.print-guides');
+    if (activePath && finding?.artboard) dispatchArtboardJump(activePath, finding.artboard);
+    onClose();
+  };
+
   const pickOther = (row) => {
+    if (row.format === 'pdf') set({ printPdf: row.id === 'print-pdf' });
     if (row.handoff) {
       setMode('handoff');
       setStatus(null);
@@ -322,7 +346,13 @@ export function ExportSheet({
   // S4.20 (an-print) — a print file never carries the layer: the box is disabled, with the line saying why
   const annot = annotationsState(state.format, { kinds: specKinds });
   const Section =
-    section === 'batch' ? BatchSection : section === 'web' ? WebSection : ImageSection;
+    section === 'batch'
+      ? BatchSection
+      : section === 'web'
+        ? WebSection
+        : section === 'print'
+          ? PrintSection
+          : ImageSection;
 
   // Can view has no Export (A19): the entry points are absent and the server answers 403; if a stale
   // opener still gets here, there is nothing to draw.
@@ -401,6 +431,8 @@ export function ExportSheet({
                 annotationsOff={annot.off}
                 annotationsNote={annot.note}
                 est={est}
+                preflight={preflight}
+                onShowOnCanvas={showOnCanvas}
               />
             </div>
             <AdvancedSection

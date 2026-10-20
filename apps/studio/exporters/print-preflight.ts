@@ -46,6 +46,8 @@ export interface RectsManifest {
 }
 
 export interface PaperInfo {
+  /** the paper's name ("A6") — null for a custom size, whose nearest preset would be a wrong name */
+  name: string | null;
   /** trim (the cut), mm */
   trimMm: [number, number];
   bleedMm: number;
@@ -66,6 +68,8 @@ export interface SafeMarginFinding {
   mm: number;
   /** the safe margin it breaks, mm */
   marginMm: number;
+  /** where it sits on the paper, mm from the trim's top-left corner (the preview rings it) */
+  box: { x: number; y: number; w: number; h: number };
 }
 
 export interface PreflightFont {
@@ -110,7 +114,9 @@ export function paperOf(print: Record<string, unknown> | null): PaperInfo | null
   if (!print || typeof print.paper !== 'string') return null;
   try {
     const r = resolveCustomPrintArtboard(print as never);
+    const custom = Array.isArray(print.sizeMm);
     return {
+      name: custom ? null : String(r.paper).toUpperCase(),
       trimMm: [r.trimWidthMm, r.trimHeightMm],
       bleedMm: r.bleedMm,
       marginMm: [r.marginsMm.top, r.marginsMm.right, r.marginsMm.bottom, r.marginsMm.left],
@@ -168,6 +174,12 @@ export function safeMarginFindings(
       edge: worst[0],
       mm: round1(Math.max(0, worst[1])),
       marginMm: worst[2],
+      box: {
+        x: round1((x0 - left) / PX_PER_MM),
+        y: round1((y0 - top) / PX_PER_MM),
+        w: round1(el.w / PX_PER_MM),
+        h: round1(el.h / PX_PER_MM),
+      },
     });
   }
   return out.sort((a, b) => a.mm - b.mm).slice(0, MAX_FINDINGS);
