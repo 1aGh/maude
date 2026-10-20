@@ -667,8 +667,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'Same as image.place: add <img src="assets/<sha8>.<ext>" alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} /> to the selected frame, or first inside the selected artboard (position: "absolute", left: "0", top: "0"). Which files exist and where they are used: `maude design assets`. Over HTTP: POST /_api/edit-op {op: "image.place", targets: [frame?], params: {asset, mode: "fill" | "loose", artboard?}}'
     ),
   },
+  // S8.21 — the details of one asset: kind, size, Made by AI (prompt, provider, licence), what AI saw (footage), the canvases and
+  // artboards that show it, and Advanced (stored as, Original on this Mac, edits, cut-out, command). A read for every role; the
+  // Original is told only to a project session on a Mac. An agent reads the same files: `assets/<sha8>.gen.json` (maude.gen v1),
+  // `.audio.json`, `.footage.json`, `.photo.json`.
   'assets.details': {
     effect: 'none',
+    minRole: 'view',
+    server: { route: '/_api/asset-details', method: 'GET' },
     agent: cli('maude design assets --usage <asset>'),
   },
   // S8.13 — Move to trash on an asset: the picture and its sidecars go to `_trash/` together (the manifest says where each

@@ -161,6 +161,10 @@ export const STUDIO_ROUTES = Object.freeze({
   // could not be saved in the cloud at all. Non-destructive adjustment of a
   // versioned asset files with `edit`.
   '/_api/photo-edit': { safe: 'read', unsafe: 'edit' },
+  // S8.21 — the details of one asset and the Generated runs (routes/asset-details.ts): reads of the project's own sidecars;
+  // the studio hides the Original path from a canvas-only session and from a cell (it has no Mac)
+  '/_api/asset-details': { safe: 'read', unsafe: null },
+  '/_api/asset-generated': { safe: 'read', unsafe: null },
 
   // ---- changing the project ----------------------------------------------
   '/_api/canvas': { safe: 'read', unsafe: 'edit' },

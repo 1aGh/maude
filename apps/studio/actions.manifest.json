@@ -1832,6 +1832,11 @@
       "kind": "command",
       "exec": "shell",
       "effect": "none",
+      "minRole": "view",
+      "server": {
+        "route": "/_api/asset-details",
+        "method": "GET"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design assets --usage <asset>"

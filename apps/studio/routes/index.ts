@@ -19,6 +19,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
+import { type AssetDetailsRouteDeps, createAssetDetailsRoutes } from './asset-details.ts';
 import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type AssetTrashRouteDeps, createAssetTrashRoutes } from './asset-trash.ts';
 import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
@@ -133,6 +134,8 @@ export interface RouteDeps {
   assetState?: AssetStateRouteDeps;
   /** S8.13 — `POST /_api/assets/trash` (main origin, Can edit on the project): assets + sidecars to `_trash/` */
   assetTrash?: AssetTrashRouteDeps;
+  /** S8.21 — `GET /_api/asset-details` and `GET /_api/asset-generated` (main origin, reads): details per kind, the Generated runs */
+  assetDetails?: AssetDetailsRouteDeps;
   /** S8.16 — `/_api/generate-takes*` (main origin, Can edit on the canvas): N takes, the consent quote, ← → */
   generate?: GenerateRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
@@ -218,6 +221,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.connections ? createConnectionsRoutes(deps.connections) : []),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...(deps.assetTrash ? createAssetTrashRoutes(deps.assetTrash) : []),
+    ...(deps.assetDetails ? createAssetDetailsRoutes(deps.assetDetails) : []),
     ...(deps.generate ? createGenerateRoutes(deps.generate) : []),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
