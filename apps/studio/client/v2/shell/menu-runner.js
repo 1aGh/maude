@@ -24,6 +24,7 @@ import { createAccessHandlers } from '../access/access-client.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { runFillAsk } from '../empty/fill-ask.js';
 import { runAssetsAction } from '../assets/assets-bus.js';
+import { runTakeStepNow } from '../assets/use-takes-lane.js';
 import { runCopyPng } from '../export/copy-png.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
@@ -286,6 +287,14 @@ export function createMenuHandlers(d) {
     'assets.place': () => runAssetsAction('assets.place'),
     'assets.details': () => runAssetsAction('assets.details'),
     'assets.trash': () => runAssetsAction('assets.trash'),
+    // S8.16 — Assets › Generate: the ask lives in the Assets tab, so the tab is shown first
+    'assets.generate': () => {
+      if (runAssetsAction('assets.generate')) return;
+      panelLayout.show();
+      d.toggleRightPanel('assets');
+    },
+    'image.next-take': () => void runTakeStepNow('next'),
+    'image.prev-take': () => void runTakeStepNow('prev'),
     'view.layers-panel': () => d.onToggleLayersMode(),
     'view.trash': () => {
       panelLayout.show();

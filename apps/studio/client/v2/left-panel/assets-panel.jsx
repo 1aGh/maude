@@ -12,7 +12,9 @@
 // S8.14: what arrived in this window is the first group, "Just added" (assets/just-added.js); a tile still going up to the cloud
 // wears a thin bar (the shell lane's `assetUploadOf`); "From this Mac…" with an artboard selected imports AND places (the Image
 // (I) route, no drag — the studio picks: empty frames in order, else a tidy grid, else loose).
-// NOT here yet: details per kind (S8.21), search in pictures (S8.20), Generate (S8.16).
+// S8.16: the spark in the head row is Assets › Generate (`assets.generate`, assets/generate-ask.jsx): the selected artboard
+// sets the shape, a quote says how long and who pays before anything is sent, and the best take lands in the frame.
+// NOT here yet: details per kind (S8.21), search in pictures (S8.20), the Generated group.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { uploadAsset } from '../../../asset-upload.ts';
@@ -20,11 +22,12 @@ import { mimeFromExt } from '../../dialogs/asset-picker.jsx';
 import { isNativeApp, pickMediaFiles, pickedMediaSource } from '../../github.js';
 import { Kbd, StIcon } from '../../shell/icons.jsx';
 import { assetUploadOf, useAssetAnswers } from '../assets/asset-state-lane.js';
-import { bindAssetsPanel } from '../assets/assets-bus.js';
+import { bindAssetsPanel, takeGenerateRequest } from '../assets/assets-bus.js';
 import { filterAssets } from '../assets/browse-model.js';
 import { BrowseView, browseOrder, MAX_PLACE } from '../assets/browse-view.jsx';
 import { NOTHING_PICKED, pick as pickTile, pickAll } from '../assets/multi-select.js';
 import { AssetDetailsCard } from '../assets/details-card.jsx';
+import { GenerateAsk } from '../assets/generate-ask.jsx';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
 import { AssetTile } from '../assets/tile.jsx';
@@ -34,6 +37,7 @@ import { moveAssetsToTrash, undoAssetTrash } from '../assets/trash-assets.js';
 import { useAssets } from '../assets/use-assets.js';
 import { AskButton, copy, Empty } from '../empty/index.js';
 import { getPaletteEnv } from '../search/search-env.js';
+import { menuRunner } from '../shell/menu-runner.js';
 
 export { filterAssets };
 
@@ -100,6 +104,9 @@ export function AssetsPanel({
   // S8.12 — the selected artboard's name, for "Place in MVP zápasu"
   placeLabel = null,
   onRecord = undefined,
+  // S8.16 — the Generate ask selects what it placed (`select-by-id`) and says so in a toast with Undo
+  postToActiveCanvas = undefined,
+  toast = undefined,
   fetchImpl = undefined,
 }) {
   const { assets, history, reload } = useAssets({ fetchImpl });
@@ -117,6 +124,7 @@ export function AssetsPanel({
   const [progress, setProgress] = useState(null);
   const [err, setErr] = useState('');
   const [dropping, setDropping] = useState(false);
+  const [asking, setAsking] = useState(() => !readOnly && takeGenerateRequest());
   const alive = useRef(true);
   const rootRef = useRef(null);
   useEffect(() => {
@@ -326,7 +334,16 @@ export function AssetsPanel({
 
   // The registry reaches the tab through the bus: the same functions the tile menu runs.
   const live = useRef({});
-  live.current = { picked, browse, browsePicked, place, placeMany, showDetails, trashSelection };
+  live.current = {
+    picked,
+    browse,
+    browsePicked,
+    place,
+    placeMany,
+    showDetails,
+    trashSelection,
+    readOnly,
+  };
   useEffect(
     () =>
       bindAssetsPanel({
@@ -349,6 +366,9 @@ export function AssetsPanel({
         trash: () => {
           const l = live.current;
           if (l.browse ? l.browse.selected.size > 0 : l.picked) l.trashSelection();
+        },
+        generate: () => {
+          if (!live.current.readOnly) setAsking(true);
         },
         tileSelected: () => {
           const l = live.current;
@@ -482,6 +502,19 @@ export function AssetsPanel({
           <button
             type="button"
             className="st-iconbtn lp-add"
+            data-testid="assets-generate"
+            aria-label="Generate an image"
+            data-tip="Generate an image"
+            aria-pressed={asking}
+            onClick={() => setAsking((v) => !v)}
+          >
+            <StIcon name="sparkle" size={14} />
+          </button>
+        )}
+        {readOnly ? null : (
+          <button
+            type="button"
+            className="st-iconbtn lp-add"
             data-testid="assets-add"
             aria-label="Add files…"
             data-tip="Add files…"
@@ -512,6 +545,33 @@ export function AssetsPanel({
         </p>
       ) : null}
       {note}
+      {asking && !readOnly ? (
+        <GenerateAsk
+          target={placeTarget}
+          where={placeLabel}
+          onClose={() => setAsking(false)}
+          onRecord={onRecord}
+          fetchImpl={fetchImpl}
+          onSelect={(c) => {
+            // the write lands, the canvas re-renders, then the new picture can be selected
+            for (const ms of [300, 900])
+              setTimeout(
+                () =>
+                  postToActiveCanvas?.({
+                    dgn: 'select-by-id',
+                    id: c.element,
+                    artboardId: c.artboard,
+                  }),
+                ms
+              );
+          }}
+          onDone={(line) => {
+            void reload();
+            toast?.(line, true, { label: 'Undo', onClick: () => menuRunner.run('edit.undo') });
+          }}
+          onOther={() => menuRunner.run('ai.generate')}
+        />
+      ) : null}
       {detailed ? <AssetDetailsCard asset={detailed} onClose={() => setDetails(null)} /> : null}
       {notUsedOnly && hasUsage ? <NotCountedNote model={tidy} /> : null}
       <div className="lp-assets-list" hidden={!!browse}>

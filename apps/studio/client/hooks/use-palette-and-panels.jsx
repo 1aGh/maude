@@ -655,6 +655,8 @@ export function usePaletteAndPanels({
             return t ? labelOfArtboard(activePath, t.artboardId) || null : null;
           })()}
           onRecord={recordSourceEdit}
+          postToActiveCanvas={postToActiveCanvas}
+          toast={shellToast}
         />
       );
     // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).
