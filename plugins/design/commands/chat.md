@@ -1,41 +1,51 @@
 ---
 name: chat
 category: daily
-description: "Open the existing native Studio ACP chat panel. ACP harness support is a separate integration."
+description: "Open the AI chat panel in the running Maude window, or continue an in-app chat from a terminal."
 argument-hint: ""
 ---
 
-# /design:chat — surface the native ACP chat sidepanel
+# /design:chat — open the AI chat panel
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Opens (or focuses) the **Assistant** sidepanel in the running native Maude window, where you can drive `/design:edit`, `/design:new`, `/design:critic`, `/design:screenshot` and watch the canvas change — without leaving the same shared surface. The panel runs on **your own `claude` install on a Pro/Max subscription** (no login in Maude, never metered API billing — DDR-123).
+Opens (or brings back) the **AI chat panel** in the running native Maude window, where you can drive `/design:edit`, `/design:new`, `/design:critic` and `/design:screenshot` and watch the canvas change. The panel runs on **your own `claude` install on a Pro/Max subscription** (no login in Maude, never metered API billing — DDR-123).
 
-> **Native-app only.** The panel exists only in the native Maude shell (not the web surface) — ACP spawns the agent locally on your machine, which only the Tauri shell can do reliably (DDR-123, scope note phase-31). You can't open the panel from the terminal web-studio; there the terminal-driven workflow stays.
+> **Native app only.** The panel exists only in the native Maude window. It spawns the agent on your machine, which only the native shell can do reliably (DDR-123). From a terminal-only studio the terminal workflow stays.
 
 ## What it does
 
-The single source of truth is `maude design chat-open` (the on-PATH `maude` dispatches to the bundled helper — DDR-062). The helper reads the running dev-server's port from `<designRoot>/_server.json` and POSTs to `/_api/acp/focus`; the server emits a bus event that the shell (app.jsx) translates into "open the Assistant panel" (native-only).
+The single source of truth is `maude design chat-open` (the on-PATH `maude` dispatches to the bundled helper — DDR-062). It reads the running studio's address from `<designRoot>/_server.json` and asks it to show the panel. The panel is also one key away in the app: **⌘/** (Ask AI), or the spark icon when the panel is folded.
 
 ## Procedure
 
-1. Make sure native Maude is running (the panel renders inside it). If the server isn't running, open the Maude app.
-2. Trigger focus:
+1. Make sure native Maude is running (the panel renders inside it). If it is not, open the Maude app.
+2. Show the panel:
 
 ```bash
 maude design chat-open
 ```
 
-3. The Assistant panel opens in the Maude window (or `⌘⇧A` directly in the app).
+3. The AI chat panel opens in the Maude window. Prompts you type there run in the same project; the canvas updates live.
+
+## Attach to an in-app chat from a terminal
+
+Every chat in the panel is a normal `claude` session. To continue one from a terminal, use **Open in terminal** on the chat (native app: it opens Terminal in the project root with `claude --resume <session id>`). To do it by hand, print the id from the panel's chat list and run:
+
+```bash
+claude --resume <session id>
+```
+
+Both windows then work on the same session. Attachments dragged into the panel stay with that chat.
 
 ## Panel states
 
-- **Ready** — claude is installed + logged in; type prompts, quick-actions (`/design:edit`, `/design:new`, `/design:critic`, `/design:screenshot`) prefill the composer.
-- **Working…** — the agent is streaming; **Stop** (⌘↵ sends, Esc/Stop cancels the turn).
-- **Not connected** — `claude` isn't installed / logged in → a plain explainer ("open a terminal, run `claude` and `/login`"), never an error. Detected via `GET /_api/acp/status`.
+- **Ready** — `claude` is installed and signed in. Type a prompt; the quick actions (`/design:edit`, `/design:new`, `/design:critic`, `/design:screenshot`) prefill the composer.
+- **Working** — AI is writing. **Stop** cancels the turn (esc also cancels).
+- **Not connected** — `claude` is not installed or not signed in. The panel explains it in one line ("open a terminal, run `claude` and `/login`"); it is never an error.
 
 ## Failure modes
 
-- **No running server** (`_server.json` missing) → "Open Maude first."
-- **Focus request failed** → the server is running, but `/_api/acp/focus` is unavailable (old build?) — restart Maude.
-- **Web surface** → the panel won't open (native-only); use terminal Claude Code.
+- **No running studio** (`_server.json` missing) → "Open Maude first."
+- **The request failed** → the studio is running but did not accept it (an old build?). Restart Maude.
+- **Terminal-only studio** → the panel will not open; use terminal Claude Code.

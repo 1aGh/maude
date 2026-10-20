@@ -83,6 +83,23 @@ here waits in a pending queue until an admin links or creates one — including,
 especially, when its email matches an existing account. Anything else would be
 an account takeover.
 
+### 4b · Who can do what
+
+Say the four roles in Maude's own words, so what they set up matches what
+people see in the Share sheet:
+
+- **Can view** — look only. The server refuses every download and export to a
+  Can view person. It is a courtesy limit, not DRM: their browser still holds
+  what it renders.
+- **Can comment** — look, comment and download. No AI chat panel.
+- **Can edit** — change the canvas. Moves things to the trash.
+- **Owner** — everything above, and the only role that clears the trash for
+  good.
+
+A hub without view-only accounts hides **Can view** (and view links) instead of
+offering a role it cannot enforce. Ask whether anyone needs look-only access
+before they finish the identity stage.
+
 ### 5 · Start from what
 
 Fresh, or an existing repository URL to seed from.

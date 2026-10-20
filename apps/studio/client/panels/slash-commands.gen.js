@@ -7,7 +7,7 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:board',
     description:
-      'Read a whiteboard or create a structured board template with element-aware annotations.',
+      'Read the annotations on a canvas, or lay out a structured template of sticky notes (retro, kanban, roadmap) on it.',
     argHint: '["<feedback or template request>"] …',
   },
   {
@@ -18,7 +18,7 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:chat',
     description:
-      'Open the existing native Studio ACP chat panel. ACP harness support is a separate integration.',
+      'Open the AI chat panel in the running Maude window, or continue an in-app chat from a terminal.',
   },
   {
     name: 'design:comments',

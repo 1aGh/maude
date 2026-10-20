@@ -17,6 +17,10 @@ durability, the dry run, and the honest read-back of what was verified.
 the only difference is who operates it. Never steer someone toward a hosted
 plan here, and never describe self-hosting as the lesser path.
 
+People get one of four roles, said in Maude's words: **Can view** · **Can comment** ·
+**Can edit** · **Owner**. The skill asks, with identity, whether anyone needs look-only
+access, because a hub without view-only accounts hides Can view.
+
 Two things the skill will not let you skip, repeated here because they are the
 ones that get lost:
 

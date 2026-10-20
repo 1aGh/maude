@@ -11,18 +11,18 @@ maude design annotate "<rel-path>" [--ops <file|-> | --flow <file|-> | --board <
 Every request becomes the same **element ops** the canvas itself sends (`put | patch | delete`, DDR-242), built from the element registry — so the verb can never write an element the canvas wouldn't accept, and a new element type needs no change here. Every created element is stamped `author: {kind: "ai"}`. The verb prints `{ ok, via, file, created, updated, deleted, refs }`:
 
 - `via: "server"` — a live dev-server applied the ops (`POST /_api/annotations/ops`) and every open canvas updated in real time. Only a loopback server is ever contacted.
-- `via: "file"` — no server: the resulting board was written directly (canonical, atomic).
+- `via: "file"` — no server: the resulting annotations were written directly (canonical, atomic).
 
-**Writes merge; they don't replace the board.** An `update` is a field patch that carries the value you read, so a concurrent human edit to a *different* field or element is kept, and a concurrent edit of the same text merges. Still read before you write — the ids you target come from `read-annotations`.
+**Writes merge; they don't replace the annotations.** An `update` is a field patch that carries the value you read, so a concurrent human edit to a *different* field or element is kept, and a concurrent edit of the same text merges. Still read before you write — the ids you target come from `read-annotations`.
 
-A board file that exists but isn't a readable board is **never written over** (exit 2). Any invalid request — unknown id/ref, unknown field, a value the type can't hold, a non-section parent — fails loud (exit 2) and writes nothing. `--dry-run` prints `{ dryRun: true, ops }` without writing.
+An annotations file that exists but isn't readable is **never written over** (exit 2). Any invalid request — unknown id/ref, unknown field, a value the type can't hold, a non-section parent — fails loud (exit 2) and writes nothing. `--dry-run` prints `{ dryRun: true, ops }` without writing.
 
 ### Effortless placement — never hand-compute a coordinate
 
 - `--near <artboardId>` — place beside the artboard (outside it, to the right).
 - `--in <artboardId>` — place INSIDE the artboard (top-left + a 40px inset). Needs `--canvas-state` or `--rects`; an unknown artboard id is a hard error (never a silent mis-place).
-- `--pin <cdId|selector>` — place beside a specific ELEMENT resolved from a `--rects` manifest ("drop a note next to the CTA button"). Unknown target = hard error. A created sticky/text also gets a **pointer arrow** (suppress with `--no-pointer` or a per-op `"pointer": false`): its start is bound to the note (it follows the note), its end is a fixed point on the DOM element's edge — a DOM element isn't a board element, so it can't be a bind host.
-- Any `create` op may carry its own `"in"`/`"near"`/`"pin"` to override placement for just that op. Without x/y and without any of these, creates line up right of the existing board.
+- `--pin <cdId|selector>` — place beside a specific ELEMENT resolved from a `--rects` manifest ("drop a note next to the CTA button"). Unknown target = hard error. A created sticky/text also gets a **pointer arrow** (suppress with `--no-pointer` or a per-op `"pointer": false`): its start is bound to the note (it follows the note), its end is a fixed point on the DOM element's edge — a DOM element isn't an annotation element, so it can't be a bind host.
+- Any `create` op may carry its own `"in"`/`"near"`/`"pin"` to override placement for just that op. Without x/y and without any of these, creates line up right of the existing annotations.
 
 ```jsonc
 // Pin a callout on a real button, with a pointer arrow:
@@ -66,7 +66,7 @@ Coordinates are **world** coordinates — the ones `read-annotations` prints. Ta
 
 ### Format-2 helpers — resolve, stickers, canvas-bound ends, sections around notes
 
-The four shortcut flags can stand alone (no `--ops`) or ride with any ops/flow/board request; each is also an op.
+The four shortcut flags can stand alone (no `--ops`) or ride with any ops/flow/template request; each is also an op.
 
 - **Resolve** — `--resolve a,b` / `{ "op": "resolve", "id" | "ids": […] }` marks stickies resolved *by AI* (`resolved: {by: "AI", at}`; the UI shows the tick). Only stickies resolve. One a person already resolved is skipped — their name and time stay. A locked sticky is refused. `{ "op": "update", "id", "resolved": null }` reopens one; you never write `by`/`at` yourself (`resolved` is `true` or `null` — anything else is an error). Resolve what your change answered, nothing else.
 - **Stickers** — `--sticker project-status/group-100` / `{ "op": "sticker", "sticker": "<pack>/<id>", "x"?, "y"?, "w"?, "h"?, "to"? }` places a Stickers-gallery picture (160 × 160, authored by AI so the UI shows "Placed by AI"). `<pack>` is the bundled pack's slug, `<id>` the picture's file name with or without its extension; an unknown pack or id lists what exists. The picture is copied into the project's content-addressed `assets/`. Use the `project-status` pack for status marks (a "done" mark on what you resolved, a flag on what needs the person). `--dry-run` writes nothing, assets included.
@@ -76,7 +76,7 @@ The four shortcut flags can stand alone (no `--ops`) or ride with any ops/flow/b
 - **Riding with an artboard** — with geometry given, a new top-level note whose centre is over an artboard gets `parentArtboard` (it moves with the artboard), and `move` keeps it current. You never set it by hand.
 - **People's elements are read-only to you.** `vote`, `ballot` and `stamp` are people's feedback; every create, update, move or delete of one is refused. Answer with your own sticky or sticker. `author` is never settable, and an edit to a locked element is refused, whichever route (this verb, or a file edit checked by `maude design check --strict`).
 
-A single-element update is a few dozen bytes whatever the board size:
+A single-element update is a few dozen bytes however many annotations the file holds:
 
 ```jsonc
 { "ops": [{ "op": "update", "id": "s_b2", "text": "shipped" }] }
@@ -89,7 +89,7 @@ A single-element update is a few dozen bytes whatever the board size:
 ```
 Layered left→right auto-layout, connected with BOUND arrows. `--near`/`--in` places the whole diagram relative to an artboard. Round-trips: `read-annotations --graph` returns the same nodes/edges.
 
-### `--board` — the universal template generator (the "make me a FigJam board" surface)
+### `--board` — the universal template generator (the "make me a retro / kanban / roadmap" surface)
 
 ```jsonc
 {
@@ -101,10 +101,10 @@ Layered left→right auto-layout, connected with BOUND arrows. `--near`/`--in` p
 }
 ```
 
-- **`layout: "columns"`** (default) — one titled section per `groups[].title`, its cards stacked inside as stickies — the section's children, so they read back as its `members` and move with it. An empty `cards: []` still gets a clean, evenly-spaced blank section — a board the team fills in live (a real retro). Card refs are `@sec<i>card<j>`, section refs are `@sec<i>` (0-indexed by group order) — use them in `connections[]`.
+- **`layout: "columns"`** (default) — one titled section per `groups[].title`, its cards stacked inside as stickies — the section's children, so they read back as its `members` and move with it. An empty `cards: []` still gets a clean, evenly-spaced blank section — a template the team fills in live (a real retro). Card refs are `@sec<i>card<j>`, section refs are `@sec<i>` (0-indexed by group order) — use them in `connections[]`.
 - **`layout: "radial"`** — a central shape (labelled by `title`) with every group's cards ringed around it. Refs: `@center`, `@idea<i>`.
 - **`layout: "flow"`** — needs `nodes[]`/`edges[]` instead of `groups[]`; delegates straight to the SAME auto-layout as plain `--flow`, so a user-flow diagram is not a separate implementation.
-- `--near`/`--in`/`--pin` position the WHOLE board as a unit, exactly like a single create op.
+- `--near`/`--in`/`--pin` position the WHOLE template as a unit, exactly like a single create op.
 - Mutually exclusive with `--ops`/`--flow`.
 - **`--board <template-id>`** — instead of a file, name one of the eight starter skeletons the studio's Templates panel (and ⌘K "Kanban template" …) offers: `kanban` · `retro` · `flow` (Flowchart) · `calendar` (Content calendar, Mon–Sun) · `roadmap` · `brainstorm` · `checklist` · `blank` (one empty section). They are the same specs (`apps/studio/annotations/templates.ts`) the panel expands, so `annotate <canvas> --board kanban` and a panel pick write the same elements; the stickies come empty, for you or the team to fill. An id wins over a file of the same name; anything else is read as a file or `-`.
 
@@ -120,7 +120,7 @@ Layered left→right auto-layout, connected with BOUND arrows. `--near`/`--in` p
   { "title": "Action items", "color": "#bfdbfe", "cards": [] }
 ] }
 ```
-Alternatives: *Start / Stop / Continue*; *Mad / Sad / Glad* — same 3-column color treatment, different titles. Leave `cards: []` for the team to fill live during the meeting, or seed them if the user already gave you the items (a sprint retro request like "team sprint retro" or "vytvoř mi team sprint retro" with no specifics yet still gets this ritual + color treatment, just blank). If the user wants a "warm start" rather than a cold blank board, seed ONE lightweight facilitation prompt per column instead of a real item (e.g. `"💬 What made this sprint feel good?"` in *What went well*) — visually distinct from real content (a different color or a leading `💬`), never counted as the user's own retro item. **Card count:** 3–5 per column is typical for a focused retro; don't over-seed a board the team is about to fill live.
+Alternatives: *Start / Stop / Continue*; *Mad / Sad / Glad* — same 3-column color treatment, different titles. Leave `cards: []` for the team to fill live during the meeting, or seed them if the user already gave you the items (a sprint retro request like "team sprint retro" or "vytvoř mi team sprint retro" with no specifics yet still gets this ritual + color treatment, just blank). If the user wants a "warm start" rather than a cold blank template, seed ONE lightweight facilitation prompt per column instead of a real item (e.g. `"💬 What made this sprint feel good?"` in *What went well*) — visually distinct from real content (a different color or a leading `💬`), never counted as the user's own retro item. **Card count:** 3–5 per column is typical for a focused retro; don't over-seed a template the team is about to fill live.
 
 **Kanban** — color cards by priority (red/amber/green) when the user's backlog implies urgency, not by column:
 ```jsonc
