@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b28583992c1e",
+  "manifestVersion": "dcf8731cf551",
   "actions": [
     {
       "id": "search.open",
@@ -6791,6 +6791,12 @@
     {
       "scope": "design",
       "verb": "design cut-to-beat",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design reel-place",
       "effect": "project",
       "tier": "auto"
     },

@@ -157,6 +157,9 @@ const BIN_VERBS = new Set([
   'captions',
   'cut-words',
   'cut-to-beat',
+  // S7.14 (V2-1.10 §5.7, §5.9). `reel-place <edl-slug> --next` — the AI cut, one shot per call: the first
+  // shot of the cut the video does not have yet, as one literal Sequence; exit 4 "All shots are placed".
+  'reel-place',
   // feature-ai-media-generation (Task 2.5, DDR-164). `audio-search` is the
   // reuse-before-you-pay verb: search the project's own generated audio + the
   // user's ElevenLabs history before spending credits on a new music/SFX/VO
@@ -476,6 +479,8 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
   cut-to-beat <canvas>#<artboard> [--every 1|2|4] · beats <assets/x.mp3> [--bpm N] [--dry-run]
         A video's captions, edit by transcript, Cut to the beat (one undoable edit each, in the
         open studio), and the beat grid of a music asset.
+  reel-place <edl-slug> --next [--canvas <canvas>#<artboard>]
+        The AI cut, one shot per call onto the video; exit 4 when every shot is placed.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 

@@ -137,6 +137,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('captions', 'project', { note: 'add / list / export; an unknown sub-verb is a usage error' }),
   d('cut-words', 'project'),
   d('cut-to-beat', 'project'),
+  // S7.14 (V2-1.10 §5.7). `reel-place` writes ONE shot of a cut onto the video canvas (the AI's own write:
+  // inside a run the studio stages it); exit 4 when every shot is placed.
+  d('reel-place', 'project', { note: 'one shot per call onto one canvas; fast check before the write' }),
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),
