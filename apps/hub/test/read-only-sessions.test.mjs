@@ -111,6 +111,10 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
     // comment on the viewer's own Y connection is still dropped (test/comments-door.test.mjs).
     '/api/comments',
     '/api/export',
+    // S8.5b-2 — the cloud render door: it enqueues the session's OWN export job (owner-scoped
+    // in the studio) and writes no project byte; the handler refuses a read-only PROJECT session
+    // (403) and judges a canvas-only session's grant per target (test/render-jobs-route.test.mjs).
+    String(/^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/render-jobs$/),
     '/auth/browser/signout',
     '/auth/logout',
   ];

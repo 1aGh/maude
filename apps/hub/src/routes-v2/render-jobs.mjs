@@ -504,7 +504,9 @@ async function renderJobsHandler(ctx) {
 /**
  * The rows (one table, S9 Q12; contract §5). `canvasDoor`: the handler judges every target
  * itself, so a canvas-only session passes the gate when any grant holds `export`. In NEITHER
- * canvas allowlist: the canvas origin is `CANVAS_ORIGIN_ROW`, which has no handler.
+ * canvas allowlist: the canvas origin is `CANVAS_ORIGIN_ROW`, which has no handler. The two
+ * reads have no write half (the handler answers 405); it is classified `edit` like the votes
+ * read rows, because `unsafe: null` means "authenticates with no peer token" in this table.
  */
 export const RENDER_JOBS_ROWS = Object.freeze([
   {
@@ -516,14 +518,14 @@ export const RENDER_JOBS_ROWS = Object.freeze([
   },
   {
     pattern: RENDER_JOB_FILE_ROUTE,
-    cap: Object.freeze({ safe: 'export', unsafe: null }),
+    cap: Object.freeze({ safe: 'export', unsafe: 'edit' }),
     scope: 'canvas',
     canvasDoor: true,
     handler: renderJobsHandler,
   },
   {
     pattern: RENDER_JOB_ROUTE,
-    cap: Object.freeze({ safe: 'export', unsafe: null }),
+    cap: Object.freeze({ safe: 'export', unsafe: 'edit' }),
     scope: 'canvas',
     canvasDoor: true,
     handler: renderJobsHandler,

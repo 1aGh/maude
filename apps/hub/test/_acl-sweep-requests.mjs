@@ -293,6 +293,23 @@ const ACCEPTED = {
     ['GET', `${V1}/asset-presence?rel=${enc(tg.path)}&rel=${enc(tg.asset)}`],
     ['POST', `${V1}/asset-presence`, '{}'],
   ],
+  // S8.5b-2 — the cloud render door: a job on B, a fingerprint naming B, a status / file read.
+  'render-jobs': (tg) => [
+    [
+      'POST',
+      `${V1}/render-jobs`,
+      json({
+        jobId: 'i_00000000000000000001',
+        spec: { v: 2, scope: 'canvas', canvas: tg.path, format: 'mp4' },
+        expect: [{ rel: tg.path, sha256: null }],
+      }),
+    ],
+    ['GET', `${V1}/render-jobs${q(tg)}`],
+  ],
+  'render-jobs/:id': (tg) => [['GET', `${V1}/render-jobs/i_00000000000000000001${q(tg)}`]],
+  'render-jobs/:id/file': (tg) => [
+    ['GET', `${V1}/render-jobs/i_00000000000000000001/file${q(tg)}`],
+  ],
 };
 
 /** Name a pattern row by a probe path: the accepted route it matches. */
@@ -312,6 +329,9 @@ const PATTERN_PROBES = {
   'votes/:id/end': `${V1}/votes/x1/end`,
   trash: `${V1}/trash`,
   'asset-presence': `${V1}/asset-presence`,
+  'render-jobs': `${V1}/render-jobs`,
+  'render-jobs/:id': `${V1}/render-jobs/i_00000000000000000001`,
+  'render-jobs/:id/file': `${V1}/render-jobs/i_00000000000000000001/file`,
 };
 
 /** The builder for a row: exact/prefix by key, a pattern by the probe it matches. */

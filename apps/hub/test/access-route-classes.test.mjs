@@ -111,8 +111,9 @@ test('S8.5b-2: the render door’s three rows are export, canvas scope, canvasDo
   const id = 'i_00000000000000000001';
   for (const [path, cap] of [
     ['render-jobs', { safe: null, unsafe: 'export' }],
-    [`render-jobs/${id}`, { safe: 'export', unsafe: null }],
-    [`render-jobs/${id}/file`, { safe: 'export', unsafe: null }],
+    // no write half (the handler's 405); `edit` like the votes read rows, never `null`
+    [`render-jobs/${id}`, { safe: 'export', unsafe: 'edit' }],
+    [`render-jobs/${id}/file`, { safe: 'export', unsafe: 'edit' }],
   ]) {
     const row = rowFor(`/api/projects/current/v1/${path}`);
     assert.ok(row?.handler, `${path} has no handler row`);
