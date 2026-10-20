@@ -13,7 +13,11 @@ import path from 'node:path';
 import * as decoding from 'lib0/decoding';
 import { Awareness, removeAwarenessStates } from 'y-protocols/awareness';
 import * as Y from 'yjs';
-import { stripPresenterAwareness, stripToWatching } from '../present/relay-strip.ts';
+import {
+  PRESENTER_ONLY_FIELDS,
+  stripAwarenessFields,
+  stripToWatching,
+} from '../present/relay-strip.ts';
 import { stripUnheldFields } from './awareness-bridge.ts';
 import { isBodyLane, rootTypesTouched } from './origins.ts';
 import {
@@ -27,6 +31,7 @@ import {
   MESSAGE_SYNC,
   readMessageType,
 } from './protocol.ts';
+import { EDITOR_ONLY_FIELDS, MEMBER_ONLY_FIELDS } from './timeline-awareness.ts';
 
 export interface RoomConn extends CollabConn {
   /** Stable id for this connection (UUID from ws.data.id). */
@@ -150,6 +155,17 @@ export interface Room {
 
 const DEBOUNCE_MS = 800;
 
+/** What a read-only conn's awareness loses before the room applies it (S3.7b + S7.17). */
+const READ_ONLY_STRIP: readonly string[] = Object.freeze([
+  ...PRESENTER_ONLY_FIELDS,
+  ...EDITOR_ONLY_FIELDS,
+]);
+
+/** A frame as a presentation follower may receive it: awareness without the member-only fields. */
+export function toFollower(frame: Uint8Array): Uint8Array | null {
+  return stripAwarenessFields(frame, MEMBER_ONLY_FIELDS);
+}
+
 export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
   const doc = new Y.Doc();
   // Awareness needs a clientID; reuse the Y.Doc's so peers can attribute updates.
@@ -197,10 +213,19 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
   }
 
   function broadcast(payload: Uint8Array, except?: RoomConn) {
+    // S7.17 — a presentation follower is outside the project: it never hears where a member's playhead
+    // is or which caption word they are fixing. Stripped once per frame, only when a follower listens.
+    let forFollower: Uint8Array | null | undefined;
     for (const c of conns.values()) {
       if (except && c.id === except.id) continue;
+      let out: Uint8Array | null = payload;
+      if (c.follow === true) {
+        if (forFollower === undefined) forFollower = toFollower(payload);
+        out = forFollower;
+      }
+      if (!out) continue;
       try {
-        c.send(payload);
+        c.send(out);
       } catch {
         /* close handler will clean up dead sockets */
       }
@@ -278,9 +303,10 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     if (readMessageType(payload) !== MESSAGE_SYNC) {
       // S3.7b (D11) — a read-only conn may watch, never broadcast a
       // presentation: `present` + `pointer` are stripped before the apply.
+      // S7.17 — nor claim a caption word: `editing` needs `edit` too.
       const frame =
         conn.readOnly === true || conn.lanesClosed === true
-          ? stripPresenterAwareness(payload)
+          ? stripAwarenessFields(payload, READ_ONLY_STRIP)
           : payload;
       if (!frame) return;
       const reply = handleMessage(frame, doc, awareness, conn);
@@ -389,7 +415,10 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     await getOrStartSeed();
     conns.set(conn.id, conn);
     const frames = encodeHandshake(doc, awareness);
-    for (const frame of frames) conn.send(frame);
+    for (const frame of frames) {
+      const out = conn.follow === true ? toFollower(frame) : frame;
+      if (out) conn.send(out);
+    }
   }
 
   function disconnect(conn: RoomConn): void {

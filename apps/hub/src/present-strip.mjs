@@ -7,6 +7,9 @@
 // `!can('edit', canvas)`) cannot broadcast a presentation:
 //   - `present` — the presenter's position; a forged one would steer followers;
 //   - `pointer` — the presenter's laser dot (S3.2b), a presenter-only tool.
+//   - `editing` — S7.17: the caption word a person is fixing (a soft lock others'
+//     UI honours) and the Phase 30 heads-up; someone who cannot edit is fixing
+//     nothing, so their claim would only lock other people out of a word.
 // `watching` is NEVER stripped: any role may watch, and the presenter's
 // "N watching" count is made of exactly those states.
 //
@@ -16,6 +19,9 @@
 
 /** The awareness keys only an editor of the document may publish. */
 export const PRESENTER_ONLY_FIELDS = Object.freeze(['present', 'pointer']);
+/** S7.17 — the awareness keys only someone who may edit the document publishes (studio twin: EDITOR_ONLY_FIELDS). */
+export const EDITOR_ONLY_FIELDS = Object.freeze(['editing']);
+const READ_ONLY_STRIP = Object.freeze([...PRESENTER_ONLY_FIELDS, ...EDITOR_ONLY_FIELDS]);
 
 /**
  * @param {{ states?: Map<number, object>, context?: { user?: object } }} payload
@@ -28,7 +34,7 @@ export function stripPresent({ states, context }) {
   for (const state of states.values()) {
     if (!state || typeof state !== 'object') continue;
     let hit = false;
-    for (const key of PRESENTER_ONLY_FIELDS) {
+    for (const key of READ_ONLY_STRIP) {
       if (key in state) {
         delete state[key];
         hit = true;

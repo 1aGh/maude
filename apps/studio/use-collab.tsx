@@ -36,6 +36,12 @@ import * as Y from 'yjs';
 
 import { isTrustedOrigin, touchesBodyLane } from './collab/origins.ts';
 import {
+  type EditingAwareness,
+  sanitizeEditing,
+  sanitizeTimeline,
+  type TimelineAwareness,
+} from './collab/timeline-awareness.ts';
+import {
   presenceName,
   type Summon,
   type Surface,
@@ -121,7 +127,13 @@ export interface CollabAwarenessState {
    * disconnect (awareness GC). The visual conflict picker (DDR-116) remains the
    * safety net for divergent saves.
    */
-  editing?: { since: number } | null;
+  editing?: EditingAwareness | null;
+  /**
+   * S7.17 (07 · ve-together) — where this person's playhead is, on the video artboard their timeline
+   * follows: `{ artboardId, frame }`; null / absent = no timeline open. Untrusted on the way in
+   * (`sanitizeTimeline`); never relayed to a presentation follower (collab/room.ts).
+   */
+  timeline?: TimelineAwareness | null;
   /**
    * S3.7a (S3-present-session §2) — this peer is presenting artboards: where it is in its run, so
    * followers (the audience window, presentation-link viewers) show the same artboard. Published by the
@@ -363,11 +375,9 @@ function sanitizeAnnotationSelection(raw: unknown): string[] {
 // non-positive value is rejected → `null` (treated as not-editing), so a hostile
 // hub peer can't pin a permanent "editing" badge with a far-future timestamp or
 // poison a `Date.now() - since` age computation with a NaN.
-function sanitizeEditingState(raw: unknown): { since: number } | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const e = raw as { since?: unknown };
-  if (!isFiniteNum(e.since) || e.since <= 0 || e.since > Date.now() + 5000) return null;
-  return { since: e.since };
+// S7.17 — the same rule, plus the caption-word form (collab/timeline-awareness.ts `sanitizeEditing`).
+function sanitizeEditingState(raw: unknown): EditingAwareness | null {
+  return sanitizeEditing(raw);
 }
 
 // ── S3.7a — the presenter's position (S3-present-session §2) ──────────────────────────────────────
@@ -500,6 +510,7 @@ export function sanitizeHoldingState(
  */
 export function carryLocal(cur: Partial<CollabAwarenessState>): {
   editing: CollabAwarenessState['editing'];
+  timeline: TimelineAwareness | null;
   present: PresentAwareness | null;
   watching: string | null;
   pointer: { x: number; y: number } | null;
@@ -514,6 +525,7 @@ export function carryLocal(cur: Partial<CollabAwarenessState>): {
 } {
   return {
     editing: cur.editing ?? null,
+    timeline: cur.timeline ?? null,
     present: cur.present ?? null,
     watching: cur.watching ?? null,
     pointer: cur.pointer ?? null,
@@ -661,6 +673,7 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     annotationGesture: sanitizeAnnotationGesture(s.annotationGesture),
     viewport: sanitizeViewport(s.viewport),
     editing: sanitizeEditingState(s.editing),
+    timeline: sanitizeTimeline(s.timeline),
     present: sanitizePresent(s.present),
     watching: sanitizeWatching(s.watching),
     pointer: sanitizePointer(s.pointer),
