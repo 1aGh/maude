@@ -760,6 +760,26 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
+  // S7.25 — Change kind makes a copy (08 ak-convert): a paper picked in a fixed size's Size select opens a dialog, then ONE edit-op
+  // (`edit-ops/convert-kind.ts`) makes the print beside the post (or changes the artboard itself with the switch off). It takes a
+  // paper, so it is not a ⌘K row: its home is the Size select. `warning.fix` is the one verb of a warning row (Move inside · Allow
+  // longer · Fix size · Fit to width · Replace… · Show) — each is an ordinary edit the inspector already makes.
+  {
+    id: 'artboard.convert-kind',
+    label: 'Change kind',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'warning.fix',
+    label: 'Fix what to check',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
   {
     id: 'artboard.set-print-guides',
     label: 'Print guides on this artboard',

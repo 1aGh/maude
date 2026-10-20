@@ -94,7 +94,7 @@ Flags on `/design:new`: `--blank` (create a board), `--from-annotations` (force 
 <!-- BEGIN GENERATED: studio capabilities (scripts/gen-actions.mjs) -->
 ## Studio capabilities
 
-Every studio action has one AI path: 178 by editing a file, 142 by a `maude` verb, 167 only the person can do, 0 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
+Every studio action has one AI path: 180 by editing a file, 142 by a `maude` verb, 167 only the person can do, 0 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
 
 | Tier | `maude design` verbs |
 | --- | --- |

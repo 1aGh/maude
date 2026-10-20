@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "02e4f07d2e82",
+  "manifestVersion": "4746709ce37a",
   "actions": [
     {
       "id": "search.open",
@@ -1572,6 +1572,32 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Edit the DCArtboard’s print prop ({ paper, orientation, bleedMm, marginsMm, sizeMm: [w, h] for a custom trim }) and set its width and height props to the trim plus 2 × bleed in px (mm × 96 ÷ 25.4, rounded) — A6 with 3 mm bleed is 419 × 581; a different paper clears sizeMm — see canvas-tsx.md § Artboard props that Maude 2 adds"
+      }
+    },
+    {
+      "id": "artboard.convert-kind",
+      "label": "Change kind",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard right after itself with a new id and label, set kind=\"print\", print={{ paper, orientation, bleedMm }} and width/height to the paper plus 2 × bleed in px, drop safeZones, and put the copy’s children in one <div style={{ position: 'relative', flex: 'none', width, height, zoom }}> that scales the design to the paper’s width; optionally artboardMeta.<copy>.madeFrom = { artboard, label } in the .meta.json — see canvas-tsx.md § Change an artboard’s kind"
+      }
+    },
+    {
+      "id": "warning.fix",
+      "label": "Fix what to check",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Make the edit the warning’s verb names: Move inside (translate the layer inside the safe margin), Allow longer (artboardMeta.<id>.maxFrames up to 18000 in the .meta.json), Fix size (width/height = paper + 2 × bleed in px), Fit to width (max-width: 100% on the layer), Replace… (a larger picture), Show (nothing to write) — see canvas-tsx.md § Change an artboard’s kind, and the warnings; GET /_api/kinds/warnings?canvas= lists them"
       }
     },
     {
