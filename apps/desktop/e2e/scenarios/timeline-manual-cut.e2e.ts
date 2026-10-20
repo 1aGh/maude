@@ -222,4 +222,28 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
       timeoutMsg: 'slider 0 did not return the track to fit-to-width',
     });
   });
+  // S8.6 — the export step: the cut is on the Timeline; ⇧⌘E offers it as a video. Sound only is the same
+  // mix with no picture, one click under Other…. Nothing is exported here (a render is minutes; the format
+  // and the file are covered by test/export-video-sound.test.ts) — the step proves the sheet is reachable
+  // from the cut and speaks the video words.
+  it('export: the cut offers MP4, GIF and Sound only from the one Export sheet', async () => {
+    await browser.execute(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'E', metaKey: true, shiftKey: true, bubbles: true })
+      );
+    });
+    await $('[data-testid="export-submit"]').waitForDisplayed({ timeout: 20000 });
+    await (await $('[data-testid="export-other"]')).click();
+    const menu = $('[data-testid="export-other-menu"]');
+    await menu.waitForDisplayed({ timeout: 10000 });
+    for (const id of ['mp4', 'gif', 'webm', 'audio']) {
+      const row = menu.$(`[data-testid="export-format-${id}"]`);
+      await row.waitForExist({ timeout: 5000 });
+      expect(await row.getAttribute('aria-disabled')).not.toBe('true');
+    }
+    await menu.$('[data-testid="export-format-audio"]').click();
+    await expect($('[data-testid="export-format-audio"]')).toExist();
+    await capture('export-sound-only');
+    await key({ key: 'Escape' });
+  });
 });

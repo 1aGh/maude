@@ -51,6 +51,8 @@ import { BatchSection } from './sections/batch.jsx';
 import { ImageSection } from './sections/image.jsx';
 import { PrintSection } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
+import { videoButtonLabel } from './sections/video-copy.js';
+import { VideoSection } from './sections/video.jsx';
 import { WebSection } from './sections/web.jsx';
 import { usePreflight } from './preflight/use-preflight.js';
 import { ShareHint } from './share-hint.jsx';
@@ -142,6 +144,7 @@ export function ExportSheet({
     section,
     batch,
     kinds: specKinds,
+    video,
   } = useExportSpec(req, {
     ...ctx,
     hasSelection: selected,
@@ -244,7 +247,12 @@ export function ExportSheet({
           nothingSelected: state.nothingSelected && state.scope === 'canvas',
         });
   const summary = mode === 'export' ? summaryWords(est) : null;
-  const button = mode === 'handoff' ? HANDOFF_BUTTON : primaryLabel({ count, busy });
+  const button =
+    mode === 'handoff'
+      ? HANDOFF_BUTTON
+      : section === 'video'
+        ? videoButtonLabel({ n: video.ticked.length, format: state.format, busy })
+        : primaryLabel({ count, busy });
 
   // ── submit ───────────────────────────────────────────────────────────────────────────────────
   const submit = () => {
@@ -352,7 +360,9 @@ export function ExportSheet({
         ? WebSection
         : section === 'print'
           ? PrintSection
-          : ImageSection;
+          : section === 'video'
+            ? VideoSection
+            : ImageSection;
 
   // Can view has no Export (A19): the entry points are absent and the server answers 403; if a stale
   // opener still gets here, there is nothing to draw.
@@ -431,6 +441,7 @@ export function ExportSheet({
                 annotationsOff={annot.off}
                 annotationsNote={annot.note}
                 est={est}
+                video={video}
                 preflight={preflight}
                 onShowOnCanvas={showOnCanvas}
               />

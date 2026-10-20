@@ -16,8 +16,8 @@ import { RASTER, effectiveScale } from '../use-export-spec.js';
 import { Check, Row, Seg } from '../parts.jsx';
 
 const labelOf = (format) =>
-  OTHER_GROUPS.flatMap((g) => g.items).find((i) => i.format === format && !i.needs)?.label ??
-  String(format).toUpperCase();
+  OTHER_GROUPS.flatMap((g) => g.items).find((i) => i.format === format && i.needs !== 'print')
+    ?.label ?? String(format).toUpperCase();
 
 /** @param other the "Other…" button node, drawn after the formats */
 export function ImageSection({

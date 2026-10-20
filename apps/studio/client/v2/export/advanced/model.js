@@ -71,7 +71,9 @@ export function advancedParts({ formats, kinds, exportLane = 'local' }) {
   const image = f.some((x) => IMAGE.has(x));
   const print = f.includes('pdf') && kinds.has('print');
   const video = f.some((x) => VIDEO.has(x));
-  return { image, print, video, render: video || exportLane !== 'local' };
+  // S8.6 — Sound only renders the video first, so where it renders is still a question
+  const sound = f.includes('audio');
+  return { image, print, video, render: video || sound || exportLane !== 'local' };
 }
 
 // ── what a touched field says about the spec ─────────────────────────────────────────────────────

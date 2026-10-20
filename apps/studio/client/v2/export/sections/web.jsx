@@ -21,8 +21,8 @@ import { Check, Row, Seg } from '../parts.jsx';
 
 const sizeId = (format, scale) => `${format}-${scale}`;
 const labelOf = (format) =>
-  OTHER_GROUPS.flatMap((g) => g.items).find((i) => i.format === format && !i.needs)?.label ??
-  String(format).toUpperCase();
+  OTHER_GROUPS.flatMap((g) => g.items).find((i) => i.format === format && i.needs !== 'print')
+    ?.label ?? String(format).toUpperCase();
 
 export function WebSection({
   state,

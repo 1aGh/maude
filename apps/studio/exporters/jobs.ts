@@ -241,7 +241,8 @@ const DEFAULT_JOB_TIMEOUT_MS = 5 * 60 * 1000;
 // end-to-end for renders bigger than the ceiling (e.g. if MAX_FRAMES is raised)
 // — it DELIBERATELY bypasses the 60-min cap, since removing the backstop is the
 // whole point of an operator escape hatch (trusted env, not attacker-reachable).
-const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif']);
+// S8.6: Sound only renders the video first, so it gets a video's budget
+const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif', 'audio']);
 const VIDEO_TIMEOUT_MIN_MS = 5 * 60 * 1000; // 5 min — same baseline as image exports
 const VIDEO_TIMEOUT_CEIL_MS = 60 * 60 * 1000; // 60 min hard ceiling (runaway backstop)
 const VIDEO_PER_FRAME_BUDGET_MS = 2500; // ~2.5 s/frame — covers the slow frame-step path up to 3× scale

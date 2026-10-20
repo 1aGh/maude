@@ -39,6 +39,11 @@ import {
 } from '../exporters/scope.ts';
 import type { GroupPlan } from '../exporters/spec-run.ts';
 import { type ExportSpecV2, PROJECT_CLASS_SCOPES, validateSpecV2 } from '../exporters/spec-v2.ts';
+import {
+  defaultVideoFacts,
+  enforceVideoCap,
+  type VideoFactsReader,
+} from '../exporters/video-cap.ts';
 import { sessionFromRequest } from '../session-scope.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -56,6 +61,12 @@ export interface ExportRouteDeps {
   canvases(): readonly SpecCanvas[];
   /** the active canvas, designRoot-relative (the Selection / This canvas default) */
   activeCanvas(): string | null;
+  /**
+   * S8.6 — what a video artboard's canvas says (length, stored `maxFrames`): the C22 cap is decided from
+   * THIS, never from the client. Absent = read it under `preflight.designRoot`; neither = lengths unknown
+   * (the engine's own 3 600 still holds, because the cap is stamped on every video unit regardless).
+   */
+  videoFacts?: VideoFactsReader;
   /** THIS request's session (access/request.ts `currentAccess`) */
   access(req?: Request): Access;
   /** this session's finished exports (throughput history) */
@@ -171,6 +182,11 @@ function notYet(
   return null;
 }
 
+/** S8.6 — the reader the cap and the estimate use: the injected one, else the design root's own files. */
+function videoReader(deps: ExportRouteDeps): VideoFactsReader | null {
+  return deps.videoFacts ?? (deps.preflight ? defaultVideoFacts(deps.preflight.designRoot) : null);
+}
+
 /**
  * The v2 half of `/_api/export` + `/_api/export-jobs`: a refusal, or the group plan the job
  * queue runs (`EnqueueArgs.group`). `first` names the first unit's format + scope, which the
@@ -186,9 +202,17 @@ export function planExportV2(
   if (!g.ok) return g;
   const refused = notYet(g.spec, g.units, deps.renderLane());
   if (refused) return { ok: false, response: refused };
+  // S8.6 (C22) — a video past its cap is refused here, and every video unit carries the cap it was held to
+  const capped = enforceVideoCap(g.units, videoReader(deps));
+  if (!capped.ok) {
+    const { ok: _ok, ...body } = capped;
+    return { ok: false, response: json(422, body) };
+  }
   // S8.1b — the version every capture renders: the sha only (validated by spec-v2.ts), never a source
   const at = g.spec.at?.sha;
-  const units = at ? g.units.map((u) => ({ ...u, options: { ...u.options, atSha: at } })) : g.units;
+  const units = at
+    ? capped.units.map((u) => ({ ...u, options: { ...u.options, atSha: at } }))
+    : capped.units;
   const first = units[0];
   if (!first)
     return { ok: false, response: json(422, { error: 'nothing-to-export', skipped: g.skipped }) };
@@ -257,6 +281,7 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
             canvasOnly: g.access.canvasOnly,
             history: deps.history(),
             renderLane: deps.renderLane(),
+            ...(videoReader(deps) ? { video: videoReader(deps) as VideoFactsReader } : {}),
           })
         );
       },

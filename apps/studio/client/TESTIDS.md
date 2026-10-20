@@ -384,6 +384,23 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-print-font-ok` | testid | The line that says Text as outlines makes every font safe (shown instead of the font warning when outlines are on). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-row-colour` | testid | The Colour row of the Print section. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-colour` | testid | The one colour line: "RGB — the print shop converts to CMYK." | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-video-formats` | testid | The ticked formats of a video: the artboard and its linked formats (a Selection only). | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-video-format-<id>` | testid (pattern) | One format checkbox in the video part. `<id>` = the artboard id; ticking it adds the artboard to the export. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-quality` | testid | The Quality choice of a video: 1080p (the artboard at its own size) or 4K (twice that). | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-quality-<id>` | testid (pattern) | One quality of a video. `<id>` is 1080p or 4k; the segment says the pixel size. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-sound-file` | testid | The sound-file choice of Sound only: M4A or WAV. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-sound-<id>` | testid (pattern) | One sound file of Sound only. `<id>` is m4a or wav. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-sound-note` | testid | The Sound line of a video: "Music, mixed as on the timeline", or "A GIF has no sound". | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-captions` | testid | The Captions choice of a video. Off unless the person turns them on (C19). | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-captions-off` | testid | Captions: Off (the default). | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-captions-burned` | testid | Captions: Burned in. Disabled while the video has no speech to caption. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-captions-note` | testid | Why Captions can only be Off: "No speech to caption" / "A GIF has no captions". | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-video-length` | testid | The line about a video past 3 600 frames (C22); `Allow longer` is its one action. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-video-allow-longer` | testid | "Allow longer" on the length warning: the export may go up to the artboard's own cap. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-video-allow-longer-off` | testid | "Back to the limit" on the length line once Allow longer is on. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-film` | testid | The filmstrip under a video export: the whole edit as lanes with a playhead. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-film-head` | testid | The playhead of the filmstrip, with its time. | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
+| `export-film-scrub` | testid | The scrub control over the filmstrip (a range input; moves the playhead). | `client/v2/export/sections/video.jsx` · `VideoSection` | test:v2-export-video | new |
 | `export-paper` | testid | The paper preview. `data-bleed`, `data-marks`, `data-registration` say what is drawn. | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
 | `export-paper-art` | testid | The art on the paper: trim plus bleed (trim only with Bleed off). | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |
 | `export-paper-tint` | testid | The tinted bleed frame on the paper. | `client/v2/export/preflight/paper.jsx` · `Paper` | test:v2-export-print | new |

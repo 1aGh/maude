@@ -103,12 +103,13 @@ describe('validateSpecV2', () => {
 });
 
 describe('format × scope coherence', () => {
-  test('jpg has png’s row and a real adapter; audio is not an engine format yet (S8.6)', () => {
+  test('jpg has png’s row and a real adapter; audio is an engine format since S8.6', () => {
     expect(VALID_SCOPES_BY_FORMAT.jpg).toEqual(VALID_SCOPES_BY_FORMAT.png);
     expect(FORMATS).toContain('jpg');
     expect(getAdapter('jpg')).not.toBeNull();
     expect(isScopeValidForFormat('jpg', 'project-raw')).toBe(false);
-    expect((FORMATS as readonly string[]).includes('audio')).toBe(false);
+    expect(FORMATS).toContain('audio');
+    expect(VALID_SCOPES_BY_FORMAT.audio).toEqual(['artboard']);
   });
 
   test('parseRegionArg takes a world rect', () => {

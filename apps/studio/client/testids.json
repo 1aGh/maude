@@ -32350,5 +32350,277 @@
       "apps/studio/test/v2-ds-convert-dialog.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "export-video-formats",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ticked formats of a video: the artboard and its linked formats (a Selection only).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-video-format-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One format checkbox in the video part. `<id>` = the artboard id; ticking it adds the artboard to the export.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-quality",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Quality choice of a video: 1080p (the artboard at its own size) or 4K (twice that).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-quality-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One quality of a video. `<id>` is 1080p or 4k; the segment says the pixel size.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-sound-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sound-file choice of Sound only: M4A or WAV.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-sound-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One sound file of Sound only. `<id>` is m4a or wav.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-sound-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Sound line of a video: \"Music, mixed as on the timeline\", or \"A GIF has no sound\".",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-captions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Captions choice of a video. Off unless the person turns them on (C19).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-captions-off",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Captions: Off (the default).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-captions-burned",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Captions: Burned in. Disabled while the video has no speech to caption.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-captions-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why Captions can only be Off: \"No speech to caption\" / \"A GIF has no captions\".",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-video-length",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line about a video past 3 600 frames (C22); `Allow longer` is its one action.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-video-allow-longer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Allow longer\" on the length warning: the export may go up to the artboard's own cap.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-video-allow-longer-off",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Back to the limit\" on the length line once Allow longer is on.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-film",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The filmstrip under a video export: the whole edit as lanes with a playhead.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-film-head",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The playhead of the filmstrip, with its time.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "export-film-scrub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scrub control over the filmstrip (a range input; moves the playhead).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/video.jsx",
+      "symbol": "VideoSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-export-video.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

@@ -1,0 +1,172 @@
+/* client/v2/export/video.css — S8.6: the video part of the Export sheet (09 Export `ex-video`): the ticked
+ * formats, the filmstrip and its playhead. Tokens only — no hex, no raw durations; the clips fade in on
+ * --dur-panel, which collapses to 1 ms under prefers-reduced-motion. */
+
+@layer shell {
+  .ex-shapes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    width: 100%;
+  }
+  .ex-shape {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    cursor: pointer;
+  }
+  .ex-shape[data-on] {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ex-shape-in {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ex-shape-in:focus-visible + .ex-box {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .ex-shape-pic {
+    position: relative;
+    display: block;
+    flex: none;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ex-shape-t {
+    min-width: 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-0);
+  }
+  .ex-shape-t small {
+    display: block;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The filmstrip: the whole edit, titles aside, with a playhead you scrub. */
+  .ex-film {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--bg-3);
+  }
+  .ex-film-lanes {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ex-film-lane {
+    position: relative;
+    display: block;
+  }
+  .ex-film-lane--v {
+    height: 44px;
+  }
+  .ex-film-clip {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--bg-3);
+    animation: ex-film-in var(--dur-panel) var(--ease-out) both;
+  }
+  .ex-film-clip--2 {
+    background: color-mix(in oklab, var(--accent) 16%, var(--bg-2));
+  }
+  .ex-film-lane--m {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 16px;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--object-green, var(--status-ok)) 14%, var(--bg-2));
+  }
+  .ex-film-bed {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--object-green, var(--status-ok)) 28%, var(--bg-2));
+  }
+  .ex-film-head {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    z-index: 2;
+    width: 2px;
+    margin-left: -1px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    pointer-events: none;
+  }
+  .ex-film-head b {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    translate: -50% 0;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+  }
+  .ex-film-scrub {
+    position: absolute;
+    inset: -4px 0;
+    z-index: 3;
+    width: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: ew-resize;
+  }
+  .ex-film-ticks {
+    position: relative;
+    height: 14px;
+  }
+  .ex-film-ticks span {
+    position: absolute;
+    top: 0;
+    translate: -50% 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ex-film-ticks span:first-child {
+    translate: 0 0;
+  }
+  .ex-film-ticks span:last-child {
+    translate: -100% 0;
+  }
+  .ex-film-cap {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+}
+
+@keyframes ex-film-in {
+  from {
+    opacity: 0;
+  }
+}

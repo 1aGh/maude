@@ -94,7 +94,7 @@ export function Check({ checked, onChange, children, sub, disabled = false, test
 }
 
 /** One quiet line inside the sheet. One action at most (CONTRACT §4). */
-export function Hint({ icon = 'link', children, action, onAction, testid, tone }) {
+export function Hint({ icon = 'link', children, action, onAction, testid, tone, actionTestid }) {
   return (
     <div className="ex-hint" data-testid={testid} data-tone={tone}>
       <span className="ex-hint-ic">
@@ -102,7 +102,12 @@ export function Hint({ icon = 'link', children, action, onAction, testid, tone }
       </span>
       <span className="ex-hint-t">{children}</span>
       {action ? (
-        <button type="button" className="btn btn--ghost btn--sm ex-hint-a" onClick={onAction}>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm ex-hint-a"
+          data-testid={actionTestid}
+          onClick={onAction}
+        >
           {action}
         </button>
       ) : null}

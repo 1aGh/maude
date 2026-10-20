@@ -7,7 +7,8 @@
 // replace them with real renderers.
 
 import path from 'node:path';
-
+// DDR-148 — temporal formats (capture-spine encode). Named exports mp4/webm/gif.
+import { audio } from './audio.ts';
 import * as canva from './canva.ts';
 import type { ExportDegradation } from './degraded.ts';
 import * as html from './html.ts';
@@ -23,7 +24,6 @@ import {
   type Target,
 } from './scope.ts';
 import * as svg from './svg.ts';
-// DDR-148 — temporal formats (capture-spine encode). Named exports mp4/webm/gif.
 import { gif, mp4, webm } from './video.ts';
 import * as zip from './zip.ts';
 
@@ -38,7 +38,8 @@ export type Format =
   | 'zip'
   | 'mp4'
   | 'webm'
-  | 'gif';
+  | 'gif'
+  | 'audio';
 
 export const FORMATS: readonly Format[] = [
   'png',
@@ -52,6 +53,7 @@ export const FORMATS: readonly Format[] = [
   'mp4',
   'webm',
   'gif',
+  'audio',
 ];
 
 /** Options bag forwarded to the adapter. Format-specific keys are validated by each adapter. */
@@ -115,6 +117,7 @@ const REGISTRY: Record<Format, Adapter> = {
   mp4,
   webm,
   gif,
+  audio,
 };
 
 export function getAdapter(format: Format): Adapter | null {

@@ -60,7 +60,12 @@ export function AdvancedSection({ state, set, spec, kinds, exportLane, facts, ba
           />
         ) : null}
         {parts.render ? (
-          <RenderPart spec={spec} exportLane={exportLane} video={parts.video} setAdv={setAdv} />
+          <RenderPart
+            spec={spec}
+            exportLane={exportLane}
+            video={parts.video || formats.has('audio')}
+            setAdv={setAdv}
+          />
         ) : null}
       </div>
       <div className="ex-adv-foot">
