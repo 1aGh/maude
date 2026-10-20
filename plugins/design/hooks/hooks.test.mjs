@@ -77,7 +77,13 @@ function makeProject(prefix) {
 
 async function hook(event, input, env = {}) {
   const t0 = performance.now();
-  const { MAUDE_AGENT_ACTOR: _unset, MAUDE_CHAT_ID: _unsetChat, ...base } = process.env;
+  const {
+    MAUDE_AGENT_ACTOR: _unset,
+    MAUDE_CHAT_ID: _unsetChat,
+    MAUDE_SESSION_ROOT: _unsetRoot,
+    MAUDE_HOOK_SESSION: _unsetSession,
+    ...base
+  } = process.env;
   const p = Bun.spawn(['node', MAUDE, 'design', 'hook', event], {
     stdin: new Blob([typeof input === 'string' ? input : JSON.stringify(input)]),
     stdout: 'pipe',
@@ -1124,6 +1130,206 @@ describe('S12.7 — bounded writers and untrusted-input readers', () => {
         agent_type: 'general-purpose',
       })
     );
+  });
+});
+
+// gate-b-sec2 finding 3 — planted attack: a peer-written DS label / canvas injects a bounded
+// writer (or the Handoff to production run), and it reaches past its `owns` through an
+// auto-approved maude verb, or runs with a missing / broken hand-off and so with no fence at all.
+describe('gate-b-sec2 — bounded writers: maude-verb allowlists, fail closed without a hand-off', () => {
+  let project;
+  const S = 'sec2';
+  const PLUGIN = join(ROOT, 'plugins', 'design');
+  const IN = (agent, session = S) => {
+    const text = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+    const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(/^#+ Sample hand-off/m)));
+    return JSON.parse(m[1].replaceAll('<session>', session));
+  };
+  const who = (agent, id, session = S) => ({
+    session_id: session,
+    agent_id: id,
+    agent_type: `design:${agent}`,
+  });
+  const sh = (agent, id, command, session = S) =>
+    hook('pre-bash', {
+      ...bash(project, session, `t-${id}-${command.length}`, command),
+      ...who(agent, id, session),
+    });
+  const write = (agent, id, rel, session = S) =>
+    hook('pre-edit', {
+      ...who(agent, id, session),
+      tool_use_id: `w-${id}`,
+      cwd: project,
+      tool_name: 'Write',
+      tool_input: { file_path: join(project, rel), content: 'x' },
+    });
+  const free = (r) => expect(r).toMatchObject({ status: 0, stdout: '' });
+  const start = (agent, id, session = S) =>
+    hook('subagent-start', {
+      ...who(agent, id, session),
+      cwd: project,
+      hook_event_name: 'SubagentStart',
+    });
+  beforeAll(async () => {
+    project = makeProject('maude-hook-sec2-');
+    mkdirSync(join(project, '.design', '_runs', S, 'handoff'), { recursive: true });
+    for (const agent of ['ds-migrator', 'draw-agent', 'footage-director']) {
+      const doc = IN(agent);
+      writeFileSync(
+        join(project, doc.output.replace(/\.out\.json$/, '.in.json')),
+        JSON.stringify(doc)
+      );
+    }
+    await start('ds-migrator', 'm1');
+    await start('draw-agent', 'd1');
+    await start('footage-director', 'f1');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('ds-migrator runs ds convert / status / check-system, check and screenshot — nothing else', async () => {
+    for (const cmd of [
+      'maude design ds convert acme --dry-run --json | jq .sections',
+      'maude design ds convert acme --json',
+      'maude design ds status acme --json',
+      'maude design ds check-system acme --json',
+      'maude design check .design/_runs/sec2/handoff/ds-migrator-0.out.json',
+      'maude design screenshot --canvas .design/system/acme/design-system.tsx --all-screens',
+      'jq . .design/_runs/sec2/handoff/plan.json',
+    ])
+      free(await sh('ds-migrator', 'm1', cmd));
+    for (const cmd of [
+      'maude design canvas-edit ui/C.tsx --op x',
+      'maude design annotate ui/C.tsx --pin hero --text hi',
+      'maude design ds-check acme --fix',
+      'maude design trash restore ui/Old.tsx',
+      'maude design ds library relink acme',
+      'maude design ds pending acme --set x=1',
+      'maude design read-annotations ui/C.tsx',
+      'maude config set x y',
+      'maude design ds status acme && maude design annotate ui/C.tsx --pin hero --text hi',
+    ]) {
+      const r = await sh('ds-migrator', 'm1', cmd);
+      expect(isDeny(r, 'out-of-scope')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain(
+        'maude design ds convert'
+      );
+    }
+  });
+
+  test('draw-agent and footage-director are held to the verbs their bodies name', async () => {
+    free(await sh('draw-agent', 'd1', 'maude design draw-build --script .design/_draw/b.ts'));
+    free(
+      await sh('draw-agent', 'd1', 'maude design draw-proof --asset .design/assets/x.svg --slug x')
+    );
+    free(await sh('footage-director', 'f1', 'maude design check .design/x.edl.json'));
+    for (const [agent, id, cmd] of [
+      ['draw-agent', 'd1', 'maude design read-annotations ui/C.tsx'],
+      ['draw-agent', 'd1', 'maude design canvas-edit ui/C.tsx --op x'],
+      ['footage-director', 'f1', 'maude design reel-place cut --next'],
+      ['footage-director', 'f1', 'maude design generate --kind image --prompt x'],
+    ])
+      expect(isDeny(await sh(agent, id, cmd), 'out-of-scope')).toBe(true);
+  });
+
+  test('a bounded writer spawned without a hand-off writes nothing — files or write-tier verbs', async () => {
+    const T = 'sec2-none';
+    mkdirSync(join(project, '.design', '_runs', T), { recursive: true });
+    await start('ds-migrator', 'n1', T);
+    for (const rel of [
+      '.design/system/acme/design-system.tsx',
+      '.design/_runs/sec2-none/x.json',
+      'src/a.ts',
+    ]) {
+      const r = await write('ds-migrator', 'n1', rel, T);
+      expect(isDeny(r, 'out-of-scope')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain(
+        'without a valid hand-off'
+      );
+    }
+    const conv = await sh('ds-migrator', 'n1', 'maude design ds convert acme --json', T);
+    expect(isDeny(conv, 'out-of-scope')).toBe(true);
+    // a read-tier verb on its list still runs (it can report what it found)
+    free(await sh('ds-migrator', 'n1', 'maude design ds status acme --json', T));
+    // no SubagentStart record at all (an older plugin): the same
+    expect(isDeny(await write('draw-agent', 'n2', '.design/assets/x.svg', T), 'out-of-scope')).toBe(
+      true
+    );
+  });
+
+  test('an invalid hand-off is not skipped: the agent it names writes nothing', async () => {
+    const T = 'sec2-bad';
+    const dir = join(project, '.design', '_runs', T, 'handoff');
+    mkdirSync(dir, { recursive: true });
+    const good = IN('ds-migrator', T);
+    // a valid one next to a broken one: the broken one still closes the fence
+    writeFileSync(join(dir, 'ds-migrator-0.in.json'), JSON.stringify(good));
+    writeFileSync(join(dir, 'ds-migrator-1.in.json'), JSON.stringify({ ...good, owns: 'all' }));
+    for (const recorded of [true, false]) {
+      const id = recorded ? 'b1' : 'b2';
+      if (recorded) await start('ds-migrator', id, T);
+      const r = await write('ds-migrator', id, good.owns[0], T);
+      expect(isDeny(r, 'out-of-scope')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('not a valid hand-off');
+      expect(
+        isDeny(await sh('ds-migrator', id, 'maude design ds convert acme', T), 'out-of-scope')
+      ).toBe(true);
+    }
+    // a critic with an invalid hand-off of its own: fail closed too
+    writeFileSync(join(dir, 'design-critic-0.in.json'), '{"role":"in","agent":"design-critic"}');
+    expect(
+      isDeny(await write('design-critic', 'c1', '.design/_runs/sec2-bad/r.md', T), 'out-of-scope')
+    ).toBe(true);
+  });
+
+  test('S8.10 Handoff to production run: only handoff / to-lottie / bootstrap-check / check', async () => {
+    const env = { MAUDE_CHAT_ID: 'handoff-abc123def456', MAUDE_AGENT_ACTOR: 'maude-chat' };
+    const main = (cmd) => hook('pre-bash', bash(project, 'hand', `h-${cmd.length}`, cmd), env);
+    free(await main('maude design handoff .design/ui/C.tsx .design'));
+    free(await main('maude design check .design/ui/C.tsx'));
+    for (const cmd of [
+      'maude design read-annotations ui/C.tsx',
+      'maude design annotate ui/C.tsx --pin hero --text hi',
+      'maude design trash restore ui/Old.tsx',
+      'maude design comments list --json',
+    ]) {
+      const r = await main(cmd);
+      expect(isDeny(r, 'out-of-scope')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('Handoff to production');
+    }
+    // an ordinary chat is not held to the run's list
+    free(
+      await hook(
+        'pre-bash',
+        bash(project, 'chat', 'h0', 'maude design read-annotations ui/C.tsx'),
+        {
+          MAUDE_CHAT_ID: 'chat-a',
+          MAUDE_AGENT_ACTOR: 'maude-chat',
+        }
+      )
+    );
+  });
+
+  test('every maude verb a fenced agent body names is on its list (derived, not guessed)', async () => {
+    const { AGENT_VERBS, HANDOFF_REQUIRED } = await import('../../../cli/lib/design-hook.mjs');
+    for (const agent of HANDOFF_REQUIRED) expect(Object.hasOwn(AGENT_VERBS, agent)).toBe(true);
+    for (const [agent, allowed] of Object.entries(AGENT_VERBS)) {
+      const text = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+      const tools = /^tools:(.*)$/m.exec(text)?.[1] ?? '';
+      if (!/\bBash\b/.test(tools)) {
+        expect(allowed).toEqual([]);
+        continue;
+      }
+      // the verbs the body RUNS (code blocks, `cmd` evidence, the toolbelt), not the ones it forbids
+      const runs = new Set();
+      for (const m of text.matchAll(/maude design ([a-z-]+)(?: ([a-z-]+))?/g)) {
+        const line = text.slice(text.lastIndexOf('\n', m.index) + 1, text.indexOf('\n', m.index));
+        if (/\bDon't\b|\bnever\b|main agent/i.test(line)) continue;
+        const multi = allowed.some((a) => a.includes(' ') && a.split(' ')[0] === m[1]);
+        runs.add(multi ? `${m[1]} ${m[2]}` : m[1]);
+      }
+      expect(runs.size).toBeGreaterThan(0);
+      for (const v of runs) expect(allowed).toContain(v);
+    }
   });
 });
 

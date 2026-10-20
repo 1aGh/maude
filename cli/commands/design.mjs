@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
 import { outputViolation, violationMessage } from '../lib/confine-out.mjs';
+import { rootViolation, rootViolationMessage } from '../lib/confine-root.mjs';
 import { DESIGN_VERB_TIERS_HELP } from '../lib/design-help.gen.mjs';
 import {
   runAdopt,
@@ -252,6 +253,17 @@ export async function run({ args, pkgRoot }) {
   if (!sub || sub === 'help') {
     process.stdout.write(`${usage()}\n${DESIGN_VERB_TIERS_HELP}`);
     return;
+  }
+
+  // gate-b-sec2 finding 1 (decision v2-gate-b-sec2-session-root): inside an AI session every verb
+  // — read-only ones included — works on the session's project only. `hook` reads its project from
+  // Claude Code's own input, never from a flag.
+  if (sub !== 'hook') {
+    const elsewhere = rootViolation(args);
+    if (elsewhere) {
+      process.stderr.write(rootViolationMessage(sub, elsewhere));
+      process.exit(2);
+    }
   }
 
   // Dev-tooling verbs dispatch to the bundled bash helpers (DDR-062). Checked

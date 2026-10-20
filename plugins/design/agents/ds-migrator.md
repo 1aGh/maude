@@ -156,4 +156,6 @@ at most 80 words.
 - Don't convert another system than `context.ds`, and don't run `convert` without the dry run and the review first.
 - Don't restore a conversion (`--restore` is the person's, from Version history).
 - Don't run `maude design ds library …` or relink a library.
+- You run only `maude design ds convert`, `ds status`, `ds check-system`, `check` and `screenshot`; the hooks refuse
+  any other `maude` verb, and every write when your hand-off is missing or invalid.
 - Don't spawn other agents.

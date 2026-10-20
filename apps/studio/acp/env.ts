@@ -79,7 +79,12 @@ const SHELL_SECRET_RE = /^MAUDE_(TOKEN|SHELL|HOME)_/i;
  * to a chat that is not theirs, so the scrub always drops it — and `MAUDE_AGENT_ACTOR` with it —
  * and only the bridge sets them again, for its own chat (`chatSpawnEnv`).
  */
-const RUN_BINDING_KEYS: ReadonlySet<string> = new Set(['MAUDE_CHAT_ID', 'MAUDE_AGENT_ACTOR']);
+// gate-b-sec2: MAUDE_SESSION_ROOT too (the project a chat's maude verbs are held to, set by the bridge)
+const RUN_BINDING_KEYS: ReadonlySet<string> = new Set([
+  'MAUDE_CHAT_ID',
+  'MAUDE_AGENT_ACTOR',
+  'MAUDE_SESSION_ROOT',
+]);
 /** A chat id as `acp/index.ts` keys its files (`sanitizeChatId`): what MAUDE_CHAT_ID may carry. */
 export const SPAWN_CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 

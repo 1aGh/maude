@@ -414,3 +414,65 @@ test('S6.0c: a write to /_api/cloud/move is denied (human-only); a status read i
   assert.match(r.reason, /Move to cloud/);
   assert.doesNotMatch(r.reason, /"(ask|allow)"/);
 });
+
+// gate-b-sec2 finding 1 — defence in depth behind the dispatcher: a maude verb's --root /
+// --design-root / cwd names the session's project, and a call never steers the session env.
+test('other project: --root, --design-root, cd and the session env are denied; the project passes', () => {
+  const base = mkdtempSync(join(tmpdir(), 'maude-bg-'));
+  try {
+    const mk = (n) => {
+      const p = join(base, n);
+      mkdirSync(join(p, '.design', 'ui'), { recursive: true });
+      writeFileSync(join(p, '.design', 'config.json'), '{}');
+      return p;
+    };
+    const a = mk('a');
+    const b = mk('b');
+    symlinkSync(a, join(base, 'a-link'));
+    const c = (cmd, extra = {}) =>
+      classifyBash(cmd, { cwd: a, designRoot: join(a, '.design'), root: a, ...extra })?.code ??
+      null;
+    const DENY = [
+      `maude design read-annotations ui/C.tsx --root ${b}`,
+      `maude design annotate ui/C.tsx --root=${b} --pin x --text hi`,
+      'maude design reel-place cut --next --root ../b',
+      `maude design trash restore ui/C.tsx --root ${b}`,
+      `maude design import-asset p.png --root ${a} --design-root ../b/.design`,
+      `cd ${b} && maude design read-annotations ui/C.tsx`,
+      `MAUDE_SESSION_ROOT=${b} maude design read-annotations ui/C.tsx --root ${b}`,
+      'env MAUDE_AGENT_ACTOR=x maude design read-annotations ui/C.tsx',
+      'env -u MAUDE_HOOK_SESSION maude design read-annotations ui/C.tsx',
+      'env -i maude design read-annotations ui/C.tsx',
+      `export CLAUDE_PROJECT_DIR=${b}; maude design read-annotations ui/C.tsx`,
+      'unset MAUDE_CHAT_ID; maude design assets',
+    ];
+    for (const cmd of DENY) assert.equal(c(cmd), 'out-of-project', cmd);
+    const PASS = [
+      `maude design read-annotations ui/C.tsx --root ${a}`,
+      `maude design read-annotations ui/C.tsx --root ${join(base, 'a-link')}`,
+      'maude design read-annotations ui/C.tsx --root .',
+      'maude design read-annotations ui/C.tsx',
+      `cd ${a}/.design && maude design assets`,
+      'cd /tmp && maude design slug x',
+      // a word the reader can't see fails open (the dispatcher holds it)
+      'maude design read-annotations ui/C.tsx --root "$ROOT"',
+      'FOO=1 maude design assets',
+      `cd ${b} && ls`, // not a maude call
+      `export CLAUDE_PROJECT_DIR=${b}`, // no maude verb in the call
+    ];
+    for (const cmd of PASS) assert.equal(c(cmd), null, cmd);
+    // the hook's session root wins over a cwd the agent cd'd into earlier
+    assert.equal(
+      c('maude design read-annotations ui/C.tsx', { cwd: b, root: b, sessionRoot: a }),
+      'out-of-project'
+    );
+    const r = classifyBash(`maude design assets --root ${b}`, {
+      cwd: a,
+      designRoot: join(a, '.design'),
+      root: a,
+    });
+    assert.match(r.reason, /names a different project/);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

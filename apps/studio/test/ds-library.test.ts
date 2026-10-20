@@ -392,8 +392,23 @@ describe('ds library: check, update, unlink', () => {
       code: 'ds-library-relink',
     });
     expect(seen).toEqual([]);
-    // the person, shown bravo's host, links it again: only now does the check go there
-    await lib.relink(LIB, { by: PERSON });
+    // gate-b-sec2 finding 2 — one click is not a choice: "Link again" with nothing pasted stores nothing,
+    // sends nothing, and the member token never follows the peer's record
+    expect(await code(lib.relink(LIB, { by: PERSON }))).toMatchObject({
+      code: 'ds-library-relink',
+      status: 409,
+    });
+    expect(L.grants.linkOf(L.p.designRoot, LIB)).toMatchObject({ hub: HUB, project: 'p_gator' });
+    expect(await code(lib.check(LIB, { force: true }))).toMatchObject({
+      code: 'ds-library-relink',
+    });
+    // a link pasted for ANOTHER library (the one this Mac really linked) does not bless the peer's record
+    expect(await code(lib.relink(LIB, { url: URL_, by: PERSON }))).toMatchObject({
+      code: 'ds-library-other',
+    });
+    expect(seen).toEqual([]);
+    // the person pastes bravo's own library link: only now does the check go there
+    await lib.relink(LIB, { url: `${B}/api/projects/p_bravo/v1/ds/${LIB}`, by: PERSON });
     await code(lib.check(LIB, { force: true }));
     expect(seen.length).toBe(1);
     expect(seen[0]).toContain(`${B}/api/projects/p_bravo/v1/ds/${LIB}/head`);
@@ -402,15 +417,21 @@ describe('ds library: check, update, unlink', () => {
 
   test('A3: relink with no credential at all is no-grant; unlink forgets this Mac’s link', async () => {
     const L = await linked();
+    const fresh = memoryGrantStore();
     const lib = createDsLibrary(L.p.engine, {
       fetchImpl: L.hub.fetch,
-      grants: memoryGrantStore(),
+      grants: fresh,
       now: () => L.clock.t,
     });
-    expect(await code(lib.relink(LIB, { by: PERSON }))).toMatchObject({
+    expect(await code(lib.relink(LIB, { url: URL_, by: PERSON }))).toMatchObject({
       code: 'ds-library-no-grant',
     });
     expect(L.grants.linkOf(L.p.designRoot, LIB)).toMatchObject({ hub: HUB, project: 'p_gator' });
+    // the access key pasted again is enough on its own (the person holds it)
+    expect(fresh.linkOf(L.p.designRoot, LIB)).toBeNull();
+    await lib.relink(LIB, { grant: GRANT, by: PERSON });
+    expect(fresh.linkOf(L.p.designRoot, LIB)).toMatchObject({ hub: HUB, project: 'p_gator' });
+    expect(fresh.get(HUB, 'p_gator', LIB)).toBe(GRANT);
     await L.lib.unlink(LIB, { by: PERSON });
     expect(L.grants.linkOf(L.p.designRoot, LIB)).toBeNull();
   });

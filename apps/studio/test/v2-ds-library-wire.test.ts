@@ -250,7 +250,15 @@ describe('the card, through the routes', () => {
     const card = cardModel({ row, access: 'relink' });
     expect(card).toMatchObject({ relink: true, canUpdate: false, noGrantLine: null });
     expect(card.relinkLine).toContain('alligators.cloud.test');
-    expect(await relinkLibrary(LIB, f)).toEqual({ ok: true });
+    expect(card.relinkLine).toContain(`${LIB} from p_gator`);
+    // gate-b-sec2 finding 2: one click is refused; the library's own link pasted again links it
+    expect(await relinkLibrary(LIB, f)).toMatchObject({ ok: false, code: 'ds-library-relink' });
+    expect(await checkLibrary(LIB, f, true)).toMatchObject({
+      ok: false,
+      code: 'ds-library-relink',
+    });
+    expect(L.hub.calls.length).toBe(before);
+    expect(await relinkLibrary(LIB, f, { url: URL_ })).toEqual({ ok: true });
     expect(await checkLibrary(LIB, f, true)).toMatchObject({ ok: true });
     expect(L.hub.calls.length).toBeGreaterThan(before);
   });

@@ -51,9 +51,8 @@ two files.
 You are a **bounded writer of NEW files** (V2-1.18 §5.5). The orchestrator writes your role-"in"
 hand-off to `.design/_runs/<session>/handoff/reconstruct-agent-<round>.in.json` and puts the same
 JSON at the top of your prompt; `owns` names the two paths it computed up front (new paths: a
-re-run of the same import gets fresh ones) plus your result. Without a hand-off (an orchestrator
-not yet on hand-offs), the inputs below are the whole of it and the always-on rules above still
-hold.
+re-run of the same import gets fresh ones) plus your result. Without a valid hand-off the hooks
+refuse every write you would make (`out-of-scope`): stop and say so in your final message.
 
 ### Sample hand-off
 

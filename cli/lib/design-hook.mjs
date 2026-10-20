@@ -60,8 +60,15 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
+import {
+  classifyBash,
+  designVerbOf,
+  designWritesSince,
+  maudeWords,
+  parseBash,
+} from './bash-guard.mjs';
 import { realpathDeep } from './confine-out.mjs';
+import { sessionRoot } from './confine-root.mjs';
 import { cleanText, fileText, findingLine } from './finding-text.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
@@ -340,26 +347,69 @@ export function ownsPath(doc, repoRel) {
   );
 }
 
-/** The run's role-"in" hand-offs for a sub-agent of `agentType` (bare names compared). */
-function handoffsFor(ctx, agentType) {
+/**
+ * The run's role-"in" hand-offs for a sub-agent of `agentType` (bare names compared): `{ hs,
+ * invalid }`. A file that names this agent but is not a valid hand-off is `invalid` (its rel) --
+ * the fence fails closed on it (gate-b-sec2 finding 3b) instead of skipping it, which left the
+ * agent with no fence at all.
+ */
+function handoffScan(ctx, agentType) {
   const dir = join(ctx.run, 'handoff');
   let names = [];
   try {
     names = readdirSync(dir).filter((f) => f.endsWith('.in.json'));
   } catch {
-    return [];
+    return { hs: [], invalid: [] };
   }
   const want = bareAgent(agentType);
-  const out = [];
+  const hs = [];
+  const invalid = [];
   for (const f of names.sort()) {
+    const rel = `_runs/${ctx.session}/handoff/${f}`;
     const text = readOr(join(dir, f));
     const doc = parseOr(text);
-    if (doc?.role !== 'in' || bareAgent(doc.agent) !== want) continue;
-    if (!validateHandoff(doc, { role: 'in' }).ok) continue;
-    out.push({ rel: `_runs/${ctx.session}/handoff/${f}`, doc, text });
+    // a file named for this agent (`<agent>-<n>.in.json`) or one whose `agent` is this agent
+    const named = f.replace(/-[^-]*\.in\.json$/, '') === want;
+    if (doc?.role !== 'in' || bareAgent(doc.agent) !== want) {
+      if (named) invalid.push(rel);
+      continue;
+    }
+    if (!validateHandoff(doc, { role: 'in' }).ok) {
+      invalid.push(rel);
+      continue;
+    }
+    hs.push({ rel, doc, text });
   }
-  return out;
+  return { hs, invalid };
 }
+
+/**
+ * gate-b-sec2 finding 3 (decision v2-gate-b-sec2-bounded-writer-verbs). The bounded writers are
+ * spawned on a hand-off (V2-1.18 §5.5): without a valid one they write nothing. Each one — and the
+ * S8.10 Handoff to production run — runs only the `maude` verbs its own body names; any other maude
+ * verb (and every non-`design` maude command) is denied. An entry is a verb (`check`: any sub-verb)
+ * or a verb + sub-verb (`ds convert`). Derived from each agent's body (`plugins/design/agents/*`);
+ * hooks.test.mjs holds every `maude design ...` an agent body names to its list.
+ */
+export const HANDOFF_REQUIRED = new Set([
+  'ds-migrator',
+  'draw-agent',
+  'footage-director',
+  'reconstruct-agent',
+]);
+export const AGENT_VERBS = {
+  'ds-migrator': ['ds convert', 'ds status', 'ds check-system', 'check', 'screenshot'],
+  'draw-agent': ['check', 'draw-build', 'draw-proof', 'svg-optimize', 'server-up'],
+  'footage-director': ['check'],
+  // no shell at all (frontmatter, and UNTRUSTED_READERS for the readers): no maude verb either
+  'reconstruct-agent': [],
+  'asset-describer': [],
+  'media-generation-director': [],
+};
+/** S8.10 — a Handoff to production run (MAUDE_CHAT_ID `handoff-<id>`, handoff/write-scopes.ts). */
+export const HANDOFF_CHAT_RE = /^handoff-[a-z0-9]{6,40}$/;
+/** Mirrors apps/studio/handoff/write-scopes.ts HANDOFF_RUN_VERBS (a studio test pins the two). */
+export const HANDOFF_RUN_VERBS = ['handoff', 'to-lottie', 'bootstrap-check', 'check'];
 
 const parseOr = (text) => {
   try {
@@ -416,11 +466,25 @@ function outsideGuard(ctx, input, fenceOf) {
  * older plugin, a lost write race) → the directory as it is now, the pre-record behaviour.
  */
 function agentFence(ctx, input) {
+  const f = agentFenceOf(ctx, input);
+  if (f.error) return f;
+  // gate-b-sec2 3b: a bounded writer with no valid hand-off writes nothing (fail closed)
+  if (!f.hs.length && HANDOFF_REQUIRED.has(bareAgent(input.agent_type)))
+    return { hs: [], error: 'it was spawned without a valid hand-off' };
+  return f;
+}
+function agentFenceOf(ctx, input) {
   const id = hookKey(input.agent_id);
   const rec = id ? readJson(join(ctx.run, 'agents.json'), {})?.[id] : null;
-  if (!rec || typeof rec !== 'object')
-    return { hs: handoffsFor(ctx, input.agent_type), error: null };
+  const invalidError = (rels) =>
+    `${DESIGN_REL}/${rels[0]}, a hand-off for it, is not a valid hand-off`;
+  if (!rec || typeof rec !== 'object') {
+    const { hs, invalid } = handoffScan(ctx, input.agent_type);
+    return invalid.length ? { hs: [], error: invalidError(invalid) } : { hs, error: null };
+  }
   if (!Array.isArray(rec.handoffs)) return { hs: [], error: 'its spawn record lists no hand-offs' };
+  if (Array.isArray(rec.invalid) && rec.invalid.length)
+    return { hs: [], error: invalidError(rec.invalid.map(String)) };
   const hs = [];
   for (const h of rec.handoffs) {
     const rel = typeof h?.rel === 'string' ? h.rel : '';
@@ -550,7 +614,12 @@ async function sessionStart(ctx) {
   const envFile = process.env.CLAUDE_ENV_FILE;
   if (envFile && isAbsolute(envFile) && ctx.session !== 'no-session') {
     try {
-      appendFileSync(envFile, `export MAUDE_HOOK_SESSION=${ctx.session}\n`);
+      // gate-b-sec2: and the project this session is held to (cli/lib/confine-root.mjs)
+      const q = `'${ctx.root.replaceAll("'", `'\\''`)}'`;
+      appendFileSync(
+        envFile,
+        `export MAUDE_HOOK_SESSION=${ctx.session}\nexport MAUDE_SESSION_ROOT=${q}\n`
+      );
     } catch {
       /* no env file: captures go to _runs/shots.jsonl */
     }
@@ -611,7 +680,10 @@ function subagentStart(ctx, input) {
   agents[id] = {
     type: typeof input.agent_type === 'string' ? input.agent_type : null,
     at: Date.now(),
-    handoffs: handoffsFor(ctx, input.agent_type).map((h) => ({ rel: h.rel, sha: sha(h.text) })),
+    ...(() => {
+      const { hs, invalid } = handoffScan(ctx, input.agent_type);
+      return { handoffs: hs.map((h) => ({ rel: h.rel, sha: sha(h.text) })), invalid };
+    })(),
   };
   // tmp + rename: a torn agents.json would read as "no record" for every agent
   const tmp = `${p}.${process.pid}.tmp`;
@@ -1055,10 +1127,14 @@ function preBash(ctx, input) {
     fence ??= agentFence(ctx, input);
     return fence;
   };
+  const verbs = verbFence(ctx, input, command, fenceOf);
+  if (verbs) return deny(verbs);
   const verdict = classifyBash(command, {
     cwd: ctx.cwd,
     designRoot: ctx.designRoot,
     root: ctx.root,
+    // gate-b-sec2: a maude verb's --root / cwd is held to the session's project, not the cwd's
+    sessionRoot: sessionRoot(process.env, ctx.root) ?? ctx.root,
     guard: (rel) => runtimeGuard(input, rel, fenceOf),
   });
   if (verdict) return deny(verdict.reason);
@@ -1087,6 +1163,53 @@ function preBash(ctx, input) {
   }
   writeAt(join(ctx.run, 'bash', `${toolUseId}.json`), JSON.stringify({ at: Date.now(), snaps }));
   return null;
+}
+
+/** Does `words` (after `maude`) run one of `allowed` (`check`, or `ds convert`)? */
+function verbAllowed(words, allowed) {
+  if (!words[0]?.literal || words[0].text !== 'design' || !words[1]?.literal) return false;
+  const verb = words[1].text;
+  const sub = words[2]?.literal ? words[2].text : null;
+  return allowed.some((a) => {
+    const [v, s] = a.split(' ');
+    return v === verb && (!s || s === sub);
+  });
+}
+
+/**
+ * gate-b-sec2 finding 3: the maude verbs a bounded writer (AGENT_VERBS) or the S8.10 Handoff to
+ * production run (HANDOFF_RUN_VERBS) may run — any other maude command is denied, read-only ones
+ * included (a fenced agent reads peer-written content). A sub-agent whose fence failed (no valid
+ * hand-off, or one that changed) runs no write-tier verb at all. A command the reader can't
+ * follow is denied for them when it names maude: their fence is not fail-open.
+ */
+function verbFence(ctx, input, command, fenceOf) {
+  if (typeof command !== 'string' || !command.includes('maude')) return null;
+  const agent = isSubagent(input) ? bareAgent(input.agent_type) : null;
+  const allowed =
+    agent && Object.hasOwn(AGENT_VERBS, agent)
+      ? AGENT_VERBS[agent]
+      : HANDOFF_CHAT_RE.test(hookChat() ?? '')
+        ? HANDOFF_RUN_VERBS
+        : null;
+  const who = agent ? `${input.agent_type}` : 'this Handoff to production run';
+  const cmds = parseBash(command);
+  if (allowed) {
+    const list = allowed.length
+      ? `only ${allowed.map((a) => `\`maude design ${a}\``).join(', ')}`
+      : 'no maude verb';
+    const refuse = `out-of-scope: ${who} runs ${list}. Put what else you need in your hand-off result and let the main agent run it.`;
+    if (!cmds) return refuse;
+    for (const c of cmds) {
+      const w = maudeWords(c);
+      if (w && !verbAllowed(w, allowed)) return refuse;
+    }
+  }
+  if (!agent) return null;
+  const f = fenceOf();
+  if (!f.error) return null;
+  if (!cmds) return fenceReason(input, f.error);
+  return writeVerbs(ctx, command).length ? fenceReason(input, f.error) : null;
 }
 
 /** A verb argument written designRoot-relative (`ui/C.tsx`, as the verbs take it) → that rel. */

@@ -155,11 +155,10 @@ Write it to `output`, run the check the hand-off names, then end with the step-9
 Inline mode: `changed` names the snippet (`kind: "draft"`, it is under your run folder) and
 `next` is `"splice"`.
 
-**Spawned without a hand-off** (a pre-v2 spawner: `/design:edit` step 4.6 and `/design:new`
-step 9.6, until S12.9 / S12.10 move them onto hand-offs): take the fields below from the prompt
-and write the asset to `output_path`. Inline mode keeps the pre-v2 behaviour for those two
-spawners only: insert the block into `into_canvas` with Edit, preserving everything else
-byte-for-byte.
+**Spawned without a valid hand-off**, you write nothing: the design hooks refuse every write and
+every write-tier `maude` verb (`out-of-scope`). Stop and say so in your final message; the
+spawner writes the hand-off and spawns you again. Whatever the hand-off, you run only the verbs in
+the Toolbelt below — any other `maude` verb is refused.
 
 ## Inputs (orchestrator passes you)
 

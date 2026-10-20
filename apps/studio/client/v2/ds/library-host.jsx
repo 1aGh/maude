@@ -28,6 +28,7 @@ import {
   LIBRARY_WORDS,
   linkedRows,
   refusalWords,
+  relinkLead,
   updateBody,
   updatedWords,
 } from './library-model.js';
@@ -89,9 +90,19 @@ export async function checkLibrary(ds, fetchImpl = globalThis.fetch, force = fal
   };
 }
 
-/** "Link again" (A3): this Mac takes the system's current library record as its own link. Nothing goes to the hub. */
-export async function relinkLibrary(ds, fetchImpl = globalThis.fetch) {
-  const r = await library(fetchImpl, { action: 'relink', ds });
+/**
+ * "Link again" (A3): with the library's link (or its key) pasted again, this Mac takes the system's current library
+ * record as its own link (gate-b-sec2: never on one click). Nothing goes to the hub.
+ */
+export async function relinkLibrary(ds, fetchImpl = globalThis.fetch, paste = {}) {
+  const url = typeof paste.url === 'string' ? paste.url.trim() : '';
+  const grant = typeof paste.grant === 'string' ? paste.grant.trim() : '';
+  const r = await library(fetchImpl, {
+    action: 'relink',
+    ds,
+    ...(url ? { url } : {}),
+    ...(grant ? { grant } : {}),
+  });
   return r.ok ? { ok: true } : { ok: false, code: r.code, message: refusalWords(r.code) };
 }
 
@@ -150,6 +161,7 @@ export function DsLibraryHost({
   const [sheet, setSheet] = useState(null); // { ds, review }
   const [unlinking, setUnlinking] = useState(null); // { ds, label, error }
   const [linking, setLinking] = useState(false);
+  const [relinking, setRelinking] = useState(null); // { ds, library }
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState('');
   const live = useRef({ cfg, activePath, toast, fetchImpl, rows });
@@ -299,14 +311,8 @@ export function DsLibraryHost({
     setLibraryActions({
       update: () => startUpdate(openRow.ds),
       unlink: () => setUnlinking({ ds: openRow.ds, label: openRow.label, error: '' }),
-      relink: async () => {
-        setBusy(true);
-        const r = await relinkLibrary(openRow.ds, f());
-        setBusy(false);
-        if (!r.ok) return say(r.message, false);
-        setAccess((a) => ({ ...a, [openRow.ds]: 'unknown' }));
-        refresh();
-      },
+      // gate-b-sec2: the person pastes the library's link again; the dialog names what it points at
+      relink: () => setRelinking({ ds: openRow.ds, library: openRow.library ?? null }),
     });
   }, [openRow, used, counts, access, errors, busy, openHead, startUpdate, f, say, refresh]);
   useEffect(
@@ -395,6 +401,20 @@ export function DsLibraryHost({
             say(`${unlinking.label} is your own system now.`);
             setUnlinking(null);
             refreshSoon();
+          }}
+        />
+      ) : null}
+      {relinking ? (
+        <DsLibraryLink
+          relink={{ title: LIBRARY_WORDS.relinkTitle, lead: relinkLead(relinking.library) }}
+          onClose={() => setRelinking(null)}
+          onLink={async (url, grant) => {
+            const r = await relinkLibrary(relinking.ds, f(), { url, grant });
+            if (!r.ok) return r;
+            setAccess((a) => ({ ...a, [relinking.ds]: 'unknown' }));
+            setRelinking(null);
+            refreshSoon();
+            return { ok: true };
           }}
         />
       ) : null}

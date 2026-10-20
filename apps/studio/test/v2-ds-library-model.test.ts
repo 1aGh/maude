@@ -12,6 +12,8 @@ import {
   linkedRows,
   noGrantLine,
   refusalWords,
+  relinkLead,
+  relinkLine,
   updateBody,
   updatedWords,
   usedByLine,
@@ -153,5 +155,25 @@ describe('the state rows and the update body', () => {
         { path: 'ui/B.tsx', ticked: false },
       ],
     });
+  });
+});
+
+// gate-b-sec2 finding 2 — "Link again" names what the (possibly peer-written) record points at
+describe('Link again names the library', () => {
+  const lib = { hub: 'https://bravo.cloud.test', project: 'p_bravo', system: 'gator' };
+  test('system, project, host and who set it last; never an e-mail address', () => {
+    expect(relinkLine({ ...lib, linkedBy: { kind: 'person', name: 'Tereza' } })).toBe(
+      'This Mac hasn’t linked gator from p_bravo on bravo.cloud.test. Tereza set this link last. Nothing is sent there until you paste its library link again.'
+    );
+    expect(relinkLine({ ...lib, linkedBy: { kind: 'person', name: 'eve@evil.test' } })).toBe(
+      'This Mac hasn’t linked gator from p_bravo on bravo.cloud.test. Nothing is sent there until you paste its library link again.'
+    );
+    expect(relinkLine({ hub: 'nope' })).toBe(LIBRARY_WORDS.relink);
+    expect(relinkLead(lib)).toBe(
+      'Paste the library link of gator from p_bravo on bravo.cloud.test. A link to any other library links nothing.'
+    );
+    expect(refusalWords('ds-library-other')).toBe(
+      'That link is for a different library. Nothing was linked.'
+    );
   });
 });

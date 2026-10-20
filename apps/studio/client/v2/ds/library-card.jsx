@@ -271,15 +271,21 @@ export function DsLibraryBanner({ banner, canOpen, onOpen }) {
 }
 
 /** @param {{ onLink: (url: string, grant: string) => Promise<{ ok: boolean, message?: string }>, onClose: () => void }} props */
-export function DsLibraryLink({ onLink, onClose }) {
+/**
+ * The library link dialog. `relink` ({ title, lead }) turns it into "Link again" (gate-b-sec2): the same two
+ * fields, the library's own link or its access key pasted again — either one is enough.
+ * @param {{ onLink: (url: string, grant: string) => any, onClose: () => void, relink?: { title: string, lead: string } | null }} props
+ */
+export function DsLibraryLink({ onLink, onClose, relink = null }) {
   const [url, setUrl] = useState('');
   const [grant, setGrant] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const urlRef = useRef(null);
   const ref = useModalFocus({ onClose, initialRef: urlRef });
+  const ready = relink ? !!(url.trim() || grant.trim()) : !!url.trim();
   const go = async () => {
-    if (busy || !url.trim()) return;
+    if (busy || !ready) return;
     setBusy(true);
     setError('');
     let r;
@@ -301,12 +307,13 @@ export function DsLibraryLink({ onLink, onClose }) {
         aria-labelledby="ds-library-link-title"
         tabIndex={-1}
         data-testid="ds-library-link"
+        data-mode={relink ? 'relink' : 'link'}
       >
         <h2 id="ds-library-link-title" className="dsr-title">
-          {LIBRARY_WORDS.linkTitle}
+          {relink ? relink.title : LIBRARY_WORDS.linkTitle}
         </h2>
         <div className="dsr-body">
-          <p className="dsl-quiet">{LIBRARY_WORDS.linkLead}</p>
+          <p className="dsl-quiet">{relink ? relink.lead : LIBRARY_WORDS.linkLead}</p>
           <label className="dsl-field">
             <span>{LIBRARY_WORDS.linkUrl}</span>
             <input
@@ -359,11 +366,11 @@ export function DsLibraryLink({ onLink, onClose }) {
           <button
             type="button"
             className="btn btn--primary"
-            disabled={busy || !url.trim()}
+            disabled={busy || !ready}
             data-testid="ds-library-link-go"
             onClick={go}
           >
-            {LIBRARY_WORDS.link}
+            {relink ? LIBRARY_WORDS.linkAgain : LIBRARY_WORDS.link}
           </button>
         </div>
       </div>
