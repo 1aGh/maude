@@ -30955,6 +30955,70 @@
     "v2": "new"
   },
   {
+    "hook": "timeline-ai-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The timeline head's AI cut chip: \"AI is cutting\", \"Made by AI · 14 shots\", or after Stop \"Placed 7 of 14 shots.\" (`data-state` cutting | made | stopped) (S7.14).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/ai-edge.jsx",
+      "symbol": "AiCutStatus"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/video-ai-cut-stop.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-ai-keep-going",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep going on a stopped AI cut's chip — the AI chat's same Keep going (`POST /_api/ai/runs/<id>/keep-going`) (S7.14).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/ai-edge.jsx",
+      "symbol": "AiCutStatus"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/video-ai-cut-stop.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-ai-edge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI edge: a spark line with an \"AI\" tag at the end of the last shot an AI cut placed (`data-frame`); never the person's playhead (S7.14).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/ai-edge.jsx",
+      "symbol": "AiEdge"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/video-ai-cut-stop.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "timeline-ai-landing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The island beside the video artboard while an AI cut lands shots: \"Placing shot 7 · Tackle 2\" + clip, source range, beat (S7.14).",
+    "producer": {
+      "file": "apps/studio/client/v2/timeline/ai-edge.jsx",
+      "symbol": "AiLandingIsland"
+    },
+    "region": "timeline",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/desktop/e2e/scenarios/video-ai-cut-stop.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "timeline-size",
     "kind": "testid",
     "pattern": false,

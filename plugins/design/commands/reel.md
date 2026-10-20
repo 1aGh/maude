@@ -217,6 +217,13 @@ in the command; nothing paid runs without the explicit `AskUserQuestion` yes.
 
 ## Step 4 — Generate the composition (codegen — skill `footage-director`)
 
+> **Maude 2 — the shots are placed, not written.** When `maude design reel-place` is available, place the
+> EDL's shots with `maude design reel-place <slug> --next --canvas <canvas>#<artboard>`, once per shot,
+> until it exits 4 ("All shots are placed") — they land live, Stop keeps the shots placed, and the cut is
+> one ⌘Z (skill `footage-director`, "Place the cut shot by shot"). Give the shots beat-grid lengths when
+> there is music (`maude design beats` first). The hand codegen below stays for the rest of the comp
+> (overlays, audio, captions) and for a Maude 1.x install.
+
 Read the EDL (`GET /_api/footage?slug=<slug>`) and generate
 `<designRoot>/ui/<Name>.tsx` following the skill's **EDL → `<TransitionSeries>`
 codegen contract**: one **literal** `<TransitionSeries.Sequence name>` block per

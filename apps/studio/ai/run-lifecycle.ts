@@ -260,8 +260,39 @@ export function publicRun(rec: RunRecord): RunPublic {
   };
 }
 
+/**
+ * V2-1.15 amendment (2026-10-09) + S7 §2.2: how far a run is, studio-local and never synced — DERIVED from
+ * the run's writes (ai/run-progress.ts), never from the model's prose. `kind` names what it counts: `place`
+ * = the AI cut's shots (S7.14), `watch` = clips watched (S7.15). Only `mine` carries it; `publicRun` never.
+ */
+export interface RunProgress {
+  kind: 'watch' | 'place';
+  done: number;
+  total: number;
+  label: string;
+  /** the designRoot-relative canvas and the artboard it counts on */
+  canvas?: string;
+  artboard?: string;
+  /** place: the comp's fps and the AI edge (end frame of the last shot placed) */
+  fps?: number;
+  edge?: number;
+  /** place: the shot that landed last (the timeline draws it landing) */
+  shot?: {
+    n: number;
+    name: string;
+    clip: string;
+    srcIn: number;
+    srcOut: number;
+    at: number;
+    onBeat: boolean;
+    stableId: string;
+  } | null;
+}
+
 /** What YOUR shell reads (`GET /_api/ai/runs` `mine`): the record minus the queued prompt. */
-export type RunView = Omit<RunRecord, 'prompt' | 'sessionId' | 'hookAt' | 'homeRunId'>;
+export type RunView = Omit<RunRecord, 'prompt' | 'sessionId' | 'hookAt' | 'homeRunId'> & {
+  progress?: RunProgress;
+};
 export function runView(rec: RunRecord): RunView {
   const { prompt: _p, sessionId: _s, hookAt: _h, homeRunId: _r, ...view } = rec;
   return view;

@@ -39,6 +39,7 @@ import {
   type RunEffect,
   type RunEvent,
   type RunOrigin,
+  type RunProgress,
   type RunPublic,
   type RunRecord,
   type RunScope,
@@ -122,6 +123,8 @@ export interface RegistryOptions {
   };
   /** ctx.bus.emit — `ai:runs {seq}` and the derived v1 `ai-activity` */
   emit?: (event: string, payload: unknown) => void;
+  /** S7.14 — a run's studio-local progress, derived from its files (ai/run-progress.ts); `mine` only */
+  progressOf?: (rec: RunRecord) => RunProgress | null;
 }
 
 const newId = (p: 'r' | 'a') => `${p}_${randomBytes(6).toString('hex')}`;
@@ -943,12 +946,36 @@ export function createRunRegistry(opts: RegistryOptions) {
     home.close?.();
   }
 
+  // S7.14 — a live run's progress is read each time; an ended one keeps what its files said once it ended
+  // (a person's later edit does not rewrite "Placed 7 of 14 shots."). Ended runs older than this get none.
+  const PROGRESS_ENDED_MS = 6 * 60 * 60 * 1000;
+  const endedProgress = new Map<string, RunProgress | null>();
+  function withProgress(r: RunRecord): RunView {
+    const v = runView(r);
+    if (!opts.progressOf) return v;
+    let p: RunProgress | null | undefined;
+    if (isLive(r)) p = safeProgress(r);
+    else if (endedProgress.has(r.runId)) p = endedProgress.get(r.runId);
+    else if ((r.endedAt ?? 0) >= now() - PROGRESS_ENDED_MS) {
+      p = safeProgress(r);
+      endedProgress.set(r.runId, p);
+    }
+    return p ? { ...v, progress: p } : v;
+  }
+  function safeProgress(r: RunRecord): RunProgress | null {
+    try {
+      return opts.progressOf?.(r) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   function view(): RunsView {
     const mine = [...records.values()].sort((a, b) => a.createdAt - b.createdAt);
     const live = mine.filter(isLive);
     return {
       seq,
-      mine: mine.map(runView),
+      mine: mine.map(withProgress),
       others,
       needsYou: live.filter((r) => r.state === 'needs-you').length,
       live: live.length,

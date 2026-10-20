@@ -48,6 +48,7 @@ import { MusicHint } from './music-hint.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
 import { timelineSelection } from './selection.js';
 import { useTimelineIsland } from './island-context.js';
+import { AiCutStatus, AiEdge, useAiCut } from './ai-edge.jsx';
 import { usePlayback } from './playhead.js';
 import { mss, readoutLabel, rulerLabel, rulerStepFrames } from './ruler.js';
 import { deriveTracks } from './tracks.js';
@@ -289,6 +290,12 @@ export default function TimelinePanel({
   const rootRef = useRef(null);
   // S7.7 — the island around this body (null when it stands alone): the empty-comp block lives there.
   const island = useTimelineIsland();
+  // S7.14 — an AI cut on this video: its edge, the shot that landed, the status chip (from the run's progress)
+  const aiCut = useAiCut({
+    activePath: island?.canvas ?? null,
+    artboardId: comp?.artboardId ?? null,
+    compKey: `${total}:${sequences.length}`,
+  });
   // S7.8 — the loop band (I / O) and whether the playhead was just stepped by hand live in one store the keys write.
   const playback = usePlayback();
   const band = compId ? playback.loopFor(compId) : null;
@@ -1304,7 +1311,7 @@ export default function TimelinePanel({
       <Fragment key={`b${i}`}>
         <button
           type="button"
-          className={`tl-seq-block${isResizing ? ' is-resizing' : ''}${moving ? ' is-moving' : ''}${dragging ? ' is-dragging' : ''}${seq.hidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}${lane === 'storyline' ? ' tl-beat' : ''}`}
+          className={`tl-seq-block${isResizing ? ' is-resizing' : ''}${moving ? ' is-moving' : ''}${dragging ? ' is-dragging' : ''}${seq.hidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}${lane === 'storyline' ? ' tl-beat' : ''}${aiCut?.landing && aiCut.landing === seq.stableId ? ' is-landing' : ''}`}
           data-testid={`timeline-seq-${i}`}
           data-clip-id={seq.stableId || undefined}
           data-kind={rowKind(seq)}
@@ -1890,6 +1897,7 @@ export default function TimelinePanel({
         ) : (
           <span className="tl-title">Timeline</span>
         )}
+        <AiCutStatus cut={aiCut} />
         <span className="tl-spacer" />
         {comp && cap.warn ? (
           // C22 — past 3 600 frames the video warns, here as everywhere (the Export sheet, the server). The
@@ -2485,6 +2493,10 @@ export default function TimelinePanel({
             >
               <span className="tl-playhead-time">{fmtTime(clamped, fps)}</span>
             </span>
+            <AiEdge
+              cut={aiCut}
+              left={aiCut?.edge != null ? LABEL_GUTTER + x(aiCut.edge) : Number.NaN}
+            />
           </div>
         </div>
       )}
