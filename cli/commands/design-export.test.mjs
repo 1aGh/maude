@@ -696,3 +696,94 @@ test('--estimate on a v1 scope exits 2 (the estimate is a v2 thing)', async () =
     assert.equal(requests.length, 0);
   });
 });
+
+// ── S8.7: --preflight and the print options an agent can set ─────────────────────────────
+
+test('--option registration=true text=outline back=true land under options.print (validated by the server)', async () => {
+  await withExport(
+    [
+      'pdf',
+      '--scope',
+      'selection',
+      '--artboard',
+      'a-flag',
+      '--option',
+      'bleed=true',
+      '--option',
+      'marks=crop',
+      '--option',
+      'back=true',
+      '--option',
+      'registration=true',
+      '--option',
+      'text=outline',
+    ],
+    ({ code, requests }) => {
+      assert.equal(code, 0);
+      assert.equal(requests[0].url, '/_api/export');
+      const { spec } = requests[0].body;
+      assert.deepEqual(spec.options.print, {
+        bleed: true,
+        marks: 'crop',
+        back: true,
+        registration: true,
+        text: 'outline',
+      });
+      assert.equal(validateOnServer(spec).ok, true);
+    }
+  );
+});
+
+test('--preflight asks /_api/export-preflight for the spec and prints the paper, the back, the warnings', async () => {
+  const reply = {
+    print: true,
+    colour: 'rgb',
+    measured: true,
+    boards: [
+      {
+        canvas: 'ui/letak.tsx',
+        id: 'a-flag',
+        label: 'A · přední (FLAG)',
+        paper: { name: 'A6', trimMm: [105, 148], bleedMm: 3, marginMm: [5, 5, 5, 5] },
+        back: { id: 'b-flag', label: 'B · zadní (FLAG)' },
+      },
+    ],
+    safeMargin: [{ label: 'qr-code', mm: 2, marginMm: 5, edge: 'right' }],
+    fonts: [
+      { family: 'Avenir Next Condensed', embeddable: false, reason: 'restricted' },
+      { family: 'Alligators', embeddable: true, reason: null },
+    ],
+  };
+  await withExport(
+    ['pdf', '--scope', 'selection', '--artboard', 'a-flag', '--preflight'],
+    ({ code, stdout, requests, cwd }) => {
+      assert.equal(code, 0);
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].url, '/_api/export-preflight');
+      assert.deepEqual(Object.keys(requests[0].body), ['spec']);
+      assert.match(stdout, /A · přední \(FLAG\): A6 105 × 148 mm, bleed 3 mm, safe margin 5 mm/);
+      assert.match(stdout, /back: B · zadní \(FLAG\)/);
+      assert.match(
+        stdout,
+        /Past the safe margin: qr-code is 2 mm from the cut \(the margin is 5 mm\)/
+      );
+      assert.match(stdout, /Font will not embed: Avenir Next Condensed/);
+      assert.doesNotMatch(stdout, /Alligators/);
+      assert.match(stdout, /RGB - the print shop converts to CMYK/);
+      assert.deepEqual(readdirSync(cwd), []);
+    },
+    {
+      respond: () => ({
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(reply),
+      }),
+    }
+  );
+});
+
+test('--preflight on a v1 scope exits 2, like --estimate', async () => {
+  await withExport(['pdf', '--scope', 'artboard', '--preflight'], ({ code, requests }) => {
+    assert.equal(code, 2);
+    assert.equal(requests.length, 0);
+  });
+});

@@ -29,6 +29,7 @@ import {
   estimateLines,
   filenameFromDisposition,
   planExportArgv,
+  preflightLines,
   refusalText,
   V1_FORMATS,
   V2_ONLY_FORMATS,
@@ -515,7 +516,7 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
 
   export <format> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>]
          [--artboard <id> ...] [--element <id> ...] [--region x,y,w,h] [--unit each|one]
-         [--name '<template>'] [--at <sha>] [--wait ai] [--estimate]
+         [--name '<template>'] [--at <sha>] [--wait ai] [--estimate] [--preflight]
          [--port N] [--out <path>] [--option key=value ...]
         Drive the same POST /_api/export endpoint the Export sheet uses, as one
         ExportSpec (v2). Auto-detects port from .design/_server.json; requires a
@@ -527,11 +528,14 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
         ids. --region is a world rectangle, --unit one makes one file of it,
         --name sets the file-name template ({project} {folder} {canvas}
         {artboard} {kind} {size} {scale} {date}). --estimate prints the file
-        count, size and time without exporting. Without --scope, a v2-only flag
+        count, size and time without exporting. --preflight (a print artboard) prints
+        its paper, its back, elements past the safe margin and fonts that will not
+        embed; warnings inform, the export still runs. Without --scope, a v2-only flag
         or format (jpg, audio) means --scope canvas.
-        --option short names: scale dpi quality bleed marks back fps videoQuality
+        --option short names: scale dpi quality bleed marks back registration text fps videoQuality
         captions linked allowLonger codec; or the spec's dotted path (video.fps,
-        print.marks, colorProfile, background, annotations, saveTo, lane).
+        print.marks, print.registration, print.text (keep|embed|outline), colorProfile,
+        background, annotations, saveTo, lane).
         What the engine cannot run yet (--at, --wait, display-p3) comes back as
         the server's own "not available" sentence.
         The older scopes still work and send the older request unchanged:
@@ -876,8 +880,14 @@ async function runExport({ args }) {
   let route = '/_api/export';
   let body;
   if (plan.mode === 'v2') {
-    route = flags.estimate === true ? '/_api/export-estimate' : '/_api/export';
-    body = flags.estimate === true ? { spec: plan.spec } : { v: 2, spec: plan.spec };
+    const numbersOnly = flags.estimate === true || flags.preflight === true;
+    route =
+      flags.preflight === true
+        ? '/_api/export-preflight'
+        : flags.estimate === true
+          ? '/_api/export-estimate'
+          : '/_api/export';
+    body = numbersOnly ? { spec: plan.spec } : { v: 2, spec: plan.spec };
   } else {
     // Each format defaults to a scope it can actually serve: video → artboard (the only scope video
     // supports — scope.ts resolves the artboard under the active canvas), zip → project-raw (the
@@ -904,6 +914,11 @@ async function runExport({ args }) {
     process.exit(1);
   }
 
+  if (flags.preflight === true) {
+    // S8.7 — the Print preflight: names and numbers; the words are built here, like the estimate's
+    process.stdout.write(`${preflightLines(await r.json()).join('\n')}\n`);
+    return;
+  }
   if (flags.estimate === true) {
     // The server sends numbers; the words are built here (contract §5.5).
     const est = await r.json();
