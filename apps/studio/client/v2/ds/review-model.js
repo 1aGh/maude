@@ -19,6 +19,9 @@ export const REVIEW_WORDS = Object.freeze({
   conflict: 'Pick one of the two values on the Design system canvas first.',
   failed: 'Not updated. Nothing changed; try again.',
   cancelFailed: 'Not cancelled. The changes are still waiting; try again.',
+  nothingToPush:
+    'Nothing on this element differs from the system, so there is nothing to update.',
+  pushFailed: 'Not updated. Nothing changed; try again.',
   offline: "No project home answers right now — update when you're back online.",
   forbidden: 'Not updated. You can look here; ask to edit.',
 });
@@ -192,6 +195,8 @@ export function refusalWords(code, fallback = REVIEW_WORDS.failed) {
       return REVIEW_WORDS.outside;
     case 'ds-conflict':
       return REVIEW_WORDS.conflict;
+    case 'ds-nothing-to-push':
+      return REVIEW_WORDS.nothingToPush;
     case 'ds-nothing-waiting':
       return REVIEW_WORDS.noneWaiting;
     case 'ds-kernel-unavailable':

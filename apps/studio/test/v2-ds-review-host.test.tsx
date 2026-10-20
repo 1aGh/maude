@@ -41,6 +41,7 @@ function fakeFetch(opts: {
   pending?: Record<string, unknown>;
   publish?: { status: number; body: unknown };
   review?: unknown;
+  push?: { status: number; body: unknown };
 }) {
   const calls: Call[] = [];
   const impl = async (url: string, init?: { method?: string; body?: string }) => {
@@ -69,6 +70,8 @@ function fakeFetch(opts: {
         opts.publish?.status ?? 200,
         opts.publish?.body ?? { result: { updated: 2, leftOut: 1 } }
       );
+    if (url === '/_api/ds/pending' && body?.from)
+      return json(opts.push?.status ?? 200, opts.push?.body ?? { action: 'pending', mapped: { entries: 2, skipped: [] } });
     if (url === '/_api/ds/pending') return json(200, { action: 'pending' });
     return json(404, {});
   };
@@ -345,5 +348,60 @@ describe('the host', () => {
     await settle();
     expect(f.calls).toEqual([]);
     expect(toasts).toEqual(['This canvas follows no design system that can be updated yet.']);
+  });
+
+  test('ds.review-update: the server maps the element (the page sends no CSS), then the sheet opens', async () => {
+    const f = fakeFetch({ pending: { components: { Button: {} } } });
+    await mount(f, []);
+    const target = { kind: 'component', name: 'Button', variant: 'primary' };
+    await act(
+      async () =>
+        void requestDsReview({ kind: 'push', canvas: 'ui/Pricing.tsx', elementId: 'b1', target })
+    );
+    await settle();
+    const post = f.calls.find((c) => c.url === '/_api/ds/pending');
+    expect(post?.body).toEqual({
+      ds: 'studio',
+      from: { canvas: 'ui/Pricing.tsx', elementId: 'b1', target },
+    });
+    // the push comes first; the review is read after it
+    const order = f.calls.map((c) => `${c.method} ${c.url}`);
+    expect(order.indexOf('POST /_api/ds/pending')).toBeLessThan(order.indexOf('POST /_api/ds/publish'));
+    expect(q('ds-review')).not.toBeNull();
+  });
+
+  test('ds.review-update without a canvas uses the open one', async () => {
+    const f = fakeFetch({});
+    await mount(f, []);
+    await act(
+      async () =>
+        void requestDsReview({
+          kind: 'push',
+          elementId: 'h1',
+          target: { kind: 'typeRole', role: 'heading' },
+        })
+    );
+    await settle();
+    expect(f.calls.find((c) => c.url === '/_api/ds/pending')?.body).toMatchObject({
+      from: { canvas: 'ui/Homepage.tsx', elementId: 'h1' },
+    });
+  });
+
+  test('nothing to push says so in words and opens no sheet', async () => {
+    const f = fakeFetch({ push: { status: 422, body: { code: 'ds-nothing-to-push' } } });
+    const toasts: string[] = [];
+    await mount(f, toasts);
+    await act(
+      async () =>
+        void requestDsReview({
+          kind: 'push',
+          elementId: 'b1',
+          target: { kind: 'component', name: 'Button' },
+        })
+    );
+    await settle();
+    expect(toasts).toEqual(['Nothing on this element differs from the system, so there is nothing to update.']);
+    expect(q('ds-review')).toBeNull();
+    expect(f.calls.some((c) => c.url === '/_api/ds/publish')).toBe(false);
   });
 });
