@@ -2,8 +2,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
+import { pointerClick } from '../helpers/pointer';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow, ensureFilesTab } from '../helpers/tree';
+import { canvasRow, dsRow, ensureFilesTab } from '../helpers/tree';
 
 /*
  * The ds-review story (S10.21, V2-8.3): four parts, four worlds. Each part seeds its own project, so one boot can't
@@ -51,10 +53,11 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
 
   it('opens the Design system canvas: the bar says one change waits', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
     await browser.waitUntil(
       () =>
         browser.execute(() => {
@@ -153,10 +156,11 @@ part('2')('ds-review (part 2) — a master change, a folder left out with one ti
 
   it('the bar says one change waits; Review… groups the fourteen canvases by folder', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
     await browser.waitUntil(
       () =>
         browser.execute(() => {
@@ -279,7 +283,7 @@ async function clickInFrame(selector: string) {
     };
   }, selector);
   if (!at) throw new Error(`nothing to click in the canvas for ${selector}`);
-  await browser.action('pointer').move(at).down().up().perform();
+  await pointerClick(at.x, at.y);
 }
 
 part('4')(
@@ -336,10 +340,11 @@ part('4')(
             })
           ).ok
         ).toBe(true);
-      const row = await canvasRow(`canvas-row-system-${sysDir()}-design-system`);
+      const row = await dsRow(sysDir());
       await row.waitForExist({ timeout: 30_000 });
       await row.click();
       await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+      await waitForCanvasOpened();
       await browser.waitUntil(
         () =>
           browser.execute(() => {

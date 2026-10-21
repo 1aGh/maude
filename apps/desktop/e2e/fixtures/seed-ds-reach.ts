@@ -5,7 +5,7 @@
 // Run with bun: `bun fixtures/seed-ds-reach.ts`. Prints the project root on its last stdout line.
 
 import { ACCENT, DS, makeProject, PERSON } from '../../../studio/test/_ds-engine-fixture.ts';
-import { installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
+import { buildUsageIndex, installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
 
 const canvas = (
   title: string,
@@ -37,6 +37,7 @@ labelDsGroup(p.root);
 installRealDsCanvas(p.root, 'acme');
 p.write('ui/Home.tsx', canvas('Home', ['cta', 'nav']));
 p.write('ui/Pricing.tsx', canvas('Pricing', ['buy']));
+buildUsageIndex(p);
 await p.engine.mergePending(DS, {
   tokens: ACCENT('oklch(0.5 0.19 255)', 'oklch(0.6 0.175 255)'),
   by: PERSON,

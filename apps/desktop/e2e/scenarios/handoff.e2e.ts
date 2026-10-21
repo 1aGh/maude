@@ -1,7 +1,8 @@
 import { $, $$, browser, expect } from '@wdio/globals';
+import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { dsRow } from '../helpers/tree';
 
 /**
  * 09 · ex-handoff, ex-handoff-ready, ex-handoff-edges (S8.10) — ⇧⌘H opens Handoff to production on the open
@@ -57,7 +58,8 @@ describe('handoff — ⇧⌘H, the targets, Advanced, Hand off tokens', () => {
     await (await $('[data-testid="handoff-advanced"]')).click();
     const adv = await $('.ho-adv-body');
     await adv.waitForDisplayed({ timeout: 5_000 });
-    expect(await adv.getText()).toMatch(/Writes\s+src\/components\/\w+\.tsx/);
+    // the label and the path are two elements; WebKit's getText joins them with no space
+    expect(await adv.getText()).toMatch(/Writes\s*src\/components\/\w+\.tsx/);
     await capture('handoff-advanced');
     await browser.keys(['Escape']);
     await (await $('[data-testid="export-sheet"]')).waitForExist({ reverse: true, timeout: 5_000 });
@@ -65,8 +67,9 @@ describe('handoff — ⇧⌘H, the targets, Advanced, Hand off tokens', () => {
 
   it('Design system › Hand off tokens opens the sheet on the system, with the tokens target', async () => {
     // the Files panel starts collapsed: reveal the row the way a person would
-    const ds = await canvasRow('canvas-row-system-acme-design-system');
+    const ds = await dsRow('acme');
     await ds.click();
+    await openInspector();
     await (await $('[data-testid="ds-advanced"]')).waitForExist({ timeout: 25_000 });
     await (await $('[data-testid="ds-advanced-fold"] summary')).click();
     await (await $('[data-testid="ds-handoff-tokens"]')).click();

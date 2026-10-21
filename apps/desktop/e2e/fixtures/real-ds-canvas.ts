@@ -12,6 +12,7 @@ import {
   designSystemCanvasMeta,
   designSystemCanvasSource,
 } from '../../../studio/ds/board/template.ts';
+import { createDsUsage } from '../../../studio/index/ds-usage.ts';
 
 export function installRealDsCanvas(root: string, ds: string, label = ds, path = `system/${ds}`) {
   const dir = join(root, '.design', path);
@@ -35,4 +36,29 @@ export function labelDsGroup(root: string, path = 'system') {
     g.path === path ? { ...g, label: 'Design system' } : g
   );
   writeFileSync(file, `${JSON.stringify(cfg, null, 2)}\n`);
+}
+
+/**
+ * Run the DS usage index once and keep it (`_cache/index/ds-usage.json`). The board's "Used in N canvases" and the
+ * contrast line's "Falls short in N canvases" read that PERSISTED cache; the server builds it lazily, on the first
+ * `/_api/ds/usage` question, which nothing asks while a person is only looking at the canvas. A scenario that
+ * reads those lines starts from a project whose index has run, as the studio's own tests do.
+ */
+export function buildUsageIndex(p: {
+  designRoot: string;
+  engine: {
+    systems(): { name: string }[];
+    canvasesOf(name: string): string[];
+  };
+}) {
+  const idx = createDsUsage({
+    designRoot: () => p.designRoot,
+    canvases: () =>
+      p.engine.systems().flatMap((s) => p.engine.canvasesOf(s.name).map((rel) => ({ rel, ds: s.name }))),
+    persist: true,
+    debounceMs: 0,
+  });
+  idx.file();
+  idx.flush();
+  idx.stop();
 }

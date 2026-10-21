@@ -5,7 +5,7 @@
 // Run with bun: `bun fixtures/seed-ds-edges.ts`. Prints the project root on its last stdout line.
 
 import { makeProject } from '../../../studio/test/_ds-engine-fixture.ts';
-import { installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
+import { buildUsageIndex, installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
 
 const CSS = `/* acme tokens */
 :root,
@@ -54,6 +54,7 @@ labelDsGroup(p.root);
 installRealDsCanvas(p.root, 'acme');
 p.write('ui/Home.tsx', canvas('Home'));
 p.write('ui/Pricing.tsx', canvas('Pricing'));
+buildUsageIndex(p);
 // the app opens its own home on this project; ours must not hold the database
 p.home.close();
 console.log(p.root);
