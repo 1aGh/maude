@@ -250,7 +250,7 @@ function get(path: string, run: () => HomeAnswer | Promise<HomeAnswer>): HomeRou
 /** Exported for the route-guard test: every row of V2-1.1 §5.3 but the static lane. */
 export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
   const signin = deps.signin ?? createHomeSignIn();
-  const invite = deps.invite ?? createHomeInvite();
+  const invite = deps.invite ?? createHomeInvite({ forget: (p) => deps.cloud.forget(p) });
   const hub = deps.hub ?? createHomeHub();
   const ai = deps.ai ?? createHomeAi();
   const cli = deps.cli ?? createHomeCli();
@@ -412,6 +412,9 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     post('/_home/cloud/signin/cancel', 'home', (b) => signin.cancel(b)),
     post('/_home/invite/peek', 'home', (b) => invite.peek(b)),
     post('/_home/invite/accept', 'home', (b) => invite.accept(b)),
+    // gate-b-sec3b — Home › Shared with you: accept / leave an invitation addressed to the signed-in account
+    post('/_home/invite/pending/accept', 'home', (b) => invite.pendingAccept(b)),
+    post('/_home/invite/pending/leave', 'home', (b) => invite.pendingLeave(b)),
     post('/_home/internal/signin/profile', 'internal', (b) => signin.register(b)),
     // S6.6 — page routes behind the page secret. The hub password rides one POST body to
     // `prepare` and is handed straight to the hub (home/hub.ts); nothing here stores or logs it.

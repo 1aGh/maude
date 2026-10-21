@@ -1536,6 +1536,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent'
     ),
   },
+  // gate-b-sec3b — an invitation addressed to the person's own account, answered on Home › Shared with you. Joining
+  // puts the person into a project under THEIR account and Leaving turns it down; an agent invites others
+  // (`share.invite`) but never answers for the person. The Home server (page secret + the profile's device token)
+  // is the only door: `/_home/invite/pending/accept|leave`.
+  'invite.join': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'accepts an invitation addressed to the person’s own cloud account; the device token stays in the Home server'
+    ),
+  },
+  'invite.leave': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'turns down an invitation addressed to the person’s own cloud account'
+    ),
+  },
   // S6.9 — the Advanced sheets on Home. A credential is typed (or approved in the browser) by the person; an
   // agent never holds one, and it already runs inside `maude` and Claude Code, so installing them is theirs.
   'hub.connect': {
