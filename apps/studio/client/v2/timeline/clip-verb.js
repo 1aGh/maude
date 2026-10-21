@@ -104,6 +104,17 @@ export function clipVerbToast(verb, { name, atFrame, fps, params } = {}) {
   return { text: `Applied: ${clipVerbLabel(verb)}.`, undo: false };
 }
 
+/**
+ * The toast's action: the one Undo, when the verb offers it. `undo` is the SHELL's own ⌘Z
+ * (`menuRunner.run('edit.undo')`) — never a `run-action` post to the canvas, which only lands once the
+ * shell's records settle and did nothing in the native app (gate B).
+ * @param {{ undo: boolean }} toast
+ * @param {() => void} undo
+ * @returns {{ label: string, onClick: () => void } | undefined}
+ */
+export const clipVerbToastAction = (toast, undo) =>
+  toast?.undo ? { label: 'Undo', onClick: () => undo() } : undefined;
+
 export const clipVerbLabel = (verb) => CLIP_VERB_LABELS[verb] || verb;
 
 /**

@@ -20,10 +20,11 @@ import {
 } from '../shell/constants.js';
 import { parseCompTimeline } from '../panels/timeline-parse.js';
 import { trackRecordableWrite } from '../inspector/css-knobs.jsx';
-import { runActionMessage } from '../actions/shell-key-handlers.js';
+import { menuRunner } from '../v2/shell/menu-runner.js';
 import {
   clipVerbRefusal,
   clipVerbToast,
+  clipVerbToastAction,
   refusalText,
   runClipVerb,
   seqUndoPayload,
@@ -305,15 +306,11 @@ export function usePhotoAndTimeline({
               fps: (s.comps || []).find((c) => c.id === s.compId)?.fps,
               params,
             });
+            // Undo = the shell's own ⌘Z (menu-runner → runUndoKey), the same path as every toast Undo.
             shellToast(
               toast.text,
               true,
-              toast.undo
-                ? {
-                    label: 'Undo',
-                    onClick: () => postToActiveCanvas(runActionMessage('edit.undo')),
-                  }
-                : undefined
+              clipVerbToastAction(toast, () => menuRunner.run('edit.undo'))
             );
             if (verb === 'remove') setTimelineSelectedClip(null);
           }
