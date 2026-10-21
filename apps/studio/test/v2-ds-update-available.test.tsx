@@ -52,6 +52,17 @@ describe('is this canvas left out?', () => {
     expect(leftOutOf('ui/2026/combine.tsx', { ...CFG, dsConverted: {} })).toBeNull(); // not converted
     expect(leftOutOf('ui/2026/combine.png', CFG)).toBeNull();
   });
+  test('the real index keys canvases by their TREE path (`.design/…`); the word lands on the row all the same', () => {
+    // `/_index-data` `canvasDsRevs` is keyed by the tree path (api.ts `canvasRevs[fp]`), while a Canvases row is
+    // designRoot-relative (tree-model `relOf`): slots keyed by the raw index key never matched, so the word
+    // never showed on a real project (desktop e2e ds-review step 4).
+    const real = {
+      ...CFG,
+      canvasDsRevs: { '.design/ui/2026/combine.tsx': OLD, '.design/ui/Home.tsx': HEAD },
+    };
+    expect(Object.keys(leftOutMap(real))).toEqual(['ui/2026/combine.tsx']);
+    expect(dsRowSlots(real).get('ui/2026/combine.tsx')).toBe(DS_ROW_SLOT);
+  });
   test('the Canvases row gets the quiet word "update", titled "Update available"', () => {
     expect(Object.keys(leftOutMap(CFG))).toEqual(['ui/2026/combine.tsx']);
     const slots = dsRowSlots(CFG);
