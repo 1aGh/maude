@@ -1,25 +1,29 @@
-// agent-journeys/lanes/acp.mjs — the AI chat lane: the same adapter the AI chat panel runs, driven
-// through acp/bridge.ts's `AcpBridge`, with the panel's session shape — `newSessionParams` (allow
-// list `MAUDE_DEFAULT_ALLOWED_TOOLS`, settingSources user, the studio brief appended, the injected
-// plugins + their native-copy suppression) — and one chat for every turn of the journey.
+// agent-journeys/lanes/acp.mjs — the AI chat lane: the trial's studio hosts the chat exactly as for
+// the AI chat panel. The lane is the panel's client: it opens the studio's `/_ws/acp` socket and
+// sends the panel's frames (`attach`, `prompt`, `permission-response`, `elicitation-response`,
+// `cancel`) for one chat, every turn of the journey. So each prompt goes through acp/index.ts —
+// the run registry's ask (V2-1.15), its stage and the chat's activity tracker — and an AI chat
+// edit lands in Version history the way the panel's does (S12.16 fix: the lane used to host its own
+// `AcpBridge`, which opens no studio run, so every chat edit read as `outside`).
 //
-// It builds the session inputs ONLY through the public functions S12.3 owns, so S12.3's v2 brief and
-// `suppressionFor(plugins)` drop in with no edit here:
+// The studio's bridge builds the session ONLY through the public functions S12.3 owns; `planAcp`
+// records the same inputs for `--dry` (the studio's own differ only in the project label):
 //   - `buildStudioBrief({ designRel, projectLabel, commandsAvailable: true })` (acp/bootstrap-brief.ts)
 //   - `computeSessionPlugins({ native: true, designDir: <this worktree's plugins/design>, flowDir: null,
-//     kgaiDir: null })` (acp/plugin-bootstrap.ts) — flow is off in the chat (D10); kgai is not staged
-//     outside the .app and its SessionStart would install over the network
-//   - `newSessionParams(project, brief, plugins)` (acp/bridge.ts) — recorded in plan.json, and the
-//     bridge builds the same object itself on `session/new`.
+//     kgaiDir: null })` (acp/plugin-bootstrap.ts) — a studio booted from this tree injects its own
+//     plugins/design; flow is off in the chat (D10); kgai is staged only in the .app
+//   - `newSessionParams(project, brief, plugins)` (acp/bridge.ts)
+// The studio's PATH carries the trial's `maude` shim (run.mjs), so the agent's verbs run this tree.
 // Nobody answers a permission card, except for a prompt-tier verb the journey JSON names in `allow`
 // (decision v2-S12.16-lanes-allow-named-prompt-verbs): that one card gets the one-time allow option.
-// Every other request is refused (the chat's own timeout default), as in the terminal lane.
+// Every other card is refused and every question declined at once — with a socket attached the
+// studio would otherwise wait for the person (S5.6 D7).
 
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildStudioBrief } from '../../../acp/bootstrap-brief.ts';
-import { AcpBridge, MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../../../acp/bridge.ts';
+import { MAUDE_DEFAULT_ALLOWED_TOOLS, newSessionParams } from '../../../acp/bridge.ts';
 import { computeSessionPlugins } from '../../../acp/plugin-bootstrap.ts';
 import { logDenyIfAny, logTool, REPO } from './common.mjs';
 import { allowOf, answerCard } from './consent.mjs';
@@ -86,18 +90,51 @@ export function toolLog(trialDir) {
   };
 }
 
-/** Run the plan. `process.env` must already carry the harness env (PATH shim, NO_OPEN, …). */
-export async function runAcp(plan, project, trialDir, { timeoutMin = 20 } = {}) {
+/**
+ * Run the plan against the trial's studio on `port`: one `/_ws/acp` socket, one chat. Resolves to
+ * one `{ turn, ok, stopReason | error }` per turn; after the last turn it waits (≤ `settleMs`) for the
+ * chat's runs to end, so their one action is in Version history before the studio stops.
+ */
+export async function runAcp(
+  plan,
+  project,
+  trialDir,
+  { port, timeoutMin = 20, settleMs = 30_000, WebSocketImpl = globalThis.WebSocket } = {}
+) {
+  void project;
+  if (!port) throw new Error('acp lane: no studio port');
   const tools = toolLog(trialDir);
   const names = tools.names;
   const log = (v) => appendFileSync(join(trialDir, 'transcript.jsonl'), `${JSON.stringify(v)}\n`);
-  let bridge = null;
-  bridge = new AcpBridge({
-    repoRoot: project,
-    chatId: plan.chatId,
-    studioBrief: plan.brief,
-    plugins: plan.plugins,
-    onUpdate: (u) => {
+  const chat = plan.chatId;
+  const ws = new WebSocketImpl(`ws://127.0.0.1:${port}/_ws/acp`);
+  await new Promise((res, rej) => {
+    ws.onopen = res;
+    ws.onerror = () => rej(new Error('acp lane: the studio refused /_ws/acp'));
+  });
+  const send = (frame) => ws.send(JSON.stringify({ chat, ...frame }));
+  const runs = new Map(); // runId → state
+  let turn = null; // { resolve } while a prompt is out
+  let closed = false;
+  const settle = (r) => {
+    const t = turn;
+    turn = null;
+    t?.resolve(r);
+  };
+  ws.onclose = () => {
+    closed = true;
+    settle({ error: 'the studio closed the chat socket' });
+  };
+  ws.onmessage = (ev) => {
+    let m;
+    try {
+      m = JSON.parse(String(ev.data));
+    } catch {
+      return;
+    }
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'update') {
+      const u = m.update;
       log({ t: 'update', u });
       tools.see(u);
       if (u?.sessionUpdate === 'tool_call_update' && u.status === 'failed')
@@ -107,36 +144,76 @@ export async function runAcp(plan, project, trialDir, { timeoutMin = 20 } = {}) 
           names.get(u.toolCallId) ?? '?',
           `${textOf(u.content)}\n${JSON.stringify(u.rawOutput ?? '')}`
         );
-    },
-    onPermissionRequest: (id, req) => {
-      const a = answerCard(plan.allow ?? [], req);
+    } else if (m.t === 'permission-request') {
+      const a = answerCard(plan.allow ?? [], { toolCall: m.toolCall, options: m.options });
       log({
         t: 'permission',
-        id,
-        title: req.toolCall?.title ?? null,
+        id: m.id,
+        title: m.toolCall?.title ?? null,
         allowed: a.allow,
         why: a.why,
       });
-      bridge.resolvePermission(id, a.optionId);
-    },
-  });
+      send({ t: 'permission-response', id: m.id, decision: a.optionId ?? 'cancelled' });
+    } else if (m.t === 'elicitation-request') {
+      log({ t: 'elicitation', id: m.id, declined: true });
+      send({ t: 'elicitation-response', id: m.id, action: 'decline' });
+    } else if (m.t === 'run' && m.run?.runId) {
+      runs.set(m.run.runId, m.run.state);
+      log({ t: 'run', runId: m.run.runId, state: m.run.state });
+    } else if (m.t === 'turn-end') {
+      log({ t: 'turn-end', stopReason: m.stopReason ?? null });
+      settle({ stopReason: m.stopReason ?? null });
+    } else if (m.t === 'error') {
+      log({ t: 'error', code: m.code ?? null, message: m.message ?? null });
+      settle({ error: `${m.code ? `${m.code}: ` : ''}${m.message ?? 'error'}` });
+    } else if (m.t === 'queued') {
+      log({ t: 'queued', words: m.words ?? null, gates: m.gates ?? null });
+    }
+  };
+  send({ t: 'attach', seq: 0 });
   const turns = [];
   try {
     for (const [i, t] of plan.turns.entries()) {
-      const timer = setTimeout(() => void bridge.cancel(), timeoutMin * 60_000);
-      try {
-        const r = await bridge.prompt(t.say, plan.chatId);
-        turns.push({ turn: i + 1, ok: r.stopReason === 'end_turn', stopReason: r.stopReason });
-      } catch (e) {
-        turns.push({ turn: i + 1, ok: false, error: String(e?.message ?? e) });
+      if (closed) {
+        turns.push({ turn: i + 1, ok: false, error: 'the studio closed the chat socket' });
         break;
-      } finally {
-        clearTimeout(timer);
       }
+      const own = {};
+      const done = new Promise((resolve) => {
+        own.resolve = resolve;
+        turn = own;
+      });
+      let cancelled = false;
+      let hard = null;
+      const timer = setTimeout(() => {
+        cancelled = true;
+        send({ t: 'cancel' });
+        // a cancel that never answers still ends THIS turn
+        hard = setTimeout(() => {
+          if (turn === own) settle({ error: `no turn end ${timeoutMin} min after the prompt` });
+        }, 60_000);
+      }, timeoutMin * 60_000);
+      send({ t: 'prompt', text: t.say });
+      const r = await done;
+      clearTimeout(timer);
+      if (hard) clearTimeout(hard);
+      if (r.error) {
+        turns.push({ turn: i + 1, ok: false, error: r.error });
+        break;
+      }
+      turns.push({
+        turn: i + 1,
+        ok: !cancelled && r.stopReason === 'end_turn',
+        stopReason: r.stopReason,
+      });
     }
+    // the registry publishes a turn's stage after turn-end: wait for the chat's runs to end
+    const until = Date.now() + settleMs;
+    while (!closed && Date.now() < until && [...runs.values()].some((s) => s !== 'ended'))
+      await new Promise((r) => setTimeout(r, 250));
   } finally {
     tools.flush();
-    await bridge.stop();
+    if (!closed) ws.close();
   }
   return turns;
 }
