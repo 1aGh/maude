@@ -220,21 +220,21 @@ describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)
       { MAUDE_CANVAS_ORIGIN_SPLIT: '1' }
     );
   });
-  // OPEN (gate-b-c4b, handed to the lead): the bg-remove harness frame (`_photo/…`, a first-segment
-  // runtime dir, outside every closure) cannot even read the photo it processes, nor write its
-  // every-use sidecar (the canvases using the photo are not in its frame), so `maude design
-  // photo-bg-remove` cannot save its matte under the frame capability. `failing` until the lead
-  // picks the harness's frame rule; flip to `test` then.
-  test.failing('the bg-remove harness frame (main-origin redirect) may PUT the sidecar of a photo a canvas uses', async () => {
+  // gate-b-c4b (lead: Option A) — the harness frame spans the harness and every canvas that uses
+  // its photo, so it reads the photo and saves its every-use edit — and nothing else.
+  test('the bg-remove harness frame (main-origin redirect) may PUT the sidecar of a photo a canvas uses', async () => {
     // gate-b-c4 — the real headless path: photo-bg-remove.sh opens the harness through the main
     // origin, whose 307 carries the frame capability; the harness PUTs the matte's PhotoEdit.
     await withServer(
       async (port, designRoot) => {
         await photoFrame(port, designRoot); // ui/photo.tsx uses the photo
         mkdirSync(join(designRoot, '_photo'), { recursive: true });
+        // …and one that does not (the harness frame must not reach it)
+        writeFileSync(join(designRoot, 'ui', 'other.tsx'), 'export default () => <main/>;\n');
+        // the shape photo-bg-remove.sh generates
         writeFileSync(
           join(designRoot, '_photo', 'deadbeef.bgremove.tsx'),
-          `export default function H(){return <img src="/assets/${VALID_SHA}.png" alt="" />}\n`
+          `import { PhotoBgRemoveHarness } from '@maude/canvas-lib';\nexport default function H() {\n  return <PhotoBgRemoveHarness source="${VALID_ASSET}" />;\n}\n`
         );
         const r = await fetch(
           `http://localhost:${port}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx`,
@@ -244,6 +244,10 @@ describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)
         const loc = new URL(r.headers.get('location') ?? '');
         const fc = loc.searchParams.get('fc');
         expect(fc).toBeTruthy();
+        // it reads the photo it processes…
+        expect((await fetch(withFc(`${loc.origin}/.design/${VALID_ASSET}`, fc))).status).toBe(200);
+        // …but no canvas that does not use it
+        expect((await fetch(withFc(`${loc.origin}/.design/ui/other.tsx`, fc))).status).toBe(403);
         const res = await fetch(withFc(`${loc.origin}/_api/photo-edit?asset=${VALID_ASSET}`, fc), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

@@ -514,6 +514,26 @@ function compute(canvases: string[], project: ProjectReader, head: string): Clos
   return Object.freeze({ head, owned, ownedBy, read, assetUsers, assetStems, dynamic });
 }
 
+/**
+ * gate-b-c4b — every file that references `asset` (`assets/<name>`), project-wide, the way the
+ * photo-sidecar rule counts referrers (`assetUsers` above): a `.meta.json` as its canvas, any other
+ * text as itself; runtime state (a first-segment `_` dir) and `assets/` never count. The bg-remove
+ * harness frame is minted over these, so it may read the photo and write its every-use edit.
+ */
+export function assetReferrers(project: ProjectReader, asset: string): string[] {
+  const files = new Set(project.list());
+  const out = new Set<string>();
+  for (const f of files) {
+    if (!TEXT_SCAN_RE.test(f) || f.startsWith('assets/') || f.startsWith('_')) continue;
+    const text = project.text(f);
+    if (text === null || !text.includes('assets/')) continue;
+    if (!staticAssetRefs(text).includes(asset)) continue;
+    const meta = /^(.*)\.meta\.json$/i.exec(f);
+    out.add(meta && files.has(`${meta[1]}.tsx`) ? `${meta[1]}.tsx` : f);
+  }
+  return [...out].sort();
+}
+
 function isAssetSidecar(rel: string, files: Set<string>): boolean {
   // A per-use edit is never an asset of its own, even when a text names its path literally.
   if (PER_USE_PHOTO_RE.test(rel)) return true;

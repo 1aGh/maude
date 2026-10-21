@@ -97,6 +97,19 @@ export function frameKeyFor(secret: Buffer, subject: string): Buffer {
   return createHmac('sha256', secret).update(`${KEY_LABEL}${subject}`).digest();
 }
 
+/**
+ * gate-b-c4b — the subject a cell's frame key is minted for: the proxy's vouched member
+ * (`x-maude-user`), else the session it vouches (`x-maude-session`, lead: Option A) — still one
+ * key per session, never shared; neither (a request no proxy vouched) = no key (fail closed).
+ * The NUL-framed session form cannot collide with a member name (a header holds no NUL).
+ */
+export function frameSubjectOf(headers: Headers): string | null {
+  const user = (headers.get('x-maude-user') ?? '').trim();
+  if (user) return user;
+  const session = (headers.get('x-maude-session') ?? '').trim();
+  return session ? `\0session\0${session}` : null;
+}
+
 function macOf(key: Buffer, canvases: readonly string[]): Buffer {
   return createHmac('sha256', key)
     .update(`${MSG_LABEL}${canvases.join('\n')}`)

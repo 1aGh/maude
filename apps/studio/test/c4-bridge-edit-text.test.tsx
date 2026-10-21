@@ -143,3 +143,74 @@ test("an active frame's comment-op naming a thread of another canvas is not sent
     { op: 'resolve', id: 'c_own' },
   ]);
 });
+
+test("a frame's export-request exports its own canvas only; Folder / Whole project are refused", async () => {
+  // v2 "This canvas" naming another canvas → pinned to the active one
+  await mountAndSend({
+    dgn: 'export-request',
+    id: 'x1',
+    payload: { v: 2, spec: { v: 2, scope: 'canvas', format: 'zip', canvas: 'ui/canary-b.tsx' } },
+  });
+  const jobs = () => sent.filter((s) => s.url.includes('/_api/export-jobs'));
+  expect(jobs().map((j) => (j.body.spec as { canvas?: string }).canvas)).toEqual(['ui/Active.tsx']);
+  for (const payload of [
+    { v: 2, spec: { v: 2, scope: 'project', format: 'zip' } },
+    { v: 2, spec: { v: 2, scope: 'folder', folder: 'ui', format: 'zip' } },
+    { format: 'zip', scope: 'project-raw', options: { folder: 'ui' } },
+  ]) {
+    act(() => root?.unmount());
+    root = null;
+    sent.length = 0;
+    await mountAndSend({ dgn: 'export-request', id: 'x2', payload });
+    expect({ payload, jobs: jobs() }).toEqual({ payload, jobs: [] });
+  }
+});
+
+test("export-history-request answers only the active frame, with its own canvas's exports", async () => {
+  const history = [
+    { format: 'png', scope: 'canvas-whole', options: { canvasFile: ACTIVE }, filename: 'a.png' },
+    { format: 'png', scope: 'canvas-whole', options: { canvasFile: OTHER }, filename: 'b.png' },
+    { format: 'zip', scope: 'project-raw', options: {}, filename: 'all.zip' },
+  ];
+  const replies: Array<Record<string, unknown>> = [];
+  const own = activeWin.postMessage;
+  activeWin.postMessage = ((m: Record<string, unknown>) => replies.push(m)) as never;
+  try {
+    globalThis.fetch = (async (url: string) => {
+      sent.push({ url: String(url), body: {} });
+      return new Response(JSON.stringify({ history }), { status: 200 });
+    }) as typeof fetch;
+    const { useCanvasBridge } = await import('../client/hooks/use-canvas-bridge.jsx');
+    function Harness() {
+      useCanvasBridge(bridgeProps(ACTIVE) as never);
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    act(() => root?.render(<Harness />));
+    const send = (source: unknown) => {
+      const ev = new Event('message');
+      Object.defineProperties(ev, {
+        data: { value: { dgn: 'export-history-request', id: 'h1' } },
+        origin: { value: CANVAS_ORIGIN },
+        source: { value: source },
+      });
+      act(() => {
+        window.dispatchEvent(ev);
+      });
+    };
+    send({ name: 'background-frame', postMessage: () => {} });
+    await Bun.sleep(10);
+    expect(sent.filter((s) => s.url.includes('/_api/export-history'))).toEqual([]);
+    send(activeWin);
+    await Bun.sleep(20);
+    const got = replies.find((r) => r.dgn === 'export-history-result') as
+      | { history: Array<{ filename: string }> }
+      | undefined;
+    expect(got?.history.map((h) => h.filename)).toEqual(['a.png']);
+    host.remove();
+  } finally {
+    activeWin.postMessage = own;
+  }
+});
