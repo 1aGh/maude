@@ -106,6 +106,7 @@ import { closureFingerprint } from './exporters/door-fingerprint.ts';
 import { createHubRenderDoorGetter } from './exporters/hub-render-door.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
+import { renderSecondsStats } from './exporters/render-seconds.ts';
 import { createRectsRunner } from './exporters/rects-runner.ts';
 import {
   type CloudRenderDoor,
@@ -2667,7 +2668,11 @@ export function createHttp(
         // it discloses nothing across a tenant boundary. Inventing a privileged
         // route would have meant inventing an auth path for the supervisor's
         // loopback probe, for data the tenant already has.
-        render: buildStats(),
+        //
+        // Michal 2026-10-21 (S8.5b M2): `renderSeconds` (+ `renderJobs`, `renderSecondsSince`) is the seconds this tenant's export jobs
+        // spent rendering on the cloud lane since the studio booted, with the boot time beside it
+        // so a restart reads as a reset. Additive. Counts and durations only.
+        render: { ...buildStats(), ...renderSecondsStats() },
       }),
 
     '/_active': () => Response.json(inspect().state),
