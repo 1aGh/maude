@@ -51,6 +51,7 @@ import {
   renderRemotely,
   resolveRenderService,
 } from './remote.ts';
+import { noteRenderMs } from './render-seconds.ts';
 import {
   enforceAnnotationsPolicy,
   type ResolveScopeArgs,
@@ -442,6 +443,8 @@ export interface ExportJobQueueDeps {
   runExport?: typeof runExport;
   /** S8.9 — the run registry a `wait:'ai'` job holds on (server.ts passes `() => runRegistry`) */
   runs?: () => AiRunReader | null;
+  /** A clock for the render-seconds meter (ms); tests move it by hand. */
+  now?: () => number;
 }
 
 export function createExportJobQueue(
@@ -450,6 +453,12 @@ export function createExportJobQueue(
   deps: ExportJobQueueDeps = {}
 ): ExportJobQueue {
   const engine = deps.runExport ?? runExport;
+  const clock = deps.now ?? Date.now;
+  // Michal 2026-10-21 (render-seconds.ts): a cloud-lane job's time from taking its render slot to
+  // settling is the tenant's render load. One helper so the first run and a retry count alike.
+  const meterRender = (lane: ReturnType<typeof resolveRenderLane>, since: number): void => {
+    if (lane === 'remote') noteRenderMs(clock() - since);
+  };
   // S8.4 — what a retry needs to run a group job's items again: the enqueue args (their lane
   // inputs, render origin and token) and the lane the job took. In-memory like the job itself.
   const groups = new Map<
@@ -765,6 +774,7 @@ export function createExportJobQueue(
     const controller = new AbortController();
     const done = (async () => {
       const release = await semaphore.acquire();
+      const ranFrom = clock();
       const timer = setTimeout(() => controller.abort(), jobTimeoutMs(held.args));
       try {
         const renderOne = makeRenderOne(held.args, held.lane, controller, job);
@@ -799,6 +809,7 @@ export function createExportJobQueue(
         job.error = err instanceof Error ? err.message : String(err);
       } finally {
         clearTimeout(timer);
+        meterRender(held.lane, ranFrom);
         job.finishedAt = new Date().toISOString();
         settleRetryable(job);
         emit(job);
@@ -932,6 +943,7 @@ export function createExportJobQueue(
       // behind MAUDE_EXPORT_MAX_CONCURRENT other jobs for longer than its
       // render budget; arming the timer before the semaphore resolves would
       // abort it before it ever ran (code-review finding, /flow:done).
+      const ranFrom = clock();
       const timer = setTimeout(() => controller.abort(), jobTimeoutMs(args));
       try {
         job.status = 'running';
@@ -982,6 +994,7 @@ export function createExportJobQueue(
         throw err;
       } finally {
         clearTimeout(timer);
+        meterRender(lane, ranFrom);
         release();
       }
     })();
