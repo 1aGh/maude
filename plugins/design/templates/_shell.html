@@ -223,10 +223,48 @@
       // `/_canvas-shell.html` and the base is empty, leaving every URL below
       // byte-identical to what it has always been.
       const base = location.pathname.replace(/\/_canvas-shell(\.html)?$/, '');
+      // gate-b-c4 — THE FRAME'S OWN CAPABILITY (access/frame.ts). The shell opened this frame for
+      // ONE canvas and said so in `fc`; the canvas origin answers every request carrying it as the
+      // opener narrowed to that canvas, and a request without it gets nothing per canvas. It rides
+      // on every URL built here and, below, on every same-origin fetch and socket; everything else
+      // this document loads carries it in its Referer (this document's URL). Canvas code can read
+      // it — it opens only the canvas the code already runs in.
+      const fc = params.get('fc') || '';
+      const withFc = (u) =>
+        fc ? u + (u.includes('?') ? '&' : '?') + 'fc=' + encodeURIComponent(fc) : u;
       const withCap = (u) => {
         const abs = u.startsWith('/') ? base + u : u;
-        return cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs;
+        return withFc(
+          cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs
+        );
       };
+      if (fc) {
+        const withFrame = (u) => {
+          try {
+            const url = new URL(u, location.href);
+            if (url.host !== location.host) return null;
+            if (!url.searchParams.has('fc')) url.searchParams.set('fc', fc);
+            return url.toString();
+          } catch {
+            return null;
+          }
+        };
+        const fcFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          const isReq = typeof Request !== 'undefined' && input instanceof Request;
+          const next = withFrame(isReq ? input.url : String(input));
+          if (next) input = isReq ? new Request(next, input) : next;
+          return fcFetch(input, init);
+        };
+        const FcWebSocket = window.WebSocket;
+        const FrameWebSocket = function (url, protocols) {
+          const next = withFrame(String(url)) || url;
+          return protocols === undefined ? new FcWebSocket(next) : new FcWebSocket(next, protocols);
+        };
+        FrameWebSocket.prototype = FcWebSocket.prototype;
+        Object.setPrototypeOf(FrameWebSocket, FcWebSocket);
+        window.WebSocket = FrameWebSocket;
+      }
       // DDR-247 — THE AMBIENT COOKIE READS, IT NEVER WRITES. The hub's canvas
       // door authorises a write (POST/PUT/PATCH/DELETE) or a live socket only
       // from an EXPLICIT `?t=`, because the `maude_canvas` cookie is one per

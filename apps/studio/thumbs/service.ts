@@ -518,7 +518,8 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
       reply = await request(
         {
           op: 'tile',
-          url: `${server}/_canvas-shell.html?hide-chrome=1`,
+          // gate-b-c4 — `frame` scopes the capture to the canvas the tile imports (access/frame.ts).
+          url: `${server}/_canvas-shell.html?hide-chrome=1&frame=${encodeURIComponent(job.rel)}`,
           expectOrigin: capture,
           src: `/${designRel}/${job.rel.split('/').map(encodeURIComponent).join('/')}`,
           video: job.video === true,

@@ -16,6 +16,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { mintFrameCap } from '../access/frame.ts';
 import { dedupeFor, type TargetAnswer, type TargetFacts } from '../outbox/policy.ts';
 import type { IntentRecord } from '../outbox/types.ts';
 import type { ExportDegradation } from './degraded.ts';
@@ -162,6 +163,38 @@ export interface RemoteCanvasAccess {
   tokensCssRel?: string;
   /** designRoot-relative shared components CSS path, when the DS has one. */
   componentsCssRel?: string;
+  /**
+   * gate-b-c4 — the requesting member's frame key + design root (access/frame.ts), CELL-SIDE
+   * ONLY: never sent. `renderRemotely` mints the render's capability (`frame`) from it.
+   */
+  frameMint?: { key: string; designRel: string };
+  /** gate-b-c4 — the render's frame capability: the worker's proxy appends it as `fc=`. */
+  frame?: string;
+}
+
+/**
+ * gate-b-c4 — what crosses to the render service: the canvas access with the frame key replaced by
+ * a capability for exactly the canvases these targets render (designRoot-relative).
+ */
+export function remoteCanvasFor(
+  canvas: RemoteCanvasAccess,
+  targets: readonly Target[]
+): RemoteCanvasAccess {
+  const { frameMint, frame: _drop, ...rest } = canvas;
+  if (!frameMint) return rest;
+  const prefix = `${frameMint.designRel.replace(/^\/+|\/+$/g, '')}/`;
+  const canvases = [
+    ...new Set(
+      targets
+        .map((t) => ('file' in t && typeof t.file === 'string' ? t.file : null))
+        .filter((f): f is string => !!f)
+        .map((f) => (f.startsWith(prefix) ? f.slice(prefix.length) : f))
+    ),
+  ];
+  const fc = canvases.length
+    ? mintFrameCap(Buffer.from(frameMint.key, 'base64url'), canvases)
+    : null;
+  return fc ? { ...rest, frame: fc } : rest;
 }
 
 export function resolveRenderService(env: NodeJS.ProcessEnv = process.env): RenderService | null {
@@ -281,7 +314,12 @@ export async function renderRemotely(args: {
         'content-type': 'application/json',
         authorization: `Bearer ${service.secret}`,
       },
-      body: JSON.stringify({ format, targets, options: remoteOptions, canvas }),
+      body: JSON.stringify({
+        format,
+        targets,
+        options: remoteOptions,
+        canvas: remoteCanvasFor(canvas, targets),
+      }),
     };
     const postStart = Date.now();
     console.error(`[remote] POST ${format} → ${service.url}/render`);

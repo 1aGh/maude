@@ -155,8 +155,13 @@ describe('the canvas-safe set on the live origins (V2-2.5)', () => {
       // map, so it is neither the gate's 403 nor the file fall-through's 404.
       const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8'));
       const canvas = String(info.canvasOrigin);
+      // gate-b-c4 — inside a frame (the capability the main origin's 307 carried): a frame-less
+      // request reaches nothing per canvas, which would read as the gate's 403 here.
+      const fc = new URL(r.headers.get('location') ?? '').searchParams.get('fc') ?? '';
       for (const route of Object.keys(canvasMap()).sort()) {
-        const res = await fetch(`${canvas}${route}`, { signal: AbortSignal.timeout(5000) });
+        const res = await fetch(`${canvas}${route}?fc=${encodeURIComponent(fc)}`, {
+          signal: AbortSignal.timeout(5000),
+        });
         expect(`GET ${route} ${[403, 404].includes(res.status) ? res.status : 'reached'}`).toBe(
           `GET ${route} reached`
         );

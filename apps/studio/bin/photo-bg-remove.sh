@@ -221,7 +221,10 @@ elif [[ ! "$CANVAS_ORIGIN" =~ ^http://(localhost|127\.0\.0\.1):[0-9]+$ ]]; then
   echo "photo-bg-remove.sh: canvasOrigin in $STATE is not a loopback origin ('$CANVAS_ORIGIN')" >&2
   exit 1
 fi
-URL="$CANVAS_ORIGIN/_canvas-shell.html?canvas=$REL"
+# gate-b-c4 — opened through the MAIN origin, which 307s this exact harness shape to the canvas
+# origin with the frame's capability (the canvas origin answers nothing per canvas without one).
+# With the split off (no canvas origin) the main origin serves it itself, as before.
+URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL"
 SEL="[data-photo-bgremove-status]"
 
 echo "→ driving $URL (session $SESSION)" >&2

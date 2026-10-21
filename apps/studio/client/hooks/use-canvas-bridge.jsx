@@ -356,7 +356,9 @@ export function useCanvasBridge({
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            canvas: m.file,
+            // gate-b-c4 — the canvas the ACTIVE frame was opened for (the source check above), never
+            // the file the frame names: canvas code in A must not rewrite B with the opener's rights.
+            canvas: activePath,
             id: m.id,
             text: m.text ?? '',
             // Context for editing `{variable}` text — which rendered instance +
