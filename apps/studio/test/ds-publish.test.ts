@@ -222,4 +222,23 @@ describe('ds publish', () => {
     });
     expect(p.engine.state(DS).converted).toBe(false);
   });
+
+  test('S12.16 (S10): the folder-system refusal names the token file to edit and the emit verb', async () => {
+    const p = await makeProject();
+    const { rmSync } = await import('node:fs');
+    rmSync(path.join(p.dsAbs, 'revisions', 'head.json'));
+    let msg = '';
+    try {
+      await p.engine.mergePending(DS, {
+        tokens: ACCENT('oklch(0.47 0.19 255)', 'oklch(0.6 0.175 255)'),
+        by: PERSON,
+      });
+    } catch (err) {
+      msg = err instanceof DsEngineError ? `${err.code}: ${err.message}` : String(err);
+    }
+    expect(msg.startsWith('ds-not-converted: ')).toBe(true);
+    expect(msg).toContain(`${DS_PATH}/colors_and_type.css`);
+    expect(msg).toContain(`maude design ds-check ${DS} --emit`);
+    expect(msg).toContain('tokens.json');
+  });
 });
