@@ -158,3 +158,9 @@ export async function frameCap(
   const cfg = (await r.json()) as { frameKey?: string };
   return frameCapFor(cfg.frameKey, canvas);
 }
+
+/** gate-b-c4 — `url` carrying the frame capability `fc` (`?fc=` — what the shell appends). */
+export function withFc(url: string, fc: string | null): string {
+  if (!fc) throw new Error('no frame capability (is /_config handing out a frameKey?)');
+  return `${url}${url.includes('?') ? '&' : '?'}fc=${encodeURIComponent(fc)}`;
+}

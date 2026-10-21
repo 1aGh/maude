@@ -16,8 +16,10 @@ import {
   A_REL,
   A_SRC,
   type AclCell,
+  asUser,
   B_REL,
   bootAclCell,
+  frameCap,
   hasCanary,
   type Listener,
   listen,
@@ -40,10 +42,18 @@ describe('the canary sweep over the sockets (booted cell)', () => {
       if ('refused' in l) throw new Error(`${name} socket refused`);
       socks[name] = l;
     };
+    // gate-b-c4 — a canvas-hmr socket is opened from inside a frame: the owner's in B's frame
+    // (it hears B), the A-only session's in A's — and the owner's in A's, the C4 case: canvas
+    // code in A, opened by the owner, must hear nothing of B either.
+    const owner = asUser(OWNER, 'owner@example.com');
+    const aUser = asUser(A_ONLY, 'a-only@example.com');
+    const inFrame = async (h: Record<string, string>, rel: string) =>
+      `${wsCanvas}/_ws?fc=${encodeURIComponent((await frameCap(cell, h, rel)) ?? '')}`;
     await open('ownerShell', `${ws}/_ws`, OWNER);
-    await open('ownerHmr', `${wsCanvas}/_ws`, OWNER);
+    await open('ownerHmr', await inFrame(owner, B_REL), owner);
+    await open('ownerHmrInA', await inFrame(owner, A_REL), owner);
     await open('aShell', `${ws}/_ws`, A_ONLY);
-    await open('aHmr', `${wsCanvas}/_ws`, A_ONLY);
+    await open('aHmr', await inFrame(aUser, A_REL), aUser);
     await Bun.sleep(300);
 
     // ── the scripted B activity ────────────────────────────────────────────────────────
@@ -97,6 +107,11 @@ describe('the canary sweep over the sockets (booted cell)', () => {
 
   test('the A-only canvas-hmr socket received no frame mentioning B', () => {
     expect(socks.aHmr?.frames.filter(hasCanary)).toEqual([]);
+  });
+
+  test("the owner's canvas-hmr socket in A's frame received no frame mentioning B (C4)", () => {
+    expect(socks.ownerHmrInA?.frames.filter(hasCanary)).toEqual([]);
+    expect(socks.ownerHmrInA?.frames.some((f) => f.includes('ui/a.tsx'))).toBe(true);
   });
 
   test('the A-only sockets still hear about A', () => {

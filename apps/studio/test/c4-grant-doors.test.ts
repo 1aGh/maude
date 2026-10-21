@@ -10,8 +10,8 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { writeCapability } from '../access/request.ts';
-import type { AccessClaim } from '../access/scope.ts';
+import { acpRefusal, writeCapability } from '../access/request.ts';
+import { type AccessClaim, resolveAccess } from '../access/scope.ts';
 import { allSpecs } from '../routes/index.ts';
 import {
   A_REL,
@@ -23,6 +23,7 @@ import {
   type GateCell,
   type Headers_,
   markers,
+  OWNER,
 } from './_acl-gate.ts';
 import { stubDeps } from './_route-stubs.ts';
 
@@ -111,12 +112,23 @@ for (const [name, headers] of Object.entries(SESSIONS)) {
     });
 
     test('the AI chat refuses the session (no AI below Can edit on the project)', async () => {
-      const r = await fetch(`${cell.base}/_api/acp/prompt`, {
-        method: 'POST',
-        headers: { ...headers, origin: cell.base, 'content-type': 'application/json' },
-        body: JSON.stringify({ text: 'rewrite ui/canary-folder/canary-b.tsx' }),
-      });
-      expect(r.status).toBe(403);
+      // The gate the `/_ws/acp` upgrade and every `/_api/acp/*` write answer with (C30, D2) —
+      // for THIS session's resolved access; the owner's passes it (not vacuous).
+      const own = JSON.parse(
+        Buffer.from(headers['x-maude-access'] ?? '', 'base64url').toString('utf8')
+      ) as AccessClaim;
+      expect(acpRefusal(resolveAccess(own))?.status).toBe(403);
+      expect(acpRefusal(resolveAccess({ v: 1, role: 'owner' }))).toBeNull();
+      // A cell serves no AI chat at all (FETCH_ROUTES_FORBIDDEN_IN_WORKSPACE): the real write
+      // path is missing, for this session and for the owner alike — never a 2xx.
+      for (const h of [headers, OWNER]) {
+        const r = await fetch(`${cell.base}/_api/acp/chat?id=c4probe`, {
+          method: 'PATCH',
+          headers: { ...h, origin: cell.base, 'content-type': 'application/json' },
+          body: JSON.stringify({ title: 'rewrite ui/canary-folder/canary-b.tsx' }),
+        });
+        expect(r.status).toBe(404);
+      }
     });
   });
 }

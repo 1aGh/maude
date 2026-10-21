@@ -5,6 +5,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { listenLoopback, V4_LOOPBACK, V6_LOOPBACK } from '../loopback-listen.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const serve = (tag: string) => (hostname: string, port: number) =>
@@ -86,11 +87,16 @@ describe('studio boot holds [::1] on every localhost listener (V2-3.6 NEW-1)', (
     expect(health.pid).toBe(proc.pid);
     const info = JSON.parse(readFileSync(join(designRoot, '_server.json'), 'utf8'));
     const canvasPort = Number(new URL(info.canvasOrigin).port);
-    // the canvas origin refuses a non-allowlisted path with ITS 403 on both families
+    // the canvas origin refuses a non-allowlisted path with ITS 403 on both families — asked
+    // from inside a frame (gate-b-c4: a frame-less request gets the frame gate's not-in-scope)
+    const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/x.tsx');
     for (const host of ['127.0.0.1', '[::1]']) {
-      const r = await fetch(`http://${host}:${canvasPort}/not-canvas-safe`);
+      const r = await fetch(withFc(`http://${host}:${canvasPort}/not-canvas-safe`, fc));
       expect(r.status).toBe(403);
       expect(await r.text()).toContain('canvas origin');
+      const bare = await fetch(`http://${host}:${canvasPort}/not-canvas-safe`);
+      expect(bare.status).toBe(403);
+      expect(await bare.text()).toContain('not-in-scope');
     }
     // capture origin: reached through the main origin's 307, then over ::1
     const r = await fetch(`http://[::1]:${port}/_canvas-shell.html?canvas=ui/x.tsx`, {

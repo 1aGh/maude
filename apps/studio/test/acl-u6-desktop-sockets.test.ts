@@ -22,6 +22,7 @@ import * as Y from 'yjs';
 import { type AccessClaim, accessWiderThan, resolveAccess } from '../access/scope.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { MESSAGE_SYNC } from '../collab/protocol.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const HUB_URL = 'http://hub.invalid:9';
@@ -171,11 +172,13 @@ describe('U6 — sockets opened under a wider claim close when hubs.json narrows
     await Bun.sleep(1500); // a raise: nothing closes
     expect(asViewer.closed()).toBe(false);
 
+    // gate-b-c4 — the canvas sockets are opened from inside A's frame (its capability).
+    const fc = await frameCap({ base: main.replace(/^ws/, 'http') }, {}, A_REL);
     const wider = [
       await open(`${main}/_ws`),
       await open(`${main}/_ws/collab/${SLUG}`),
-      await open(`${canvas}/_ws/collab/${SLUG}`),
-      await open(`${canvas}/_ws`),
+      await open(withFc(`${canvas}/_ws/collab/${SLUG}`, fc)),
+      await open(withFc(`${canvas}/_ws`, fc)),
     ];
     try {
       writeRole('member', 'a-fresh-sign-in'); // re-sign-in at the same role

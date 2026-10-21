@@ -33,7 +33,7 @@ function bridgeProps(activePath: string) {
     layersTree: null,
     cfg: { canvasOrigin: CANVAS_ORIGIN, designRel: '.design' },
     viewerMode: false,
-    commentsByFile: {},
+    commentsByFile: { [ACTIVE]: [{ id: 'c_own' }] },
     presentMode: false,
     gitUser: 'Tereza',
     iframesRef: { current: new Map([[ACTIVE, { contentWindow: activeWin }]]) },
@@ -82,6 +82,64 @@ test("an active frame's edit-text naming another canvas edits only the frame's o
   });
   await Bun.sleep(10);
   const edits = sent.filter((s) => s.url.includes('/_api/edit-text'));
-  expect(edits.map((e) => e.body.canvas).filter((c) => c === OTHER)).toEqual([]);
+  // the edit went through — to the frame's own canvas (not vacuous: one write, at ACTIVE)
+  expect(edits.map((e) => e.body.canvas)).toEqual([ACTIVE]);
   host.remove();
+});
+
+async function mountAndSend(data: Record<string, unknown>) {
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    sent.push({ url: String(url), body: JSON.parse(String(init?.body ?? '{}')) });
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  const { useCanvasBridge } = await import('../client/hooks/use-canvas-bridge.jsx');
+  function Harness() {
+    useCanvasBridge(bridgeProps(ACTIVE) as never);
+    return null;
+  }
+  const host = document.createElement('div');
+  document.body.append(host);
+  root = createRoot(host);
+  act(() => root?.render(<Harness />));
+  const ev = new Event('message');
+  Object.defineProperties(ev, {
+    data: { value: data },
+    origin: { value: CANVAS_ORIGIN },
+    source: { value: activeWin },
+  });
+  act(() => {
+    window.dispatchEvent(ev);
+  });
+  await Bun.sleep(10);
+  host.remove();
+}
+
+test("an active frame's apply-edit (undo/redo) naming another canvas re-applies only to its own", async () => {
+  for (const op of ['css', 'attr', 'text'] as const) {
+    sent.length = 0;
+    await mountAndSend({
+      dgn: 'apply-edit',
+      op,
+      id: 'el-1',
+      key: op === 'css' ? 'color' : op === 'attr' ? 'alt' : undefined,
+      value: 'pwned',
+      canvas: OTHER,
+    });
+    const edits = sent.filter((s) => s.url.includes('/_api/edit-'));
+    expect({ op, canvases: edits.map((e) => e.body.canvas) }).toEqual({ op, canvases: [ACTIVE] });
+    act(() => root?.unmount());
+    root = null;
+  }
+});
+
+test("an active frame's comment-op naming a thread of another canvas is not sent", async () => {
+  await mountAndSend({ dgn: 'comment-op', reqId: 'r1', op: { op: 'resolve', id: 'c_on_b' } });
+  expect(sent.filter((s) => s.url.includes('/_api/comments/op'))).toEqual([]);
+  act(() => root?.unmount());
+  root = null;
+  // not vacuous: the same op on one of the active canvas's own threads goes through
+  await mountAndSend({ dgn: 'comment-op', reqId: 'r2', op: { op: 'resolve', id: 'c_own' } });
+  expect(sent.filter((s) => s.url.includes('/_api/comments/op')).map((s) => s.body)).toEqual([
+    { op: 'resolve', id: 'c_own' },
+  ]);
 });

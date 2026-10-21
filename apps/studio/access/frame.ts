@@ -26,9 +26,13 @@
 // the Referer of everything else the frame loads (a nested import, an `<img>`, a CSS `url()`):
 // a forged Referer can only name a capability the frame already has.
 //
-// Residual (named, not fixed): two frames open side by side share the canvas origin, so canvas
-// code can reach a sibling frame's document (`parent.frames`) and read ITS capability. Closing
-// that needs per-canvas origins.
+// KNOWN GAP (named, not fixed — needs per-canvas origins): two frames open side by side (split
+// view, any second canvas iframe the shell keeps open) share ONE canvas origin, so
+// canvas code in A can reach a sibling frame's document (`parent.frames[i]`, same-origin) and read
+// ITS `fc` from its URL — and then ask as that sibling's canvas, B, with the opener's rights on B.
+// The capability narrows a frame to its canvas only while no other canvas is open beside it.
+// Closing that needs a distinct origin per canvas (or per open frame), so a sibling's document
+// is cross-origin to A's code.
 //
 // Pure apart from the AsyncLocalStorage and node:crypto. No heavy imports (the hub imports
 // access/*.ts under Node's strip-only TypeScript).

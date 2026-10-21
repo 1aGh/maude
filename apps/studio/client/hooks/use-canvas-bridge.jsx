@@ -207,6 +207,8 @@ export function useCanvasBridge({
         const replyTo = e.source;
         void handleCommentBridgeMessage(msg, {
           activePath,
+          // gate-b-c4 — an op naming a thread acts only on a thread of the active canvas.
+          ownsComment: ownsActiveComment,
           designRel: cfg?.designRel,
           me: typeof gitUser === 'string' ? gitUser : null,
           reply: (answer) => {
@@ -397,7 +399,9 @@ export function useCanvasBridge({
         // never overwrite a teammate's newer value (audit 2026-09-13 P1 #5);
         // the outcome goes back to the canvas so a refused undo/redo does not
         // advance its stack.
-        const req = applyEditRequest(m);
+        // gate-b-c4 — the canvas the ACTIVE frame was opened for, never the `canvas` the frame
+        // names (same rule as edit-text above): canvas code in A must not re-apply an edit to B.
+        const req = applyEditRequest({ ...m, canvas: activePath });
         if (!req) return;
         const replyTo = e.source;
         const reply = (result) => {

@@ -13,12 +13,15 @@ import { listen, until } from './_acl-cell.ts';
 import {
   A_ONLY,
   A_ONLY_CLAIM,
+  A_REL,
+  A_USER,
   B_REL,
   badProbeUrls,
   bootGateCell,
   buildProbes,
   captureProbes,
   D,
+  frameIn,
   type GateCell,
   markers,
   OWNER,
@@ -56,7 +59,9 @@ describe('the studio canary sweep — an A-only session', () => {
   });
 
   test('no route on either origin answers B, and B answers like a missing canvas (U1)', async () => {
-    const r = await sweep(cell, A_ONLY);
+    // gate-b-c4 — the canvas-origin probes run inside A's frame: the frame A's canvas code
+    // runs in, the widest the session ever holds there (frame-less reads nothing at all).
+    const r = await sweep(cell, A_USER, undefined, 12, await frameIn(cell, A_USER, A_REL));
     if (process.env.MAUDE_ACL_SWEEP_DUMP)
       writeFileSync(
         process.env.MAUDE_ACL_SWEEP_DUMP,
@@ -101,7 +106,9 @@ describe('the studio canary sweep — an A-only session', () => {
     const ws = cell.base.replace(/^http/, 'ws');
     const wsCanvas = cell.canvasBase.replace(/^http/, 'ws');
     const shell = await listen(`${ws}/_ws`, A_ONLY);
-    const hmr = await listen(`${wsCanvas}/_ws`, A_ONLY);
+    // gate-b-c4 — A's canvas HMR socket, opened from inside A's frame.
+    const fcA = encodeURIComponent(await frameIn(cell, A_USER, A_REL));
+    const hmr = await listen(`${wsCanvas}/_ws?fc=${fcA}`, A_USER);
     const owner = await listen(`${ws}/_ws`, OWNER);
     if ('refused' in shell || 'refused' in hmr || 'refused' in owner)
       throw new Error('a socket was refused');
@@ -152,13 +159,20 @@ describe('the capture origin (desktop fixture)', () => {
   test('not vacuous: the owner’s capture origin serves B', async () => {
     expect(desk.captureBase).toMatch(/^http:\/\/localhost:\d+$/);
     desk.setDesktopClaim?.({ v: 1, role: 'owner' });
-    const r = await sweep(desk, {}, captureProbes(desk));
+    // gate-b-c4 — the owner's capture of B runs in B's frame (the main origin's 307 mints it).
+    const fcB = await frameIn(desk, {}, B_REL);
+    const r = await sweep(desk, {}, captureProbes(desk), 12, fcB);
     expect(Object.keys(r.leaks).length).toBeGreaterThan(0);
   }, 600000);
 
   test('as A-only, no capture-origin route answers B, and B answers like a missing canvas', async () => {
     desk.setDesktopClaim?.(A_ONLY_CLAIM);
-    const r = await sweep(desk, {}, captureProbes(desk));
+    // In A's frame (the widest an A-only capture holds) — and in B's: a capability naming a
+    // canvas the opener cannot see narrows to nothing.
+    const r = await sweep(desk, {}, captureProbes(desk), 12, await frameIn(desk, {}, A_REL));
+    expect({ leaks: r.leaks, oracles: Object.keys(r.oracles) }).toEqual({ leaks: {}, oracles: [] });
+    const inB = await sweep(desk, {}, captureProbes(desk), 12, await frameIn(desk, {}, B_REL));
+    expect(inB.leaks).toEqual({});
     expect({ leaks: r.leaks, oracles: Object.keys(r.oracles) }).toEqual({ leaks: {}, oracles: [] });
   }, 600000);
 });
