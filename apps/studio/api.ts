@@ -48,6 +48,7 @@ import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
 import { readAnchors, withSanitizedAnchors } from './comments/anchors.ts';
+import { type ImportedFrom, withSanitizedImportedFrom } from './comments/imported-from.ts';
 import { mentionsOf } from './comments/mentions.ts';
 import {
   applyCommentOp,
@@ -370,6 +371,8 @@ export interface Reply {
   author: string;
   body: string;
   created: string;
+  /** S8.17b — a reply written in another tool (Figma). `author` stays the person who imported it. */
+  importedFrom?: ImportedFrom;
 }
 
 export interface Comment {
@@ -407,6 +410,9 @@ export interface Comment {
   /** World point of the comment: the anchor of a floating comment, the last
    *  known place of an anchored one. Absent on legacy comments. */
   world?: { x: number; y: number };
+  /** S8.17b — the thread was written in another tool (Figma): who wrote it there, as a label.
+   *  `author` stays the person who imported it. Never a mention target (comments/imported-from.ts). */
+  importedFrom?: ImportedFrom;
 }
 
 export interface GitCommitter {
@@ -1617,7 +1623,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // boundary every consumer passes through (comments/anchors.ts — one reader for the studio and
   // the hub door): a shape that fails is dropped, the comment renders detached, never deleted.
   function backfillComment(raw: unknown): Comment {
-    const c = withSanitizedAnchors((raw ?? {}) as Partial<Comment>);
+    // S8.17b — + the Figma-writer label on the root and each reply (comments/imported-from.ts).
+    const c = withSanitizedImportedFrom(withSanitizedAnchors((raw ?? {}) as Partial<Comment>));
     return {
       ...(c as Comment),
       author: typeof c.author === 'string' ? c.author : '',
@@ -1906,7 +1913,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           entry.status = patch.status;
           entry.resolved_at = patch.status === 'resolved' ? new Date().toISOString() : null;
         }
-        if (typeof patch.text === 'string' && patch.text.trim()) {
+        // S8.17b — an imported thread's words are the Figma writer's; the importer cannot rewrite them.
+        if (typeof patch.text === 'string' && patch.text.trim() && !entry.importedFrom) {
           entry.text = patch.text.trim().slice(0, 4000);
           entry.mentions = mentionsOf(entry);
         }

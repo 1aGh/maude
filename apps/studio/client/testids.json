@@ -35689,7 +35689,7 @@
     "hook": "figma-opt-comments",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Import from Figma: \"Comments, as stickies\".",
+    "meaning": "Import from Figma: \"Comments, as comment pins\".",
     "producer": {
       "file": "apps/studio/client/v2/import/figma-sheet.jsx",
       "symbol": "FigmaSheet"

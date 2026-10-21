@@ -1172,7 +1172,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `figma-frames-all` | testid | Import from Figma: Pick all / Pick none. | `client/v2/import/frame-picker.jsx` · `FramePicker` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-frame-<id>` | testid (pattern) | Import from Figma: one frame's check (<id> = the Figma node id, non-alphanumerics as -). | `client/v2/import/frame-picker.jsx` · `FramePicker` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-dest` | testid | Import from Figma: Put them in (the folder › New canvas). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
-| `figma-opt-comments` | testid | Import from Figma: "Comments, as stickies". | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-opt-comments` | testid | Import from Figma: "Comments, as comment pins". | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-pictures-line` | testid | Import from Figma: the line saying each frame arrives as Figma's exact picture. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-renamed` | testid | Import from Figma: the line naming the "<name> (Figma)" canvas when the name was taken. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-done` | testid | Import from Figma: Done on the summary. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |

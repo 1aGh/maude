@@ -2297,6 +2297,11 @@ export function createHttp(
       announce: (rel) => {
         if (isWorkspaceMode()) ctx.bus.emit('fs:any', rel);
       },
+      // S8.17b — imported Figma comment pins are stamped `by` the importer: the vouched member in a cell,
+      // the git user on this Mac (same rule as the comments deps).
+      importer: async (req) =>
+        (isWorkspaceMode() ? req.headers.get('x-maude-user') : null)?.slice(0, 120) ||
+        (await api.gitCurrentUser()),
     },
     // S8.22 — POST /_api/import-asset (routes/assets.ts): v2 body, PSD/HEIC through the sandboxed sips, dedupe answer.
     assetImport: {

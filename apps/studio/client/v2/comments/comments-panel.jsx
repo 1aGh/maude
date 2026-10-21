@@ -296,8 +296,11 @@ export function CommentsPanel({
                         onJump?.(g.file, t.id);
                       }}
                     >
-                      <span className={`cmp-av${ai ? ' is-ai' : ''}`} aria-hidden="true">
-                        {ai ? 'AI' : initialsOf(t.author)}
+                      <span
+                        className={`cmp-av${ai ? ' is-ai' : ''}${t.importedLabel ? ' is-imported' : ''}`}
+                        aria-hidden="true"
+                      >
+                        {t.importedLabel ? '' : ai ? 'AI' : initialsOf(t.author)}
                       </span>
                       <span className="cmp-txt">
                         {on ? (
@@ -307,7 +310,7 @@ export function CommentsPanel({
                         ) : null}
                         <span className="cmp-body-t">{t.text}</span>
                         <span className="cmp-meta">
-                          {[t.time, t.replies ? repliesWord(t.replies) : null]
+                          {[t.importedLabel, t.time, t.replies ? repliesWord(t.replies) : null]
                             .filter(Boolean)
                             .join(' · ')}
                         </span>

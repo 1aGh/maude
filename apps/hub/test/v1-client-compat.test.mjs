@@ -466,6 +466,46 @@ describe('S9.7 — the comment path: a 1.9.1 desktop sees today’s answers', ()
   });
 });
 
+describe('S8.17b — a Figma comment pin: a 1.9.1 desktop reads what a Maude 2 import wrote', () => {
+  test('`importedFrom` (root and reply) and the pin anchors reach a v1 peer untouched', async () => {
+    const owner = (await (await v1Login(PORT, v1ProjectToken('owner'))).json()).token;
+    const member = (await (await v1Login(PORT, v1ProjectToken('member'))).json()).token;
+    const name = 'ws/alligators/main/ui-uniformy';
+    const pin = {
+      id: 'c_fig1',
+      file: '.design/ui/Uniformy.tsx',
+      text: 'Logo je moc male',
+      status: 'open',
+      author: 'Michal',
+      thread: [
+        {
+          id: 'r_fig1',
+          author: 'Michal',
+          body: 'Zvetsim',
+          importedFrom: {
+            source: 'figma',
+            author: { name: 'Tereza K' },
+            at: '2026-10-02T09:30:00.000Z',
+          },
+        },
+      ],
+      world: { x: 110, y: 120 },
+      artboard: 'node-2-1',
+      importedFrom: {
+        source: 'figma',
+        author: { name: 'Jonas Novak' },
+        at: '2026-10-02T08:00:00.000Z',
+      },
+    };
+    await v1YjsSession(PORT, owner, name, (doc) => doc.getArray('comments').push([pin]));
+    const seen = await v1YjsSession(PORT, member, name, (doc) =>
+      doc.getArray('comments').toArray()
+    );
+    assert.equal(seen.length, 1);
+    assert.deepEqual(seen[0], pin);
+  });
+});
+
 // ------------------------------------------------------------------- S9.13
 
 describe('S9.13 — hub-held votes: a 1.9.1 desktop sees today’s answers', () => {
