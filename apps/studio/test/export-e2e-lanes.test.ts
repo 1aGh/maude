@@ -183,6 +183,11 @@ async function openExportDialog(port: number) {
   const ctx = await browser.newContext({
     viewport: { width: 1400, height: 900 },
     acceptDownloads: true,
+    // gate-b-c4 — what the hub proxy injects on every request a member makes (studio-proxy.mjs
+    // upstreamHeaders): the vouched member is the subject the cell mints its frame key for, and a
+    // cell without one hands out no key, so the canvas iframe would open frame-less and render
+    // nothing.
+    extraHTTPHeaders: { 'x-maude-user': 'e2e@example.com' },
   });
   const page = await ctx.newPage();
   await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
@@ -223,7 +228,13 @@ async function openExportDialog(port: number) {
         /* still building — the first load transpiles the canvas */
       }
     }
-    if (Date.now() > deadline) throw new Error('artboard never mounted in the canvas iframe');
+    if (Date.now() > deadline)
+      throw new Error(
+        `artboard never mounted in the canvas iframe (frames: ${page
+          .frames()
+          .map((f) => f.url().replace(/fc=[^&]+/, 'fc=<cap>'))
+          .join(' | ')})`
+      );
     await Bun.sleep(250);
   }
   // S8.2: "this artboard" is the sheet's `selection` scope, off while nothing is selected ("Nothing is

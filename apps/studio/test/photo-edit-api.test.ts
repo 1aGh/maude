@@ -204,13 +204,7 @@ describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)
     );
   });
 
-  // OPEN (gate-b-c4b, handed to the lead): under the frame capability every canvas frame is a
-  // canvas-only session, and a canvas-only session may not write the every-use sidecar of a photo
-  // (S8.15: it writes per-use edits), nor may the bg-remove harness frame (`_photo/…`, outside
-  // every closure) even read the photo it processes. The harness's PUT is the one every-use
-  // canvas-origin write, so `maude design photo-bg-remove` cannot save its matte. `failing` until
-  // the lead picks the harness's frame rule; flip to `test` then.
-  test.failing('canvas origin: PUT succeeds (no sameOriginWrite block — the headless harness needs this)', async () => {
+  test('canvas origin: PUT succeeds (no sameOriginWrite block — the headless harness needs this)', async () => {
     await withServer(
       async (port, designRoot) => {
         const canvas = await readCanvasOrigin(designRoot);
@@ -226,7 +220,11 @@ describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)
       { MAUDE_CANVAS_ORIGIN_SPLIT: '1' }
     );
   });
-  // OPEN — see above.
+  // OPEN (gate-b-c4b, handed to the lead): the bg-remove harness frame (`_photo/…`, a first-segment
+  // runtime dir, outside every closure) cannot even read the photo it processes, nor write its
+  // every-use sidecar (the canvases using the photo are not in its frame), so `maude design
+  // photo-bg-remove` cannot save its matte under the frame capability. `failing` until the lead
+  // picks the harness's frame rule; flip to `test` then.
   test.failing('the bg-remove harness frame (main-origin redirect) may PUT the sidecar of a photo a canvas uses', async () => {
     // gate-b-c4 — the real headless path: photo-bg-remove.sh opens the harness through the main
     // origin, whose 307 carries the frame capability; the harness PUTs the matte's PhotoEdit.
