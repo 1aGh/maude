@@ -210,6 +210,30 @@ describe('Only this use changes', () => {
     );
   });
 
+  test('the open canvas in the shell form (.design/ui/score.tsx) is not counted as another canvas', async () => {
+    await mount({ el: { ...el(), file: '.design/ui/score.tsx' } });
+    expect($('photo-scope-line')?.textContent).toBe(
+      'abcdef12.jpg is in 2 more canvases — they keep the original. Reset brings this one back too.'
+    );
+    await click('photo-every-use-open');
+    const rows = [...host.querySelectorAll<HTMLElement>('[data-testid="photo-every-use-row"]')];
+    expect(rows.map((r) => r.dataset.canvas)).toEqual(['ui/web.tsx', 'ui/recap.tsx']);
+  });
+
+  test('a picture used in one other canvas says "1 more canvas" from the shell form', async () => {
+    answer = { ...answer, uses: answer.uses.slice(0, 2) };
+    await mount({ el: { ...el(), file: '.design/ui/score.tsx' } });
+    expect($('photo-scope-line')?.textContent).toBe(
+      'abcdef12.jpg is in 1 more canvas — they keep the original. Reset brings this one back too.'
+    );
+  });
+
+  test('a custom design root is honoured', async () => {
+    answer = { ...answer, uses: answer.uses.slice(0, 2) };
+    await mount({ el: { ...el(), file: 'docs/design/ui/score.tsx' }, designRel: 'docs/design' });
+    expect($('photo-scope-line')?.textContent).toContain('is in 1 more canvas —');
+  });
+
   test('the sheet names each other canvas and applies through the server', async () => {
     const { previews } = await mount();
     await click('photo-every-use-open');
