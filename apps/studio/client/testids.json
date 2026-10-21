@@ -10830,6 +10830,36 @@
     "v2": "new"
   },
   {
+    "hook": "invite-sheet-join",
+    "kind": "testid",
+    "meaning": "Join, on the invite sheet in `join` mode (the invite's address is signed in on this Mac): the one explicit accept — a `maude://invite` link never accepts by itself (gate-b-sec3 M2).",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-account",
+    "kind": "testid",
+    "meaning": "In `join` mode: the account that joins (its face and address), so the person sees which account the invite lands in before pressing Join.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "home-create-cancel",
     "kind": "testid",
     "meaning": "Cancel in the New project sheet (Escape and the scrim answer the same).",
