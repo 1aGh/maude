@@ -529,6 +529,12 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         command = command.env(k, v);
     }
 
+    // gate-b-sec4 — the hub the app itself bound this folder to (a managed copy), so the studio
+    // honours that link without asking. A committed `linkedHub` is never this (sync/link-consent.ts).
+    if let Some(hub) = crate::app_state::app_bound_hub(app, &project_root) {
+        command = command.env("MAUDE_APP_BOUND_HUB", hub);
+    }
+
     // Loopback GitHub-token bridge (DDR-108): the dev-server's /_api/github/*
     // endpoints fetch the keychain token from this endpoint at request time. The
     // key is minted FOR THIS SPAWN and maps to this project's profile only — it

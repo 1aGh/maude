@@ -380,5 +380,8 @@ export function shareApi(fetchImpl = (...a) => fetch(...a)) {
     githubInvite: (username) => go('POST', '/_api/github/invite', { username }),
     // S9.20b — "Last synced": the sync runtime's own status (project class; absent = no line)
     syncStatus: () => go('GET', '/_sync-status'),
+    // gate-b-sec4 — the folder names a hub this Mac never linked: its host, and Connect
+    pendingLink: () => go('GET', '/_api/sync/link'),
+    confirmLink: () => go('POST', '/_api/sync/link/confirm', {}),
   };
 }

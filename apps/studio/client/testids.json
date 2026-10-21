@@ -5304,6 +5304,36 @@
     "notes": "Also produced by client/v2/share/move-to-cloud.jsx · MoveToCloud (S9.20)."
   },
   {
+    "hook": "share-link-unconfirmed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "gate-b-sec4: the folder's committed linkedHub was never linked on this Mac — \u201cThis project says it syncs with <host>. Connect?\u201d",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/v2-share-link-unconfirmed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "gate-b-sec4: Connect — records the link on this Mac (POST /_api/sync/link/confirm) and starts syncing.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/v2-share-link-unconfirmed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "share-unreachable",
     "kind": "testid",
     "pattern": false,

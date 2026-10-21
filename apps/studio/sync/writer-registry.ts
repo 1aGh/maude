@@ -523,6 +523,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/cancel-assets': { class: 'local' },
   '/_api/sync/ownership': { class: 'local' },
   '/_api/sync/resync': { class: 'local', rows: 'X16' },
+  // gate-b-sec4 — Connect a committed link this Mac never made: a per-Mac record + a sync restart
+  '/_api/sync/link': { class: 'read' },
+  '/_api/sync/link/confirm': { class: 'local', rows: 'X16' },
   // S11.17 — Retry lands the canvas writes a full disk held; each then travels like any studio write
   '/_api/diagnostics/disk-retry': { class: 'local' },
   '/_api/diagnostics/disk': { class: 'read' },

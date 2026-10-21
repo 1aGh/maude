@@ -117,6 +117,8 @@ export function ShareSheet({
   // S9.20b — "New people join as" (this browser, per project) and "Last synced" (the sync runtime)
   const [joinAs, setJoinAs] = useState(null);
   const [lastSynced, setLastSynced] = useState(null);
+  // gate-b-sec4 — `{ host }` while the folder's committed link waits for this Mac's Connect
+  const [pendingLink, setPendingLink] = useState(null);
   const emailRef = useRef(null);
   const sheetRef = useModalFocus({ onClose });
 
@@ -144,6 +146,31 @@ export function ShareSheet({
       live = false;
     };
   }, [api, postureAsk]);
+
+  // gate-b-sec4 — a local-looking project may be one whose folder names a hub this Mac never linked.
+  const unlinkedHere = !!posture && !view.linked;
+  useEffect(() => {
+    if (!unlinkedHere || typeof api.pendingLink !== 'function') return undefined;
+    let live = true;
+    api.pendingLink().then((r) => {
+      const host = r?.ok ? r.body?.pending?.host : null;
+      if (live) setPendingLink(typeof host === 'string' && host ? { host } : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, unlinkedHere]);
+
+  const connectLink = () =>
+    run(async () => {
+      const r = await api.confirmLink();
+      if (!r.ok || r.body?.ok === false) {
+        setError(r.body?.detail || r.body?.message || 'Could not connect. Try again in a minute.');
+        return;
+      }
+      setPendingLink(null);
+      setPostureAsk((n) => n + 1);
+    });
 
   // "Last synced" — read once the project is known to sync somewhere; no answer, no line.
   const linkedHere = view.linked;
@@ -317,7 +344,7 @@ export function ShareSheet({
       }
     });
   const adv = advancedView({ view, shell, hubUrl: posture?.hub });
-  const offerMove = posture && !view.linked && shell === 'native' && !moving;
+  const offerMove = posture && !view.linked && shell === 'native' && !moving && !pendingLink;
 
   const rows = peopleRows(people, { youEmail, now });
   return (
@@ -361,7 +388,23 @@ export function ShareSheet({
             {movingWords(moving.state)}
           </p>
         )}
-        {posture && !view.linked && !offerMove && !moving && (
+        {posture && !view.linked && pendingLink && (
+          <div className="v2sh-arow v2sh-arow--stack" data-testid="share-link-unconfirmed">
+            <p className="v2sh-hint">
+              This project says it syncs with {pendingLink.host}. Connect?
+            </p>
+            <button
+              type="button"
+              className="btn btn--primary"
+              data-testid="share-link-connect"
+              disabled={busy}
+              onClick={() => void connectLink()}
+            >
+              Connect
+            </button>
+          </div>
+        )}
+        {posture && !view.linked && !offerMove && !moving && !pendingLink && (
           <p className="v2sh-hint" data-testid="share-local-note">
             Local project — kept on this Mac. Invite people once it is in the cloud.
           </p>

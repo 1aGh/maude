@@ -241,6 +241,7 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // S11.11 — `sync.resync`: Resync now re-compares every file with the cloud copy and sends what is newer
   // here, so it is an edit (routes/sync.ts is `readOnly: 'refused'`; the cloud cell refuses it outright).
   { method: 'POST', route: '/_api/sync/resync', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/sync/link/confirm', refused: ['view', 'comment'] },
   // S11.17 — `save.retry-held`: Retry writes the canvas files a full disk held (`readOnly: 'refused'`).
   { method: 'POST', route: '/_api/diagnostics/disk-retry', refused: ['view', 'comment'] },
   // S11.12 — Sync details: a held source conflict's picks (Keep both writes a new canvas), the

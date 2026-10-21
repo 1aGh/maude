@@ -331,6 +331,9 @@ const PROJECT = [
   '/_api/shell-shot',
   '/_api/sync/offline',
   '/_api/sync/resync',
+  // gate-b-sec4 — the parked committed link: its host, and Connect
+  '/_api/sync/link',
+  '/_api/sync/link/confirm',
   '/_api/diagnostics/disk-retry',
   '/_api/sync/cancel-assets',
   '/_api/fs-move',

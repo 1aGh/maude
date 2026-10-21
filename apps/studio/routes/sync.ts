@@ -19,6 +19,9 @@
 // full re-link. Refusals answer in JSON with a reason (`refuse` below), because the panel renders
 // `detail` and a causeless "Resync could not start." sent people to a terminal they do not have.
 
+import { currentAccess } from '../access/request.ts';
+import type { Access } from '../access/scope.ts';
+import type { LinkGate } from '../sync/link-consent.ts';
 import type { ResyncTrace } from '../sync/resync-trace.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -33,6 +36,13 @@ export interface SyncRouteDeps {
   control: () => SyncControlLike | null | undefined;
   trace: ResyncTrace;
   warn?: (message: string) => void;
+  /**
+   * gate-b-sec4 — the parked committed link (sync/link-consent.ts `createLinkGate`). Absent = the
+   * link routes answer "nothing waiting".
+   */
+  link?: LinkGate;
+  /** This request's session (default `currentAccess()`). */
+  access?: () => Access;
 }
 
 const json = (status: number, body: unknown) =>
@@ -57,7 +67,58 @@ export function resyncRefusal(
 }
 
 export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
+  const access = () => (deps.access ?? currentAccess)();
   return [
+    // gate-b-sec4 (M1) — a committed `linkedHub` this Mac never linked waits here; the Share sheet
+    // asks "This project says it syncs with <host>. Connect?". MAIN ORIGIN ONLY: a canvas never
+    // learns the address and never presses Connect. The answer is the host, nothing else.
+    {
+      method: 'GET',
+      path: '/_api/sync/link',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async () => json(200, { pending: deps.link?.pending() ?? null }),
+    },
+    // Connect: record on THIS Mac that the folder's hub may receive this Mac's credential, then
+    // start syncing with exactly the parked value. Can edit and up (like Resync); a person's
+    // consent, so no agent path (human 'hub-link').
+    {
+      method: 'POST',
+      path: '/_api/sync/link/confirm',
+      origin: 'main',
+      readOnly: 'refused',
+      refuse: (reason) => {
+        (deps.warn ?? ((m: string) => console.warn(m)))(
+          `[sync] ${reason} request to the link Connect route — refused.`
+        );
+        return json(403, {
+          ok: false,
+          reason,
+          detail:
+            reason === 'cross-origin'
+              ? 'Connect from Maude itself, not from inside a canvas.'
+              : "Connect from the Maude app or this machine's own browser tab.",
+        });
+      },
+      async handle() {
+        if (!access().can('edit', null)) {
+          return json(403, {
+            error: 'read-only',
+            reason: 'not-allowed',
+            message: 'Ask the owner to change this.',
+          });
+        }
+        if (!deps.link) {
+          return json(409, {
+            ok: false,
+            reason: 'nothing-pending',
+            detail: 'This project has no link waiting.',
+          });
+        }
+        const r = await deps.link.confirm();
+        return json(r.ok ? 200 : r.reason === 'nothing-pending' ? 409 : 500, r);
+      },
+    },
     {
       method: 'POST',
       path: '/_api/sync/resync',

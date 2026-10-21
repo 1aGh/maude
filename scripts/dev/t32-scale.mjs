@@ -929,6 +929,8 @@ async function startStudio(who, root) {
     cleanEnv({
       ...isolatedHome(`client-${who}`),
       HUBS_CONFIG_PATH: hubsConfig(who),
+      // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+      MAUDE_APP_BOUND_HUB: HUB_URL,
       MAUDE_PROJECT_ROOT: root,
       CLAUDE_PROJECT_DIR: root,
       MAUDE_NO_AUTOBUILD: '1',
