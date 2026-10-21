@@ -229,8 +229,19 @@ export async function bootGateCell(
   put(A_REL, `${A_SRC}// edit\n`);
   put(B_COPY_REL, B_SRC); // trashed by the owner below
 
+  // gate-b-u7: `/_api/preflight` (and every route that reads the sign-in state) spawns the
+  // machine's real `claude auth status` under a 5 s deadline, so on a busy machine the same
+  // request answered "Installed, but not signed in." in one boot and "couldn't read its
+  // sign-in state" in the other (acl-u7-parity red, lane runs only). The fixture pins the CLI:
+  // a stub first on PATH that answers a signed-out status at once, the same in every boot.
+  const stubBin = join(home, 'bin');
+  mkdirSync(stubBin, { recursive: true });
+  writeFileSync(join(stubBin, 'claude'), `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
+
   const port = nextPort();
   const proc = await spawnStudio(root, port, {
+    PATH: `${stubBin}:${process.env.PATH ?? ''}`,
+    MAUDE_CLAUDE_BIN: '',
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
     HUBS_CONFIG_PATH: hubsPath,
