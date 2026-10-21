@@ -24,7 +24,7 @@
 // pass because the render service quietly did the work instead.
 
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -172,6 +172,9 @@ interface PwDownload {
  * Open the studio, open a canvas, and open the Export dialog.
  * Returns the page plus a `download(format)` driver.
  */
+/** gate-b-c4 — the member the e2e plays (the hub proxy would vouch it on every request). */
+const E2E_USER = 'e2e@example.com';
+
 async function openExportDialog(port: number) {
   const { launchChromium } = (await import('../bin/_pw-launch.mjs')) as {
     launchChromium: () => Promise<{
@@ -187,7 +190,7 @@ async function openExportDialog(port: number) {
     // upstreamHeaders): the vouched member is the subject the cell mints its frame key for, and a
     // cell without one hands out no key, so the canvas iframe would open frame-less and render
     // nothing.
-    extraHTTPHeaders: { 'x-maude-user': 'e2e@example.com' },
+    extraHTTPHeaders: { 'x-maude-user': E2E_USER },
   });
   const page = await ctx.newPage();
   await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
@@ -570,11 +573,42 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
       const studioPort = nextPort();
       const renderPort = nextPort();
       const secret = 'e2e-render-secret';
+      // gate-b-c4 — a cell's PUBLIC canvas origin is the hub's studio proxy, which vouches the
+      // member on every request (`x-maude-user` — for the render worker, its render token's
+      // subject: the member the job's frame capability was minted for). This stand-in is that
+      // proxy: it strips any inbound `x-maude-*`, injects the member, and forwards to the cell's
+      // loopback canvas listener (its port from `_server.json`).
+      const vouch = Bun.serve({
+        hostname: '127.0.0.1',
+        port: 0,
+        fetch: async (req) => {
+          const info = JSON.parse(readFileSync(join(box.designRoot, '_server.json'), 'utf8')) as {
+            canvasPort?: number;
+          };
+          const u = new URL(req.url);
+          const headers = new Headers(req.headers);
+          for (const k of [...headers.keys()]) if (k.startsWith('x-maude-')) headers.delete(k);
+          headers.set('x-maude-user', E2E_USER);
+          headers.delete('host');
+          const r = await fetch(`http://localhost:${info.canvasPort}${u.pathname}${u.search}`, {
+            method: req.method,
+            headers,
+            body:
+              req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer(),
+            redirect: 'manual',
+          });
+          const out = new Headers(r.headers);
+          out.delete('content-encoding');
+          out.delete('content-length');
+          return new Response(r.body, { status: r.status, headers: out });
+        },
+      });
       const proc = await bootServer(box.root, studioPort, {
         MAUDE_WORKSPACE_MODE: '1',
         MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
         MAUDE_RENDER_URL: `http://127.0.0.1:${renderPort}`,
         MAUDE_RENDER_SECRET: secret,
+        MAUDE_PUBLIC_CANVAS_ORIGIN: `http://localhost:${vouch.port}`,
       });
       // Tee the STUDIO's stderr too — a video job can render in-process here
       // (when the lane resolves local, or a remote dispatch degrades), and its
@@ -729,6 +763,8 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
               headers: {
                 'content-type': 'application/json',
                 origin: `http://localhost:${studioPort}`,
+                // the member the hub proxy vouches (gate-b-c4: the job's frame key subject)
+                'x-maude-user': E2E_USER,
               },
               body: JSON.stringify({
                 format,
@@ -920,6 +956,7 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
           new Promise((r) => setTimeout(r, 10_000)),
         ]);
         render?.kill();
+        vouch.stop(true);
         killProc(proc);
         console.error('[worker-lane] teardown complete');
       }
