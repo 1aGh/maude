@@ -52,12 +52,12 @@ export function canvasOnlyToken(dataDir, label, grants) {
 }
 
 /** Boot a workspace hub over the fixture; returns { http, tokens, designRoot, dataDir, stop }. */
-export async function bootAclHub(prefix) {
+export async function bootAclHub(prefix, { files } = {}) {
   resetFileAccessCaches();
   const dataDir = mkdtempSync(join(tmpdir(), `${prefix}-data-`));
   const repoDir = mkdtempSync(join(tmpdir(), `${prefix}-repo-`));
   const designRoot = join(repoDir, '.design');
-  writeProject(designRoot);
+  writeProject(designRoot, files ?? PROJECT);
   const saved = {
     HUB_WORKSPACE_MODE: process.env.HUB_WORKSPACE_MODE,
     MAUDE_STUDIO_CHILD: process.env.MAUDE_STUDIO_CHILD,
