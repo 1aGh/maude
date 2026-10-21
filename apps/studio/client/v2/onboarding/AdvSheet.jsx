@@ -4,9 +4,14 @@
 // (the canvas's note 15: "Advanced language is allowed here, and only here").
 
 import { useEffect, useId } from 'react';
+import { useModalFocus } from '../shell/modal-focus.js';
 
 /** A scrim behind one sheet; a click on it or Esc is Cancel. */
 export function AdvModal({ onCancel, children }) {
+  // gate-b-a11y: focus lands inside on open, Tab is trapped (the sheets are aria-modal), and focus goes back
+  // to the opener — or the shell's fallback — on close. Esc stays this component's (it cancels), so the
+  // hook's own esc is off.
+  const root = useModalFocus({ onClose: onCancel, esc: false });
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
@@ -17,7 +22,7 @@ export function AdvModal({ onCancel, children }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onCancel]);
   return (
-    <div className="home-link-modal ob-modal">
+    <div ref={root} tabIndex={-1} className="home-link-modal ob-modal">
       <div className="home-link-scrim" aria-hidden="true" onClick={onCancel} />
       {children}
     </div>
@@ -53,41 +58,48 @@ export function AdvSheet({
   children,
 }) {
   const titleId = useId();
+  // gate-b-a11y: the dialog is a <div> around the form (`role=dialog` is not allowed on a <form> — axe
+  // aria-allowed-role). Its focus lifetime is AdvModal's (one place for all five Advanced doors).
   return (
-    <form
-      className="ai-conn-sheet ob-sheet"
-      style={{ width, maxWidth: '100%' }}
+    <div
+      className="ob-dialog"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      data-testid={`onb-${id}`}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canSubmit && !busy) onSubmit?.();
-      }}
+      style={{ maxWidth: '100%' }}
     >
-      <h2 className="ai-conn-t" id={titleId}>
-        {title}
-      </h2>
-      <div className="ai-conn-b ob-sheet-b">{children}</div>
-      <div className="ai-conn-a">
-        <button
-          type="button"
-          className="btn btn--sm"
-          data-testid={`onb-${id}-cancel`}
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="btn btn--sm btn--primary"
-          data-testid={`onb-${id}-go`}
-          disabled={!canSubmit || busy || !onSubmit}
-        >
-          {busy && busyVerb ? busyVerb : verb}
-        </button>
-      </div>
-    </form>
+      <form
+        className="ai-conn-sheet ob-sheet"
+        style={{ width, maxWidth: '100%' }}
+        data-testid={`onb-${id}`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSubmit && !busy) onSubmit?.();
+        }}
+      >
+        <h2 className="ai-conn-t" id={titleId}>
+          {title}
+        </h2>
+        <div className="ai-conn-b ob-sheet-b">{children}</div>
+        <div className="ai-conn-a">
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid={`onb-${id}-cancel`}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn--sm btn--primary"
+            data-testid={`onb-${id}-go`}
+            disabled={!canSubmit || busy || !onSubmit}
+          >
+            {busy && busyVerb ? busyVerb : verb}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

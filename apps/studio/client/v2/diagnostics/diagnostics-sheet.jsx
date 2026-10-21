@@ -156,7 +156,9 @@ function LogsView({ data, error, onRefresh, onCopyLogs, onReveal }) {
           {data ? 'No lines yet.' : 'Reading the logs…'}
         </p>
       ) : (
-        <ol className="dg-lines" data-testid="diag-logs-lines" aria-label="Log lines">
+        // gate-b-a11y: a scrolling list is a tab stop (WCAG 2.1.1 — axe scrollable-region-focusable)
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: the scroller must be keyboard-reachable
+        <ol className="dg-lines" data-testid="diag-logs-lines" aria-label="Log lines" tabIndex={0}>
           {lines.map((l, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: a log tail has no identity but position
             <li key={i} className="dg-line" data-source={l.source} data-level={l.level}>

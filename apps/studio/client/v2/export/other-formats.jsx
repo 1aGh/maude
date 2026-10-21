@@ -74,12 +74,9 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
       </button>
       {open ? (
         // biome-ignore lint/a11y/noStaticElementInteractions: the menu handles ↑ ↓ esc for its rows
-        <div
-          className="ex-other-menu island"
-          role="menu"
-          data-testid="export-other-menu"
-          onKeyDown={onKey}
-        >
+        // gate-b-a11y B-ex: the search box is NOT a child of `role=menu` (axe aria-required-children) — the
+        // popover is a plain container; only the format rows live in the menu.
+        <div className="ex-other-menu island" data-testid="export-other-menu" onKeyDown={onKey}>
           <input
             ref={search}
             type="search"
@@ -104,29 +101,33 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
               {OTHER_NONE}
             </p>
           ) : (
-            shown.map(({ group, items }) => (
-              <div key={group} className="ex-other-grp" role="group" aria-label={group}>
-                <p className="ex-other-gh">{group}</p>
-                {items.map((it) => (
-                  // biome-ignore lint/a11y/useSemanticElements: a menu row with a checked state
-                  <button
-                    key={it.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={!it.handoff && !it.needs && it.format === format}
-                    aria-disabled={it.disabled ? true : undefined}
-                    className="ex-other-row"
-                    data-testid={`export-format-${it.id}`}
-                    data-reason={it.reason ?? undefined}
-                    onClick={() => pick(it)}
-                  >
-                    <span className="ex-other-l">{it.label}</span>
-                    {it.keys ? <kbd className="ex-kbd">{it.keys}</kbd> : null}
-                    <small className="ex-other-n">{it.note}</small>
-                  </button>
-                ))}
-              </div>
-            ))
+            <div role="menu" aria-label={OTHER_LABEL} className="ex-other-list">
+              {shown.map(({ group, items }) => (
+                <div key={group} className="ex-other-grp" role="group" aria-label={group}>
+                  <p className="ex-other-gh" aria-hidden="true">
+                    {group}
+                  </p>
+                  {items.map((it) => (
+                    // biome-ignore lint/a11y/useSemanticElements: a menu row with a checked state
+                    <button
+                      key={it.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={!it.handoff && !it.needs && it.format === format}
+                      aria-disabled={it.disabled ? true : undefined}
+                      className="ex-other-row"
+                      data-testid={`export-format-${it.id}`}
+                      data-reason={it.reason ?? undefined}
+                      onClick={() => pick(it)}
+                    >
+                      <span className="ex-other-l">{it.label}</span>
+                      {it.keys ? <kbd className="ex-kbd">{it.keys}</kbd> : null}
+                      <small className="ex-other-n">{it.note}</small>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       ) : null}

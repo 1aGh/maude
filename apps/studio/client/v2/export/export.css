@@ -229,6 +229,11 @@
     background: var(--bg-1);
     box-shadow: var(--shadow-md);
   }
+  .ex-other-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
   .ex-other-search {
     width: 100%;
     height: 28px;

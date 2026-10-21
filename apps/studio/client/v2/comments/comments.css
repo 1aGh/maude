@@ -78,6 +78,7 @@
   .cmp-seg-b:focus-visible,
   .cmp-act:focus-visible,
   .cmp-row:focus-visible,
+  .cmp-open:focus-visible,
   .cmp-group-hd:focus-visible,
   .cmp-x:focus-visible {
     outline: 2px solid var(--accent);
@@ -129,6 +130,24 @@
     border-radius: var(--radius-md);
     cursor: pointer;
     color: var(--fg-0);
+  }
+  /* gate-b-a11y: the real button inside the row — avatar + words, the keyboard's way into a thread */
+  .cmp-open {
+    appearance: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
   }
   .cmp-row:hover {
     background: var(--bg-3);

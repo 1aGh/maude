@@ -264,6 +264,7 @@ export function AssetPlaceholderLayer() {
       {createPortal(
         <div className="dc-absent-layer" data-testid="asset-frames">
           {frames.map((f) => (
+            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is `group` or `img` (both take a name)
             <div
               key={f.key}
               ref={(el) => {
@@ -274,7 +275,8 @@ export function AssetPlaceholderLayer() {
               data-testid="asset-frame"
               data-rel={f.rel}
               data-state={f.words.state}
-              role="img"
+              // gate-b-a11y: `img` cannot hold the Relink… button (axe nested-interactive) — a labelled group can
+              role={f.words.relink ? 'group' : 'img'}
               aria-label={`${baseName(f.rel)} · ${f.words.line}`}
             >
               <span className="dc-absent-in">
