@@ -578,7 +578,8 @@ export function CanvasesPanel({
         <div
           ref={treeRef}
           className="st-tree cv-tree"
-          role="tree"
+          // a tree with no treeitem fails axe aria-required-children: a project with no canvases is a labelled group
+          role={emptyProject ? 'group' : 'tree'}
           aria-label="Project file tree"
           data-testid="canvas-list"
           data-rows={rows.length}

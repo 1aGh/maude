@@ -12,6 +12,15 @@ export function AdvModal({ onCancel, children }) {
   // to the opener — or the shell's fallback — on close. Esc stays this component's (it cancels), so the
   // hook's own esc is off.
   const root = useModalFocus({ onClose: onCancel, esc: false });
+  // A sheet that focuses nothing of its own (the hub sheet does) gets its first control, so a screen reader is
+  // inside the dialog rather than on the scrim's wrapper.
+  useEffect(() => {
+    const at = root.current;
+    if (at && document.activeElement === at)
+      at.querySelector(
+        '[role="dialog"] input, [role="dialog"] select, [role="dialog"] textarea, [role="dialog"] button:not([disabled])'
+      )?.focus();
+  }, [root]);
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return;

@@ -165,7 +165,8 @@ describe('aria-allowed-role + focus (the onboarding Advanced sheets)', () => {
     expect(dialog.tagName).toBe('DIV');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(el.querySelector('form[data-testid="onb-hub"]')?.getAttribute('role')).toBeNull();
-    expect(el.contains(document.activeElement)).toBe(true);
+    // focus is on a control INSIDE the dialog (not the scrim's wrapper) as soon as the sheet opens
+    expect(dialog.contains(document.activeElement)).toBe(true);
     // Tab from the last control wraps to the first instead of leaving for the page behind
     const last = el.querySelector('[data-testid="onb-hub-cancel"]') as HTMLElement;
     last.focus();
@@ -195,7 +196,9 @@ describe('scrollable-region-focusable + nested-interactive (source pins)', () =>
   });
   test('the empty project\'s "New canvas" button sits beside role=tree, not in it', () => {
     const src = read('../client/v2/canvases/canvases-panel.jsx');
-    const tree = src.indexOf('role="tree"');
+    // an empty project is a labelled group (a tree needs a treeitem); the New canvas button is outside it
+    expect(src).toContain("role={emptyProject ? 'group' : 'tree'}");
+    const tree = src.indexOf("role={emptyProject ? 'group' : 'tree'}");
     const none = src.indexOf('<PanelNoCanvases');
     const treeEnd = src.indexOf('</div>\n        {/* gate-b-a11y: the "New canvas" button', tree);
     expect(tree).toBeGreaterThan(0);
