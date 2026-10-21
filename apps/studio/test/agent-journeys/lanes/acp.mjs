@@ -53,9 +53,43 @@ const textOf = (content) =>
     .filter(Boolean)
     .join('\n');
 
+/**
+ * Log each tool call once, with its input. The adapter announces a call (`tool_call`) with an EMPTY
+ * rawInput and sends the real input (the command, the path) in the first `tool_call_update` after
+ * it: logging at the announcement writes `{}` and hides every command from the tool-used / no-tool
+ * graders. `see(update)` per ACP update; `flush()` at the end logs the calls that never showed an input.
+ */
+export function toolLog(trialDir) {
+  const names = new Map();
+  const pending = new Set();
+  return {
+    names,
+    see(u) {
+      if (u?.sessionUpdate === 'tool_call') {
+        names.set(u.toolCallId, u._meta?.claudeCode?.toolName ?? u.kind ?? u.title ?? '?');
+        pending.add(u.toolCallId);
+      }
+      if (
+        (u?.sessionUpdate === 'tool_call' || u?.sessionUpdate === 'tool_call_update') &&
+        pending.has(u.toolCallId) &&
+        u.rawInput &&
+        Object.keys(u.rawInput).length
+      ) {
+        pending.delete(u.toolCallId);
+        logTool(trialDir, 'acp', names.get(u.toolCallId) ?? '?', u.rawInput);
+      }
+    },
+    flush() {
+      for (const id of pending) logTool(trialDir, 'acp', names.get(id) ?? '?', {});
+      pending.clear();
+    },
+  };
+}
+
 /** Run the plan. `process.env` must already carry the harness env (PATH shim, NO_OPEN, …). */
 export async function runAcp(plan, project, trialDir, { timeoutMin = 20 } = {}) {
-  const names = new Map();
+  const tools = toolLog(trialDir);
+  const names = tools.names;
   const log = (v) => appendFileSync(join(trialDir, 'transcript.jsonl'), `${JSON.stringify(v)}\n`);
   let bridge = null;
   bridge = new AcpBridge({
@@ -65,11 +99,7 @@ export async function runAcp(plan, project, trialDir, { timeoutMin = 20 } = {}) 
     plugins: plan.plugins,
     onUpdate: (u) => {
       log({ t: 'update', u });
-      if (u?.sessionUpdate === 'tool_call') {
-        const name = u._meta?.claudeCode?.toolName ?? u.kind ?? u.title ?? '?';
-        names.set(u.toolCallId, name);
-        logTool(trialDir, 'acp', name, u.rawInput ?? {});
-      }
+      tools.see(u);
       if (u?.sessionUpdate === 'tool_call_update' && u.status === 'failed')
         logDenyIfAny(
           trialDir,
@@ -105,6 +135,7 @@ export async function runAcp(plan, project, trialDir, { timeoutMin = 20 } = {}) 
       }
     }
   } finally {
+    tools.flush();
     await bridge.stop();
   }
   return turns;

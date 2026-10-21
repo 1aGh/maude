@@ -58,7 +58,8 @@ test('allow entries are verbs only; a malformed list fails the journey shape', (
 
 test('the four journeys name their verbs; the lanes carry exactly that list', () => {
   const js = Object.fromEntries(loadJourneys('all').map((j) => [j.id, j]));
-  expect(js.S1.allow).toEqual(['maude design history restore']);
+  // curl-local: create / rename / trash a canvas are the studio's own routes, reached through it (S12.16 live)
+  expect(js.S1.allow).toEqual(['maude design history restore', 'maude design curl-local']);
   expect(js.S9.allow).toEqual(['maude design comments reply', 'maude design comments resolve']);
   expect(js.S10.allow).toEqual(['maude design ds pending', 'maude design ds publish']);
   expect(js.S8.allow).toEqual(['maude design export']);
@@ -75,7 +76,10 @@ test('the four journeys name their verbs; the lanes carry exactly that list', ()
     ]);
     expect(planAcp(j, { project: '/p' }).allow, j.id).toEqual(j.allow ?? []);
   }
-  expect(allowRules(js.S1)).toEqual(['Bash(maude design history restore:*)']);
+  expect(allowRules(js.S1)).toEqual([
+    'Bash(maude design history restore:*)',
+    'Bash(maude design curl-local:*)',
+  ]);
 });
 
 test('S9: the comments grader wants the reply to say what changed', () => {
