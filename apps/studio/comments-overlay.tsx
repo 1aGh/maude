@@ -1373,7 +1373,7 @@ function CommentPin({
 // pragmatic kind: position is computed once on open against the world layout,
 // not chased on pan/zoom — the user is actively typing.
 
-function CommentComposer({
+export function CommentComposer({
   state,
   busy = false,
   onSubmit,
@@ -1435,17 +1435,12 @@ function CommentComposer({
     [onCancel, trySubmit]
   );
 
-  // Compact selector hint — strip noisy structural bits so the head stays
-  // tight inside the 300px card.
-  const selectorChip = useMemo(() => {
-    const s = state.selection.selector || '';
-    if (!s) return state.selection.tag || (state.selection.annotationId ? 'annotation' : 'canvas');
-    // [data-cd-id="…"] → cd:<id> · keeps the chip readable when stable ids
-    // are present.
-    const cd = s.match(/data-cd-id="([^"]+)"/);
-    if (cd) return `cd:${cd[1]}`;
-    return s.length > 36 ? `${s.slice(0, 33)}…` : s;
-  }, [state.selection]);
+  // gate-b-polish3 (10 · co-comment-thread) — the header says WHERE, in words: the artboard's label, else the
+  // element's name, else the canvas. Never a raw id (the v1 head showed "cd:566b4b33").
+  const where = useMemo(
+    () => placeWords({ artboard: state.anchors?.artboard, selector: state.selection.selector }),
+    [state.anchors, state.selection]
+  );
 
   // "at 0:12" / "14 mm from the left · 2 mm above the trim": where it will be pinned, said before it is.
   const placedChip = useMemo(() => {
@@ -1464,36 +1459,81 @@ function CommentComposer({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="cm-composer__head">
-        <span>New comment</span>
-        <span className="cm-composer__selector" data-testid="comment-composer-where">
-          {placedChip ?? selectorChip}
+        <span
+          className="cm-composer__where"
+          data-testid={placedChip ? 'comment-composer-place' : 'comment-composer-where'}
+        >
+          {where}
         </span>
-      </div>
-      <MentionAwareTextarea
-        textareaRef={textareaRef}
-        className="cm-composer__textarea"
-        value={text}
-        placeholder="Type a comment. ⌘↵ to save · Esc to cancel · @name to tag"
-        onChange={setText}
-        onKeyDown={onKeyDown}
-        rows={3}
-        ariaLabel="Comment body"
-      />
-      <div className="cm-composer__actions">
-        <button type="button" className="cm-btn" onClick={onCancel}>
-          Cancel
-        </button>
         <button
           type="button"
-          className="cm-btn cm-btn--primary"
+          className="cm-thread__close"
+          data-testid="comment-composer-cancel"
+          aria-label="Cancel"
+          title="Cancel · esc"
+          onClick={onCancel}
+        >
+          ×
+        </button>
+      </div>
+      {placedChip ? (
+        <span className="cm-chip cm-composer__chip" data-testid="comment-composer-where">
+          {placedChip}
+        </span>
+      ) : null}
+      <div className="cm-composer__field">
+        <MentionAwareTextarea
+          textareaRef={textareaRef}
+          className="cm-composer__textarea"
+          value={text}
+          placeholder="Add a comment — @ mentions someone"
+          onChange={setText}
+          onKeyDown={onKeyDown}
+          rows={2}
+          ariaLabel="Comment body"
+        />
+        <button
+          type="button"
+          className="cm-btn cm-btn--primary cm-composer__send"
+          data-testid="comment-composer-send"
+          aria-label="Send"
+          title="Send · ⌘↵"
           disabled={!text.trim() || busy}
           onClick={trySubmit}
         >
-          Save
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M8 13V3.5M3.8 7.6 8 3.4l4.2 4.2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </div>
     </div>
   );
+}
+
+/**
+ * gate-b-polish3 — where a comment sits, in words: its artboard's label, else the named element
+ * (`data-dc-element`), else the canvas. Never a raw element id or a CSS selector.
+ */
+export function placeWords(o: { artboard?: string | null; selector?: string | null }): string {
+  if (o.artboard) return artboardLabelOf(o.artboard);
+  let el: Element | null = null;
+  try {
+    el = o.selector && typeof document !== 'undefined' ? document.querySelector(o.selector) : null;
+  } catch {
+    el = null;
+  }
+  const abId = el?.closest?.('[data-dc-screen]')?.getAttribute('data-dc-screen');
+  if (abId) return artboardLabelOf(abId);
+  const named = el?.getAttribute?.('data-dc-element');
+  if (named) return named.replace(/[-_]+/g, ' ');
+  return 'On the canvas';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1640,16 +1680,13 @@ export function CommentThread({
   );
 
   const headId = `cm-thread-head-${comment.id}`;
-  const selectorChip = formatSelectorChip(comment.selector, '');
   // Can comment sessions boot `ro=1` (no edit) but may still reply and resolve: `cm=1` says so.
   const canAct = !isReadOnlyCanvas() || canCommentCanvas();
   const where = whereOf(
     comment,
     comment.artboard ? trimOfPrint(printPropOf(comment.artboard)) : null
   );
-  const whereLabel = comment.artboard
-    ? artboardLabelOf(comment.artboard)
-    : selectorChip || 'On the canvas';
+  const whereLabel = placeWords({ artboard: comment.artboard, selector: comment.selector });
 
   // S4.V4 G5 (S4-S9-votes-comments §3.4) — a converted sticky's thread: the header's Undo (the converter,
   // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
@@ -1799,7 +1836,7 @@ export function CommentThread({
               type="button"
               className="cm-thread__close"
               aria-label="Close thread"
-              title="Close · Esc"
+              title="Close · esc"
               onClick={onClose}
             >
               ×
@@ -2003,13 +2040,6 @@ function formatRelativeTime(iso: string): string {
   if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
   if (diffSec < 86_400) return `${Math.round(diffSec / 3600)}h ago`;
   return `${Math.round(diffSec / 86_400)}d ago`;
-}
-
-function formatSelectorChip(selector: string, fallback: string): string {
-  if (!selector) return fallback;
-  const cd = selector.match(/data-cd-id="([^"]+)"/);
-  if (cd) return `cd:${cd[1]}`;
-  return selector.length > 36 ? `${selector.slice(0, 33)}…` : selector;
 }
 
 function computeThreadAnchor(comment: OverlayComment): { x: number; y: number } {

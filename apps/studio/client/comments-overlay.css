@@ -84,106 +84,136 @@
   outline-offset: 1px;
 }
 
-/* ─── Composer card ───────────────────────────────────────────────────────── */
+/* ─── Composer card ───────────────────────────────────────────────────────────
+ * gate-b-polish3 (10 · co-comment-thread `co-th-comp`): the v2 composer — the place in words + ×, the moment /
+ * millimetres chip, one field with a round send. Body face, sentence case, chrome tokens only (the HUD block is
+ * always injected, so no hex fallbacks). The radii are the v2 ladder's values (--radius-md 10 / --radius-sm 6),
+ * named once here because the canvas iframe carries no shell radius tokens. */
+.cm-layer {
+  --cm-radius-md: 10px;
+  --cm-radius-sm: 6px;
+}
+
 .cm-composer {
   position: absolute;
   width: 300px;
-  background: var(--maude-chrome-bg-1, #faf6ef);
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  border-radius: 2px;
-  padding: 12px;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
-  font:
-    13px / 1.5 system-ui,
-    sans-serif;
-  color: var(--maude-chrome-fg-0, #2a2520);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--maude-chrome-bg-1);
+  border: 1px solid var(--maude-chrome-border);
+  border-radius: var(--cm-radius-md);
+  padding: 10px 12px 12px;
+  box-shadow: 0 6px 20px var(--maude-chrome-shadow);
+  font: 400 13px / 1.45 var(--maude-chrome-font-body);
+  color: var(--maude-chrome-fg-0);
   pointer-events: auto;
   z-index: 4;
 }
 
 .cm-composer__head {
-  font-size: 11px;
-  color: var(--maude-chrome-fg-1, #6e6660);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin: 0 0 4px 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.cm-composer__selector {
-  color: var(--maude-chrome-fg-0, #4a4540);
-  background: color-mix(
-    in oklab,
-    var(--maude-chrome-bg-1, #faf6ef) 80%,
-    var(--maude-hud-accent, #d63b1f) 6%
-  );
-  padding: 0 4px;
-  border: 1px solid var(--maude-chrome-border, #c8bfb4);
-  font-size: 11px;
-  letter-spacing: 0;
-  text-transform: none;
+.cm-composer__where {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--maude-chrome-fg-1);
+}
+
+.cm-composer__chip {
+  align-self: flex-start;
+}
+
+.cm-composer__field {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 6px 6px 10px;
+  background: var(--maude-chrome-bg-0);
+  border: 1px solid var(--maude-chrome-border);
+  border-radius: var(--cm-radius-md);
+}
+
+.cm-composer__field:focus-within {
+  border-color: var(--maude-hud-accent);
+  box-shadow: 0 0 0 1px var(--maude-hud-accent);
+}
+
+/* the mention-aware field's own wrapper takes the row; the textarea fills it */
+.cm-composer__field > div {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .cm-composer__textarea {
+  display: block;
   width: 100%;
-  min-height: 72px;
-  resize: vertical;
-  background: var(--maude-chrome-bg-0, #ffffff);
-  color: var(--maude-chrome-fg-0, #2a2520);
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  border-radius: 5px;
-  padding: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  max-height: 160px;
+  resize: none;
+  background: transparent;
+  color: var(--maude-chrome-fg-0);
+  border: 0;
+  padding: 2px 0;
   font: inherit;
   box-sizing: border-box;
 }
 
 .cm-composer__textarea:focus-visible {
   outline: none;
-  border-color: var(--maude-hud-accent, #d63b1f);
-  box-shadow: 0 0 0 2px var(--maude-hud-accent, #d63b1f);
 }
 
-.cm-composer__actions {
-  display: flex;
-  gap: 4px;
-  justify-content: flex-end;
-  margin-top: 8px;
+.cm-composer__textarea::placeholder {
+  color: var(--maude-chrome-fg-1);
+}
+
+.cm-composer__send {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
 }
 
 .cm-btn {
-  font:
-    500 11px / 1.4 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  border-radius: 5px;
+  font: 500 12px / 1.4 var(--maude-chrome-font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 4px 10px;
+  border: 1px solid var(--maude-chrome-border);
+  border-radius: var(--cm-radius-sm);
   cursor: pointer;
   background: transparent;
-  color: var(--maude-chrome-fg-0, #2a2520);
+  color: var(--maude-chrome-fg-0);
   transition: background 120ms ease-out;
 }
 
 .cm-btn:hover {
-  background: var(
-    --maude-chrome-bg-2,
-    color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%)
-  );
+  background: var(--maude-chrome-bg-2);
 }
 
 .cm-btn--primary {
-  background: var(--maude-hud-accent, #d63b1f);
-  color: var(--maude-hud-accent-fg, #faf6ef);
-  border-color: var(--maude-hud-accent, #d63b1f);
+  background: var(--maude-hud-accent);
+  color: var(--maude-hud-accent-fg);
+  border-color: var(--maude-hud-accent);
 }
 
 .cm-btn--primary:hover {
-  background: var(
-    --maude-hud-accent-hover,
-    color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 90%, white)
-  );
+  background: var(--maude-hud-accent-hover);
 }
 
 .cm-btn:disabled {
@@ -193,7 +223,7 @@
 
 .cm-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--maude-hud-accent, #d63b1f);
+  box-shadow: 0 0 0 2px var(--maude-hud-accent);
 }
 
 /* ─── Thread popover ──────────────────────────────────────────────────────── */

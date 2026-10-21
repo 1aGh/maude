@@ -290,7 +290,11 @@ export function LayerRow({
             {tagLabel(node)}
           </span>
         ) : null}
-        <span className="st-layer-type">{inst ? inst.component : node.type}</span>
+        {/* gate-b-polish3 — the type word is developer chrome: a component instance names its component, and
+            Layers › Advanced › Show tags and ids brings the type back (the row's tooltip always says it) */}
+        {inst || showTags ? (
+          <span className="st-layer-type">{inst ? inst.component : node.type}</span>
+        ) : null}
         {!isSynthetic ? (
           <LayerRowTools
             node={node}

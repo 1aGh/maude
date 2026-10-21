@@ -25,6 +25,8 @@ import {
   CROP_LABEL,
   CROP_SUB,
   LEGEND,
+  PAPER_NONE,
+  PAPER_PENDING,
   PRINT_FORMATS,
   PRINT_ROW,
   pageCaption,
@@ -153,7 +155,19 @@ export function PrintSection({
             </span>
           </>
         ) : (
-          <span className="ex-prev-cap" data-testid="export-print-caption" />
+          <>
+            <span
+              className="ex-pic ex-pic--paper ex-paper-blank"
+              data-testid="export-print-pending"
+              data-state={preflight ? 'none' : 'measuring'}
+              aria-hidden="true"
+            >
+              <span className="ex-paper-blank-page" />
+            </span>
+            <span className="ex-prev-cap" data-testid="export-print-caption">
+              {preflight ? PAPER_NONE : PAPER_PENDING}
+            </span>
+          </>
         )}
       </div>
 

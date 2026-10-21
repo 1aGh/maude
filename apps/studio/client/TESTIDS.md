@@ -485,6 +485,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-print-pages` | testid | The page thumbnails under the paper (only when the back is page 2). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-page-<n>` | testid | One page thumbnail (1 = the front, 2 = the back); a press shows that page. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-caption` | testid | "Page 1 of 2 · A6 · 105 × 148 mm" under the paper. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-pending` | testid | The print preview's blank page while the page is measured (`data-state="measuring"`) or when the artboard has no paper size (`data-state="none"`). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new in v2 (gate-b-polish3) |
 | `export-print-legend` | testid | What the marks on the paper mean (Bleed, Cut, Safe). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-format` | testid | The Format group of the Print section: Print PDF · PDF · PNG (`data-value` = the picked id). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-format-<id>` | testid | One format of the Print section. `<id>` is print-pdf, pdf or png; Other… keeps `export-format-<id>`. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
@@ -618,6 +619,9 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `comment-menu-<id>` | testid (pattern) | The ⋯ button on a converted thread’s header (editors). Opens the thread menu (S4.V4 G5). | `comments-overlay.tsx` · `CommentThread` | test:convert-back-thread | new in v2 (S4.V4) |
 | `comment-menu-to-sticky-<id>` | testid (pattern) | "Turn back into a sticky" in a converted thread’s ⋯ menu; disabled with "<Name> replied — resolve the thread instead." when someone else replied (S4-S9 §3.4; S4.V4 G5). | `comments-overlay.tsx` · `CommentThread` | test:convert-back-thread | new in v2 (S4.V4) |
 | `comment-composer-where` | testid | The composer header chip: where the new comment will be pinned ("at 0:12", millimetres) before it is saved. | `comments-overlay.tsx` · `CommentComposer` | test:v2-comments-panel-render | new in v2 (S9.22) |
+| `comment-composer-place` | testid | The composer header's place in words when the chip carries `comment-composer-where`. | `comments-overlay.tsx` · `CommentComposer` | — | new in v2 (gate-b-polish3) |
+| `comment-composer-cancel` | testid | The composer's × (esc does the same). | `comments-overlay.tsx` · `CommentComposer` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
+| `comment-composer-send` | testid | The composer's round send (⌘↵ does the same); also `.cm-composer .cm-btn--primary`. | `comments-overlay.tsx` · `CommentComposer` | — | new in v2 (gate-b-polish3) |
 | `comment-notice` | testid | A refused comment write said in one sentence ("That did not go through."); the typed text stays in the composer. | `comments-overlay.tsx` · `CommentsOverlay` | test:v2-comments-panel-render | new in v2 (S9.22) |
 
 ### banners
@@ -1703,7 +1707,9 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `layers-element-id` | testid | Layers > Advanced > Element id: the selected element's id (mono). Absent with nothing selected. | `client/v2/left-panel/layers-advanced.jsx` · `LayersAdvanced` | test:v2-left-advanced | new in v2 (S11.9) |
 | `layers-element-id-copy` | testid | Layers > Advanced > Element id: the Copy button. | `client/v2/left-panel/layers-advanced.jsx` · `LayersAdvanced` | test:v2-left-advanced | new in v2 (S11.9) |
 | `layer-tag` | testid | A layer row's "tag · id" text while Show tags and ids is on. | `client/inspector/layers.jsx` · `LayerRow` | test:v2-left-advanced | new in v2 (S11.9) |
-| `layers-artboard-count` | testid | The Layers panel header's "N artboards" for the open canvas. | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `layers-artboard-count` | testid | The Layers panel header's "N artboards" for the open canvas. | `client/v2/layers/artboard-layers.jsx` · `ArtboardLayers` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `layers-by-artboard` | testid | The Layers tab by artboard: canvas name + count, one row per artboard, the current one's tree nested under it. | `client/v2/layers/artboard-layers.jsx` · `ArtboardLayers` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
+| `layers-artboard-<id>` | testid (pattern) | One artboard row in Layers: kind glyph + label (`data-kind`), `aria-current` on the current artboard, `data-dim` when the kind chips dim it; click selects it. | `client/v2/layers/artboard-layers.jsx` · `ArtboardLayers` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
 | `inspector-selection` | testid | The Inspector header: the selection's selector (the status bar's "selected" chip); `title` = the DOM path. | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | e2e-mp:surface | new in v2 (V2-4.8b) |
 | `inspector-selection-text` | testid | The element's own text beside the selector in the Inspector header (first 60 characters). | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | e2e-mp:surface | new in v2 (V2-4.8b) |
 | `inspector-frame` | testid | The Inspector's body for a selection: crumbs, name + kind chip, the numbered sections, › Advanced. `data-kind` = the kind id. | `client/v2/inspector/frame.jsx` · `InspectorFrame` | test:v2-inspector-render | new in v2 (S2.2) |

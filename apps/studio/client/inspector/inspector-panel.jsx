@@ -16,8 +16,12 @@ import { useDsTruthCards } from '../v2/ds/truth-card.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
 import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
 import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
+import { ArtboardLayers, currentBoard } from '../v2/layers/artboard-layers.jsx';
 import { timelineSelectionElement, useTimelineSelection } from '../v2/timeline/selection.js';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
+
+/** gate-b-polish3 — the tree's keys, in the README's key names (⌥, not Alt). */
+export const LAYERS_KEYS_HINT = 'Drag or ↑/↓ to select · ⌥↑/↓ moves · ⌥⇧↑/↓ moves across';
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
 // DOM selection points at (an artboard `<img src="assets/<sha8>.<ext>">`). Prefers
@@ -134,6 +138,10 @@ export function InspectorPanel({
   artboardCount,
   // S7.24b — the Layers header slot: a node drawn above the Layers view (the kind chips, v2/kinds/LayersKindFilter)
   layersHeader = null,
+  // gate-b-polish3 — the open canvas's artboards ({ id, label, kind }), its name, and how a row selects one
+  layersBoards = null,
+  layersCanvasName = '',
+  onSelectArtboard,
   // S11.9 — Layers › Advanced › Select by selector: posts `select-by-selector {selector}` to the open canvas.
   onSelectBySelector,
   // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
@@ -521,6 +529,23 @@ export function InspectorPanel({
   };
   // `selected` may be a single element, an array (multi-select), or null.
   const el = Array.isArray(selected) ? selected[0] : selected;
+  // gate-b-polish3 (08 · ak-mixed-fit / 14) — the Layers tab by artboard: every artboard a row (kind glyph +
+  // label), the tree of the one you are in nested under it. No artboard list known → the tree alone.
+  const byArtboard = (inner) => (
+    <ArtboardLayers
+      boards={layersBoards}
+      canvasName={layersCanvasName}
+      count={artboardCount}
+      current={currentBoard({
+        boards: layersBoards ?? [],
+        treeArtboard: layersTree?.artboardId ?? emptyBoard?.artboardId ?? null,
+        selectedArtboard: el?.artboardId ?? null,
+      })}
+      onPick={onSelectArtboard}
+    >
+      {inner}
+    </ArtboardLayers>
+  );
   // feature-photo-editor (Task 13) — resolve the Photo-tab target. Priority: an
   // annotation-image threaded up (`photoSel`, no DOM selection) → a Photo-ONLY
   // panel; else a content-addressed artboard `<img>` selection → Photo alongside
@@ -647,7 +672,9 @@ export function InspectorPanel({
           emptyBoard &&
           layersTree?.artboardId === emptyBoard.artboardId &&
           !layersTree?.nodes?.length ? (
-          <LayersEmpty artboard={emptyBoard.label} />
+          byArtboard(<LayersEmpty artboard={emptyBoard.label} />)
+        ) : effTab === 'layers' && layersBoards?.length && !el && !layersTree?.nodes?.length ? (
+          byArtboard(null)
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) && (dsTruth || dsSystem) ? (
           <>
             {dsTruth}
@@ -663,27 +690,18 @@ export function InspectorPanel({
             </p>
           </div>
         ) : effTab === 'layers' ? (
-          <>
-            <div className="st-rp-hd">
-              Layers{layersTree?.nodes?.length ? '' : ' · ancestry'}
-              {Number.isFinite(artboardCount) && artboardCount > 0 ? (
-                <span className="st-rp-hd-count" data-testid="layers-artboard-count">
-                  {artboardCount === 1 ? '1 artboard' : `${artboardCount} artboards`}
-                </span>
-              ) : null}
-            </div>
-            {layersTree?.nodes?.length ? (
+          byArtboard(
+            layersTree?.nodes?.length ? (
               <>
-                {handleReorder ? (
-                  <div className="st-rp-hint" aria-hidden="true">
-                    Drag or ↑/↓ select · Alt+↑/↓ move · Alt+Shift+↑/↓ move across
-                  </div>
-                ) : null}
+                {/* gate-b-polish3 — the key strip is no longer default chrome (README: no dev chrome in the
+                    default view); the same words ride on the tree as its tooltip and its accessible description. */}
                 {/* Keyboard nav/move handled at the container (tabIndex=0), driven
                     by the SELECTION not row focus — survives the HMR re-render. */}
                 <div
                   role="tree"
                   aria-label="Artboard layers"
+                  title={handleReorder ? LAYERS_KEYS_HINT : undefined}
+                  aria-description={handleReorder ? LAYERS_KEYS_HINT : undefined}
                   tabIndex={0}
                   ref={layerTreeRef}
                   onKeyDown={onTreeKeyDown}
@@ -744,8 +762,8 @@ export function InspectorPanel({
               <div className="st-rp-empty">
                 Select an element (⌘-click in the canvas) to see its layer tree.
               </div>
-            )}
-          </>
+            )
+          )
         ) : (
           <InspectorFrame
             selected={selected}

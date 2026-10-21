@@ -253,7 +253,8 @@ function stubFetch(preflight: unknown = PREFLIGHT) {
       new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
     if (url.endsWith('/_api/export-history')) return json({ history: [] });
     if (url.endsWith('/_api/export-estimate')) return json(EST_PRINT);
-    if (url.endsWith('/_api/export-preflight')) return json(preflight);
+    if (url.endsWith('/_api/export-preflight'))
+      return preflight === 'hang' ? new Promise<Response>(() => {}) : json(preflight);
     if (url.endsWith('/_api/export-jobs')) return json({ jobId: 'job-1' }, 202);
     return json({}, 404);
   }) as typeof fetch;
@@ -334,6 +335,30 @@ async function mountSheet(props: Record<string, unknown> = {}, preflight: unknow
   }
   return { closed: () => closed };
 }
+
+describe('gate-b-polish3: the preview column is never an empty box', () => {
+  test('while the page is measured, a blank page and the words say so', async () => {
+    await mountSheet({}, 'hang');
+    expect($('[data-testid="export-print"]') !== null).toBe(true);
+    expect($('[data-testid="export-print-pending"]')?.getAttribute('data-state')).toBe('measuring');
+    expect(text('[data-testid="export-print-caption"]')).toBe('Drawing the page…');
+  });
+  test('an artboard with no paper size says so instead of a grey bar', async () => {
+    await mountSheet(
+      {},
+      {
+        print: true,
+        boards: [{ canvas: 'ui/letak.tsx', id: 'a-flag', label: 'A', paper: null, back: null }],
+        safeMargin: [],
+        measured: false,
+        fonts: [],
+        colour: 'rgb',
+      }
+    );
+    expect($('[data-testid="export-print-pending"]')?.getAttribute('data-state')).toBe('none');
+    expect(text('[data-testid="export-print-caption"]')).toContain('No paper size');
+  });
+});
 
 describe('the sheet: a print artboard', () => {
   test('opens on Print PDF with Bleed and Crop marks on, and the paper beside it', async () => {
