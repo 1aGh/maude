@@ -19,16 +19,36 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
  *   `cx` is the artboard's centre in window px
  * @returns {{ left: number, width: number, notch: number }} `notch` is measured from the island's left edge
  */
-export function placeCompact({ cx, viewportW, width = ISLAND_W, gap = EDGE_GAP }) {
-  const w = Math.max(0, Math.min(width, viewportW - 2 * gap));
-  const left = clamp(Math.round(cx - w / 2), gap, viewportW - gap - w);
+export function placeCompact({
+  cx,
+  viewportW,
+  width = ISLAND_W,
+  gap = EDGE_GAP,
+  minX = 0,
+  maxX = viewportW,
+}) {
+  const { lo, hi } = freeSpan({ viewportW, minX, maxX });
+  const w = Math.max(0, Math.min(width, hi - lo - 2 * gap));
+  const left = clamp(Math.round(cx - w / 2), lo + gap, hi - gap - w);
   const notch = clamp(Math.round(cx - left), NOTCH_INSET, w - NOTCH_INSET);
   return { left, width: w, notch };
 }
 
-/** The full island: the whole window width less the gap on both sides. No notch (it belongs to the compact one). */
-export function placeFull({ viewportW, gap = EDGE_GAP }) {
-  return { left: gap, width: Math.max(0, viewportW - 2 * gap), notch: null };
+/** The full island: the free canvas width less the gap on both sides. No notch (it belongs to the compact one). */
+export function placeFull({ viewportW, gap = EDGE_GAP, minX = 0, maxX = viewportW }) {
+  const { lo, hi } = freeSpan({ viewportW, minX, maxX });
+  return { left: lo + gap, width: Math.max(0, hi - lo - 2 * gap), notch: null };
+}
+
+/**
+ * gate-b-polish3 (07 · ve-select) — the part of the window the canvas really has: between the left panel's right
+ * edge (`minX`) and the inspector's left edge (`maxX`). The island never runs under an open panel, so its Expand
+ * and × stay on screen. A span the panels squeeze below nothing falls back to the window.
+ */
+export function freeSpan({ viewportW, minX = 0, maxX = viewportW }) {
+  const lo = Math.max(0, Number.isFinite(minX) ? minX : 0);
+  const hi = Math.min(viewportW, Number.isFinite(maxX) ? maxX : viewportW);
+  return hi - lo > 2 * EDGE_GAP + 2 * NOTCH_INSET ? { lo, hi } : { lo: 0, hi: viewportW };
 }
 
 /**

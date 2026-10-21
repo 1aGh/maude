@@ -93,12 +93,22 @@ export function liveRects(
   world: HTMLElement | null
 ): readonly ArtboardRect[] {
   if (!world) return rects;
-  const heights = new Map<string, number>();
+  // gate-b-polish3 (07 · ve-fullscreen) — the box the audience sees is the artboard's INSIDE: its hairline
+  // border is editor chrome (made transparent while presenting), so a hole cut at the outer corner with the
+  // design's width left a white sliver on the left/top and cut the right edge off by the border's width.
+  const boxes = new Map<string, { h: number; dx: number; dy: number }>();
   for (const el of world.querySelectorAll<HTMLElement>('[data-dc-screen]'))
-    heights.set(el.getAttribute('data-dc-screen') ?? '', el.offsetHeight);
+    boxes.set(el.getAttribute('data-dc-screen') ?? '', {
+      h: el.clientHeight > 0 ? el.clientHeight : el.offsetHeight,
+      dx: el.clientLeft || 0,
+      dy: el.clientTop || 0,
+    });
   return rects.map((r) => {
-    const h = heights.get(r.id) ?? 0;
-    return h > 0 && Math.abs(h - r.h) >= 1 ? { ...r, h } : r;
+    const b = boxes.get(r.id);
+    if (!b) return r;
+    const h = b.h > 0 && Math.abs(b.h - r.h) >= 1 ? b.h : r.h;
+    if (h === r.h && !b.dx && !b.dy) return r;
+    return { ...r, x: r.x + b.dx, y: r.y + b.dy, h };
   });
 }
 

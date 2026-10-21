@@ -2497,140 +2497,156 @@ export default function TimelinePanel({
               </>
             ) : (
               <>
-                {sequences.map((seq, i) => {
-                  const layers = Array.isArray(seq.layers) ? seq.layers : [];
-                  const decomposable = layers.length >= 2;
-                  const isExpanded = decomposable && !collapsed.has(i);
-                  const dur =
-                    retimeDrag && retimeDrag.index === i ? retimeDrag.curDur : seq.duration;
-                  return (
-                    <Fragment key={i}>
-                      <div className="tl-row" data-testid={`timeline-row-${i}`}>
-                        <span className="tl-row-label" title={seq.label}>
-                          {decomposable ? (
-                            <button
-                              type="button"
-                              className="tl-expand"
-                              data-testid={`timeline-expand-${i}`}
-                              title={isExpanded ? 'Collapse layers' : 'Show layers'}
-                              aria-label={
-                                isExpanded
-                                  ? `Collapse ${seq.label} layers`
-                                  : `Show ${seq.label} layers`
-                              }
-                              aria-expanded={isExpanded}
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setCollapsed((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(i)) next.delete(i);
-                                  else next.add(i);
-                                  return next;
-                                });
-                              }}
-                            >
-                              {isExpanded ? '▾' : '▸'}
-                            </button>
-                          ) : (
-                            <span className="tl-expand tl-expand--spacer" aria-hidden="true" />
-                          )}
-                          <span
-                            className="tl-kind"
-                            data-kind={rowKind(seq)}
-                            title={rowKindTitle(seq)}
-                            aria-label={rowKindTitle(seq)}
-                          >
-                            {rowKindGlyph(seq)}
-                          </span>
-                          <span className="tl-row-label-text">{seq.label}</span>
-                        </span>
-                        <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
-                          {renderBlock(seq, i, { lane: 'row' })}
-                        </div>
-                      </div>
-                      {isExpanded
-                        ? layers.map((ly, li) => {
-                            const lyKind =
-                              ly.kind === 'video'
-                                ? 'video'
-                                : ly.kind === 'image'
-                                  ? 'image'
-                                  : ly.kind === 'audio'
-                                    ? 'audio'
-                                    : 'jsx';
-                            const lyGlyph =
-                              ly.kind === 'video'
-                                ? '▶'
-                                : ly.kind === 'image'
-                                  ? '◫'
-                                  : ly.kind === 'audio'
-                                    ? '♪'
-                                    : 'ƒ';
-                            const lyReplaceable = !!(ly.mediaCdId || ly.mediaArrayRef);
-                            return (
-                              <div
-                                className="tl-row tl-row--layer"
-                                key={`l${li}`}
-                                data-testid={`timeline-layer-${i}-${li}`}
+                {(() => {
+                  // gate-b-polish3 (07 · C35) — a purely digital comp keeps its row-per-sequence view (layers
+                  // expand under a row, dogfood 2026-07-30), but the rows sit in the SAME four tracks as a media
+                  // cut: Text · Graphics · Video · Music, top covers bottom. A track groups rows; every row's
+                  // testid, drag and expand are unchanged (S7.8: tracks are caption strips around the rows).
+                  const stackRow = (seq, i) => {
+                    const layers = Array.isArray(seq.layers) ? seq.layers : [];
+                    const decomposable = layers.length >= 2;
+                    const isExpanded = decomposable && !collapsed.has(i);
+                    const dur =
+                      retimeDrag && retimeDrag.index === i ? retimeDrag.curDur : seq.duration;
+                    return (
+                      <Fragment key={i}>
+                        <div className="tl-row" data-testid={`timeline-row-${i}`}>
+                          <span className="tl-row-label" title={seq.label}>
+                            {decomposable ? (
+                              <button
+                                type="button"
+                                className="tl-expand"
+                                data-testid={`timeline-expand-${i}`}
+                                title={isExpanded ? 'Collapse layers' : 'Show layers'}
+                                aria-label={
+                                  isExpanded
+                                    ? `Collapse ${seq.label} layers`
+                                    : `Show ${seq.label} layers`
+                                }
+                                aria-expanded={isExpanded}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setCollapsed((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(i)) next.delete(i);
+                                    else next.add(i);
+                                    return next;
+                                  });
+                                }}
                               >
-                                <span className="tl-row-label" title={ly.label}>
-                                  <span className="tl-layer-indent" aria-hidden="true" />
-                                  <span className="tl-kind" data-kind={lyKind}>
-                                    {lyGlyph}
-                                  </span>
-                                  <span className="tl-row-label-text">{ly.label}</span>
-                                </span>
+                                {isExpanded ? '▾' : '▸'}
+                              </button>
+                            ) : (
+                              <span className="tl-expand tl-expand--spacer" aria-hidden="true" />
+                            )}
+                            <span
+                              className="tl-kind"
+                              data-kind={rowKind(seq)}
+                              title={rowKindTitle(seq)}
+                              aria-label={rowKindTitle(seq)}
+                            >
+                              {rowKindGlyph(seq)}
+                            </span>
+                            <span className="tl-row-label-text">{seq.label}</span>
+                          </span>
+                          <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
+                            {renderBlock(seq, i, { lane: 'row' })}
+                          </div>
+                        </div>
+                        {isExpanded
+                          ? layers.map((ly, li) => {
+                              const lyKind =
+                                ly.kind === 'video'
+                                  ? 'video'
+                                  : ly.kind === 'image'
+                                    ? 'image'
+                                    : ly.kind === 'audio'
+                                      ? 'audio'
+                                      : 'jsx';
+                              const lyGlyph =
+                                ly.kind === 'video'
+                                  ? '▶'
+                                  : ly.kind === 'image'
+                                    ? '◫'
+                                    : ly.kind === 'audio'
+                                      ? '♪'
+                                      : 'ƒ';
+                              const lyReplaceable = !!(ly.mediaCdId || ly.mediaArrayRef);
+                              return (
                                 <div
-                                  className="tl-row-track"
-                                  style={{ width: axisPx, flex: 'none' }}
+                                  className="tl-row tl-row--layer"
+                                  key={`l${li}`}
+                                  data-testid={`timeline-layer-${i}-${li}`}
                                 >
+                                  <span className="tl-row-label" title={ly.label}>
+                                    <span className="tl-layer-indent" aria-hidden="true" />
+                                    <span className="tl-kind" data-kind={lyKind}>
+                                      {lyGlyph}
+                                    </span>
+                                    <span className="tl-row-label-text">{ly.label}</span>
+                                  </span>
                                   <div
-                                    className="tl-seq-block tl-layer-block"
-                                    data-kind={lyKind}
-                                    data-testid={`timeline-layer-block-${i}-${li}`}
-                                    title={`${ly.label} (${ly.kind} layer)`}
-                                    style={{ left: x(seq.from), width: Math.max(2, x(dur)) }}
-                                    onContextMenu={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setCtxMenu({
-                                        index: i,
-                                        layerIndex: li,
-                                        x: e.clientX,
-                                        y: e.clientY,
-                                      });
-                                    }}
+                                    className="tl-row-track"
+                                    style={{ width: axisPx, flex: 'none' }}
                                   >
-                                    <span className="tl-seq-name">{ly.label}</span>
-                                  </div>
-                                  {onReplaceLayer && lyReplaceable ? (
-                                    <button
-                                      type="button"
-                                      className="tl-seq-replace"
-                                      data-testid={`timeline-layer-replace-${i}-${li}`}
-                                      title={`Replace this ${ly.kind}`}
-                                      aria-label={`Replace ${ly.label}`}
-                                      style={{ left: x(seq.from) + Math.max(2, x(dur)) - 20 }}
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      onClick={(e) => {
+                                    <div
+                                      className="tl-seq-block tl-layer-block"
+                                      data-kind={lyKind}
+                                      data-testid={`timeline-layer-block-${i}-${li}`}
+                                      title={`${ly.label} (${ly.kind} layer)`}
+                                      style={{ left: x(seq.from), width: Math.max(2, x(dur)) }}
+                                      onContextMenu={(e) => {
+                                        e.preventDefault();
                                         e.stopPropagation();
-                                        onReplaceLayer(refFor(seq, i), li);
+                                        setCtxMenu({
+                                          index: i,
+                                          layerIndex: li,
+                                          x: e.clientX,
+                                          y: e.clientY,
+                                        });
                                       }}
                                     >
-                                      ⇄
-                                    </button>
-                                  ) : null}
+                                      <span className="tl-seq-name">{ly.label}</span>
+                                    </div>
+                                    {onReplaceLayer && lyReplaceable ? (
+                                      <button
+                                        type="button"
+                                        className="tl-seq-replace"
+                                        data-testid={`timeline-layer-replace-${i}-${li}`}
+                                        title={`Replace this ${ly.kind}`}
+                                        aria-label={`Replace ${ly.label}`}
+                                        style={{ left: x(seq.from) + Math.max(2, x(dur)) - 20 }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onReplaceLayer(refFor(seq, i), li);
+                                        }}
+                                      >
+                                        ⇄
+                                      </button>
+                                    ) : null}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })
-                        : null}
-                    </Fragment>
+                              );
+                            })
+                          : null}
+                      </Fragment>
+                    );
+                  };
+                  const rowsOn = (id) =>
+                    sequences
+                      .map((seq, i) => (trackOfIdx.get(i) === id ? stackRow(seq, i) : null))
+                      .filter(Boolean);
+                  const bedsOn = (id) =>
+                    audio
+                      .map((a, i) => (trackOfBed.get(i) === id ? renderAudioRow(a, i) : null))
+                      .filter(Boolean);
+                  return drawnTracks.map((t) =>
+                    trackShell(t.id, t.label, [...rowsOn(t.id), ...bedsOn(t.id)])
                   );
-                })}
-                {audio.map((a, i) => renderAudioRow(a, i))}
+                })()}
               </>
             )}
 
@@ -2848,7 +2864,9 @@ export default function TimelinePanel({
         name={selSeq ? displayNameOf(selSeq, selIndex) : ''}
         canEdit={canEditHere && !!onClipVerb}
         url={selSeq?.mediaSrc ? resolveUrl(selSeq.mediaSrc) : null}
-        run={(params) => selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.take.swap', params)}
+        run={(params) =>
+          selSeq && onClipVerb?.(refFor(selSeq, selIndex), 'video.take.swap', params)
+        }
       />
       {fitFill.ask
         ? createPortal(

@@ -4,6 +4,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   anchorCentre,
   EDGE_GAP,
+  freeSpan,
   ISLAND_W,
   NOTCH_INSET,
   placeCompact,
@@ -59,5 +60,26 @@ describe('the artboard centre in window px', () => {
   test('frame offset plus the reported rect', () => {
     expect(anchorCentre({ left: 0 }, { x: 414, w: 250 })).toBe(539);
     expect(anchorCentre({ left: 60 }, { x: 100, w: 40 })).toBe(180);
+  });
+});
+
+describe('gate-b-polish3: the island keeps to the free canvas', () => {
+  test('an open inspector (x 1296) — Expand and × stay left of it', () => {
+    const p = placeCompact({ cx: 1100, viewportW: 1600, maxX: 1296 });
+    expect(p.left + p.width).toBeLessThanOrEqual(1296 - EDGE_GAP);
+    expect(p.width).toBe(ISLAND_W);
+  });
+  test('both panels open: narrower than 900, inside the gap on each side', () => {
+    const p = placeCompact({ cx: 800, viewportW: 1600, minX: 268, maxX: 1296 });
+    expect(p.left).toBeGreaterThanOrEqual(268 + EDGE_GAP);
+    expect(p.left + p.width).toBeLessThanOrEqual(1296 - EDGE_GAP);
+  });
+  test('full width stops at the inspector too', () => {
+    const p = placeFull({ viewportW: 1600, minX: 0, maxX: 1296 });
+    expect(p.left).toBe(EDGE_GAP);
+    expect(p.left + p.width).toBe(1296 - EDGE_GAP);
+  });
+  test('a span squeezed to nothing falls back to the window', () => {
+    expect(freeSpan({ viewportW: 1600, minX: 700, maxX: 720 })).toEqual({ lo: 0, hi: 1600 });
   });
 });
