@@ -79,13 +79,13 @@ const SHELL_TOKEN_SOURCES = [
   'apps/studio/client/styles/1-tokens.css',
   'apps/studio/client/styles/1-tokens-maude.css',
 ];
-// The shell's accent is still the v1 indigo (1-tokens-maude.css), so a v2 token that is a literal of the
-// v2 azure would be a second accent hue in the shell; these follow the shell's own --accent instead, in the
-// same relation the v2 file states (`--accent-muted: var(--accent-soft)`, focus = accent, selection = accent
-// at 22 % / 30 %).
-// The island material in the shell is SOLID (V2-1.8 M1–M3, floating-panels.css): --island-bg is the panel surface,
-// never the v2 translucent glass, and nothing blurs.
-const SHELL_ACCENT_DERIVED = {
+// Names the shell resolves its own way instead of the v2 literal:
+//   · the island material is SOLID in the shell (V2-1.8 M1–M3, floating-panels.css) — the panel surface, never the
+//     v2 translucent glass;
+//   · the shell's accent is still the v1 indigo (1-tokens-maude.css), so a v2 literal of the azure would be a second
+//     accent hue; these follow the shell's --accent in the relation the v2 file states (`--accent-muted:
+//     var(--accent-soft)`, focus = accent, selection = accent at 22 % / 30 %).
+const SHELL_DERIVED = {
   '--x-island-bg': 'var(--bg-1)',
   '--x-island-bg-strong': 'var(--bg-1)',
   '--accent-soft': 'var(--accent-muted)',
@@ -111,7 +111,7 @@ function shellAdditiveV2() {
     const decl = /^(\s*)(--[a-z0-9-]+)\s*:/.exec(l);
     if (decl) {
       if (shellNames.has(decl[2])) continue;
-      const derived = SHELL_ACCENT_DERIVED[decl[2]];
+      const derived = SHELL_DERIVED[decl[2]];
       const v = typeof derived === 'object' ? derived[theme] : derived;
       out.push(v ? `${decl[1]}${decl[2]}: ${v};` : l);
       kept++;
