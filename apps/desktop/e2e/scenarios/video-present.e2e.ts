@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -77,8 +79,9 @@ describe('video-present — a video presents its formats only; the export sheet 
     const box = (await artboardBox('reel')) as Box;
     expect(box).not.toBeNull();
     // the artboard's name strip selects the WHOLE artboard; its body would pick the video player inside it
+    await dismissNotices(); // a first-run notice over the artboard's label would take the click
     await clickAt(box.x + 12, box.y - 10);
-    await $(tid('insp-format-add')).waitForExist({ timeout: 15_000 });
+    await withNetProbe(() => $(tid('insp-format-add')).waitForExist({ timeout: 15_000 }), false);
     await (await $(tid('insp-format-add'))).click();
     await (await $(tid('insp-format-add-1920x1080'))).click();
     await browser.waitUntil(async () => onDisk().includes('id="reel-16x9"'), { timeout: 15_000 });

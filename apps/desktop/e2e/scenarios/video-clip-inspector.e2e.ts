@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, $$, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { setSelect } from '../helpers/select';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -81,24 +83,29 @@ describe('video-clip-inspector — the clip inspector, the join picker, a title�
     expect(box).not.toBeNull();
     await clickAt(box.x + 12, box.y - 10);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
+    await dismissNotices(); // first-run notices stack over the island's bottom edge
     await $('[data-testid="timeline-seq-0"]').waitForExist({ timeout: 20_000 });
   });
 
   it('click a beat: the right-hand inspector is a Clip with Length and Speed; 2× is one write, ⌘Z undoes it', async () => {
     const before = onDisk();
-    await (await $('[data-testid="timeline-seq-0"]')).click();
-    await $('[data-testid="inspector-frame"][data-kind="clip"]').waitForExist({
-      timeout: 10_000,
-      timeoutMsg: 'a clip pick did not fill the inspector',
-    });
+    await withNetProbe(async () => {
+      await (await $('[data-testid="timeline-seq-0"]')).click();
+      await $('[data-testid="inspector-frame"][data-kind="clip"]').waitForExist({
+        timeout: 10_000,
+        timeoutMsg: 'a clip pick did not fill the inspector',
+      });
+    }, false);
     expect(await text('inspector-kind')).toBe('Clip');
     await $('[data-testid="insp-clip-length"]').waitForExist({ timeout: 5000 });
     await $('[data-testid="insp-clip-speed"]').waitForExist({ timeout: 5000 });
     await capture('video-clip-inspector-clip');
-    expect(await setSelect('insp-clip-speed', '2')).toBe(true);
-    await browser.waitUntil(async () => onDisk() !== before, {
-      timeout: 15_000,
-      timeoutMsg: 'the speed never reached the file',
+    await withNetProbe(async () => {
+      expect(await setSelect('insp-clip-speed', '2')).toBe(true);
+      await browser.waitUntil(async () => onDisk() !== before, {
+        timeout: 15_000,
+        timeoutMsg: 'the speed never reached the file',
+      });
     });
     await key({ key: 'z', metaKey: true });
     await browser.waitUntil(async () => onDisk() === before, {
@@ -130,6 +137,19 @@ describe('video-clip-inspector — the clip inspector, the join picker, a title�
       timeout: 15_000,
       timeoutMsg: 'Slide up never reached the file',
     });
+    // the grid lights the preset the Timeline has RE-READ; a tile that is already lit is a no-op, so None is pressed
+    // only once Slide up shows as the title's own
+    await withNetProbe(
+      () =>
+        browser.waitUntil(
+          async () =>
+            (await (
+              await $('[data-testid="insp-title-motion-slide-up"]')
+            ).getAttribute('aria-checked')) === 'true',
+          { timeout: 10_000, timeoutMsg: 'the grid never showed Slide up as the title’s motion' }
+        ),
+      false
+    );
     await (await $('[data-testid="insp-title-motion-none"]')).click();
     await browser.waitUntil(async () => !onDisk().includes('<TitleMotion'), {
       timeout: 15_000,
