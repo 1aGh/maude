@@ -999,6 +999,32 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     }
     if (!values.html) return null; // an empty or unreadable body is not a canvas yet
     if (!live) {
+      // S12.16 — a canvas an AI run created (the studio's create route, claimed for the chat's live
+      // run: ai/create-claim.ts) is that run's write: it is staged with the run's other changes and
+      // published as ONE `ai` action with a `doc.create` in it, and the run's undo takes it back.
+      // Only an explicit claim counts: a person's new canvas never lands in whichever run is open.
+      if (action.kind === OUTSIDE_KIND && stage.captures(rel, true, values.html, true)) {
+        const docId = canvasSlugFromRel(rel, designRel);
+        for (const lane of WATCHED_LANES) {
+          const v = values[lane];
+          if (v === undefined || v === '') continue;
+          const k = `${rel}|${lane}`;
+          const prev = seen.get(k);
+          if (prev === v) continue;
+          seen.set(k, v);
+          void stage
+            .capture(rel, docId, {
+              lane,
+              content: v,
+              baseContent: prev ?? '',
+              transactionId: `lt_stage_${now().toString(36)}_${(++runTx).toString(36)}`,
+              stageable: true,
+              create: rel,
+            })
+            .catch(() => null);
+        }
+        return null;
+      }
       const lanes = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== ''));
       return submit(
         [{ op: 'doc.create', doc: canvasSlugFromRel(rel, designRel), path: rel, lanes }],
@@ -1603,7 +1629,19 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
    * now (three-way — a person's edit made since stays). A lane that cannot be untangled is left
    * as it is, and the next watched change records it.
    */
-  function unstage(l: { slug: string; lane: string; base: string; mine: string }): void {
+  function unstage(l: {
+    slug: string;
+    lane: string;
+    base: string;
+    mine: string;
+    create?: string;
+  }): void {
+    // S12.16 — a canvas the run created has no earlier bytes to put back, and a discard never
+    // deletes a file: it stays, unrecorded, and the next watched change (or boot) records it.
+    if (l.create) {
+      seen.delete(`${l.slug}|${l.lane}`);
+      return;
+    }
     if (!(LOCAL_LANES as readonly string[]).includes(l.lane)) return;
     const lane = l.lane as LocalLane;
     const disk = diskLane(l.slug, lane);
