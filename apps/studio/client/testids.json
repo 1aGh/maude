@@ -11119,6 +11119,51 @@
     "v2": "new"
   },
   {
+    "hook": "home-invite-row-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One pending invitation addressed to the signed-in account (`<slug>` = the invited canvas' path slug, or `project`): who invited you to what, the role, Join and Leave. Not a button; it names the project, never an invite id.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-pending-invites-page"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-invite-join-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Join on a pending invitation: accepts it by project (and canvas), then opens the landing. Needs the desktop app.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-pending-invites-page"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-invite-leave-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Leave on a pending invitation: declines it; the row goes once the list is read again.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-pending-invites-page"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "canvases-pinned",
     "kind": "testid",
     "pattern": false,

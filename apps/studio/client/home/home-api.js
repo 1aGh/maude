@@ -157,6 +157,12 @@ export const cliInstall = () => post('/_home/cli/install', {});
 export const invitePeek = (id) => post('/_home/invite/peek', { id });
 /** → 200 `{ok, code, landing}` · 401 signed-out · 403 `{reason:'other-account', email}` · 404 gone · 426. */
 export const inviteAccept = (id, profile) => post('/_home/invite/accept', { id, profile });
+// Home › Shared with you (gate-b-sec3b): an invitation addressed to the signed-in account is named by its project
+// (and canvas) — the page never holds an invite id. → `{ok, code, landing}` | refusal; leave → `{ok:true}`.
+export const pendingInviteAccept = (profile, projectId, canvas) =>
+  post('/_home/invite/pending/accept', { profile, projectId, canvas: canvas ?? null });
+export const pendingInviteLeave = (profile, projectId, canvas) =>
+  post('/_home/invite/pending/leave', { profile, projectId, canvas: canvas ?? null });
 /** The invite id a `maude://invite/<id>` link parked for Home (deep_link.rs), once; null when none. */
 export const takePendingInvite = () => shellInvoke('take_pending_invite');
 /** The What's New feed and this Mac's one seen mark (S6.6, `/_home/whats-new`). */

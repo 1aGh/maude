@@ -1461,6 +1461,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .home-shrow-act {
+    display: flex;
+    flex: none;
+    gap: var(--space-2);
+  }
   /* a person's face: a circle with an initial (the project's mark is a square) */
   .home-face {
     display: inline-grid;

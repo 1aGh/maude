@@ -345,6 +345,45 @@ export function sharedRows(clouds, now = Date.now()) {
   return rows.sort((a, b) => (b.grantedAt ?? 0) - (a.grantedAt ?? 0));
 }
 
+/**
+ * Every signed-in profile's pending invitations (`invited[]`) as rows, newest first. A row names the project (and
+ * the canvas) — the key Join / Leave send — and carries no invite id and no address: the cloud sends none, and only
+ * these fields are copied. No inviter name (unset, or from before v18) → "Invited to …", never an address (O3).
+ */
+export function invitedRows(clouds, now = Date.now()) {
+  const rows = [];
+  for (const listing of clouds ?? []) {
+    if (!listing?.signedIn || typeof listing.profile !== 'string') continue;
+    for (const s of listing.invited ?? []) {
+      if (!s || typeof s.projectId !== 'string' || !s.projectId) continue;
+      const projectName = s.projectName || s.projectId;
+      const canvasPath = typeof s.canvas?.path === 'string' && s.canvas.path ? s.canvas.path : null;
+      const canvasName = canvasPath ? s.canvas.name || canvasPath : null;
+      const fromName =
+        typeof s.fromName === 'string' && s.fromName.trim() ? s.fromName.trim() : null;
+      const target = canvasName ?? projectName;
+      const when = typeof s.invitedAt === 'number' ? s.invitedAt : null;
+      rows.push({
+        key: `${listing.profile}:${s.projectId}:${canvasPath ?? ''}`,
+        profile: listing.profile,
+        projectId: s.projectId,
+        projectName,
+        fromName,
+        canvasPath,
+        canvasName,
+        role: s.role ?? 'observer',
+        roleWord: cloudRoleWord(s.role),
+        invitedAt: when,
+        title: fromName ? `${fromName} invited you to ${target}` : `Invited to ${target}`,
+        meta: [canvasName ? projectName : null, when != null ? relativeTime(when, now) : null]
+          .filter(Boolean)
+          .join(' · '),
+      });
+    }
+  }
+  return rows.sort((a, b) => (b.invitedAt ?? 0) - (a.invitedAt ?? 0));
+}
+
 /** "3 new this week": granted in the last 7 days and not yet opened on this Mac (`seen` = row keys). */
 export const newThisWeek = (rows, seen, now = Date.now()) =>
   rows.filter((r) => r.grantedAt != null && now - r.grantedAt < WEEK && !seen.has(r.key)).length;

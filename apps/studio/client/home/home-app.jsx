@@ -24,6 +24,8 @@ import {
   openCloudUrl,
   openProject,
   openProjectFolder,
+  pendingInviteAccept,
+  pendingInviteLeave,
   prepareCloud,
   prepareCloudLink,
   relinkProject,
@@ -48,7 +50,7 @@ import { useWhatsNewLine } from '../v2/signin/use-whats-new-line.js';
 import { WhatsNewDialog, WhatsNewLine } from '../v2/signin/WhatsNewLine.jsx';
 import { HomeAsk } from './HomeAsk.jsx';
 import { InviteSheet } from './InviteSheet.jsx';
-import { useInviteFlow } from './invite-flow.js';
+import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
   accountFace,
@@ -57,6 +59,7 @@ import {
   cloudRoleWord,
   defaultTarget,
   indexQuery,
+  invitedRows,
   linkProfile,
   localPidForLink,
   newThisWeek,
@@ -412,6 +415,7 @@ export function HomeApp() {
   const starters = useMemo(() => pickStarters({ target, signedIn }), [target, signedIn]);
   const shared = useMemo(() => sharedRows(data.clouds), [data.clouds]);
   const sharedNew = useMemo(() => newThisWeek(shared, seen), [shared, seen]);
+  const invited = useMemo(() => invitedRows(data.clouds), [data.clouds]);
 
   // ⌘K focuses Search (contract §5.9 `home.search`)
   useEffect(() => {
@@ -548,6 +552,56 @@ export function HomeApp() {
     [openCloud]
   );
 
+  // A pending invitation on "Shared with you" (gate-b-sec3b). Join: accept it by project (and canvas) with the
+  // profile it was listed under, trade the one-time code, open the landing. Leave: decline. Neither holds an
+  // invite id; both end with a fresh read of the list, so a refusal ("no longer valid") never leaves a dead row.
+  const [inviteBusy, setInviteBusy] = useState(null);
+  const joinInvited = useCallback(
+    async (row) => {
+      if (inviteBusy) return;
+      setInviteBusy(row.key);
+      try {
+        const plan = await joinPendingAndOpen(
+          {
+            profile: row.profile,
+            projectId: row.projectId,
+            canvasPath: row.canvasPath,
+            projectName: row.projectName,
+          },
+          {
+            acceptPending: pendingInviteAccept,
+            prepareLink: prepareCloudLink,
+            openPrepared,
+          }
+        );
+        if (plan.kind === 'notice') setNotice(plan.words);
+        else if (plan.kind === 'ask') setNotice('This device was disconnected. Sign in again.');
+      } catch {
+        setNotice(INVITE_WORDS.unreachable);
+      } finally {
+        setInviteBusy(null);
+        data.reload();
+      }
+    },
+    [inviteBusy, openPrepared, data.reload]
+  );
+  const leaveInvited = useCallback(
+    async (row) => {
+      if (inviteBusy) return;
+      setInviteBusy(row.key);
+      try {
+        const r = await pendingInviteLeave(row.profile, row.projectId, row.canvasPath);
+        if (!r.ok && r.status === 404) setNotice(INVITE_WORDS.gone);
+        else if (!r.ok)
+          setNotice(`You are still invited to ${row.projectName}. Nothing changed. Try again.`);
+      } finally {
+        setInviteBusy(null);
+        data.reload();
+      }
+    },
+    [inviteBusy, data.reload]
+  );
+
   // The question (S6.4). The sentence — or the empty canvas, or "Bring my existing brand" — leaves as an
   // INTENT that Rust parks for the target window; it is never in a URL. The target is a project on this
   // Mac (opened by pid), a cloud project not here yet (its own copy first, like any cloud row), or a
@@ -668,7 +722,7 @@ export function HomeApp() {
   }, [creating]);
 
   const hasProjects = model.groups.some((g) => g.rows.length);
-  const showShared = signedIn && (hasProjects || shared.length > 0);
+  const showShared = signedIn && (hasProjects || shared.length > 0 || invited.length > 0);
   return (
     <div className="maude-v2 home-root" data-theme={theme} data-testid="home-root">
       <header className="home-top">
@@ -876,9 +930,13 @@ export function HomeApp() {
           {showShared ? (
             <SharedWithYou
               rows={shared}
+              invites={invited}
               newCount={sharedNew}
               canOpen={data.native}
+              busyKey={inviteBusy}
               onOpen={openShared}
+              onJoin={joinInvited}
+              onLeave={leaveInvited}
             />
           ) : null}
           {hasProjects ? (
