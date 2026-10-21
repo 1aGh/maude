@@ -40,13 +40,29 @@ export interface ShellKeyState {
   selectionHasTakes?: boolean;
 }
 
+/** <input> types that take no typing: they act like buttons (a checkbox switch, a radio, a colour well). */
+const NON_TEXT_INPUT: ReadonlySet<string> = new Set([
+  'checkbox',
+  'radio',
+  'button',
+  'submit',
+  'reset',
+  'image',
+  'color',
+  'file',
+]);
+
 /** The shell document's KeyCtx for a keydown it received. */
 export function shellKeyCtx(probe: FocusProbe, s: ShellKeyState): KeyCtx {
   const tag = (probe.tag ?? '').toUpperCase();
   const range = tag === 'INPUT' && (probe.type ?? '').toLowerCase() === 'range';
+  // A switch, a radio or a colour well takes no text: it is a button to the keyboard. Counting it as typing made
+  // ⌘Z after a click on "Lower under speech" (a checkbox) the browser's text-undo, so the edit stayed.
+  const pressable = tag === 'INPUT' && NON_TEXT_INPUT.has((probe.type ?? '').toLowerCase());
   // v1's three listeners agree on these as "typing"; they disagree on <select> and range sliders,
   // which are facts instead (types.ts › Fact).
-  const typing = (tag === 'INPUT' && !range) || tag === 'TEXTAREA' || !!probe.editable;
+  const typing =
+    (tag === 'INPUT' && !range && !pressable) || tag === 'TEXTAREA' || !!probe.editable;
   const facts = new Set<Fact>();
   if (s.canvasOpen) facts.add('canvasOpen');
   if (s.timelineVisible) facts.add('timelineVisible');
