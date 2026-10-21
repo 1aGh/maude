@@ -22,6 +22,7 @@ import { PhotoKnobs } from '../../photo-knobs.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { bindInspectorActions } from '../inspector/inspector-actions.js';
 import { ApplyEveryUseSheet } from './apply-every-use-sheet.jsx';
+import { sameCanvas } from './canvas-rel.js';
 import {
   cutOutOn,
   LOOKS,
@@ -200,6 +201,7 @@ export async function readEveryUse(asset, fetchImpl = globalThis.fetch) {
  * @param {string} p.asset          `assets/<sha8>.<ext>`
  * @param {object} p.el             the selected picture (id, artboardId, index, file, attrs)
  * @param {string} [p.canvasFile]   the open canvas (designRoot-relative), when `el.file` is absent
+ * @param {string} [p.designRel]    the design root (default `.design`); the shell hands the canvas repo-relative
  * @param {boolean} [p.editable]
  * @param {Function} [p.onPreview]  (edit, use) => void — live preview on this use (dgn `photo-preview`)
  * @param {Function} [p.onRemoveBackground]  async (asset) => { maskAsset } | null
@@ -213,6 +215,7 @@ export function PhotoSection({
   asset,
   el,
   canvasFile,
+  designRel,
   editable = true,
   onPreview,
   onRemoveBackground,
@@ -388,7 +391,9 @@ export function PhotoSection({
   const light = sliderOf(edit, 'light');
   const colour = sliderOf(edit, 'colour');
   const cut = edit.backgroundRemoved?.maskAsset ? cutOutOn(edit) : null;
-  const more = everyUse ? everyUse.uses.filter((u) => u.canvas !== canvas).length : 0;
+  const more = everyUse
+    ? everyUse.uses.filter((u) => !sameCanvas(u.canvas, canvas, designRel)).length
+    : 0;
   const thumb = `/${String(asset).replace(/^\/+/, '')}`;
 
   return (
@@ -542,6 +547,7 @@ export function PhotoSection({
           asset={asset}
           name={name}
           canvas={canvas}
+          designRel={designRel}
           edit={edit}
           answer={everyUse}
           fetchImpl={fetchImpl}
