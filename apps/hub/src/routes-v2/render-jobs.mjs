@@ -28,7 +28,7 @@ import {
   parseFingerprint,
 } from '../../../studio/exporters/door-fingerprint.ts';
 import { fileAccessForClaim } from '../access-files.mjs';
-import { OBSERVER_REFUSAL, READ_ONLY_REFUSAL } from '../access-gate.mjs';
+import { OBSERVER_REFUSAL } from '../access-gate.mjs';
 import { sessionKeyFor } from '../studio-proxy.mjs';
 
 /** The `/health` capability a desktop looks for before it builds a door (S8.5b §4.4). */
@@ -474,13 +474,13 @@ export function createRenderJobsRoutes({
       respondJson(403, { code: 'forbidden', error: 'sign in with this project’s Maude token' });
       return true;
     }
-    // T4 / A19 — Can view holds no download; a read-only project session renders nothing here.
+    // T4 / A19 — Can view (observer) holds no download, here as in the browser. A read-only
+    // project session (`viewer`, Can comment) DOES hold `export`: Michal 2026-10-21
+    // (decision:maude/v2-michal-viewer-renders-from-mac) lets it render from the Mac app exactly
+    // as it exports from the browser — same studio session (read-only projection), same per-person
+    // caps below. A session with no role in the matrix holds nothing, so it never gets this far.
     if (who.access.role === 'observer') {
       respondJson(403, { ...OBSERVER_REFUSAL, code: 'forbidden' });
-      return true;
-    }
-    if (!who.access.canvasOnly && who.readOnly) {
-      respondJson(403, { ...READ_ONLY_REFUSAL, code: 'forbidden' });
       return true;
     }
     const isGet = method === 'GET' || method === 'HEAD';
