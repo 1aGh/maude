@@ -451,10 +451,13 @@ const SCRIPT_WRITES =
   /\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|createWriteStream|rmSync|unlink(?:Sync)?|rename(?:Sync)?|copyFile(?:Sync)?|cpSync|truncate(?:Sync)?|Bun\.write|write_text|write_bytes|os\.remove|os\.replace|os\.rename|shutil\.\w+|File\.write|FileUtils)\b|\bopen\s*\([^)]*['"][wax+]b?['"]|\bmode\s*=\s*['"][wax+]|\bopen\s*\([^)]*['"]\+?>{1,2}/;
 
 const MESSAGES = {
+  // The route is the studio's own (the one Canvases uses), reached with `curl-local`; the port is in
+  // `.design/_server.json`. (These messages once named `maude design trash move` / `canvas move`:
+  // neither verb exists, and the agent spent 15+ calls finding this route.)
   'use-trash': (rel) =>
-    `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash: \`maude design trash move "<canvas path>"\` (or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
+    `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash with the studio's own route: \`maude design curl-local "http://127.0.0.1:<port>/_api/canvas?file=<url-encoded canvas path>" --method DELETE\` (port: .design/_server.json; or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
   'use-verb': (rel) =>
-    `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename with \`maude design canvas move …\` (or ask the person to move it in Canvases).`,
+    `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename or move it with the studio's own route: \`maude design curl-local http://127.0.0.1:<port>/_api/fs-move --method POST --header "Content-Type: application/json" --data '{"file":"<canvas path>","toName":"<new name>"}'\` (add "toDir" to move it to another folder; port: .design/_server.json; or ask the person to move it in Canvases).`,
   'out-of-project': (path) =>
     `out-of-project: this \`maude\` command's output would be written to ${path}, outside the project. Write inside the project or the temp dir (or drop the redirection and read the output).`,
   'other-project': (what) =>

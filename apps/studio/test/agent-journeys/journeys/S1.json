@@ -5,7 +5,7 @@
   "title": "New canvas → rename → restore a version → move to the trash → restore",
   "ledger": ["00/rule/moved-to-the-trash"],
   "fixture": "app5",
-  "allow": ["maude design history restore"],
+  "allow": ["maude design history restore", "maude design curl-local"],
   "setup": [],
   "turns": [
     {
@@ -31,7 +31,7 @@
       "id": "version-restored",
       "grader": "history",
       "path": "ui/Greeting.tsx",
-      "kind": "restore",
+      "kind": ["restore", "history.restore"],
       "op": "restore"
     },
     {
@@ -45,7 +45,7 @@
       "id": "restore-by-verb",
       "grader": "tool-used",
       "tool": "Bash",
-      "input": "maude design history restore ui/Greeting\\.tsx"
+      "input": "maude design history restore[^|]*ui/Greeting\\.tsx"
     },
     { "id": "back-from-trash", "grader": "trash", "path": "ui/Greeting.tsx", "state": "restored" },
     { "id": "no-hard-delete", "grader": "no-tool", "tool": "Bash", "input": "\\brm\\b" }

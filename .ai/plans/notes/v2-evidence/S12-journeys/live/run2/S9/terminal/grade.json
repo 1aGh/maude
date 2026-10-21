@@ -1,0 +1,48 @@
+{
+  "journey": "S9",
+  "lane": "terminal",
+  "pass": true,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.3028386,
+      "numTurns": 17
+    }
+  ],
+  "results": [
+    {
+      "id": "replied-and-resolved",
+      "grader": "comments",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "implemented",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ids-kept",
+      "grader": "ids-kept",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "comments-through-the-verb",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

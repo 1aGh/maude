@@ -476,3 +476,14 @@ test('other project: --root, --design-root, cd and the session env are denied; t
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+// S12.16 live: both refusals sent the agent to a verb that does not exist (`maude design canvas move`,
+// `maude design trash move`: "unknown subcommand"), and the agent burned 15+ calls finding the real route.
+test('the use-verb / use-trash messages name a route that exists', () => {
+  const msg = (cmd) => classifyBash(cmd, { cwd: ROOT, designRoot: DR })?.reason ?? '';
+  const mv = msg('mv .design/ui/C.tsx .design/ui/D.tsx');
+  const rm = msg('rm .design/ui/C.tsx');
+  assert.match(mv, /curl-local .*\/_api\/fs-move/);
+  assert.match(rm, /curl-local .*\/_api\/canvas\?file=/);
+  for (const m of [mv, rm]) assert.doesNotMatch(m, /design (canvas move|trash move)/);
+});
