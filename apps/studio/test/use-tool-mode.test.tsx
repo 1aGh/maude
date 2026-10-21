@@ -201,6 +201,17 @@ describe('use-tool-mode / read-only filter', () => {
     expect(ids).not.toContain('comment');
   });
 
+  // Wave-B gate (15 an-viewer, 04 md-comment-only): a Can comment session boots `ro=1&cm=1`. Its
+  // Preview toolbar is Hand and Comment — so the Comment tool must survive the read-only filter,
+  // or the slot has nothing to arm and the bar shows Hand alone (seen on a local cell).
+  test('a read-only Can comment session keeps Comment; Can view still does not', () => {
+    const commenter = filterToolsForReadOnly(DEFAULT_TOOLS, true, true).map((t) => t.id);
+    expect(commenter).toEqual(['browse', 'move', 'inspect', 'hand', 'comment']);
+    expect(filterToolsForReadOnly(DEFAULT_TOOLS, true, false).map((t) => t.id)).not.toContain(
+      'comment'
+    );
+  });
+
   test('readOnly=false is identity', () => {
     expect(filterToolsForReadOnly(DEFAULT_TOOLS, false)).toEqual([...DEFAULT_TOOLS]);
   });

@@ -26,7 +26,13 @@ import * as Y from 'yjs';
 import { accessClaims, signAccessToken, signAccessTokenV2 } from '../src/cloud-identity.mjs';
 import { createHub } from '../src/server.mjs';
 import { closeUsers, createUser } from '../src/users.mjs';
-import { A_VISIBLE, B_ONLY, bootAclHub, call } from './_acl-files-fixture.mjs';
+import {
+  A_VISIBLE,
+  PROJECT as ACL_PROJECT,
+  B_ONLY,
+  bootAclHub,
+  call,
+} from './_acl-files-fixture.mjs';
 
 const BASE_PORT = Number.parseInt(process.env.HUB_V1_COMPAT_TEST_PORT ?? '15380', 10);
 const SECRET = 'test-admin-secret';
@@ -506,5 +512,148 @@ describe('S9.13 — hub-held votes: a 1.9.1 desktop sees today’s answers', () 
     );
     assert.equal(seen.includes('v1-compat'), false);
     assert.equal((await post(tokens.owner, `${V}/${vote.id}/end`, {})).status, 200);
+  });
+});
+
+// ------------------------------------------------------------------ wave B
+
+/**
+ * What a 1.9.1 desktop reads off these doors, FROZEN from a live 1.9.1 hub
+ * (gate-b-compat, 2026-10-21: a v1.9.1 local cell and a feat one answered the
+ * same key sets). A key may be ADDED to a response; one of these may never
+ * move, rename or change type.
+ */
+const V191_JOURNAL_KEYS = ['entries', 'epoch', 'head', 'truncated'];
+const V191_JOURNAL_ENTRY_KEYS = [
+  'atMs',
+  'class',
+  'deleted',
+  'mirroredAtMs',
+  'mtimeMs',
+  'path',
+  'seq',
+  'sha256',
+  'size',
+];
+const V191_MANIFEST_ENTRY_KEYS = ['class', 'mtimeMs', 'path', 'sha256', 'size'];
+const V191_DOCUMENT_KEYS = ['bytes', 'name'];
+const V191_HEALTH_CAPABILITIES = ['ledger', 'annotations-v2', 'format-v2'];
+
+/** 1.9.1's `slugFromDocName` (sync/remote-docs.ts), verbatim: what a listing name becomes on disk. */
+function slugFromDocNameV191(docName) {
+  const raw = String(docName ?? '');
+  const COMPONENT = '[A-Za-z0-9_-]{1,120}';
+  const FLAT = new RegExp(`^${COMPONENT}$`);
+  const NAMESPACED = new RegExp(`^ws/${COMPONENT}/${COMPONENT}/(${COMPONENT})$`);
+  if (FLAT.test(raw)) return raw.toLowerCase();
+  const ns = NAMESPACED.exec(raw);
+  return ns ? ns[1].toLowerCase() : null;
+}
+
+const hasKeys = (obj, keys, what) => {
+  for (const k of keys) assert.ok(Object.hasOwn(obj, k), `${what}: 1.9.1 reads \`${k}\``);
+};
+
+describe('Wave B — team libraries, grants and DS revisions: a 1.9.1 desktop sees today’s answers', () => {
+  test('S10.18a/b — library doors on, a revision set in the checkout, a grant minted: every 1.9.1 read keeps its shape', async () => {
+    const REV = 'f'.repeat(64);
+    const prev = {
+      MAUDE_DS_LIBRARY_GRANTS: process.env.MAUDE_DS_LIBRARY_GRANTS,
+      MAUDE_TENANT_ID: process.env.MAUDE_TENANT_ID,
+      MAUDE_CLOUD_IDENTITY: process.env.MAUDE_CLOUD_IDENTITY,
+    };
+    // A self-hosted workspace hub: the outer beforeEach set cloud identity for
+    // its own hub, which this one does not use.
+    delete process.env.MAUDE_TENANT_ID;
+    delete process.env.MAUDE_CLOUD_IDENTITY;
+    process.env.MAUDE_DS_LIBRARY_GRANTS = '1';
+    const acl = await bootAclHub('maude-v1-waveb', {
+      studioChild: true,
+      files: {
+        ...ACL_PROJECT,
+        'config.json': JSON.stringify({ designSystems: [{ name: 'brand', path: 'system/brand' }] }),
+        'system/brand/colors_and_type.css': ':root{--brand:1}\n',
+        'system/brand/tokens.json': '{"format":"maude.tokens","v":1,"tokens":{}}\n',
+        'system/brand/revisions/head.json': JSON.stringify({
+          format: 'maude.ds-head',
+          v: 1,
+          system: 'brand',
+          head: REV,
+          base: REV,
+          drafts: [],
+          log: [{ rev: REV, parent: null, action: 'publish', at: 'x', by: { kind: 'ai' } }],
+        }),
+        [`system/brand/revisions/${REV}.json`]:
+          '{"format":"maude.ds-revision","v":1,"system":"brand","files":{}}\n',
+        [`system/brand/revisions/${REV}.tokens.css`]: ':root{--rev:1}\n',
+      },
+    });
+    try {
+      const health = await (await fetch(`${acl.http}/health`)).json();
+      assert.equal(typeof health.ok, 'boolean');
+      assert.equal(typeof health.version, 'string');
+      assert.equal(typeof health.formatVersion, 'number');
+      assert.ok(Array.isArray(health.capabilities));
+      assert.ok(
+        health.capabilities.every((c) => typeof c === 'string'),
+        `capabilities stay plain words: ${JSON.stringify(health.capabilities)}`
+      );
+      for (const word of V191_HEALTH_CAPABILITIES) {
+        assert.ok(health.capabilities.includes(word), word);
+      }
+      assert.ok(health.capabilities.includes('ds-library'), 'the library door is on here');
+
+      const minted = await call(acl, 'POST', '/api/projects/local/v1/ds-grants', acl.tokens.owner, {
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ system: 'brand', label: 'v1-compat' }),
+      });
+      assert.equal(minted.status, 201, JSON.stringify(minted.body));
+
+      for (const role of ['owner', 'member', 'viewer']) {
+        const token = acl.tokens[role];
+        const journal = await call(acl, 'GET', '/api/journal?since=0', token);
+        assert.equal(journal.status, 200, role);
+        hasKeys(journal.body, V191_JOURNAL_KEYS, `${role} journal`);
+        for (const e of journal.body.entries) {
+          hasKeys(e, V191_JOURNAL_ENTRY_KEYS, `${role} ${e.path}`);
+        }
+        // The revision set is journalled as ordinary files — a 1.9.1 peer
+        // judges them with its own membership (bare .json stays closed there).
+        const paths = journal.body.entries.map((e) => e.path);
+        assert.ok(paths.includes('system/brand/revisions/head.json'), `${role} head.json`);
+
+        const files = await call(acl, 'GET', '/api/files', token);
+        assert.equal(files.status, 200, role);
+        for (const f of files.body.files) {
+          hasKeys(f, V191_MANIFEST_ENTRY_KEYS, `${role} manifest ${f.path}`);
+        }
+
+        const docs = await call(acl, 'GET', '/api/documents', token);
+        assert.equal(docs.status, 200, role);
+        for (const d of docs.body.documents) {
+          hasKeys(d, V191_DOCUMENT_KEYS, `${role} document`);
+          // A 1.9.1 desktop pulls EVERY listed name as a canvas: a library, a
+          // grant or a revision must never surface here as a document.
+          assert.ok(slugFromDocNameV191(d.name), `${role}: ${d.name} is a name 1.9.1 can pull`);
+          assert.equal(/grant|revision|library/i.test(d.name), false, `${role}: ${d.name}`);
+        }
+      }
+
+      // The grant is a library credential, never a v1 session or a peer token.
+      const grant = minted.body.token;
+      const login = await fetch(`${acl.http}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: grant }),
+      });
+      assert.notEqual(login.status, 200);
+      assert.equal((await call(acl, 'GET', '/api/journal?since=0', grant)).status, 401);
+    } finally {
+      await acl.stop();
+      for (const [k, v] of Object.entries(prev)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
   });
 });

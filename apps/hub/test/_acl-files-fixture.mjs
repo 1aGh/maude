@@ -52,19 +52,21 @@ export function canvasOnlyToken(dataDir, label, grants) {
 }
 
 /** Boot a workspace hub over the fixture; returns { http, tokens, designRoot, dataDir, stop }. */
-export async function bootAclHub(prefix) {
+export async function bootAclHub(prefix, { files, studioChild = false } = {}) {
   resetFileAccessCaches();
   const dataDir = mkdtempSync(join(tmpdir(), `${prefix}-data-`));
   const repoDir = mkdtempSync(join(tmpdir(), `${prefix}-repo-`));
   const designRoot = join(repoDir, '.design');
-  writeProject(designRoot);
+  writeProject(designRoot, files ?? PROJECT);
   const saved = {
     HUB_WORKSPACE_MODE: process.env.HUB_WORKSPACE_MODE,
     MAUDE_STUDIO_CHILD: process.env.MAUDE_STUDIO_CHILD,
     MAUDE_REPO_DIR: process.env.MAUDE_REPO_DIR,
   };
   process.env.HUB_WORKSPACE_MODE = '1';
-  process.env.MAUDE_STUDIO_CHILD = '0';
+  // `studioChild`: the child is CONFIGURED (createHub never starts it), so studio-backed doors such as the S10.18 library exist.
+  if (studioChild) delete process.env.MAUDE_STUDIO_CHILD;
+  else process.env.MAUDE_STUDIO_CHILD = '0';
   process.env.MAUDE_REPO_DIR = repoDir;
   const peer = (label, fields) => addToken(dataDir, { label, scope: '*', ...fields }).value;
   const tokens = {
