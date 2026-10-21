@@ -159,6 +159,10 @@
     background: var(--accent);
     color: var(--accent-fg);
   }
+  /* S8.17b - a thread written in Figma: an empty ring, not a person of this project */
+  .cmp-av.is-imported {
+    background: transparent;
+  }
   .cmp-txt {
     flex: 1;
     min-width: 0;

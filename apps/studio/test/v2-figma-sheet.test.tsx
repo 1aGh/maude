@@ -187,7 +187,7 @@ describe('Import from Figma sheet', () => {
     expect(String(sent.url)).toStartWith('https://');
     const text = tid('figma-import-summary')?.textContent ?? '';
     expect(text).toContain('2 artboards, at their Figma sizes, as pictures');
-    expect(text).toContain('3 comments came across as stickies (1 resolved)');
+    expect(text).toContain('3 comments came across as comments (1 resolved)');
     expect(text).toContain("1 frame Figma couldn't draw");
     expect(text).toContain('1 hidden layer left out');
     expect(tid('figma-renamed')?.textContent).toContain('Uniformy-2027 (Figma)');

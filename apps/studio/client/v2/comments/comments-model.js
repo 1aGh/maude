@@ -8,6 +8,7 @@
 // "Mine" = threads YOU STARTED — the same rule as the verb's `--mine` (bin/_comments.mjs), so a person
 // and an agent asking for "my comments" get the same list.
 
+import { importedLabel, sanitizeImportedFrom } from '../../../comments/imported-from.ts';
 import { whereOf } from '../../../comments/where.ts';
 
 export const FILTERS = Object.freeze(['open', 'mine', 'resolved', 'all']);
@@ -163,6 +164,8 @@ export function groupThreads(commentsByFile, filter, { me, activePath, now } = {
         n: numberOf(list, c),
         resolved: isResolved(c),
         mine: isMine(c, me),
+        // S8.17b - a thread written in Figma: "Jonas · from Figma", else null (the row shows no avatar then)
+        importedLabel: importedLabel(sanitizeImportedFrom(c.importedFrom)) || null,
         replies: Array.isArray(c.thread) ? c.thread.length : 0,
         time: commentTime(
           lastActivity(c) ? new Date(lastActivity(c)).toISOString() : c.created,

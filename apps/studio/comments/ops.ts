@@ -260,6 +260,9 @@ export function applyCommentOp(
   if (!first) return NOT_FOUND;
   if ((op.op === 'edit-own' || op.op === 'delete-own') && !isOwnComment(first, ctx.actor))
     return NOT_YOURS;
+  // S8.17b — an imported thread's words are somebody else's, under their name in Figma. The person
+  // who ran the import may delete it (it is theirs to remove) but not rewrite what the Figma writer said.
+  if (op.op === 'edit-own' && first.importedFrom) return NOT_YOURS;
   if (op.op === 'delete-own') {
     return { ok: true, list: next.filter((c) => c.id !== op.id), comment: null, mentioned: [] };
   }

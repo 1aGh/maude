@@ -46,8 +46,9 @@ export function unreadMentions(commentsByFile, meName, seen = {}) {
     for (const c of list || []) {
       if (!c || typeof c.id !== 'string') continue;
       const messages = [];
-      // A converted sticky's words mention nobody (S4-S9 §3.1).
-      if (!c.from)
+      // A converted sticky's words mention nobody (S4-S9 §3.1), and neither do words imported from
+      // another tool (S8.17b): a Figma comment saying "@you" is a quotation, not a message.
+      if (!c.from && !c.importedFrom)
         messages.push({
           id: 'root',
           author: c.author,
@@ -55,7 +56,8 @@ export function unreadMentions(commentsByFile, meName, seen = {}) {
           text: c.text,
           at: c.created,
         });
-      for (const r of Array.isArray(c.thread) ? c.thread : [])
+      for (const r of Array.isArray(c.thread) ? c.thread : []) {
+        if (r?.importedFrom) continue;
         messages.push({
           id: r?.id ?? 'reply',
           author: r?.author,
@@ -63,6 +65,7 @@ export function unreadMentions(commentsByFile, meName, seen = {}) {
           text: r?.body,
           at: r?.created,
         });
+      }
       for (const m of messages) {
         if (m.authorKind === 'ai' || byMe(m, meName)) continue;
         if (!mentionsPerson(m.text, meName)) continue;

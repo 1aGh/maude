@@ -49,7 +49,7 @@ maude design import-figma --pages "$FIGMA_URL" --root "$REPO" --folder my-app
 # The Import from Figma sheet's two halves (S8.17): list the linked page's frames (ids, Figma
 # sizes, sanitized labels; nothing written), then bring the picked ones in as ONE new canvas —
 # each frame a Fixed size artboard at its Figma px, its picture being Figma's own render (not
-# editable; "<name> (Figma)" when the name is taken; comments as stickies unless --no-comments;
+# editable; "<name> (Figma)" when the name is taken; comments as comment pins unless --no-comments;
 # --styles also saves colours and text styles as tokens). Default pick: every frame on the page.
 maude design import-figma --list "$FIGMA_URL" --json
 maude design import-figma --frames "$FIGMA_URL" --pick 2:1,2:2 --folder 2026/dresy --root "$REPO"
@@ -96,10 +96,12 @@ result; do not describe an imported canvas as ready to edit. `.meta.json` keeps
 every frame's node id, and `--editable` opts back into the JSX translation when
 an editable artboard matters more than an accurate one.
 
-**The file's review comments come across too** — as sticky annotations pinned
-where they sit, open threads on yellow paper and resolved ones on grey. They
-live on their own API endpoint, so they are the part of a handoff a
-tree-walking importer silently omits entirely.
+**The file's review comments come across too** — as comment pins where they sit:
+a thread with its replies, resolved ones resolved. Whoever wrote one in Figma
+shows as "<name> · from Figma" (a label, not a person on this project; the
+pins are yours). They live on their own API endpoint, so they are the part of a
+handoff a tree-walking importer silently omits entirely. A FigJam file's
+comments stay stickies in its "From FigJam" section.
 
 **Read the per-import summary and relay it.** Every node that was skipped,
 degraded, normalized or truncated is listed by NODE ID and a fixed reason code.

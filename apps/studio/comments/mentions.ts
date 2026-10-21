@@ -30,11 +30,18 @@ interface Authored {
   text?: unknown;
   body?: unknown;
   authorKind?: unknown;
+  importedFrom?: unknown;
 }
 
-/** Text a person wrote (an AI-authored part never mentions — C3). */
+/**
+ * Text a person of this project wrote. An AI-authored part never mentions (C3), and neither does
+ * text imported from another tool (`importedFrom`, S8.17b): a Figma comment saying "@michal" is a
+ * quotation, not a message to anyone, and its writer is not one of the people who can be reached.
+ */
 const personText = (part: Authored, key: 'text' | 'body'): string =>
-  part.authorKind === 'ai' || typeof part[key] !== 'string' ? '' : (part[key] as string);
+  part.authorKind === 'ai' || part.importedFrom || typeof part[key] !== 'string'
+    ? ''
+    : (part[key] as string);
 
 /**
  * Every token a thread holds: the comment's text and every person-written reply. A root that

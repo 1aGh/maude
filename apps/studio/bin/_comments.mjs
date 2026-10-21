@@ -16,6 +16,7 @@
 
 import { readFileSync } from 'node:fs';
 
+import { importedLabel, sanitizeImportedFrom } from '../comments/imported-from.ts';
 import {
   call,
   canvasRepoRel,
@@ -99,7 +100,7 @@ async function list(words) {
   for (const t of threads) {
     const where = field(t.file ?? '').replace(/^\.design\//, '');
     const replies = Array.isArray(t.thread) ? t.thread.length : 0;
-    text += `${field(t.id)}  ${where}  ${field(t.author) || '?'}  ${t.status === 'resolved' ? 'resolved' : 'open'}  ${field(t.created ?? '').slice(0, 10)}  ${replies} repl${replies === 1 ? 'y' : 'ies'}\n    ${field(t.text)}\n`;
+    text += `${field(t.id)}  ${where}  ${field(importedLabel(sanitizeImportedFrom(t.importedFrom)) || t.author) || '?'}  ${t.status === 'resolved' ? 'resolved' : 'open'}  ${field(t.created ?? '').slice(0, 10)}  ${replies} repl${replies === 1 ? 'y' : 'ies'}\n    ${field(t.text)}\n`;
   }
   writeUntrusted(text);
   return 0;

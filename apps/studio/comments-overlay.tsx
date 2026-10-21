@@ -61,6 +61,11 @@ import {
   worldToClient,
 } from './comment-anchor.ts';
 import { fromHeadline, fromWho } from './comments/from-line.ts';
+import {
+  type ImportedFrom,
+  importedLabel,
+  sanitizeImportedFrom,
+} from './comments/imported-from.ts';
 import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
@@ -120,6 +125,8 @@ interface OverlayReply {
   created: string;
   /** `ai` for an AI-written reply (S9.7b) — shown with an AI mark, never as a person. */
   authorKind?: 'ai';
+  /** S8.17b — written in another tool (Figma): a label, never a member. `author` is the importer. */
+  importedFrom?: ImportedFrom;
 }
 
 export interface OverlayComment {
@@ -155,6 +162,8 @@ export interface OverlayComment {
   t?: number;
   mm?: { x: number; y: number };
   authorKind?: 'ai';
+  /** S8.17b — the thread came from another tool (Figma): who wrote it there, as a label. */
+  importedFrom?: ImportedFrom;
   /** A converted sticky (S4-S9-votes-comments §3.1). */
   from?: {
     kind: string;
@@ -1655,6 +1664,8 @@ export function CommentThread({
   // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
   // into a sticky" (any editor). Both refuse while someone else has replied; the server judges either way.
   const from = comment.from;
+  // S8.17b — a Figma writer's label (re-clamped here: the record can come from a peer).
+  const imported = sanitizeImportedFrom(comment.importedFrom);
   const meName = (me ?? '').trim();
   const byYou = from ? (meName ? (from.convertedBy ?? '').trim() === meName : mine) : false;
   const foreignReply = from
@@ -1716,7 +1727,7 @@ export function CommentThread({
           <span className="cm-thread__head-end">
             {canAct ? (
               <span className="cm-thread__actions">
-                {mine && draft === null ? (
+                {mine && draft === null && !imported ? (
                   <button
                     type="button"
                     className="cm-btn"
@@ -1851,18 +1862,32 @@ export function CommentThread({
 
       {draft === null ? (
         <div className="cm-msg cm-msg--root">
-          <Avatar
-            name={comment.from ? fromWho(comment.from).name : comment.author}
-            ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
-          />
+          {imported ? (
+            <ImportedMark />
+          ) : (
+            <Avatar
+              name={comment.from ? fromWho(comment.from).name : comment.author}
+              ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
+            />
+          )}
           <div className="cm-msg__main">
             <div className="cm-msg__head">
-              <span className="cm-thread__author">
-                {(comment.from ? fromWho(comment.from).name : comment.author?.trim()) || 'unknown'}
+              <span
+                className="cm-thread__author"
+                data-testid={imported ? `comment-imported-${comment.id}` : undefined}
+              >
+                {imported
+                  ? importedLabel(imported)
+                  : (comment.from ? fromWho(comment.from).name : comment.author?.trim()) ||
+                    'unknown'}
               </span>
-              <span className="cm-thread__time">{formatRelativeTime(comment.created)}</span>
+              <span className="cm-thread__time">
+                {formatRelativeTime(imported?.at ?? comment.created)}
+              </span>
             </div>
-            <div className="cm-thread__body">{renderBodyWithMentions(comment.text)}</div>
+            <div className="cm-thread__body">
+              {imported ? comment.text : renderBodyWithMentions(comment.text)}
+            </div>
           </div>
         </div>
       ) : (
@@ -1898,18 +1923,27 @@ export function CommentThread({
         </div>
       )}
 
-      {(comment.thread ?? []).map((r) => (
-        <div className="cm-msg cm-thread__reply" key={r.id}>
-          <Avatar name={r.author} ai={r.authorKind === 'ai'} />
-          <div className="cm-msg__main">
-            <div className="cm-thread__reply-head">
-              <span className="cm-thread__reply-author">{r.author?.trim() || 'unknown'}</span>
-              <span className="cm-thread__reply-time">{formatRelativeTime(r.created)}</span>
+      {(comment.thread ?? []).map((r) => {
+        const ri = sanitizeImportedFrom(r.importedFrom);
+        return (
+          <div className="cm-msg cm-thread__reply" key={r.id}>
+            {ri ? <ImportedMark /> : <Avatar name={r.author} ai={r.authorKind === 'ai'} />}
+            <div className="cm-msg__main">
+              <div className="cm-thread__reply-head">
+                <span className="cm-thread__reply-author">
+                  {ri ? importedLabel(ri) : r.author?.trim() || 'unknown'}
+                </span>
+                <span className="cm-thread__reply-time">
+                  {formatRelativeTime(ri?.at ?? r.created)}
+                </span>
+              </div>
+              <div className="cm-thread__reply-body">
+                {ri ? r.body : renderBodyWithMentions(r.body)}
+              </div>
             </div>
-            <div className="cm-thread__reply-body">{renderBodyWithMentions(r.body)}</div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* A session that cannot comment (Can view, or an old shell that hid them from every
           read-only role) VIEWS threads; reply / resolve / delete are absent. The server decides
@@ -1950,6 +1984,11 @@ export function CommentThread({
 
 function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name;
+}
+
+/** S8.17b — where a person's avatar would be, for words written in another tool: a ring, no initials. */
+function ImportedMark(): React.ReactElement {
+  return <span className="cm-av cm-av--imported" aria-hidden="true" />;
 }
 
 /** Initials in a circle — a person's mark in a thread; `AI` for an AI-written message. */

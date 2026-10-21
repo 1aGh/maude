@@ -601,6 +601,13 @@ button.cm-chip--seek:focus-visible {
   color: var(--maude-hud-accent-fg, #fff);
 }
 
+/* S8.17b - words written in another tool (Figma): where an avatar would be, an empty ring.
+   Not a person of this project, so no initials and no fill. */
+.cm-av--imported {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 28%, transparent);
+}
+
 .cm-notice {
   position: absolute;
   left: 50%;
