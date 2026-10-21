@@ -17,7 +17,7 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { type Closure, localDepsFromSource } from './access/closure.ts';
+import { assetReferrers, type Closure, localDepsFromSource } from './access/closure.ts';
 import {
   canvasOnlyLogPaths,
   canvasOriginTarget,
@@ -43,6 +43,7 @@ import {
   FRAME_PARAM,
   type FrameScope,
   frameKeyFor,
+  frameSubjectOf,
   frameTokenOf,
   loadFrameSecret,
   mintFrameCap,
@@ -56,6 +57,7 @@ import {
   COMMENT_WRITE_PATTERNS,
   COMMENT_WRITES,
   canvasScopeRefusal,
+  diskProjectReader,
   EXPORT_WRITES,
   type GateInput,
   localGate,
@@ -118,7 +120,6 @@ import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-s
 import { createHubRenderDoorGetter } from './exporters/hub-render-door.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
-import { renderSecondsStats } from './exporters/render-seconds.ts';
 import { createRectsRunner } from './exporters/rects-runner.ts';
 import {
   type CloudRenderDoor,
@@ -128,6 +129,7 @@ import {
   desktopCloudFacts,
   intentRole,
 } from './exporters/remote.ts';
+import { renderSecondsStats } from './exporters/render-seconds.ts';
 import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
 import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
@@ -7181,7 +7183,25 @@ export function createHttp(
     const keys = [...url.searchParams.keys()];
     const rel = url.searchParams.get('canvas') ?? '';
     if (keys.length !== 1 || keys[0] !== 'canvas' || !BG_REMOVE_HARNESS.test(rel)) return null;
-    const fc = frameCapFor(req, [rel]);
+    // gate-b-c4b (lead: Option A) — the frame spans the harness AND every canvas that uses the
+    // photo it processes (`source=` in the generated harness): it must read that photo and write
+    // its every-use edit, which only a frame that may edit every user of the photo may. The
+    // harness is local runtime state (`_photo/`, never synced); no other exception.
+    let source: string | null = null;
+    try {
+      const text = readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+      source =
+        /\bsource=["'](assets\/[0-9a-f]{8,64}\.[A-Za-z0-9]{1,8})["']/.exec(text)?.[1] ?? null;
+    } catch {
+      return null;
+    }
+    const users = source
+      ? assetReferrers(
+          diskProjectReader(ctx.paths.designRoot, () => String(Date.now())),
+          source
+        )
+      : [];
+    const fc = frameCapFor(req, [rel, ...users]);
     if (!fc) return null;
     const qs = new URLSearchParams({ canvas: rel, [FRAME_PARAM]: fc });
     return new Response(null, {
@@ -7425,7 +7445,7 @@ export function createHttp(
   const frameSecret = loadFrameSecret(join(ctx.paths.designRoot, '_state', 'frame-cap.key'));
   function frameKeyOf(req?: Request): Buffer | null {
     if (!isWorkspaceMode()) return frameKeyFor(frameSecret, '');
-    const subject = (req?.headers.get('x-maude-user') ?? '').trim();
+    const subject = frameSubjectOf(req?.headers ?? new Headers());
     return subject ? frameKeyFor(frameSecret, subject) : null;
   }
   function frameScopeOf(req: Request): FrameScope {
