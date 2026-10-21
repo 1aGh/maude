@@ -1406,6 +1406,8 @@ function ShellState({ children }) {
       gitLifecycle,
       gitStatus,
       gitUser,
+      // S6.2's viewport slot (v2/create/empty-project.jsx EmptyProjectSlot) reads these three
+      groups,
       handleAssistantAttention,
       handleAssistantFinished,
       helpOpen,
@@ -1510,6 +1512,8 @@ function ShellState({ children }) {
       toggleTimeline,
       tourBus,
       tourSteps,
+      treeLoadFailures,
+      treeLoaded,
       unsavedCount,
       updateReady,
       usageNudge,
