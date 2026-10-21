@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -77,6 +79,7 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
     expect(box).not.toBeNull();
     await pointerClick(box.x + 12, box.y - 10);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
+    await dismissNotices(); // first-run notices stack over the island's bottom edge
   });
 
   it('Captions from speech: one write adds <Captions>, the Transcript opens with the three words', async () => {
@@ -84,10 +87,12 @@ describe('video-edit-by-transcript — captions from speech, cut by striking a w
     // the file's own header comment names <Captions>: count the element, not the word
     const captionTags = (src: string) => (src.match(/<Captions\s/g) ?? []).length;
     expect(captionTags(before)).toBe(0);
-    await (await $('[data-testid="timeline-captions-tool"]')).click();
-    await browser.waitUntil(async () => captionTags(onDisk()) === 1, {
-      timeout: 20_000,
-      timeoutMsg: 'the captions never reached the file',
+    await withNetProbe(async () => {
+      await (await $('[data-testid="timeline-captions-tool"]')).click();
+      await browser.waitUntil(async () => captionTags(onDisk()) === 1, {
+        timeout: 20_000,
+        timeoutMsg: 'the captions never reached the file',
+      });
     });
     await $('[data-testid="transcript-panel"]').waitForExist({ timeout: 10_000 });
     await $('[data-testid="transcript-word-w1"]').waitForExist({ timeout: 10_000 });

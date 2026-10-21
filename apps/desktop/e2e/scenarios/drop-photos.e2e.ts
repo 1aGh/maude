@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { withNetProbe } from '../helpers/net-probe';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -180,10 +181,13 @@ describe('drop from Finder onto an artboard (S8.14)', () => {
     const over = await dragPhotos(6, 'over');
     expect(over.hint).toBe('Drop to fill 6 empty frames in order');
     expect(source()).toBe(before); // a hover writes nothing
-    const { urls } = await dragPhotos(6, 'drop');
-    await browser.waitUntil(async () => srcOf('cell-6') !== null, {
-      timeout: 15000,
-      timeoutMsg: 'the six photos were never placed',
+    const { urls } = await withNetProbe(async () => {
+      const dropped = await dragPhotos(6, 'drop');
+      await browser.waitUntil(async () => srcOf('cell-6') !== null, {
+        timeout: 15000,
+        timeoutMsg: 'the six photos were never placed',
+      });
+      return dropped;
     });
     // cell n holds photo n: the file on disk behind each src is that photo's bytes
     for (let i = 0; i < 6; i++) {

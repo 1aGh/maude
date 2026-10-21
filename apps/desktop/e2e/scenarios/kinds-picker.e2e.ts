@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { focusCanvasFrame, waitForEditChrome } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { withNetProbe } from '../helpers/net-probe';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -84,7 +85,21 @@ describe('kinds-picker — F opens the size picker; a tile lands an artboard wit
   });
 
   it('hovering "FB event cover" draws the dashed outline with its name and size on the canvas', async () => {
-    await (await tile('social-fb-event')).moveTo();
+    // the tile shows its outline on mouse-enter / focus; the embedded WebDriver's pointer move reaches neither, so
+    // raise what a hover raises (React derives onMouseEnter from `mouseover`)
+    await browser.execute(() => {
+      const el = document.querySelector<HTMLElement>(
+        '[data-testid="size-picker-tile-social-fb-event"]'
+      );
+      el?.dispatchEvent(
+        new MouseEvent('mouseover', {
+          bubbles: true,
+          cancelable: true,
+          relatedTarget: document.body,
+        })
+      );
+      el?.focus();
+    });
     await browser.waitUntil(
       async () =>
         (await inFrame<string | null>(
@@ -120,7 +135,9 @@ describe('kinds-picker — F opens the size picker; a tile lands an artboard wit
     await (await $('[data-testid="tool-panel-sizes"]')).waitForExist({ timeout: 15_000 });
     await (await $('[data-testid="size-picker-all-print"]')).click();
     await (await tile('print-custom')).click();
-    await (await $('[data-testid="size-picker-custom"]')).waitForExist();
+    await withNetProbe(async () => {
+      await (await $('[data-testid="size-picker-custom"]')).waitForExist({ timeout: 10_000 });
+    }, false);
     await capture('size-picker-custom');
     await (await $('[data-testid="size-picker-custom-add"]')).click();
     await browser.waitUntil(() => /"sizeMm":\[99,210\]/.test(readFileSync(SMOKE, 'utf8')), {

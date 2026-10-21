@@ -53,8 +53,8 @@ export default function Smoke() {
   return (
     <DesignCanvas>
       <DCArtboard id="smoke" label="SMOKE/01 · PHOTO" width={900} height={420}>
-        <img data-cd-id="photo" src="../assets/${IMG}.png" alt="" style={{ width: 300, height: 400, objectFit: "cover" }} />
-        <img data-cd-id="photo-2" src="../assets/${IMG}.png" alt="" style={{ width: 300, height: 400, objectFit: "cover" }} />
+        <img data-cd-id="photo" src="assets/${IMG}.png" alt="" style={{ width: 300, height: 400, objectFit: "cover" }} />
+        <img data-cd-id="photo-2" src="assets/${IMG}.png" alt="" style={{ width: 300, height: 400, objectFit: "cover" }} />
       </DCArtboard>
     </DesignCanvas>
   );
@@ -66,7 +66,7 @@ export default function SmokeOther() {
   return (
     <DesignCanvas>
       <DCArtboard id="other" label="OTHER" width={400} height={420}>
-        <img data-cd-id="pic" src="../assets/${IMG}.png" alt="" />
+        <img data-cd-id="pic" src="assets/${IMG}.png" alt="" />
       </DCArtboard>
     </DesignCanvas>
   );
@@ -173,11 +173,16 @@ describe('photo edits change one use (S8.15)', () => {
       'night',
     ])
       expect(await (await $(`[data-testid="photo-look-${look}"]`)).isExisting()).toBe(true);
-    await browser.waitUntil(
-      async () =>
-        (await (await $('[data-testid="photo-scope-line"]')).getText()).includes('1 more canvas'),
-      { timeout: 8000, timeoutMsg: 'the scope line never named the other canvas' }
-    );
+    const scopeText = async () =>
+      (await (await $('[data-testid="photo-scope-line"]')).getText()).trim();
+    await browser
+      .waitUntil(async () => (await scopeText()).includes('is in 1 more canvas'), {
+        timeout: 8000,
+        timeoutMsg: 'the scope line never named exactly the other canvas',
+      })
+      .catch(async (e: Error) => {
+        throw new Error(`${e.message} — it says: “${await scopeText()}”`);
+      });
     await capture(report, 'tab');
   });
 
@@ -211,6 +216,16 @@ describe('photo edits change one use (S8.15)', () => {
       timeout: 10000,
       timeoutMsg: '⌘Z never put the use’s edit back',
     });
+    // the panel follows the file: with the use's own edit back, Mono is the look it shows again
+    await browser.waitUntil(
+      async () =>
+        (await (await $('[data-testid="photo-look-mono"]')).getAttribute('aria-checked')) ===
+        'true',
+      {
+        timeout: 8000,
+        timeoutMsg: 'after ⌘Z the Photo tab did not show the use’s own look (Mono) again',
+      }
+    );
   });
 
   it('Apply to every use… names the other canvas, then writes every use', async () => {
