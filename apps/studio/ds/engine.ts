@@ -912,7 +912,7 @@ export function createDsEngine(opts: EngineOptions) {
     if (L.outsideFiles.length)
       throw fail(
         'ds-outside-unreviewed',
-        'the system files changed outside Maude — review that first',
+        'the system files changed outside the app — review that first',
         {
           files: L.outsideFiles,
         }

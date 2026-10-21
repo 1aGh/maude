@@ -5,8 +5,28 @@
 // finds every row, enabled or not. Rows re-emit the v1 hooks `export-format-<id>` (png pdf svg html pptx
 // mp4 gif canva zip shadcn) and add jpg, webm, audio.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { matchOther, OTHER_LABEL, OTHER_NONE, OTHER_SEARCH } from './export-copy.js';
+
+const GAP = 4;
+const EDGE = 16;
+const MENU_MAX = 420;
+
+/**
+ * Where the Other… list sits, fixed to the window: below the button when it fits, else on the side with more
+ * room, and no taller than that room. `rect` is the button's client rect; null (no layout yet) = no style.
+ */
+export function menuPlace(rect, viewH) {
+  if (!rect) return null;
+  const below = viewH - rect.bottom - GAP - EDGE;
+  const above = rect.top - GAP - EDGE;
+  const side = below >= Math.min(MENU_MAX, 240) || below >= above ? 'below' : 'above';
+  const room = Math.max(120, Math.min(MENU_MAX, side === 'below' ? below : above));
+  const style = { position: 'fixed', left: Math.round(rect.left), maxHeight: Math.round(room) };
+  if (side === 'below') style.top = Math.round(rect.bottom + GAP);
+  else Object.assign(style, { top: 'auto', bottom: Math.round(viewH - rect.top + GAP) });
+  return { side, style };
+}
 
 /**
  * @param groups   `otherFormats(ctx)` — rows with `disabled` and `reason`
@@ -19,6 +39,23 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
   const button = useRef(null);
   const search = useRef(null);
   const shown = matchOther(groups, query);
+  const [place, setPlace] = useState(null);
+
+  // gate-B polish (09 ex-formats): the sheet scrolls (`overflow: auto`), so an absolutely placed list was cut at
+  // its edge and lay over Cancel. The list is fixed to the window instead, under the button — or above it when
+  // the window has no room below — and never taller than the room it has.
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const measure = () =>
+      setPlace(menuPlace(button.current?.getBoundingClientRect(), window.innerHeight));
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -76,7 +113,13 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
         // biome-ignore lint/a11y/noStaticElementInteractions: the menu handles ↑ ↓ esc for its rows
         // gate-b-a11y B-ex: the search box is NOT a child of `role=menu` (axe aria-required-children) — the
         // popover is a plain container; only the format rows live in the menu.
-        <div className="ex-other-menu island" data-testid="export-other-menu" onKeyDown={onKey}>
+        <div
+          className="ex-other-menu island"
+          data-testid="export-other-menu"
+          data-place={place?.side}
+          style={place?.style}
+          onKeyDown={onKey}
+        >
           <input
             ref={search}
             type="search"

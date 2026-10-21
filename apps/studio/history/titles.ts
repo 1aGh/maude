@@ -244,7 +244,7 @@ export function rowTitle(row: RowSpec, opts: TitleOptions = {}): RowTitle {
       return { title: u.title ? `Undid ${quote(u.title, 40)}` : 'Undid a change' };
     }
     case 'outside':
-      return { title: words(), sub: '· changed outside Maude' };
+      return { title: words(), sub: '· changed outside the app' };
     case 'trash':
       return { title: `Moved ${quote(row.label ?? 'canvas', 40)} to the trash` };
     case 'baseline':

@@ -946,7 +946,7 @@ export function createDsLibrary(engine: DsEngine, opts: LibraryOptions = {}) {
     if (st.outside)
       throw new DsEngineError(
         'ds-outside-unreviewed',
-        'the system files changed outside Maude — Undo that first'
+        'the system files changed outside the app — Undo that first'
       );
     if (st.publishedInTwoPlaces)
       throw new DsEngineError(

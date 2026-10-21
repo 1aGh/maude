@@ -47,6 +47,8 @@ registerKind({
   label: 'Clip',
   order: 3,
   match: (s) => timelineOf(s)?.kind === 'clip',
+  // 07 ve-trim-split: Fit / Fill / Reframe, Length, Speed — not an element's Interaction or PNG/SVG Export
+  sections: ['clip'],
   Advanced: ClipAdvanced,
   advancedHint: (s) => advancedHint(timelineOf(s)),
 });
@@ -55,6 +57,7 @@ registerKind({
   label: 'Title',
   order: 4,
   match: (s) => timelineOf(s)?.kind === 'title',
+  sections: ['title-motion'],
   Advanced: TitleAdvanced,
   advancedHint: (s) => advancedHint(timelineOf(s)),
 });

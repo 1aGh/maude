@@ -45,6 +45,9 @@ export function registerKind(kind) {
     match: kind.match,
     order: Number.isFinite(kind.order) ? kind.order : 100,
     bare: kind.bare === true,
+    // gate-B polish: the sections this kind draws, when it is not a canvas element (a Timeline clip draws Clip,
+    // never Interaction or a PNG/SVG Export); absent = every section that has a body for it
+    sections: Array.isArray(kind.sections) ? Object.freeze([...kind.sections]) : undefined,
     Advanced: typeof kind.Advanced === 'function' ? kind.Advanced : undefined,
     seq: seq++,
   };
