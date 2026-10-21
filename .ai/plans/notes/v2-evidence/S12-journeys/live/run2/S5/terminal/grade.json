@@ -1,7 +1,7 @@
 {
   "journey": "S5",
   "lane": "terminal",
-  "pass": false,
+  "pass": true,
   "harnessFailure": false,
   "infra": null,
   "turns": [
@@ -9,8 +9,8 @@
       "turn": 1,
       "code": 0,
       "ok": true,
-      "costUsd": 0.2716682,
-      "numTurns": 11
+      "costUsd": 0.3107614,
+      "numTurns": 14
     }
   ],
   "results": [
@@ -29,14 +29,14 @@
     {
       "id": "free-part-done",
       "grader": "text",
-      "pass": false,
-      "why": "no /Save everything/"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "one-undo-step",
       "grader": "one-undo-step",
-      "pass": false,
-      "why": "0 AI run(s) on ui/GitPanel.tsx; split: none; unattributed: 0"
+      "pass": true,
+      "why": ""
     }
   ]
 }

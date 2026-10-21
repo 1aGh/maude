@@ -9,21 +9,21 @@
       "turn": 1,
       "code": 0,
       "ok": true,
-      "costUsd": 0.20957979999999998,
-      "numTurns": 6
+      "costUsd": 0.20107599999999998,
+      "numTurns": 4
     },
     {
       "turn": 2,
       "code": 0,
       "ok": true,
-      "costUsd": 0.34456620000000004,
-      "numTurns": 5
+      "costUsd": 0.3631238,
+      "numTurns": 6
     },
     {
       "turn": 3,
       "code": 0,
       "ok": true,
-      "costUsd": 0.3784586000000001,
+      "costUsd": 0.39933640000000004,
       "numTurns": 2
     }
   ],
@@ -44,7 +44,7 @@
       "id": "import-by-verb",
       "grader": "tool-used",
       "pass": false,
-      "why": "0 call(s) of Bash matching /maude design import-asset/ (9 tool call(s) in all)"
+      "why": "0 call(s) of Bash matching /maude design import-asset/ (8 tool call(s) in all)"
     },
     {
       "id": "export-written",

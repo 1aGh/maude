@@ -16,13 +16,13 @@
       "id": "artboards-first",
       "grader": "artboards",
       "pass": false,
-      "why": "2 artboard(s), want 3"
+      "why": "1 artboard(s), want 3"
     },
     {
       "id": "filled-in",
       "grader": "artboards",
       "pass": false,
-      "why": "2 artboard(s), want 3; under 4 elements: desktop, mobile"
+      "why": "1 artboard(s), want 3; under 4 elements: desktop"
     },
     {
       "id": "words-from-the-sentence",
@@ -33,20 +33,20 @@
     {
       "id": "design-system-tokens",
       "grader": "text",
-      "pass": true,
-      "why": ""
+      "pass": false,
+      "why": "still /#[0-9a-fA-F]{6}\\b/"
     },
     {
       "id": "by-the-ai",
       "grader": "history",
-      "pass": false,
-      "why": "0 matching action(s) on ui/Landing page.tsx (want 1…∞; kind ai, by ai, op any)"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "one-undo-step",
       "grader": "one-undo-step",
-      "pass": false,
-      "why": "0 AI run(s) on ui/Landing page.tsx; split: none; unattributed: 0"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "no-second-canvas",

@@ -9,22 +9,22 @@
       "turn": 1,
       "code": 0,
       "ok": true,
-      "costUsd": 0.9966312000000003,
-      "numTurns": 33
+      "costUsd": 1.5879068000000005,
+      "numTurns": 41
     }
   ],
   "results": [
     {
       "id": "artboards-first",
       "grader": "artboards",
-      "pass": false,
-      "why": "2 artboard(s), want 3; no artboard of kind web"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "filled-in",
       "grader": "artboards",
       "pass": false,
-      "why": "2 artboard(s), want 3; under 4 elements: desktop, phone"
+      "why": "under 4 elements: web-desktop, web-tablet, web-mobile"
     },
     {
       "id": "words-from-the-sentence",
@@ -35,8 +35,8 @@
     {
       "id": "design-system-tokens",
       "grader": "text",
-      "pass": false,
-      "why": "no /var\\(--/; still /#[0-9a-fA-F]{6}\\b/"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "by-the-ai",

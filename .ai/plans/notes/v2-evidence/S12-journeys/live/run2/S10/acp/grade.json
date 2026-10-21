@@ -1,7 +1,7 @@
 {
   "journey": "S10",
   "lane": "acp",
-  "pass": false,
+  "pass": true,
   "harnessFailure": false,
   "infra": null,
   "turns": [
@@ -20,8 +20,8 @@
     {
       "id": "status-read",
       "grader": "tool-used",
-      "pass": false,
-      "why": "0 call(s) of Bash matching /maude design ds status/ (12 tool call(s) in all)"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "accent-darker",
@@ -38,14 +38,14 @@
     {
       "id": "system-checked",
       "grader": "tool-used",
-      "pass": false,
-      "why": "0 call(s) of Bash matching /maude design ds[- ]check/ (12 tool call(s) in all)"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "usage-read",
       "grader": "tool-used",
-      "pass": false,
-      "why": "0 call(s) of Bash matching /maude design ds usage/ (12 tool call(s) in all)"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "manifest-by-the-verb",

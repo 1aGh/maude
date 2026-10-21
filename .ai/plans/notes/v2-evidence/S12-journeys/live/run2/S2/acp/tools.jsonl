@@ -1,12 +1,9 @@
-{"lane":"acp","name":"Grep","input":{"pattern":"Nothing to save","path":".design/ui/GitPanel.tsx","output_mode":"content","-n":true,"-C":15}}
-{"lane":"acp","name":"Grep","input":{"pattern":"href=|DCLink|artboard=|#save-version|data-artboard","path":".design/ui/GitPanel.tsx","output_mode":"content","-n":true}}
-{"lane":"acp","name":"Grep","input":{"pattern":"artboard=|#artboard|goToArtboard|navigateArtboard|data-artboard-link","path":".design","output_mode":"files_with_matches"}}
-{"lane":"acp","name":"Grep","input":{"pattern":"DCArtboard|DesignCanvas|DCSection","path":".design","output_mode":"files_with_matches","head_limit":30}}
-{"lane":"acp","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":1,"limit":60}}
-{"lane":"acp","name":"Skill","input":{"skill":"design:studio-actions","args":"link heading to another artboard, cross-artboard navigation link"}}
+{"lane":"acp","name":"Grep","input":{"pattern":"Nothing to save","path":".design","output_mode":"content","-n":true}}
+{"lane":"acp","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":320,"limit":110}}
+{"lane":"acp","name":"Grep","input":{"pattern":"artboard:|#empty|#save-version|data-dc-link|DCLink|href=\"#","path":".design","output_mode":"content","-n":true}}
+{"lane":"acp","name":"Grep","input":{"pattern":"goto|data-link|prototype-link|onClick.*Artboard|href=\\\"/","path":".design","output_mode":"files_with_matches"}}
+{"lane":"acp","name":"Skill","input":{"skill":"design:studio-actions","args":"link an element to another artboard, click-through prototype link between artboards"}}
 {"lane":"acp","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
-{"lane":"acp","name":"Bash","input":{"command":"maude design check .design/ui/GitPanel.tsx","description":"Validate GitPanel canvas after edit"}}
-{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --canvas \".design/ui/GitPanel.tsx\" --screen empty --out /private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-run2-S2-acp-project/6acc8761-6239-4f39-bd0c-4861c27ef864/scratchpad/gitpanel-empty.png","description":"Screenshot the empty artboard after the heading/link edit"}}
-{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-run2-S2-acp-project/6acc8761-6239-4f39-bd0c-4861c27ef864/scratchpad/gitpanel-empty.png"}}
-{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --canvas \".design/ui/GitPanel.tsx\" --full --out /private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-run2-S2-acp-project/6acc8761-6239-4f39-bd0c-4861c27ef864/scratchpad/gitpanel-full.png","description":"Screenshot all GitPanel artboards"}}
-{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-run2-S2-acp-project/6acc8761-6239-4f39-bd0c-4861c27ef864/scratchpad/gitpanel-full.png"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design check .design/ui/GitPanel.tsx","description":"Validate the edited canvas file"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --canvas \".design/ui/GitPanel.tsx\" --screen empty --out \"/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-r2b-S2-acp-project/8db8c9ca-277d-4398-a582-8cff1822c7a9/scratchpad/empty.png\"","description":"Screenshot the empty-state artboard after the edit"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-r2b-S2-acp-project/8db8c9ca-277d-4398-a582-8cff1822c7a9/scratchpad/empty.png"}}
