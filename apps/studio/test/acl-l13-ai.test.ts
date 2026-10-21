@@ -8,7 +8,19 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 
 import { filterRunsView, type Seer } from '../access/filters.ts';
 import { filterAiEntries } from '../collab/ai-activity.ts';
-import { A_ONLY, type AclCell, B_REL, bootAclCell, get, hasCanary, OWNER } from './_acl-cell.ts';
+import {
+  A_ONLY,
+  A_REL,
+  type AclCell,
+  asUser,
+  B_REL,
+  bootAclCell,
+  frameCap,
+  get,
+  hasCanary,
+  OWNER,
+  withFc,
+} from './_acl-cell.ts';
 import { killProc } from './_helpers.ts';
 
 const B_FILE = `.design/${B_REL}`;
@@ -34,12 +46,30 @@ describe('booted cell', () => {
   });
 
   test('an A-only session: /_api/ai lists nothing of B, on both origins', async () => {
-    for (const base of [cell.base, cell.canvasBase]) {
-      const r = await get(`${base}/_api/ai`, A_ONLY);
+    // gate-b-c4 — the canvas origin is asked from inside A's frame (frame-less: nothing at all).
+    const aUser = asUser(A_ONLY, 'a-only@example.com');
+    const fc = await frameCap(cell, aUser, A_REL);
+    for (const url of [`${cell.base}/_api/ai`, withFc(`${cell.canvasBase}/_api/ai`, fc)]) {
+      const r = await get(url, aUser);
       expect(r.status).toBe(200);
       expect(hasCanary(r.text)).toBe(false);
       expect(JSON.parse(r.text).entries).toEqual([]);
     }
+  });
+
+  test("the owner's canvas origin in A's frame lists nothing of B; in B's frame it does (C4)", async () => {
+    const owner = asUser(OWNER, 'owner@example.com');
+    const inA = await get(
+      withFc(`${cell.canvasBase}/_api/ai`, await frameCap(cell, owner, A_REL)),
+      owner
+    );
+    expect(inA.status).toBe(200);
+    expect(hasCanary(inA.text)).toBe(false);
+    const inB = await get(
+      withFc(`${cell.canvasBase}/_api/ai`, await frameCap(cell, owner, B_REL)),
+      owner
+    );
+    expect(hasCanary(inB.text)).toBe(true);
   });
 
   test('an A-only session: /_api/ai/runs lists nothing of B and counts nothing of it', async () => {

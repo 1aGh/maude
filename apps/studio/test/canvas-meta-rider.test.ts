@@ -26,6 +26,7 @@ import type { AnnotationElement } from '../annotations/types.ts';
 import { createApi, type LaneChange } from '../api.ts';
 import { type Context, createBus } from '../context.ts';
 import { parseRider, positionsOf, riderPatch, riderRefusal } from '../routes/canvas-meta-rider.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const sticky = (over: Record<string, unknown> = {}) =>
@@ -297,6 +298,8 @@ describe('the local home — one action, one ⌘Z for an artboard and its sticky
   let proc: Subprocess | null = null;
   let base = '';
   let canvas = '';
+  /** gate-b-c4 — the card's frame: a canvas-origin request is the card's own canvas code. */
+  let fc: string | null = null;
   const FILE = '.design/ui/card.tsx';
   const metaPath = () => join(designRoot, 'ui', 'card.meta.json');
   const boardPath = () => join(designRoot, 'ui-card.annotations.json');
@@ -304,7 +307,8 @@ describe('the local home — one action, one ⌘Z for an artboard and its sticky
   const files = () => ({ meta: read(metaPath()), board: read(boardPath()) });
 
   const patch = async (origin: string, body: unknown) => {
-    const r = await fetch(`${origin}/_api/canvas-meta`, {
+    const url = `${origin}/_api/canvas-meta`;
+    const r = await fetch(origin === canvas ? withFc(url, fc) : url, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', origin },
       body: JSON.stringify(body),
@@ -338,6 +342,7 @@ describe('the local home — one action, one ⌘Z for an artboard and its sticky
     });
     base = `http://localhost:${port}`;
     canvas = await readCanvasOrigin(designRoot);
+    fc = await frameCap({ base }, {}, 'ui/card.tsx');
     for (let i = 0; i < 80; i++) {
       const h = (await (await fetch(`${base}/_api/project/history`)).json()) as {
         ok: boolean;

@@ -9,6 +9,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 async function readCanvasOrigin(designRoot: string): Promise<string> {
@@ -23,6 +24,17 @@ async function readCanvasOrigin(designRoot: string): Promise<string> {
     await Bun.sleep(50);
   }
   throw new Error('canvasOrigin never appeared in _server.json');
+}
+
+/**
+ * gate-b-c4 — the project declares `system/ds` as its design system, as a real one does: a
+ * frame reads its canvas's closure, which includes the system it renders under.
+ */
+function declareDs(designRoot: string): void {
+  const file = join(designRoot, 'config.json');
+  const cfg = JSON.parse(readFileSync(file, 'utf8'));
+  cfg.designSystems = [{ name: 'ds', path: 'system/ds' }];
+  writeFileSync(file, JSON.stringify(cfg, null, 2));
 }
 
 describe('canvas-origin gate — A1/A2 traversal + privilege containment', () => {
@@ -51,13 +63,18 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
     writeFileSync(join(designRoot, '_history', 'gate', 'snap.tsx'), 'export default 1\n');
     mkdirSync(join(designRoot, 'system', 'ds', 'preview'), { recursive: true });
     writeFileSync(join(designRoot, 'system', 'ds', 'preview', '_components.css'), '.a{}\n');
+    declareDs(designRoot);
 
     const port = nextPort();
     const proc = await bootServer(root, port, { MAUDE_CANVAS_ORIGIN_SPLIT: '1' });
     try {
       const canvas = await readCanvasOrigin(designRoot);
+      // gate-b-c4 — every probe runs INSIDE a legitimate frame (the capability the shell mints
+      // for Gate.tsx), so each 403 below is the traversal / privilege gate's own answer, not the
+      // frame gate's. A frame-less request reaches nothing per canvas (pinned at the end).
+      const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/Gate.tsx');
       const code = async (p: string) =>
-        (await fetch(canvas + p, { signal: AbortSignal.timeout(2000) })).status;
+        (await fetch(withFc(canvas + p, fc), { signal: AbortSignal.timeout(2000) })).status;
 
       // (1) The confirmed bypass — must now be 403, not 200.
       expect(await code('/.design/..%2fsecret-outside.css')).toBe(403);
@@ -404,6 +421,22 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         redirect: 'manual',
       });
       expect(plainMain.status).toBe(307);
+
+      // (6) gate-b-c4 — frame-less: the canvas and the DS stylesheet are not served without a
+      // capability, a forged one, or one minted for another canvas's path under no key.
+      const bare = async (p: string) =>
+        (await fetch(canvas + p, { signal: AbortSignal.timeout(2000) })).status;
+      expect(await bare('/.design/ui/Gate.tsx')).toBe(403);
+      expect(await bare('/.design/system/ds/preview/_components.css')).toBe(403);
+      expect(await bare('/_health')).toBe(200);
+      const forged = `${(fc ?? '').split('.')[0]}.AAAAAAAAAAAAAAAAAAAAAA`;
+      expect(
+        (
+          await fetch(withFc(`${canvas}/.design/ui/Gate.tsx`, forged), {
+            signal: AbortSignal.timeout(2000),
+          })
+        ).status
+      ).toBe(403);
     } finally {
       await killProc(proc);
     }
@@ -427,13 +460,17 @@ describe('an SVG served from the canvas origin is not a scripting document', () 
       '<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>\n'
     );
     writeFileSync(join(designRoot, 'system', 'ds', 'assets', 'tokens.css'), ':root{}\n');
+    declareDs(designRoot);
 
     const port = nextPort();
     const proc = await bootServer(root, port, { MAUDE_CANVAS_ORIGIN_SPLIT: '1' });
     try {
       const canvas = await readCanvasOrigin(designRoot);
+      // gate-b-c4 — as a canvas frame loads them (with its capability).
+      writeFileSync(join(designRoot, 'ui.tsx'), 'export default function U(){return <main/>}\n');
+      const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui.tsx');
       const head = async (p: string) =>
-        (await fetch(canvas + p, { signal: AbortSignal.timeout(2000) })).headers;
+        (await fetch(withFc(canvas + p, fc), { signal: AbortSignal.timeout(2000) })).headers;
 
       const svg = await head('/.design/system/ds/assets/mark.svg');
       expect(svg.get('content-type')).toContain('image/svg+xml');

@@ -43,6 +43,14 @@ async function convertOp(op, ctx) {
   return r.ok ? { ok: true } : { ok: false, error: r.line };
 }
 
+/** The thread an op names, or null for an op that names none of an existing thread's (an add,
+ *  an undo of this session's own conversion, the "may I offer Undo" read). */
+function namedThread(op) {
+  if (op.op === 'add' || op.op === 'convert-undo' || op.op === 'convert-undoable') return null;
+  if (op.op === 'to-sticky') return typeof op.commentId === 'string' ? op.commentId : '';
+  return typeof op.id === 'string' ? op.id : '';
+}
+
 /** Is `m` one of this bridge's messages? (The caller checks the source window first.) */
 export const isCommentBridgeMessage = (m) =>
   !!m && (m.dgn === 'comment-op' || m.dgn === 'comment-people-request');
@@ -103,6 +111,16 @@ export async function handleCommentBridgeMessage(m, ctx) {
   // ack must mean "this shell owns the op" — before any await, whatever the door later says.
   ctx.reply({ dgn: 'comment-op-ack', reqId });
   const op = m.op;
+  // gate-b-c4 — the active frame's own canvas only: an op naming a thread (by `id`, or the
+  // conversion's `commentId`) must name one of the ACTIVE canvas's threads. The server resolves
+  // the thread's canvas from the id alone and asks the opener's rights there, so canvas code in A
+  // could otherwise resolve, reply to, edit or convert the opener's threads on B. (`add` is pinned
+  // to `activePath` below; `convert-undo` / `convert-undoable` act on this session's own record.)
+  const named = op && typeof op === 'object' ? namedThread(op) : null;
+  if (named !== null && !(typeof ctx.ownsComment === 'function' && ctx.ownsComment(named))) {
+    ctx.reply({ dgn: 'comment-op-result', reqId, ok: false, error: 'That did not go through.' });
+    return true;
+  }
   if (op && typeof op === 'object' && CONVERT_OPS.has(op.op)) {
     const r = await convertOp(op, ctx);
     ctx.reply(

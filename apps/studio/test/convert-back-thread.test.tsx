@@ -40,6 +40,8 @@ async function ask(op: Record<string, unknown>, fetchImpl: typeof fetch) {
     { ...(m as object), dgn: 'comment-op' },
     {
       activePath: '.design/ui/Site.tsx',
+      // gate-b-c4 — the thread is one of the active canvas's (v2-comments-model pins the refusal)
+      ownsComment: () => true,
       reply: (x: unknown) => replies.push(x),
       fetchImpl,
     }

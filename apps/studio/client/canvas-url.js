@@ -9,6 +9,8 @@
 // default DS's tokens — whose ladder is scoped to a different `.<rootClass>`
 // subtree — so every `var(--*)` went undefined and the canvas rendered white.
 
+import { frameCapFor } from './frame-cap.js';
+
 // THE CANVAS CAPABILITY EXPIRES (render-token.mjs: 15 minutes) and cannot be
 // revoked, so it is short on purpose. A tab open longer than that must carry a
 // fresh one or its canvases stop loading and stop updating — every module
@@ -264,6 +266,11 @@ export function canvasUrl(p, cfg, opts) {
   // exists to prevent — so the capability lives in the URL instead.
   const token = currentCanvasToken(cfg);
   if (token) params.set('t', token);
+  // gate-b-c4 — the per-frame capability (client/frame-cap.js, access/frame.ts): the canvas origin
+  // answers this frame's requests as the opener narrowed to THIS canvas. Absent without a key
+  // (an older server, the split off), so the URL is then byte-identical to before.
+  const fc = frameCapFor(cfg?.frameKey, rel);
+  if (fc) params.set('fc', fc);
   const ds0 = cfg?.designSystems?.[0];
   // Specimen detection: anything under `system/<ds>/preview/` belongs to that
   // specific DS, so it must render with *that* DS's tokens — not always the

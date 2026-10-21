@@ -281,6 +281,7 @@ describe('the shell half of the overlay messages', () => {
       { dgn: 'comment-op', reqId: 'q1', op: { op: 'reply', id: 'c1', body: 'ok' } },
       {
         activePath: A,
+        ownsComment: (id: string) => id === 'c1',
         reply: (m: unknown) => sent.push(m),
         fetchImpl: okFetch(calls, { id: 'c1', comment: { id: 'c1' } }),
       }
@@ -292,6 +293,38 @@ describe('the shell half of the overlay messages', () => {
       { dgn: 'comment-op-ack', reqId: 'q1' },
       { dgn: 'comment-op-result', reqId: 'q1', ok: true, comment: { id: 'c1' } },
     ]);
+  });
+
+  test('gate-b-c4: an op naming a thread of another canvas never leaves the shell', async () => {
+    for (const op of [
+      { op: 'reply', id: 'c_on_b', body: 'planted' },
+      { op: 'resolve', id: 'c_on_b' },
+      { op: 'reopen', id: 'c_on_b' },
+      { op: 'edit-own', id: 'c_on_b', body: 'planted' },
+      { op: 'delete-own', id: 'c_on_b' },
+      { op: 'to-sticky', commentId: 'c_on_b' },
+    ]) {
+      const calls: { url: string }[] = [];
+      const sent: { dgn: string; ok?: boolean }[] = [];
+      await handleCommentBridgeMessage(
+        { dgn: 'comment-op', reqId: 'q9', op },
+        {
+          activePath: A,
+          ownsComment: (id: string) => id === 'c1',
+          reply: (m: never) => sent.push(m),
+          fetchImpl: okFetch(calls as never, { comment: { id: 'c_on_b' } }),
+        }
+      );
+      expect({ op: op.op, calls }).toEqual({ op: op.op, calls: [] });
+      expect(sent.find((m) => m.dgn === 'comment-op-result')?.ok).toBe(false);
+    }
+    // …and a shell that cannot tell (no ownsComment) refuses too: fail closed.
+    const calls: { url: string }[] = [];
+    await handleCommentBridgeMessage(
+      { dgn: 'comment-op', reqId: 'q10', op: { op: 'resolve', id: 'c1' } },
+      { activePath: A, reply: () => {}, fetchImpl: okFetch(calls as never, {}) }
+    );
+    expect(calls).toEqual([]);
   });
 
   test('an add is pinned to the OPEN canvas whatever file the iframe names', async () => {
@@ -319,6 +352,7 @@ describe('the shell half of the overlay messages', () => {
       { dgn: 'comment-op', reqId: 2, op: { op: 'delete-own', id: 'c1' } },
       {
         activePath: A,
+        ownsComment: (id: string) => id === 'c1',
         reply: (m: never) => sent.push(m),
         fetchImpl: okFetch(
           calls as never,

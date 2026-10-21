@@ -28,8 +28,10 @@ const BG_REMOVE_HARNESS = /^_photo\/[a-z0-9_][a-z0-9._-]*\.bgremove\.tsx$/;
 
 function isBgRemoveHarness(url: URL): boolean {
   if (url.pathname !== '/_canvas-shell.html' && url.pathname !== '/_canvas-shell') return false;
-  const keys = [...url.searchParams.keys()];
+  // gate-b-c4 — plus the frame's capability (`fc`), which the main origin's redirect adds.
+  const keys = [...url.searchParams.keys()].filter((k) => k !== 'fc').sort();
   if (keys.length !== 1 || keys[0] !== 'canvas') return false;
+  if (url.searchParams.getAll('fc').length > 1) return false;
   return BG_REMOVE_HARNESS.test(url.searchParams.get('canvas') ?? '');
 }
 

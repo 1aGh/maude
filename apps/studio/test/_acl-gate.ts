@@ -88,6 +88,24 @@ export const A_ONLY: Headers_ = {
   'x-maude-access': claim({ v: 1, role: null, grants: [{ c: A_REL, r: 'member' }] }),
   'x-maude-readonly': '1',
 };
+/**
+ * gate-b-c4 — the A-only session as the proxy vouches it (`x-maude-user`: the subject its frame
+ * key is minted for). A cell hands no frame key to a request without one.
+ */
+export const A_USER: Headers_ = { ...A_ONLY, 'x-maude-user': 'a-only@example.com' };
+
+/**
+ * gate-b-c4 — the capability the session's shell mints for `canvas` (its `/_config` key), so the
+ * canvas / capture probes run inside that canvas's frame, as the canvas's own code does.
+ */
+export async function frameIn(cell: GateCell, headers: Headers_, canvas: string): Promise<string> {
+  const { frameCapFor } = await import('../client/frame-cap.js');
+  const r = await fetch(`${cell.base}/_config`, { headers: { origin: cell.base, ...headers } });
+  const cfg = (await r.json()) as { frameKey?: string };
+  const fc = frameCapFor(cfg.frameKey, canvas);
+  if (!fc) throw new Error(`no frame key for ${canvas} (status ${r.status})`);
+  return fc;
+}
 
 // ---------------------------------------------------------------------------
 // The fixture.
@@ -665,15 +683,28 @@ async function readCapped(r: Response, maxBytes = 512 * 1024, ms = 4000): Promis
   return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, maxBytes));
 }
 
-export async function ask(cell: GateCell, p: Probe, headers: Headers_): Promise<Answer> {
+/**
+ * One probe's answer. `fc` (gate-b-c4) is the frame capability a canvas / capture origin probe
+ * carries — the frame the session's canvas code runs in; the main origin never takes one.
+ */
+export async function ask(
+  cell: GateCell,
+  p: Probe,
+  headers: Headers_,
+  fc?: string | null
+): Promise<Answer> {
   const base =
     p.origin === 'main'
       ? cell.base
       : p.origin === 'capture'
         ? (cell.captureBase ?? 'http://127.0.0.1:9')
         : cell.canvasBase;
+  const url =
+    fc && p.origin !== 'main'
+      ? `${p.url}${p.url.includes('?') ? '&' : '?'}fc=${encodeURIComponent(fc)}`
+      : p.url;
   try {
-    const r = await fetch(base + p.url, {
+    const r = await fetch(base + url, {
       method: p.method,
       redirect: 'manual',
       headers: {
@@ -768,12 +799,14 @@ export async function sweep(
   cell: GateCell,
   headers: Headers_,
   probes = buildProbes(cell),
-  batch = 12
+  batch = 12,
+  /** gate-b-c4 — the frame the canvas / capture probes run in (see `ask`). */
+  fc?: string | null
 ): Promise<SweepResult> {
   const answers = new Map<Probe, Answer>();
   for (let i = 0; i < probes.length; i += batch) {
     const slice = probes.slice(i, i + batch);
-    const got = await Promise.all(slice.map((p) => ask(cell, p, headers)));
+    const got = await Promise.all(slice.map((p) => ask(cell, p, headers, fc)));
     slice.forEach((p, j) => answers.set(p, got[j] as Answer));
   }
   const leaks: Record<string, string[]> = {};

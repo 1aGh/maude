@@ -470,8 +470,13 @@ export function diskProjectReader(designRoot: string, head: () => string): Proje
         }
         for (const e of entries) {
           if (n >= LIST_CAP) return;
-          if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules')
-            continue;
+          // Runtime state is FIRST-segment `_*` only (DDR-115; the static lane's DDR-210 rule):
+          // a nested `_` file is versioned content — a design system's `preview/_components.css`
+          // or `preview/_ds.tsx` override (closure.ts `isSystemFileInClosure` expects to see it).
+          // gate-b-c4: every canvas frame now reads through this closure, so skipping them at
+          // depth rendered every canvas without its component styles.
+          if ((e.name.startsWith('_') && !prefix) || e.name.startsWith('.')) continue;
+          if (e.name === 'node_modules') continue;
           const rel = prefix ? `${prefix}/${e.name}` : e.name;
           if (e.isDirectory()) yield* walk(join(dir, e.name), rel);
           else if (e.isFile()) {

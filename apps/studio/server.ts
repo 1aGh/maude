@@ -17,6 +17,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { canvasOfSlug, createWsVisibility, seesSlug } from './access/filters.ts';
+import { frameRefusal, runInFrame } from './access/frame.ts';
 import {
   accessForDesktop,
   acpRefusal,
@@ -759,6 +760,28 @@ function captureRefusal(req: Request): Response | null {
   return null;
 }
 
+/**
+ * gate-b-c4 — every canvas / capture listener request runs inside the frame its `fc` capability
+ * names (access/frame.ts): `http.accessOf` then answers the opener NARROWED to that canvas, and a
+ * request whose frame holds no canvas reaches only the vendor runtime, the shell and its chrome.
+ */
+function inFrame(req: Request, fn: () => Response | Promise<Response>): Promise<Response> {
+  return runInFrame(http.frameScopeOf(req), async () => {
+    const stop = frameRefusal(new URL(req.url).pathname, http.accessOf(req));
+    return stop ?? fn();
+  });
+}
+
+/** Each canvas-listener route inside its request's frame (the routes half of `inFrame`). */
+function framedRoutes<R extends Record<string, unknown>>(routes: R): R {
+  const out: Record<string, unknown> = {};
+  for (const [path, handler] of Object.entries(routes)) {
+    const fn = handler as (req: Request) => Response | Promise<Response>;
+    out[path] = (req: Request) => inFrame(req, () => fn(req));
+  }
+  return out as R;
+}
+
 /** Each route behind the capture gate — the capture origin's copy of the ONE table. */
 function readOnlyRoutes<R extends Record<string, unknown>>(routes: R): R {
   const out: Record<string, unknown> = {};
@@ -776,7 +799,7 @@ function startCanvasServer(
   // Hard allowlist of route-table endpoints (Bun matches `routes` before
   // `fetch`) — routes/canvas-origin.ts (V2-2.5 moved the literal there verbatim,
   // so test/canvas-origin-parity.test.ts can hold it to CANVAS_SAFE_API).
-  const routes = canvasOriginRoutes(http);
+  const routes = framedRoutes(canvasOriginRoutes(http));
   return Bun.serve<WsData, never>({
     port,
     hostname,
@@ -801,88 +824,92 @@ function startCanvasServer(
         const refused = canvasTopLevelRefusal(req);
         if (refused) return refused;
       }
-
-      // Collab WS — shared registry, loopback-only (same gate as the main
-      // origin), with the same workspace-mode vouched path: in a cell the hub's
-      // canvas lane forwards the iframe's collab socket HERE, capability-
-      // authenticated, with Host rewritten to the public canvas origin (D4) —
-      // RCA issue-cloud-live-collaboration-dead.
-      const collabSlug = parseCollabSlug(pathname);
-      if (collabSlug !== null) {
-        const vouchedRole = WORKSPACE ? req.headers.get('x-maude-role') : null;
-        if (!isLoopbackHost(req.headers.get('host')) && !vouchedRole) {
-          return new Response('cross-machine collab requires Phase 9 hub deploy', { status: 403 });
+      // gate-b-c4 — the rest runs inside this request's frame (see inFrame).
+      return inFrame(req, async () => {
+        // Collab WS — shared registry, loopback-only (same gate as the main
+        // origin), with the same workspace-mode vouched path: in a cell the hub's
+        // canvas lane forwards the iframe's collab socket HERE, capability-
+        // authenticated, with Host rewritten to the public canvas origin (D4) —
+        // RCA issue-cloud-live-collaboration-dead.
+        const collabSlug = parseCollabSlug(pathname);
+        if (collabSlug !== null) {
+          const vouchedRole = WORKSPACE ? req.headers.get('x-maude-role') : null;
+          if (!isLoopbackHost(req.headers.get('host')) && !vouchedRole) {
+            return new Response('cross-machine collab requires Phase 9 hub deploy', {
+              status: 403,
+            });
+          }
+          // CSWSH (Phase 2 gate) — the canvas iframe keeps its own origin
+          // (`allow-same-origin`), so only a page ON this canvas origin passes; a drive-by
+          // site could otherwise read the Y-doc and write comments/annotations here.
+          if (!WORKSPACE && !isSameOriginWs(req)) {
+            return new Response('collab is same-origin only', { status: 403 });
+          }
+          // S9.11 (V2-1.16 L11/L15) — the render token's access joins only its canvases' rooms.
+          const access = http.accessOf(req);
+          if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
+          const ok = srv.upgrade(req, {
+            data: {
+              id: crypto.randomUUID(),
+              remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
+              kind: 'collab',
+              slug: collabSlug,
+              access,
+              // UNTRUSTED canvas iframe origin (DDR-063 split). Every sync frame
+              // from here goes through the origin gate and may never write a
+              // body lane — DDR-122 follow-up, collab/origins.ts. ALWAYS
+              // 'canvas' on this listener — the proxy's realm marker is not
+              // consulted, so a forged header cannot promote the socket.
+              realm: 'canvas',
+              // Fail closed in a cell (absent header = unproven session);
+              // loopback desktop keeps full capability as before. S9.11 — from the access.
+              readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
+              // S3.7c — the hub's canvas door opened this on a receive-only FOLLOW
+              // capability (stripped-then-injected, so a client cannot claim it; it
+              // only ever narrows): the room drops its sync, keeps its `watching`.
+              ...(WORKSPACE && req.headers.get('x-maude-collab-follow') === '1'
+                ? { follow: true }
+                : {}),
+              // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+              ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
+            },
+          });
+          if (ok) return undefined as unknown as Response;
+          return new Response('Upgrade failed', { status: 400 });
         }
-        // CSWSH (Phase 2 gate) — the canvas iframe keeps its own origin
-        // (`allow-same-origin`), so only a page ON this canvas origin passes; a drive-by
-        // site could otherwise read the Y-doc and write comments/annotations here.
-        if (!WORKSPACE && !isSameOriginWs(req)) {
-          return new Response('collab is same-origin only', { status: 403 });
+
+        // HMR-only socket — canvas iframes listen for `canvas-hmr` here. Carries
+        // NO privileged inspector feed and ignores inbound messages (ws.ts) — but its
+        // frames name files (→ collab slugs), so a drive-by Origin is refused too.
+        if (pathname.startsWith('/_ws')) {
+          if (!WORKSPACE && !isSameOriginWs(req)) {
+            return new Response('canvas socket is same-origin only', { status: 403 });
+          }
+          const ok = srv.upgrade(req, {
+            data: {
+              id: crypto.randomUUID(),
+              remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
+              kind: 'canvas-hmr',
+              // S9.11 (V2-1.16 L12) — the render token's access decides which frames it hears.
+              access: http.accessOf(req),
+            },
+          });
+          if (ok) return undefined as unknown as Response;
+          return new Response('Upgrade failed', { status: 400 });
         }
-        // S9.11 (V2-1.16 L11/L15) — the render token's access joins only its canvases' rooms.
-        const access = http.accessOf(req);
-        if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
-        const ok = srv.upgrade(req, {
-          data: {
-            id: crypto.randomUUID(),
-            remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
-            kind: 'collab',
-            slug: collabSlug,
-            access,
-            // UNTRUSTED canvas iframe origin (DDR-063 split). Every sync frame
-            // from here goes through the origin gate and may never write a
-            // body lane — DDR-122 follow-up, collab/origins.ts. ALWAYS
-            // 'canvas' on this listener — the proxy's realm marker is not
-            // consulted, so a forged header cannot promote the socket.
-            realm: 'canvas',
-            // Fail closed in a cell (absent header = unproven session);
-            // loopback desktop keeps full capability as before. S9.11 — from the access.
-            readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
-            // S3.7c — the hub's canvas door opened this on a receive-only FOLLOW
-            // capability (stripped-then-injected, so a client cannot claim it; it
-            // only ever narrows): the room drops its sync, keeps its `watching`.
-            ...(WORKSPACE && req.headers.get('x-maude-collab-follow') === '1'
-              ? { follow: true }
-              : {}),
-            // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
-            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
-          },
-        });
-        if (ok) return undefined as unknown as Response;
-        return new Response('Upgrade failed', { status: 400 });
-      }
 
-      // HMR-only socket — canvas iframes listen for `canvas-hmr` here. Carries
-      // NO privileged inspector feed and ignores inbound messages (ws.ts) — but its
-      // frames name files (→ collab slugs), so a drive-by Origin is refused too.
-      if (pathname.startsWith('/_ws')) {
-        if (!WORKSPACE && !isSameOriginWs(req)) {
-          return new Response('canvas socket is same-origin only', { status: 403 });
+        // Canvas mount harness with the strict CSP ALWAYS on (F1 gate).
+        if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
+          return http.serveCanvasShell(true, false, new URL(req.url).searchParams);
         }
-        const ok = srv.upgrade(req, {
-          data: {
-            id: crypto.randomUUID(),
-            remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
-            kind: 'canvas-hmr',
-            // S9.11 (V2-1.16 L12) — the render token's access decides which frames it hears.
-            access: http.accessOf(req),
-          },
-        });
-        if (ok) return undefined as unknown as Response;
-        return new Response('Upgrade failed', { status: 400 });
-      }
 
-      // Canvas mount harness with the strict CSP ALWAYS on (F1 gate).
-      if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
-        return http.serveCanvasShell(true, false, new URL(req.url).searchParams);
-      }
-
-      // Allowlist gate — runtime bundles, comment-mount, transpiled .tsx + CSS/
-      // assets under designRoot. Everything else is refused at the door.
-      if (!http.isCanvasSafeRoute(pathname)) {
-        return new Response('Forbidden (canvas origin)', { status: 403 });
-      }
-      return http.fetch(req);
+        // Allowlist gate — runtime bundles, comment-mount, transpiled .tsx + CSS/
+        // assets under designRoot. Everything else is refused at the door.
+        if (!http.isCanvasSafeRoute(pathname)) {
+          return new Response('Forbidden (canvas origin)', { status: 403 });
+        }
+        return http.fetch(req);
+      });
     },
     websocket: ws.handler,
     error(e) {

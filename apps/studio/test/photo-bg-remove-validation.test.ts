@@ -113,11 +113,15 @@ describe('photo-bg-remove.sh opens its harness on the canvas origin', () => {
     return { code: proc.exitCode, opened };
   }
 
-  test('split on: the canvas origin from _server.json', () => {
+  test('split on: through the main origin, which 307s to the canvas origin with the frame', () => {
+    // gate-b-c4 — the canvas origin answers nothing per canvas without the frame's capability,
+    // which only the main origin mints: the helper opens the main origin's URL and its 307
+    // (exactly this harness shape — photo-edit-api.test.ts pins the redirect + the PUT behind it)
+    // lands on the canvas origin from _server.json.
     const res = drive({ port: 4399, canvasOrigin: 'http://localhost:51234' });
     expect(res.code).toBe(0);
     expect(res.opened).toBe(
-      'http://localhost:51234/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx'
+      'http://localhost:4399/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx'
     );
   });
 

@@ -18,7 +18,7 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { type Closure, localDepsFromSource } from './access/closure.ts';
+import { assetReferrers, type Closure, localDepsFromSource } from './access/closure.ts';
 import {
   canvasOnlyLogPaths,
   canvasOriginTarget,
@@ -40,12 +40,25 @@ import {
   seerOf,
 } from './access/filters.ts';
 import {
+  currentFrame,
+  FRAME_PARAM,
+  type FrameScope,
+  frameKeyFor,
+  frameSubjectOf,
+  frameTokenOf,
+  loadFrameSecret,
+  mintFrameCap,
+  narrowToFrame,
+  verifyFrameCap,
+} from './access/frame.ts';
+import {
   ACP_REFUSAL,
   accessForDesktop,
   accessFromProxy,
   COMMENT_WRITE_PATTERNS,
   COMMENT_WRITES,
   canvasScopeRefusal,
+  diskProjectReader,
   EXPORT_WRITES,
   type GateInput,
   localGate,
@@ -92,6 +105,7 @@ import type { AiActivity } from './collab/ai-activity.ts';
 import type { Context } from './context.ts';
 import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
+import { createDescribeService, type DescribeService, envDescriber } from './describe/batch.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
@@ -101,13 +115,12 @@ import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { registerDsUndoHook } from './ds/undo-hook.ts';
 import { createReferenceLanes } from './edit-ops/references.ts';
 import { frameAncestors } from './embed-origins.ts';
+import { closureFingerprint } from './exporters/door-fingerprint.ts';
 import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
-import { closureFingerprint } from './exporters/door-fingerprint.ts';
 import { createHubRenderDoorGetter } from './exporters/hub-render-door.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { ExportJobIdError, type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
-import { renderSecondsStats } from './exporters/render-seconds.ts';
 import { createRectsRunner } from './exporters/rects-runner.ts';
 import {
   type CloudRenderDoor,
@@ -117,6 +130,7 @@ import {
   desktopCloudFacts,
   intentRole,
 } from './exporters/remote.ts';
+import { renderSecondsStats } from './exporters/render-seconds.ts';
 import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
 import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
@@ -207,7 +221,6 @@ import {
 } from './index/extractors/attribution-cache.ts';
 import { historySourceFromRuntime } from './index/history-source.ts';
 import { kickWhenReady } from './index/scan-kick.ts';
-import { createDescribeService, type DescribeService, envDescriber } from './describe/batch.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
@@ -222,11 +235,11 @@ import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, EDIT8_RE, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
 import {
-  cloudExportResponse,
   allSpecs,
   announceAction,
   assetStateDepsFor,
   canvasPathsOfIndex,
+  cloudExportResponse,
   createTrashWriteStop,
   voteHomeResolver as createVoteHomeResolver,
   type ExportRouteDeps,
@@ -1294,6 +1307,12 @@ export interface Http {
   accessOf(req?: Request): Access;
   /** S9.11 — the closure of a session's grants on this child's disk (null without grants). */
   closureOf(access: Access): Closure | null;
+  /**
+   * gate-b-c4 — the frame a canvas / capture listener request was opened for (its verified `fc`
+   * capability; `canvases: null` = frame-less). server.ts runs the request inside it, and
+   * `accessOf` then answers the opener's access narrowed to those canvases (access/frame.ts).
+   */
+  frameScopeOf(req: Request): FrameScope;
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -1694,6 +1713,16 @@ export function createHttp(
         // NOT `x-maude-canvas-token`, which carries the member's own (up to
         // write-capable) role. The worker only reads, so it holds only read.
         token: req.headers.get('x-maude-render-token') ?? undefined,
+        // gate-b-c4 — the render is a frame too: renderRemotely mints its capability over the
+        // job's canvases from this (stripped before the body crosses — exporters/remote.ts).
+        ...(frameKeyOf(req)
+          ? {
+              frameMint: {
+                key: (frameKeyOf(req) as Buffer).toString('base64url'),
+                designRel: ctx.paths.designRel,
+              },
+            }
+          : {}),
         tokensCssRel: ctx.cfg.designSystems?.[0]?.tokensCssRel ?? ctx.cfg.tokensCssRel,
       },
     };
@@ -2568,6 +2597,13 @@ export function createHttp(
       // like a missing one (project-level `comment` needs a project role); the op door still judges
       // every op on its own canvas (hidden ≠ refused). The client turns it into the canvas URL's `cm=1`.
       canComment: accessOf(req).can('comment', null),
+      // gate-b-c4 — the key this session's shell mints each frame's capability with
+      // (client/frame-cap.js). Only while a canvas origin exists (the split on): with it off the
+      // canvas runs on this origin and there is no frame to scope. MAIN ORIGIN ONLY — `/_config`
+      // is in neither canvas allowlist, so canvas code never sees it.
+      ...(ctx.canvasOrigin && frameKeyOf(req)
+        ? { frameKey: (frameKeyOf(req) as Buffer).toString('base64url') }
+        : {}),
       // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
       // embed view posts its status ONLY to a parent on this list, never to
       // '*'. Public already: the same origins ride in the page's CSP header.
@@ -6895,7 +6931,13 @@ export function createHttp(
         // read-only capture origin, Maude's own local harnesses included (see
         // captureRedirect) — so what follows serves a shell only when the
         // split is OFF.
-        const toCapture = captureRedirect(url);
+        // gate-b-c4 — the photo-bg-remove harness (exactly `?canvas=_photo/<slug>.bgremove.tsx`)
+        // renders on the INTERACTIVE canvas origin (it needs that origin's asset + photo-edit
+        // writes); the main origin sends it there with the frame's capability, which a local
+        // helper cannot mint itself.
+        const toHarness = bgRemoveRedirect(url, req);
+        if (toHarness) return toHarness;
+        const toCapture = captureRedirect(url, req);
         if (toCapture) return toCapture;
         // The segregated canvas origin (server.ts) calls serveCanvasShell(true)
         // directly with CSP always on; on the legacy main origin the CSP stays
@@ -7155,12 +7197,58 @@ export function createHttp(
    */
   const LOCAL_HARNESS =
     /^_(?:draw\/[a-z0-9_][a-z0-9._-]*\.proof|photo\/[a-z0-9_][a-z0-9._-]*\.bgremove)\.tsx$/;
-  function captureRedirect(url: URL): Response | null {
-    if (!ctx.captureOrigin) return null;
+  const BG_REMOVE_HARNESS = /^_photo\/[a-z0-9_][a-z0-9._-]*\.bgremove\.tsx$/;
+  function bgRemoveRedirect(url: URL, req: Request): Response | null {
+    if (!ctx.canvasOrigin || isWorkspaceMode()) return null;
+    const keys = [...url.searchParams.keys()];
+    const rel = url.searchParams.get('canvas') ?? '';
+    if (keys.length !== 1 || keys[0] !== 'canvas' || !BG_REMOVE_HARNESS.test(rel)) return null;
+    // gate-b-c4b (lead: Option A) — the frame spans the harness AND every canvas that uses the
+    // photo it processes (`source=` in the generated harness): it must read that photo and write
+    // its every-use edit, which only a frame that may edit every user of the photo may. The
+    // harness is local runtime state (`_photo/`, never synced); no other exception.
+    let source: string | null = null;
+    try {
+      const text = readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
+      source =
+        /\bsource=["'](assets\/[0-9a-f]{8,64}\.[A-Za-z0-9]{1,8})["']/.exec(text)?.[1] ?? null;
+    } catch {
+      return null;
+    }
+    const users = source
+      ? assetReferrers(
+          diskProjectReader(ctx.paths.designRoot, () => String(Date.now())),
+          source
+        )
+      : [];
+    const fc = frameCapFor(req, [rel, ...users]);
+    if (!fc) return null;
+    const qs = new URLSearchParams({ canvas: rel, [FRAME_PARAM]: fc });
     return new Response(null, {
       status: 307,
       headers: {
-        Location: `${ctx.captureOrigin}/_canvas-shell.html${url.search}`,
+        Location: `${ctx.canvasOrigin}/_canvas-shell.html?${qs.toString()}`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  function captureRedirect(url: URL, req?: Request): Response | null {
+    if (!ctx.captureOrigin) return null;
+    // gate-b-c4 — the capture is a frame too: scoped to the canvas the URL names (a server-minted
+    // capability; a URL naming no canvas, or a bad path, goes frame-less and reads nothing).
+    const search = new URLSearchParams(url.search);
+    search.delete(FRAME_PARAM);
+    // `frame` names the canvas of a shell that imports its module itself (a thumbnail tile).
+    const named = search.get('canvas') ?? search.get('frame');
+    const rel = named ? toDesignRel(named, designRel) : null;
+    const fc = rel ? frameCapFor(req, [rel]) : null;
+    if (fc) search.set(FRAME_PARAM, fc);
+    const qs = search.toString();
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `${ctx.captureOrigin}/_canvas-shell.html${qs ? `?${qs}` : ''}`,
         'Cache-Control': 'no-store',
       },
     });
@@ -7362,8 +7450,32 @@ export function createHttp(
   // desktop reads the linked hub's stored claim (`accessFor`, re-read each call so
   // a sign-in lands on the next write); an unlinked project is the owner's.
   function accessOf(req?: Request): Access {
-    if (isWorkspaceMode()) return accessFromProxy(req?.headers ?? new Headers());
-    return accessForDesktop(ctx.cfg.linkedHub?.url, accessFor);
+    const base = isWorkspaceMode()
+      ? accessFromProxy(req?.headers ?? new Headers())
+      : accessForDesktop(ctx.cfg.linkedHub?.url, accessFor);
+    // gate-b-c4 — on the canvas / capture listeners, the opener narrowed to the frame's canvas.
+    const frame = currentFrame();
+    return frame ? narrowToFrame(base, frame.canvases) : base;
+  }
+
+  // gate-b-c4 — the per-frame capability's key material (access/frame.ts). The secret lives in
+  // this machine's runtime state; a key is per SUBJECT: a desktop's is '' (the secret is its
+  // own), a cell's is the proxy's vouched member — and a cell request without one gets no key
+  // (one shared key would let a capability baked into canvas code verify for everybody).
+  const frameSecret = loadFrameSecret(join(ctx.paths.designRoot, '_state', 'frame-cap.key'));
+  function frameKeyOf(req?: Request): Buffer | null {
+    if (!isWorkspaceMode()) return frameKeyFor(frameSecret, '');
+    const subject = frameSubjectOf(req?.headers ?? new Headers());
+    return subject ? frameKeyFor(frameSecret, subject) : null;
+  }
+  function frameScopeOf(req: Request): FrameScope {
+    const key = frameKeyOf(req);
+    return { canvases: key ? verifyFrameCap(key, frameTokenOf(req)) : null };
+  }
+  /** A capability for `canvases`, minted for the subject of `req` (headless callers, redirects). */
+  function frameCapFor(req: Request | undefined, canvases: readonly string[]): string | null {
+    const key = frameKeyOf(req);
+    return key ? mintFrameCap(key, canvases) : null;
   }
 
   /** May NOT edit at project level — the 1-bit projection old callers read. */
@@ -7662,6 +7774,7 @@ export function createHttp(
     canvasRoutes,
     tableCanvasPaths: laneRoutes.canvasPaths,
     accessOf,
+    frameScopeOf,
     closureOf,
     fetch: guardedFetch,
     serveCanvasShell,

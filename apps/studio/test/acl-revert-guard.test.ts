@@ -15,9 +15,12 @@ import { ACL_CHECKS, type AclCheck } from '../access/filters.ts';
 import { listen, until } from './_acl-cell.ts';
 import {
   A_ONLY,
+  A_REL,
+  A_USER,
   B_REL,
   bootGateCell,
   D,
+  frameIn,
   type GateCell,
   markers,
   OWNER,
@@ -73,7 +76,9 @@ describe('reverting any one key check turns the canary sweep red', () => {
     test(`without ${check}`, async () => {
       const cell = await bootGateCell({ revert: [check] });
       open.push(cell);
-      const r = await sweep(cell, A_ONLY);
+      // gate-b-c4 — canvas-origin probes inside A's frame (frame-less, a reverted canvas
+      // check would hide behind the frame gate and the guard would prove nothing).
+      const r = await sweep(cell, A_USER, undefined, 12, await frameIn(cell, A_USER, A_REL));
       const heard = check === 'frameFor' ? await socketLeaks(cell) : [];
       const red = Object.keys(r.leaks).length + Object.keys(r.oracles).length + heard.length;
       expect({ check, red: red > 0 }).toEqual({ check, red: true });
