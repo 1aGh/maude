@@ -97,11 +97,18 @@ export function prepareProject(journey, trialDir, { cacheDir }) {
 }
 
 export function studioUp(project, env) {
-  const r = spawnSync('node', [CLI, 'design', 'server-up', '--root', project, '--timeout', '30'], {
-    env: { ...env, CLAUDE_PROJECT_DIR: project },
-    encoding: 'utf8',
-    timeout: 60_000,
-  });
+  // A loaded machine (the shared test lane, load average 30-60) takes minutes to boot a studio:
+  // 30 s read as a harness failure although the studio came up two minutes later.
+  const secs = Number(process.env.MAUDE_JOURNEYS_STUDIO_TIMEOUT_S) || 300;
+  const r = spawnSync(
+    'node',
+    [CLI, 'design', 'server-up', '--root', project, '--timeout', String(secs)],
+    {
+      env: { ...env, CLAUDE_PROJECT_DIR: project },
+      encoding: 'utf8',
+      timeout: (secs + 30) * 1000,
+    }
+  );
   const port = String(r.stdout ?? '')
     .trim()
     .split('\n')
@@ -113,7 +120,11 @@ export function studioUp(project, env) {
 
 export function studioDown(project) {
   const p = join(project, '.design', '_server.json');
-  if (!existsSync(p)) return;
+  if (!existsSync(p)) {
+    // The studio never reported ready (a start timeout): do not leave it booting behind the run.
+    spawnSync('pkill', ['-f', `server.ts --root ${project}`]);
+    return;
+  }
   try {
     const { pid } = JSON.parse(readFileSync(p, 'utf8'));
     if (pid) process.kill(pid, 'SIGTERM');
