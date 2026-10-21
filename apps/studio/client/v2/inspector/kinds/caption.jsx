@@ -42,6 +42,7 @@ registerKind({
   label: 'Captions',
   order: 3,
   match: (s) => timelineOf(s)?.kind === 'caption',
+  sections: ['captions'],
   Advanced: CaptionsAdvanced,
   advancedHint: () => '3 properties',
 });

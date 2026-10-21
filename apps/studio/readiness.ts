@@ -238,7 +238,7 @@ export async function probeReadiness(): Promise<ReadinessReport> {
   const autoSetupEnabled = process.env.MAUDE_CLAUDE_AUTOSETUP_ENABLED !== '0';
   items.push({
     id: 'claude',
-    label: 'Claude Code (the `claude` CLI)',
+    label: 'Claude Code',
     required: true,
     status: claude && signedIn ? 'present' : authUnreadable ? 'unknown' : 'missing',
     detail: !claude

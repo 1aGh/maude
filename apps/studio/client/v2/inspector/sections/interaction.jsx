@@ -188,7 +188,7 @@ export function InteractionBody({ el, ctx }) {
         </Quiet>
       ) : null}
       <Quiet testid="insp-interaction-note">
-        Preview plays it; the link shows on the canvas while this is selected — as in 04 Modes.
+        Preview plays it; Edit shows the link while this is selected.
       </Quiet>
     </>
   );

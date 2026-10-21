@@ -102,14 +102,14 @@
     gap: var(--space-1);
     height: 16px;
     border-radius: var(--radius-xs);
-    background: color-mix(in oklab, var(--object-green, var(--status-ok)) 14%, var(--bg-2));
+    background: color-mix(in oklab, var(--object-green, var(--status-success)) 14%, var(--bg-2));
   }
   .ex-film-bed {
     position: absolute;
     top: 0;
     bottom: 0;
     border-radius: var(--radius-xs);
-    background: color-mix(in oklab, var(--object-green, var(--status-ok)) 28%, var(--bg-2));
+    background: color-mix(in oklab, var(--object-green, var(--status-success)) 28%, var(--bg-2));
   }
   .ex-film-head {
     position: absolute;

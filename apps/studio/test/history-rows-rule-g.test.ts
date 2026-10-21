@@ -196,7 +196,7 @@ describe('rule G — which versions share a row', () => {
     expect(by.trash?.title).toBe('Moved “Helma z boku” to the trash');
     expect(by.trash?.thumb).toBeNull();
     expect(by.aside?.chips).toEqual(['Not kept']);
-    expect(by.outside?.sub).toContain('· changed outside Maude');
+    expect(by.outside?.sub).toContain('· changed outside the app');
   });
 
   // S1.14: the kernel only knows a restore by its label ("Restored “Before helmets”", "Restored Helma z boku

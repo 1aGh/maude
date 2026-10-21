@@ -48,6 +48,7 @@ registerKind({
   label: 'Music',
   order: 3,
   match: (s) => timelineOf(s)?.kind === 'music',
+  sections: ['music'],
   Advanced: MusicAdvanced,
   advancedHint: () => '3 properties',
 });
