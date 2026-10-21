@@ -1,8 +1,8 @@
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
-import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { waitForSidecar } from '../helpers/sidecar';
 import { dsRow } from '../helpers/tree';
 
@@ -86,17 +86,23 @@ describe('ds-edges — a quiet contrast warning with the fix, and a colour to th
           .then((t) => t === 'ok'),
       { timeout: 20_000, timeoutMsg: 'the contrast line never turned ok after the fix' }
     );
-    await browser.waitUntil(
-      () =>
-        browser.execute(() => {
-          const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-          return (
-            f?.contentDocument?.querySelector('[data-testid="ds-bar-pending"]')?.textContent ===
-            '1 change waiting'
-          );
-        }),
-      { timeout: 15_000, timeoutMsg: 'the fix did not leave exactly one change waiting' }
-    );
+    let barSaid: string | null | undefined;
+    try {
+      await browser.waitUntil(
+        async () => {
+          barSaid = await browser.execute(() => {
+            const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+            return f?.contentDocument?.querySelector('[data-testid="ds-bar-pending"]')?.textContent;
+          });
+          return barSaid === '1 change waiting';
+        },
+        { timeout: 15_000 }
+      );
+    } catch {
+      throw new Error(
+        `the fix did not leave exactly one change waiting (the bar said ${JSON.stringify(barSaid)})`
+      );
+    }
     await capture('ds-edges-contrast-fixed');
   });
 

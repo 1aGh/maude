@@ -54,7 +54,9 @@ export function buildUsageIndex(p: {
   const idx = createDsUsage({
     designRoot: () => p.designRoot,
     canvases: () =>
-      p.engine.systems().flatMap((s) => p.engine.canvasesOf(s.name).map((rel) => ({ rel, ds: s.name }))),
+      p.engine
+        .systems()
+        .flatMap((s) => p.engine.canvasesOf(s.name).map((rel) => ({ rel, ds: s.name }))),
     persist: true,
     debounceMs: 0,
   });

@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, expect } from '@wdio/globals';
-import { capture, startReport } from '../helpers/evidence';
 import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { openInspector } from '../helpers/chrome';
+import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
 import { dsRow } from '../helpers/tree';
 
@@ -38,6 +39,7 @@ describe('ds-library — a linked team library: the card, the review, Update, Un
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     await waitForCanvasOpened();
+    await openInspector();
     const card = await $('[data-testid="ds-library-card"]');
     await card.waitForExist({ timeout: 25_000, timeoutMsg: 'the library card never appeared' });
     expect(await card.getAttribute('data-system')).toBe('gator');

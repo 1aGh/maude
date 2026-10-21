@@ -12,11 +12,14 @@ import { installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
 
 const p = await makeProject();
 labelDsGroup(p.root);
-installRealDsCanvas(p.root, 'acme');
 await p.engine.mergePending(DS, {
   tokens: ACCENT('oklch(0.5 0.19 255)', 'oklch(0.6 0.175 255)'),
   by: PERSON,
 });
+// last, after anything the engine records: the swap is a plain disk write, and the engine's own proposals
+// (a waiting change is a `dsPending` entry in the canvas meta) are written through the kernel — the meta kept here
+// is read AFTER them, so the disk copy the server finds at boot already holds the pending change
+installRealDsCanvas(p.root, 'acme');
 // the app opens its own home on this project; ours must not hold the database
 p.home.close();
 console.log(p.root);

@@ -1,8 +1,8 @@
 import { $, $$, browser, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { pointerClick } from '../helpers/pointer';
-import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { waitForSidecar } from '../helpers/sidecar';
 import { dsRow } from '../helpers/tree';
 
