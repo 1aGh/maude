@@ -43,6 +43,9 @@
     --accent-active: oklch(0.63 0.18 268);
     --accent-fg: oklch(0.18 0.03 268);
     --accent-muted: oklch(0.46 0.11 268);
+    /* accent used AS TEXT: 5.9:1 on --accent-muted, 12+:1 on the islands (gate-b a11y — the v2 canvases'
+       `var(--accent-text)` was undefined in the shell and fell back to grey, 2.3:1 on --accent-muted) */
+    --accent-text: oklch(0.93 0.04 268);
     --accent-tint: color-mix(in oklab, var(--accent) 16%, transparent);
 
     /* Status */
@@ -153,6 +156,7 @@
     --accent-active: oklch(0.43 0.19 268);
     --accent-fg: oklch(0.995 0.004 268);
     --accent-muted: oklch(0.895 0.05 268);
+    --accent-text: oklch(0.4 0.17 268); /* 7.1:1 on --accent-muted, 9.7:1 on white (gate-b a11y) */
     --accent-tint: color-mix(in oklab, var(--accent) 12%, transparent);
 
     --status-success: oklch(0.56 0.15 162);

@@ -442,7 +442,13 @@ function ChatThread({
             so a user typing "change X" isn't silently ignored. Above the feed. */}
           <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} />
           <ThreadPrimitive.Root className="chat-thread">
-            <ThreadPrimitive.Viewport className="chat-feed" autoScroll>
+            {/* gate-b-a11y: the feed scrolls, so it is a tab stop with a name (axe scrollable-region-focusable) */}
+            <ThreadPrimitive.Viewport
+              className="chat-feed"
+              autoScroll
+              tabIndex={0}
+              aria-label="Conversation"
+            >
               <ThreadPrimitive.Empty>
                 <ChatEmpty />
               </ThreadPrimitive.Empty>
