@@ -25,6 +25,7 @@ import {
   defaultTicks,
   headWords,
   keepsWords,
+  nameOf,
   noteFor,
   primaryWords,
   REVIEW_WORDS,
@@ -407,7 +408,7 @@ function ReachReview({ review, places, scope, onUpdate, onCancel }) {
   };
   const title =
     review.changes.length === 1
-      ? `Update canvases with the new ${review.changes[0].label ?? review.changes[0].css}?`
+      ? `Update canvases with the new ${nameOf(review.changes[0])}?`
       : 'Update canvases?';
   return (
     <div className="island island--pad dsx-rev" data-testid="ds-reach-review">

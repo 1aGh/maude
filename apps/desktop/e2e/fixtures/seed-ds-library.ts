@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { createDsLibrary, fileGrantStore } from '../../../studio/ds/library.ts';
 import { makeProject, PERSON } from '../../../studio/test/_ds-engine-fixture.ts';
 import { GRANT, LIB, PROJECT } from './ds-library-hub.ts';
+import { labelDsGroup } from './real-ds-canvas.ts';
 
 const hubProc = Bun.spawn(['bun', join(import.meta.dir, 'ds-library-hub.ts')], {
   stdout: 'pipe',
@@ -32,6 +33,7 @@ hubProc.unref();
 const hub = `http://127.0.0.1:${port}`;
 
 const p = await makeProject();
+labelDsGroup(p.root);
 const grantsFile = join(mkdtempSync(join(tmpdir(), 'maude-e2e-grants-')), 'ds-library-grants.json');
 const lib = createDsLibrary(p.engine, { grants: fileGrantStore(grantsFile) });
 await lib.link({ url: `${hub}/api/projects/${PROJECT}/v1/ds/${LIB}`, grant: GRANT, by: PERSON });

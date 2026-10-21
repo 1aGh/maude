@@ -161,3 +161,17 @@ export async function dismissNotices(): Promise<void> {
   });
   await browser.pause(300);
 }
+
+/**
+ * The Inspector, showing. A fresh window keeps the right slot closed (a selection opens it, but a canvas with nothing
+ * selected leaves only the corner icon), so a scenario that reads the inspector with nothing selected asks for it.
+ */
+export async function openInspector(): Promise<void> {
+  if (!(await $(tid('inspector-panel')).isExisting())) {
+    await (await $(tid('panel-icon-right'))).click();
+  }
+  await (await $(tid('inspector-panel'))).waitForExist({
+    timeout: 15_000,
+    timeoutMsg: 'the Inspector never opened',
+  });
+}

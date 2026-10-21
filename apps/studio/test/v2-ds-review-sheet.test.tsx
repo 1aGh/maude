@@ -78,6 +78,17 @@ describe('the review model — defaults and words', () => {
     expect(withTicks(rows, { 'ui/Old.tsx': true })[0].ticked).toBe(false);
   });
 
+  test('a change nobody labelled is named the way the board names it, never by its css name', () => {
+    // the server answers `label: null` for a token with no label of its own (ds/engine.ts); the Design system
+    // canvas shows it humanised ("Accent"), so the question must too — not "the new --accent"
+    const bare = { ...ACCENT, label: null };
+    expect(reviewTitle({ changes: [bare] })).toBe('Update canvases with the new Accent?');
+    expect(reviewTitle({ changes: [{ ...bare, css: '--accent-hover' }] })).toBe(
+      'Update canvases with the new Accent hover?'
+    );
+    expect(keepsWords([bare])).toBe('the old Accent');
+  });
+
   test('words: CONTRACT §3 — the title asks with the verb the button does; counts read for 1 and many', () => {
     expect(reviewTitle({ changes: [ACCENT] })).toBe('Update canvases with the new Accent?');
     expect(reviewTitle({ components: ['Tlačítko'] })).toBe(

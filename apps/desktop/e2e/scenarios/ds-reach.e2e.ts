@@ -1,7 +1,10 @@
 import { $, $$, browser, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { dsRow } from '../helpers/tree';
 
 /**
  * 13 · ds-edit-reach (S10.9) — "Used in 5 canvases · Show": select the Accent swatch on the Design system canvas,
@@ -27,19 +30,17 @@ const swatchCentre = () =>
   });
 
 async function clickInFrame(x: number, y: number): Promise<void> {
-  await browser.execute(
-    (px, py) => {
-      const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      const doc = f.contentDocument as Document;
-      const target = doc.elementFromPoint(px, py) ?? doc.body;
-      for (const type of ['pointerdown', 'pointerup', 'click'])
-        target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
-        );
-    },
-    x,
-    y
-  );
+  // (x, y) are the swatch's centre INSIDE the frame; the pointer helper takes a window coordinate and
+  // raises pointer + mouse + click events on whatever is under it, through the frame
+  const off = (await browser.execute(() => {
+    const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    const r = f.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  })) as { x: number; y: number };
+  // the first click on a board's content selects the ARTBOARD (Colour); the second goes in to the element
+  await pointerClick(off.x + x, off.y + y);
+  await browser.pause(1_000);
+  await pointerClick(off.x + x, off.y + y);
 }
 
 describe('ds-reach — Show draws every place ringed, then the review list opens', () => {
@@ -49,16 +50,18 @@ describe('ds-reach — Show draws every place ringed, then the review list opens
 
   it('opens the Design system canvas and selects the Accent swatch; the inspector says where it is used', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
     await browser.waitUntil(async () => (await swatchCentre()) !== null, {
       timeout: 30_000,
       timeoutMsg: 'the Accent swatch never drew on the Design system canvas',
     });
     const at = (await swatchCentre()) as { x: number; y: number };
     await clickInFrame(at.x, at.y);
+    await openInspector();
     await (await $('[data-testid="ds-token-used"]')).waitForExist({ timeout: 20_000 });
     expect(await (await $('[data-testid="ds-token-used"]')).getText()).toContain('Used in');
     await capture('ds-reach-used-line');

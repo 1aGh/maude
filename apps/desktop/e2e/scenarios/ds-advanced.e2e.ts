@@ -1,9 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, expect } from '@wdio/globals';
+import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { dsRow } from '../helpers/tree';
 
 /**
  * 13 · ds-advanced (S10.19) — with nothing selected on a system's own Design system canvas the inspector shows
@@ -26,10 +28,12 @@ describe('ds-advanced — the system panel, Check the system, the files behind i
 
   it('opens the Design system canvas: the inspector shows the system, not the hint', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
+    await openInspector();
     const panel = await $('[data-testid="ds-advanced"]');
     await panel.waitForExist({ timeout: 25_000, timeoutMsg: 'the system panel never appeared' });
     expect(await panel.getAttribute('data-system')).toBe('acme');
@@ -47,7 +51,9 @@ describe('ds-advanced — the system panel, Check the system, the files behind i
     expect(await (await $('[data-testid="ds-check-ran"]')).getText()).toBe('ran just now');
     const rows = await $$('[data-testid^="ds-check-row-"]');
     expect(rows.length).toBeGreaterThanOrEqual(3);
-    const kinds = await Promise.all(rows.map((r) => r.getAttribute('data-kind')));
+    // `rows` is a WebdriverIO ElementArray, whose own `map` is not an Array's: walk it
+    const kinds: string[] = [];
+    for (const r of rows) kinds.push(await r.getAttribute('data-kind'));
     for (const k of ['contrast', 'complete', 'schema']) expect(kinds).toContain(k);
     expect(await (await $('[data-testid="ds-check-ask-ai"]')).isExisting()).toBe(true);
     expect(existsSync(KEPT)).toBe(true);

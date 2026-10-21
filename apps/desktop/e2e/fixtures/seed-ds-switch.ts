@@ -7,8 +7,10 @@
 // which holds three canvases with no designSystem. Prints the project root on its last stdout line.
 
 import { switchProject } from '../../../studio/test/_ds-switch-fixture.ts';
+import { labelDsGroup } from './real-ds-canvas.ts';
 
 const p = await switchProject();
+labelDsGroup(p.root);
 // the app opens its own home on this project; ours must not hold the database
 p.home.close();
 console.log(p.root);

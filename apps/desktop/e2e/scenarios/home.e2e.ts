@@ -501,7 +501,12 @@ export default function C() {
     // a starter fills the prompt and sends nothing
     const tabs = await labels();
     const before = canvases();
-    await (await $('[data-testid^="home-starter-"]')).click();
+    // the first starter of a project with canvases is "A design system" (an intent, not a sentence): pick a sentence
+    await (
+      await $(
+        '[data-testid^="home-starter-"]:not([data-testid="home-starter-ds"]):not([data-testid="home-starter-brand"])'
+      )
+    ).click();
     expect((await input.getValue()).length).toBeGreaterThan(8);
     await browser.pause(750);
     expect(await labels()).toEqual(tabs);

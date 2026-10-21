@@ -1,9 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { dsRow } from '../helpers/tree';
 
 /**
  * 13 · ds-truth-outside, part 3 of the ds-review story (S10.11) — a file of the design system changes behind the
@@ -46,10 +48,12 @@ describe('ds-review (part 3) — an agent edit arrives as a review, Keep and Und
 
   it('opens the Design system canvas: nothing is waiting, the inspector keeps its hint', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
+    await openInspector();
     expect(await (await card()).isExisting()).toBe(false);
   });
 
