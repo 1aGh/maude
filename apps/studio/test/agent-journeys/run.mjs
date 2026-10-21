@@ -264,9 +264,17 @@ async function live() {
       writeJson(join(trialDir, 'grade.json'), rec);
       summary.push(rec);
       console.log(
-        `${rec.pass ? '✓' : '✗'} ${j.id} ${l}${harnessFailure ? ` (harness failure: ${infra ?? 'no result'})` : ''}`
+        `${rec.pass ? '✓' : '✗'} ${j.id} ${l}${harnessFailure ? ` (harness failure: ${infra ?? turns.find((t) => t.error)?.error ?? 'no result'})` : ''}`
       );
       for (const r of g.results) if (!r.pass) console.log(`    ✗ ${r.id}: ${r.why}`);
+      // Not signed in: every remaining trial would fail the same way and grade nothing.
+      if (turns.some((t) => /not logged in|\/login/i.test(t.error ?? ''))) {
+        console.log(
+          'stopping: the lane is not signed in (run `claude /login` for this config dir)'
+        );
+        writeJson(join(OUT, 'live-summary.json'), summary);
+        process.exit(3);
+      }
     }
   }
   writeJson(join(OUT, 'live-summary.json'), summary);

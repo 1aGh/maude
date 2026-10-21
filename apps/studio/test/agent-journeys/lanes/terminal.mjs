@@ -147,8 +147,12 @@ export async function runTerminal(plan, trialDir, { timeoutMin = 20 } = {}) {
       ok: !!result && !result.is_error,
       costUsd: result?.total_cost_usd ?? null,
       numTurns: result?.num_turns ?? null,
+      // A refused start (not signed in, API down) costs nothing: that is the lane, not a grade.
+      ...(result?.is_error && !result.total_cost_usd
+        ? { error: String(result.result ?? 'error result').slice(0, 200) }
+        : {}),
     });
-    if (!result) break; // infra failure: no result event — the remaining turns would grade nothing
+    if (!result || turns.at(-1).error) break; // infra failure: no result event — the remaining turns would grade nothing
   }
   return turns;
 }
