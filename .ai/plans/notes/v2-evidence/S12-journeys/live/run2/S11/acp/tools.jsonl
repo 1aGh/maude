@@ -1,0 +1,22 @@
+{"lane":"acp","name":"Bash","input":{"command":"echo \"HOME=$HOME\"; ls -la ~/Library/Logs 2>/dev/null | grep -i maude; find ~/Library/Application\\ Support -maxdepth 1 -iname \"*maude*\" 2>/dev/null; find ~ -maxdepth 4 -iname \"*maude*\" 2>/dev/null | grep -v claude-instances | head -50"}}
+{"lane":"acp","name":"Bash","input":{"command":"pwd; ls -la .design 2>/dev/null; find .design -maxdepth 2 -iname \"*log*\" -o -iname \"*sync*\" 2>/dev/null | head -50"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S11/acp/project/.design/_server.log"}}
+{"lane":"acp","name":"Bash","input":{"command":"ls -la .design/_state; echo \"---\"; for f in .design/_state/*; do echo \"== $f ==\"; if [ -d \"$f\" ]; then ls -la \"$f\"; fi; done"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S11/acp/project/.design/_server.json"}}
+{"lane":"acp","name":"ToolSearch","input":{"query":"select:DesignSync","max_results":3}}
+{"lane":"acp","name":"Bash","input":{"command":"cat .design/config.json"}}
+{"lane":"acp","name":"Bash","input":{"command":"find . -iname \"*sync*\" 2>/dev/null | grep -v node_modules | head -50"}}
+{"lane":"acp","name":"Bash","input":{"command":"cat /private/tmp/claude-501/-private-tmp-claude-501--Users-iagh-git-personal-maude-87d978ed-80c9-4461-b6c8-391c975c5c9a-scratchpad-live-run2-S11-acp-project/c620e03d-bd1e-4179-9356-c859960cf74e/tasks/bluveza7q.output 2>/dev/null | head -100"}}
+{"lane":"acp","name":"Bash","input":{"command":"find \"/Users/iagh/Library/Application Support/com.maude.app\" -maxdepth 3 2>/dev/null; echo \"---LOGS---\"; find \"/Users/iagh/Library/Logs\" -iname \"*maude*\" 2>/dev/null"}}
+{"lane":"acp","name":"Bash","input":{"command":"ls -la \"/Users/iagh/Library/Logs/com.maude.app\" 2>/dev/null | head -30"}}
+{"lane":"acp","name":"Bash","input":{"command":"cat \"/Users/iagh/Library/Application Support/com.maude.app/app-state.json\" 2>/dev/null"}}
+{"lane":"acp","name":"Bash","input":{"command":"for f in \"/Users/iagh/Library/Application Support/com.maude.app/crashes\"/*.log; do echo \"== $f ==\"; ls -la \"$f\"; done"}}
+{"lane":"acp","name":"Bash","input":{"command":"tail -80 \"/Users/iagh/Library/Logs/com.maude.app/server.log\""}}
+{"lane":"acp","name":"Bash","input":{"command":"grep -niE \"sync\" \"/Users/iagh/Library/Logs/com.maude.app/server.log\" | tail -60"}}
+{"lane":"acp","name":"Bash","input":{"command":"head -5 \"/Users/iagh/Library/Logs/com.maude.app/server.log\"; echo \"....\"; grep -n \"^\\[\" \"/Users/iagh/Library/Logs/com.maude.app/server.log\" | grep -iE \"T[0-9]{2}:[0-9]{2}|2026-\" | head -5\necho \"---count sync rejections---\"\ngrep -c \"hub auth rejections\" \"/Users/iagh/Library/Logs/com.maude.app/server.log\"\necho \"---first occurrence line number---\"\ngrep -n \"hub auth rejections\" \"/Users/iagh/Library/Logs/com.maude.app/server.log\" | head -1\necho \"---last occurrence---\"\ngrep -n \"hub auth rejections\" \"/Users/iagh/Library/Logs/com.maude.app/server.log\" | tail -1\necho \"---total lines---\"\nwc -l \"/Users/iagh/Library/Logs/com.maude.app/server.log\"\necho \"---ERROR/fail grep---\"\ngrep -niE \"error|exception|fatal\" \"/Users/iagh/Library/Logs/com.maude.app/server.log\" | grep -v \"renderMediaOnWeb failed\" | tail -30"}}
+{"lane":"acp","name":"Glob","input":{"pattern":".design/ui/**/GitPanel*"}}
+{"lane":"acp","name":"Bash","input":{"command":"sed -n '1850,1870p' \"/Users/iagh/Library/Logs/com.maude.app/server.log\"; echo \"---elevenlabs---\"; sed -n '1495,1515p' \"/Users/iagh/Library/Logs/com.maude.app/server.log\"; echo \"---video timeout ctx---\"; sed -n '8280,8310p' \"/Users/iagh/Library/Logs/com.maude.app/server.log\""}}
+{"lane":"acp","name":"Bash","input":{"command":"find .design/_comments -iname \"*GitPanel*\"; echo \"---\"; ls -la .design/_comments"}}
+{"lane":"acp","name":"Skill","input":{"skill":"design:board","args":"read annotations on ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S11/acp/project/.design/_comments/ui-gitpanel.json"}}
+{"lane":"acp","name":"Bash","input":{"command":"find .design -iname \"GitPanel.annotations.json\""}}

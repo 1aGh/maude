@@ -1,0 +1,67 @@
+{
+  "journey": "S10",
+  "lane": "terminal",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.18477960000000002,
+      "numTurns": 5
+    },
+    {
+      "turn": 2,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.4050834000000001,
+      "numTurns": 11
+    }
+  ],
+  "results": [
+    {
+      "id": "status-read",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "accent-darker",
+      "grader": "text",
+      "pass": false,
+      "why": "no /--accent:\\s+oklch\\(0\\.47/; still /--accent:\\s+oklch\\(0\\.520 0\\.195 268\\)/"
+    },
+    {
+      "id": "dark-accent-kept",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "system-checked",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "usage-read",
+      "grader": "tool-used",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "manifest-by-the-verb",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "canvases-untouched",
+      "grader": "untouched",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{"lane":"terminal","name":"Skill","input":{"skill":"design:comments","args":"ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design comments list ui/GitPanel.tsx --open --json","description":"List open comments on the canvas"}}
+{"lane":"terminal","name":"Grep","input":{"pattern":"Save all|View History","path":".design/ui/GitPanel.tsx","output_mode":"content"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design runs list --canvas ui/GitPanel.tsx","description":"Check busy artboards on the canvas"}}
+{"lane":"terminal","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":214,"limit":25}}
+{"lane":"terminal","name":"Read","input":{"file_path":".design/ui/GitPanel.tsx","offset":350,"limit":5}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Edit","input":{"file_path":".design/ui/GitPanel.tsx"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design screenshot ui/GitPanel.tsx --all-screens","description":"Screenshot all artboards of the canvas"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design screenshot --all-screens","description":"Screenshot all artboards of the active canvas"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design screenshot --all-screens --out-dir .design/_runs/ec88766f-2036-468c-93eb-16e89717949f/shots","description":"Screenshot all artboards into the run folder"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S9/terminal/project/.design/_runs/ec88766f-2036-468c-93eb-16e89717949f/shots/001-screen-changes.png"}}
+{"lane":"terminal","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/run2/S9/terminal/project/.design/_runs/ec88766f-2036-468c-93eb-16e89717949f/shots/004-screen-empty.png"}}
+{"lane":"terminal","name":"Bash","input":{"command":"maude design comments reply c_journey_1 --text \"Done — the button now says “Save everything”.\" && maude design comments resolve c_journey_1 && maude design comments reply c_journey_2 --text \"Done — the button on the empty screen now says “Open history”.\" && maude design comments resolve c_journey_2","description":"Reply to and resolve both comment threads"}}
