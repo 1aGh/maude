@@ -1791,11 +1791,16 @@ function ShellProjectPill() {
       if (!plan) return shellToast('There is no design system to go to.');
       // S10.13 — a system not yet on a canvas opens today's v1 view (S10 Q6)
       if (!plan.converted) return openSystem(plan.ds);
-      openTab(plan.file);
+      // The tab is the tree's own path (`.design/system/…`): that is the `file` the canvas reports once it has
+      // drawn, and the loading card waits for exactly that (a bare `system/…` never matched: "Opening…" for 15 s,
+      // then "can't be drawn right now" over a canvas that had drawn).
+      const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+      const tabPath = `${designRel}/${plan.file}`;
+      openTab(tabPath);
       const posts = dsGoToPosts(plan);
       for (const ms of OPEN_LADDER_MS)
         setTimeout(() => {
-          if (live.current.activePath !== plan.file) return;
+          if (live.current.activePath !== tabPath) return;
           for (const m of posts) live.current.postToActiveCanvas(m);
         }, ms);
     },
