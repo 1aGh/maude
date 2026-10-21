@@ -8,8 +8,11 @@
 // temp dir each run; the e2e config boots the app into it.
 
 import { ACCENT, DS, makeProject, PERSON } from '../../../studio/test/_ds-engine-fixture.ts';
+import { installRealDsCanvas, labelDsGroup } from './real-ds-canvas.ts';
 
 const p = await makeProject();
+labelDsGroup(p.root);
+installRealDsCanvas(p.root, 'acme');
 await p.engine.mergePending(DS, {
   tokens: ACCENT('oklch(0.5 0.19 255)', 'oklch(0.6 0.175 255)'),
   by: PERSON,

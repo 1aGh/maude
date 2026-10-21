@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * 13 · ds-multi-switch + ds-many-switch (S10.14) — look at the project in another design system, then move a folder
@@ -63,9 +64,21 @@ describe('ds-switch — preview, then one review', () => {
   });
 
   it('Switch…: "Switch canvases to beta?" — the pinned and blocked canvases keep their look', async () => {
+    // The Folder scope is offered only from an open canvas (it names that canvas's folder), so one in
+    // ui/combine is open for the rest of the scenario; the sheet then opens on that folder and the whole
+    // project is one tap away.
+    const one = await canvasRow('canvas-row-ui-combine-one');
+    await one.click();
+    await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
     await openAlphaMenu();
     await (await rowMenuItem('Switch canvases to another system')).click();
     await (await $('[data-testid="ds-switch"]')).waitForExist({ timeout: 15_000 });
+    await (await $('[data-testid="ds-switch-scope-all"]')).click();
+    await browser.waitUntil(
+      async () =>
+        (await $('[data-testid="ds-switch-row"][data-path="ui/Pinned.tsx"]')).isExisting(),
+      { timeout: 15_000, timeoutMsg: 'the whole-project scope never listed the pinned canvas' }
+    );
     expect(await (await $('[data-testid="ds-switch-title"]')).getText()).toBe(
       'Switch canvases to beta?'
     );
@@ -87,12 +100,18 @@ describe('ds-switch — preview, then one review', () => {
       ) as HTMLElement | null;
       f?.click();
     });
-    const go = await $('[data-testid="ds-switch-go"]');
-    await browser.waitUntil(async () => (await go.getText()) === 'Switch 2 canvases', {
-      timeout: 10_000,
-      timeoutMsg: 'the folder scope never counted two canvases',
-    });
-    await go.click();
+    // the sheet is keyed on its scope: a scope change REMOUNTS it, so the button is looked up fresh each time
+    await browser.waitUntil(
+      async () => {
+        try {
+          return (await (await $('[data-testid="ds-switch-go"]')).getText()) === 'Switch 2 canvases';
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 10_000, timeoutMsg: 'the folder scope never counted two canvases' }
+    );
+    await (await $('[data-testid="ds-switch-go"]')).click();
     await (await $('[data-testid="ds-switch"]')).waitForExist({ reverse: true, timeout: 20_000 });
     await browser.waitUntil(() => metaOf('ui/combine/One.tsx').designSystem === 'beta', {
       timeout: 20_000,

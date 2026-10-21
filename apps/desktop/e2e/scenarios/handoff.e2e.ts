@@ -1,6 +1,7 @@
 import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * 09 · ex-handoff, ex-handoff-ready, ex-handoff-edges (S8.10) — ⇧⌘H opens Handoff to production on the open
@@ -63,8 +64,8 @@ describe('handoff — ⇧⌘H, the targets, Advanced, Hand off tokens', () => {
   });
 
   it('Design system › Hand off tokens opens the sheet on the system, with the tokens target', async () => {
-    const ds = await $('[data-testid="canvas-row-system-acme-design-system"]');
-    await ds.waitForExist({ timeout: 30_000 });
+    // the Files panel starts collapsed: reveal the row the way a person would
+    const ds = await canvasRow('canvas-row-system-acme-design-system');
     await ds.click();
     await (await $('[data-testid="ds-advanced"]')).waitForExist({ timeout: 25_000 });
     await (await $('[data-testid="ds-advanced-fold"] summary')).click();
