@@ -78,6 +78,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  f = homeFetch(); // a fresh listing cache for every test
   seen.length = 0;
   homeHits = 0;
   invited = [];
@@ -100,7 +101,7 @@ afterAll(() => {
 });
 
 // one Home fetch for the whole file, so the listing cache and the proxy share a process like the real one
-const f = homeFetch();
+let f = homeFetch();
 async function page(path: string, body: unknown) {
   const r = await f(homeReq(path, { method: 'POST', body: JSON.stringify(body) }));
   return { status: r.status, body: (await r.json().catch(() => null)) as Record<string, unknown> };
