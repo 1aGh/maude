@@ -19,7 +19,7 @@
 // full re-link. Refusals answer in JSON with a reason (`refuse` below), because the panel renders
 // `detail` and a causeless "Resync could not start." sent people to a terminal they do not have.
 
-import { currentAccess } from '../access/request.ts';
+import { currentAccess, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
 import type { LinkGate } from '../sync/link-consent.ts';
 import type { ResyncTrace } from '../sync/resync-trace.ts';
@@ -77,7 +77,11 @@ export function createSyncRoutes(deps: SyncRouteDeps): RouteSpec[] {
       path: '/_api/sync/link',
       origin: 'main',
       readOnly: 'allowed',
-      handle: async () => json(200, { pending: deps.link?.pending() ?? null }),
+      // A project-class answer: a canvas-only session hears the missing-scope refusal (U3).
+      handle: async () =>
+        access().can('read', null)
+          ? json(200, { pending: deps.link?.pending() ?? null })
+          : notInScopeResponse(),
     },
     // Connect: record on THIS Mac that the folder's hub may receive this Mac's credential, then
     // start syncing with exactly the parked value. Can edit and up (like Resync); a person's
