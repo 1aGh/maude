@@ -298,8 +298,8 @@ describe('POST /api/invites/<id>/accept', () => {
     const { id } = await (
       await invite(env, { email: 'jonas@example.com', role: 'viewer', canvas: POSTER })
     ).json();
-    // Both invitations exist before the account does (an address WITH an
-    // account is added directly and gets no invitation row — O1).
+    // Both invitations exist before the account does (since gate-b-sec3 an
+    // address WITH an account gets the same pending invitation too).
     const { id: whole } = await (
       await invite(env, { email: 'jonas@example.com', role: 'member' })
     ).json();
