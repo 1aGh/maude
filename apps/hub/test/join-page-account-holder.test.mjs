@@ -64,7 +64,10 @@ describe('POST /join from the page, a wrong password for an existing account', (
   const form = (token, email, password) =>
     fetch(`${hub.http}/join`, {
       method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-maude-access': '2' },
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'sec-fetch-site': 'same-origin',
+      },
       body: new URLSearchParams({ token, email, password }).toString(),
     });
 
