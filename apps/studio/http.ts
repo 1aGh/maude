@@ -1,3 +1,4 @@
+import { claimCreatedCanvas, runForCreate } from './ai/create-claim.ts';
 import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
 import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
@@ -3746,6 +3747,18 @@ export function createHttp(
           { ok: false, error: result.error },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
+      }
+      // S12.16 — the AI chat creates through `maude design curl-local`, which names its chat
+      // (ai/create-claim.ts): the new canvas is that chat's live run's write, not an outside one.
+      const mine = runForCreate(req, runs);
+      if (mine) {
+        claimCreatedCanvas(ctx.syncControl?.current?.(), {
+          runId: mine.runId,
+          chatId: mine.chatId,
+          label: mine.label,
+          repoRel: result.file,
+          abs: join(ctx.paths.repoRoot, result.file),
+        });
       }
       return Response.json(
         { ok: true, file: result.file, rel: result.rel, slug: result.slug },

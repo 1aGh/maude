@@ -214,6 +214,12 @@ export interface LaneProposal {
    */
   stageable?: boolean;
   /**
+   * S12.16 — this lane belongs to a canvas that is NOT in the store yet, created by the run that
+   * claimed it: its path. A stage holds it with the run's other changes and publishes one
+   * `doc.create` (sync/action-stage.ts); only a run that explicitly claimed the canvas takes it.
+   */
+  create?: string;
+  /**
    * S2.20c — ⌘Z on the person's edit with this transaction id while it waits behind an AI run:
    * this proposal is its inverse (V2-1.5 §5.4), and lands as that edit's undo right behind it.
    */

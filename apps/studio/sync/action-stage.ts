@@ -70,6 +70,11 @@ export interface StagedLane {
   resolvers: Array<(o: ProposalOutcome) => void>;
   /** Restored from disk after a restart: the cold start's first write is not a delta. */
   restored?: boolean;
+  /**
+   * S12.16 — the run CREATED this canvas (it is not in the store yet): its path. The run publishes
+   * a `doc.create` carrying every staged lane of the doc instead of a `lane.replace` per lane.
+   */
+  create?: string;
 }
 
 /** V2-1.5 §5.5 `RunStage`. */
@@ -253,6 +258,7 @@ export function createActionStage(opts: ActionStageOptions) {
             base: l.base,
             mine: l.mine,
             writes: l.writes,
+            ...(l.create ? { create: l.create } : {}),
           })),
         })),
       };
@@ -292,6 +298,7 @@ export function createActionStage(opts: ActionStageOptions) {
               txs: [],
               resolvers: [],
               restored: true,
+              ...(typeof l.create === 'string' && l.create ? { create: l.create } : {}),
             });
           }
           if (lanes.size === 0) continue;
@@ -417,7 +424,7 @@ export function createActionStage(opts: ActionStageOptions) {
     claims.get(r.runId)?.slugs.has(slug) || [...r.lanes.values()].some((l) => l.slug === slug);
 
   /** The run a tool write of `content` to `slug` belongs to, or null. */
-  function ownerOf(slug: string, content?: string): RunStage | null {
+  function ownerOf(slug: string, content?: string, explicit = false): RunStage | null {
     const all = [...runs.values()];
     const open = all.filter((r) => r.state === 'open');
     if (content !== undefined) {
@@ -426,6 +433,10 @@ export function createActionStage(opts: ActionStageOptions) {
       if (byHash) return byHash;
     }
     const covering = open.filter((r) => coversSlug(r, slug));
+    // S12.16 — a NEW canvas joins a run only when a run said it wrote it. The lone-open-run
+    // fallback below is right for a change to a canvas that exists (a tool wrote it); for a create
+    // it would swallow a person's new canvas into whichever AI run happens to be open.
+    if (explicit) return covering.length === 1 ? covering[0] : null;
     if (covering.length === 1) return covering[0];
     if (covering.length > 1) return null;
     if (open.length === 1) return open[0];
@@ -435,9 +446,9 @@ export function createActionStage(opts: ActionStageOptions) {
   }
 
   /** Should this proposal be staged instead of sent? */
-  function captures(slug: string, stageable: boolean, content?: string): boolean {
+  function captures(slug: string, stageable: boolean, content?: string, explicit = false): boolean {
     if (!stageable || runs.size === 0) return false;
-    return ownerOf(slug, content) !== null;
+    return ownerOf(slug, content, explicit) !== null;
   }
 
   /** The accepted content of a lane: any staged run's base, else the write's own base. */
@@ -474,7 +485,7 @@ export function createActionStage(opts: ActionStageOptions) {
   }
 
   function capture(slug: string, doc: string, p: LaneProposal): Promise<ProposalOutcome> {
-    const r = ownerOf(slug, p.content);
+    const r = ownerOf(slug, p.content, !!p.create);
     if (!r) return Promise.resolve({ status: 'rejected', code: 'not-staged' });
     const k = `${slug}|${p.lane}`;
     return new Promise((resolve) => {
@@ -511,6 +522,7 @@ export function createActionStage(opts: ActionStageOptions) {
         existing.txs.push(p.transactionId);
         existing.resolvers.push(resolve);
         if (p.writeId) existing.writeId = p.writeId;
+        if (p.create) existing.create = p.create;
       } else {
         r.lanes.set(k, {
           slug,
@@ -520,6 +532,7 @@ export function createActionStage(opts: ActionStageOptions) {
           mine: merged.merged,
           writes: 1,
           ...(p.writeId ? { writeId: p.writeId } : {}),
+          ...(p.create ? { create: p.create } : {}),
           txs: [p.transactionId],
           resolvers: [resolve],
         });
@@ -633,14 +646,34 @@ export function createActionStage(opts: ActionStageOptions) {
     }
     const transactionId = opts.newTransactionId();
     for (const l of staged) for (const tx of l.txs) alias.set(tx, transactionId);
-    const operations: Operation[] = staged.map((l) => ({
-      op: 'lane.replace',
-      doc: l.doc,
-      lane: l.lane,
-      content: l.mine,
-      baseContent: l.base,
-      ...(l.writeId ? { writeId: l.writeId } : {}),
-    }));
+    // S12.16 — a canvas the run created is not in the store: ONE doc.create carries all of its
+    // staged lanes (the same op the watcher sends for a create), so the new canvas and the run's
+    // edits to it are one action.
+    const created = new Map<string, { path: string; lanes: Record<string, string> }>();
+    for (const l of staged) {
+      if (!l.create) continue;
+      const c = created.get(l.doc) ?? { path: l.create, lanes: {} };
+      if (l.mine !== '') c.lanes[l.lane] = l.mine;
+      created.set(l.doc, c);
+    }
+    const operations: Operation[] = [
+      ...[...created].map(([doc, c]) => ({
+        op: 'doc.create',
+        doc,
+        path: c.path,
+        lanes: c.lanes,
+      })),
+      ...staged
+        .filter((l) => !created.has(l.doc))
+        .map((l) => ({
+          op: 'lane.replace',
+          doc: l.doc,
+          lane: l.lane,
+          content: l.mine,
+          baseContent: l.base,
+          ...(l.writeId ? { writeId: l.writeId } : {}),
+        })),
+    ];
     const madeAt = r.endedAt ?? now();
     const label = `${r.label}${o.partial ? STOPPED : ''}`;
     const origin: StageProposal['origin'] = {
@@ -777,7 +810,13 @@ export function createActionStage(opts: ActionStageOptions) {
     /** One run's staged lanes (no resolvers) — the local home puts a discarded run's bytes back. */
     lanesOf: (
       keyOrRun: string
-    ): Array<{ slug: string; lane: LaneProposal['lane']; base: string; mine: string }> => {
+    ): Array<{
+      slug: string;
+      lane: LaneProposal['lane'];
+      base: string;
+      mine: string;
+      create?: string;
+    }> => {
       const r = runOf(keyOrRun);
       return r
         ? [...r.lanes.values()].map((l) => ({
@@ -785,6 +824,7 @@ export function createActionStage(opts: ActionStageOptions) {
             lane: l.lane,
             base: l.base,
             mine: l.mine,
+            ...(l.create ? { create: l.create } : {}),
           }))
         : [];
     },
