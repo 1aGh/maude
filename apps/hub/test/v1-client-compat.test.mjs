@@ -568,6 +568,7 @@ describe('Wave B — team libraries, grants and DS revisions: a 1.9.1 desktop se
     delete process.env.MAUDE_CLOUD_IDENTITY;
     process.env.MAUDE_DS_LIBRARY_GRANTS = '1';
     const acl = await bootAclHub('maude-v1-waveb', {
+      studioChild: true,
       files: {
         ...ACL_PROJECT,
         'config.json': JSON.stringify({ designSystems: [{ name: 'brand', path: 'system/brand' }] }),
