@@ -47,7 +47,7 @@
     color: var(--fg-1);
     font-variant-numeric: tabular-nums;
     cursor: pointer;
-    transition: background var(--dur-fast) var(--ease-out);
+    transition: background var(--dur-flip) var(--ease-out);
   }
   .tl-take:hover:not(:disabled) {
     background: var(--bg-3);
