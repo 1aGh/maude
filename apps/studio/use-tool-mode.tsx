@@ -33,7 +33,7 @@ import {
 } from './bridge/canvas-modes.ts';
 import { TOOL_CURSORS } from './canvas-cursors.ts';
 import type { Tool } from './input-router.tsx';
-import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { canCommentCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { openToolPanel, panelOnArm } from './toolbars/tool-panel.ts';
 
 /** V2-4.3b — the governed path (V2-1.2 §5.4): once the shell has sent its first `set-mode`, the mode
@@ -160,12 +160,16 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
  */
 const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand', 'inspect']);
 
-/** Pure filter — exported for unit tests. */
+/** Pure filter — exported for unit tests. `canComment` (S9.22 `cm=1`): a read-only Can comment
+ *  session keeps the Comment tool — its Preview toolbar is Hand and Comment (15 an-viewer). */
 export function filterToolsForReadOnly(
   tools: readonly ToolDescriptor[],
-  readOnly: boolean
+  readOnly: boolean,
+  canComment = false
 ): readonly ToolDescriptor[] {
-  return readOnly ? tools.filter((t) => READ_ONLY_TOOL_IDS.has(t.id)) : tools;
+  return readOnly
+    ? tools.filter((t) => READ_ONLY_TOOL_IDS.has(t.id) || (canComment && t.id === 'comment'))
+    : tools;
 }
 
 interface ToolContextValue {
@@ -227,7 +231,11 @@ export function ToolProvider({
   // `setTool` below refuses anything outside the list (the shell `tool-set`
   // postMessage lane included).
   const readOnly = isReadOnlyCanvas();
-  const tools = useMemo(() => filterToolsForReadOnly(toolsProp, readOnly), [toolsProp, readOnly]);
+  const canComment = readOnly && canCommentCanvas();
+  const tools = useMemo(
+    () => filterToolsForReadOnly(toolsProp, readOnly, canComment),
+    [toolsProp, readOnly, canComment]
+  );
   const bootTool: Tool = initial ?? (readOnly ? 'browse' : 'move');
   const bootMode: CanvasMode =
     initialMode ?? modeForTool(bootTool) ?? (readOnly ? 'preview' : 'edit');
