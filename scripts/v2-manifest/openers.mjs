@@ -264,6 +264,27 @@ export const ROUTE_ANSWERS = {
       },
     ],
   },
+  // Claude Code found on the PATH but not signed in, plugins ready: Diagnostics > AI setup draws its four rows (Found at
+  // …) and the Sign in to Claude button from this. The server's own probe runs `claude` on the machine, so under load
+  // it answers late or not at all ("Couldn't reach the readiness probe", no row on screen) and what the audit saw
+  // depended on the machine
+  preflightReady: {
+    ready: false,
+    items: [
+      {
+        id: 'claude',
+        label: 'Claude Code',
+        status: 'missing',
+        required: true,
+        detail: 'Not signed in.',
+        remediation: 'Sign in to Claude, then check again.',
+        action: 'signin',
+        resolvedPath: '/Users/probe/.local/bin/claude',
+        resolvedViaMaude: false,
+      },
+      { id: 'plugins', label: 'Plugins', status: 'present', required: true },
+    ],
+  },
   // ── comments: the Comments panel's list, the in-canvas overlay's, and who "me" is ───────────────────
   commentsAll: {
     '.design/ui/Home.tsx': [
@@ -694,7 +715,8 @@ export const OPENERS = [
     ],
   },
   { id: 'diag-sync-files-failed', state: 'linked-rich-failed', steps: diagView('sync') },
-  ...['server', 'logs', 'ai', 'sync'].map((v) => ({ id: `diag-${v}`, steps: diagView(v) })),
+  ...['server', 'logs', 'sync'].map((v) => ({ id: `diag-${v}`, steps: diagView(v) })),
+  { id: 'diag-ai', routes: { '/_api/preflight': 'preflightReady' }, steps: diagView('ai') },
   {
     id: 'diag-server-repo-changed',
     steps: [...diagView('server'), { push: 'git-lifecycle' }],
@@ -977,6 +999,9 @@ export const OPENERS = [
     id: 'inspector-artboard',
     steps: [
       { frameClick: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      // a board does not open the Inspector by itself (an element does): open it, unless the page remembers it open
+      { key: 'Shift+Meta+I', unless: tid('inspector-panel') },
+      { wait: 400 },
       { ensureOpen: tid('fold-inspector-toggle') },
     ],
   },

@@ -146,3 +146,17 @@ test('a reset connection to the fixture server does not crash the pass (the /_co
   assert.match(src, /res = await route\.fetch\(\)\.catch\(\(\) => null\)/);
   assert.match(src, /if \(!res\) return route\.abort\(\)/);
 });
+
+test('openers do not lean on the layout an earlier opener left: AI setup is stubbed, a board opens the Inspector itself', () => {
+  const ai = OPENERS.find((o) => o.id === 'diag-ai');
+  const w = resolveOpener(ai);
+  const claude = w.routes['/_api/preflight'].items.find((i) => i.id === 'claude');
+  // found (the "Found at" row) and waiting for a sign-in (the Sign in to Claude button)
+  assert.ok(claude.resolvedPath && claude.action === 'signin');
+  const steps = OPENERS.find((o) => o.id === 'inspector-artboard').steps;
+  const open = steps.findIndex(
+    (s) => s.key === 'Shift+Meta+I' && s.unless?.includes('inspector-panel')
+  );
+  assert.ok(open > steps.findIndex((s) => s.frameClick?.includes('dc-artboard-label')));
+  assert.ok(open < steps.findIndex((s) => s.ensureOpen?.includes('fold-inspector-toggle')));
+});
