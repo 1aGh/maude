@@ -544,13 +544,9 @@ async function selfHosted(ctx, svc, { rest, access, actor }) {
     }
     const bad = checkRoleAndScope(svc, role, canvas);
     if (bad) return answer(ctx, bad);
-    const existing = getUser(svc.dataDir, email);
-    if (existing) {
-      if (raiseAccount(svc, existing, canvas)) {
-        svc.notices.accessChanged({ email, change: 'raised' });
-      }
-      return answer(ctx, { status: 200, body: { id: null, added: true } });
-    }
+    // One answer whoever the address belongs to (gate-b-sec3 finding 1, the cloud's rule): no account lookup, so
+    // neither the body nor the timing says whether this hub knows the address, and an account holder is never
+    // raised behind their back — they accept the link by signing in as that address (POST /join).
     if (invitesToday(svc) >= INVITE_CAP_PER_DAY) {
       return answer(
         ctx,
