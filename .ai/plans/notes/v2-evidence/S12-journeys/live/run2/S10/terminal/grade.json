@@ -1,7 +1,7 @@
 {
   "journey": "S10",
   "lane": "terminal",
-  "pass": false,
+  "pass": true,
   "harnessFailure": false,
   "infra": null,
   "turns": [
@@ -9,15 +9,15 @@
       "turn": 1,
       "code": 0,
       "ok": true,
-      "costUsd": 0.18477960000000002,
+      "costUsd": 0.18790220000000002,
       "numTurns": 5
     },
     {
       "turn": 2,
       "code": 0,
       "ok": true,
-      "costUsd": 0.4050834000000001,
-      "numTurns": 11
+      "costUsd": 0.39527880000000004,
+      "numTurns": 12
     }
   ],
   "results": [
@@ -30,8 +30,8 @@
     {
       "id": "accent-darker",
       "grader": "text",
-      "pass": false,
-      "why": "no /--accent:\\s+oklch\\(0\\.47/; still /--accent:\\s+oklch\\(0\\.520 0\\.195 268\\)/"
+      "pass": true,
+      "why": ""
     },
     {
       "id": "dark-accent-kept",
