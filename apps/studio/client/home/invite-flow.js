@@ -3,7 +3,9 @@
 //
 //   `maude://invite/<id>` → Rust parks the id for Home (`take_pending_invite`) and nudges `invite://open {id}`
 //   → peek (what the public invite page shows) → which profile on this Mac holds the invite's address?
-//       one does            → accept with it → a one-time handoff code + the landing
+//       one does            → the sheet "Join <project> as <address>?" → Join = accept with it → a one-time
+//                             handoff code + the landing. A link is never an accept: any web page can open a
+//                             `maude://` URL, so the person always presses Join (gate-b-sec3 M2).
 //       another account     → the sheet "Open the invite as <address>?" → Open = a sign-in for the invite in a
 //                             NEW profile (Rust `home_cloud_sign_in_prepare({forInvite})` never re-signs a
 //                             profile that holds an account), so every other tab keeps its own
@@ -38,6 +40,7 @@ export const INVITE_WORDS = {
   update: 'This invitation needs a newer Maude. Update Maude, then open the link again.',
   open: 'Open',
   cancel: 'Cancel',
+  join: 'Join',
   waiting: 'Waiting for your browser…',
   again: 'Open the page again',
   thisWindow: 'This window, now',
@@ -87,7 +90,8 @@ function refusalPlan(r) {
 
 /**
  * What a peek answer means on THIS Mac. Pure.
- *   { kind: 'accept', profile, invite }                       a profile holds the invite's address
+ *   { kind: 'ask', mode: 'join', invite, current }            a profile holds the invite's address — the
+ *                                                             person still presses Join (never accepted by a link)
  *   { kind: 'ask', mode: 'other-account', invite, current }   signed in, but as someone else
  *   { kind: 'ask', mode: 'signed-out', invite }               nobody is signed in
  *   { kind: 'notice', words }                                 dead, rate-limited or unreachable
@@ -99,7 +103,7 @@ export function planInvite(peek, clouds) {
   if (!invite) return { kind: 'notice', words: INVITE_WORDS.unreachable };
   const accounts = signedInAccounts(clouds);
   const mine = accounts.find((a) => sameAddress(a.email, invite.email));
-  if (mine) return { kind: 'accept', profile: mine.profile, invite };
+  if (mine) return { kind: 'ask', mode: 'join', invite, current: mine };
   if (accounts.length) return { kind: 'ask', mode: 'other-account', invite, current: accounts[0] };
   return { kind: 'ask', mode: 'signed-out', invite };
 }
@@ -173,6 +177,16 @@ export function inviteSheetWords({ mode, invite, current }) {
   const lead = invite.fromName
     ? `${invite.fromName} invited that address to ${invite.projectName}.`
     : `That address is invited to ${invite.projectName}.`;
+  if (mode === 'join') {
+    const as = current?.email || invite.email;
+    return {
+      title: invite.fromName
+        ? `Join ${invite.projectName} from ${invite.fromName} as ${as}?`
+        : `Join ${invite.projectName} as ${as}?`,
+      body: lead,
+      fine: `Opens ${invite.projectName} in its own tab, signed in as ${as}.`,
+    };
+  }
   if (mode === 'other-account')
     return {
       title: `Open the invite as ${invite.email}?`,
@@ -223,6 +237,8 @@ export function useInviteFlow({
   onNotice,
 }) {
   const [sheet, setSheet] = useState(null); // null | { mode, invite, current, busy }
+  const sheetRef = useRef(null);
+  sheetRef.current = sheet;
   const pending = useRef(null); // { id, invite? } — the id stays out of React state
   const busy = useRef(false);
   const live = useRef(null);
@@ -274,17 +290,14 @@ export function useInviteFlow({
     if (!p || p.invite || busy.current) return;
     busy.current = true;
     try {
-      const plan = planInvite(await invitePeek(p.id), live.current.clouds);
-      if (plan.kind === 'accept') {
-        p.invite = plan.invite;
-        await accept(plan.profile);
-      } else settle(plan);
+      // every outcome is a sheet or a notice: a link alone never accepts (M2)
+      settle(planInvite(await invitePeek(p.id), live.current.clouds));
     } catch {
       settle({ kind: 'notice', words: INVITE_WORDS.unreachable });
     } finally {
       busy.current = false;
     }
-  }, [accept, settle]);
+  }, [settle]);
 
   // One invite at a time: one the person is reading (or signing in for) is never replaced.
   const receive = useCallback(
@@ -322,13 +335,19 @@ export function useInviteFlow({
     };
   }, [native, receive]);
 
-  /** The sheet's Open: a sign-in for the invite (Rust makes the new profile; the cloud pre-fills the address). */
+  /** The sheet's primary button. Join (the address is signed in here): accept with that profile, the one
+   *  explicit step. Open: a sign-in for the invite (Rust makes the new profile; the cloud pre-fills the address). */
   const open = useCallback(() => {
     const p = pending.current;
     if (!p?.invite) return;
-    setSheet((s) => (s ? { ...s, busy: true } : s));
+    const s = sheetRef.current;
+    setSheet((x) => (x ? { ...x, busy: true } : x));
+    if (s?.mode === 'join' && s.current?.profile) {
+      accept(s.current.profile);
+      return;
+    }
     live.current.signin.begin({ forInvite: p.id });
-  }, []);
+  }, [accept]);
 
   const cancel = useCallback(() => {
     const ph = live.current.signin.state?.phase;
@@ -342,8 +361,17 @@ export function useInviteFlow({
     async (r) => {
       const plan = planAfterSignIn(r ?? {}, pending.current);
       if (!plan) return false;
-      if (plan.kind === 'accept') await accept(plan.profile);
-      else if (plan.kind === 'landing') {
+      if (plan.kind === 'accept') {
+        // only the sign-in the sheet's Open started accepts; any other sign-in asks Join first (M2)
+        if (sheetRef.current?.busy) await accept(plan.profile);
+        else
+          settle({
+            kind: 'ask',
+            mode: 'join',
+            invite: pending.current.invite,
+            current: { profile: plan.profile, email: str(r?.email, 320) },
+          });
+      } else if (plan.kind === 'landing') {
         try {
           await openLanding(plan, deps());
           live.current.reload?.();

@@ -6,8 +6,8 @@
 // is left here is reading rows, writing rows, and turning a verdict into a
 // response — which is the whole point of the split (DDR-196 §1).
 
+import { createProjectInvite } from './access-forward.mjs';
 import { track } from './analytics.mjs';
-import { emailConfigured, inviteEmail, sendEmail } from './email.mjs';
 import { decideMembershipChange } from './membership.mjs';
 import { peoplePage, removeConfirmPage } from './people-page.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
@@ -192,63 +192,22 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
         400
       );
 
-    const existing = await env.DB.prepare('SELECT id FROM accounts WHERE email = ?')
-      .bind(email)
-      .first();
-    if (existing) {
-      await env.DB.prepare(
-        `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, ?, ?)
-           ON CONFLICT (project_id, account_id) DO UPDATE SET role = excluded.role`
-      )
-        .bind(projectId, existing.id, role, Date.now())
-        .run();
-      return redirect(`/projects/${projectId}/people`);
-    }
-    // No account yet. The invite is the account: they follow one link and land
-    // in the project, rather than signing up and then having to find it.
-    const inviteId = crypto.randomUUID();
-    try {
-      // v18 (S9.14a): the invite page names who invited you.
-      await env.DB.prepare(
-        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, invited_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-        .bind(
-          inviteId,
-          projectId,
-          email,
-          role,
-          Date.now(),
-          Date.now() + 14 * 86_400_000,
-          account.id
-        )
-        .run();
-    } catch {
-      await env.DB.prepare(
-        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-        .bind(inviteId, projectId, email, role, Date.now(), Date.now() + 14 * 86_400_000)
-        .run();
-    }
-
-    const inviteUrl = `${url.origin}/invite/${inviteId}`;
+    // One invitation whoever the address belongs to (gate-b-sec3 finding 1): an account holder is not added
+    // behind their back — they accept from the e-mail or in the app — and the page answers the same either way.
+    const { inviteUrl, sent: mailed } = await createProjectInvite(env, {
+      project,
+      invitedBy: account.id,
+      invitedByEmail: account.email,
+      email,
+      role,
+      origin: url.origin,
+    });
     // The counterpart to `invite_redeemed`: how many invitations go out
     // against how many are followed. The invitee's ADDRESS is not recorded —
     // it is somebody else's personal data and the operational fact is the
     // count.
     track(env, ctx, { name: 'invite_created', accountId: account.id, projectId });
-    const sent = emailConfigured(env)
-      ? await sendEmail(env, {
-          to: email,
-          ...inviteEmail({
-            projectName: project.name || project.id,
-            role,
-            inviteUrl,
-            invitedBy: account.email,
-          }),
-        })
-      : { ok: false };
+    const sent = { ok: mailed };
     // A failed (or unconfigured) send still created a real invitation — the
     // owner gets the link to pass along themselves, which also happens to be
     // exactly what "invite them over chat instead" needs. The link goes to the

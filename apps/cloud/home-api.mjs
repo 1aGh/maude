@@ -31,6 +31,7 @@ import { GRANT_ROLES } from '../studio/access/scope.ts';
 import { decideClaim, validCanvasPath } from './access-forward.mjs';
 import { trialView } from './billing.mjs';
 import { personalTokenAccount } from './device-auth.mjs';
+import { pendingInvitesFor } from './invites.mjs';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -264,14 +265,18 @@ export async function handleHomeApi(request, env, { account = null, now = Date.n
   if (!caller?.id || !caller.email) return signedOut();
 
   const rows = await readRows(env.DB, caller.id);
-  return json(
-    homeFor({
+  // `invited` (gate-b-sec3, additive): invitations addressed to this account that wait for its accept — a v1 Home
+  // ignores the key. No invite id, no e-mail but the caller's own.
+  const invited = await pendingInvitesFor(env, caller, { now });
+  return json({
+    ...homeFor({
       // The session's account row carries no trial column; read it for the caller, so the
       // device token and the browser session answer the same plan.
       account: { ...caller, trial_started_at: await trialStartedAt(env.DB, caller) },
       ...rows,
       cellZone: env.CELL_ZONE ?? 'cloud.maude.sh',
       now,
-    })
-  );
+    }),
+    invited,
+  });
 }

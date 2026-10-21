@@ -55,7 +55,11 @@ export function replyToAddress(env) {
  * marketing, and text-only mail with one link has the best odds with both
  * spam filters and skeptical recipients. The link is the whole payload.
  */
-export function inviteEmail({ projectName, role, inviteUrl, invitedBy }) {
+export function inviteEmail({ projectName: rawProject, role, inviteUrl, invitedBy: rawBy }) {
+  // Both are chosen by a person (a project name, an inviter's address/name): one line each, so neither can add a
+  // header to the subject or a fake paragraph to the body (gate-b-sec3 finding 3).
+  const projectName = oneLine(rawProject, 80) || 'a project';
+  const invitedBy = oneLine(rawBy, 80) || 'Someone';
   const doing =
     role === 'viewer' ? 'look at the work and leave comments' : 'design and edit alongside them';
   return {
@@ -151,7 +155,8 @@ function day(ms) {
  * that intent and sent nothing. This is the email; it carries both halves,
  * because a pause notice with no copy attached is the notice people ignore.
  */
-export function projectPausedEmail({ projectName, downloadUrl, deletesAt }) {
+export function projectPausedEmail({ projectName: raw, downloadUrl, deletesAt }) {
+  const projectName = oneLine(raw, 80) || 'Your project';
   return {
     subject: `${projectName} has paused`,
     text: [
@@ -172,7 +177,8 @@ export function projectPausedEmail({ projectName, downloadUrl, deletesAt }) {
 }
 
 /** The last-chance notice, two days out (canvas board E0, email 2). */
-export function deletionWarningEmail({ projectName, downloadUrl, deletesAt }) {
+export function deletionWarningEmail({ projectName: raw, downloadUrl, deletesAt }) {
+  const projectName = oneLine(raw, 80) || 'your project';
   return {
     subject: `Two days left to keep ${projectName}`,
     text: [

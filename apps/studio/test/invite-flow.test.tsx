@@ -230,14 +230,38 @@ function expectIdKept() {
 }
 
 describe('a profile that holds the invite address', () => {
-  test('accepts with THAT profile and lands on the canvas and the thread, no sheet', async () => {
+  test('a link never accepts by itself: the Join sheet names project, inviter and account (M2)', async () => {
+    shell = { projects: [], profiles: PROFILES, recent: [] };
+    accounts = { default: 'me@personal.cz', work: 'you@work-studio.cz' };
+    routes['/_home/invite/accept'] = () => [200, { ok: true, code: CODE, landing: LANDING }];
+    mount();
+    await flush(16);
+    // the deep link only peeked: nothing accepted, nothing prepared, no tab opened
+    expect(hit('/_home/invite/peek')[0].body).toEqual({ id: ID });
+    expect(hit('/_home/invite/accept')).toEqual([]);
+    expect(hit('/_home/cloud/prepare')).toEqual([]);
+    expect(cmds('open_project')).toEqual([]);
+    expect($('invite-sheet')?.getAttribute('data-mode')).toBe('join');
+    expect($('invite-sheet-title')?.textContent).toBe(
+      'Join Alligators brand from Tereza as you@work-studio.cz?'
+    );
+    expect($('invite-sheet-body')?.textContent).toBe(
+      'Tereza invited that address to Alligators brand.'
+    );
+    expect($('invite-sheet-account')?.textContent).toContain('you@work-studio.cz');
+    expect($('invite-sheet-open')).toBeNull();
+    expect($('invite-sheet-join')?.textContent).toBe('Join');
+    expectIdKept();
+  });
+
+  test('Join accepts with THAT profile and lands on the canvas and the thread', async () => {
     shell = { projects: [], profiles: PROFILES, recent: [] };
     accounts = { default: 'me@personal.cz', work: 'you@work-studio.cz' };
     routes['/_home/invite/accept'] = () => [200, { ok: true, code: CODE, landing: LANDING }];
     mount();
     await flush();
-    expect($('invite-sheet')).toBeNull();
-    expect(hit('/_home/invite/peek')[0].body).toEqual({ id: ID });
+    click('invite-sheet-join');
+    await flush(16);
     expect(hit('/_home/invite/accept').map((c) => c.body)).toEqual([{ id: ID, profile: 'work' }]);
     expect(hit('/_home/cloud/prepare').map((c) => c.body)).toEqual([
       { profile: 'work', projectId: 'alligators', code: CODE },
@@ -250,7 +274,20 @@ describe('a profile that holds the invite address', () => {
       },
     ]);
     expect(cmds('home_cloud_sign_in_prepare')).toEqual([]);
+    expect($('invite-sheet')).toBeNull();
     expectIdKept();
+  });
+
+  test('Cancel on the Join sheet accepts nothing', async () => {
+    accounts = { default: 'you@work-studio.cz' };
+    routes['/_home/invite/accept'] = () => [200, { ok: true, code: CODE, landing: LANDING }];
+    mount();
+    await flush();
+    click('invite-sheet-cancel');
+    await flush(16);
+    expect($('invite-sheet')).toBeNull();
+    expect(hit('/_home/invite/accept')).toEqual([]);
+    expect(cmds('open_project')).toEqual([]);
   });
 
   test('a canvas the person cannot see lands on the project alone', async () => {
@@ -261,6 +298,8 @@ describe('a profile that holds the invite address', () => {
     ];
     mount();
     await flush();
+    click('invite-sheet-join');
+    await flush(16);
     expect(cmds('open_project').map((c) => c.args)).toEqual([
       { root: '/Users/x/Maude/alligators' },
     ]);
@@ -274,6 +313,8 @@ describe('a profile that holds the invite address', () => {
     ];
     mount();
     await flush();
+    click('invite-sheet-join');
+    await flush(16);
     expect($('invite-sheet')?.getAttribute('data-mode')).toBe('other-account');
     expect($('invite-sheet-title')?.textContent).toBe('Open the invite as tym@work-studio.cz?');
     expect(hit('/_home/cloud/prepare')).toEqual([]);
@@ -383,6 +424,10 @@ describe('signed out, dead invites, links while Home runs', () => {
     act(() => deliver('invite://open', { id: ID }));
     await flush();
     expect(hit('/_home/invite/peek')).toHaveLength(1);
+    // the nudge only asks (M2); Join is the accept
+    expect(cmds('open_project')).toHaveLength(0);
+    click('invite-sheet-join');
+    await flush(16);
     expect(cmds('open_project')).toHaveLength(1);
     expectIdKept();
   });
@@ -417,8 +462,9 @@ describe('the plans (pure)', () => {
   test('planInvite: match is case-insensitive; refusals are notices', () => {
     const clouds = [listing('a', 'me@x.cz'), listing('b', 'you@work-studio.cz')];
     expect(planInvite({ ok: true, status: 200, json: PEEK }, clouds)).toMatchObject({
-      kind: 'accept',
-      profile: 'b',
+      kind: 'ask',
+      mode: 'join',
+      current: { profile: 'b', email: 'you@work-studio.cz' },
     });
     expect(planInvite({ ok: true, status: 200, json: PEEK }, [clouds[0]])).toMatchObject({
       kind: 'ask',

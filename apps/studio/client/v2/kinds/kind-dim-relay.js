@@ -15,14 +15,33 @@ import { dimIds } from './layers-kind-model.js';
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 
 /**
+ * Where a send to `frame` may land (checklist C6 · Phase 4 D4): the shell's canvas origin when it knows it, else
+ * the origin the frame was loaded from — never `'*'`. '' (an unloaded or opaque frame) = do not send: a frame that
+ * navigated elsewhere never hears which artboards the filter dims.
+ */
+export function canvasTargetOrigin(frame, canvasOrigin = null) {
+  const known = typeof canvasOrigin === 'function' ? canvasOrigin() : canvasOrigin;
+  if (typeof known === 'string' && /^https?:\/\//.test(known)) return known;
+  try {
+    const src = frame?.getAttribute?.('src') || frame?.src || '';
+    if (!src) return '';
+    const o = new URL(src, globalThis.location?.href).origin;
+    return o && o !== 'null' ? o : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * @param {{ boardsOf: (file: string) => Array<{ id: string, kind?: string }> | undefined,
- *   doc?: Document, win?: Window }} deps
+ *   doc?: Document, win?: Window, canvasOrigin?: (() => string) | string | null }} deps
  * @returns {(() => void) & { refresh: () => void }} stop, with `.refresh()` for "the index learned something"
  */
 export function createKindDimLane({
   boardsOf,
   doc = globalThis.document,
   win = globalThis.window,
+  canvasOrigin = null,
 }) {
   const spoken = new WeakMap(); // Window → the JSON last sent to it
   const frames = () => [...(doc?.querySelectorAll?.(FRAME) ?? [])];
@@ -30,6 +49,8 @@ export function createKindDimLane({
   const tell = (frame, force = false) => {
     const target = frame.contentWindow;
     if (!target) return;
+    const origin = canvasTargetOrigin(frame, canvasOrigin);
+    if (!origin) return;
     const file = frame.getAttribute('data-path') || frame.dataset?.path || '';
     const ids = dimIds(boardsOf(file), getKindFilter());
     const json = JSON.stringify(ids);
@@ -40,7 +61,7 @@ export function createKindDimLane({
     spoken.set(target, json);
     try {
       // A literal `{ dgn }` (not postToCanvas) so the bridge inventory sees this send site.
-      target.postMessage({ dgn: 'dim-artboards', ids }, '*');
+      target.postMessage({ dgn: 'dim-artboards', ids }, origin);
     } catch {
       /* detached */
     }

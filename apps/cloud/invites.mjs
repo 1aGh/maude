@@ -16,6 +16,7 @@ import {
   accessOf,
   INVITE_THREAD,
   loadClaim,
+  raiseMembership,
   validCanvasPath,
   writeGrant,
 } from './access-forward.mjs';
@@ -210,7 +211,8 @@ async function inviteRow(env, inviteId) {
   if (!INVITE_ID.test(String(inviteId ?? ''))) return null;
   return (
     (await env.DB.prepare(
-      `SELECT i.*, p.name AS project_name, p.state AS project_state FROM project_invites i
+      `SELECT i.*, p.name AS project_name, p.state AS project_state, p.account_id AS project_owner
+         FROM project_invites i
          JOIN projects p ON p.id = i.project_id
         WHERE i.id = ?`
     )
@@ -285,10 +287,18 @@ export async function pendingInviteCookieFor(env, inviteId, { now = Date.now() }
 }
 
 /**
- * Add the membership (or, for an invitation to one canvas, the grant), mark
- * the invite spent, and write the audit line.
+ * Mark the invite spent FIRST — single use under a race: of two redeems that both read it live, only the one whose
+ * `UPDATE … WHERE redeemed_at IS NULL` changed the row goes on — then add the membership (or, for an invitation to
+ * one canvas, the grant), never LOWERING what the account already has (V2-1.7 G1: the higher of the two wins), and
+ * write the audit line. Returns whether THIS call redeemed it.
  */
 async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } = {}) {
+  const claimed = await env.DB.prepare(
+    'UPDATE project_invites SET redeemed_at = ? WHERE id = ? AND redeemed_at IS NULL AND revoked_at IS NULL'
+  )
+    .bind(now, invite.id)
+    .run();
+  if (!claimed?.meta?.changes) return false;
   if (invite.canvas_path) {
     // A canvas invitation ADDS that canvas and never lowers (V2-1.7 G1).
     await writeGrant(env.DB, {
@@ -300,16 +310,15 @@ async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } =
       now,
     });
   } else {
-    await env.DB.prepare(
-      `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, ?, ?)
-         ON CONFLICT (project_id, account_id) DO UPDATE SET role = excluded.role`
-    )
-      .bind(invite.project_id, accountId, invite.role, now)
-      .run();
+    // A project invitation raises the membership and never lowers it; the owner stays the owner.
+    await raiseMembership(env.DB, {
+      project: { id: invite.project_id, account_id: invite.project_owner ?? null },
+      accountId,
+      role: invite.role,
+      source: 'invite',
+      now,
+    });
   }
-  await env.DB.prepare('UPDATE project_invites SET redeemed_at = ? WHERE id = ?')
-    .bind(now, invite.id)
-    .run();
   await audit(env.DB, {
     accountId,
     projectId: invite.project_id,
@@ -324,6 +333,7 @@ async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } =
   // The invite is the product's core action (DDR-193 §5) — worth knowing how
   // often the link actually gets followed, which is the half nobody sees.
   track(env, ctx, { name: 'invite_redeemed', accountId, projectId: invite.project_id });
+  return true;
 }
 
 /**
@@ -513,6 +523,172 @@ async function handleInviteApi(request, env, { id, verb, ctx, now = Date.now() }
   return apiJson({ code: minted.code, landing });
 }
 
+// ---------------------------------------------------- pending, by address
+//
+// gate-b-sec3 finding 1: an invitation to an address that already has an account is no longer applied on the spot
+// — it waits, like any other, until that person accepts. Home lists the ones addressed to the signed-in account
+// ("Shared with you", accept / leave) WITHOUT the invite id: the account's own address is the key, a project (and
+// canvas) names which one, so the bearer secret never reaches Home's state, DOM or URL.
+
+const PENDING_COLS = `i.id, i.project_id, i.role, i.canvas_path, i.created_at, i.thread, i.email,
+       p.name AS project_name, p.state AS project_state, p.account_id AS project_owner`;
+
+/** Live invitations addressed to `email`, newest first (raw rows). */
+async function pendingRows(db, email, now) {
+  const where = `FROM project_invites i JOIN projects p ON p.id = i.project_id
+     WHERE i.email = ? AND i.redeemed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at >= ?
+       AND p.state != 'purged'
+     ORDER BY i.created_at DESC LIMIT 100`;
+  const addr = String(email ?? '').toLowerCase();
+  try {
+    return (
+      (
+        await db
+          .prepare(
+            `SELECT ${PENDING_COLS}, i.invited_by, a.name AS from_name ${where.replace(
+              'JOIN projects p ON p.id = i.project_id',
+              'JOIN projects p ON p.id = i.project_id LEFT JOIN accounts a ON a.id = i.invited_by'
+            )}`
+          )
+          .bind(addr, now)
+          .all()
+      )?.results ?? []
+    );
+  } catch {
+    // a v17 D1: no `invited_by` / `thread` yet — no inviter name
+    return (
+      (
+        await db
+          .prepare(
+            `SELECT i.id, i.project_id, i.role, i.canvas_path, i.created_at, NULL AS thread, i.email,
+                    p.name AS project_name, p.state AS project_state, p.account_id AS project_owner,
+                    NULL AS from_name ${where}`
+          )
+          .bind(addr, now)
+          .all()
+      )?.results ?? []
+    );
+  }
+}
+
+const sameScope = (row, projectId, canvas) =>
+  row.project_id === projectId && (row.canvas_path ?? null) === (canvas ?? null);
+
+/**
+ * Home's "invited" rows for one account: `[{ projectId, projectName, fromName, canvas, role, invitedAt }]` — one per
+ * project + canvas (the newest), names never e-mails, never an invite id. The owner's own project never lists.
+ */
+export async function pendingInvitesFor(env, account, { now = Date.now() } = {}) {
+  if (!account?.email) return [];
+  let rows = [];
+  try {
+    rows = await pendingRows(env.DB, account.email, now);
+  } catch {
+    return []; // an unreadable D1 costs the list, never Home
+  }
+  const seen = new Set();
+  const out = [];
+  for (const r of rows) {
+    if (r.project_owner === account.id) continue;
+    const key = `${r.project_id}\u0000${r.canvas_path ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const canvas =
+      r.canvas_path && validCanvasPath(r.canvas_path)
+        ? { path: r.canvas_path, name: canvasName(r.canvas_path) }
+        : null;
+    if (r.canvas_path && !canvas) continue;
+    const name = String(r.from_name ?? '').trim();
+    out.push({
+      projectId: r.project_id,
+      projectName: r.project_name,
+      fromName: name || null,
+      canvas,
+      role: r.role,
+      invitedAt: r.created_at ?? null,
+    });
+  }
+  return out;
+}
+
+const PENDING_RULE = Object.freeze({ limit: 30, windowMs: 60_000, cost: 'invite-accept' });
+
+/**
+ * `POST /api/invites/pending/accept|leave` (Bearer `mpt_…`, JSON `{ projectId, canvas? }`) — Home's accept / leave
+ * for an invitation addressed to the signed-in account. accept → the newest live one for that project + canvas
+ * redeemed (never lowering, G1) and a one-time handoff code + landing, as `/api/invites/<id>/accept`; leave → every
+ * live one for that project + canvas declined. Bearer only: no cookie, so no page elsewhere can press either.
+ */
+async function handlePendingApi(request, env, { verb, ctx, now = Date.now() }) {
+  if (request.method !== 'POST') return apiJson({ reason: 'method' }, 405, { allow: 'POST' });
+  const budget = await spend(env, request, PENDING_RULE, { now });
+  if (!budget.ok) {
+    return apiJson(
+      { reason: 'rate-limited', error: 'Too many attempts. Wait a minute and try again.' },
+      429,
+      { 'retry-after': '60' }
+    );
+  }
+  const bearer = await personalTokenAccount(env, request, { now });
+  if (!bearer?.id || !bearer.email) return apiJson({ reason: 'signed-out' }, 401);
+  let body = {};
+  try {
+    const b = await request.json();
+    body = b && typeof b === 'object' && !Array.isArray(b) ? b : {};
+  } catch {
+    body = {};
+  }
+  const projectId = typeof body.projectId === 'string' ? body.projectId : '';
+  const canvas = body.canvas ?? null;
+  if (!projectId || projectId.length > 128 || (canvas !== null && !validCanvasPath(canvas))) {
+    return apiJson(GONE, 404);
+  }
+  const rows = (await pendingRows(env.DB, bearer.email, now)).filter((r) =>
+    sameScope(r, projectId, canvas)
+  );
+  if (!rows.length) return apiJson(GONE, 404);
+
+  if (verb === 'leave') {
+    for (const r of rows) {
+      await env.DB.prepare(
+        'UPDATE project_invites SET revoked_at = ? WHERE id = ? AND redeemed_at IS NULL AND revoked_at IS NULL'
+      )
+        .bind(now, r.id)
+        .run();
+    }
+    await audit(env.DB, {
+      accountId: bearer.id,
+      projectId,
+      actor: `customer:${bearer.email}`,
+      action: 'invite.decline',
+      detail: JSON.stringify({ count: rows.length, ...(canvas ? { canvas } : {}) }),
+    });
+    return apiJson({ ok: true });
+  }
+
+  const row = rows[0];
+  if (row.canvas_path && declaredAccessOf(request.headers.get('x-maude-access')) !== 2) {
+    return apiJson(ACCESS_VERSION_REFUSAL, 426);
+  }
+  if (!(await redeem(env, row, bearer.id, { now, ctx }))) return apiJson(GONE, 404);
+  const minted = await mintHandoffCode(env, {
+    account: bearer,
+    projectId: row.project_id,
+    now,
+    surface: 'app',
+    declaredAccess: 2,
+    canvas: row.canvas_path ?? null,
+  });
+  if (!minted.ok) return apiJson(GONE, 404);
+  const landing = (await checkedLanding(env.DB, {
+    projectId: row.project_id,
+    accountId: bearer.id,
+    canvas: row.canvas_path ?? null,
+    thread: row.thread ?? null,
+  })) ?? { project: row.project_id };
+  return apiJson({ code: minted.code, landing });
+}
+
 /**
  * Route `/invite/<id>`. Returns a Response, or null when the path is not ours.
  *
@@ -521,6 +697,8 @@ async function handleInviteApi(request, env, { id, verb, ctx, now = Date.now() }
  */
 export async function handleInviteRoutes(request, env, { account, ctx = null } = {}) {
   const url = new URL(request.url);
+  const pendingApi = /^\/api\/invites\/pending\/(accept|leave)$/.exec(url.pathname);
+  if (pendingApi) return handlePendingApi(request, env, { verb: pendingApi[1], ctx });
   const api = /^\/api\/invites\/([^/]+)\/(peek|accept)$/.exec(url.pathname);
   if (api) return handleInviteApi(request, env, { id: api[1], verb: api[2], ctx });
 
