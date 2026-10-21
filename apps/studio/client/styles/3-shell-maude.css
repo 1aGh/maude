@@ -19,6 +19,10 @@
  * existing `.app` grid flexes as the middle body row between the bars. */
   .maude {
     position: relative;
+    /* Gate-B polish (RC-A): a sheet mounted beside `.st-shell` (Export, Share, Handoff, the Exports panel,
+       the import and design-system sheets) inherited body's v1 mono face; the whole shell speaks the body
+       face, mono only where a rule asks for --font-mono. */
+    font-family: var(--font-body);
   }
   .st-shell {
     width: 100vw;

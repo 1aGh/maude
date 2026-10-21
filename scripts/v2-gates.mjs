@@ -54,6 +54,8 @@ function cleanupCheck() {
     'apps/studio/client/styles.css',
     'apps/studio/client/styles/1-tokens.css',
     'apps/studio/client/styles/1-tokens-maude.css',
+    // generated from the shell ladder's gaps (gen-tokens.mjs 1b); goes when the shell is v2-scoped
+    'apps/studio/client/styles/1-tokens-maude-v2-shell.css',
     'apps/studio/client/styles/3-shell-maude.css',
     'apps/studio/client/styles/4-components-maude.css',
     'apps/studio/client/styles/5-maude-overrides.css',
