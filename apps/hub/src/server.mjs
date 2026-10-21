@@ -436,6 +436,11 @@ export function createHub(config = {}) {
 
   if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
   const sqlitePath = join(dataDir, 'hub.db');
+  // F2 (wave B) — a live, not-yet-stored document is advertised only once it
+  // holds content (`liveDocHasContent`). Read at request time: `server` is
+  // declared below.
+  const liveHasContent = (name) => liveDocHasContent(server?.hocuspocus?.documents?.get?.(name));
+  const listDocs = () => listCanvases(sqlitePath, peers, { liveHasContent });
 
   /** @type {Map<string, { socketId: string, documentName: string, user: string, connectedAt: number, connection: any }>} */
   const peers = new Map();
@@ -984,9 +989,7 @@ export function createHub(config = {}) {
         const { docs = [] } = (await accepted.kernel.bootstrap()) ?? {};
         return docs.some((d) => d.doc === name && !d.retired);
       }
-      return (
-        listCanvases(sqlitePath, peers).some((d) => d.name === name) && !isTombstoned(dataDir, name)
-      );
+      return listDocs().some((d) => d.name === name) && !isTombstoned(dataDir, name);
     },
     async withDoc(name, context, fn) {
       const conn = await server.hocuspocus.openDirectConnection(name, context);
@@ -1678,7 +1681,7 @@ export function createHub(config = {}) {
           bearer: (request.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim() || null,
           verify: (token) => verifyToken(dataDir, token, secret),
           matchesScope,
-          listDocuments: () => listCanvases(sqlitePath, peers),
+          listDocuments: listDocs,
           listTombstones: () => listTombstones(dataDir),
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
         });
@@ -2099,6 +2102,7 @@ export function createHub(config = {}) {
           port,
           startedAt,
           peers,
+          liveHasContent,
           kickLabel,
           publicUrl,
           rateBuckets,
@@ -2496,7 +2500,7 @@ export function createHub(config = {}) {
     },
     // Baseline import (T30): the storage listing, the project's deletions,
     // and — in workspace mode — the checkout as the path/folder authority.
-    listDocuments: () => listCanvases(sqlitePath, peers),
+    listDocuments: listDocs,
     tombstoned: () => new Set(listTombstones(dataDir).map((t) => t.name)),
     checkoutPath: (slug) => checkoutCanvasPaths().get(slug) ?? null,
     checkoutBody: (rel) => {
@@ -3027,7 +3031,7 @@ async function handleAdminApi(ctx) {
   // flat slugs are not hidden — they collect in one `legacy: true` group, so a
   // hub mid-rollout shows both kinds at once instead of appearing to lose docs.
   if (method === 'GET' && path === '/canvases') {
-    const canvases = listCanvases(sqlitePath, peers);
+    const canvases = listCanvases(sqlitePath, peers, { liveHasContent: ctx.liveHasContent });
     respondAdminJson(response, 200, { canvases, groups: groupCanvases(canvases) });
     return;
   }
@@ -3755,12 +3759,32 @@ function peerCountsByDoc(peers) {
   return counts;
 }
 
-function docsFromPeers(peerCounts) {
-  return Array.from(peerCounts.entries()).map(([name, count]) => ({
-    name,
-    bytes: 0,
-    peers: count,
-  }));
+function docsFromPeers(peerCounts, liveHasContent) {
+  return Array.from(peerCounts.entries())
+    .filter(([name]) => liveHasContent(name))
+    .map(([name, count]) => ({ name, bytes: 0, peers: count }));
+}
+
+/**
+ * F2 (wave B) — does a live Hocuspocus document hold any content?
+ *
+ * The peer-derived half of the listing ("a live-but-unsaved canvas") used to
+ * advertise every document a peer had OPEN. A read-only session that makes a
+ * canvas locally opens a name the hub never stored; Hocuspocus drops its
+ * SyncStep2/Update, so the document stays empty — but the listing named it,
+ * every writable peer pulled it (the cell's own studio first) and stamped
+ * `syncMeta.path` from where it would land on ITS disk, and the hub stored
+ * that: a stub nobody wrote, then advertised to every desktop (1.9.1 pulls
+ * every listed name as a canvas). Content is the only proof a WRITER put the
+ * document there, whatever the door decided — read-only, paused, accepted
+ * mode, a format fence or a refused handshake all leave it empty.
+ *
+ * `store.clients` is Yjs's struct store: empty until some update integrated,
+ * and never empty again (a deletion keeps its items) — so a writer's canvas
+ * that is not stored yet stays listed.
+ */
+export function liveDocHasContent(doc) {
+  return !!doc && doc.store?.clients?.size > 0;
 }
 
 /**
@@ -3772,11 +3796,11 @@ function docsFromPeers(peerCounts) {
  * missing table (no syncs yet) / lock / schema drift falls back to the
  * peer-derived view.
  */
-function listCanvases(sqlitePath, peers) {
+function listCanvases(sqlitePath, peers, { liveHasContent = () => false } = {}) {
   const peerCounts = peerCountsByDoc(peers);
-  if (!sqlitePath || !existsSync(sqlitePath)) return docsFromPeers(peerCounts);
+  if (!sqlitePath || !existsSync(sqlitePath)) return docsFromPeers(peerCounts, liveHasContent);
   const Database = loadSqlite();
-  if (!Database) return docsFromPeers(peerCounts);
+  if (!Database) return docsFromPeers(peerCounts, liveHasContent);
 
   let db;
   try {
@@ -3799,12 +3823,14 @@ function listCanvases(sqlitePath, peers) {
         peers: peerCounts.get(name) ?? 0,
       });
     }
+    // F2 — only a live document a writer put content into (`liveDocHasContent`).
     for (const [name, count] of peerCounts) {
-      if (!byName.has(name)) byName.set(name, { name, bytes: 0, peers: count });
+      if (!byName.has(name) && liveHasContent(name))
+        byName.set(name, { name, bytes: 0, peers: count });
     }
     return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
   } catch {
-    return docsFromPeers(peerCounts);
+    return docsFromPeers(peerCounts, liveHasContent);
   } finally {
     try {
       db?.close();

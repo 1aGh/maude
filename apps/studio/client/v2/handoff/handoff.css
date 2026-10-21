@@ -18,8 +18,8 @@
     box-shadow: inset 0 0 0 1px var(--line, var(--bg-3));
     cursor: pointer;
     transition:
-      box-shadow var(--dur-fast) ease,
-      background var(--dur-fast) ease;
+      box-shadow var(--dur-flip) var(--ease-out),
+      background var(--dur-flip) var(--ease-out);
   }
   .ho-target:focus-visible {
     outline: 2px solid var(--focus-ring, var(--accent));
@@ -72,7 +72,7 @@
     display: grid;
     gap: var(--space-1, 4px);
     background: var(--warn-muted, var(--bg-2));
-    box-shadow: inset 0 0 0 1px var(--warn, var(--line));
+    box-shadow: inset 0 0 0 1px var(--warn, var(--border-subtle));
   }
   .ho-review-t,
   .ho-queued-t {

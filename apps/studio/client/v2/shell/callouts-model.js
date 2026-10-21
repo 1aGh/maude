@@ -254,36 +254,8 @@ export function roleCallout(cloud, seen = () => false) {
   };
 }
 
-/**
- * V2-4.9 — the first-run tour offers. In v1 they were a fixed box in the window's bottom-left corner,
- * which is where the v2 left panel floats: it covered the canvas rows. Now they are callouts — one
- * action (Start), × marks them seen. Never while a tour is running; the usage offer first.
- * @param t.usage  the usage-tour offer is due
- * @param t.collab the team/collab-tour offer is due
- * @param t.running a tour is on screen
- */
-export function tourCallout({ usage = false, collab = false, running = false } = {}) {
-  if (running) return null;
-  if (usage)
-    return {
-      key: 'tour:usage',
-      kind: 'tour-usage',
-      tone: 'info',
-      icon: 'sparkle',
-      title: 'New here? Take a 60-second tour of the canvas browser.',
-      action: { id: 'tour-usage', label: 'Start' },
-    };
-  if (collab)
-    return {
-      key: 'tour:collab',
-      kind: 'tour-collab',
-      tone: 'info',
-      icon: 'sparkle',
-      title: 'New to working with a team? See how saving & sharing works — 60 seconds.',
-      action: { id: 'tour-collab', label: 'Start' },
-    };
-  return null;
-}
+// V2-4.9 drew the first-run tour offers here as callouts; 02 ("no wizard, no card, no tour") removes them
+// (gate-b-polish2). The tours run from Menu › Help › Take the tour (`help.tour`); the team tour from Help too.
 
 // ── S11.17 (C37) — errors and recovery ─────────────────────────────────────────────────────────────
 
@@ -352,7 +324,6 @@ const ORDER = { error: 0, warn: 1, info: 2, ok: 3 };
  * @param in.gitLifecycle non-null when the repo changed
  * @param in.cloud        `cfg.cloud` (role)
  * @param in.roleSeen     (role) => boolean
- * @param in.tour         `{ usage, collab, running }` — the first-run tour offers (tourCallout)
  * @param in.crashed      `{ notice, lastWorkAt, now? }` — S11.17 the relaunch line (crashedCallout)
  * @param in.disk         `{ full, held, since }` — S11.17 the full-disk hold (diskFullCallout)
  * @param in.native       the desktop app (Show in Finder exists)
@@ -366,7 +337,6 @@ export function calloutStack({
   gitLifecycle = null,
   cloud: cloudCfg = null,
   roleSeen = () => false,
-  tour = null,
   crashed = null,
   disk = null,
   native = true,
@@ -381,7 +351,6 @@ export function calloutStack({
     repoCallout(gitLifecycle),
     updateCallout(updateReady),
     roleCallout(cloudCfg, roleSeen),
-    tour ? tourCallout(tour) : null,
   ]
     .filter((c) => c && !dismissed.has(c.key))
     .sort((a, b) => ORDER[a.tone] - ORDER[b.tone]);

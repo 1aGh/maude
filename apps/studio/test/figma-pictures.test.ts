@@ -5,7 +5,7 @@
 //   • the picked frames become ONE new canvas, each an artboard of kind `digital` (Fixed size) at its
 //     Figma px, whose picture is Figma's own render (never a figma.com URL in the source);
 //   • only frames the page lists can be picked; the folder and the name are checked, never a path;
-//   • a taken name becomes "<name> (Figma)"; comments ride along as stickies on the board;
+//   • a taken name becomes "<name> (Figma)"; comments ride along as comment pins (S8.17b);
 //   • `--editable <artboard>` is Make editable (the explode operation); bare `--editable` keeps v1's JSX.
 //
 // The Figma API is a stub (no network, a fake token in a temp keys file).
@@ -172,16 +172,34 @@ describe("importFramePictures — frames arrive as Figma's exact picture", () =>
     expect(meta.figma.frames.every((f: { route: string }) => f.route === 'render')).toBe(true);
   });
 
-  test('comments on the picked frames ride along as stickies; one on another frame is counted, not placed', async () => {
+  test('comments on the picked frames ride along as comment pins; one on another frame is counted, not placed', async () => {
     const r = await importFramePictures({
       url: URL_D,
       root: sandbox,
       frames: ['2:1'],
       folder: 'ui',
+      importer: 'Michal',
     });
     expect(r.comments).toEqual({ placed: 2, resolved: 1, elsewhere: 1 });
-    const board = join(sandbox, '.design', 'ui-uniformy-2027.annotations.json');
-    expect(existsSync(board)).toBe(true);
+    // S8.17b: pins in the thread file, not stickies on the board
+    expect(existsSync(join(sandbox, '.design', 'ui-uniformy-2027.annotations.json'))).toBe(false);
+    const file = join(sandbox, '.design', '_comments', 'ui-uniformy-2027.json');
+    expect(existsSync(file)).toBe(true);
+    const pins = JSON.parse(readFileSync(file, 'utf8'));
+    expect(pins).toHaveLength(2);
+    expect(pins.map((p: { author: string }) => p.author)).toEqual(['Michal', 'Michal']);
+    expect(
+      pins.map((p: { importedFrom: { author: { name: string } } }) => p.importedFrom.author.name)
+    ).toEqual(['Jonas', 'Tereza']);
+    expect(pins.map((p: { status: string }) => p.status)).toEqual(['open', 'resolved']);
+    expect(pins[0].file).toBe('.design/ui/Uniformy-2027.tsx');
+    // the pin names the artboard the canvas actually has for that frame
+    const meta = JSON.parse(
+      readFileSync(join(sandbox, '.design', 'ui/Uniformy-2027.meta.json'), 'utf8')
+    );
+    expect(pins[0].artboard).toBe(meta.figma.frames[0].id);
+    expect(meta.layout.artboards.map((a: { id: string }) => a.id)).toContain(pins[0].artboard);
+    expect(pins[0].mentions).toEqual([]);
     // the summary is accounting only: no comment text, no frame name (D10)
     expect(JSON.stringify(r)).not.toContain('IGNORE ALL PREVIOUS');
     expect(JSON.stringify(r)).not.toContain('domácí');

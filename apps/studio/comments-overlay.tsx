@@ -61,6 +61,11 @@ import {
   worldToClient,
 } from './comment-anchor.ts';
 import { fromHeadline, fromWho } from './comments/from-line.ts';
+import {
+  type ImportedFrom,
+  importedLabel,
+  sanitizeImportedFrom,
+} from './comments/imported-from.ts';
 import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
@@ -120,6 +125,8 @@ interface OverlayReply {
   created: string;
   /** `ai` for an AI-written reply (S9.7b) — shown with an AI mark, never as a person. */
   authorKind?: 'ai';
+  /** S8.17b — written in another tool (Figma): a label, never a member. `author` is the importer. */
+  importedFrom?: ImportedFrom;
 }
 
 export interface OverlayComment {
@@ -155,6 +162,8 @@ export interface OverlayComment {
   t?: number;
   mm?: { x: number; y: number };
   authorKind?: 'ai';
+  /** S8.17b — the thread came from another tool (Figma): who wrote it there, as a label. */
+  importedFrom?: ImportedFrom;
   /** A converted sticky (S4-S9-votes-comments §3.1). */
   from?: {
     kind: string;
@@ -1373,7 +1382,7 @@ function CommentPin({
 // pragmatic kind: position is computed once on open against the world layout,
 // not chased on pan/zoom — the user is actively typing.
 
-function CommentComposer({
+export function CommentComposer({
   state,
   busy = false,
   onSubmit,
@@ -1435,17 +1444,12 @@ function CommentComposer({
     [onCancel, trySubmit]
   );
 
-  // Compact selector hint — strip noisy structural bits so the head stays
-  // tight inside the 300px card.
-  const selectorChip = useMemo(() => {
-    const s = state.selection.selector || '';
-    if (!s) return state.selection.tag || (state.selection.annotationId ? 'annotation' : 'canvas');
-    // [data-cd-id="…"] → cd:<id> · keeps the chip readable when stable ids
-    // are present.
-    const cd = s.match(/data-cd-id="([^"]+)"/);
-    if (cd) return `cd:${cd[1]}`;
-    return s.length > 36 ? `${s.slice(0, 33)}…` : s;
-  }, [state.selection]);
+  // gate-b-polish3 (10 · co-comment-thread) — the header says WHERE, in words: the artboard's label, else the
+  // element's name, else the canvas. Never a raw id (the v1 head showed "cd:566b4b33").
+  const where = useMemo(
+    () => placeWords({ artboard: state.anchors?.artboard, selector: state.selection.selector }),
+    [state.anchors, state.selection]
+  );
 
   // "at 0:12" / "14 mm from the left · 2 mm above the trim": where it will be pinned, said before it is.
   const placedChip = useMemo(() => {
@@ -1464,36 +1468,81 @@ function CommentComposer({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="cm-composer__head">
-        <span>New comment</span>
-        <span className="cm-composer__selector" data-testid="comment-composer-where">
-          {placedChip ?? selectorChip}
+        <span
+          className="cm-composer__where"
+          data-testid={placedChip ? 'comment-composer-place' : 'comment-composer-where'}
+        >
+          {where}
         </span>
-      </div>
-      <MentionAwareTextarea
-        textareaRef={textareaRef}
-        className="cm-composer__textarea"
-        value={text}
-        placeholder="Type a comment. ⌘↵ to save · Esc to cancel · @name to tag"
-        onChange={setText}
-        onKeyDown={onKeyDown}
-        rows={3}
-        ariaLabel="Comment body"
-      />
-      <div className="cm-composer__actions">
-        <button type="button" className="cm-btn" onClick={onCancel}>
-          Cancel
-        </button>
         <button
           type="button"
-          className="cm-btn cm-btn--primary"
+          className="cm-thread__close"
+          data-testid="comment-composer-cancel"
+          aria-label="Cancel"
+          title="Cancel · esc"
+          onClick={onCancel}
+        >
+          ×
+        </button>
+      </div>
+      {placedChip ? (
+        <span className="cm-chip cm-composer__chip" data-testid="comment-composer-where">
+          {placedChip}
+        </span>
+      ) : null}
+      <div className="cm-composer__field">
+        <MentionAwareTextarea
+          textareaRef={textareaRef}
+          className="cm-composer__textarea"
+          value={text}
+          placeholder="Add a comment — @ mentions someone"
+          onChange={setText}
+          onKeyDown={onKeyDown}
+          rows={2}
+          ariaLabel="Comment body"
+        />
+        <button
+          type="button"
+          className="cm-btn cm-btn--primary cm-composer__send"
+          data-testid="comment-composer-send"
+          aria-label="Send"
+          title="Send · ⌘↵"
           disabled={!text.trim() || busy}
           onClick={trySubmit}
         >
-          Save
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M8 13V3.5M3.8 7.6 8 3.4l4.2 4.2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </div>
     </div>
   );
+}
+
+/**
+ * gate-b-polish3 — where a comment sits, in words: its artboard's label, else the named element
+ * (`data-dc-element`), else the canvas. Never a raw element id or a CSS selector.
+ */
+export function placeWords(o: { artboard?: string | null; selector?: string | null }): string {
+  if (o.artboard) return artboardLabelOf(o.artboard);
+  let el: Element | null = null;
+  try {
+    el = o.selector && typeof document !== 'undefined' ? document.querySelector(o.selector) : null;
+  } catch {
+    el = null;
+  }
+  const abId = el?.closest?.('[data-dc-screen]')?.getAttribute('data-dc-screen');
+  if (abId) return artboardLabelOf(abId);
+  const named = el?.getAttribute?.('data-dc-element');
+  if (named) return named.replace(/[-_]+/g, ' ');
+  return 'On the canvas';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1640,21 +1689,20 @@ export function CommentThread({
   );
 
   const headId = `cm-thread-head-${comment.id}`;
-  const selectorChip = formatSelectorChip(comment.selector, '');
   // Can comment sessions boot `ro=1` (no edit) but may still reply and resolve: `cm=1` says so.
   const canAct = !isReadOnlyCanvas() || canCommentCanvas();
   const where = whereOf(
     comment,
     comment.artboard ? trimOfPrint(printPropOf(comment.artboard)) : null
   );
-  const whereLabel = comment.artboard
-    ? artboardLabelOf(comment.artboard)
-    : selectorChip || 'On the canvas';
+  const whereLabel = placeWords({ artboard: comment.artboard, selector: comment.selector });
 
   // S4.V4 G5 (S4-S9-votes-comments §3.4) — a converted sticky's thread: the header's Undo (the converter,
   // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
   // into a sticky" (any editor). Both refuse while someone else has replied; the server judges either way.
   const from = comment.from;
+  // S8.17b — a Figma writer's label (re-clamped here: the record can come from a peer).
+  const imported = sanitizeImportedFrom(comment.importedFrom);
   const meName = (me ?? '').trim();
   const byYou = from ? (meName ? (from.convertedBy ?? '').trim() === meName : mine) : false;
   const foreignReply = from
@@ -1716,7 +1764,7 @@ export function CommentThread({
           <span className="cm-thread__head-end">
             {canAct ? (
               <span className="cm-thread__actions">
-                {mine && draft === null ? (
+                {mine && draft === null && !imported ? (
                   <button
                     type="button"
                     className="cm-btn"
@@ -1799,7 +1847,7 @@ export function CommentThread({
               type="button"
               className="cm-thread__close"
               aria-label="Close thread"
-              title="Close · Esc"
+              title="Close · esc"
               onClick={onClose}
             >
               ×
@@ -1851,18 +1899,32 @@ export function CommentThread({
 
       {draft === null ? (
         <div className="cm-msg cm-msg--root">
-          <Avatar
-            name={comment.from ? fromWho(comment.from).name : comment.author}
-            ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
-          />
+          {imported ? (
+            <ImportedMark />
+          ) : (
+            <Avatar
+              name={comment.from ? fromWho(comment.from).name : comment.author}
+              ai={comment.from ? fromWho(comment.from).ai : comment.authorKind === 'ai'}
+            />
+          )}
           <div className="cm-msg__main">
             <div className="cm-msg__head">
-              <span className="cm-thread__author">
-                {(comment.from ? fromWho(comment.from).name : comment.author?.trim()) || 'unknown'}
+              <span
+                className="cm-thread__author"
+                data-testid={imported ? `comment-imported-${comment.id}` : undefined}
+              >
+                {imported
+                  ? importedLabel(imported)
+                  : (comment.from ? fromWho(comment.from).name : comment.author?.trim()) ||
+                    'unknown'}
               </span>
-              <span className="cm-thread__time">{formatRelativeTime(comment.created)}</span>
+              <span className="cm-thread__time">
+                {formatRelativeTime(imported?.at ?? comment.created)}
+              </span>
             </div>
-            <div className="cm-thread__body">{renderBodyWithMentions(comment.text)}</div>
+            <div className="cm-thread__body">
+              {imported ? comment.text : renderBodyWithMentions(comment.text)}
+            </div>
           </div>
         </div>
       ) : (
@@ -1898,18 +1960,27 @@ export function CommentThread({
         </div>
       )}
 
-      {(comment.thread ?? []).map((r) => (
-        <div className="cm-msg cm-thread__reply" key={r.id}>
-          <Avatar name={r.author} ai={r.authorKind === 'ai'} />
-          <div className="cm-msg__main">
-            <div className="cm-thread__reply-head">
-              <span className="cm-thread__reply-author">{r.author?.trim() || 'unknown'}</span>
-              <span className="cm-thread__reply-time">{formatRelativeTime(r.created)}</span>
+      {(comment.thread ?? []).map((r) => {
+        const ri = sanitizeImportedFrom(r.importedFrom);
+        return (
+          <div className="cm-msg cm-thread__reply" key={r.id}>
+            {ri ? <ImportedMark /> : <Avatar name={r.author} ai={r.authorKind === 'ai'} />}
+            <div className="cm-msg__main">
+              <div className="cm-thread__reply-head">
+                <span className="cm-thread__reply-author">
+                  {ri ? importedLabel(ri) : r.author?.trim() || 'unknown'}
+                </span>
+                <span className="cm-thread__reply-time">
+                  {formatRelativeTime(ri?.at ?? r.created)}
+                </span>
+              </div>
+              <div className="cm-thread__reply-body">
+                {ri ? r.body : renderBodyWithMentions(r.body)}
+              </div>
             </div>
-            <div className="cm-thread__reply-body">{renderBodyWithMentions(r.body)}</div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* A session that cannot comment (Can view, or an old shell that hid them from every
           read-only role) VIEWS threads; reply / resolve / delete are absent. The server decides
@@ -1950,6 +2021,11 @@ export function CommentThread({
 
 function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name;
+}
+
+/** S8.17b — where a person's avatar would be, for words written in another tool: a ring, no initials. */
+function ImportedMark(): React.ReactElement {
+  return <span className="cm-av cm-av--imported" aria-hidden="true" />;
 }
 
 /** Initials in a circle — a person's mark in a thread; `AI` for an AI-written message. */
@@ -2003,13 +2079,6 @@ function formatRelativeTime(iso: string): string {
   if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
   if (diffSec < 86_400) return `${Math.round(diffSec / 3600)}h ago`;
   return `${Math.round(diffSec / 86_400)}d ago`;
-}
-
-function formatSelectorChip(selector: string, fallback: string): string {
-  if (!selector) return fallback;
-  const cd = selector.match(/data-cd-id="([^"]+)"/);
-  if (cd) return `cd:${cd[1]}`;
-  return selector.length > 36 ? `${selector.slice(0, 33)}…` : selector;
 }
 
 function computeThreadAnchor(comment: OverlayComment): { x: number; y: number } {

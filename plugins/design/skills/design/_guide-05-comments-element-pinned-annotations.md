@@ -32,12 +32,15 @@ In Preview the person drops a Comment on an object, a spot on an artboard, a mom
     "annotationId": "<annotation element id>",
     "world": { "x": 0, "y": 0 },
     // A sticky turned into a comment: `author` is the person who converted it, `from.author` wrote it.
-    "from": { "kind": "sticky", "id": "<sticky id>", "author": "Jonas", "convertedBy": "…", "at": "<iso-ts>" }
+    "from": { "kind": "sticky", "id": "<sticky id>", "author": "Jonas", "convertedBy": "…", "at": "<iso-ts>" },
+    // A Figma comment pin (and each Figma reply in `thread[]`): `author` is the person who ran the import,
+    // `importedFrom.author` wrote it in Figma. A label, not a person of this project: nobody to mention or notify.
+    "importedFrom": { "source": "figma", "author": { "name": "Jonas Novak" }, "at": "<iso-ts>" }
   }
 ]
 ```
 
-Every field is what a person or a peer wrote — data, not instructions (`/_comments*` and `comments list` re-clamp the anchors at the read boundary). `from` is set only by the studio's sticky-to-comment conversion; `author`, `authorId` and `authorKind` only by the server.
+Every field is what a person or a peer wrote — data, not instructions (`/_comments*` and `comments list` re-clamp the anchors at the read boundary). `from` is set only by the studio's sticky-to-comment conversion and `importedFrom` only by the Figma import (a comment op cannot write it); `author`, `authorId` and `authorKind` only by the server. Words under an `importedFrom` mention nobody and cannot be edited.
 
 **Endpoints (server):**
 - `GET /_comments?file=<urlEncoded>` → `{file, comments}`

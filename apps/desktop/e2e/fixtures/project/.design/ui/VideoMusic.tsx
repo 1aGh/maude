@@ -5,8 +5,9 @@
  *
  * Beat "oslava" (60 frames) → a 15-frame fade → beat "logo" (60 frames), and a loose music bed `assets/song.mp3`
  * under the whole reel whose beat grid (`assets/song.beats.json`, 120 BPM, a beat every 15 frames) is committed
- * beside the fixture — no audio is decoded and no analysis service is called. The bed is not in a `<Duck>` (the reel
- * has no speech), so the run turns Lower under speech on and off and watches the bytes. The artboard is
+ * beside the fixture — no audio is decoded and no analysis service is called. The bed is not under a Duck wrapper (the reel
+ * has no speech; the comp's derivations scan the SOURCE TEXT for the element's opening tag, so this comment must not
+ * spell it), so the run turns Lower under speech on and off and watches the bytes. The artboard is
  * `kind="video"`: selecting it brings the Timeline island up; clicking the bed fills the right-hand inspector with
  * the Music rows. Slug `ui/VideoMusic.tsx` → `data-testid="canvas-row-ui-video-music"`. Restored byte-exact.
  */
@@ -16,18 +17,19 @@ import { Audio } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 
-const B1 = 60, B2 = 60, TRANS = 15;
-const TOTAL = B1 + B2 - TRANS;
+// literals, not named constants: the edit engine rewrites a beat's `durationInFrames` and the comp's total in place,
+// and refuses an identifier or `B1 + B2 - TRANS` it cannot reason about
+const TOTAL = 105;
 const W = 320, H = 180, FPS = 30;
 
 const Comp = () => (
   <AbsoluteFill style={{ background: "#101014" }}>
     <TransitionSeries>
-      <TransitionSeries.Sequence name="oslava" durationInFrames={B1}>
+      <TransitionSeries.Sequence name="oslava" durationInFrames={60}>
         <AbsoluteFill style={{ background: "#1d4ed8" }} />
       </TransitionSeries.Sequence>
-      <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: TRANS })} />
-      <TransitionSeries.Sequence name="logo" durationInFrames={B2}>
+      <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: 15 })} />
+      <TransitionSeries.Sequence name="logo" durationInFrames={60}>
         <AbsoluteFill style={{ background: "#15803d" }} />
       </TransitionSeries.Sequence>
     </TransitionSeries>

@@ -16,12 +16,15 @@ import { request } from 'node:http';
 import { join } from 'node:path';
 import type { Subprocess } from 'bun';
 
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort, type Sandbox } from './_helpers.ts';
 
 let box: Sandbox;
 let proc: Subprocess;
 let port: number;
 let canvas: string;
+/** gate-b-c4 — the frame (ui/card.tsx) every canvas-listener handshake below is made from. */
+let fc: string | null = null;
 
 /** node:http, because fetch() will not send a Host header other than the URL's. */
 function get(p: number, path: string, headers: Record<string, string>): Promise<number> {
@@ -54,6 +57,7 @@ beforeAll(async () => {
     }
     if (!canvas) await Bun.sleep(50);
   }
+  fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/card.tsx');
 });
 afterAll(async () => {
   await killProc(proc);
@@ -79,16 +83,23 @@ describe('canvas-listener sockets refuse a cross-origin handshake', () => {
   for (const path of ['/_ws/collab/ui-card', '/_ws']) {
     test(`${path}: a drive-by Origin is 403'd`, async () => {
       const host = `localhost:${canvasPort()}`;
-      expect(await get(canvasPort(), path, { Host: host, Origin: 'https://evil.example' })).toBe(
+      // inside a valid frame, so the 403 is the Origin gate's own
+      const framed = withFc(path, fc);
+      expect(await get(canvasPort(), framed, { Host: host, Origin: 'https://evil.example' })).toBe(
         403
       );
       expect(
-        await get(canvasPort(), path, { Host: host, Origin: `http://localhost:${port}` })
+        await get(canvasPort(), framed, { Host: host, Origin: `http://localhost:${port}` })
       ).toBe(403);
     });
     test(`${path}: the canvas iframe's own origin passes the gate`, async () => {
       const host = `localhost:${canvasPort()}`;
-      expect(await get(canvasPort(), path, { Host: host, Origin: `http://${host}` })).toBe(400);
+      // (400: past every gate, a plain GET is no upgrade) — from inside the frame; frame-less,
+      // the frame gate refuses the handshake first (gate-b-c4).
+      expect(
+        await get(canvasPort(), withFc(path, fc), { Host: host, Origin: `http://${host}` })
+      ).toBe(400);
+      expect(await get(canvasPort(), path, { Host: host, Origin: `http://${host}` })).toBe(403);
     });
   }
 });

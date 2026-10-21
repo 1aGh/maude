@@ -1,7 +1,10 @@
 import { $, browser, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { dsRow } from '../helpers/tree';
 
 /**
  * 13 · ds-edge-contrast, ds-edge-trash (S10.17) — select the text colour that falls short on the Design system canvas:
@@ -26,19 +29,17 @@ const swatchCentre = (css: string) =>
   }, css);
 
 async function clickInFrame(x: number, y: number): Promise<void> {
-  await browser.execute(
-    (px, py) => {
-      const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-      const doc = f.contentDocument as Document;
-      const target = doc.elementFromPoint(px, py) ?? doc.body;
-      for (const type of ['pointerdown', 'pointerup', 'click'])
-        target.dispatchEvent(
-          new MouseEvent(type, { bubbles: true, clientX: px, clientY: py, button: 0 })
-        );
-    },
-    x,
-    y
-  );
+  // (x, y) are the swatch's centre INSIDE the frame; the pointer helper takes a window coordinate and
+  // raises pointer + mouse + click events on whatever is under it, through the frame
+  const off = (await browser.execute(() => {
+    const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    const r = f.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  })) as { x: number; y: number };
+  // the first click on a board's content selects the ARTBOARD (Colour); the second goes in to the element
+  await pointerClick(off.x + x, off.y + y);
+  await browser.pause(1_000);
+  await pointerClick(off.x + x, off.y + y);
 }
 
 async function select(css: string): Promise<void> {
@@ -48,6 +49,7 @@ async function select(css: string): Promise<void> {
   });
   const at = (await swatchCentre(css)) as { x: number; y: number };
   await clickInFrame(at.x, at.y);
+  await openInspector();
 }
 
 describe('ds-edges — a quiet contrast warning with the fix, and a colour to the trash', () => {
@@ -57,10 +59,11 @@ describe('ds-edges — a quiet contrast warning with the fix, and a colour to th
 
   it('selects the text colour that falls short: the warning offers the fix', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
     await select('--fg-2');
     const line = await $('[data-testid="ds-token-contrast"]');
     await line.waitForExist({ timeout: 20_000 });
@@ -83,17 +86,23 @@ describe('ds-edges — a quiet contrast warning with the fix, and a colour to th
           .then((t) => t === 'ok'),
       { timeout: 20_000, timeoutMsg: 'the contrast line never turned ok after the fix' }
     );
-    await browser.waitUntil(
-      () =>
-        browser.execute(() => {
-          const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
-          return (
-            f?.contentDocument?.querySelector('[data-testid="ds-bar-pending"]')?.textContent ===
-            '1 change waiting'
-          );
-        }),
-      { timeout: 15_000, timeoutMsg: 'the fix did not leave exactly one change waiting' }
-    );
+    let barSaid: string | null | undefined;
+    try {
+      await browser.waitUntil(
+        async () => {
+          barSaid = await browser.execute(() => {
+            const f = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+            return f?.contentDocument?.querySelector('[data-testid="ds-bar-pending"]')?.textContent;
+          });
+          return barSaid === '1 change waiting';
+        },
+        { timeout: 15_000 }
+      );
+    } catch {
+      throw new Error(
+        `the fix did not leave exactly one change waiting (the bar said ${JSON.stringify(barSaid)})`
+      );
+    }
     await capture('ds-edges-contrast-fixed');
   });
 

@@ -264,6 +264,35 @@ export const ROUTE_ANSWERS = {
       },
     ],
   },
+  // Claude Code found on the PATH but not signed in, plugins ready: Diagnostics > AI setup draws its four rows (Found at
+  // …) and the Sign in to Claude button from this. The server's own probe runs `claude` on the machine, so under load
+  // it answers late or not at all ("Couldn't reach the readiness probe", no row on screen) and what the audit saw
+  // depended on the machine
+  preflightReady: {
+    ready: false,
+    items: [
+      {
+        id: 'claude',
+        label: 'Claude Code',
+        status: 'missing',
+        required: true,
+        detail: 'Not signed in.',
+        remediation: 'Sign in to Claude, then check again.',
+        action: 'signin',
+        resolvedPath: '/Users/probe/.local/bin/claude',
+        resolvedViaMaude: false,
+      },
+      // every item carries a `detail` (readiness.ts ReadinessItem): the list renders it as text, and a stub without it
+      // crashed the desktop shell ("This window stopped drawing")
+      {
+        id: 'plugins',
+        label: 'Plugins',
+        status: 'present',
+        required: true,
+        detail: 'Design and flow plugins are installed.',
+      },
+    ],
+  },
   // ── comments: the Comments panel's list, the in-canvas overlay's, and who "me" is ───────────────────
   commentsAll: {
     '.design/ui/Home.tsx': [
@@ -345,17 +374,31 @@ export const ROUTE_ANSWERS = {
   // ── Figma ───────────────────────────────────────────────────────────────────────────────────
   figmaProbeOk: { ok: true, handle: 'tereza' },
   figmaProbeBad: { ok: false, error: 'Figma did not accept that token.' },
-  figmaImportOk: {
+  // the link step's Import reads the page's frames (v2 FigmaSheet: /_api/figma/frames), the pick step's Import brings the
+  // picked ones in (/_api/figma/import-frames) and the done step is the summary
+  figmaFrames: {
     ok: true,
-    mode: 'frames',
-    frameCount: 2,
+    surface: 'design',
+    fileName: 'Probe',
+    page: 'Page 1',
+    more: 0,
+    frames: [
+      { id: '1:2', name: 'Hero', width: 1440, height: 900 },
+      { id: '1:3', name: 'Pricing', width: 1440, height: 1100 },
+    ],
+  },
+  figmaImportFramesOk: {
+    ok: true,
+    artboards: 2,
+    comments: { placed: 1, resolved: 0, elsewhere: 0 },
+    assets: { pending: 0, resolved: 0 },
     dispositions: [
       { disposition: 'imported', name: 'Hero' },
       { disposition: 'imported', name: 'Pricing' },
       { disposition: 'skipped', name: 'Comment layer', reason: 'not a design' },
     ],
   },
-  figmaImportBad: { __status: 400, ok: false, error: 'That link is not a Figma file.' },
+  figmaFramesBad: { __status: 400, ok: false, reason: 'bad-url' },
   // signed out of Maude Cloud, with the cloud's own address (the sign-in link is checked against it)
   cloudOut: { ok: true, connected: false, url: 'https://cloud.example' },
   cloudProjectsNone: { ok: true, projects: [] },
@@ -444,8 +487,14 @@ export const STATES = {
     extends: 'figma-in',
     routes: { '/_api/figma/probe': 'figmaProbeBad' },
   },
-  'figma-import-ok': { extends: 'figma-in', routes: { '/_api/figma/import': 'figmaImportOk' } },
-  'figma-import-bad': { extends: 'figma-in', routes: { '/_api/figma/import': 'figmaImportBad' } },
+  'figma-import-ok': {
+    extends: 'figma-in',
+    routes: {
+      '/_api/figma/frames': 'figmaFrames',
+      '/_api/figma/import-frames': 'figmaImportFramesOk',
+    },
+  },
+  'figma-import-bad': { extends: 'figma-in', routes: { '/_api/figma/frames': 'figmaFramesBad' } },
   // a maude:// link the shell parked at launch (take_pending_deep_link)
   'deeplink-connect': {
     invoke: { take_pending_deep_link: 'maude://open/studio-site?code=mhc_00112233445566778899' },
@@ -674,7 +723,8 @@ export const OPENERS = [
     ],
   },
   { id: 'diag-sync-files-failed', state: 'linked-rich-failed', steps: diagView('sync') },
-  ...['server', 'logs', 'ai', 'sync'].map((v) => ({ id: `diag-${v}`, steps: diagView(v) })),
+  ...['server', 'logs', 'sync'].map((v) => ({ id: `diag-${v}`, steps: diagView(v) })),
+  { id: 'diag-ai', routes: { '/_api/preflight': 'preflightReady' }, steps: diagView('ai') },
   {
     id: 'diag-server-repo-changed',
     steps: [...diagView('server'), { push: 'git-lifecycle' }],
@@ -746,8 +796,13 @@ export const OPENERS = [
     id: 'preview-comment',
     steps: [
       { click: tid('palette-mode-preview') },
+      // Preview opens on the board it last rested on (Pricing, with the Hero scrolled off to the left); Fit shows both
+      { frameKey: 'Meta+0' },
+      { wait: 700 },
       { frameClick: tid('toolbar-slot-comment') },
-      { frameClick: '[data-cd-id="home-hero-body"]' },
+      // `at`: near the element's corner — in Preview the b-roll player sits over the middle of the Hero's blocks and takes
+      // the pointer there
+      { frameClick: '[data-cd-id="home-hero-body"]', at: [8, 8] },
     ],
   },
   { id: 'palette', steps: [{ palette: true }] },
@@ -952,6 +1007,9 @@ export const OPENERS = [
     id: 'inspector-artboard',
     steps: [
       { frameClick: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      // a board does not open the Inspector by itself (an element does): open it, unless the page remembers it open
+      { key: 'Shift+Meta+I', unless: tid('inspector-panel') },
+      { wait: 400 },
       { ensureOpen: tid('fold-inspector-toggle') },
     ],
   },
@@ -974,9 +1032,13 @@ export const OPENERS = [
       { click: tid('canvas-row-ui-reel') },
       { wait: 5000 },
       { key: 'Shift+Meta+T' },
-      { wait: 3000 },
+      { waitFor: '[data-testid^="timeline-seq-"]', timeout: 20_000 },
       { click: '[data-testid^="timeline-seq-"]', optional: true },
       { dblclick: '[data-testid="timeline-seq-0"]', optional: true },
+      // the fixture comp is past the long-video cap (3 600 frames): its badge opens Advanced, where the keyframe
+      // markers sit on the clips (timeline-kf-<i>-<k>)
+      { click: tid('timeline-long-badge'), optional: true },
+      { wait: 600 },
     ],
   },
   { id: 'export-no-render', config: { exportLane: 'none' }, steps: [{ key: 'Shift+Meta+E' }] },
@@ -1309,7 +1371,9 @@ export const OPENERS = [
     id: 'preview-inspect',
     steps: [
       { click: tid('palette-mode-preview') },
-      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { frameKey: 'Meta+0' },
+      { wait: 700 },
+      { frameClick: '[data-cd-id="home-hero-title"]', at: [8, 8] },
       { wait: 400 },
     ],
   },
@@ -1379,7 +1443,11 @@ export const OPENERS = [
       { run: 'import.figma' },
       { fill: [tid('figma-import-url'), 'https://www.figma.com/design/abc123/Probe'] },
       { click: tid('figma-import-preview') },
-      { wait: 800 },
+      // the frames come back: the picker (figma-import-mode-<id>), then Import brings the picked ones in and the sheet
+      // says what came across (figma-import-summary)
+      { waitFor: tid('figma-import-run') },
+      { click: tid('figma-import-run') },
+      { waitFor: tid('figma-import-summary') },
     ],
   },
   {
@@ -1585,7 +1653,8 @@ export const OPENERS = [
   {
     id: 'acp-comments',
     state: 'acp-chat-comments',
-    steps: [{ key: 'Meta+Slash' }, { wait: 800 }],
+    // the chip waits on the comment count the shell reads after the chat opens; wait for it, not for a clock
+    steps: [{ key: 'Meta+Slash' }, { waitFor: tid('chat-qa-implement-comments') }],
   },
   // the Comments panel with its resolved comments listed (Reopen) …
   {

@@ -1,0 +1,54 @@
+{
+  "journey": "S7",
+  "pass": false,
+  "results": [
+    {
+      "id": "huddle-one-second",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "shots-follow",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "effects-follow",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "total-in-step",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "earlier-shots-kept",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "ai-version",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Alligators Cinematic Cut.tsx (want 1…∞; kind ai, by ai, op any)"
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": false,
+      "why": "0 AI run(s) on ui/Alligators Cinematic Cut.tsx; split: none; unattributed: 0"
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

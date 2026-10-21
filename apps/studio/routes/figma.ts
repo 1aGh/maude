@@ -81,7 +81,9 @@ interface VerbArgs {
   designRootRel: string;
 }
 type ListFn = (req: FramesRequest) => Promise<Record<string, unknown>>;
-type PicturesFn = (req: PicturesRequest & VerbArgs) => Promise<Record<string, unknown>>;
+type PicturesFn = (
+  req: PicturesRequest & VerbArgs & { importer?: string }
+) => Promise<Record<string, unknown>>;
 
 export interface FigmaRouteDeps {
   /** the repo root and the design root relative to it — where the verb writes */
@@ -94,6 +96,12 @@ export interface FigmaRouteDeps {
   importPictures?: PicturesFn;
   /** A canvas landed (the studio's change announcement), so the Canvases list shows it at once. */
   announce?: (canvasRel: string) => void;
+  /**
+   * S8.17b - who ran the import: the `by` of the comment pins it writes (a cell's vouched member, else
+   * this machine's own identity - the comment door's rule). Absent, the verb asks the machine itself.
+   * Never from the request body.
+   */
+  importer?: (req: Request) => Promise<string> | string;
 }
 
 const verb = () => import('../bin/_import-figma.mjs');
@@ -174,7 +182,13 @@ export function createFigmaRoutes(deps: FigmaRouteDeps): RouteSpec[] {
         const parsed = parsePicturesRequest(body);
         if (!parsed) return json(400, { ok: false, reason: 'bad-request' });
         try {
-          const r = await pictures({ ...parsed, root: deps.root, designRootRel: deps.designRel });
+          const importer = (await deps.importer?.(req)) || undefined;
+          const r = await pictures({
+            ...parsed,
+            root: deps.root,
+            designRootRel: deps.designRel,
+            ...(importer ? { importer } : {}),
+          });
           if (typeof r.canvas === 'string') deps.announce?.(r.canvas);
           return json(200, { ok: true, ...r });
         } catch (err) {

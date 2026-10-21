@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f287ee2226ec",
+  "manifestVersion": "a7972f5369d6",
   "actions": [
     {
       "id": "search.open",
@@ -3994,6 +3994,23 @@
       }
     },
     {
+      "id": "sync.connect-link",
+      "label": "Connect",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/link/confirm",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "confirms on this Mac that the folder’s hub may receive this Mac’s credential"
+      }
+    },
+    {
       "id": "share.link-settings",
       "label": "Link settings…",
       "kind": "command",
@@ -5133,6 +5150,30 @@
         "path": "human",
         "because": "accounts",
         "note": "opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent"
+      }
+    },
+    {
+      "id": "invite.join",
+      "label": "Join",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "accepts an invitation addressed to the person’s own cloud account; the device token stays in the Home server"
+      }
+    },
+    {
+      "id": "invite.leave",
+      "label": "Leave",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "turns down an invitation addressed to the person’s own cloud account"
       }
     },
     {

@@ -88,6 +88,24 @@ export const A_ONLY: Headers_ = {
   'x-maude-access': claim({ v: 1, role: null, grants: [{ c: A_REL, r: 'member' }] }),
   'x-maude-readonly': '1',
 };
+/**
+ * gate-b-c4 — the A-only session as the proxy vouches it (`x-maude-user`: the subject its frame
+ * key is minted for). A cell hands no frame key to a request without one.
+ */
+export const A_USER: Headers_ = { ...A_ONLY, 'x-maude-user': 'a-only@example.com' };
+
+/**
+ * gate-b-c4 — the capability the session's shell mints for `canvas` (its `/_config` key), so the
+ * canvas / capture probes run inside that canvas's frame, as the canvas's own code does.
+ */
+export async function frameIn(cell: GateCell, headers: Headers_, canvas: string): Promise<string> {
+  const { frameCapFor } = await import('../client/frame-cap.js');
+  const r = await fetch(`${cell.base}/_config`, { headers: { origin: cell.base, ...headers } });
+  const cfg = (await r.json()) as { frameKey?: string };
+  const fc = frameCapFor(cfg.frameKey, canvas);
+  if (!fc) throw new Error(`no frame key for ${canvas} (status ${r.status})`);
+  return fc;
+}
 
 // ---------------------------------------------------------------------------
 // The fixture.
@@ -229,15 +247,27 @@ export async function bootGateCell(
   put(A_REL, `${A_SRC}// edit\n`);
   put(B_COPY_REL, B_SRC); // trashed by the owner below
 
+  // gate-b-u7: `/_api/preflight` (and every route that reads the sign-in state) spawns the
+  // machine's real `claude auth status` under a 5 s deadline, so on a busy machine the same
+  // request answered "Installed, but not signed in." in one boot and "couldn't read its
+  // sign-in state" in the other (acl-u7-parity red, lane runs only). The fixture pins the CLI:
+  // a stub first on PATH that answers a signed-out status at once, the same in every boot.
+  const stubBin = join(home, 'bin');
+  mkdirSync(stubBin, { recursive: true });
+  writeFileSync(join(stubBin, 'claude'), `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
+
   const port = nextPort();
   const proc = await spawnStudio(root, port, {
+    PATH: `${stubBin}:${process.env.PATH ?? ''}`,
+    MAUDE_CLAUDE_BIN: '',
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
     HUBS_CONFIG_PATH: hubsPath,
     MAUDE_CLOUD_CONFIG: join(home, 'cloud.json'),
     MAUDE_GEN_KEYS_PATH: join(home, 'gen-keys.json'),
     ...(opts.desktop
-      ? {}
+      ? // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+        { MAUDE_APP_BOUND_HUB: DESKTOP_HUB }
       : {
           MAUDE_WORKSPACE_MODE: '1',
           MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
@@ -653,15 +683,28 @@ async function readCapped(r: Response, maxBytes = 512 * 1024, ms = 4000): Promis
   return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, maxBytes));
 }
 
-export async function ask(cell: GateCell, p: Probe, headers: Headers_): Promise<Answer> {
+/**
+ * One probe's answer. `fc` (gate-b-c4) is the frame capability a canvas / capture origin probe
+ * carries — the frame the session's canvas code runs in; the main origin never takes one.
+ */
+export async function ask(
+  cell: GateCell,
+  p: Probe,
+  headers: Headers_,
+  fc?: string | null
+): Promise<Answer> {
   const base =
     p.origin === 'main'
       ? cell.base
       : p.origin === 'capture'
         ? (cell.captureBase ?? 'http://127.0.0.1:9')
         : cell.canvasBase;
+  const url =
+    fc && p.origin !== 'main'
+      ? `${p.url}${p.url.includes('?') ? '&' : '?'}fc=${encodeURIComponent(fc)}`
+      : p.url;
   try {
-    const r = await fetch(base + p.url, {
+    const r = await fetch(base + url, {
       method: p.method,
       redirect: 'manual',
       headers: {
@@ -756,12 +799,14 @@ export async function sweep(
   cell: GateCell,
   headers: Headers_,
   probes = buildProbes(cell),
-  batch = 12
+  batch = 12,
+  /** gate-b-c4 — the frame the canvas / capture probes run in (see `ask`). */
+  fc?: string | null
 ): Promise<SweepResult> {
   const answers = new Map<Probe, Answer>();
   for (let i = 0; i < probes.length; i += batch) {
     const slice = probes.slice(i, i + batch);
-    const got = await Promise.all(slice.map((p) => ask(cell, p, headers)));
+    const got = await Promise.all(slice.map((p) => ask(cell, p, headers, fc)));
     slice.forEach((p, j) => answers.set(p, got[j] as Answer));
   }
   const leaks: Record<string, string[]> = {};

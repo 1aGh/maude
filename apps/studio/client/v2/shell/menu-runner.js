@@ -534,6 +534,8 @@ export function createMenuHandlers(d) {
       d.onShare();
     },
     'share.move-to-cloud': () => d.onShare(),
+    // gate-b-sec4 — Connect lives in the Share sheet
+    'sync.connect-link': () => d.onShare(),
     // S9.21 — Ask to edit (the Viewing button, ⌘K) and the owner's answer (the request block's buttons)
     ...createAccessHandlers(d),
     'settings.open': () => d.setSettingsOpen(true),

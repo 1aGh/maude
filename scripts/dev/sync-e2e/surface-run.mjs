@@ -289,7 +289,8 @@ try {
         '--port',
         String(studioPort),
       ],
-      { HUBS_CONFIG_PATH: identity }
+      // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+      { HUBS_CONFIG_PATH: identity, MAUDE_APP_BOUND_HUB: peerConfig.linkedHub?.url ?? '' }
     );
   let peerChild = studio('desktop-b', peerB, peerPort, identities['designer-b']);
   await ready(`http://127.0.0.1:${peerPort}/_health`);

@@ -7,6 +7,8 @@
 // primary button does ("Update canvases with the new Accent?" → "Update 4 canvases"), the other button is Cancel,
 // a count names the noun for 1 and for many.
 
+import { humanize } from '../../../ds/board/types.ts';
+
 export const REVIEW_WORDS = Object.freeze({
   cancel: 'Cancel',
   fine: 'Fine in Light and Dark',
@@ -44,8 +46,12 @@ export function primaryWords(n) {
   return `Update ${canvasCount(n)}`;
 }
 
-/** The first label a change, or a component, goes by. */
-const nameOf = (c) => (typeof c?.label === 'string' && c.label ? c.label : (c?.css ?? ''));
+/**
+ * The first label a change, or a component, goes by. A token nobody labelled comes back `label: null`; it is named the way
+ * the Design system canvas names it ("--accent" → "Accent"), never by its css name.
+ */
+export const nameOf = (c) =>
+  typeof c?.label === 'string' && c.label ? c.label : c?.css ? humanize(c.css) : '';
 
 /**
  * "Update canvases with the new Accent?" — one change names it; several count them. `components` are the

@@ -27,6 +27,7 @@
 // Exit: 0 ok · 2 usage · 3 validation/mapping reject · 4 fetch/parse error ·
 //       5 not configured (no token) · 6 write/containment error · 1 other.
 
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
@@ -57,6 +58,7 @@ function boardText(strokes) {
   return serializeBoard(toBoardElements(strokes).elements);
 }
 
+import { canvasSlugFromRel } from '../canvas-slug.ts';
 import {
   applyRewrites,
   FIGMA_ASSET_HOSTS,
@@ -75,6 +77,7 @@ import {
   fixtureAsset,
 } from '../figma/client.ts';
 import { CodegenError, CodegenSession } from '../figma/codegen-client.ts';
+import { commentsToPins } from '../figma/comments-to-pins.ts';
 import { commentStrokeId, commentsToStrokes, indexNodes } from '../figma/comments-to-strokes.ts';
 import { decodeFigArchive, FigDecodeError } from '../figma/fig-decode.ts';
 import { artToSvg } from '../figma/fig-vector.ts';
@@ -244,6 +247,74 @@ function assertContained(root, designRootRel, target) {
     throw new ImportFigmaError(6, 'refusing to write outside the design root');
   }
   return abs;
+}
+
+/**
+ * S8.17b - who ran the import: the `by` of every comment pin it writes. The same answer the studio's
+ * comment door gives a desktop (git's `user.name`); empty when git has none. A caller that knows the
+ * session better (a cell's vouched member) passes `importer` and this is never asked.
+ */
+function importerName(root) {
+  try {
+    return execFileSync('git', ['config', 'user.name'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+    })
+      .trim()
+      .slice(0, 120);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * S8.17b - Figma design comments -> comment pins for `_comments/<slug>.json`, staged now and promoted by the
+ * caller like the board next to it (a canvas that is not there yet has no thread file to merge with).
+ * Returns the placed / unplaced split `commentsToStrokes` gave, so the summary accounting is unchanged.
+ */
+function stageCommentPins({
+  comments,
+  pageNode,
+  origin,
+  report,
+  root,
+  designRootRel,
+  canvasRel,
+  frameIds,
+  importer,
+  staging,
+}) {
+  const { records, placedIds, unplacedIds } = commentsToPins(
+    comments,
+    indexNodes(pageNode),
+    origin,
+    report,
+    {
+      file: `${designRootRel.replace(/\/+$/, '')}/${canvasRel}`,
+      importer: importer || importerName(root),
+      now: new Date().toISOString(),
+      frameIds,
+      pageId: pageNode.id,
+    }
+  );
+  let promote = null;
+  if (records.length > 0) {
+    const staged = join(staging, 'canvas.comments.json');
+    writeFileSync(staged, `${JSON.stringify(records, null, 2)}\n`, 'utf8');
+    const dir = join(resolve(root, designRootRel), '_comments');
+    const dest = assertContained(
+      root,
+      designRootRel,
+      join(dir, `${canvasSlugFromRel(`${designRootRel}/${canvasRel}`, designRootRel)}.json`)
+    );
+    promote = () => {
+      mkdirSync(dir, { recursive: true });
+      promoteFile(staged, dest);
+    };
+  }
+  return { placedIds, unplacedIds, promote };
 }
 
 /**
@@ -1111,6 +1182,7 @@ export async function importPages({
   dryRun = false,
   kind = 'digital',
   mode = 'render',
+  importer = '',
 }) {
   const target = parseFigmaTarget(url, 'design');
   const pages = await fetchPages(target.fileKey);
@@ -1280,9 +1352,9 @@ export async function importPages({
         //      stray screenshots — through the same whiteboard translator the
         //      FigJam door uses. This is what rescues a flow diagram drawn in
         //      CONNECTORs inside a design file.
-        //   2. The file's REVIEW COMMENTS, which live on a separate endpoint and
-        //      appear nowhere in the tree. Every previous import brought across
-        //      exactly zero of them.
+        //   (The file's REVIEW COMMENTS, which live on a separate endpoint and
+        //   appear nowhere in the tree, are NOT part of this layer any more: they
+        //   come across as comment pins in `_comments/` - S8.17b below.)
         const annStrokes = [];
 
         if (result.annotations.length > 0) {
@@ -1322,21 +1394,31 @@ export async function importPages({
           }
         }
 
+        let promoteComments = null;
         if (comments.length > 0) {
           const commentReport = new ImportReport();
+          // S8.17b - comment PINS in `_comments/`, not stickies on the board.
+          const annotated = new Set((result.annotations ?? []).map((a) => a.id));
           const {
-            strokes: pins,
             placedIds,
             unplacedIds,
-          } = commentsToStrokes(
+            promote: promoteThis,
+          } = stageCommentPins({
             comments,
-            indexNodes(pageNode),
-            result.origin,
-            commentReport,
-            page.id
-          );
+            pageNode,
+            origin: result.origin,
+            report: commentReport,
+            root,
+            designRootRel,
+            canvasRel: `${relDir}/${title}.tsx`,
+            frameIds: result.meta.figma?.frames
+              ? result.meta.figma.frames.map((f) => f.nodeId)
+              : (pageNode.children ?? []).filter((c) => !annotated.has(c.id)).map((c) => c.id),
+            importer,
+            staging,
+          });
+          promoteComments = promoteThis;
           reports.push(commentReport);
-          annStrokes.push(...pins);
           // A thread not placed HERE usually just lives on another page. Only a
           // thread unplaced on EVERY page is genuinely homeless, so the verdict
           // waits until all pages have had their turn.
@@ -1355,6 +1437,7 @@ export async function importPages({
           );
           promoteFile(stagedAnn, finalAnn);
         }
+        promoteComments?.();
         written.push({
           title,
           path: finalTsx,
@@ -1557,7 +1640,7 @@ export async function importFrames({
 //                       sheet's picker shows. Nothing is written.
 //   importFramePictures the picked frames → ONE new canvas, each frame an artboard at its Figma px, kind
 //                       `digital` (Fixed size), its picture being Figma's own render (to-render.ts, DDR-216
-//                       D12). Comments ride along as stickies when asked; colours and text styles go to the
+//                       D12). Comments ride along as comment pins when asked; colours and text styles go to the
 //                       tokens file when asked (`importTokens`). The summary is counts + node ids + reason
 //                       codes (D7/D10) — never a word the file said.
 //
@@ -1669,7 +1752,8 @@ export function freeCanvasRel(designRoot, folder, name) {
  * become ONE new canvas of pictures. Returns counts, node ids and reason codes only.
  *
  * @param {{ url: string, root: string, designRootRel?: string, frames: string[], folder?: string,
- *   name?: string | null, comments?: boolean, styles?: boolean, dryRun?: boolean }} args
+ *   name?: string | null, comments?: boolean, styles?: boolean, dryRun?: boolean,
+ *   importer?: string }} args  `importer` = who ran it (the comment pins' `by`); absent = git's user.name.
  */
 export async function importFramePictures({
   url,
@@ -1681,6 +1765,7 @@ export async function importFramePictures({
   comments: withComments = true,
   styles = false,
   dryRun = false,
+  importer = '',
 }) {
   const folderRel = safeCanvasFolder(folder);
   if (folderRel === null) throw new ImportFigmaError(2, 'invalid folder');
@@ -1770,22 +1855,30 @@ export async function importFramePictures({
     writeFileSync(stagedTsx, tsx, 'utf8');
     writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
 
-    let annText = null;
+    // S8.17b - a design file's comments are comment PINS (threads in `_comments/`), not stickies on the
+    // board (decision v2-michal-figma-comments-as-pins). A comment whose pinned node is not among the
+    // picked frames is counted, never placed - there is no sticky fallback to invent a spot for it.
+    let promoteComments = null;
     if (fileComments.length > 0) {
       const commentReport = new ImportReport();
-      const { strokes, placedIds } = commentsToStrokes(
-        fileComments,
-        indexNodes(pageNode),
-        result.origin,
-        commentReport,
-        page.id
-      );
+      const { placedIds, promote } = stageCommentPins({
+        comments: fileComments,
+        pageNode,
+        origin: result.origin,
+        report: commentReport,
+        root,
+        designRootRel,
+        canvasRel,
+        frameIds: result.meta.figma.frames.map((f) => f.nodeId),
+        importer,
+        staging,
+      });
       reports.push(commentReport);
+      promoteComments = promote;
       const placed = new Set(placedIds);
       out.comments.placed = placed.size;
       out.comments.resolved = fileComments.filter((c) => placed.has(c.id) && c.resolved).length;
       out.comments.elsewhere = fileComments.filter((c) => !c.parentId && !placed.has(c.id)).length;
-      if (strokes.length > 0) annText = boardText(strokes);
     }
 
     const finalTsx = assertContained(root, designRootRel, join(designRoot, canvasRel));
@@ -1795,18 +1888,7 @@ export async function importFramePictures({
       join(designRoot, canvasRel.replace(/\.tsx$/, '.meta.json'))
     );
     mkdirSync(join(finalTsx, '..'), { recursive: true });
-    if (annText !== null) {
-      const stagedAnn = join(staging, 'canvas.annotations.json');
-      writeFileSync(stagedAnn, annText, 'utf8');
-      promoteFile(
-        stagedAnn,
-        assertContained(
-          root,
-          designRootRel,
-          join(designRoot, `${canvasSlug(canvasRel)}.annotations.json`)
-        )
-      );
-    }
+    promoteComments?.();
     promoteFile(stagedMeta, finalMeta);
     // The canvas last: the watcher sees a .tsx whose meta (and board) are already there.
     promoteFile(stagedTsx, finalTsx);
@@ -2430,8 +2512,10 @@ inside the archive, so nothing expires and nothing is rate-limited. A local file
 carries no REST file key, so provenance is content-addressed unless you pass
 \`--file-key\`; the summary says which you got.
 
-The file's REVIEW COMMENTS come across as sticky annotations pinned where they
-sit — open threads on yellow paper, resolved ones on grey.
+The file's REVIEW COMMENTS come across as comment pins, where they sit: a thread
+with its replies, resolved ones resolved. Whoever wrote one in Figma shows as
+"<name> · from Figma" — a label, not a person on this project; the pins are
+yours (the person running the import) for permissions.
 
 Every node that is skipped, degraded or normalized is listed in the summary by
 NODE ID and a fixed reason code — never silently dropped.

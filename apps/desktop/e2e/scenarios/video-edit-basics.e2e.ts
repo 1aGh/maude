@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { waitForCanvasRects } from '../helpers/canvas-frame';
+import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { pointerClick, pointerDown, pointerMove, pointerUp } from '../helpers/pointer';
@@ -98,6 +99,7 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
   });
 
   it('trim: the tip names the clip, the change and the new length; one write; ⌘Z restores the bytes', async () => {
+    await dismissNotices(); // first-run notices sit over the bottom edge, on the trim handles
     const before = onDisk();
     const edge = await centre('timeline-resize-1');
     await pointerDown(edge.x, edge.y);
@@ -124,6 +126,11 @@ describe('video-edit-basics — trim, split, the clip menu, drop', () => {
     const before = onDisk();
     await (await $('[data-testid="timeline-seq-1"]')).click();
     await (await $('[data-testid="timeline-readout"]')).click(); // timeline focus
+    // S splits AT THE PLAYHEAD, and the server refuses a point at or before the clip's start ("scrub inside the clip
+    // first"): selecting beat-two does not move the playhead, so put it inside beat-two (frames 60–150 at 30 fps)
+    // with ⇧→ × 3 = a second each, frame 90.
+    for (let i = 0; i < 3; i++)
+      await key({ key: 'ArrowRight', code: 'ArrowRight', shiftKey: true });
     await key({ key: 's', code: 'KeyS' });
     await browser.waitUntil(async () => (await beatCount()) === 4, {
       timeout: 20_000,

@@ -93,7 +93,10 @@ function walkDesignRoot(designRoot) {
       const childRel = rel ? `${rel}/${name}` : name;
       const childAbs = join(dir, name);
       if (entry.isDirectory()) {
-        if (!name.startsWith('_')) walk(childAbs, childRel, depth + 1);
+        // Runtime state is FIRST-segment `_*` only (DDR-115, the studio's diskProjectReader and
+        // static lane — gate-b-c4b): a nested `_` dir is versioned content (a design system's
+        // `preview/_parts/`), so a canvas-only member's closure must still see it.
+        if (!name.startsWith('_') || rel) walk(childAbs, childRel, depth + 1);
         continue;
       }
       if (!entry.isFile()) continue;

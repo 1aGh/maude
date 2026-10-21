@@ -222,21 +222,23 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'top').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
-        {(kind.bare ? [] : sectionsFor(kind.id)).map((def) => {
-          const entries = slotsFor(def.id, kind.id, selected, ctx);
-          if (!entries.length) return null;
-          return (
-            <Section
-              key={def.id}
-              def={def}
-              entries={entries}
-              ctx={ctx}
-              el={el}
-              selection={selected}
-              kindId={kind.id}
-            />
-          );
-        })}
+        {(kind.bare ? [] : sectionsFor(kind.id))
+          .filter((def) => !kind.sections || kind.sections.includes(def.id))
+          .map((def) => {
+            const entries = slotsFor(def.id, kind.id, selected, ctx);
+            if (!entries.length) return null;
+            return (
+              <Section
+                key={def.id}
+                def={def}
+                entries={entries}
+                ctx={ctx}
+                el={el}
+                selection={selected}
+                kindId={kind.id}
+              />
+            );
+          })}
         {blocksFor(kind.id, 'bottom').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}

@@ -173,7 +173,7 @@ describe('row titles (§5.5.4)', () => {
   test('outside: the words title, with the sub', () => {
     expect(rowTitle({ kind: 'outside', changes: words })).toEqual({
       title: 'Frame: Fill black → white',
-      sub: '· changed outside Maude',
+      sub: '· changed outside the app',
     });
   });
 

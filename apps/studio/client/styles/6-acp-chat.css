@@ -1991,6 +1991,9 @@
   .rdy-resolved-path {
     display: block;
     margin-top: var(--space-2);
+    /* gate-B polish (RC-E): the line rendered at the inherited ~15 px outside .rdy-fix */
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
     color: var(--fg-3);
     word-break: break-all;
   }

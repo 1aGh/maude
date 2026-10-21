@@ -137,3 +137,30 @@ export async function until(pred: () => boolean, ms = 5000): Promise<boolean> {
   }
   return pred();
 }
+
+/** gate-b-c4 — `headers` as member `user` (the proxy's `x-maude-user`: the frame key's subject). */
+export const asUser = (headers: Record<string, string>, user: string): Record<string, string> => ({
+  ...headers,
+  'x-maude-user': user,
+});
+
+/**
+ * gate-b-c4 — the frame capability the shell mints for `canvas` (designRoot-relative) under this
+ * session's `/_config` key (client/frame-cap.js — the same bytes the server verifies), or null.
+ */
+export async function frameCap(
+  cell: { base: string },
+  headers: Record<string, string>,
+  canvas: string
+): Promise<string | null> {
+  const { frameCapFor } = await import('../client/frame-cap.js');
+  const r = await fetch(`${cell.base}/_config`, { headers });
+  const cfg = (await r.json()) as { frameKey?: string };
+  return frameCapFor(cfg.frameKey, canvas);
+}
+
+/** gate-b-c4 — `url` carrying the frame capability `fc` (`?fc=` — what the shell appends). */
+export function withFc(url: string, fc: string | null): string {
+  if (!fc) throw new Error('no frame capability (is /_config handing out a frameKey?)');
+  return `${url}${url.includes('?') ? '&' : '?'}fc=${encodeURIComponent(fc)}`;
+}

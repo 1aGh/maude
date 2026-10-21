@@ -27,6 +27,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -419,7 +420,9 @@ export default function Flyer() {
 `
   );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
-  // a video comp (two 20 s sequences = long, each animates its title): the Timeline and its clip inspector
+  // a video comp: two sequences of 1 850 frames = 3 700, past the 3 600-frame default cap (S7.18), so the Timeline draws
+  // its long-video badge (a click on it opens Advanced); each sequence animates its title, so Advanced has keyframes.
+  // The Timeline and its clip inspector
   put(
     '.design/ui/Reel.tsx',
     `import { DCArtboard, DesignCanvas, VideoComp } from '@maude/canvas-lib';
@@ -433,8 +436,8 @@ const Title = () => {
 
 const ReelCut = () => (
   <AbsoluteFill style={{ background: '#000' }}>
-    <Sequence from={0} durationInFrames={600}><Title /></Sequence>
-    <Sequence from={600} durationInFrames={600}><Title /></Sequence>
+    <Sequence from={0} durationInFrames={1850}><Title /></Sequence>
+    <Sequence from={1850} durationInFrames={1850}><Title /></Sequence>
   </AbsoluteFill>
 );
 
@@ -442,7 +445,7 @@ export default function Reel() {
   return (
     <DesignCanvas>
       <DCArtboard id="reel" kind="video" label="Reel" width={1080} height={1920}>
-        <VideoComp component={ReelCut} durationInFrames={1200} fps={30} width={1080} height={1920} />
+        <VideoComp component={ReelCut} durationInFrames={3700} fps={30} width={1080} height={1920} />
       </DCArtboard>
     </DesignCanvas>
   );
@@ -530,7 +533,13 @@ const TAURI_STUB = `window.__TAURI__ = {
   window: {}, path: {}, app: {},
 };`;
 
+// How long a click waits for its element. The element is usually there at once; on a busy machine (a full pass shares
+// the lane with builds) the left panel can take seconds to mount, and a 2 s wait reads as "not reachable". A genuinely
+// absent element costs this once per attempt.
+const LOAD_MS = 8000;
+
 async function runOpener(browser, srv, probe, opener) {
+  const startedAt = Date.now();
   const ctx = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     reducedMotion: 'reduce',
@@ -541,6 +550,11 @@ async function runOpener(browser, srv, probe, opener) {
   try {
     const page = await ctx.newPage();
     if (process.env.PROBE_DEBUG)
+      page.on('console', (m) => {
+        // the shell's error boundary reports through console.error, not as a page error
+        if (m.type() === 'error') console.log(`  [console ${opener.id}] ${m.text().slice(0, 500)}`);
+      });
+    if (process.env.PROBE_DEBUG)
       page.on('pageerror', (e) =>
         console.log(`  [pageerror ${opener.id}] ${String(e).slice(0, 300)}`)
       );
@@ -549,9 +563,17 @@ async function runOpener(browser, srv, probe, opener) {
     const config = { ...probe.config, ...world.config };
     if (Object.keys(config).length)
       await page.route(`${srv.origin}/_config`, async (route) => {
-        const res = await route.fetch();
+        // under machine load the fixture server resets a connection now and then: ask again once, and when it still
+        // fails abort the request (the opener then fails and is retried) instead of crashing the whole pass with an
+        // unhandled rejection (the cloud pass died that way at load 30+)
+        let res = null;
+        for (let attempt = 0; attempt < 3 && !res; attempt++) {
+          res = await route.fetch().catch(() => null);
+          if (!res) await sleep(500);
+        }
+        if (!res) return route.abort().catch(() => {});
         const body = await res.json();
-        await route.fulfill({ response: res, json: { ...body, ...config } });
+        await route.fulfill({ response: res, json: { ...body, ...config } }).catch(() => {});
       });
     for (const [path, json] of Object.entries(world.routes))
       await page.route(
@@ -650,7 +672,7 @@ async function runOpener(browser, srv, probe, opener) {
         await row.click({ timeout: 5000 });
       } catch {
         // a banner / dialog from the state under test covers the tree: a DOM click reaches the same onClick
-        await row.evaluate((n) => n.click(), null, { timeout: 2000 });
+        await row.evaluate((n) => n.click(), null, { timeout: LOAD_MS });
       }
       await sleep(2500);
     }
@@ -676,16 +698,16 @@ async function runOpener(browser, srv, probe, opener) {
         try {
           await el.click({ timeout: 3000 });
         } catch {
-          await el.evaluate((n) => n.click(), null, { timeout: 2000 });
+          await el.evaluate((n) => n.click(), null, { timeout: LOAD_MS });
         }
       } else if (step.click) {
         const el = page.locator(step.click).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
         try {
-          await el.click({ timeout: 3000 });
+          await el.click({ timeout: LOAD_MS });
         } catch {
           // covered / animating: a DOM click reaches the same onClick
-          await el.evaluate((n) => n.click(), null, { timeout: 2000 });
+          await el.evaluate((n) => n.click(), null, { timeout: LOAD_MS });
         }
       } else if (step.key) {
         await page.locator('body').press(step.key);
@@ -695,7 +717,11 @@ async function runOpener(browser, srv, probe, opener) {
         if (step.optional)
           await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
-        await target.click({ timeout: 10_000, modifiers: step.modifiers });
+        await target.click({
+          timeout: 10_000,
+          modifiers: step.modifiers,
+          position: step.at ? { x: step.at[0], y: step.at[1] } : undefined,
+        });
       } else if (step.frameDom) {
         // a click dispatched on the element itself: a flyout that opens off the edge of the window (a submenu of a
         // menu opened low on the screen) is real UI that Playwright's own click refuses as "outside the viewport"
@@ -756,7 +782,9 @@ async function runOpener(browser, srv, probe, opener) {
       } else if (step.wheelZoom) {
         // ⌃ + wheel over empty canvas below the boards (the viewport's own zoom gesture); + = out, − = in
         const box = await page.locator(tid('canvas-frame')).boundingBox();
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height - 130);
+        // left of centre: the first-run hint, the What's New toast and the mode hint stack in the middle of the
+        // bottom edge (wave B), and a wheel over one of them never reaches the canvas
+        await page.mouse.move(box.x + box.width * 0.12, box.y + box.height - 130);
         await page.keyboard.down('Control');
         for (let i = 0; i < 12; i++) {
           await page.mouse.wheel(0, step.wheelZoom / 12);
@@ -789,6 +817,14 @@ async function runOpener(browser, srv, probe, opener) {
         const el = page.locator(step.dblclick).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
         await el.dblclick({ timeout: 4000 });
+      } else if (step.waitFor) {
+        // wait for a screen to draw (a stubbed answer on a busy machine takes longer than any fixed wait); soft, so an
+        // absent hook is the finding, not a timeout
+        await page
+          .locator(step.waitFor)
+          .first()
+          .waitFor({ state: 'visible', timeout: step.timeout ?? 15_000 })
+          .catch(() => {});
       } else if (step.wait) {
         await sleep(step.wait);
       } else if (step.frameContext) {
@@ -903,7 +939,33 @@ async function runOpener(browser, srv, probe, opener) {
       .join(' | ')
       .slice(0, 2600);
   } finally {
+    // Every opener opens a fresh page, but the studio keeps the selection a page made: the next page opened with that
+    // element selected, the Inspector opened and the left panel shut, so `left-trash` (after `photo`) and
+    // `left-hidden-files` (after the history openers) found no Canvases panel and `acp-turn` / `acp-elicit` no chat
+    // field — the 12:57 pass lost ~40 hooks that way, and a longer wait or a retry could not help. An opener leaves
+    // with nothing selected (Esc twice, after its last look at the page). PROBE_LEAVE_SELECTED=1 skips it (debugging).
+    if (!process.env.PROBE_LEAVE_SELECTED) {
+      const last = ctx.pages()[0];
+      for (let i = 0; last && i < 2; i++) {
+        await last.keyboard.press('Escape').catch(() => {});
+        await sleep(250);
+      }
+    }
     await ctx.close();
+    // PROBE_STATE=1: what the opener wrote under the fixture (project + home) — the state the next opener inherits
+    if (process.env.PROBE_STATE) {
+      const out = [];
+      const walk = (d) => {
+        for (const e of readdirSync(d, { withFileTypes: true })) {
+          const p = join(d, e.name);
+          if (e.isDirectory()) walk(p);
+          else if (statSync(p).mtimeMs >= startedAt) out.push(p.slice(runDir.length + 1));
+        }
+      };
+      walk(runDir);
+      const mine = out.filter((p) => !/^home\/\.(claude|npm)|\.log$|\.key$|\.json\.backup/.test(p));
+      console.log(`  [state ${opener.id}] ${mine.join(' ') || '(nothing written)'}`);
+    }
     // an opener that moved the camera (it is remembered per canvas, per person: `_canvas-state/<slug>.view.json`)
     // gives it back, so the next opener finds the boards where every other opener expects them
     if (opener.resetCamera) {
@@ -958,7 +1020,13 @@ try {
       .filter((o) => !ONLY_OPENERS || ONLY_OPENERS.includes(o.id));
     for (const o of openers) {
       const t0 = Date.now();
-      const ev = await runOpener(browser, srv, probe, o);
+      let ev = await runOpener(browser, srv, probe, o);
+      // one more try for a failed opener: a timeout on a loaded machine is not evidence of an unreachable screen
+      // (an opener that fails twice is a real finding). Keep the attempt that saw more.
+      if (!ev.ok) {
+        const again = await runOpener(browser, srv, probe, o);
+        if (again.ok || again.testids.length > ev.testids.length) ev = again;
+      }
       evidence[probe.id][o.id] = ev;
       flushEvidence();
       console.log(

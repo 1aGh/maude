@@ -17,6 +17,7 @@ import { enumerateClips } from '../canvas-edit.ts';
 import { transitionDurationFrames } from '../clip-ops.ts';
 import { collectConsts, resolveNum } from '../ripple.ts';
 import { DUCK_DEFAULTS } from './framing.ts';
+import { maskComments } from './mask-comments.ts';
 import type { BeatGrid, Transcript } from './schema.ts';
 
 export type Track = 'video' | 'video2' | 'music' | 'music2';
@@ -343,7 +344,8 @@ export function compWords(
 // captionFixesOf — the `fixes` JSON literal of the comp's <Captions>
 
 /** Read `<Captions fixes={[…]}>` out of canvas source text. Anything unreadable is `[]`. */
-export function captionFixesOf(source: string): CaptionFix[] {
+export function captionFixesOf(rawSource: string): CaptionFix[] {
+  const source = maskComments(rawSource);
   const at = source.indexOf('<Captions');
   if (at < 0) return [];
   const tag = openingTag(source, at);
@@ -405,7 +407,8 @@ function stringProp(tag: string, name: string): string | null {
   return m ? (m[1] ?? m[2] ?? m[3] ?? null) : null;
 }
 
-export function captionsOf(source: string): CaptionsProps | null {
+export function captionsOf(rawSource: string): CaptionsProps | null {
+  const source = maskComments(rawSource);
   const at = source.search(/<Captions\b/);
   if (at < 0) return null;
   const tag = openingTag(source, at);
@@ -431,7 +434,8 @@ export function captionsOf(source: string): CaptionsProps | null {
 
 /** The `src` of the `<Audio>` the comp's first `<Duck>` wraps — the bed whose own speech must not
  *  duck it. Null when there is no `<Duck>` or its child is not a literal-src `<Audio>`. */
-export function duckedSrcOf(source: string): string | null {
+export function duckedSrcOf(rawSource: string): string | null {
+  const source = maskComments(rawSource);
   const at = source.search(/<Duck\b/);
   if (at < 0) return null;
   const rest = source.slice(at + openingTag(source, at).length);
@@ -450,7 +454,8 @@ export interface DuckInfo {
 
 /** Every `<Duck>` that wraps a literal-src `<Audio>`, by that src: the dip each music bed carries.
  *  (S7.12: the Music lane draws the line and the inspector names the numbers from this.) */
-export function ducksBySrc(source: string): Map<string, DuckInfo> {
+export function ducksBySrc(rawSource: string): Map<string, DuckInfo> {
+  const source = maskComments(rawSource);
   const out = new Map<string, DuckInfo>();
   for (const m of source.matchAll(/<Duck\b/g)) {
     const at = m.index ?? 0;
@@ -569,7 +574,8 @@ export const BAR_CONFIDENCE = 0.4;
 export const CLEAR_BEAT = 0.15;
 
 /** The literal `volume` of the first `<Audio src="…">` with this src (1 when absent or an expression). */
-function audioVolume(source: string, src: string): number {
+function audioVolume(rawSource: string, src: string): number {
+  const source = maskComments(rawSource);
   for (const m of source.matchAll(/<(?:Maude)?Audio\b/g)) {
     const tag = openingTag(source, m.index ?? 0);
     const s = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(tag);

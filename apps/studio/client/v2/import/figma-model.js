@@ -49,7 +49,8 @@ export const FIGMA_WORDS = Object.freeze({
     "Kept in this Mac's keychain. Used only to read files you import; Settings › Connections removes it.",
   putIn: 'Put them in',
   newCanvas: 'New canvas',
-  optComments: 'Comments, as stickies',
+  // S8.17b: a design file's comments arrive as comment pins (the arrived artboard's summary says "as comments")
+  optComments: 'Comments, as comment pins',
   optStyles: "Colours and text styles, into the project's style",
   pictures:
     "Each frame arrives as Figma's exact picture. Make editable turns one artboard into layers later — it needs Figma Dev Mode on a paid seat.",
@@ -163,7 +164,7 @@ export function frameSummaryRows(r) {
   if (c.placed > 0)
     rows.push({
       tone: 'ok',
-      text: `${count(c.placed, 'comment', 'comments')} came across as stickies${c.resolved ? ` (${c.resolved} resolved)` : ''}`,
+      text: `${count(c.placed, 'comment', 'comments')} came across as comments${c.resolved ? ` (${c.resolved} resolved)` : ''}`,
     });
   if (c.elsewhere > 0)
     rows.push({

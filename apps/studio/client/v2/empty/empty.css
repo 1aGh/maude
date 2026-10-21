@@ -173,7 +173,8 @@
     margin-left: var(--space-1);
     font-size: var(--type-xs);
     font-variant-numeric: tabular-nums;
-    opacity: 0.72;
+    /* gate-b-a11y: the chord sits on the accent button — dimming it by opacity took it to 4.0:1 (needs 4.5) */
+    opacity: 1;
   }
 
   /* ─── Suggestions: things you'd say ─── */

@@ -1284,6 +1284,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'external',
     agent: human('billing', 'moves the project to the person’s billed Maude Cloud account'),
   },
+  // gate-b-sec4: Connect is the person consenting that THIS Mac's credential for that hub may serve
+  // this folder — a committed config cannot give it, and neither can an agent (human-only).
+  'sync.connect-link': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/sync/link/confirm', method: 'POST' },
+    agent: human(
+      'hub-link',
+      'confirms on this Mac that the folder’s hub may receive this Mac’s credential'
+    ),
+  },
   // S9.19 — owner-only, decided by the hub; routes/share.ts refuses a session without `invite` first.
   'share.invite': {
     effect: 'shared',
@@ -1534,6 +1545,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: human(
       'accounts',
       'opens the person’s browser on cloud.maude.sh; the credential reaches the Home server, never a page or an agent'
+    ),
+  },
+  // gate-b-sec3b — an invitation addressed to the person's own account, answered on Home › Shared with you. Joining
+  // puts the person into a project under THEIR account and Leaving turns it down; an agent invites others
+  // (`share.invite`) but never answers for the person. The Home server (page secret + the profile's device token)
+  // is the only door: `/_home/invite/pending/accept|leave`.
+  'invite.join': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'accepts an invitation addressed to the person’s own cloud account; the device token stays in the Home server'
+    ),
+  },
+  'invite.leave': {
+    effect: 'external',
+    agent: human(
+      'accounts',
+      'turns down an invitation addressed to the person’s own cloud account'
     ),
   },
   // S6.9 — the Advanced sheets on Home. A credential is typed (or approved in the browser) by the person; an

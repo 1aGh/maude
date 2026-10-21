@@ -72,6 +72,8 @@ async function startViewerServer(root) {
         MAUDE_NO_AUTOBUILD: '1',
         NO_OPEN: '1',
         HUBS_CONFIG_PATH: hubsPath,
+        // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+        MAUDE_APP_BOUND_HUB: HUB_URL,
         MAUDE_MACHINE_FILE: join(root, '.design', '_state', 'machine.json'),
       },
       stdio: ['ignore', 'pipe', 'pipe'],

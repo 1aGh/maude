@@ -29,6 +29,7 @@ import { basename, dirname, join, relative, sep } from 'node:path';
 import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
+import { deleteProjectLink, linksPath, recordProjectLink } from '../sync/link-consent.ts';
 import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 /**
@@ -219,6 +220,11 @@ interface Ctx {
    * would distinguish them.
    */
   onLinkChanged?: () => void;
+  /**
+   * gate-b-sec4 — the folder's committed `linkedHub` this Mac never linked (context.ts parks it).
+   * While set, no credential is resolved for the folder's link: History asks nothing.
+   */
+  unconfirmedHub?: { url: string };
   syncControl?: {
     /** `null` = unlink: clear the runtime's in-memory link, cycle to solo. */
     restart(
@@ -233,6 +239,11 @@ interface Ctx {
 
 export function createCloudEndpoints(ctx: Ctx) {
   const cfgFile = () => ctx.cloudConfigPath ?? cloudConfigPath();
+  /** gate-b-sec4 — the per-Mac link record, beside the same profile's hubs.json. */
+  const linksFile = () =>
+    linksPath(
+      ctx.hubsConfigPath ? { ...process.env, HUBS_CONFIG_PATH: ctx.hubsConfigPath } : process.env
+    );
   /** The last plan read, for THIS token only (a new sign-in never sees the old account's plan). */
   let planRead: { token: string; at: number; plan: CloudPlan | null } | null = null;
   return {
@@ -675,6 +686,7 @@ export function createCloudEndpoints(ctx: Ctx) {
           /* an unparseable stored URL has no credential entry to drop */
         }
       }
+      deleteProjectLink(ctx.paths.repoRoot, linksFile());
       try {
         await ctx.syncControl?.restart(null);
       } catch {
@@ -702,6 +714,8 @@ export function createCloudEndpoints(ctx: Ctx) {
       const url = cfg?.linkedHub?.url;
       if (typeof url !== 'string' || !url) return null;
       let credentialed = false;
+      // gate-b-sec4 — a link this Mac never made vouches for nothing and is sent nothing.
+      if (ctx.unconfirmedHub) return { url, credentialed: false };
       try {
         credentialed = !!getHubToken(normalizeUrl(url));
       } catch {
@@ -996,6 +1010,12 @@ export function createCloudEndpoints(ctx: Ctx) {
     if (prior?.syncTsx === false) linkedHub.syncTsx = false;
     cfg.linkedHub = linkedHub;
     writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+    // gate-b-sec4 — the person linked this folder on this Mac: the next boot honours it.
+    try {
+      recordProjectLink(ctx.paths.repoRoot, { url: norm }, 'cloud-attach', { file: linksFile() });
+    } catch (err) {
+      console.warn(`[cloud] could not record the link on this Mac: ${(err as Error).message}`);
+    }
 
     // START SYNCING — do not hand the person a "restart the server" note and
     // call the job done. The runtime captures linkedHub once at boot, so this

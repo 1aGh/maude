@@ -7,6 +7,8 @@
 //                                                       their sources, keeping every filled-in v2 field
 //                                                       and every mapping
 //   node scripts/check-v2-nothing-deleted.mjs --json    the audit as JSON
+//   node scripts/check-v2-nothing-deleted.mjs --list    also print the open (unreached) row ids and
+//                                                       kept-target ids, one per line
 //
 // Inputs:
 //   apps/studio/client/v2/v1-manifest.json     every reachable v1 entry point, frozen (V2-2.0c,
@@ -230,7 +232,19 @@ const green =
   !v1Named.length;
 
 if (args.includes('--json')) {
-  console.log(JSON.stringify({ ...result, green }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        ...result,
+        green,
+        ...(args.includes('--list')
+          ? { openRows: unreached.map((r) => r.id), openTargets: unreachedKept }
+          : {}),
+      },
+      null,
+      2
+    )
+  );
 } else {
   console.log(
     `v1 entry points mapped to a row   ${result.manifest.pct} %  (${unmapped.length} of ${entries.length} open${late.length ? `, ${late.length} added after the freeze` : ''}; ${result.manifest.excluded} excluded as not v1 features)`
@@ -252,5 +266,11 @@ if (args.includes('--json')) {
       ? 'nothing-deleted: 100 %'
       : 'nothing-deleted: below 100 % (red by design until the Phase 4 gate)'
   );
+}
+if (args.includes('--list') && !args.includes('--json')) {
+  console.log(`\nopen rows (${unreached.length}):`);
+  for (const r of unreached) console.log(`  ${r.id}`);
+  console.log(`open kept targets (${unreachedKept.length}):`);
+  for (const t of unreachedKept) console.log(`  ${t}`);
 }
 process.exit(green ? 0 : 1);

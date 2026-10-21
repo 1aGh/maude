@@ -46,6 +46,23 @@
     overflow: visible;
     background: transparent;
   }
+  /* gate-b-polish3 — the page before its numbers come (or when the artboard has none): a blank sheet */
+  .ex-paper-blank {
+    display: grid;
+    place-items: center;
+    padding: var(--space-2, 8px);
+  }
+  .ex-paper-blank-page {
+    display: block;
+    width: 150px;
+    aspect-ratio: 1 / 1.414;
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-0);
+    box-shadow: 0 0 0 1px var(--bg-3);
+  }
+  .ex-paper-blank[data-state="measuring"] .ex-paper-blank-page {
+    opacity: 0.7;
+  }
   .ex-paper-wrap {
     position: relative;
     display: block;

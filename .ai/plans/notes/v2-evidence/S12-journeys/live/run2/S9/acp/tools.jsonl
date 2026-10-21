@@ -1,0 +1,17 @@
+{"lane":"acp","name":"Skill","input":{"skill":"design:comments","args":"ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design comments list ui/GitPanel.tsx --open --json","description":"List open comments on GitPanel canvas"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design runs list --canvas ui/GitPanel.tsx","description":"Check if GitPanel artboards are busy"}}
+{"lane":"acp","name":"Grep","input":{"pattern":"Save all|View History","path":".design/ui/GitPanel.tsx","output_mode":"content","-n":true}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S9/acp/project/.design/ui/GitPanel.tsx","offset":230,"limit":15}}
+{"lane":"acp","name":"Edit","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S9/acp/project/.design/ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Edit","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S9/acp/project/.design/ui/GitPanel.tsx"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design check ui/GitPanel.tsx","description":"Check GitPanel canvas after edits"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --all-screens ui/GitPanel.tsx","description":"Screenshot GitPanel canvas artboards"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot ui/GitPanel.tsx --all-screens","description":"Screenshot GitPanel canvas artboards"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --help","description":"Show screenshot command usage"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --canvas ui/GitPanel.tsx --all-screens","description":"Screenshot all artboards of GitPanel canvas"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design screenshot --canvas ui/GitPanel.tsx --all-screens --out-dir .design/_runs/4356368a-71ab-4e44-808c-9108ca779d6b/screenshots","description":"Screenshot all artboards of GitPanel canvas"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S9/acp/project/.design/_runs/4356368a-71ab-4e44-808c-9108ca779d6b/screenshots/001-screen-changes.png"}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S9/acp/project/.design/ui/GitPanel.tsx","offset":340,"limit":20}}
+{"lane":"acp","name":"Read","input":{"file_path":"/private/tmp/claude-501/-Users-iagh-git-personal-maude/87d978ed-80c9-4461-b6c8-391c975c5c9a/scratchpad/live/r2a/S9/acp/project/.design/_runs/4356368a-71ab-4e44-808c-9108ca779d6b/screenshots/004-screen-empty.png"}}
+{"lane":"acp","name":"Bash","input":{"command":"maude design comments reply c_journey_1 --text \"Done — the button now says \\\"Save everything\\\".\"\nmaude design comments resolve c_journey_1\nmaude design comments reply c_journey_2 --text \"Done — the button now says \\\"Open history\\\".\"\nmaude design comments resolve c_journey_2","description":"Reply to and resolve both comment threads"}}

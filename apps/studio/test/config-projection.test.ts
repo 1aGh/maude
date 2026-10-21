@@ -102,6 +102,11 @@ describe('/_config projection', () => {
     expect(client.has('cloud')).toBe(true);
   });
 
+  test('gate-b-c4: the frame key reaches cfg (without it every canvas iframe opens frame-less)', () => {
+    expect(serverComputedConfigFields()).toContain('frameKey');
+    expect(new Set(clientProjectedFields()).has('frameKey')).toBe(true);
+  });
+
   test('the client still MERGES rather than replaces', () => {
     // The reason the projection is explicit in the first place: `/_config` and
     // `/_index-data` race, and a full replace clobbers `canvasDesignSystems`

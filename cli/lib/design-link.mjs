@@ -27,6 +27,7 @@ import {
   setHubUnlimitedDeletes,
   trustHub,
 } from './hubs-config.mjs';
+import { deleteProjectLink, recordProjectLink } from './project-links.mjs';
 
 const DESIGN_CONFIG_PATH = '.design/config.json';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -161,6 +162,8 @@ export async function runLink({ args, cwd = process.cwd(), forceAdopt = false })
     ...(syncTsx !== undefined ? { syncTsx } : {}),
   };
   writeDesignConfig(designConfigPath, cfg);
+  // gate-b-sec4 — the link is this Mac's: the studio honours a committed linkedHub only with this.
+  recordProjectLink(cwd, normUrl);
 
   // Record per-machine trust only now that the link fully succeeded, so a
   // later re-link to this hub won't re-prompt. Skipped for loopback + hubs
@@ -229,6 +232,7 @@ export async function runUnlink({ args, cwd = process.cwd() }) {
   const url = cfg.linkedHub.url;
   cfg.linkedHub = undefined;
   writeDesignConfig(designConfigPath, cfg);
+  deleteProjectLink(cwd);
 
   let tokenRemoved = false;
   if (!flags['keep-token']) {
@@ -373,6 +377,7 @@ export async function runDetach({ args, cwd = process.cwd() }) {
     const url = cfg.linkedHub.url;
     cfg.linkedHub = undefined;
     writeDesignConfig(designConfigPath, cfg);
+    deleteProjectLink(cwd);
     if (!flags['keep-token']) removeHub(url);
     process.stdout.write(`[design detach] unlinked from ${url}.\n`);
   }

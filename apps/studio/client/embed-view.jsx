@@ -139,6 +139,8 @@ export default function EmbedView() {
         designSystems: data.designSystems,
         canvasOrigin: data.canvasOrigin,
         canvasToken: data.canvasToken,
+        // gate-b-c4 — the frame's capability is minted from this session's key (client/frame-cap.js)
+        frameKey: data.frameKey,
         canvasDesignSystems: index.canvasDesignSystems ?? {},
         // S10.4 — an embed renders the revision the canvas is on
         canvasDsRevs: index.canvasDsRevs ?? {},

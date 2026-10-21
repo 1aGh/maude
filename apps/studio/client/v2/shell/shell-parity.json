@@ -425,10 +425,6 @@
               "conditional": true
             },
             {
-              "testid": "settings-inspector-vocabulary",
-              "section": "general"
-            },
-            {
               "testid": "settings-canvas-view",
               "section": "general"
             },
@@ -814,10 +810,6 @@
               "testid": "settings-open-dashboard",
               "section": "general",
               "conditional": true
-            },
-            {
-              "testid": "settings-inspector-vocabulary",
-              "section": "general"
             },
             {
               "testid": "settings-canvas-view",
@@ -1210,10 +1202,6 @@
               "conditional": true
             },
             {
-              "testid": "settings-inspector-vocabulary",
-              "section": "general"
-            },
-            {
               "testid": "settings-canvas-view",
               "section": "general"
             },
@@ -1480,10 +1468,6 @@
               "conditional": true
             },
             {
-              "testid": "settings-inspector-vocabulary",
-              "section": "general"
-            },
-            {
               "testid": "settings-canvas-view",
               "section": "general"
             },
@@ -1747,10 +1731,6 @@
               "conditional": true
             },
             {
-              "testid": "settings-inspector-vocabulary",
-              "section": "general"
-            },
-            {
               "testid": "settings-canvas-view",
               "section": "general"
             },
@@ -1999,10 +1979,6 @@
           "rows": [
             {
               "testid": "settings-theme",
-              "section": "general"
-            },
-            {
-              "testid": "settings-inspector-vocabulary",
               "section": "general"
             },
             {

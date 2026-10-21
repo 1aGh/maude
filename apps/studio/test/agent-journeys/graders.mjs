@@ -179,6 +179,30 @@ function artboardSlice(rel, src, artboard) {
 // ───────────────────────────── the graders ─────────────────────────────
 // Each: (params, observation) → { pass, why }. Params come from the journey JSON.
 
+/**
+ * JSX elements an artboard gets from the local components it renders (`<Page />` -> `function Page`),
+ * transitively. An artboard is filled by what it renders, not only by what is written inside its tag
+ * (the same reading as the run lease's helper-component zones). Components defined elsewhere count 0.
+ */
+function componentElements(src, slice, seen = new Set(), depth = 0) {
+  if (depth > 4) return 0;
+  let n = 0;
+  for (const [, name] of slice.matchAll(/<([A-Z][A-Za-z0-9]*)\b/g)) {
+    if (seen.has(name) || name.startsWith('DC')) continue;
+    seen.add(name);
+    const def = new RegExp(
+      `^(?:export\\s+)?(?:function\\s+${name}\\b|const\\s+${name}\\s*=)`,
+      'm'
+    ).exec(src);
+    if (!def) continue;
+    const rest = src.slice(def.index + def[0].length);
+    const end = rest.search(/\n(?:export\s+(?:default\s+)?)?(?:function|const|class)\s/);
+    const body = end < 0 ? rest : rest.slice(0, end);
+    n += (body.match(/<[A-Za-z]/g) ?? []).length + componentElements(src, body, seen, depth + 1);
+  }
+  return n;
+}
+
 export const GRADERS = {
   /** A canvas file exists (or, `exists:false`, does not). */
   'canvas-exists'({ path, exists = true }, o) {
@@ -209,7 +233,10 @@ export const GRADERS = {
       why.push(`no artboard of kind ${kinds.join(' | ')}`);
     if (minElements) {
       const thin = s.artboards.filter(
-        (a) => s.elements.filter((e) => e.artboard === a.id).length < minElements
+        (a) =>
+          s.elements.filter((e) => e.artboard === a.id).length +
+            componentElements(src, src.slice(a.start, a.end)) <
+          minElements
       );
       if (thin.length)
         why.push(`under ${minElements} elements: ${thin.map((a) => a.id).join(', ')}`);

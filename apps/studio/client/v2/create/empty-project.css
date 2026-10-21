@@ -58,8 +58,8 @@
     height: 36px;
     border: 0;
     border-radius: var(--radius-md);
-    background: var(--spark);
-    color: var(--spark-fg);
+    background: var(--accent); /* CONTRACT §7: azure with a white spark */
+    color: var(--accent-fg);
     cursor: pointer;
   }
   .ep-ask-send:focus-visible {
@@ -76,6 +76,9 @@
   .ep-panel-none {
     display: flex;
     flex-direction: column;
+    /* gate-b-a11y: it sits after `role=tree` in the DOM now (a button is not a treeitem) but draws where it
+       always did: above the (empty) tree */
+    order: -1;
   }
   .ep-panel-new {
     appearance: none;

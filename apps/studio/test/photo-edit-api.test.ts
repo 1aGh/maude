@@ -9,10 +9,11 @@
 // one-list-only 404 bug this test exists to prevent).
 
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { assetSha8 } from '../photo-store.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const VALID_SHA = 'ab12cd34ef56';
@@ -160,20 +161,40 @@ async function readCanvasOrigin(designRoot: string): Promise<string> {
   throw new Error('canvasOrigin never appeared in _server.json');
 }
 
+/**
+ * gate-b-c4 — the frame of a canvas that uses VALID_ASSET (the canvas origin answers nothing per
+ * canvas without a capability, and a photo sidecar is writable only by a frame that may edit
+ * every canvas using the photo).
+ */
+async function photoFrame(port: number, designRoot: string): Promise<string | null> {
+  mkdirSync(join(designRoot, 'ui'), { recursive: true });
+  mkdirSync(join(designRoot, 'assets'), { recursive: true });
+  writeFileSync(join(designRoot, VALID_ASSET), 'PNG-BYTES');
+  // …with an every-use edit already on it (a frame may name only what its closure holds).
+  writeFileSync(join(designRoot, 'assets', `${VALID_SHA}.photo.json`), '{}');
+  writeFileSync(
+    join(designRoot, 'ui', 'photo.tsx'),
+    `export default function P(){return <img src="/assets/${VALID_SHA}.png" alt="" />}\n`
+  );
+  return frameCap({ base: `http://localhost:${port}` }, {}, 'ui/photo.tsx');
+}
+
 describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)', () => {
   test('canvas origin: GET is reachable (200, not 404) and DELETE is method-gated (405)', async () => {
     await withServer(
-      async (_port, designRoot) => {
+      async (port, designRoot) => {
         const canvas = await readCanvasOrigin(designRoot);
+        // gate-b-c4 — from inside the frame of the canvas that uses the photo.
+        const fc = await photoFrame(port, designRoot);
         // If the route were in CANVAS_SAFE_API only (missing from server.ts's
         // `routes` map), Bun's fetch fall-through would serve it as a FILE → 404.
         // 200 here proves the handler runs → it's in the server.ts routes map too.
-        const gRes = await fetch(`${canvas}/_api/photo-edit?asset=${VALID_ASSET}`, {
+        const gRes = await fetch(withFc(`${canvas}/_api/photo-edit?asset=${VALID_ASSET}`, fc), {
           signal: AbortSignal.timeout(3000),
         });
         expect(gRes.status).toBe(200);
         // DELETE reaches the handler (405), not the file fall-through (404).
-        const dRes = await fetch(`${canvas}/_api/photo-edit?asset=${VALID_ASSET}`, {
+        const dRes = await fetch(withFc(`${canvas}/_api/photo-edit?asset=${VALID_ASSET}`, fc), {
           method: 'DELETE',
           signal: AbortSignal.timeout(3000),
         });
@@ -185,9 +206,49 @@ describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)
 
   test('canvas origin: PUT succeeds (no sameOriginWrite block — the headless harness needs this)', async () => {
     await withServer(
-      async (_port, designRoot) => {
+      async (port, designRoot) => {
         const canvas = await readCanvasOrigin(designRoot);
-        const res = await fetch(`${canvas}/_api/photo-edit?asset=${VALID_ASSET}`, {
+        const fc = await photoFrame(port, designRoot);
+        const res = await fetch(withFc(`${canvas}/_api/photo-edit?asset=${VALID_ASSET}`, fc), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adjustments: { saturation: 0.5 } }),
+          signal: AbortSignal.timeout(3000),
+        });
+        expect(res.status).toBe(200);
+      },
+      { MAUDE_CANVAS_ORIGIN_SPLIT: '1' }
+    );
+  });
+  // gate-b-c4b (lead: Option A) — the harness frame spans the harness and every canvas that uses
+  // its photo, so it reads the photo and saves its every-use edit — and nothing else.
+  test('the bg-remove harness frame (main-origin redirect) may PUT the sidecar of a photo a canvas uses', async () => {
+    // gate-b-c4 — the real headless path: photo-bg-remove.sh opens the harness through the main
+    // origin, whose 307 carries the frame capability; the harness PUTs the matte's PhotoEdit.
+    await withServer(
+      async (port, designRoot) => {
+        await photoFrame(port, designRoot); // ui/photo.tsx uses the photo
+        mkdirSync(join(designRoot, '_photo'), { recursive: true });
+        // …and one that does not (the harness frame must not reach it)
+        writeFileSync(join(designRoot, 'ui', 'other.tsx'), 'export default () => <main/>;\n');
+        // the shape photo-bg-remove.sh generates
+        writeFileSync(
+          join(designRoot, '_photo', 'deadbeef.bgremove.tsx'),
+          `import { PhotoBgRemoveHarness } from '@maude/canvas-lib';\nexport default function H() {\n  return <PhotoBgRemoveHarness source="${VALID_ASSET}" />;\n}\n`
+        );
+        const r = await fetch(
+          `http://localhost:${port}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx`,
+          { redirect: 'manual' }
+        );
+        expect(r.status).toBe(307);
+        const loc = new URL(r.headers.get('location') ?? '');
+        const fc = loc.searchParams.get('fc');
+        expect(fc).toBeTruthy();
+        // it reads the photo it processes…
+        expect((await fetch(withFc(`${loc.origin}/.design/${VALID_ASSET}`, fc))).status).toBe(200);
+        // …but no canvas that does not use it
+        expect((await fetch(withFc(`${loc.origin}/.design/ui/other.tsx`, fc))).status).toBe(403);
+        const res = await fetch(withFc(`${loc.origin}/_api/photo-edit?asset=${VALID_ASSET}`, fc), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ adjustments: { saturation: 0.5 } }),

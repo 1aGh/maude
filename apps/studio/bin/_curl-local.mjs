@@ -294,6 +294,13 @@ export function parseRequestArgv(argv) {
         if (/^\s*x-maude-home\s*[:;]/i.test(value)) {
           throw new CurlLocalArgvError('--header x-maude-home is the Home window’s alone; refused');
         }
+        // S12.16: the chat header is set below from this shell's own MAUDE_CHAT_ID, never typed — a
+        // typed one would let one chat's call claim a canvas for another chat's run.
+        if (/^\s*x-maude-chat\s*[:;]/i.test(value)) {
+          throw new CurlLocalArgvError(
+            '--header x-maude-chat is set by curl-local itself from MAUDE_CHAT_ID; refused'
+          );
+        }
         if (!/^[\w-]+:.*/.test(value)) {
           throw new CurlLocalArgvError(`--header must look like "Name: value" (got "${value}")`);
         }
@@ -345,6 +352,19 @@ export function parseRequestArgv(argv) {
   }
   out.parsedUrl = parsed;
   return out;
+}
+
+/**
+ * S12.16 — the chat this shell is (`MAUDE_CHAT_ID`, set per chat by the ACP spawn), named on the one
+ * request that creates a canvas so the studio can claim the new file for the chat's live run
+ * (ai/create-claim.ts). `POST /_api/canvas` only: no other loopback service sees the header. Pure;
+ * null = send nothing.
+ */
+export function chatHeaderFor(req, env = process.env) {
+  const id = env.MAUDE_CHAT_ID;
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
+  if (req.method !== 'POST' || req.parsedUrl.pathname !== '/_api/canvas') return null;
+  return `X-Maude-Chat: ${id}`;
 }
 
 /** Build the fixed-shape curl argv for a parsed request. Every user-supplied
@@ -432,6 +452,8 @@ async function main() {
     process.stderr.write('curl-local: that port is the desktop token bridge; refused\n');
     process.exit(3);
   }
+  const chatHeader = chatHeaderFor(req);
+  if (chatHeader) req.headers.push(chatHeader);
   const curlArgs = buildCurlArgs(req, pinIp, port);
   const result = spawnSync('curl', curlArgs, { stdio: 'inherit' });
   if (result.error) {

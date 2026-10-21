@@ -6,7 +6,8 @@
  * One beat "rozhovor" (150 frames, 5 s) playing assets/aaaa1111.mp4 — "Přišel", "Ehm…", "Za" are in
  * assets/aaaa1111.transcript.json (the words are the sidecar's; the video file itself is not needed to edit by
  * transcript). The artboard is `kind="video"`: selecting it brings the Timeline island up; Captions from speech adds
- * the `<Captions>`, the Transcript panel opens, select "Ehm…" + ⌫ cuts 0.4 s. Slug `ui/VideoTranscript.tsx` →
+ * the captions element (the comp's derivations scan the SOURCE TEXT for its opening tag, so this comment must not
+ * spell it), the Transcript panel opens, select "Ehm…" + ⌫ cuts 0.4 s. Slug `ui/VideoTranscript.tsx` →
  * `data-testid="canvas-row-ui-video-transcript"`. Restored byte-exact after every run.
  */
 import { DesignCanvas, DCSection, DCArtboard, VideoComp } from "@maude/canvas-lib";

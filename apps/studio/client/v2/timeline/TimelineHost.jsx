@@ -19,6 +19,7 @@ import { isNativeApp } from '../../github.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { usePanelLayout } from '../shell/use-panel-layout.js';
 import { AiLandingIsland, useAiCut } from './ai-edge.jsx';
+import { measureShellInsets } from '../shell/occlusion-insets.js';
 import { anchorCentre, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
 import { useFileDrag } from './edit/drop.jsx';
@@ -266,13 +267,35 @@ export default function TimelineHost({ children }) {
     return r ? { left: r.left, top: r.top } : null;
   };
 
+  // gate-b-polish3 (07 · ve-select) — the free canvas, between the floating panels (`data-occludes`): an open
+  // inspector or left panel never sits over the island's Expand and ×. Re-measured when a panel island resizes.
+  const [, setPanelTick] = useState(0);
+  const targetKey = view.target?.id ?? null;
+  useEffect(() => {
+    if (!mounted || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setPanelTick((n) => n + 1));
+    for (const el of document.querySelectorAll('[data-occludes="left"], [data-occludes="right"]'))
+      ro.observe(el);
+    return () => ro.disconnect();
+  }, [mounted, targetKey, view.size, vw]);
+  const freeX = () => {
+    const f = activePath ? iframesRef?.current?.get(activePath) : null;
+    if (!f || typeof document === 'undefined') return { minX: 0, maxX: vw };
+    const r = f.getBoundingClientRect?.();
+    if (!r) return { minX: 0, maxX: vw };
+    const ins = measureShellInsets(f, document, { presenting: panelsHidden });
+    return { minX: r.left + ins.left, maxX: r.right - ins.right };
+  };
+
   if (!mounted) return null;
+  const free = freeX();
   const placement =
     view.size === 'full'
-      ? placeFull({ viewportW: vw })
+      ? placeFull({ viewportW: vw, ...free })
       : placeCompact({
           cx: view.target ? anchorCentre({ left: frameLeft() }, view.target.rect) : vw / 2,
           viewportW: vw,
+          ...free,
         });
   return (
     <div className="tl-host">

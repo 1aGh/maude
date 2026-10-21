@@ -21,6 +21,7 @@ import { createLocalLeaseHome } from '../ai/lease-home.ts';
 import { createRunRegistry } from '../ai/runs.ts';
 import { type CtlProviderLike, createCtlProvider } from '../sync/ctl-provider.ts';
 import { parseRunsPoke } from '../sync/poke.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort, type Sandbox } from './_helpers.ts';
 
 let box: Sandbox | null = null;
@@ -251,16 +252,21 @@ describe('the run registry in a running studio (S5.3)', () => {
   }, 60_000);
 
   test('the canvas origin reaches GET /_api/ai, never /_api/ai/runs', async () => {
-    const { get } = await start();
+    const { get, port } = await start();
     const server = JSON.parse(
       readFileSync(path.join(box?.designRoot ?? '', '_server.json'), 'utf8')
     );
     const canvas = String(server.canvasOrigin ?? '').replace(/\/+$/, '');
     expect(canvas).toMatch(/^http:\/\/(localhost|127\.0\.0\.1):\d+$/);
-    expect((await fetch(`${canvas}/_api/ai`)).status).toBe(200);
-    expect((await fetch(`${canvas}/_api/ai/runs`)).status).not.toBe(200);
+    // gate-b-c4 — read inside a frame (the capability the shell mints for card.tsx): a frame-less
+    // canvas-origin request reaches nothing per canvas.
+    const fc = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/card.tsx');
+    expect((await fetch(`${canvas}/_api/ai`)).status).toBe(403);
+    expect((await fetch(withFc(`${canvas}/_api/ai`, fc))).status).toBe(200);
+    expect((await fetch(withFc(`${canvas}/_api/ai/runs`, fc))).status).not.toBe(200);
     expect(
-      (await fetch(`${canvas}/_api/ai/runs/stop-all`, { method: 'POST', body: '{}' })).status
+      (await fetch(withFc(`${canvas}/_api/ai/runs/stop-all`, fc), { method: 'POST', body: '{}' }))
+        .status
     ).not.toBe(200);
     // the main origin still answers it
     expect((await get('/_api/ai/runs')).seq).toBeGreaterThanOrEqual(0);

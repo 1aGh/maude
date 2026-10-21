@@ -42,6 +42,7 @@ import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
 import { registerExportOpener } from '../v2/export/use-export-spec.js';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
+import { useThemeAuto } from '../v2/settings/theme-auto.js';
 
 export function useShellCore({}) {
   const [groups, setGroups] = useState([]);
@@ -528,6 +529,9 @@ export function useShellCore({}) {
           // both of these went missing and the cloud studio rendered without
           // its chrome and with every canvas iframe unauthenticated.
           canvasToken: data.canvasToken,
+          // gate-b-c4 — the key `canvasUrl()` mints each frame's capability (`fc`) with. Without it
+          // every canvas iframe opens frame-less and the canvas origin answers nothing per canvas.
+          frameKey: data.frameKey,
           // Which release this server is — rendered as the status-bar chip.
           // Undefined on a server too old to report it, which is why the chip
           // renders conditionally rather than printing `vundefined`.
@@ -604,6 +608,7 @@ export function useShellCore({}) {
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [commentsFilter, setCommentsFilter] = useState('open'); // 'all' | 'open' | 'resolved'
   const [theme, setTheme] = useState(readInitialTheme);
+  useThemeAuto(theme, setTheme); // Settings › General › Look › Auto follows the system
   // DDR-171 — CSS-panel vocabulary mode ('advanced' | 'designer'), App-owned so
   // the in-panel corner toggle (CssKnobs) and Settings → Appearance share one
   // source of truth; persisted to `maude-cp-mode` (same pattern as `theme`).

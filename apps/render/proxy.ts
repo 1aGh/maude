@@ -14,6 +14,12 @@
 export interface CanvasUpstream {
   origin: string;
   token?: string;
+  /**
+   * gate-b-c4 — the frame capability the cell minted for the job's canvases (studio
+   * access/frame.ts): appended to every upstream request, so the canvas origin answers the render
+   * as the requester narrowed to exactly those canvases.
+   */
+  frame?: string;
 }
 
 export interface TokenProxy {
@@ -42,6 +48,8 @@ export function startTokenProxy(canvas: CanvasUpstream): TokenProxy {
       const url = new URL(req.url);
       const upstream = new URL(`${upstreamBase}${url.pathname}${url.search}`);
       if (canvas.token) upstream.searchParams.set('t', canvas.token);
+      if (typeof canvas.frame === 'string' && canvas.frame)
+        upstream.searchParams.set('fc', canvas.frame);
       const t0 = performance.now();
       try {
         const r = await fetch(upstream, {

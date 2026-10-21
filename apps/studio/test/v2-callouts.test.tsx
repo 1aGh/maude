@@ -296,20 +296,20 @@ describe('the old chrome is gone', () => {
   });
 });
 
-describe('the first-run tour offers are callouts (V2-4.9 — the v1 corner box covered the left panel)', () => {
-  test('usage first, then collab; none while a tour runs; Start is the one action', async () => {
-    const { tourCallout, calloutStack } = await import('../client/v2/shell/callouts-model.js');
-    expect(tourCallout({ usage: true, collab: true })).toMatchObject({
-      kind: 'tour-usage',
-      tone: 'info',
-      action: { id: 'tour-usage', label: 'Start' },
-    });
-    expect(tourCallout({ collab: true })?.kind).toBe('tour-collab');
-    expect(tourCallout({ usage: true, running: true })).toBeNull();
-    expect(tourCallout({})).toBeNull();
-    const stack = calloutStack({ tour: { usage: true } });
-    expect(stack.map((c) => c.kind)).toEqual(['tour-usage']);
-    expect(calloutStack({ tour: { usage: true }, dismissed: new Set(['tour:usage']) })).toEqual([]);
+describe('no tour offer in the callout stack (02: "no wizard, no card, no tour"; gate-b-polish2)', () => {
+  test('the stack never offers a tour; the tours live at Menu › Help › Take the tour', async () => {
+    const model = await import('../client/v2/shell/callouts-model.js');
+    expect('tourCallout' in model).toBe(false);
+    for (const tour of [{ usage: true }, { collab: true }, { usage: true, collab: true }]) {
+      const stack = model.calloutStack({ tour });
+      expect(stack.filter((c) => String(c.kind).startsWith('tour'))).toEqual([]);
+    }
+    const { readFileSync } = await import('node:fs');
+    const host = readFileSync(
+      new URL('../client/v2/shell/callouts-host.jsx', import.meta.url),
+      'utf8'
+    );
+    expect(host.includes("'tour-usage'")).toBe(false);
   });
 
   test('the shell no longer draws the fixed .mdcc-tour-nudge box', async () => {

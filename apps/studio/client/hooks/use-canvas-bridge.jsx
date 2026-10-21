@@ -50,6 +50,7 @@ import { moveLayerNode } from '../inspector/layers.jsx';
 import { moveLabel } from '../../edit-ops/op-label.ts';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
+import { bridgedExportPayload, bridgedHistory } from '../export-bridge-scope.js';
 import { VIEW_ONLY_EVENT } from '../v2/access/access-client.js';
 import { commentFocusMessage, replyFocusFor } from '../v2/comments/reply-focus.js';
 import {
@@ -207,6 +208,8 @@ export function useCanvasBridge({
         const replyTo = e.source;
         void handleCommentBridgeMessage(msg, {
           activePath,
+          // gate-b-c4 — an op naming a thread acts only on a thread of the active canvas.
+          ownsComment: ownsActiveComment,
           designRel: cfg?.designRel,
           me: typeof gitUser === 'string' ? gitUser : null,
           reply: (answer) => {
@@ -356,7 +359,9 @@ export function useCanvasBridge({
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            canvas: m.file,
+            // gate-b-c4 — the canvas the ACTIVE frame was opened for (the source check above), never
+            // the file the frame names: canvas code in A must not rewrite B with the opener's rights.
+            canvas: activePath,
             id: m.id,
             text: m.text ?? '',
             // Context for editing `{variable}` text — which rendered instance +
@@ -395,7 +400,9 @@ export function useCanvasBridge({
         // never overwrite a teammate's newer value (audit 2026-09-13 P1 #5);
         // the outcome goes back to the canvas so a refused undo/redo does not
         // advance its stack.
-        const req = applyEditRequest(m);
+        // gate-b-c4 — the canvas the ACTIVE frame was opened for, never the `canvas` the frame
+        // names (same rule as edit-text above): canvas code in A must not re-apply an edit to B.
+        const req = applyEditRequest({ ...m, canvas: activePath });
         if (!req) return;
         const replyTo = e.source;
         const reply = (result) => {
@@ -1289,29 +1296,36 @@ export function useCanvasBridge({
         void runBridgedExport(e.source, m.id, m.payload);
       } else if (m.dgn === 'export-history-request' && m.id) {
         // Same bridge for the dialog's Recent tab (/_api/export-history is
-        // also main-origin-only).
+        // also main-origin-only). gate-b-c4b — the active frame only, and only
+        // its own canvas's exports (bridgedHistory).
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (!activeWin || e.source !== activeWin) return;
         void runBridgedHistory(e.source, m.id);
       }
     }
     // Reply target for the export bridge: the canvas iframe's own origin.
     const replyOrigin = cfg?.canvasOrigin || window.location.origin;
-    async function runBridgedExport(source, id, payload) {
-      // The in-canvas dialog exports the canvas it LIVES IN — which the M1
-      // gate above just proved is `activePath`. Stamp it so scope resolution
-      // never falls back to the server's (asynchronously written, possibly
-      // stale) `_active.json` — same rule as the shell dialog's canvasFile.
-      // OVERWRITE, not fill-if-absent: the M1 gate above proved the sender IS
-      // the active canvas iframe (untrusted, DDR-054), so a canvasFile IT
-      // supplied must not survive — the bridged export renders the canvas it
-      // lives in, full stop (security review W2).
-      if (payload?.options && activePath && activePath !== SYSTEM_TAB) {
-        payload.options.canvasFile = activePath;
-      }
+    async function runBridgedExport(source, id, asked) {
       const reply = (msg) => {
         try {
           if (source) source.postMessage({ dgn: 'export-result', id, ...msg }, replyOrigin);
         } catch {}
       };
+      // The in-canvas dialog exports the canvas it LIVES IN — which the M1
+      // gate above just proved is `activePath`. OVERWRITE, never fill-if-absent:
+      // the sender is the untrusted canvas (DDR-054), so a target IT supplied
+      // must not survive (security review W2). gate-b-c4b — and only that canvas:
+      // a v1 `project-raw` / v2 Folder / Whole-project scope is refused here (the
+      // shell's own Export sheet still offers them), the v2 `canvas` is pinned.
+      const scoped =
+        activePath && activePath !== SYSTEM_TAB
+          ? bridgedExportPayload(asked, activePath, cfg?.designRel)
+          : { ok: false, error: 'Open a canvas to export it.' };
+      if (!scoped.ok) {
+        reply({ ok: false, error: scoped.error });
+        return;
+      }
+      const payload = scoped.payload;
       // DDR-231 — the browser lane, mirrored for the IN-CANVAS dialog: png/svg
       // of a known artboard is captured by the asking canvas itself (the shell
       // relays the request back over the export-capture bridge and downloads
@@ -1394,7 +1408,8 @@ export function useCanvasBridge({
         const r = await fetch('/_api/export-history');
         if (r.ok) {
           const data = await r.json();
-          if (Array.isArray(data.history)) history = data.history;
+          if (Array.isArray(data.history))
+            history = bridgedHistory(data.history, activePath, cfg?.designRel);
         }
       } catch {
         /* best-effort — empty list */

@@ -1155,8 +1155,8 @@ export function PrefToggleRow({ label, note, checked, disabled, reason, onChange
 // Appearance — theme control. Reuses the transcription-engine radio density so
 // the whole modal reads as one system. Wired to app.jsx `theme` + `onSetTheme`.
 const THEME_OPTIONS = [
-  { id: 'light', label: 'Light', note: 'Bright shell chrome' },
-  { id: 'dark', label: 'Dark', note: 'Dim shell chrome' },
+  { id: 'light', label: 'Light', note: 'Light panels and menus' },
+  { id: 'dark', label: 'Dark', note: 'Dark panels and menus' },
 ];
 // DDR-171 — the CSS-panel (Inspector) vocabulary. Advanced = raw CSS property
 // names (the default, unchanged); Designer = Figma-familiar clusters (Fill,
@@ -1217,8 +1217,8 @@ export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
           <span className="st-provider-name">Inspector vocabulary</span>
         </div>
         <div className="st-provider-notes">
-          How the CSS panel labels controls. You can also flip this from the small toggle in the
-          panel’s own corner — this choice is remembered.
+          How the inspector names its controls. The small toggle in the inspector’s corner flips it
+          too — this choice is remembered.
         </div>
         <div
           className="st-engine-radios"

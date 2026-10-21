@@ -51,6 +51,7 @@ import {
 } from './element-ids.ts';
 import { isSafeZoneId } from './kinds/safe-zones.ts';
 import { sourceHold } from './sync/write-hold.ts';
+import { maskComments } from './video/mask-comments.ts';
 import { type ReframeRead, reframeOf } from './video/reframe-read.ts';
 
 export class CanvasEditError extends Error {
@@ -2599,6 +2600,8 @@ export function enumerateClips(
   const componentBodies = collectComponentBodies(program);
   const arrays = collectArrayLiterals(program);
   const scoped = targetComp == null ? [] : clips.filter((c) => c.comp === targetComp);
+  // a comment that names <TitleMotion> / <Reframe> is not one (the `@mclip` sentinel above still reads the raw text)
+  const masked = maskComments(source);
   const clipInfos: ClipInfo[] = scoped.map((c) => {
     const opening = c.node.openingElement;
     const nameAttr = getStringAttr(opening, 'name');
@@ -2661,10 +2664,10 @@ export function enumerateClips(
       clipCdId: cdIdOf.get(c.node) ?? null,
       mediaProps,
       text: literalTextOf(source.slice(c.start, c.end)),
-      titleMotion: titleMotionOf(source.slice(c.start, c.end)),
+      titleMotion: titleMotionOf(masked.slice(c.start, c.end)),
       titleStyle: titleStyleOfClip(c.node),
-      fit: fitOf(source.slice(c.start, c.end)),
-      reframe: reframeOf(source.slice(c.start, c.end)),
+      fit: fitOf(masked.slice(c.start, c.end)),
+      reframe: reframeOf(masked.slice(c.start, c.end)),
       placeholder: (() => {
         // Direct <AIPlaceholder> child → a slate clip (Task 21). The prompt is
         // authored as `prompt={"…"}` (JSON.stringify — DDR-150 P1), so read

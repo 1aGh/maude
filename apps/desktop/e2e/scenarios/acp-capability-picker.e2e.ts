@@ -1,6 +1,12 @@
 import { $, browser, expect } from '@wdio/globals';
 
-import { clearComposer, openAssistant, pickMode, setPermissionMode } from '../helpers/assistant';
+import {
+  aiConnected,
+  clearComposer,
+  openAssistant,
+  pickMode,
+  setPermissionMode,
+} from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -43,9 +49,7 @@ describe('acp-capability-picker (native-desktop)', () => {
     // blind click closed it and test 1 waited for a composer that never came.
     await openAssistant();
 
-    const notConnected = await $(tid('acp-not-connected'));
-    const isNotConnected = await notConnected.isDisplayed().catch(() => false);
-    if (isNotConnected) {
+    if (!(await aiConnected())) {
       this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
     }
   });

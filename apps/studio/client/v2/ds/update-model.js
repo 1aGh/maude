@@ -51,12 +51,15 @@ export function leftOutOf(path, cfg) {
   };
 }
 
-/** Every left-out canvas, `{ [rel]: info }` — the Canvases rows' dots. */
+/**
+ * Every left-out canvas, `{ [rel]: info }` — the Canvases rows' dots. Keyed designRoot-relative, the way a row is: the
+ * index names a canvas by its tree path (`.design/ui/Home.tsx`), and a slot keyed by that never reached the row.
+ */
 export function leftOutMap(cfg) {
   const out = {};
-  for (const rel of Object.keys(cfg?.canvasDsRevs ?? {})) {
-    const info = leftOutOf(rel, cfg);
-    if (info) out[rel] = info;
+  for (const key of Object.keys(cfg?.canvasDsRevs ?? {})) {
+    const info = leftOutOf(key, cfg);
+    if (info) out[relOf(key, cfg)] = info;
   }
   return out;
 }

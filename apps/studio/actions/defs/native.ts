@@ -96,6 +96,25 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     visible: { shell: ['home'] },
     search: { hidden: true },
   },
+  {
+    // gate-b-sec3b — Join on a pending invitation in Home › Shared with you: accepts it (by project and canvas, never
+    // an invite id) with the profile it was listed under, then opens the project. `/_home/invite/pending/accept`.
+    id: 'invite.join',
+    label: 'Join',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { hidden: true },
+  },
+  {
+    // Leave on a pending invitation: turns it down. `/_home/invite/pending/leave`.
+    id: 'invite.leave',
+    label: 'Leave',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['home'] },
+    search: { hidden: true },
+  },
   // S6.9 — the four Advanced sheets that are capabilities of their own (02 ob-adv-sheets); Import from Figma is
   // `import.figma` (the sheet opens the target project with that intent). Home draws the sheets; the rows are
   // what the manifest, ⌘K and the agent-parity table name. Each credential is typed by the person into the

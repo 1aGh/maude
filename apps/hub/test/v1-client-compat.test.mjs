@@ -15,7 +15,8 @@
 
 import assert from 'node:assert/strict';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
@@ -26,7 +27,13 @@ import * as Y from 'yjs';
 import { accessClaims, signAccessToken, signAccessTokenV2 } from '../src/cloud-identity.mjs';
 import { createHub } from '../src/server.mjs';
 import { closeUsers, createUser } from '../src/users.mjs';
-import { A_VISIBLE, B_ONLY, bootAclHub, call } from './_acl-files-fixture.mjs';
+import {
+  A_VISIBLE,
+  PROJECT as ACL_PROJECT,
+  B_ONLY,
+  bootAclHub,
+  call,
+} from './_acl-files-fixture.mjs';
 
 const BASE_PORT = Number.parseInt(process.env.HUB_V1_COMPAT_TEST_PORT ?? '15380', 10);
 const SECRET = 'test-admin-secret';
@@ -460,6 +467,46 @@ describe('S9.7 — the comment path: a 1.9.1 desktop sees today’s answers', ()
   });
 });
 
+describe('S8.17b — a Figma comment pin: a 1.9.1 desktop reads what a Maude 2 import wrote', () => {
+  test('`importedFrom` (root and reply) and the pin anchors reach a v1 peer untouched', async () => {
+    const owner = (await (await v1Login(PORT, v1ProjectToken('owner'))).json()).token;
+    const member = (await (await v1Login(PORT, v1ProjectToken('member'))).json()).token;
+    const name = 'ws/alligators/main/ui-uniformy';
+    const pin = {
+      id: 'c_fig1',
+      file: '.design/ui/Uniformy.tsx',
+      text: 'Logo je moc male',
+      status: 'open',
+      author: 'Michal',
+      thread: [
+        {
+          id: 'r_fig1',
+          author: 'Michal',
+          body: 'Zvetsim',
+          importedFrom: {
+            source: 'figma',
+            author: { name: 'Tereza K' },
+            at: '2026-10-02T09:30:00.000Z',
+          },
+        },
+      ],
+      world: { x: 110, y: 120 },
+      artboard: 'node-2-1',
+      importedFrom: {
+        source: 'figma',
+        author: { name: 'Jonas Novak' },
+        at: '2026-10-02T08:00:00.000Z',
+      },
+    };
+    await v1YjsSession(PORT, owner, name, (doc) => doc.getArray('comments').push([pin]));
+    const seen = await v1YjsSession(PORT, member, name, (doc) =>
+      doc.getArray('comments').toArray()
+    );
+    assert.equal(seen.length, 1);
+    assert.deepEqual(seen[0], pin);
+  });
+});
+
 // ------------------------------------------------------------------- S9.13
 
 describe('S9.13 — hub-held votes: a 1.9.1 desktop sees today’s answers', () => {
@@ -506,5 +553,314 @@ describe('S9.13 — hub-held votes: a 1.9.1 desktop sees today’s answers', () 
     );
     assert.equal(seen.includes('v1-compat'), false);
     assert.equal((await post(tokens.owner, `${V}/${vote.id}/end`, {})).status, 200);
+  });
+});
+
+// ------------------------------------------------------------------ wave B
+
+/**
+ * What a 1.9.1 desktop reads off these doors, FROZEN from a live 1.9.1 hub
+ * (gate-b-compat, 2026-10-21: a v1.9.1 local cell and a feat one answered the
+ * same key sets). A key may be ADDED to a response; one of these may never
+ * move, rename or change type.
+ */
+const V191_JOURNAL_KEYS = ['entries', 'epoch', 'head', 'truncated'];
+const V191_JOURNAL_ENTRY_KEYS = [
+  'atMs',
+  'class',
+  'deleted',
+  'mirroredAtMs',
+  'mtimeMs',
+  'path',
+  'seq',
+  'sha256',
+  'size',
+];
+const V191_MANIFEST_ENTRY_KEYS = ['class', 'mtimeMs', 'path', 'sha256', 'size'];
+const V191_DOCUMENT_KEYS = ['bytes', 'name'];
+const V191_HEALTH_CAPABILITIES = ['ledger', 'annotations-v2', 'format-v2'];
+
+/** 1.9.1's `slugFromDocName` (sync/remote-docs.ts), verbatim: what a listing name becomes on disk. */
+function slugFromDocNameV191(docName) {
+  const raw = String(docName ?? '');
+  const COMPONENT = '[A-Za-z0-9_-]{1,120}';
+  const FLAT = new RegExp(`^${COMPONENT}$`);
+  const NAMESPACED = new RegExp(`^ws/${COMPONENT}/${COMPONENT}/(${COMPONENT})$`);
+  if (FLAT.test(raw)) return raw.toLowerCase();
+  const ns = NAMESPACED.exec(raw);
+  return ns ? ns[1].toLowerCase() : null;
+}
+
+const hasKeys = (obj, keys, what) => {
+  for (const k of keys) assert.ok(Object.hasOwn(obj, k), `${what}: 1.9.1 reads \`${k}\``);
+};
+
+describe('Wave B — team libraries, grants and DS revisions: a 1.9.1 desktop sees today’s answers', () => {
+  test('S10.18a/b — library doors on, a revision set in the checkout, a grant minted: every 1.9.1 read keeps its shape', async () => {
+    const REV = 'f'.repeat(64);
+    const prev = {
+      MAUDE_DS_LIBRARY_GRANTS: process.env.MAUDE_DS_LIBRARY_GRANTS,
+      MAUDE_TENANT_ID: process.env.MAUDE_TENANT_ID,
+      MAUDE_CLOUD_IDENTITY: process.env.MAUDE_CLOUD_IDENTITY,
+    };
+    // A self-hosted workspace hub: the outer beforeEach set cloud identity for
+    // its own hub, which this one does not use.
+    delete process.env.MAUDE_TENANT_ID;
+    delete process.env.MAUDE_CLOUD_IDENTITY;
+    process.env.MAUDE_DS_LIBRARY_GRANTS = '1';
+    const acl = await bootAclHub('maude-v1-waveb', {
+      studioChild: true,
+      files: {
+        ...ACL_PROJECT,
+        'config.json': JSON.stringify({ designSystems: [{ name: 'brand', path: 'system/brand' }] }),
+        'system/brand/colors_and_type.css': ':root{--brand:1}\n',
+        'system/brand/tokens.json': '{"format":"maude.tokens","v":1,"tokens":{}}\n',
+        'system/brand/revisions/head.json': JSON.stringify({
+          format: 'maude.ds-head',
+          v: 1,
+          system: 'brand',
+          head: REV,
+          base: REV,
+          drafts: [],
+          log: [{ rev: REV, parent: null, action: 'publish', at: 'x', by: { kind: 'ai' } }],
+        }),
+        [`system/brand/revisions/${REV}.json`]:
+          '{"format":"maude.ds-revision","v":1,"system":"brand","files":{}}\n',
+        [`system/brand/revisions/${REV}.tokens.css`]: ':root{--rev:1}\n',
+      },
+    });
+    try {
+      const health = await (await fetch(`${acl.http}/health`)).json();
+      assert.equal(typeof health.ok, 'boolean');
+      assert.equal(typeof health.version, 'string');
+      assert.equal(typeof health.formatVersion, 'number');
+      assert.ok(Array.isArray(health.capabilities));
+      assert.ok(
+        health.capabilities.every((c) => typeof c === 'string'),
+        `capabilities stay plain words: ${JSON.stringify(health.capabilities)}`
+      );
+      for (const word of V191_HEALTH_CAPABILITIES) {
+        assert.ok(health.capabilities.includes(word), word);
+      }
+      assert.ok(health.capabilities.includes('ds-library'), 'the library door is on here');
+
+      const minted = await call(acl, 'POST', '/api/projects/local/v1/ds-grants', acl.tokens.owner, {
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ system: 'brand', label: 'v1-compat' }),
+      });
+      assert.equal(minted.status, 201, JSON.stringify(minted.body));
+
+      for (const role of ['owner', 'member', 'viewer']) {
+        const token = acl.tokens[role];
+        const journal = await call(acl, 'GET', '/api/journal?since=0', token);
+        assert.equal(journal.status, 200, role);
+        hasKeys(journal.body, V191_JOURNAL_KEYS, `${role} journal`);
+        for (const e of journal.body.entries) {
+          hasKeys(e, V191_JOURNAL_ENTRY_KEYS, `${role} ${e.path}`);
+        }
+        // The revision set is journalled as ordinary files — a 1.9.1 peer
+        // judges them with its own membership (bare .json stays closed there).
+        const paths = journal.body.entries.map((e) => e.path);
+        assert.ok(paths.includes('system/brand/revisions/head.json'), `${role} head.json`);
+
+        const files = await call(acl, 'GET', '/api/files', token);
+        assert.equal(files.status, 200, role);
+        for (const f of files.body.files) {
+          hasKeys(f, V191_MANIFEST_ENTRY_KEYS, `${role} manifest ${f.path}`);
+        }
+
+        const docs = await call(acl, 'GET', '/api/documents', token);
+        assert.equal(docs.status, 200, role);
+        for (const d of docs.body.documents) {
+          hasKeys(d, V191_DOCUMENT_KEYS, `${role} document`);
+          // A 1.9.1 desktop pulls EVERY listed name as a canvas: a library, a
+          // grant or a revision must never surface here as a document.
+          assert.ok(slugFromDocNameV191(d.name), `${role}: ${d.name} is a name 1.9.1 can pull`);
+          assert.equal(/grant|revision|library/i.test(d.name), false, `${role}: ${d.name}`);
+        }
+      }
+
+      // The grant is a library credential, never a v1 session or a peer token.
+      const grant = minted.body.token;
+      const login = await fetch(`${acl.http}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: grant }),
+      });
+      assert.notEqual(login.status, 200);
+      assert.equal((await call(acl, 'GET', '/api/journal?since=0', grant)).status, 401);
+    } finally {
+      await acl.stop();
+      for (const [k, v] of Object.entries(prev)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+});
+
+// ------------------------------------------------------------- F2 (wave B)
+//
+// A read-only session that makes a canvas locally opens a document the hub has
+// never stored. Hocuspocus drops its content (SyncStep2/Update), but the hub
+// used to LIST the live, empty document from the peers map ("a live-but-unsaved
+// canvas"). Every writable peer then pulled the advertised name — the cell's
+// own studio first — and stamped `syncMeta.path` from where it would land on
+// its disk, which the hub stored: a 48-byte stub nobody wrote, advertised to
+// every desktop (1.9.1 pulls every listed name as a canvas). The refused write
+// must leave nothing: no row, no listing, nothing for a writer to pull.
+
+const sqliteRequire = createRequire(import.meta.url);
+
+/** Is a row for `name` persisted in the hub's document table? */
+function storedRow(name) {
+  const path = join(dataDir, 'hub.db');
+  if (!existsSync(path)) return false;
+  const Database = sqliteRequire('better-sqlite3');
+  const db = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    return !!db.prepare('SELECT 1 FROM "documents" WHERE name = ?').get(name);
+  } catch {
+    return false; // no table yet: nothing stored
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * A desktop's new local canvas: the path stamp and the body exist before the
+ * socket does, then an edit after the handshake. Resolves with a `close()`
+ * once synced — the session STAYS connected, as a desktop does.
+ */
+function openLocalCanvas(port, peerToken, name, path) {
+  return new Promise((resolve, reject) => {
+    const doc = new Y.Doc();
+    doc.getMap('syncMeta').set('path', path);
+    doc.getText('html').insert(0, '<main>made here</main>');
+    const timer = setTimeout(() => {
+      provider.destroy();
+      reject(new Error('no sync within 3s'));
+    }, 3000);
+    const provider = new HocuspocusProvider({
+      url: `ws://127.0.0.1:${port}`,
+      name,
+      token: peerToken,
+      document: doc,
+      connect: true,
+      onSynced: () => {
+        clearTimeout(timer);
+        doc.getText('html').insert(0, '<!-- edit -->');
+        resolve({ close: () => provider.destroy() });
+      },
+      onAuthenticationFailed: ({ reason }) => {
+        clearTimeout(timer);
+        provider.destroy();
+        reject(new Error(`refused: ${reason}`));
+      },
+    });
+  });
+}
+
+/**
+ * A writable peer's pull, as the studio does it (sync/index.ts
+ * stampFromLocalFile): open every listed name it lacks and stamp the path the
+ * canvas would land at. Returns the names it pulled.
+ */
+async function writerPulls(port, writerToken) {
+  const listed = (await (await v1Get(port, writerToken, '/api/documents')).json()).documents;
+  const pulled = [];
+  for (const { name } of listed) {
+    pulled.push(name);
+    await new Promise((resolve, reject) => {
+      const doc = new Y.Doc();
+      const timer = setTimeout(() => reject(new Error(`pull ${name}: no sync`)), 3000);
+      const provider = new HocuspocusProvider({
+        url: `ws://127.0.0.1:${port}`,
+        name,
+        token: writerToken,
+        document: doc,
+        connect: true,
+        onSynced: () => {
+          clearTimeout(timer);
+          doc.getMap('syncMeta').set('path', `ui/${name.split('/').pop()}.tsx`);
+          setTimeout(() => {
+            provider.destroy();
+            resolve();
+          }, 300);
+        },
+      });
+    });
+  }
+  return pulled;
+}
+
+const listedNames = async (port, token) =>
+  (await (await v1Get(port, token, '/api/documents')).json()).documents.map((d) => d.name);
+
+/** The v2 desktop's sign-in: it declares the access format it reads. */
+function v2Login(port, projectToken) {
+  return fetch(`http://127.0.0.1:${port}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-maude-access': '2' },
+    body: JSON.stringify({ token: projectToken }),
+  });
+}
+
+/** The read-only sessions: a 1.9.1 viewer and the two v2 read-only claims. */
+const READ_ONLY_SESSIONS = [
+  {
+    who: 'v1.9.1 viewer',
+    login: () => v1Login(PORT, v1ProjectToken('viewer')),
+    doc: 'ws/alligators/main/ui-viewer-local2',
+    path: 'ui/viewer-local2.tsx',
+  },
+  {
+    who: 'v2 project viewer (Can comment)',
+    login: () => v2Login(PORT, v2ProjectToken({ role: 'viewer' })),
+    doc: 'ws/alligators/main/ui-viewer-local3',
+    path: 'ui/viewer-local3.tsx',
+  },
+  {
+    who: 'v2 canvas-only viewer, on its granted canvas',
+    login: () =>
+      v2Login(PORT, v2ProjectToken({ role: null, grants: [{ c: 'ui/a.tsx', r: 'viewer' }] })),
+    doc: 'ws/alligators/main/ui-a',
+    path: 'ui/a.tsx',
+  },
+];
+
+describe('F2 — a read-only session creating a canvas leaves nothing on the hub', () => {
+  for (const s of READ_ONLY_SESSIONS) {
+    test(`${s.who}: no document stored, none listed, nothing for a writer to pull`, async () => {
+      const res = await s.login();
+      assert.equal(res.status, 200, `${s.who} signs in`);
+      const { token } = await res.json();
+      const { token: owner } = await (await v1Login(PORT, v1ProjectToken('owner'))).json();
+
+      const session = await openLocalCanvas(PORT, token, s.doc, s.path);
+      try {
+        // While the read-only desktop holds the document open: not advertised.
+        assert.deepEqual(await listedNames(PORT, owner), [], 'listed to the owner while open');
+        // The cell's studio (a writer) polls the list and pulls what it lacks.
+        assert.deepEqual(await writerPulls(PORT, owner), [], 'a writer pulled it');
+      } finally {
+        session.close();
+      }
+      await new Promise((r) => setTimeout(r, 2500)); // past the store debounce
+      assert.equal(storedRow(s.doc), false, 'a row is stored');
+      assert.deepEqual(await listedNames(PORT, owner), [], 'listed after it closed');
+    });
+  }
+
+  test('a writer’s live, not-yet-stored canvas is still listed', async () => {
+    const { token: member } = await (await v1Login(PORT, v1ProjectToken('member'))).json();
+    const { token: owner } = await (await v1Login(PORT, v1ProjectToken('owner'))).json();
+    const name = 'ws/alligators/main/ui-member-new';
+    const session = await openLocalCanvas(PORT, member, name, 'ui/member-new.tsx');
+    try {
+      assert.deepEqual(await listedNames(PORT, owner), [name]);
+    } finally {
+      session.close();
+    }
   });
 });

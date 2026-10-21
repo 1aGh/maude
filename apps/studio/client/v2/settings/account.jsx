@@ -104,7 +104,7 @@ export function AccountBlock({
     <Group title="Account" testid="settings-account">
       {ownAccount && (
         <Row
-          label={signedIn ? (who ?? 'You') : 'Maude Cloud'}
+          label={signedIn ? (who ?? 'You') : host}
           hint={signedIn ? undefined : 'Sign in under Connections to sync projects.'}
         >
           <span data-testid="settings-account-state">
@@ -129,7 +129,7 @@ export function AccountBlock({
       </Row>
       <Row
         label="E-mails"
-        hint="Change which e-mails you get — a mention while Maude is closed, for one."
+        hint="Change which e-mails you get — a mention while you’re away, for one."
       >
         <button
           type="button"

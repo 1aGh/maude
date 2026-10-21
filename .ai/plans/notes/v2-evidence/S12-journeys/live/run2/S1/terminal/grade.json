@@ -1,0 +1,95 @@
+{
+  "journey": "S1",
+  "lane": "terminal",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "code": 0,
+      "ok": true,
+      "costUsd": 0.9509042000000002,
+      "numTurns": 30
+    },
+    {
+      "turn": 2,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.3597862000000003,
+      "numTurns": 7
+    },
+    {
+      "turn": 3,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.5271016000000002,
+      "numTurns": 6
+    },
+    {
+      "turn": 4,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.6260592,
+      "numTurns": 4
+    },
+    {
+      "turn": 5,
+      "code": 0,
+      "ok": true,
+      "costUsd": 1.9591632000000003,
+      "numTurns": 11
+    },
+    {
+      "turn": 6,
+      "code": 0,
+      "ok": true,
+      "costUsd": 2.110073,
+      "numTurns": 5
+    }
+  ],
+  "results": [
+    {
+      "id": "created-by-ai",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind any, by ai, op create)"
+    },
+    {
+      "id": "renamed",
+      "grader": "moved",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "version-restored",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Greeting.tsx (want 1…∞; kind restore,history.restore, by any, op restore)"
+    },
+    {
+      "id": "restored-content",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "restore-by-verb",
+      "grader": "tool-used",
+      "pass": false,
+      "why": "0 call(s) of Bash matching /maude design history restore[^|]*ui/Greeting\\.tsx/ (55 tool call(s) in all)"
+    },
+    {
+      "id": "back-from-trash",
+      "grader": "trash",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "no-hard-delete",
+      "grader": "no-tool",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

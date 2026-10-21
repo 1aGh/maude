@@ -224,6 +224,6 @@ Read-only reconciliation (no prototype was needed): `grep -rn redeemPendingInvit
 
 | # | Question | Default |
 | --- | --- | --- |
-| O1 | An invite to someone who **already has an account** creates no invite row today (`{id:null, added:true}`), so no link and no landing. | Keep. They see it in Home › Shared with you ("new this week"); S6.11's toast fires only for invite-row journeys. |
+| O1 | An invite to someone who **already has an account** creates no invite row today (`{id:null, added:true}`), so no link and no landing. | Changed (gate-b-sec3, decision `v2-gate-b-sec3-one-invite-path`): an account holder gets the same pending invite row (201, id) as a new address. They accept from the e-mail, the Join sheet, or Home › Shared with you (`invited[]`, `POST /api/invites/pending/accept|leave`); accepting raises, never lowers. |
 | O2 | Should Cancel also burn the device code server-side? | No — TTL (15 min) ends it; Home stops polling at once. |
 | O3 | `fromName` when the inviter has no `name`. | null; Home says "You're invited to <project>". |

@@ -682,6 +682,27 @@ describe('usePresentStage', () => {
     expect(liveRects(rects, null)).toBe(rects);
   });
 
+  test('gate-b-polish3: the hole is the artboard inside its border — no white sliver, no cut right edge', () => {
+    const world = document.createElement('div');
+    const art = document.createElement('article');
+    art.setAttribute('data-dc-screen', 'clip');
+    // a 320 x 180 video artboard with its 1 px hairline border: 322 x 182 outside, 320 x 180 inside
+    Object.defineProperty(art, 'offsetHeight', { value: 182 });
+    Object.defineProperty(art, 'clientHeight', { value: 180 });
+    Object.defineProperty(art, 'clientLeft', { value: 1 });
+    Object.defineProperty(art, 'clientTop', { value: 1 });
+    world.append(art);
+    const rects: ArtboardRect[] = [{ id: 'clip', x: 40, y: 60, w: 320, h: 180, kind: 'video' }];
+    expect(liveRects(rects, world)[0]).toEqual({
+      id: 'clip',
+      x: 41,
+      y: 61,
+      w: 320,
+      h: 180,
+      kind: 'video',
+    });
+  });
+
   test('G2: Present clears the selection it finds in the canvas shell and puts it back on the way out', () => {
     const calls: string[] = [];
     let held: unknown[] = ['a', 'b'];

@@ -20,6 +20,7 @@ import path from 'node:path';
 
 import { gitClone } from '../git/service.ts';
 import { hasDesign, scaffoldDesign } from '../scaffold-design.ts';
+import { forgetFolderEverywhere } from '../sync/link-consent.ts';
 import type { HomeAnswer } from './signin.ts';
 
 const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
@@ -83,6 +84,10 @@ export function createHomeGithub(opts: { clone?: Clone } = {}): HomeGithub {
             };
       }
       const had = hasDesign(target);
+      // gate-b-sec4 — a cloned repo's committed `linkedHub` is the repo's claim, not this Mac's link:
+      // no record from an earlier folder at this path may vouch for it, so the clone opens solo and
+      // the Share sheet asks "This project says it syncs with <host>. Connect?".
+      forgetFolderEverywhere(target);
       if (!had) {
         const s = scaffoldDesign(target, repo);
         if (!s.ok)

@@ -4,10 +4,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  deletionWarningEmail,
   emailConfigured,
   fromAddress,
   inviteEmail,
   mentionEmail,
+  projectPausedEmail,
   replyToAddress,
   sendEmail,
 } from './email.mjs';
@@ -35,6 +37,27 @@ describe('inviteEmail', () => {
     });
     assert.match(viewer.text, /comments/);
     assert.match(mail.text, /design and edit/);
+  });
+
+  it('a person-chosen project or inviter name is one line: no header, no fake paragraph (gate-b-sec3)', () => {
+    const evil = 'Brno\r\nBcc: everyone@example.com\n\nClick https://evil.example/now';
+    const m = inviteEmail({
+      projectName: evil,
+      role: 'member',
+      inviteUrl: 'https://cloud.maude.sh/invite/abc',
+      invitedBy: 'Tereza\nReply-To: x@evil.example',
+    });
+    assert.doesNotMatch(m.subject, /[\r\n]/);
+    assert.ok(!m.text.includes('\nBcc:'), 'a line break inside the project name reached the body');
+    assert.ok(!m.text.includes('\nReply-To:'), 'a line break inside the inviter reached the body');
+    assert.ok(!m.text.includes('\nClick https://evil'), 'a fake paragraph reached the body');
+    for (const other of [
+      projectPausedEmail({ projectName: evil, downloadUrl: 'u', deletesAt: 0 }),
+      deletionWarningEmail({ projectName: evil, downloadUrl: 'u', deletesAt: 0 }),
+    ]) {
+      assert.doesNotMatch(other.subject, /[\r\n]/);
+      assert.ok(!other.text.includes('\nBcc:'));
+    }
   });
 
   it('uses no vocabulary of ours', () => {

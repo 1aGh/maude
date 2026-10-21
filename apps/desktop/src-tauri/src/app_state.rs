@@ -681,6 +681,19 @@ pub fn profile_for(app: &tauri::AppHandle, root: &str) -> String {
     load(app).profile_for(root)
 }
 
+/// gate-b-sec4 — the hub the APP bound `root` to (a managed copy Maude made: the registry's
+/// `managed.server`, else the app-owned managed index), never the folder's own `linkedHub`. The
+/// sidecar passes it as `MAUDE_APP_BOUND_HUB` so the studio honours that one link without a prompt.
+pub fn app_bound_hub(app: &tauri::AppHandle, root: &str) -> Option<String> {
+    let pid = windows::pid_for_root(root);
+    load(app).managed_server_of(&pid).or_else(|| {
+        crate::managed::bound_copies(app)
+            .into_iter()
+            .find(|(path, _)| windows::pid_for_root(path) == pid)
+            .map(|(_, server)| server)
+    })
+}
+
 /// Bind `root` to profile `id`. The id must be valid AND registered — a binding
 /// to a profile that doesn't exist would spawn the server on no account at all.
 /// A running server keeps its old env until restarted: T11 restarts it

@@ -1,0 +1,58 @@
+{
+  "journey": "S6",
+  "lane": "acp",
+  "pass": false,
+  "harnessFailure": false,
+  "infra": null,
+  "turns": [
+    {
+      "turn": 1,
+      "ok": true,
+      "stopReason": "end_turn"
+    }
+  ],
+  "results": [
+    {
+      "id": "artboards-first",
+      "grader": "artboards",
+      "pass": false,
+      "why": "2 artboard(s), want 3"
+    },
+    {
+      "id": "filled-in",
+      "grader": "artboards",
+      "pass": false,
+      "why": "2 artboard(s), want 3; under 4 elements: desktop, mobile"
+    },
+    {
+      "id": "words-from-the-sentence",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "design-system-tokens",
+      "grader": "text",
+      "pass": true,
+      "why": ""
+    },
+    {
+      "id": "by-the-ai",
+      "grader": "history",
+      "pass": false,
+      "why": "0 matching action(s) on ui/Landing page.tsx (want 1…∞; kind ai, by ai, op any)"
+    },
+    {
+      "id": "one-undo-step",
+      "grader": "one-undo-step",
+      "pass": false,
+      "why": "0 AI run(s) on ui/Landing page.tsx; split: none; unattributed: 0"
+    },
+    {
+      "id": "no-second-canvas",
+      "grader": "canvas-exists",
+      "pass": true,
+      "why": ""
+    }
+  ]
+}

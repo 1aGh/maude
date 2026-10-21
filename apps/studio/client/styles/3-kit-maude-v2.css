@@ -1,0 +1,285 @@
+/* client/styles/3-kit-maude-v2.css — gate-B polish (RC-B): the maude-v2 kit anatomy the app code names.
+ *
+ * v2 components were lifted from the boards with the kit's class names (`.design/ui/v2/_kit.css`) and the
+ * DS anatomy (`.design/system/maude-v2/preview/_components.css`): `.icon-btn`, `.seg` / `.k-seg-b`,
+ * `.k-adv*`, `.k-sw`, `.chip`, `.field`, `.input` … Neither file is in the client bundle, so those
+ * elements rendered as UA buttons and bare text (Handoff › Advanced, "Mostly for", the Exports panel's
+ * collapse button). The look is rebuilt here from the tokens, once.
+ *
+ * Specificity is deliberately the floor — `:where(.maude) .x` is (0,1,0) in @layer shell, imported before
+ * every other shell file — so any surface that already styles one of these (`.v2-code-hd .icon-btn`,
+ * `.cp-dialog .input`, `.ex-seg`, a v1 panel's `.ob-input`) keeps its own look; only an element with no
+ * other rule picks the kit up. `apps/studio/test/gate-b-polish1.test.ts` fails on a kit class that loses
+ * its rule here, and on any v2 element whose classes have no rule at all. */
+
+@layer shell {
+  /* ─── Square icon button — the unit of every island (_components.css .icon-btn) ─── */
+  :where(.maude) .icon-btn {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  :where(.maude) .icon-btn:hover {
+    background: var(--bg-3);
+  }
+  :where(.maude) .icon-btn[aria-pressed="true"],
+  :where(.maude) .icon-btn.is-pressed {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  :where(.maude) .icon-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  :where(.maude) .icon-btn:disabled {
+    color: var(--fg-3);
+    cursor: default;
+    background: transparent;
+  }
+  :where(.maude) .icon-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+  /* _kit.css `.icon-btn.k-icon-sm` — the 28 px row/header variant */
+  :where(.maude) .k-icon-sm {
+    width: 28px;
+    height: 28px;
+    color: var(--fg-1);
+  }
+
+  /* ─── Segmented control (_components.css .seg, _kit.css .k-seg-b) ─── */
+  :where(.maude) .seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  :where(.maude) .seg > button,
+  :where(.maude) .k-seg-b {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    padding: var(--space-1) var(--space-3);
+    border-radius: calc(var(--radius-md) - 2px);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out);
+  }
+  :where(.maude) .seg > button:hover,
+  :where(.maude) .k-seg-b:hover {
+    color: var(--fg-0);
+  }
+  /* the pressed segment: raised surface + the accent hairline, so a sighted user sees the choice */
+  :where(.maude) .seg > button[aria-pressed="true"],
+  :where(.maude) .seg > button[aria-checked="true"],
+  :where(.maude) .k-seg-b[aria-pressed="true"],
+  :where(.maude) .k-seg-b[aria-checked="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  :where(.maude) .seg > button:focus-visible,
+  :where(.maude) .k-seg-b:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  :where(.maude) .seg > button:disabled,
+  :where(.maude) .k-seg-b:disabled {
+    color: var(--fg-3);
+    cursor: default;
+  }
+
+  /* ─── Chip (_components.css .chip) ─── */
+  :where(.maude) .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-1);
+    background: var(--bg-3);
+    white-space: nowrap;
+  }
+  :where(.maude) button.chip {
+    cursor: pointer;
+  }
+  :where(.maude) button.chip:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  /* ─── Field + input / select / textarea (_components.css) ─── */
+  :where(.maude) .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  :where(.maude) .field-label {
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  :where(.maude) .field-hint {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  :where(.maude) .input,
+  :where(.maude) .select,
+  :where(.maude) .textarea {
+    appearance: none;
+    box-sizing: border-box;
+    width: 100%;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    border: 0;
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+  }
+  :where(.maude) .input {
+    height: 32px;
+  }
+  :where(.maude) .textarea {
+    min-height: 72px;
+    resize: vertical;
+  }
+  :where(.maude) .input::placeholder,
+  :where(.maude) .textarea::placeholder {
+    color: var(--fg-2);
+  }
+  :where(.maude) .input:focus,
+  :where(.maude) .select:focus,
+  :where(.maude) .textarea:focus {
+    outline: none;
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--focus-ring);
+  }
+
+  /* ─── Status word (_kit.css .k-sw): a dot + a word ─── */
+  :where(.maude) .k-sw {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    white-space: nowrap;
+  }
+  :where(.maude) .k-sw i {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--status-success);
+  }
+  :where(.maude) .k-sw--warn i {
+    background: var(--status-warn);
+  }
+  :where(.maude) .k-sw--error i {
+    background: var(--status-error);
+  }
+  :where(.maude) .k-sw--busy i {
+    background: var(--status-info);
+  }
+  :where(.maude) .k-sw--off i {
+    background: var(--fg-3);
+  }
+
+  /* ─── Advanced fold (_kit.css .k-adv*) ─── */
+  :where(.maude) .k-adv {
+    margin-top: var(--space-1);
+    padding-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  :where(.maude) .k-adv-btn {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+    text-align: left;
+    cursor: pointer;
+  }
+  :where(.maude) .k-adv-btn:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  :where(.maude) .k-adv-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  :where(.maude) .k-adv-count {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  :where(.maude) .k-adv-body {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-1) var(--space-1) 2px;
+  }
+
+  /* ─── Small parts ─── */
+  :where(.maude) .k-mono {
+    font-family: var(--font-mono);
+  }
+  :where(.maude) .k-ic {
+    display: block;
+    flex: none;
+  }
+  /* a dialog's action row (_kit.css .k-dialog-a) */
+  :where(.maude) .k-dialog-a {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  /* the dotted canvas ground (_kit.css .k-canvas--dots) */
+  :where(.maude) .k-canvas--dots {
+    background-image: radial-gradient(var(--x-canvas-dot) 1px, transparent 1.2px);
+    background-size: var(--x-canvas-grid) var(--x-canvas-grid);
+  }
+}

@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
+import { openInspector } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { dsRow } from '../helpers/tree';
 
 /**
  * 13 · ds-many-library, ds-many-linked (S10.18c) — a project that links a team library reads it here and takes its
@@ -32,10 +34,12 @@ describe('ds-library — a linked team library: the card, the review, Update, Un
   it('opens the linked system: the card names the library and says 2 updates wait', async () => {
     await waitForSidecar();
     linkedHead = readHead().head;
-    const row = await canvasRow('canvas-row-system-gator-design-system');
+    const row = await dsRow('gator');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
+    await openInspector();
     const card = await $('[data-testid="ds-library-card"]');
     await card.waitForExist({ timeout: 25_000, timeoutMsg: 'the library card never appeared' });
     expect(await card.getAttribute('data-system')).toBe('gator');

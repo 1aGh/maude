@@ -85,7 +85,7 @@ export function buildStudioBrief(facts: StudioBriefFacts): string {
   // S12.3 — the studio's own verbs, named so the agent drives the product through
   // them instead of guessing at files (CONTRACT §3 words: Version history, the
   // trash). Static capability facts; the verbs exist on both paths (npm CLI).
-  const studioVerbs = `Studio verbs: \`maude design open\` shows a canvas, an artboard or a panel in the studio; \`maude design check <file>\` checks a canvas after an edit; \`maude design history\` lists and restores saved versions (Version history); \`maude design trash\` lists and restores what was moved to the trash; \`maude design comments\` reads and answers comments.`;
+  const studioVerbs = `Studio verbs: a new canvas is made with the app's own create (\`POST /_api/canvas\` through \`maude design curl-local\`), never written by hand; \`maude design open\` shows a canvas, an artboard or a panel in the studio; \`maude design check <file>\` checks a canvas after an edit; \`maude design history\` lists and restores saved versions (Version history); \`maude design trash\` lists and restores what was moved to the trash; \`maude design comments\` reads and answers comments. For a question about what went wrong or what state the studio is in, read \`maude design logs\` (the studio's log), \`maude design sync status\` (what is shared or waiting) and \`maude design comments list\` — not the app's own files outside this project.`;
   // Phase 5 (whiteboard-improvements) named this layer so "make me a retro"
   // reaches for it unprompted. S12.3 — in v2 words it is the canvas's
   // "annotations"; `/design:board` is only the command's name (S12-slices D4).

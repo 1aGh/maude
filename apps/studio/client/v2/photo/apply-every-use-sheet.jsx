@@ -10,6 +10,7 @@
 
 import { useRef, useState } from 'react';
 import { useModalFocus } from '../shell/modal-focus.js';
+import { sameCanvas } from './canvas-rel.js';
 import { cutOutOn, LOOKS, lookOf } from './looks.js';
 
 export const SHEET_WORDS = Object.freeze({
@@ -32,9 +33,9 @@ export function sheetTitle(edit) {
 }
 
 /** The rows the sheet names: the other canvases, or this one when it is the only one. */
-export function sheetRows(answer, canvas) {
+export function sheetRows(answer, canvas, designRel) {
   const uses = Array.isArray(answer?.uses) ? answer.uses : [];
-  const others = uses.filter((u) => u.canvas !== canvas);
+  const others = uses.filter((u) => !sameCanvas(u.canvas, canvas, designRel));
   return others.length ? others : uses;
 }
 
@@ -50,7 +51,8 @@ const prune = (edit) => JSON.parse(JSON.stringify(edit ?? {}));
  * @param {object} p
  * @param {string} p.asset
  * @param {string} p.name           the picture's file name
- * @param {string} [p.canvas]       the open canvas
+ * @param {string} [p.canvas]       the open canvas (repo- or design-root-relative)
+ * @param {string} [p.designRel]    the design root (default `.design`)
  * @param {object} p.edit           the edit every use would get
  * @param {{ uses: Array<{canvas: string, name: string, artboards: string[], own: number}>, canApply: boolean, reason?: string }} p.answer
  * @param {Function} p.onClose
@@ -60,6 +62,7 @@ export function ApplyEveryUseSheet({
   asset,
   name,
   canvas,
+  designRel,
   edit,
   answer,
   onClose,
@@ -75,8 +78,8 @@ export function ApplyEveryUseSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-  const rows = sheetRows(answer, canvas);
-  const more = (answer?.uses ?? []).filter((u) => u.canvas !== canvas).length;
+  const rows = sheetRows(answer, canvas, designRel);
+  const more = (answer?.uses ?? []).filter((u) => !sameCanvas(u.canvas, canvas, designRel)).length;
   const refused = answer?.canApply ? '' : answer?.reason || SHEET_WORDS.failed;
 
   const apply = async () => {

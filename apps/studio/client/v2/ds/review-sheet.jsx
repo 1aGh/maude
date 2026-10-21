@@ -22,6 +22,7 @@ import {
   groupByFolder,
   headWords,
   keepsWords,
+  nameOf,
   noteFor,
   primaryWords,
   REVIEW_WORDS,
@@ -223,7 +224,7 @@ export function DsReviewSheet({
             {shown.map((c) => (
               <p key={c.css} className="dsr-sw-line" data-css={c.css}>
                 <Delta change={c} view={view} />
-                <b>{c.label ?? c.css}</b>
+                <b>{nameOf(c)}</b>
                 {fineInBoth(c) && shown.length === 1 ? (
                   <span className="dsr-ok" data-testid="ds-review-ok">
                     <StIcon name="check" size={12} />

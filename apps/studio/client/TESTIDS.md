@@ -64,7 +64,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | live / reconnecting dot | Menu › Diagnostics › Server | `diag-live` |
 | hub sync chip | Share cluster word (`data-status`) and Menu › Diagnostics › Sync | `share-cluster-status`, `project-menu-status-diag.sync` |
 | `v<version>` | Settings › Advanced › This Mac › Version | `settings-app-version` |
-| light / dark toggle | Settings › General › Look › Theme | `settings-theme` |
+| light / dark toggle | Settings › General › Look › Theme (Light · Dark · Auto) | `settings-theme` |
 
 ### sidebar/tree
 
@@ -485,6 +485,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-print-pages` | testid | The page thumbnails under the paper (only when the back is page 2). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-page-<n>` | testid | One page thumbnail (1 = the front, 2 = the back); a press shows that page. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-caption` | testid | "Page 1 of 2 · A6 · 105 × 148 mm" under the paper. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
+| `export-print-pending` | testid | The print preview's blank page while the page is measured (`data-state="measuring"`) or when the artboard has no paper size (`data-state="none"`). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new in v2 (gate-b-polish3) |
 | `export-print-legend` | testid | What the marks on the paper mean (Bleed, Cut, Safe). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-format` | testid | The Format group of the Print section: Print PDF · PDF · PNG (`data-value` = the picked id). | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
 | `export-print-format-<id>` | testid | One format of the Print section. `<id>` is print-pdf, pdf or png; Other… keeps `export-format-<id>`. | `client/v2/export/sections/print.jsx` · `PrintSection` | test:v2-export-print | new |
@@ -618,6 +619,9 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `comment-menu-<id>` | testid (pattern) | The ⋯ button on a converted thread’s header (editors). Opens the thread menu (S4.V4 G5). | `comments-overlay.tsx` · `CommentThread` | test:convert-back-thread | new in v2 (S4.V4) |
 | `comment-menu-to-sticky-<id>` | testid (pattern) | "Turn back into a sticky" in a converted thread’s ⋯ menu; disabled with "<Name> replied — resolve the thread instead." when someone else replied (S4-S9 §3.4; S4.V4 G5). | `comments-overlay.tsx` · `CommentThread` | test:convert-back-thread | new in v2 (S4.V4) |
 | `comment-composer-where` | testid | The composer header chip: where the new comment will be pinned ("at 0:12", millimetres) before it is saved. | `comments-overlay.tsx` · `CommentComposer` | test:v2-comments-panel-render | new in v2 (S9.22) |
+| `comment-composer-place` | testid | The composer header's place in words when the chip carries `comment-composer-where`. | `comments-overlay.tsx` · `CommentComposer` | — | new in v2 (gate-b-polish3) |
+| `comment-composer-cancel` | testid | The composer's × (esc does the same). | `comments-overlay.tsx` · `CommentComposer` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
+| `comment-composer-send` | testid | The composer's round send (⌘↵ does the same); also `.cm-composer .cm-btn--primary`. | `comments-overlay.tsx` · `CommentComposer` | — | new in v2 (gate-b-polish3) |
 | `comment-notice` | testid | A refused comment write said in one sentence ("That did not go through."); the typed text stays in the composer. | `comments-overlay.tsx` · `CommentsOverlay` | test:v2-comments-panel-render | new in v2 (S9.22) |
 
 ### banners
@@ -680,8 +684,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `settings-account-links` | testid | The five account pages on the web (signed in). | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
 | `settings-account-<key>` | testid (pattern) | One account page; `<key>` ∈ people, billing, macs, download, delete. | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
 | `settings-open-emails` | testid | General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard. | `client/v2/settings/account.jsx` · `AccountBlock` | test:v2-settings | new in v2 (S9.18) |
-| `settings-theme` | testid | General › Look › the Light / Dark radio group. | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
-| `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
+| `settings-theme` | testid | General › Look › Theme: the Light · Dark · Auto segmented radio group (native radios, `input[value]`). | `client/v2/settings/general-section.jsx` · `ThemeSegment` | e2e-helper:chrome | stable |
+| `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). *Retired gate-b-polish2: the switch became Inspector › Advanced (`inspector-section-advanced`); the v2 inspector ignored it.* | `client/panels/SettingsPanel.jsx` · `AppearanceTab` (no longer mounted) | — | retired — gate-b-polish2 |
 | `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-keyboard` | testid | General › Keyboard group (the Single-key shortcuts switch). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-single-keys` | testid | General › Keyboard › the Single-key shortcuts switch: off, only shortcuts with ⌘ or ⌥ fire (V, H, N, /, ? go quiet). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
@@ -748,7 +752,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `acp-not-connected` | testid | Chat panel body shown while the ACP agent is not connected (holds the readiness list). | `client/panels/ChatPanel.jsx` · `NotConnected` | e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
+| `acp-not-connected` | testid | Chat panel body shown while the ACP agent is not connected (holds the readiness list). *Retired gate-b-polish2 (CONTRACT §7): the panel looks the same; the first send opens `ai-connect-sheet`; the readiness list is Menu › Diagnostics › AI setup (`diag-ai`). e2e asks `/_api/acp/status` (`aiConnected()`).* | `client/panels/ChatPanel.jsx` · `NotConnected` (deleted) | — | retired — gate-b-polish2 |
 | `acp-setup-install` | testid | Readiness row action: install Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 | `acp-setup-signin` | testid | Readiness row action: sign in to Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | — | stable — re-emit |
 | `rdy-row-<id>` | testid (pattern) | One readiness check row (e.g. `rdy-row-claude`). Also rendered in onboarding and the readiness dialog. | `client/panels/ReadinessList.jsx` · `Row` | e2e:acp-cold-start | stable — re-emit |
@@ -1061,14 +1065,14 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `sync-consent` | testid | First-link sync consent dialog. | `client/panels/SyncConsentDialog.jsx` · `SyncConsentDialog` | — | stable — re-emit |
 | `sync-consent-limit` | testid | Size-limit line in the consent dialog. | `client/panels/SyncConsentDialog.jsx` · `SyncConsentDialog` | — | stable — re-emit |
 | `sync-consent-accept` | testid | Accept button in the consent dialog. | `client/panels/SyncConsentDialog.jsx` · `SyncConsentDialog` | e2e-mp:cloud-entry, e2e-mp:selfhost-entry | stable — re-emit |
-| `source-conflict-panel` | testid | Source-conflict resolution dialog. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | runner:reliable-project-multiplayer/f3/s18-desktop.mjs | stable — re-emit |
-| `source-conflict-close` | testid | Close button. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | stable — re-emit |
-| `source-conflict-original` | testid | "Original draft" side. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | stable — re-emit |
-| `source-conflict-base` | testid | "Starting version" side. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | stable — re-emit |
-| `source-conflict-diff` | testid | The differences region. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | stable — re-emit |
-| `source-conflict-error` | testid | Error line. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | — | stable — re-emit |
-| `source-conflict-keep-mine` | testid | "Keep mine" button. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | — | stable — re-emit |
-| `source-conflict-use-theirs` | testid | "Use theirs" button. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | runner:reliable-project-multiplayer/f3/s18-desktop.mjs, test:source-conflict-dialog | stable — re-emit |
+| `source-conflict-panel` | testid | Source-conflict resolution dialog. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | runner:reliable-project-multiplayer/f3/s18-desktop.mjs | moves — gate-b-reach: the dialog left with the Sync panel (SourceConflictPanel is mounted nowhere; its file stays for `lineDiff`). A conflict is a card in Diagnostics > Sync > Needs you, `diag-sync-conflict-<slug>`: Keep mine, Use theirs, Keep both and Compare (`diag-sync-compare-<slug>`, the changed lines in `diag-sync-compare-lines-<slug>`). |
+| `source-conflict-close` | testid | Close button. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | moves — gate-b-reach: the dialog closed with its Close button; Compare folds shut in the conflict card (`diag-sync-compare-<slug>`). |
+| `source-conflict-original` | testid | "Original draft" side. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | moves — gate-b-reach: the two sides are the changed lines Compare draws (`diag-sync-compare-lines-<slug>`) in Diagnostics > Sync > Needs you. |
+| `source-conflict-base` | testid | "Starting version" side. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | moves — gate-b-reach: the two sides are the changed lines Compare draws (`diag-sync-compare-lines-<slug>`) in Diagnostics > Sync > Needs you. |
+| `source-conflict-diff` | testid | The differences region. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | test:source-conflict-dialog | moves — gate-b-reach: the differences are `diag-sync-compare-lines-<slug>` in the conflict card of Diagnostics > Sync > Needs you. |
+| `source-conflict-error` | testid | Error line. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | — | moves — gate-b-reach: a pick that fails says so in the card (`diag-sync-conflict-note-<slug>`). |
+| `source-conflict-keep-mine` | testid | "Keep mine" button. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | — | moves — gate-b-reach: Keep mine is a button of the conflict card in Diagnostics > Sync > Needs you (registry `sync.keep-mine`). |
+| `source-conflict-use-theirs` | testid | "Use theirs" button. | `client/panels/SourceConflictPanel.jsx` · `SourceConflictPanel` | runner:reliable-project-multiplayer/f3/s18-desktop.mjs, test:source-conflict-dialog | moves — gate-b-reach: Use theirs is a button of the conflict card in Diagnostics > Sync > Needs you (registry `sync.use-theirs`). |
 | `cloud-bar` | testid | Connections › Maude Cloud: the account’s own words — the cloud projects on this Mac, the Connect outcome note, an error. (The CloudBar rail’s root keeps the same hook.) | `client/v2/settings/connections-section.jsx` · `ConnectionsSection`<br>`client/panels/CloudBar.jsx` · `CloudBar` | e2e:cloud-attach | moves — map in Phase 4 |
 | `cloud-signin` | testid | Cloud rail "Sign in" button (signed out). | `client/v2/settings/connections-section.jsx` · `ConnectionsSection`<br>`client/panels/CloudBar.jsx` · `CloudBar` | e2e:cloud-attach | moves — map in Phase 4 |
 | `cloud-connect-note` | testid | Cloud rail status note (`role="status"`, `title` carries detail). | `client/v2/settings/connections-section.jsx` · `ConnectionsSection`<br>`client/panels/CloudBar.jsx` · `CloudBar` | e2e:cloud-attach | moves — map in Phase 4 |
@@ -1103,7 +1107,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `team-hub-open` | testid | Self-hosted hub: Open submit. | `client/panels/TeamProjects.jsx` · `TeamProjects` | e2e-mp:selfhost-entry, e2e:s20-deployment, e2e:team-project | stable — re-emit |
 | `team-projects-dialog` | testid | The team projects dialog (opened from the switcher or the Sync panel). | `client/panels/TeamProjects.jsx` · `TeamProjectsDialog` | e2e:cloud-attach, e2e:team-project | stable — re-emit |
 | `team-projects-close` | testid | Close button of that dialog. | `client/panels/TeamProjects.jsx` · `TeamProjectsDialog` | e2e:team-project | stable — re-emit |
-| `.sp-note / .sp-note-dot` | selector | Sync panel status note and its dot; `.sp-note-dot.is-<phase>` (e.g. `is-refused`) reflects the phase. | `client/panels/SyncPanel.jsx` · `SyncPanel` | e2e-mp:surface, e2e:team-project | stable — re-emit |
+| `.sp-note / .sp-note-dot` | selector | Sync panel status note and its dot; `.sp-note-dot.is-<phase>` (e.g. `is-refused`) reflects the phase. | `client/panels/SyncPanel.jsx` · `SyncPanel` | e2e-mp:surface, e2e:team-project | moves — gate-b-reach: the status note and its phase dot left with the Sync panel (mounted nowhere, S11.12b); Diagnostics > Sync says the state in its title (`diag-sync-title`) and the Needs you word (`diag-sync-need-word`). |
 
 ### onboarding
 
@@ -1168,7 +1172,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `figma-frames-all` | testid | Import from Figma: Pick all / Pick none. | `client/v2/import/frame-picker.jsx` · `FramePicker` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-frame-<id>` | testid (pattern) | Import from Figma: one frame's check (<id> = the Figma node id, non-alphanumerics as -). | `client/v2/import/frame-picker.jsx` · `FramePicker` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-dest` | testid | Import from Figma: Put them in (the folder › New canvas). | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
-| `figma-opt-comments` | testid | Import from Figma: "Comments, as stickies". | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
+| `figma-opt-comments` | testid | Import from Figma: "Comments, as comment pins". | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-pictures-line` | testid | Import from Figma: the line saying each frame arrives as Figma's exact picture. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-renamed` | testid | Import from Figma: the line naming the "<name> (Figma)" canvas when the name was taken. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
 | `figma-done` | testid | Import from Figma: Done on the summary. | `client/v2/import/figma-sheet.jsx` · `FigmaSheet` | e2e:import-figma | new in v2 (S8.17) |
@@ -1212,6 +1216,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `share-error` | testid | The hub's refusal, in its own words (`role="alert"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-owner-only` | testid | The line a person without `invite` sees instead of the invite form. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-local-note` | testid | A local (unlinked) project: no invite, one line about the cloud. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-unconfirmed` | testid | gate-b-sec4: the folder's committed linkedHub was never linked on this Mac — "This project says it syncs with <host>. Connect?" | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:v2-share-link-unconfirmed.test | new |
+| `share-link-connect` | testid | gate-b-sec4: Connect — records the link on this Mac (POST /_api/sync/link/confirm) and starts syncing. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:v2-share-link-unconfirmed.test | new |
 | `share-unreachable` | testid | The hub cannot be asked right now; invites wait. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 | `share-people` | testid | The people list with its count line ("3 people · 1 invited"). | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
 | `share-people-empty` | testid | Under your own row in the Share sheet when nobody else is on the project: "Only you on {project} so far." (no button). `data-copy` is es-edge-panels.share-alone. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
@@ -1395,6 +1401,8 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `invite-sheet-cancel` | testid | Cancel on the invite sheet (Escape and the scrim answer the same); a running sign-in for the invite stops. | `client/home/InviteSheet.jsx` · `InviteSheet` | test:invite-flow | new in v2 (S6.11) |
 | `invite-sheet-waiting` | testid | "Waiting for your browser…" while the invite's sign-in runs. | `client/home/InviteSheet.jsx` · `InviteSheet` | test:invite-flow | new in v2 (S6.11) |
 | `invite-sheet-reopen` | testid | "Open the page again" — the invite's sign-in page, in the browser again. | `client/home/InviteSheet.jsx` · `InviteSheet` | test:invite-flow | new in v2 (S6.11) |
+| `invite-sheet-join` | testid | Join, on the invite sheet in `join` mode (the invite's address is signed in on this Mac): the one explicit accept — a `maude://invite` link never accepts by itself (gate-b-sec3 M2). | `client/home/InviteSheet.jsx` · `InviteSheet` | test:invite-flow | new in v2 (gate-b-sec3) |
+| `invite-sheet-account` | testid | In `join` mode: the account that joins (its face and address), so the person sees which account the invite lands in before pressing Join. | `client/home/InviteSheet.jsx` · `InviteSheet` | test:invite-flow | new in v2 (gate-b-sec3) |
 | `home-create-cancel` | testid | Cancel in the New project sheet (Escape and the scrim answer the same). | `client/v2/signin/CreateLocalSheet.jsx` · `CreateLocalSheet` | test:home-page | new in v2 (V2-3.9) |
 | `home-ask-input` | testid | Home's question field (S6.4, "What shall we make?"): one sentence; ↵ sends it as an intent to the chosen project, Shift+↵ is a new line. | `client/home/HomeAsk.jsx` · `HomeAsk` | test:home-ask-send | new in v2 (S6.4) |
 | `home-ask-send` | testid | The spark button beside the question: sends the sentence (off while the field is empty, a request is running, or this Mac is offline). | `client/home/HomeAsk.jsx` · `HomeAsk` | test:home-ask-send | new in v2 (S6.4) |
@@ -1413,6 +1421,9 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `home-shared` | testid | The "Shared with you" shelf (signed in): rows of canvases and projects other people shared, or the ghost-card empty. | `client/home/Shelves.jsx` · `SharedWithYou` | test:home-ask-send | new in v2 (S6.4) |
 | `home-shared-empty` | testid | "Nothing shared with you yet." — ghost cards and a line, deliberately no button. | `client/home/Shelves.jsx` · `SharedWithYou` | test:home-ask-send | new in v2 (S6.4) |
 | `home-shared-row-<projectId>-<slug>` | testid (pattern) | One shared row (`<slug>` = the shared canvas' path slug, or `project` for a project-level share): opens like a cloud row, landing on the canvas. | `client/home/Shelves.jsx` · `SharedWithYou` | test:home-ask-send | new in v2 (S6.4) |
+| `home-invite-row-<projectId>-<slug>` | testid (pattern) | One pending invitation addressed to the signed-in account (`<slug>` = the invited canvas' path slug, or `project`): who invited you to what, the role, Join and Leave. Not a button; it names the project, never an invite id. | `client/home/Shelves.jsx` · `SharedWithYou` | test:home-pending-invites-page | new in v2 (gate-b-sec3b) |
+| `home-invite-join-<projectId>-<slug>` | testid (pattern) | Join on a pending invitation: accepts it by project (and canvas), then opens the landing. Needs the desktop app. | `client/home/Shelves.jsx` · `SharedWithYou` | test:home-pending-invites-page | new in v2 (gate-b-sec3b) |
+| `home-invite-leave-<projectId>-<slug>` | testid (pattern) | Leave on a pending invitation: declines it; the row goes once the list is read again. | `client/home/Shelves.jsx` · `SharedWithYou` | test:home-pending-invites-page | new in v2 (gate-b-sec3b) |
 | `signin-card` | testid | The sign-in card on Home (S6.8, 02 ob-first-launch): "Keep your work on cloud.maude.sh" with two doors. `data-state` is idle | waiting | timeout | failed | offline. Shown only on a first run (no project, no account) or while a sign-in runs. | `client/v2/signin/SignInCard.jsx` · `SignInCard` | test:home-first-run | new in v2 (S6.8) |
 | `signin-cloud` | testid | The card's "Sign in to cloud.maude.sh" door: opens the browser sign-in (registry `home.signin`). Rests while this Mac is offline. | `client/v2/signin/SignInCard.jsx` · `SignInCard` | test:home-first-run | new in v2 (S6.8) |
 | `signin-local` | testid | The card's "Just a local project" door: opens the Create a local project sheet. | `client/v2/signin/SignInCard.jsx` · `SignInCard` | test:home-first-run | new in v2 (S6.8) |
@@ -1701,7 +1712,9 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `layers-element-id` | testid | Layers > Advanced > Element id: the selected element's id (mono). Absent with nothing selected. | `client/v2/left-panel/layers-advanced.jsx` · `LayersAdvanced` | test:v2-left-advanced | new in v2 (S11.9) |
 | `layers-element-id-copy` | testid | Layers > Advanced > Element id: the Copy button. | `client/v2/left-panel/layers-advanced.jsx` · `LayersAdvanced` | test:v2-left-advanced | new in v2 (S11.9) |
 | `layer-tag` | testid | A layer row's "tag · id" text while Show tags and ids is on. | `client/inspector/layers.jsx` · `LayerRow` | test:v2-left-advanced | new in v2 (S11.9) |
-| `layers-artboard-count` | testid | The Layers panel header's "N artboards" for the open canvas. | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `layers-artboard-count` | testid | The Layers panel header's "N artboards" for the open canvas. | `client/v2/layers/artboard-layers.jsx` · `ArtboardLayers` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `layers-by-artboard` | testid | The Layers tab by artboard: canvas name + count, one row per artboard, the current one's tree nested under it. | `client/v2/layers/artboard-layers.jsx` · `ArtboardLayers` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
+| `layers-artboard-<id>` | testid (pattern) | One artboard row in Layers: kind glyph + label (`data-kind`), `aria-current` on the current artboard, `data-dim` when the kind chips dim it; click selects it. | `client/v2/layers/artboard-layers.jsx` · `ArtboardLayers` | test:gate-b-polish3 | new in v2 (gate-b-polish3) |
 | `inspector-selection` | testid | The Inspector header: the selection's selector (the status bar's "selected" chip); `title` = the DOM path. | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | e2e-mp:surface | new in v2 (V2-4.8b) |
 | `inspector-selection-text` | testid | The element's own text beside the selector in the Inspector header (first 60 characters). | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | e2e-mp:surface | new in v2 (V2-4.8b) |
 | `inspector-frame` | testid | The Inspector's body for a selection: crumbs, name + kind chip, the numbered sections, › Advanced. `data-kind` = the kind id. | `client/v2/inspector/frame.jsx` · `InspectorFrame` | test:v2-inspector-render | new in v2 (S2.2) |

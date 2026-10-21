@@ -164,13 +164,14 @@
     top: -1px;
     display: grid;
     place-items: center;
-    min-width: 12px;
-    height: 12px;
+    min-width: 14px;
+    height: 14px;
     border-radius: var(--radius-xs);
     background: var(--accent);
     color: var(--bg-0);
-    font-size: 9px;
-    font-weight: 700;
+    /* gate-B polish (RC-E): on the type ladder (11 px) and weights stop at semibold */
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
     line-height: 1;
   }
   .tl-inout--in {

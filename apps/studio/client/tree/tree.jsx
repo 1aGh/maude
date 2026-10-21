@@ -754,6 +754,18 @@ export const SECTION_META = {
   runtime: { title: 'Runtime files', pillFromCount: true },
 };
 
+/**
+ * Panel search, hidden files off: the groups listed under the canvas hits. Only the Design system, and only
+ * when it has a hit — Project files and Runtime files are developer chrome (05 es-search-panel) and stay in
+ * the file view (Canvases › Advanced › Show hidden files), where every group is listed as before.
+ */
+export function searchOtherGroups(groups) {
+  return (groups || []).filter(
+    (g) =>
+      g.kind === 'canvas' && g.label === 'Design system' && Object.keys(g.tree || {}).length > 0
+  );
+}
+
 export function sectionMetaFor(g) {
   if (g.kind === 'project') return SECTION_META.project;
   if (g.kind === 'runtime') return SECTION_META.runtime;
@@ -1478,12 +1490,10 @@ export function Sidebar({
                 {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
                 {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
               </CanvasesPanel>
-              {/* While searching, the other groups' hits (Design system, project and runtime files) follow. */}
+              {/* While searching, the Design system's hits follow (never Project or Runtime files). */}
               {search ? (
                 <FileTree aria-label="Other project files" data-testid="canvases-other-files">
-                  {filteredGroups
-                    .filter((g) => g.kind !== 'canvas' || g.label === 'Design system')
-                    .map((g) => renderSection(g))}
+                  {searchOtherGroups(filteredGroups).map((g) => renderSection(g))}
                 </FileTree>
               ) : null}
             </>

@@ -102,6 +102,10 @@ function cleanAccess(access) {
  * @param {{ posture?: object|null, me?: object|null, target?: { rel?: string|null, label?: string },
  *           project?: string, scope?: 'canvas'|'project' }} input
  */
+/** A tab label is the file's basename ("Smoke.tsx"); the sheet shows the canvas name ("Smoke"). */
+const shownName = (label) =>
+  typeof label === 'string' ? label.replace(/\.(tsx|jsx|html)$/i, '') : '';
+
 export function sheetView({ posture, me, target, project, scope } = {}) {
   const linked = posture?.linked === true;
   const reachable = linked && posture?.reachable !== false;
@@ -122,8 +126,10 @@ export function sheetView({ posture, me, target, project, scope } = {}) {
     scope: current,
     /** The hub's `canvas` for this scope (designRoot-relative), or null for the whole project. */
     canvas: current === 'canvas' ? canvasRel : null,
-    scopeName: current === 'canvas' ? target?.label || canvasRel : project || 'this project',
-    title: `Share ${target?.label || project || 'this project'}`,
+    scopeName:
+      current === 'canvas' ? shownName(target?.label) || canvasRel : project || 'this project',
+    // CONTRACT §3: the canvas's name, never its file name ("Share Smoke", not "Share Smoke.tsx")
+    title: `Share ${shownName(target?.label) || project || 'this project'}`,
     inviteRoles: grantable,
     defaultInviteRole: grantable.includes('member') ? 'member' : (grantable[0] ?? 'member'),
     /** Role-menu rows for a person (never a pending row). */
@@ -380,5 +386,8 @@ export function shareApi(fetchImpl = (...a) => fetch(...a)) {
     githubInvite: (username) => go('POST', '/_api/github/invite', { username }),
     // S9.20b — "Last synced": the sync runtime's own status (project class; absent = no line)
     syncStatus: () => go('GET', '/_sync-status'),
+    // gate-b-sec4 — the folder names a hub this Mac never linked: its host, and Connect
+    pendingLink: () => go('GET', '/_api/sync/link'),
+    confirmLink: () => go('POST', '/_api/sync/link/confirm', {}),
   };
 }

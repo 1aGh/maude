@@ -29,6 +29,11 @@ export function pageCaption({ page, pages, paper }) {
   return `Page ${page + 1} of ${pages} · ${name}${w} × ${h} mm`;
 }
 
+// gate-b-polish3 (09 · ex-print) — the preview column is never an empty box: while the page is measured it
+// says so over a blank page, and an artboard with no paper size says that instead.
+export const PAPER_PENDING = 'Drawing the page…';
+export const PAPER_NONE = 'No paper size on this artboard yet — pick one in the inspector.';
+
 export const LEGEND = {
   bleed: (mm) => `Bleed ${Math.round(mm * 10) / 10} mm`,
   cut: 'Cut',

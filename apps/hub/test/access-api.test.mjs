@@ -12,7 +12,7 @@ import { after, before, describe, test } from 'node:test';
 import { peekInvite } from '../src/invites.mjs';
 import { ACCESS_ROWS, accessPosture } from '../src/routes-v2/access.mjs';
 import { HUB_ROUTE_ROWS } from '../src/routes-v2/index.mjs';
-import { createUser } from '../src/users.mjs';
+import { createUser, getUser } from '../src/users.mjs';
 import { A, B, http, NOPE, rm, seedTokens, startHub, tmpDir } from './_acl-docs-fixture.mjs';
 
 const PW = 'correct horse battery staple';
@@ -286,7 +286,24 @@ describe('the access API, self-hosted (after the flip): This canvas', () => {
     assert.equal(peekInvite(ctx.dataDir, value).ok, true, 'the invite is still unspent');
   });
 
-  test('an existing canvas-only person gains a canvas; a project member is unchanged (G1)', async () => {
+  test('an invitation answers the same for a known and an unknown address (gate-b-sec3)', async () => {
+    const owner = ctx.as('owner');
+    const known = await owner.post('/api/access/invites', { email: 'max@x.test', role: 'member' });
+    const unknown = await owner.post('/api/access/invites', {
+      email: 'nobody-yet@x.test',
+      role: 'member',
+    });
+    assert.equal(known.status, 201);
+    assert.equal(unknown.status, 201);
+    const norm = (r) =>
+      r.text
+        .replaceAll(r.body.id, '<id>')
+        .replace(r.body.url.split('/join/')[1], '<value>')
+        .replace(String(r.body.expiresAt), '<expires>');
+    assert.equal(norm(known), norm(unknown));
+  });
+
+  test('an existing canvas-only person gains a canvas only once they accept; a project member is unchanged (G1)', async () => {
     const dataDir = ctx.dataDir;
     createUser(dataDir, {
       email: 'bob@x.test',
@@ -295,22 +312,53 @@ describe('the access API, self-hosted (after the flip): This canvas', () => {
       access: { v: 1, role: null, grants: [{ c: B, r: 'member' }] },
     });
     const owner = ctx.as('owner');
+    const onA = async () =>
+      (await owner.get(`/api/access/people?canvas=${encodeURIComponent(A)}`)).body.people;
     const add = await owner.post('/api/access/invites', {
       email: 'bob@x.test',
       role: 'member',
       canvas: A,
     });
-    assert.equal(add.status, 200);
-    assert.equal(add.body.added, true);
-    const onA = (await owner.get(`/api/access/people?canvas=${encodeURIComponent(A)}`)).body.people;
-    assert.ok(onA.some((p) => p.email === 'bob@x.test' && p.role === 'member'));
+    assert.equal(add.status, 201);
+    assert.deepEqual(
+      getUser(dataDir, 'bob@x.test').access.grants.map((g) => g.c),
+      [B],
+      'not on A before accepting'
+    );
+    assert.ok(
+      (await onA()).some((p) => p.email === 'bob@x.test' && p.state === 'invited'),
+      'the owner sees the invitation waiting'
+    );
+    const value = add.body.url.split('/join/')[1];
+    const join = (password) =>
+      fetch(`${ctx.hub.http}/join`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-maude-access': '2' },
+        body: JSON.stringify({ token: value, email: 'bob@x.test', password }),
+      });
+    // a wrong password says the one neutral sentence and spends nothing
+    const wrong = await join('not the password at all');
+    assert.equal(wrong.status, 400);
+    assert.match((await wrong.json()).error, /can't be used with this invitation/);
+    assert.equal(peekInvite(dataDir, value).ok, true);
+    // accepting = signing in as that address: A is added, B is kept
+    const ok = await join(PW);
+    assert.equal(ok.status, 201, await ok.clone().text());
+    assert.deepEqual(
+      getUser(dataDir, 'bob@x.test')
+        .access.grants.map((g) => g.c)
+        .sort(),
+      [A, B].sort()
+    );
+    assert.equal(peekInvite(dataDir, value).ok, false, 'spent');
+    // a project member invited to one canvas stays a project member
     const max = await owner.post('/api/access/invites', {
       email: 'max@x.test',
       role: 'member',
       canvas: A,
     });
-    assert.equal(max.status, 200);
-    const maxRow = onA.find((p) => p.email === 'max@x.test');
+    assert.equal(max.status, 201);
+    const maxRow = (await onA()).find((p) => p.email === 'max@x.test');
     assert.equal(maxRow.role, 'member');
   });
 });

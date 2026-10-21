@@ -1186,13 +1186,14 @@
     "hook": "comment-composer-where",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The composer header chip: where the new comment will be pinned (\"at 0:12\", millimetres) before it is saved.",
+    "meaning": "The composer's place: the moment / millimetres chip (\"at 0:12\") when the comment has one, else the header's place in words (artboard label, element name, or \"On the canvas\") — never a raw id.",
     "producer": {
       "file": "apps/studio/comments-overlay.tsx",
       "symbol": "CommentComposer"
     },
     "region": "canvas iframe chrome",
     "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx",
       "apps/studio/test/v2-comments-panel-render.test.tsx"
     ],
     "v2": "new"
@@ -1239,13 +1240,9 @@
       "symbol": "NotConnected"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
-    "v2": "stable"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired gate-b-polish2 (CONTRACT §7, decision:maude/v2-gate-b-polish2-ai-panel-normal): the AI panel looks the same when Claude is not connected; the first send is kept and the one Connect sheet asks (`ai-connect-sheet`). The readiness list, whole, is Menu › Diagnostics › AI setup (`diag-ai`). The e2e scenarios ask the bridge instead (`aiConnected()` in apps/desktop/e2e/helpers/assistant.ts)."
   },
   {
     "hook": "acp-setup-install",
@@ -3771,7 +3768,8 @@
     "consumers": [
       ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the dialog left with the Sync panel (SourceConflictPanel is mounted nowhere; its file stays for `lineDiff`). A conflict is a card in Diagnostics > Sync > Needs you, `diag-sync-conflict-<slug>`: Keep mine, Use theirs, Keep both and Compare (`diag-sync-compare-<slug>`, the changed lines in `diag-sync-compare-lines-<slug>`)."
   },
   {
     "hook": "source-conflict-close",
@@ -3786,7 +3784,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the dialog closed with its Close button; Compare folds shut in the conflict card (`diag-sync-compare-<slug>`)."
   },
   {
     "hook": "source-conflict-original",
@@ -3801,7 +3800,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the two sides are the changed lines Compare draws (`diag-sync-compare-lines-<slug>`) in Diagnostics > Sync > Needs you."
   },
   {
     "hook": "source-conflict-base",
@@ -3816,7 +3816,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the two sides are the changed lines Compare draws (`diag-sync-compare-lines-<slug>`) in Diagnostics > Sync > Needs you."
   },
   {
     "hook": "source-conflict-diff",
@@ -3831,7 +3832,8 @@
     "consumers": [
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the differences are `diag-sync-compare-lines-<slug>` in the conflict card of Diagnostics > Sync > Needs you."
   },
   {
     "hook": "source-conflict-error",
@@ -3844,7 +3846,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: a pick that fails says so in the card (`diag-sync-conflict-note-<slug>`)."
   },
   {
     "hook": "source-conflict-keep-mine",
@@ -3857,7 +3860,8 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: Keep mine is a button of the conflict card in Diagnostics > Sync > Needs you (registry `sync.keep-mine`)."
   },
   {
     "hook": "source-conflict-use-theirs",
@@ -3873,7 +3877,8 @@
       ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs",
       "apps/studio/test/source-conflict-dialog.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: Use theirs is a button of the conflict card in Diagnostics > Sync > Needs you (registry `sync.use-theirs`)."
   },
   {
     "hook": "cloud-bar",
@@ -5302,6 +5307,36 @@
     ],
     "v2": "new",
     "notes": "Also produced by client/v2/share/move-to-cloud.jsx · MoveToCloud (S9.20)."
+  },
+  {
+    "hook": "share-link-unconfirmed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "gate-b-sec4: the folder's committed linkedHub was never linked on this Mac — \u201cThis project says it syncs with <host>. Connect?\u201d",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/v2-share-link-unconfirmed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "gate-b-sec4: Connect — records the link on this Mac (POST /_api/sync/link/confirm) and starts syncing.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": [
+      "apps/studio/test/v2-share-link-unconfirmed.test.tsx"
+    ],
+    "v2": "new"
   },
   {
     "hook": "share-unreachable",
@@ -8727,7 +8762,8 @@
       "apps/desktop/e2e/multiplayer/surface.e2e.ts",
       "apps/desktop/e2e/scenarios/team-project.e2e.ts"
     ],
-    "v2": "stable"
+    "v2": "moves",
+    "notes": "gate-b-reach: the status note and its phase dot left with the Sync panel (mounted nowhere, S11.12b); Diagnostics > Sync says the state in its title (`diag-sync-title`) and the Needs you word (`diag-sync-need-word`)."
   },
   {
     "hook": "[aria-label=\"Close share dialog\"]",
@@ -10830,6 +10866,36 @@
     "v2": "new"
   },
   {
+    "hook": "invite-sheet-join",
+    "kind": "testid",
+    "meaning": "Join, on the invite sheet in `join` mode (the invite's address is signed in on this Mac): the one explicit accept — a `maude://invite` link never accepts by itself (gate-b-sec3 M2).",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "invite-sheet-account",
+    "kind": "testid",
+    "meaning": "In `join` mode: the account that joins (its face and address), so the person sees which account the invite lands in before pressing Join.",
+    "producer": {
+      "file": "apps/studio/client/home/InviteSheet.jsx",
+      "symbol": "InviteSheet"
+    },
+    "region": "home",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/invite-flow.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "home-create-cancel",
     "kind": "testid",
     "meaning": "Cancel in the New project sheet (Escape and the scrim answer the same).",
@@ -11085,6 +11151,51 @@
     "region": "home",
     "consumers": [
       "test:home-ask-send"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-invite-row-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One pending invitation addressed to the signed-in account (`<slug>` = the invited canvas' path slug, or `project`): who invited you to what, the role, Join and Leave. Not a button; it names the project, never an invite id.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-pending-invites-page"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-invite-join-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Join on a pending invitation: accepts it by project (and canvas), then opens the landing. Needs the desktop app.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-pending-invites-page"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "home-invite-leave-<projectId>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Leave on a pending invitation: declines it; the row goes once the list is read again.",
+    "producer": {
+      "file": "apps/studio/client/home/Shelves.jsx",
+      "symbol": "SharedWithYou"
+    },
+    "region": "home",
+    "consumers": [
+      "test:home-pending-invites-page"
     ],
     "v2": "new"
   },
@@ -13266,10 +13377,10 @@
     "hook": "settings-theme",
     "kind": "testid",
     "pattern": false,
-    "meaning": "General › Look › the Light / Dark radio group.",
+    "meaning": "General › Look › Theme: the Light · Dark · Auto segmented radio group (native radios, `input[value]`). Auto matches the computer's appearance.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "AppearanceTab"
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "ThemeSegment"
     },
     "region": "settings",
     "consumers": [],
@@ -13286,7 +13397,8 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "retired",
+    "notes": "Retired gate-b-polish2 (06: the switch became the inspector's Advanced fold; the v2 inspector always renders the raw editor there and Designer above it, so the radio changed nothing). Home: Inspector › Advanced (`inspector-section-advanced`)."
   },
   {
     "hook": "settings-canvas-view",
@@ -14600,11 +14712,12 @@
     "pattern": false,
     "meaning": "The standalone Layers panel header's \"N artboards\" for the open canvas (the status bar's artboard count, moved).",
     "producer": {
-      "file": "apps/studio/client/inspector/inspector-panel.jsx",
-      "symbol": "InspectorPanel"
+      "file": "apps/studio/client/v2/layers/artboard-layers.jsx",
+      "symbol": "ArtboardLayers"
     },
     "region": "other",
     "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx",
       "apps/studio/test/v2-callouts.test.tsx"
     ],
     "v2": "new"
@@ -35630,7 +35743,7 @@
     "hook": "figma-opt-comments",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Import from Figma: \"Comments, as stickies\".",
+    "meaning": "Import from Figma: \"Comments, as comment pins\".",
     "producer": {
       "file": "apps/studio/client/v2/import/figma-sheet.jsx",
       "symbol": "FigmaSheet"
@@ -39933,6 +40046,92 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/ds-library-board-bar.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-by-artboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers tab listed by artboard: the canvas name + count, one row per artboard, the tree of the current one nested under it.",
+    "producer": {
+      "file": "apps/studio/client/v2/layers/artboard-layers.jsx",
+      "symbol": "ArtboardLayers"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-artboard-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard row in Layers: kind glyph + label (`data-kind`), `aria-current` on the artboard you are in, `data-dim` when the kind chips dim it; a click selects it on the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/layers/artboard-layers.jsx",
+      "symbol": "ArtboardLayers"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer header's place in words when a moment / millimetres chip carries `comment-composer-where`.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's × (esc does the same).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's round send button (⌘↵ does the same); also `.cm-composer .cm-btn--primary`.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-pending",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The print preview's blank page while the page is measured (`data-state=\"measuring\"`) or when the artboard has no paper size (`data-state=\"none\"`); the caption says which.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
     ],
     "v2": "new"
   }

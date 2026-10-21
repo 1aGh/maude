@@ -45,7 +45,7 @@ export const SETTINGS_ROWS = Object.freeze([
     section: 'general',
     testid: 'settings-theme',
     action: 'settings.theme',
-    where: 'Settings › General › Look › Theme (⌘K “Theme” toggles it)',
+    where: 'Settings › General › Look › Theme: Light · Dark · Auto (⌘K “Theme” toggles it)',
   },
   {
     nd: 'A-open-the-cloud-dashboard',
@@ -55,12 +55,6 @@ export const SETTINGS_ROWS = Object.freeze([
     // The Mac's own account (a local project): a read-only link is somebody else's Mac, so it has none.
     // A cloud viewer keeps it — the hub told its tab where the dashboard is.
     account: true,
-  },
-  {
-    nd: null,
-    section: 'general',
-    testid: 'settings-inspector-vocabulary',
-    where: 'Settings › General › Look › Inspector words',
   },
   {
     nd: null,

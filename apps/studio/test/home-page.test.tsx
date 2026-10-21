@@ -808,6 +808,8 @@ describe('home-api', () => {
         'inviteAccept',
         'invitePeek',
         'markWhatsNewSeen',
+        'pendingInviteAccept',
+        'pendingInviteLeave',
         'prepareCloud',
         'prepareCloudLink',
         'saveRecentSearch',

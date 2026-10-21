@@ -42,7 +42,6 @@ import {
   ContinuationBubble,
   UserMessage,
 } from '../v2/ai/Feed.jsx';
-import { Check, Spark } from '../v2/ai/icons.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
 import { RunsCount } from '../v2/ai/RunList.jsx';
 import NeedsYouSlot from '../v2/ai/NeedsYouSlot.jsx';
@@ -55,7 +54,6 @@ import { useAiScope } from '../v2/ai/use-ai-scope.js';
 import { WaitingCards } from '../v2/ai/WaitingCard.jsx';
 import { useAttachments } from '../v2/ai/use-attachments.js';
 import { notify } from '../../notifications.tsx';
-import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
 
 // DDR-185 — shared "did a genuinely new item arrive" check for the
@@ -114,40 +112,10 @@ function savePersistedPicks(picks) {
 // The suggest-only banner (DDR-184 #3, 03 `ai-adv-edges`) lives with the Advanced fold now:
 // v2/ai/Advanced.jsx `SuggestOnlyBanner` — same testids, plain words, one verb ("Allow changes").
 
-// DDR-166 T0f — the guided, button-driven cold start. Every actionable step
-// (install command, Sign in) now lives in ReadinessList itself; this shell no
-// longer carries its own terminal-instruction copy, so there's nothing here to
-// go stale relative to what the rows actually offer.
-function NotConnected({ reason, readiness, readinessLoading, onRecheck }) {
-  return (
-    <div className="chat-disabled" data-testid="acp-not-connected">
-      <span className="chat-disabled-mark">
-        <Spark size={28} />
-      </span>
-      <div className="chat-disabled-title">AI editing isn't ready yet</div>
-      <div className="chat-disabled-sub">
-        {reason ? <p>{reason}</p> : null}
-        <p>AI editing pairs with a Claude Code you have installed. Here's what it still needs:</p>
-      </div>
-      {readiness ? (
-        <ReadinessList report={readiness} loading={readinessLoading} refresh={onRecheck} />
-      ) : (
-        <p className="chat-disabled-sub">Checking what's needed…</p>
-      )}
-      <div className="chat-trust">
-        <div className="chat-trust-row">
-          <Check /> Runs on your Pro/Max subscription
-        </div>
-        <div className="chat-trust-row">
-          <Check /> Signs in via Claude Code's own login — Maude never sees your credentials
-        </div>
-        <div className="chat-trust-row">
-          <Check /> Never metered API billing
-        </div>
-      </div>
-    </div>
-  );
-}
+// gate-b-polish2 (CONTRACT §7, 02 ob-ai-connect, 03): the v1 not-ready panel (DDR-166 T0f's readiness list,
+// the not-ready heading) is gone from the AI panel. Ask AI looks the same as always; the first send is
+// kept and the ConnectSheet asks once (v2/ai/NeedsYouSlot.jsx); the readiness list, whole, is Menu ›
+// Diagnostics › AI setup (diag-ai) and Settings › Connections.
 
 // Repo-level chat id — generated for each new chat.
 function newChatId() {
@@ -213,7 +181,6 @@ function ChatThread({
   onSetSuggestOn,
   unavailable = false,
   viewer = false,
-  notConnected = null,
   onConnected,
 }) {
   // Live session capabilities (feature-acp-panel-dynamic-claude-code-
@@ -442,7 +409,13 @@ function ChatThread({
             so a user typing "change X" isn't silently ignored. Above the feed. */}
           <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} />
           <ThreadPrimitive.Root className="chat-thread">
-            <ThreadPrimitive.Viewport className="chat-feed" autoScroll>
+            {/* gate-b-a11y: the feed scrolls, so it is a tab stop with a name (axe scrollable-region-focusable) */}
+            <ThreadPrimitive.Viewport
+              className="chat-feed"
+              autoScroll
+              tabIndex={0}
+              aria-label="Conversation"
+            >
               <ThreadPrimitive.Empty>
                 <ChatEmpty />
               </ThreadPrimitive.Empty>
@@ -476,8 +449,6 @@ function ChatThread({
               onRespondElicitation={respondElicitation}
               turnError={turnError}
               onRetry={retryLastTurn}
-              unavailable={unavailable}
-              notConnected={notConnected}
               onConnected={onConnected}
             />
             <QuotaLine rateLimit={usage.rateLimit} />
@@ -599,20 +570,9 @@ export default function ChatPanel({
     probeStatus();
   }, [probeStatus]);
 
-  // DDR-128 — when not connected, surface the full readiness breakdown (claude ·
-  // maude · plugins) in the not-connected explainer. Only probes when actually
-  // disconnected; Re-check re-probes BOTH the readiness report and the bridge
-  // status, so installing the missing pieces and re-checking can unlock the panel
-  // without reopening it (the persistent re-check surface).
-  const {
-    report: readiness,
-    loading: readinessLoading,
-    refresh: refreshReadiness,
-  } = useReadiness(status.available === false);
-  const recheck = useCallback(() => {
-    refreshReadiness();
-    return probeStatus();
-  }, [refreshReadiness, probeStatus]);
+  // After the ConnectSheet connects, look again so the panel unlocks in place (no reopen). The readiness
+  // breakdown (DDR-128) is Menu › Diagnostics › AI setup now.
+  const recheck = probeStatus;
 
   // Recents (for the header's title) + the open chat list's re-read trigger.
   const [chats, setChats] = useState([]);
@@ -983,63 +943,44 @@ export default function ChatPanel({
         className="st-rp-body st-rp-body--chat"
         style={menuOpen && connected ? { display: 'none' } : undefined}
       >
-        {/* S5.13 (rule `ai-not-connected-yet`): Ask AI looks the same when Claude Code is not ready. The
-            field stays, a prompt sent now is KEPT (the server queues it) and the ConnectSheet asks once;
-            the v1 setup list (`acp-not-connected`) sits in the slot above the field until then. */}
-        {openChatIds.length === 0 && status.available === false ? (
-          <NotConnected
-            reason={status.reason}
-            readiness={readiness}
-            readinessLoading={readinessLoading}
-            onRecheck={recheck}
-          />
-        ) : (
-          openChatIds.map((id) => {
-            const conn = connsRef.current.get(id);
-            if (!conn) return null;
-            return (
-              <ChatThread
-                key={id}
-                conn={conn}
-                chatId={id}
-                initialMessages={hydratedRef.current.get(id) || []}
-                hidden={id !== activeChatId}
-                picksRef={picksRef}
-                setPick={setPick}
-                activeCanvas={activeCanvas}
-                selected={selected}
-                designRel={designRel}
-                openComments={openComments}
-                selectedClips={selectedClips}
-                justShared={justShared}
-                viewArtboardId={viewArtboardId}
-                panelHidden={hidden}
-                transcriptView={transcriptView}
-                onSetTranscriptView={setTranscriptView}
-                onPermissionRequest={onPermissionRequest}
-                onElicitationRequest={onElicitationRequest}
-                chatTitle={chatOptions.find((c) => c.id === id)?.title || 'New chat'}
-                uiCtx={uiCtx}
-                onCopyTranscript={copyTranscript}
-                suggestOn={suggestOn}
-                onSetSuggestOn={onSetSuggestOn}
-                unavailable={status.available === false}
-                viewer={readOnly}
-                notConnected={
-                  id === activeChatId ? (
-                    <NotConnected
-                      reason={status.reason}
-                      readiness={readiness}
-                      readinessLoading={readinessLoading}
-                      onRecheck={recheck}
-                    />
-                  ) : null
-                }
-                onConnected={recheck}
-              />
-            );
-          })
-        )}
+        {/* S5.13 (rule `ai-not-connected-yet`) + CONTRACT §7: Ask AI looks the same when Claude is not
+            connected. The field stays, a prompt sent now is KEPT (the server queues it) and the ConnectSheet
+            asks once (NeedsYouSlot). */}
+        {openChatIds.map((id) => {
+          const conn = connsRef.current.get(id);
+          if (!conn) return null;
+          return (
+            <ChatThread
+              key={id}
+              conn={conn}
+              chatId={id}
+              initialMessages={hydratedRef.current.get(id) || []}
+              hidden={id !== activeChatId}
+              picksRef={picksRef}
+              setPick={setPick}
+              activeCanvas={activeCanvas}
+              selected={selected}
+              designRel={designRel}
+              openComments={openComments}
+              selectedClips={selectedClips}
+              justShared={justShared}
+              viewArtboardId={viewArtboardId}
+              panelHidden={hidden}
+              transcriptView={transcriptView}
+              onSetTranscriptView={setTranscriptView}
+              onPermissionRequest={onPermissionRequest}
+              onElicitationRequest={onElicitationRequest}
+              chatTitle={chatOptions.find((c) => c.id === id)?.title || 'New chat'}
+              uiCtx={uiCtx}
+              onCopyTranscript={copyTranscript}
+              suggestOn={suggestOn}
+              onSetSuggestOn={onSetSuggestOn}
+              unavailable={status.available === false}
+              viewer={readOnly}
+              onConnected={recheck}
+            />
+          );
+        })}
       </div>
     </AiChatIsland>
   );

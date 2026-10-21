@@ -291,7 +291,7 @@ export function HandoffSheet({
                   data-testid="handoff-advanced"
                   onClick={() => setAdvOpen((v) => !v)}
                 >
-                  Advanced<span className="ex-adv-hint">{ADVANCED_HINT}</span>
+                  Advanced<span className="k-adv-count">{ADVANCED_HINT}</span>
                 </button>
                 {advOpen ? (
                   <div className="ho-adv-body">

@@ -1,6 +1,6 @@
 // Shared test scaffolding. Bun-test only.
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Subprocess, spawn } from 'bun';
@@ -70,6 +70,16 @@ function portIsFree(port: number): boolean {
   return true;
 }
 
+/** The hub a fixture's `.design/config.json` names, as the app's own binding (see bootServer). */
+function appBoundHub(root: string): Record<string, string> {
+  try {
+    const url = JSON.parse(readFileSync(join(root, '.design', 'config.json'), 'utf8'))?.linkedHub?.url;
+    return typeof url === 'string' && url ? { MAUDE_APP_BOUND_HUB: url } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function bootServer(
   root: string,
   port: number,
@@ -87,6 +97,10 @@ export async function bootServer(
       // inside the sandbox (never ~/.config/maude/machine.json). One file per root, so a re-boot of
       // the same project is the same machine and its store is not moved aside (C1).
       MAUDE_MACHINE_FILE: join(root, '.design', '_state', 'machine.json'),
+      // gate-b-sec4 — a fixture's committed linkedHub is honoured only for a link made on this Mac
+      // (sync/link-consent.ts). The harness IS the app that made it, so it says so the way the
+      // desktop does for its own copies. A test of the gate itself passes `MAUDE_APP_BOUND_HUB: ''`.
+      ...appBoundHub(root),
       ...extraEnv,
     },
     stdout: 'pipe',

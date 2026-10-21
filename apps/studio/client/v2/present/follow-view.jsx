@@ -175,6 +175,8 @@ export default function FollowView() {
         designSystems: data.designSystems,
         canvasOrigin: data.canvasOrigin,
         canvasToken: data.canvasToken,
+        // gate-b-c4 — the frame's capability is minted from this session's key (client/frame-cap.js)
+        frameKey: data.frameKey,
         canvasDesignSystems: index.canvasDesignSystems ?? {},
         // S10.4 — a follower sees the revision the presenter's canvas renders
         canvasDsRevs: index.canvasDsRevs ?? {},

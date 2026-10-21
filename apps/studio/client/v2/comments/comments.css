@@ -78,6 +78,7 @@
   .cmp-seg-b:focus-visible,
   .cmp-act:focus-visible,
   .cmp-row:focus-visible,
+  .cmp-open:focus-visible,
   .cmp-group-hd:focus-visible,
   .cmp-x:focus-visible {
     outline: 2px solid var(--accent);
@@ -130,6 +131,24 @@
     cursor: pointer;
     color: var(--fg-0);
   }
+  /* gate-b-a11y: the real button inside the row — avatar + words, the keyboard's way into a thread */
+  .cmp-open {
+    appearance: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
   .cmp-row:hover {
     background: var(--bg-3);
   }
@@ -158,6 +177,10 @@
   .cmp-av.is-ai {
     background: var(--accent);
     color: var(--accent-fg);
+  }
+  /* S8.17b - a thread written in Figma: an empty ring, not a person of this project */
+  .cmp-av.is-imported {
+    background: transparent;
   }
   .cmp-txt {
     flex: 1;

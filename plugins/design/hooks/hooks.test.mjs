@@ -262,6 +262,87 @@ if (a.includes('ds-check')) {
   });
 });
 
+describe('S12.16 — a new canvas is made by the create, never written by hand', () => {
+  let project;
+  beforeAll(() => {
+    project = makeProject('maude-hook-newcanvas-');
+    writeFileSync(
+      join(project, '.design', 'config.json'),
+      JSON.stringify({
+        newComponentDir: 'ui/parts',
+        designSystems: [
+          { name: 'brand', path: 'brands/brand', newComponentDir: 'brands/brand/kit' },
+        ],
+      })
+    );
+    writeFileSync(join(project, '.design', 'ui', 'Short.tsx'), 'export default () => null;\n');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  const write = (rel, id, extra = {}) => ({
+    session_id: 'nc',
+    tool_use_id: id,
+    cwd: project,
+    tool_name: 'Write',
+    tool_input: { file_path: join(project, '.design', ...rel.split('/')), content: 'x\n' },
+    ...extra,
+  });
+
+  test('a Write that creates a new .tsx canvas is denied, naming the create route', async () => {
+    const r = await hook('pre-edit', write('ui/Welcome.tsx', 'n1'));
+    expect(isDeny(r, 'new-canvas')).toBe(true);
+    const why = r.json.hookSpecificOutput.permissionDecisionReason;
+    expect(why).toContain('maude design curl-local');
+    expect(why).toContain('POST');
+    expect(why).toContain('/_api/canvas');
+    // nothing was snapshotted for a refused write
+    expect(existsSync(join(project, '.design', 'ui', 'Welcome.tsx'))).toBe(false);
+    expect(isDeny(await hook('pre-edit', write('Top.tsx', 'n2')), 'new-canvas')).toBe(true);
+  });
+
+  test('writes to existing files, components, system files and helper modules stay as they were', async () => {
+    for (const [rel, id] of [
+      ['ui/Short.tsx', 'k1'], // an existing canvas (short: the whole-file rule is not reached)
+      ['ui/parts/Button.tsx', 'k2'], // the project's newComponentDir
+      ['brands/brand/kit/Card.tsx', 'k3'], // a system's newComponentDir
+      ['brands/brand/preview/colors.tsx', 'k4'], // a system's folder
+      ['system/maude/preview/type.tsx', 'k5'], // the system tree
+      ['ui/_kit.tsx', 'k6'], // a helper module
+      ['ui/Welcome.meta.json', 'k7'], // not a canvas file
+    ]) {
+      expect(await hook('pre-edit', write(rel, id))).toMatchObject({ status: 0, stdout: '' });
+    }
+  });
+
+  test('a sub-agent held to a hand-off that owns the new path makes it', async () => {
+    const run = join(project, '.design', '_runs', 'nc');
+    mkdirSync(join(run, 'handoff'), { recursive: true });
+    const doc = {
+      contract: 'maude.agent-handoff/1',
+      role: 'in',
+      runId: 'r_ncnc',
+      agent: 'reconstruct-agent',
+      task: 'Rebuild the frame as a canvas.',
+      owns: ['.design/ui/Rebuilt.tsx', '.design/_runs/nc/handoff/reconstruct-agent-1.out.json'],
+      output: '.design/_runs/nc/handoff/reconstruct-agent-1.out.json',
+    };
+    const rel = join(run, 'handoff', 'reconstruct-agent-1.in.json');
+    writeFileSync(rel, JSON.stringify(doc));
+    const sub = { agent_id: 'rc1', agent_type: 'design:reconstruct-agent' };
+    await hook('subagent-start', {
+      session_id: 'nc',
+      cwd: project,
+      hook_event_name: 'SubagentStart',
+      ...sub,
+    });
+    const own = await hook('pre-edit', write('ui/Rebuilt.tsx', 'r1', sub));
+    expect(own).toMatchObject({ status: 0, stdout: '' });
+    // the same agent without that path in its hand-off is out of scope, not new-canvas
+    const other = await hook('pre-edit', write('ui/Other.tsx', 'r2', sub));
+    expect(isDeny(other, 'out-of-scope')).toBe(true);
+  });
+});
+
 describe('no studio — fail-open, snapshot + check + rollback still run', () => {
   let project;
   beforeAll(() => {

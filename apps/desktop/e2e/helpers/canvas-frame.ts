@@ -16,6 +16,19 @@ export async function enterCanvasFrame(timeout = 30_000): Promise<void> {
   await browser.switchFrame(frame);
 }
 
+/**
+ * Wait until the shell's "Opening <name>…" card has cleared (the canvas posted `canvas-rendered`). A canvas can have
+ * drawn its content long before that: the Design system canvas shows its swatches ~10 s (in the loaded lane) before
+ * the card goes, and a click on them in between is not taken as a selection.
+ */
+export async function waitForCanvasOpened(timeout = 90_000): Promise<void> {
+  await browser.waitUntil(async () => !(await $('[data-testid="canvas-loading"]').isExisting()), {
+    timeout,
+    interval: 250,
+    timeoutMsg: 'the Opening card never cleared',
+  });
+}
+
 /** Return WebDriver context to the top-level studio shell. */
 export async function exitToTop(): Promise<void> {
   await browser.switchFrame(null);

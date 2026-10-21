@@ -499,6 +499,10 @@ export const STUDIO_ROUTES = Object.freeze({
   // one — and a cell's assets already live on the cell, so there is nothing for
   // a sweep to fetch here anyway.
   '/_api/sync/resync': REFUSED,
+  // gate-b-sec4 — a cell never parks a link (its pairing comes from the hub's env), and Connect
+  // would record a PERSON's consent on shared infrastructure
+  '/_api/sync/link': REFUSED,
+  '/_api/sync/link/confirm': REFUSED,
   '/_api/sync/cancel-assets': REFUSED,
   // feature-before-first-external-users Task 2/3 — the sync Settings toggles,
   // ownership (adopt/detach) and the _trash restore/prune. Same reasoning as

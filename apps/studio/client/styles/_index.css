@@ -24,9 +24,16 @@
 /* V2-2.6 — maude-v2 ladder, GENERATED (scripts/gen-tokens.mjs), scoped under `.maude-v2[data-theme]`
    only: inert until the v2 chrome mounts under that wrapper (Phase 4). */
 @import url("./1-tokens-maude-v2.css");
+/* Gate-B polish — the maude-v2 names the shell ladder leaves undefined (--scrim, --island-*, --w-*,
+   --font-rounded …), GENERATED onto `.maude[data-theme]`, additive only: a v2 sheet or panel mounted in
+   the shell resolves them; no shell token is overridden. */
+@import url("./1-tokens-maude-v2-shell.css");
 @import url("./2-layout.css");
 @import url("./3-shell.css");
 /* Plan B — maude DS studio chrome (.st-* ported from Studio.css), grown per slice. */
+/* Gate-B polish — the maude-v2 kit anatomy (.icon-btn, .seg/.k-seg-b, .k-adv*, .k-sw, .chip, .field, .input …)
+   at (0,1,0) in @layer shell, BEFORE every other shell file so any surface that styles these keeps its look. */
+@import url("./3-kit-maude-v2.css");
 @import url("./3-shell-maude.css");
 @import url("./4-components.css");
 /* Plan B — maude DS shared component classes (.btn/.kbd/.callout), scoped under `.maude`. */
@@ -93,6 +100,8 @@
 /* S7.24 — the kind filter chips (client/v2/kinds/KindChips.jsx) in the Canvases panel (and Layers). */
 @import url("../v2/kinds/kind-filter.css");
 @import url("../v2/kinds/convert.css");
+/* gate-b-polish3 — the Layers tab by artboard (client/v2/layers/artboard-layers.jsx). */
+@import url("../v2/layers/layers.css");
 /* V2-4.8b — callouts: the old top banners (sync diverged / rejected, role, update, repo changed) as one stack. */
 @import url("../v2/shell/callouts.css");
 /* S2.20 — Menu › Edit › Undo history… (client/v2/undo/undo-history.jsx). */

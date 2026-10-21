@@ -1,0 +1,21 @@
+04/md-present-menu — Present, and its small menu
+Steps: owner opens ui/pitch in the cell browser, selects an element, opens Present ⌄ (mode-present-menu).
+Seen: mode-present-list with mode-present-from-selection "Present ⌥⌘↵", mode-present-from-start "Present from the start ⇧⌥⌘↵",
+"The canvas, pan freely" › mode-present-canvas "Present the canvas · no chrome, no pins", mode-present-order-notes "Order and notes…",
+mode-present-copy-link "Copy presentation link · follows you live". Present from the start → present-zone + present-controls
+(present-prev / present-counter 1/3 / present-next / present-leave "esc to leave"); → advances.
+Not seen: "Presenter view on another display" (no second display headless — expected absent); "Present from “<artboard>”" names the
+selection only when an artboard (not an element) is selected — not exercised.
+Shots: r-present-menu.png, r-owner-presenting.png, r-present-on.png
+Verdict: match (presenter-view row unexercised — needs a second display).
+
+Rig (2026-10-21, gate-b-compat fork): local cell from scripts/dev/local-cell.mjs on port 4890 (--no-watch --keep),
+hub process binary /Users/iagh/.nvm/versions/node/v24.13.0/bin/node (lsof txt of the hub pid), studio child bun on 4690.
+Cloud identity: MAUDE_CLOUD_IDENTITY=1 (hybrid), MAUDE_TENANT_ID=alligators, MAUDE_CONTROL_PLANE_URL=http://127.0.0.1:4899 —
+a LOOPBACK fake control plane (scratchpad gate/b/fake-cp.mjs) that answers only POST /auth/handoff/exchange with a token signed by
+apps/hub/src/cloud-identity.mjs (signAccessToken / signAccessTokenV2). Browser sessions go through the cell's real /auth/browser door.
+/health.access = {authority:control-plane, roles:[viewer,member,owner], scopes:[project], links:false} (rolesV2 dark, production posture).
+Identities (each its own Playwright context; Tereza in a separate browser process where focus matters):
+  owner  you@local.test (password sign-in) · member tereza@local.test · Can comment klara@local.test (role viewer) ·
+  Can view jonas@local.test (v2 claim role observer). Canvas ui/pitch.tsx (3 artboards Cover/Plan/Ask) seeded into the cell checkout.
+No real cloud, hub, Stripe or Cloudflare was contacted. Scripts: scratchpad gate/b/p*.mjs. Shots: shots/ (this dir).

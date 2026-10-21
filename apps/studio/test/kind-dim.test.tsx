@@ -228,12 +228,20 @@ describe('the Layers chips', () => {
 });
 
 describe('the relay that tells the open canvas (dgn dim-artboards)', () => {
-  function fakeFrame(path: string) {
+  const CANVAS = 'http://127.0.0.1:4401';
+  const targets: string[] = [];
+  function fakeFrame(path: string, src: string | null = `${CANVAS}/_canvas-shell.html?c=1`) {
     const sent: unknown[] = [];
-    const w = { postMessage: (m: unknown) => sent.push(m) };
+    const w = {
+      postMessage: (m: unknown, to: string) => {
+        sent.push(m);
+        targets.push(to);
+      },
+    };
     const el = document.createElement('iframe');
     el.setAttribute('data-testid', 'canvas-frame');
     el.setAttribute('data-path', path);
+    if (src) Object.defineProperty(el, 'src', { value: src }); // a getter only: happy-dom would fetch an attribute
     Object.defineProperty(el, 'contentWindow', { value: w });
     document.body.append(el);
     return { sent, win: w, el };
@@ -285,6 +293,34 @@ describe('the relay that tells the open canvas (dgn dim-artboards)', () => {
     );
     expect(a.sent).toHaveLength(2);
     stop();
+  });
+
+  test('C6: every send names the canvas origin, never "*"; a frame with no origin hears nothing', async () => {
+    const { createKindDimLane } = await import('../client/v2/kinds/kind-dim-relay.js');
+    targets.length = 0;
+    setKindFilter('print');
+    const a = fakeFrame(FILE);
+    const blank = fakeFrame(FILE, null);
+    const stop = createKindDimLane({ boardsOf: () => KAMPAN, doc: document, win: window });
+    expect(a.sent).toHaveLength(1);
+    expect(blank.sent).toHaveLength(0);
+    expect(targets).toEqual([CANVAS]);
+    stop();
+    // the shell's configured canvas origin wins over the frame's src
+    a.el.remove();
+    blank.el.remove();
+    const b = fakeFrame(FILE);
+    targets.length = 0;
+    const stop2 = createKindDimLane({
+      boardsOf: () => KAMPAN,
+      doc: document,
+      win: window,
+      canvasOrigin: () => 'http://127.0.0.1:4402',
+    });
+    expect(b.sent).toHaveLength(1);
+    expect(targets).toEqual(['http://127.0.0.1:4402']);
+    expect(targets).not.toContain('*');
+    stop2();
   });
 
   test('the index learning the canvas later is told too', async () => {

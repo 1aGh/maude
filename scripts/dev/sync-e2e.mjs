@@ -191,6 +191,17 @@ async function startCell() {
  * by something that did not write that file, this stops and says so rather than
  * running a suite whose every result would be meaningless.
  */
+/** The hub a harness project's config names ('' when none) — the harness is the app that linked it. */
+function linkedHubOf(repo) {
+  try {
+    return (
+      JSON.parse(readFileSync(join(repo, '.design', 'config.json'), 'utf8')).linkedHub?.url ?? ''
+    );
+  } catch {
+    return '';
+  }
+}
+
 async function startPeer(peerRepo, hubsConfig) {
   const base = `http://127.0.0.1:${peerPort}`;
   const stateFile = join(peerRepo, '.design', '_server.json');
@@ -222,6 +233,8 @@ async function startPeer(peerRepo, hubsConfig) {
         ...process.env,
         // NEVER the user's real credential store. The cell wrote a scratch one.
         HUBS_CONFIG_PATH: hubsConfig,
+        // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+        MAUDE_APP_BOUND_HUB: linkedHubOf(peerRepo),
         MAUDE_PROJECT_ROOT: peerRepo,
         MAUDE_NO_AUTOBUILD: '1',
       },

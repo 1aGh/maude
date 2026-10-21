@@ -1,9 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
+import { waitForCanvasOpened } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
+import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow, ensureFilesTab } from '../helpers/tree';
+import { canvasRow, dsRow, ensureFilesTab } from '../helpers/tree';
 
 /*
  * The ds-review story (S10.21, V2-8.3): four parts, four worlds. Each part seeds its own project, so one boot can't
@@ -35,6 +37,15 @@ import { canvasRow, ensureFilesTab } from '../helpers/tree';
  * dir, so there is nothing to restore.
  */
 const ROOT = process.env.MAUDE_E2E_DS_REVIEW_ROOT ?? '';
+/** The words on a Canvases row: the `canvas-row-*` hook is the row's button, its quiet words are siblings in the `.cv-row`. */
+const rowText = (testId: string): Promise<string> =>
+  browser.execute(
+    (id: string) =>
+      (document.querySelector(`[data-testid="${id}"]`)?.closest('.cv-row') as HTMLElement | null)
+        ?.innerText ?? '',
+    testId
+  );
+
 const metaOf = (rel: string): Record<string, unknown> => {
   const file = join(ROOT, '.design', rel.replace(/\.tsx$/, '.meta.json'));
   return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
@@ -51,10 +62,11 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
 
   it('opens the Design system canvas: the bar says one change waits', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
     await browser.waitUntil(
       () =>
         browser.execute(() => {
@@ -89,7 +101,10 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
   it('untick Landing: the button counts down and the row says what it keeps', async () => {
     await (await tick('ui/Landing.tsx')).click();
     expect(await (await $('[data-testid="ds-review-update"]')).getText()).toBe('Update 2 canvases');
-    expect(await (await $('[data-testid="ds-review-head"]')).getText()).toBe('2 of 3 canvases');
+    // the head count names where it counts ("2 of 3 canvases in <the project>", review-model headWords)
+    expect(await (await $('[data-testid="ds-review-head"]')).getText()).toMatch(
+      /^2 of 3 canvases( in .+)?$/
+    );
     const note = await $(
       '[data-testid="ds-review-row"][data-path="ui/Landing.tsx"] [data-testid="ds-review-note"]'
     );
@@ -106,11 +121,23 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
     });
     expect(metaOf('ui/Home.tsx').dsRev).toBeUndefined();
     expect(metaOf('ui/Pricing.tsx').dsRev).toBeUndefined();
-    const landing = await canvasRow('canvas-row-ui-landing');
-    await browser.waitUntil(async () => (await landing.getText()).includes('update'), {
-      timeout: 15_000,
-      timeoutMsg: 'the Landing row never showed the quiet "update" word',
-    });
+    await canvasRow('canvas-row-ui-landing');
+    // the row re-renders when the index arrives with the new revision: look it up fresh each time
+    // the word sits in the row's container, beside the row's own button (`canvas-row-*`)
+    try {
+      await browser.waitUntil(
+        async () => (await rowText('canvas-row-ui-landing')).includes('update'),
+        {
+          timeout: 15_000,
+        }
+      );
+    } catch {
+      const idx = await browser.execute(async () => {
+        const d = await (await fetch('/_index-data', { cache: 'no-store' })).json();
+        return JSON.stringify({ revs: d.canvasDsRevs, heads: d.systemHeads, conv: d.dsConverted });
+      });
+      throw new Error(`the Landing row never showed the quiet "update" word: ${idx}`);
+    }
     await capture('ds-review-updated-landing-left-out');
   });
 
@@ -121,8 +148,8 @@ part('1')('ds-review (part 1) — edit, review, untick, Update, dot, ⌘Z', () =
       timeout: 20_000,
       timeoutMsg: '⌘Z never took the update back',
     });
-    const landing = await canvasRow('canvas-row-ui-landing');
-    expect(await landing.getText()).not.toContain('update');
+    await canvasRow('canvas-row-ui-landing');
+    expect(await rowText('canvas-row-ui-landing')).not.toContain('update');
     await capture('ds-review-undone');
   });
 });
@@ -153,10 +180,11 @@ part('2')('ds-review (part 2) — a master change, a folder left out with one ti
 
   it('the bar says one change waits; Review… groups the fourteen canvases by folder', async () => {
     await waitForSidecar();
-    const row = await canvasRow('canvas-row-system-acme-design-system');
+    const row = await dsRow('acme');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await waitForCanvasOpened();
     await browser.waitUntil(
       () =>
         browser.execute(() => {
@@ -279,7 +307,7 @@ async function clickInFrame(selector: string) {
     };
   }, selector);
   if (!at) throw new Error(`nothing to click in the canvas for ${selector}`);
-  await browser.action('pointer').move(at).down().up().perform();
+  await pointerClick(at.x, at.y);
 }
 
 part('4')(
@@ -336,10 +364,11 @@ part('4')(
             })
           ).ok
         ).toBe(true);
-      const row = await canvasRow(`canvas-row-system-${sysDir()}-design-system`);
+      const row = await dsRow(sysDir());
       await row.waitForExist({ timeout: 30_000 });
       await row.click();
       await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+      await waitForCanvasOpened();
       await browser.waitUntil(
         () =>
           browser.execute(() => {

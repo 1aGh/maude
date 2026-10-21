@@ -144,3 +144,34 @@ export async function toggleTheme(): Promise<void> {
   }, next);
   await (await $(tid('settings-close'))).click();
 }
+
+/**
+ * Close every notification card on screen. The shell raises first-run notices ("You're in Edit", the tour offer) on
+ * a clean profile, and they stack over the bottom edge — right on top of the timeline's trim handles — so a scenario
+ * that drags there would press the notice, not the handle. Closing them is what a person does first.
+ */
+export async function dismissNotices(): Promise<void> {
+  await browser.execute(() => {
+    for (const b of Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-testid^="notice-"] [aria-label="Dismiss notification"]'
+      )
+    ))
+      b.click();
+  });
+  await browser.pause(300);
+}
+
+/**
+ * The Inspector, showing. A fresh window keeps the right slot closed (a selection opens it, but a canvas with nothing
+ * selected leaves only the corner icon), so a scenario that reads the inspector with nothing selected asks for it.
+ */
+export async function openInspector(): Promise<void> {
+  if (!(await $(tid('inspector-panel')).isExisting())) {
+    await (await $(tid('panel-icon-right'))).click();
+  }
+  await (await $(tid('inspector-panel'))).waitForExist({
+    timeout: 15_000,
+    timeoutMsg: 'the Inspector never opened',
+  });
+}

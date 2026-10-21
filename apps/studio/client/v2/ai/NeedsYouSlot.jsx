@@ -106,8 +106,6 @@ export default function NeedsYouSlot({
   onRespondElicitation,
   turnError,
   onRetry,
-  unavailable = false,
-  notConnected = null,
   onConnected,
 }) {
   const { queued, refresh } = useQueuedPrompts(conn, chatId);
@@ -131,7 +129,6 @@ export default function NeedsYouSlot({
   const [phase, setPhase] = useState('idle');
   const [connectError, setConnectError] = useState(null);
   const abortRef = useRef(null);
-  const connectGate = queued.find((q) => q.gates[0] === 'ai-connected');
   useEffect(() => () => abortRef.current?.abort(), []);
   const connect = useCallback(async () => {
     const ctl = new AbortController();
@@ -226,9 +223,6 @@ export default function NeedsYouSlot({
           />
         </QueuedState>
       ) : null}
-      {/* Claude Code is not ready on this Mac: the v1 readiness list stays (install / sign in, Re-check) until
-          the ConnectSheet takes over for a prompt that is waiting on the connection. */}
-      {unavailable && !connectGate ? notConnected : null}
     </div>
   );
 }

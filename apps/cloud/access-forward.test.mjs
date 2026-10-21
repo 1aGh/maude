@@ -229,32 +229,38 @@ describe('POST invites', () => {
     assert.equal((await over.json()).reason, 'invite-cap');
   });
 
-  it('an existing account is added, and never lowered', async () => {
+  it('an existing account gets a pending invitation like anyone — never added, never lowered (gate-b-sec3)', async () => {
     const { env, sqlite } = await fixture();
     const res = await forward(env, 'invites', {
       method: 'POST',
       actor: 'owner',
       body: { email: 'member@example.com', role: 'observer' },
     });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 201);
+    const { id } = await res.json();
+    assert.match(id, /^[0-9a-f-]{36}$/);
     assert.equal(
       sqlite.prepare("SELECT role FROM project_members WHERE account_id = 'a2'").get().role,
       'member'
     );
-    await forward(env, 'invites', {
+    const canvasInvite = await forward(env, 'invites', {
       method: 'POST',
       actor: 'owner',
       body: { email: 'stranger@example.com', role: 'viewer', canvas: B },
     });
-    assert.deepEqual(
-      { ...sqlite.prepare("SELECT role, source FROM canvas_grants WHERE account_id = 'a6'").get() },
-      { role: 'viewer', source: 'invite' }
+    assert.equal(canvasInvite.status, 201);
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM canvas_grants WHERE account_id = 'a6'").get().n,
+      0,
+      'no grant until they accept'
+    );
+    assert.equal(
+      sqlite.prepare('SELECT COUNT(*) AS n FROM project_invites WHERE redeemed_at IS NULL').get().n,
+      2
     );
     assert.ok(
-      cell.calls.some(
-        (c) => c.url.endsWith('/internal/access-changed') && c.body.change === 'raised'
-      ),
-      'the cell hears a raise'
+      !cell.calls.some((c) => c.url.endsWith('/internal/access-changed')),
+      'nothing changed, so the cell hears nothing'
     );
   });
 });

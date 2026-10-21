@@ -51,3 +51,21 @@ export async function canvasRow(testId: string) {
   );
   return $(sel).getElement();
 }
+
+/**
+ * A design system's pinned row in the Canvases panel (`canvases-ds-row`, one per system the project holds). The
+ * Design system canvas has no row in the file tree: the project's `system/` group is the DESIGN SYSTEM group, so
+ * its systems are drawn pinned above the canvases and a click on the row opens the system's canvas (`ds.go-to`).
+ */
+export async function dsRow(ds: string) {
+  const sel = `[data-testid="canvases-ds-row"][data-ds="${ds}"]`;
+  await browser.waitUntil(
+    async () => {
+      if (await $(sel).isExisting()) return true;
+      await ensureFilesTab();
+      return $(sel).isExisting();
+    },
+    { timeout: 60_000, timeoutMsg: `the pinned row for the ${ds} design system never appeared` }
+  );
+  return $(sel).getElement();
+}

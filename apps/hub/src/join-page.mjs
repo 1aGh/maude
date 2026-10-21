@@ -83,7 +83,11 @@ export function joinPage({ token, workspace, email, error = null, env = process.
   ${oidc}`
     : `<form method="post" action="/join" autocomplete="on">
   <h1>You're invited to ${esc(name)}</h1>
-  <p>Choose a password and you're in — no download, no setup.</p>
+  <p>${
+    email
+      ? `Choose a password and you're in — no download, no setup. Already have an account on this project? Enter its password instead.`
+      : `Choose a password and you're in — no download, no setup.`
+  }</p>
   <input type="hidden" name="token" value="${esc(token)}">
   <label for="email">Email</label>
   ${
@@ -91,11 +95,15 @@ export function joinPage({ token, workspace, email, error = null, env = process.
       ? `<input id="email" name="email" type="email" value="${esc(email)}" readonly autocomplete="username">`
       : `<input id="email" name="email" type="email" autocomplete="username" required autofocus placeholder="you@example.com">`
   }
-  <label for="password">Choose a password</label>
+  <label for="password">${email ? 'Password' : 'Choose a password'}</label>
   <input id="password" name="password" type="password" autocomplete="new-password" minlength="${MIN_PASSWORD_LENGTH}" required${
     email ? ' autofocus' : ''
   }>
-  <p class="hint">At least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.</p>
+  <p class="hint">${
+    email
+      ? `New here: at least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.`
+      : `At least ${MIN_PASSWORD_LENGTH} characters. You'll use it to sign in next time.`
+  }</p>
   ${error ? `<p class="err">${esc(error)}</p>` : ''}
   <button type="submit">Join ${esc(name)}</button>
   ${oidc ? `<p class="or">or</p>${oidc}` : ''}

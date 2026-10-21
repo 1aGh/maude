@@ -67,6 +67,7 @@ import {
   listUsers,
   removePendingOidc,
   removeUser,
+  setUserAccess,
   setUserDisabled,
   setUserPassword,
   userCount,
@@ -431,8 +432,8 @@ export async function handleAuthRoutes(ctx) {
       email: body?.email,
       password: body?.password,
       honoursAccess: declaredAccess === ACCESS_VERSION,
-      createAccount: ({ email, password, role, access }) =>
-        createUser(dataDir, { email, password, role, ...(access ? { access } : {}) }),
+      createAccount: ({ email, password, role, access, bound }) =>
+        createOrAccept(dataDir, { email, password, role, access, bound }),
     });
     if (!result.ok && result.reason === 'access-version') {
       respondJson(426, ACCESS_VERSION_REFUSAL);
@@ -467,7 +468,13 @@ export async function handleAuthRoutes(ctx) {
               token: body.token,
               workspace: ctx.publicUrl ?? null,
               email: look.invite.email,
-              error,
+              // On a page for a named address the form is also where an account holder signs in to accept
+              // (gate-b-sec3b), so the sentence points at the password. It depends on the invite, never on
+              // whether the address has an account — only the refusal itself differs, as before.
+              error:
+                taken && look.invite.email
+                  ? "That address can't be used with this invitation. If you already have an account on this project, enter its password."
+                  : error,
               env,
             })
           );
@@ -540,6 +547,37 @@ export async function handleAuthRoutes(ctx) {
   }
 
   return false;
+}
+
+/**
+ * The invite's account: a new one, or — gate-b-sec3 finding 1 — the EXISTING account at the address the invite is
+ * bound to, when the person proves it is theirs by signing in as it on the join page. Accepting raises, never lowers: an account that
+ * already sees every canvas keeps that, a canvas-only one gains the invite's canvas (or the whole project), and the
+ * account role is never changed here. A wrong password answers exactly as before (`already exists` → the one
+ * neutral sentence), so the join page still says nothing about whether the address has an account.
+ */
+function createOrAccept(dataDir, { email, password, role, access, bound = false }) {
+  if (!getUser(dataDir, email)) {
+    return createUser(dataDir, { email, password, role, ...(access ? { access } : {}) });
+  }
+  // An open (unbound) link is a sign-UP door only: accepting into an existing account needs the owner to have
+  // named that address.
+  if (!bound) throw new Error(`user "${email}" already exists`);
+  const auth = authenticate(dataDir, email, password);
+  if (!auth.ok) throw new Error(`user "${email}" already exists`);
+  const user = auth.user;
+  if (!user.access) return user; // a project role already sees every canvas
+  if (!access) return setUserAccess(dataDir, user.email, null) ?? user;
+  const have = new Set(user.access.grants.map((g) => g.c));
+  const add = (access.grants ?? []).filter((g) => !have.has(g.c)).map(({ c, r }) => ({ c, r }));
+  if (!add.length) return user;
+  return (
+    setUserAccess(dataDir, user.email, {
+      v: 1,
+      role: null,
+      grants: [...user.access.grants, ...add],
+    }) ?? user
+  );
 }
 
 /** One plain sentence per failure. Never mentions tokens (DDR-193 §5). */

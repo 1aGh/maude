@@ -777,6 +777,10 @@ export function usePaletteAndPanels({
               />
             ) : null
           }
+          // gate-b-polish3 — Layers by artboard: the open canvas's artboards, its name, a row selects one
+          layersBoards={id === 'layers' && activeCanvasFile ? boardLabels.get(activePath) : null}
+          layersCanvasName={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          onSelectArtboard={(artboardId) => postToActiveCanvas({ dgn: 'select-by-id', artboardId })}
           onSelectBySelector={(selector) =>
             postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })
           }

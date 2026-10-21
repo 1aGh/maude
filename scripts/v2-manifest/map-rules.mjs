@@ -20,6 +20,12 @@ export const V2_CODE_PATHS = [
   /(^|\/)apps\/studio\/artboard-growth-tag\.tsx$/, // S7.21 growth tag (canvas guides chrome)
   /(^|\/)apps\/studio\/artboard-warn-mark\.tsx$/, // S7.25 the warning mark in the artboard label
   /(^|\/)apps\/studio\/video-links-overlay\.tsx$/, // S7.13 link glyphs between linked formats (canvas guides chrome)
+  // Wave B files, created after the freeze (10-18 → 10-20): v1 had no Design system canvas and no upload bars, so
+  // nothing here is a v1 entry point. Left to the scanner they became kept targets of their own `new` hooks and the
+  // probe had to stage a made design system and an upload to reach them (testids.json `v2: new`; renders are pinned
+  // by ds-library-board-bar / ds-make-board / v2-assets-just-added).
+  /(^|\/)apps\/studio\/ds\/board\//, // S10.6 / S10.16b the Design system canvas (bar, outlines, direction tiles)
+  /(^|\/)apps\/studio\/asset-upload-bars\.tsx$/, // S8.14 thin upload bars on tiles and canvas pictures
 ];
 /** Late entries in a shared v1 file that are v2 features (named one by one, never by file). */
 export const V2_CODE_IDS = new Set([
@@ -50,6 +56,12 @@ export const HAND = {
   // S8.2 retired the export dialog's hook; its job is the Advanced › Image size row (testids.json notes)
   'testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution':
     'A-png-at-150-300-600-dpi',
+  // gate-b-polish2 retired these hooks (testids.json notes): the AI panel's v1 not-ready body is the readiness
+  // list at Menu › Diagnostics › AI setup; the Inspector-words radio is Inspector › Advanced
+  'testid:studio/client/panels/ChatPanel.jsx#chat/ACP/acp-not-connected':
+    'A-readiness-list-claude-code',
+  'testid:studio/client/panels/SettingsPanel.jsx#settings/settings-inspector-vocabulary':
+    'A-inspector-vocabulary-advanced-designer',
   'button:studio/client/app.jsx#App/reload': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss~2': 'D13', // usage-tour nudge

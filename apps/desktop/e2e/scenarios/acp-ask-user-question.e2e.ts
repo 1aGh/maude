@@ -1,6 +1,6 @@
 import { $, $$, browser, expect } from '@wdio/globals';
 
-import { clearComposer, openAssistant } from '../helpers/assistant';
+import { aiConnected, clearComposer, openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -37,9 +37,7 @@ describe('acp-ask-user-question (native-desktop)', () => {
     // spec files, so the panel may already be open (see helpers/assistant.ts).
     await openAssistant();
 
-    const notConnected = await $(tid('acp-not-connected'));
-    const isNotConnected = await notConnected.isDisplayed().catch(() => false);
-    if (isNotConnected) {
+    if (!(await aiConnected())) {
       this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
     }
   });

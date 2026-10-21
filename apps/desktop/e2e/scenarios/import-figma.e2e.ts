@@ -20,7 +20,9 @@ import { waitForSidecar } from '../helpers/sidecar';
  *   2. a link that is not Figma's is refused with fixed words, and nothing is listed;
  *   3. a FigJam link takes the FigJam door (annotations on the open canvas), never the frame list;
  *   4. (fixture) a design link lists the file's two frames as pictures; Import 2 frames makes ONE canvas of two Fixed
- *      size artboards at Figma px (the file on disk is the assertion), and the summary names what came in.
+ *      size artboards at Figma px (the file on disk is the assertion), and the summary names what came in. The
+ *      file's two comment threads (one with a reply, one resolved) arrive as two comment pins labelled with their
+ *      Figma writer (S8.17b, `_comments/ui-uniformy-2027.json`), never as stickies.
  *
  * Written, not run, by the slice; run with `pnpm --filter @maude/desktop-e2e e2e:import-figma`.
  */
@@ -30,7 +32,9 @@ const FRAMES_LINK = 'https://www.figma.com/design/k8Fq2abcdEFGH12345678/Uniformy
 const FIXTURE_ON = Boolean(process.env.MAUDE_FIGMA_FIXTURE);
 const CANVAS = join(DESIGN, 'ui/Uniformy-2027.tsx');
 const META = join(DESIGN, 'ui/Uniformy-2027.meta.json');
-const fixtures = createFixtureGuard('import-figma', [CANVAS, META]);
+// S8.17b: the file's comments land as pins in the canvas's thread file
+const PINS = join(DESIGN, '_comments/ui-uniformy-2027.json');
+const fixtures = createFixtureGuard('import-figma', [CANVAS, META, PINS]);
 const tid = (s: string) => `[data-testid="${s}"]`;
 
 async function openSheet() {
@@ -137,5 +141,23 @@ describe('import-figma', () => {
     expect(tsx).toContain('height={1280}');
     expect(tsx).not.toContain('maude-fixture');
     expect(tsx).not.toContain('figma.com');
+    // S8.17b — two threads, two pins; the summary says "as comments", not "as stickies"
+    await expect(await $(tid('figma-import-summary'))).toHaveText(
+      expect.stringContaining('2 comments came across as comments (1 resolved)')
+    );
+    expect(existsSync(PINS)).toBe(true);
+    const pins = JSON.parse(readFileSync(PINS, 'utf8')) as Array<{
+      status: string;
+      author: string;
+      artboard?: string;
+      thread: unknown[];
+      importedFrom: { source: string; author: { name: string } };
+    }>;
+    expect(pins).toHaveLength(2);
+    expect(pins.map((p) => p.importedFrom.author.name)).toEqual(['Jonas Novak', 'Tereza K']);
+    expect(pins.map((p) => p.status)).toEqual(['open', 'resolved']);
+    expect(pins[0]?.thread).toHaveLength(1);
+    expect(pins.every((p) => p.artboard)).toBe(true);
+    expect(existsSync(join(DESIGN, 'ui-uniformy-2027.annotations.json'))).toBe(false);
   });
 });
