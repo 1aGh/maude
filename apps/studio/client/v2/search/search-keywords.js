@@ -92,9 +92,8 @@ export const ACTION_KEYWORDS = Object.freeze({
  * rows are one control and one result.
  */
 export const SETTINGS_SEARCH = Object.freeze({
-  'settings-theme': { keywords: ['dark mode', 'light mode', 'appearance'] },
+  'settings-theme': { keywords: ['dark mode', 'light mode', 'appearance', 'auto', 'system'] },
   'settings-open-dashboard': { keywords: ['browser', 'cloud', 'hub', 'account'] },
-  'settings-inspector-vocabulary': { keywords: ['designer', 'developer', 'css', 'words'] },
   'settings-canvas-view': { keywords: ['zoom', 'minimap', 'grid', 'view'] },
   'panel-side-<id>': { label: 'Panel positions', keywords: ['left', 'right', 'dock', 'layout'] },
   'cloud-account': {

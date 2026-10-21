@@ -449,17 +449,12 @@ describe('lead decision (a): a read-only session has Settings › General', () =
     }
   });
 
-  test('a viewer’s Settings rows are the person’s: theme, Inspector words, canvas and view, panel positions', () => {
+  test('a viewer’s Settings rows are the person’s: theme, canvas and view, panel positions', () => {
     for (const id of VIEWERS) {
       const rows = (part(id, 'settings').rows as Array<{ testid: string; section: string }>).map(
         (r) => r.testid
       );
-      for (const t of [
-        'settings-theme',
-        'settings-inspector-vocabulary',
-        'settings-canvas-view',
-        'panel-side-<id>',
-      ])
+      for (const t of ['settings-theme', 'settings-canvas-view', 'panel-side-<id>'])
         expect(rows, `${id} ${t}`).toContain(t);
       expect(
         (part(id, 'settings').rows as Array<{ section: string }>).every(

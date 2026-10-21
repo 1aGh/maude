@@ -567,7 +567,8 @@ describe('NeedsYouSlot: a kept prompt is never lost across a reload', () => {
       await tick(20);
     });
     expect(v.q('ai-connect-sheet')).not.toBeNull();
-    // the v1 setup list yields to the sheet while a prompt waits on the connection
+    // CONTRACT §7 (gate-b-polish2): with nothing waiting, Ask AI looks the same as always — no setup list,
+    // no sheet; the readiness list lives at Menu › Diagnostics › AI setup
     const setup = await mount(({ NeedsYouSlot, runtime }) => (
       <NeedsYouSlot
         conn={runtime.createAcpConnection()}
@@ -576,7 +577,8 @@ describe('NeedsYouSlot: a kept prompt is never lost across a reload', () => {
         notConnected={<div data-testid="acp-not-connected" />}
       />
     ));
-    expect(setup.q('acp-not-connected')).not.toBeNull();
+    expect(setup.q('acp-not-connected')).toBeNull();
+    expect(setup.q('ai-connect-sheet')).toBeNull();
   });
 
   test('an open permission is the card in the slot, and the folded count follows it', async () => {

@@ -1239,13 +1239,9 @@
       "symbol": "NotConnected"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
-    "v2": "stable"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired gate-b-polish2 (CONTRACT §7, decision:maude/v2-gate-b-polish2-ai-panel-normal): the AI panel looks the same when Claude is not connected; the first send is kept and the one Connect sheet asks (`ai-connect-sheet`). The readiness list, whole, is Menu › Diagnostics › AI setup (`diag-ai`). The e2e scenarios ask the bridge instead (`aiConnected()` in apps/desktop/e2e/helpers/assistant.ts)."
   },
   {
     "hook": "acp-setup-install",
@@ -13266,10 +13262,10 @@
     "hook": "settings-theme",
     "kind": "testid",
     "pattern": false,
-    "meaning": "General › Look › the Light / Dark radio group.",
+    "meaning": "General › Look › Theme: the Light · Dark · Auto segmented radio group (native radios, `input[value]`). Auto matches the computer's appearance.",
     "producer": {
-      "file": "apps/studio/client/panels/SettingsPanel.jsx",
-      "symbol": "AppearanceTab"
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "ThemeSegment"
     },
     "region": "settings",
     "consumers": [],
@@ -13286,7 +13282,8 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "stable"
+    "v2": "retired",
+    "notes": "Retired gate-b-polish2 (06: the switch became the inspector's Advanced fold; the v2 inspector always renders the raw editor there and Designer above it, so the radio changed nothing). Home: Inspector › Advanced (`inspector-section-advanced`)."
   },
   {
     "hook": "settings-canvas-view",

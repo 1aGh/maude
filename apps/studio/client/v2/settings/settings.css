@@ -486,4 +486,42 @@
     font-size: var(--type-xs);
     color: var(--status-error);
   }
+
+  /* gate-b-polish2 — Look › Theme: Light · Dark · Auto (02 ob-settings), the DS `.seg` with native radios */
+  .v2s-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+  }
+  .v2s-seg-b {
+    position: relative;
+    padding: var(--space-1) var(--space-3);
+    border-radius: calc(var(--radius-md) - 2px);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    cursor: pointer;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out);
+  }
+  .v2s-seg-b[data-on] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .v2s-seg-in {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .v2s-seg-b:has(.v2s-seg-in:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
 }

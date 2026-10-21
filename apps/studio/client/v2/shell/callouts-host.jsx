@@ -13,13 +13,12 @@
 // A close (×) hides one callout until its event changes: the key carries the event (a new conflict, a
 // changed rejected count), so the next one comes back. Closing the update callout is "Later" (the next
 // focus / 4 h check re-stages it); closing the repo notice clears the flag, as the strip's Dismiss did.
+// No tour is offered here (02: "no wizard, no card, no tour"): the tours run from Menu › Help › Take the tour.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { restartToUpdate } from '../../github.js';
 import { FormatGateBanner } from '../../shell/banners.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
-import { COLLAB_TOUR } from '../../tour/collab-tour.js';
-import { USAGE_TOUR } from '../../tour/usage-tour.js';
 import { openDiagnostics } from '../diagnostics/diagnostics-bus.js';
 import { requestResync } from '../diagnostics/sync-actions.js';
 import { calloutStack, roleSeenKey } from './callouts-model.js';
@@ -38,20 +37,7 @@ function roleSeen(role) {
 
 export function ShellCallouts() {
   const {
-    shellCore: {
-      cfg,
-      collabNudge,
-      gitLifecycle,
-      markCollabSeen,
-      markUsageSeen,
-      setGitLifecycle,
-      setUpdateReady,
-      startTour,
-      syncStatus,
-      tourSteps,
-      updateReady,
-      usageNudge,
-    },
+    shellCore: { cfg, gitLifecycle, setGitLifecycle, setUpdateReady, syncStatus, updateReady },
   } = useShellStore();
   const [dismissed, setDismissed] = useState(() => new Set());
   const [busyKey, setBusyKey] = useState(null);
@@ -78,7 +64,6 @@ export function ShellCallouts() {
         gitLifecycle,
         cloud: cfg?.cloud,
         roleSeen,
-        tour: { usage: !!usageNudge, collab: !!collabNudge, running: !!tourSteps },
         crashed,
         disk,
         native: doors.available,
@@ -93,9 +78,6 @@ export function ShellCallouts() {
       updateReady,
       gitLifecycle,
       cfg?.cloud,
-      usageNudge,
-      collabNudge,
-      tourSteps,
       dismissed,
       now,
     ]
@@ -137,14 +119,6 @@ export function ShellCallouts() {
             window.location.reload();
           } catch {}
           break;
-        case 'tour-usage':
-          markUsageSeen?.();
-          startTour?.(USAGE_TOUR);
-          break;
-        case 'tour-collab':
-          markCollabSeen?.();
-          startTour?.(COLLAB_TOUR);
-          break;
         case 'got-it': {
           const role = cfg?.cloud?.role;
           try {
@@ -157,18 +131,16 @@ export function ShellCallouts() {
           break;
       }
     },
-    [cfg?.cloud?.role, cfg?.designRel, doors, hide, markUsageSeen, markCollabSeen, startTour]
+    [cfg?.cloud?.role, cfg?.designRel, doors, hide]
   );
 
   const onDismiss = useCallback(
     (item) => {
       if (item.kind === 'update') setUpdateReady(null);
       else if (item.kind === 'repo-changed') setGitLifecycle(null);
-      else if (item.kind === 'tour-usage') markUsageSeen?.();
-      else if (item.kind === 'tour-collab') markCollabSeen?.();
       else hide(item.key);
     },
-    [hide, setGitLifecycle, setUpdateReady, markUsageSeen, markCollabSeen]
+    [hide, setGitLifecycle, setUpdateReady]
   );
 
   return (

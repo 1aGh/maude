@@ -319,9 +319,10 @@ describe('nothing deleted: every v1 control the move carried is still emitted', 
   test('ChatPanel keeps the ones it still owns and imports the moved parts', () => {
     const src = read('client/panels/ChatPanel.jsx');
     // S5.12: the mode banner and the ⋯ menu moved to Advanced.jsx / ChatList.jsx (v2-ai-chat-list.test.ts)
-    for (const hook of ['acp-not-connected']) {
-      expect(src).toContain(hook);
-    }
+    // gate-b-polish2 (CONTRACT §7): the v1 not-ready panel is gone; the first send asks through the ConnectSheet
+    // and the readiness list is Menu › Diagnostics › AI setup (diag-ai)
+    expect(src).not.toContain('acp-not-connected');
+    expect(src).not.toContain("AI editing isn't ready yet");
     for (const mod of ['Composer', 'Feed', 'Suggest', 'AiChatIsland', 'ChatList', 'Advanced'])
       expect(src).toContain(`v2/ai/${mod}.jsx`);
   });

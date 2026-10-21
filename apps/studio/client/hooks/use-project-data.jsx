@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createIndexLoader } from '../index-loader.ts';
 import { buildTree } from '../shell/util.js';
+import { writeThemeAuto } from '../v2/settings/theme-auto.js';
 
 export function useProjectData({
   setGroups,
@@ -14,6 +15,7 @@ export function useProjectData({
   setTheme,
 }) {
   const toggleTheme = useCallback(() => {
+    writeThemeAuto(false); // a picked theme ends Auto (Settings › General › Look)
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   }, []);
 

@@ -990,8 +990,9 @@
     height: 36px;
     border: 0;
     border-radius: var(--radius-md);
-    background: var(--spark);
-    color: var(--spark-fg);
+    /* CONTRACT §7: an AI action is still an action — azure, white spark (DS `.ask .send`); vermilion is AI presence only */
+    background: var(--accent);
+    color: var(--accent-fg);
     cursor: pointer;
   }
   .home-ask-send:active:not([disabled]) {
@@ -1050,6 +1051,11 @@
     color: var(--fg-0);
   }
   .island.home-target-menu {
+    /* Nested in the backdrop-filtered ask card, its own frost has nothing to sample, so 88 % read as
+       see-through (01 cf-home-target). Solid island material, as the floating shell islands use. */
+    background: var(--bg-1);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     position: absolute;
     z-index: 20;
     left: 0;

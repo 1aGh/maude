@@ -64,7 +64,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | live / reconnecting dot | Menu › Diagnostics › Server | `diag-live` |
 | hub sync chip | Share cluster word (`data-status`) and Menu › Diagnostics › Sync | `share-cluster-status`, `project-menu-status-diag.sync` |
 | `v<version>` | Settings › Advanced › This Mac › Version | `settings-app-version` |
-| light / dark toggle | Settings › General › Look › Theme | `settings-theme` |
+| light / dark toggle | Settings › General › Look › Theme (Light · Dark · Auto) | `settings-theme` |
 
 ### sidebar/tree
 
@@ -680,8 +680,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `settings-account-links` | testid | The five account pages on the web (signed in). | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
 | `settings-account-<key>` | testid (pattern) | One account page; `<key>` ∈ people, billing, macs, download, delete. | `client/v2/settings/account.jsx` · `AccountBlock` | test:share-advanced | new in v2 (S9.20) |
 | `settings-open-emails` | testid | General › Account › E-mails: opens the mention e-mail switch (/account/emails) on the cloud dashboard. | `client/v2/settings/account.jsx` · `AccountBlock` | test:v2-settings | new in v2 (S9.18) |
-| `settings-theme` | testid | General › Look › the Light / Dark radio group. | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
-| `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
+| `settings-theme` | testid | General › Look › Theme: the Light · Dark · Auto segmented radio group (native radios, `input[value]`). | `client/v2/settings/general-section.jsx` · `ThemeSegment` | e2e-helper:chrome | stable |
+| `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). *Retired gate-b-polish2: the switch became Inspector › Advanced (`inspector-section-advanced`); the v2 inspector ignored it.* | `client/panels/SettingsPanel.jsx` · `AppearanceTab` (no longer mounted) | — | retired — gate-b-polish2 |
 | `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-keyboard` | testid | General › Keyboard group (the Single-key shortcuts switch). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
 | `settings-single-keys` | testid | General › Keyboard › the Single-key shortcuts switch: off, only shortcuts with ⌘ or ⌥ fire (V, H, N, /, ? go quiet). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
@@ -748,7 +748,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `acp-not-connected` | testid | Chat panel body shown while the ACP agent is not connected (holds the readiness list). | `client/panels/ChatPanel.jsx` · `NotConnected` | e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
+| `acp-not-connected` | testid | Chat panel body shown while the ACP agent is not connected (holds the readiness list). *Retired gate-b-polish2 (CONTRACT §7): the panel looks the same; the first send opens `ai-connect-sheet`; the readiness list is Menu › Diagnostics › AI setup (`diag-ai`). e2e asks `/_api/acp/status` (`aiConnected()`).* | `client/panels/ChatPanel.jsx` · `NotConnected` (deleted) | — | retired — gate-b-polish2 |
 | `acp-setup-install` | testid | Readiness row action: install Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 | `acp-setup-signin` | testid | Readiness row action: sign in to Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | — | stable — re-emit |
 | `rdy-row-<id>` | testid (pattern) | One readiness check row (e.g. `rdy-row-claude`). Also rendered in onboarding and the readiness dialog. | `client/panels/ReadinessList.jsx` · `Row` | e2e:acp-cold-start | stable — re-emit |
