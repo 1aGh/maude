@@ -864,6 +864,33 @@ async function prompt(ctx, input) {
   return out;
 }
 
+/**
+ * S12.16 — a new canvas is made by the app's own create (`POST /_api/canvas`), never written by
+ * hand: a hand-made one differs from the app's in its name, its `.meta.json` and its scaffold, and
+ * its first version is not the AI's. Not canvases: a design system's files (its folder, the
+ * `system/` tree), a component (a `newComponentDir`, top level or per system), a `_`-prefixed
+ * helper module. Returns the deny reason, or null.
+ */
+export function handMadeCanvasReason(designRoot, rel) {
+  if (!/\.tsx$/i.test(rel)) return null;
+  const segs = rel.split('/');
+  if (segs[segs.length - 1].startsWith('_') || segs[0] === 'system') return null;
+  const cfg = readJson(join(designRoot, 'config.json'), {});
+  const dirs = [
+    typeof cfg?.newComponentDir === 'string' ? cfg.newComponentDir : 'ui/project/components',
+  ];
+  for (const s of Array.isArray(cfg?.designSystems) ? cfg.designSystems : []) {
+    if (typeof s?.path === 'string') dirs.push(s.path);
+    if (typeof s?.newComponentDir === 'string') dirs.push(s.newComponentDir);
+  }
+  const under = (d) => {
+    const dir = String(d).replace(/^\.?\/+|\/+$/g, '');
+    return dir !== '' && (rel === dir || rel.startsWith(`${dir}/`));
+  };
+  if (dirs.some(under)) return null;
+  return `new-canvas: ${rel} does not exist yet, and a canvas is never written by hand. Make it with the app's own create — \`maude design curl-local "http://127.0.0.1:<port>/_api/canvas" --method POST --header "Content-Type: application/json" --data '{"kind":"blank","name":"<name>"}'\` (the port is in ${DESIGN_REL}/_server.json; the answer's \`rel\` is the file) — then Edit the file it made. A component goes in the newComponentDir instead.`;
+}
+
 async function preEdit(ctx, input) {
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const d = designTarget(ctx, input);
@@ -901,6 +928,16 @@ async function preEdit(ctx, input) {
         `out-of-scope: ${input.agent_type ?? 'this agent'} writes only what its hand-off owns (${owns}) — ${shownRel(t.rel)} is not in it. Put the change in your hand-off result and let the main agent apply it.`
       );
     }
+  }
+  // 0b. a new canvas is made by the create (S12.16) — a sub-agent held to a hand-off that owns
+  //     the path (checked above) makes the file it was handed
+  if (
+    input.tool_name === 'Write' &&
+    !existsSync(t.abs) &&
+    !(isSubagent(input) && fenceOf().hs.length)
+  ) {
+    const made = handMadeCanvasReason(ctx.designRoot, t.rel);
+    if (made) return deny(made);
   }
   const ti = input.tool_input ?? {};
   const cur = readOr(t.abs);
