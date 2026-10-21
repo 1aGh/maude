@@ -558,9 +558,17 @@ async function runOpener(browser, srv, probe, opener) {
     const config = { ...probe.config, ...world.config };
     if (Object.keys(config).length)
       await page.route(`${srv.origin}/_config`, async (route) => {
-        const res = await route.fetch();
+        // under machine load the fixture server resets a connection now and then: ask again once, and when it still
+        // fails abort the request (the opener then fails and is retried) instead of crashing the whole pass with an
+        // unhandled rejection (the cloud pass died that way at load 30+)
+        let res = null;
+        for (let attempt = 0; attempt < 3 && !res; attempt++) {
+          res = await route.fetch().catch(() => null);
+          if (!res) await sleep(500);
+        }
+        if (!res) return route.abort().catch(() => {});
         const body = await res.json();
-        await route.fulfill({ response: res, json: { ...body, ...config } });
+        await route.fulfill({ response: res, json: { ...body, ...config } }).catch(() => {});
       });
     for (const [path, json] of Object.entries(world.routes))
       await page.route(

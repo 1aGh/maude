@@ -140,3 +140,9 @@ test('the Preview openers fit the canvas first and press near the element corner
   }
   assert.match(read('scripts/v2-manifest/probe-reach.mjs'), /position: step\.at/);
 });
+
+test('a reset connection to the fixture server does not crash the pass (the /_config route asks again, then aborts)', () => {
+  const src = read('scripts/v2-manifest/probe-reach.mjs');
+  assert.match(src, /res = await route\.fetch\(\)\.catch\(\(\) => null\)/);
+  assert.match(src, /if \(!res\) return route\.abort\(\)/);
+});
