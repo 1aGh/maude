@@ -12,20 +12,21 @@ import { DesignCanvas, DCSection, DCArtboard, VideoComp } from "@maude/canvas-li
 import { AbsoluteFill } from "remotion";
 import { TransitionSeries } from "@remotion/transitions";
 
-const B1 = 60, B2 = 90, B3 = 60;
-const TOTAL = B1 + B2 + B3;
+// literals, not named constants: the edit engine rewrites a beat's `durationInFrames` and the comp's total in place,
+// and refuses an identifier or `B1 + B2` it cannot reason about ("adjust it by hand")
+const TOTAL = 210;
 const W = 320, H = 180, FPS = 30;
 
 const Comp = () => (
   <AbsoluteFill style={{ background: "#101014" }}>
     <TransitionSeries>
-      <TransitionSeries.Sequence name="beat-one" durationInFrames={B1}>
+      <TransitionSeries.Sequence name="beat-one" durationInFrames={60}>
         <AbsoluteFill style={{ background: "#1d4ed8", display: "grid", placeItems: "center", color: "#fff", fontFamily: "system-ui", fontSize: 48 }}>1</AbsoluteFill>
       </TransitionSeries.Sequence>
-      <TransitionSeries.Sequence name="beat-two" durationInFrames={B2}>
+      <TransitionSeries.Sequence name="beat-two" durationInFrames={90}>
         <AbsoluteFill style={{ background: "#15803d", display: "grid", placeItems: "center", color: "#fff", fontFamily: "system-ui", fontSize: 48 }}>2</AbsoluteFill>
       </TransitionSeries.Sequence>
-      <TransitionSeries.Sequence name="beat-three" durationInFrames={B3}>
+      <TransitionSeries.Sequence name="beat-three" durationInFrames={60}>
         <AbsoluteFill style={{ background: "#b91c1c", display: "grid", placeItems: "center", color: "#fff", fontFamily: "system-ui", fontSize: 48 }}>3</AbsoluteFill>
       </TransitionSeries.Sequence>
     </TransitionSeries>
