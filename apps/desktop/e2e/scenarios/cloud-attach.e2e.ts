@@ -179,7 +179,11 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     );
     const moved = await $(tid('share-moved'));
     await moved.waitForDisplayed({ timeout: 15_000 });
-    expect(await moved.getText()).toContain('Moved to the cloud');
+    // linkedHub lands first; the card says "Setting up the cloud project…" until the stub answers, then the final words
+    await browser.waitUntil(async () => (await moved.getText()).includes('Moved to the cloud'), {
+      timeout: 30_000,
+      timeoutMsg: 'the card never reached its final words ("Moved to the cloud")',
+    });
     await capture('moved to the cloud');
     await (await $(tid('share-close'))).click();
 
