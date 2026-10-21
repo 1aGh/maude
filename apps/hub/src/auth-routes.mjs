@@ -468,7 +468,13 @@ export async function handleAuthRoutes(ctx) {
               token: body.token,
               workspace: ctx.publicUrl ?? null,
               email: look.invite.email,
-              error,
+              // On a page for a named address the form is also where an account holder signs in to accept
+              // (gate-b-sec3b), so the sentence points at the password. It depends on the invite, never on
+              // whether the address has an account — only the refusal itself differs, as before.
+              error:
+                taken && look.invite.email
+                  ? "That address can't be used with this invitation. If you already have an account on this project, enter its password."
+                  : error,
               env,
             })
           );
