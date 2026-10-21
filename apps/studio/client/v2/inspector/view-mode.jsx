@@ -62,21 +62,44 @@ function activeCanvasWin() {
   return f?.contentWindow ?? null;
 }
 
+// The canvas posts `hold-view` ONCE per change (hold-rings.tsx dedupes on the view). The inspector frame
+// mounts with the very selection that produced it, so when someone already holds the object ("Tereza
+// first, you second", 14 · ed-edge-tereza) the message landed before the frame's listener existed and the
+// fields stayed open. The newest `hold-view` is kept from module load (the shell imports this at boot) and
+// re-judged at read time against the CURRENT origin and active canvas, so a record from a canvas that is
+// no longer active, or from another origin, still reads as nothing.
+let lastHoldView = null;
+const holdViewSubs = new Set();
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (e) => {
+    if (e.data?.dgn !== 'hold-view') return;
+    lastHoldView = { origin: e.origin, source: e.source, data: e.data };
+    for (const fn of holdViewSubs) fn();
+  });
+}
+
+/** The kept `hold-view`, accepted now (gate + payload), as the inspector reads it; null = nothing held. */
+function readHoldView(origin) {
+  if (!lastHoldView) return null;
+  const m = acceptFromCanvas(lastHoldView, { canvasOrigin: origin, active: activeCanvasWin() });
+  if (m?.dgn !== 'hold-view') return null;
+  return m.person || m.ai ? { person: m.person, label: m.label, ai: m.ai } : null;
+}
+
 /**
  * The selection's holds from the active canvas, and this person's `hold-intent` back to it.
  * `rootRef` = the inspector's root (focus inside it = a field for the selection has focus).
  */
 export function useHoldView({ canvasOrigin, rootRef }) {
-  const [hold, setHold] = useState(null);
+  const [hold, setHold] = useState(() =>
+    typeof window === 'undefined' ? null : readHoldView(canvasOrigin || window.location.origin)
+  );
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const origin = canvasOrigin || window.location.origin;
-    const onMessage = (e) => {
-      if (e.data?.dgn !== 'hold-view') return;
-      const m = acceptFromCanvas(e, { canvasOrigin: origin, active: activeCanvasWin() });
-      if (m?.dgn !== 'hold-view') return;
-      setHold(m.person || m.ai ? { person: m.person, label: m.label, ai: m.ai } : null);
-    };
+    const onMessage = () => setHold(readHoldView(origin));
+    // the one that may have arrived between the first render and this effect
+    onMessage();
     let field = false;
     let app = typeof document === 'undefined' || document.hasFocus();
     const send = (gesture) => {
@@ -125,7 +148,7 @@ export function useHoldView({ canvasOrigin, rootRef }) {
         send(false);
       }
     };
-    window.addEventListener('message', onMessage);
+    holdViewSubs.add(onMessage);
     document.addEventListener('focusin', onFocusIn, true);
     document.addEventListener('focusout', onFocusOut, true);
     document.addEventListener('input', onEdit, true);
@@ -133,7 +156,7 @@ export function useHoldView({ canvasOrigin, rootRef }) {
     window.addEventListener('blur', onAppBlur);
     window.addEventListener('focus', onAppFocus);
     return () => {
-      window.removeEventListener('message', onMessage);
+      holdViewSubs.delete(onMessage);
       document.removeEventListener('focusin', onFocusIn, true);
       document.removeEventListener('focusout', onFocusOut, true);
       document.removeEventListener('input', onEdit, true);
