@@ -50,6 +50,12 @@ export const HAND = {
   // S8.2 retired the export dialog's hook; its job is the Advanced › Image size row (testids.json notes)
   'testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution':
     'A-png-at-150-300-600-dpi',
+  // gate-b-polish2 retired these hooks (testids.json notes): the AI panel's v1 not-ready body is the readiness
+  // list at Menu › Diagnostics › AI setup; the Inspector-words radio is Inspector › Advanced
+  'testid:studio/client/panels/ChatPanel.jsx#chat/ACP/acp-not-connected':
+    'A-readiness-list-claude-code',
+  'testid:studio/client/panels/SettingsPanel.jsx#settings/settings-inspector-vocabulary':
+    'A-inspector-vocabulary-advanced-designer',
   'button:studio/client/app.jsx#App/reload': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss~2': 'D13', // usage-tour nudge

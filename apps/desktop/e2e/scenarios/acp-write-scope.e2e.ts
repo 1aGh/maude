@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 
 import {
+  aiConnected,
   clearComposer,
   messageCount,
   openAssistant,
@@ -125,8 +126,7 @@ describe('acp-write-scope (native-desktop)', () => {
 
     await openAssistant();
 
-    const notConnected = await $(tid('acp-not-connected'));
-    if (await notConnected.isDisplayed().catch(() => false)) {
+    if (!(await aiConnected())) {
       this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
     }
 

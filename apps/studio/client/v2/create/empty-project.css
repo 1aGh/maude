@@ -58,8 +58,8 @@
     height: 36px;
     border: 0;
     border-radius: var(--radius-md);
-    background: var(--spark);
-    color: var(--spark-fg);
+    background: var(--accent); /* CONTRACT §7: azure with a white spark */
+    color: var(--accent-fg);
     cursor: pointer;
   }
   .ep-ask-send:focus-visible {

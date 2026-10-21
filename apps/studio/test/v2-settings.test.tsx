@@ -275,11 +275,13 @@ describe('the desktop sheet renders every Settings row', () => {
       'settings-open-dashboard',
       'settings-open-emails',
       'settings-theme',
-      'settings-inspector-vocabulary',
       'settings-canvas-view',
       'panel-side-tree',
     ])
       expect(q(id), id).toBeTruthy();
+    // gate-b-polish2 (02 ob-settings, 06): Look is Light · Dark · Auto; the Inspector words left General
+    expect(q('settings-inspector-vocabulary')).toBeNull();
+    expect(q('settings-theme')?.querySelector('input[value="auto"]')).toBeTruthy();
     // the account says who, never a secret
     expect(document.body.textContent).toContain('jana@example.test');
   });

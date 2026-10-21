@@ -42,6 +42,7 @@ import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
 import { registerExportOpener } from '../v2/export/use-export-spec.js';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
+import { useThemeAuto } from '../v2/settings/theme-auto.js';
 
 export function useShellCore({}) {
   const [groups, setGroups] = useState([]);
@@ -604,6 +605,7 @@ export function useShellCore({}) {
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [commentsFilter, setCommentsFilter] = useState('open'); // 'all' | 'open' | 'resolved'
   const [theme, setTheme] = useState(readInitialTheme);
+  useThemeAuto(theme, setTheme); // Settings › General › Look › Auto follows the system
   // DDR-171 — CSS-panel vocabulary mode ('advanced' | 'designer'), App-owned so
   // the in-panel corner toggle (CssKnobs) and Settings → Appearance share one
   // source of truth; persisted to `maude-cp-mode` (same pattern as `theme`).

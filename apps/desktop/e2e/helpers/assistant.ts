@@ -34,6 +34,20 @@ export async function openAssistant(): Promise<void> {
   });
 }
 
+/** Is a signed-in Claude connected? gate-b-polish2 (CONTRACT §7): the panel looks the same either way (the
+ *  v1 `acp-not-connected` body is gone), so ask the bridge itself — the probe the panel runs. */
+export async function aiConnected(): Promise<boolean> {
+  const available = await browser.execute(async () => {
+    try {
+      const r = await fetch('/_api/acp/status');
+      return (await r.json())?.available === true;
+    } catch {
+      return false;
+    }
+  });
+  return available === true;
+}
+
 /** Empty the composer textarea the way React sees it (native value setter +
  *  `input`), so leftover text from an earlier spec cannot prefix the next
  *  message — a stray `/` would turn a prompt into a slash command. */

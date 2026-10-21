@@ -246,7 +246,7 @@
       "v2": {
         "action": "settings.theme",
         "testid": "settings-theme",
-        "where": "Settings › General › Look › Theme (⌘K “Theme” toggles it)"
+        "where": "Settings › General › Look › Theme: Light · Dark · Auto (⌘K “Theme” toggles light / dark)"
       }
     },
     {
@@ -1432,8 +1432,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": "settings-inspector-vocabulary",
-        "where": "The switch became the Inspector's › Advanced fold (Designer is the only default; the raw editor is always in the fold, no corner toggle). Settings › General › Look › Inspector vocabulary stays until it is retired (S2.2)"
+        "testid": "inspector-section-advanced",
+        "where": "Select an element → Inspector › Advanced: Designer is the only default, the raw editor is always in the fold (no corner toggle); the Settings › General radio retired with it (gate-b-polish2)"
       }
     },
     {
@@ -3134,7 +3134,7 @@
     "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-caps-bar": "A-model-effort-fast-mode",
     "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-caps-connecting": "testid:chat-caps-connecting",
     "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-mode-picker": "A-permission-mode",
-    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/acp-not-connected": "testid:acp-not-connected",
+    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/acp-not-connected": "A-readiness-list-claude-code",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/aria-label-send-message": "testid:[aria-label=\"Send message\"]",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/aria-label-stop": "testid:[aria-label=\"Stop\"]",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-cmd-item-name": "testid:chat-cmd-item-<name>",
@@ -3277,7 +3277,6 @@
     "testid:studio/client/panels/SettingsPanel.jsx#settings/figma-disconnect": "testid:figma-disconnect",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-inspector-vocabulary": "A-inspector-vocabulary-advanced-designer",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-keyframe-engine": "testid:settings-keyframe-engine",
-    "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-theme": "A-light-dark-toggle",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-transcription-engine": "D14",
     "testid:studio/client/panels/SetupChecklist.jsx#onboarding/onboarding-bring-brand": "D13",
     "testid:studio/client/panels/SetupChecklist.jsx#onboarding/onboarding-import-figma": "D13",

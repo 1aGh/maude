@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
-import { clearComposer, openAssistant, setPermissionMode } from '../helpers/assistant';
+import { aiConnected, clearComposer, openAssistant, setPermissionMode } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri, isNativeShell } from '../helpers/native';
 import { appPid, isAlive, startApp, waitGone } from '../helpers/session';
@@ -100,12 +100,7 @@ describe('ai-quit (native-desktop)', () => {
     await waitForSidecar();
     if (!(await isNativeShell())) this.skip();
     await openAssistant();
-    if (
-      await $(tid('acp-not-connected'))
-        .isDisplayed()
-        .catch(() => false)
-    )
-      this.skip();
+    if (!(await aiConnected())) this.skip();
     labelA = (await browser.getWindowHandle()) as string;
   });
 

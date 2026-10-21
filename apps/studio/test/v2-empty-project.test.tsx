@@ -344,6 +344,15 @@ describe('where it is mounted, and what stays true', () => {
     expect(v).toContain('No canvas open'); // the placeholder is still the fallback
   });
 
+  test('the shell store hands the slot every field it reads (gate-b-polish2: without them the centre was blank)', () => {
+    const app = src('client/app.jsx');
+    const start = app.indexOf('const shellStore = {');
+    const core = app.slice(app.indexOf('shellCore: {', start), app.indexOf('    local: {', start));
+    const keys = new Set(core.match(/^\s{6}([A-Za-z]\w*),$/gm)?.map((l) => l.trim().slice(0, -1)));
+    for (const k of ['groups', 'treeLoaded', 'treeLoadFailures', 'tabs', 'viewerMode', 'project'])
+      expect(keys.has(k)).toBe(true);
+  });
+
   test('every copy line is the kit table’s (es-project-new ids), not a string of ours', () => {
     const s = src('client/v2/create/empty-project.jsx');
     expect(s).toContain("'es-project-new.project-none'");
