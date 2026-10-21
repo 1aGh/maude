@@ -1186,13 +1186,14 @@
     "hook": "comment-composer-where",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The composer header chip: where the new comment will be pinned (\"at 0:12\", millimetres) before it is saved.",
+    "meaning": "The composer's place: the moment / millimetres chip (\"at 0:12\") when the comment has one, else the header's place in words (artboard label, element name, or \"On the canvas\") — never a raw id.",
     "producer": {
       "file": "apps/studio/comments-overlay.tsx",
       "symbol": "CommentComposer"
     },
     "region": "canvas iframe chrome",
     "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx",
       "apps/studio/test/v2-comments-panel-render.test.tsx"
     ],
     "v2": "new"
@@ -14600,11 +14601,12 @@
     "pattern": false,
     "meaning": "The standalone Layers panel header's \"N artboards\" for the open canvas (the status bar's artboard count, moved).",
     "producer": {
-      "file": "apps/studio/client/inspector/inspector-panel.jsx",
-      "symbol": "InspectorPanel"
+      "file": "apps/studio/client/v2/layers/artboard-layers.jsx",
+      "symbol": "ArtboardLayers"
     },
     "region": "other",
     "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx",
       "apps/studio/test/v2-callouts.test.tsx"
     ],
     "v2": "new"
@@ -39933,6 +39935,92 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/ds-library-board-bar.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-by-artboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers tab listed by artboard: the canvas name + count, one row per artboard, the tree of the current one nested under it.",
+    "producer": {
+      "file": "apps/studio/client/v2/layers/artboard-layers.jsx",
+      "symbol": "ArtboardLayers"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-artboard-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard row in Layers: kind glyph + label (`data-kind`), `aria-current` on the artboard you are in, `data-dim` when the kind chips dim it; a click selects it on the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/layers/artboard-layers.jsx",
+      "symbol": "ArtboardLayers"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer header's place in words when a moment / millimetres chip carries `comment-composer-where`.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's × (esc does the same).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [
+      "apps/studio/test/gate-b-polish3.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's round send button (⌘↵ does the same); also `.cm-composer .cm-btn--primary`.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "export-print-pending",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The print preview's blank page while the page is measured (`data-state=\"measuring\"`) or when the artboard has no paper size (`data-state=\"none\"`); the caption says which.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/print.jsx",
+      "symbol": "PrintSection"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/v2-export-print.test.tsx"
     ],
     "v2": "new"
   }
