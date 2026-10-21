@@ -766,8 +766,13 @@ export const OPENERS = [
     id: 'preview-comment',
     steps: [
       { click: tid('palette-mode-preview') },
+      // Preview opens on the board it last rested on (Pricing, with the Hero scrolled off to the left); Fit shows both
+      { frameKey: 'Meta+0' },
+      { wait: 700 },
       { frameClick: tid('toolbar-slot-comment') },
-      { frameClick: '[data-cd-id="home-hero-body"]' },
+      // `at`: near the element's corner — in Preview the b-roll player sits over the middle of the Hero's blocks and takes
+      // the pointer there
+      { frameClick: '[data-cd-id="home-hero-body"]', at: [8, 8] },
     ],
   },
   { id: 'palette', steps: [{ palette: true }] },
@@ -1333,7 +1338,9 @@ export const OPENERS = [
     id: 'preview-inspect',
     steps: [
       { click: tid('palette-mode-preview') },
-      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { frameKey: 'Meta+0' },
+      { wait: 700 },
+      { frameClick: '[data-cd-id="home-hero-title"]', at: [8, 8] },
       { wait: 400 },
     ],
   },

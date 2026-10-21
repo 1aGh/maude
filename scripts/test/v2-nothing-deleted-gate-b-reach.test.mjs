@@ -130,3 +130,13 @@ test('"Sign in again" is a native-shell home: required in the desktop probe only
     /signIn: refused && !cloud && native/
   );
 });
+
+test('the Preview openers fit the canvas first and press near the element corner (a clean page opens at 100 % on Pricing, a b-roll player over the Hero)', () => {
+  for (const id of ['preview-comment', 'preview-inspect']) {
+    const steps = OPENERS.find((o) => o.id === id).steps;
+    const fit = steps.findIndex((s) => s.frameKey === 'Meta+0');
+    const hit = steps.findIndex((s) => s.frameClick?.includes('home-hero') && s.at);
+    assert.ok(fit >= 0 && hit > fit, id);
+  }
+  assert.match(read('scripts/v2-manifest/probe-reach.mjs'), /position: step\.at/);
+});

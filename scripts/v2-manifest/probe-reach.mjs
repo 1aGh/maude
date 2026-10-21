@@ -704,7 +704,11 @@ async function runOpener(browser, srv, probe, opener) {
         if (step.optional)
           await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
-        await target.click({ timeout: 10_000, modifiers: step.modifiers });
+        await target.click({
+          timeout: 10_000,
+          modifiers: step.modifiers,
+          position: step.at ? { x: step.at[0], y: step.at[1] } : undefined,
+        });
       } else if (step.frameDom) {
         // a click dispatched on the element itself: a flyout that opens off the edge of the window (a submenu of a
         // menu opened low on the screen) is real UI that Playwright's own click refuses as "outside the viewport"
