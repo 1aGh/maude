@@ -261,6 +261,7 @@ import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { createKeepBothResolver } from './sync/keep-both.ts';
+import { createLinkGate } from './sync/link-consent.ts';
 import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
@@ -2209,7 +2210,8 @@ export function createHttp(
       },
     },
     // S11.11 — POST /_api/sync/resync (routes/sync.ts), moved from the legacy literal.
-    sync: { control: () => ctx.syncControl, trace: resyncTrace },
+    // gate-b-sec4 — GET /_api/sync/link + POST /_api/sync/link/confirm: the parked committed link.
+    sync: { control: () => ctx.syncControl, trace: resyncTrace, link: createLinkGate(ctx) },
     // S11.13 — Settings › Advanced reads: the decision-memory count and the bundled plugin versions.
     settings: { repoRoot: ctx.paths.repoRoot },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
