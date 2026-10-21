@@ -19,7 +19,7 @@
 // Every other card is refused and every question declined at once — with a socket attached the
 // studio would otherwise wait for the person (S5.6 D7).
 
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildStudioBrief } from '../../../acp/bootstrap-brief.ts';
@@ -90,6 +90,17 @@ export function toolLog(trialDir) {
   };
 }
 
+/** Does the trial's `_state/ai-stage-local.json` still hold an open run? (no file / unreadable = no.) */
+export function stageOpen(project) {
+  const f = join(project, '.design', '_state', 'ai-stage-local.json');
+  if (!existsSync(f)) return false;
+  try {
+    return (JSON.parse(readFileSync(f, 'utf8')).runs ?? []).some((r) => r.state === 'open');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Run the plan against the trial's studio on `port`: one `/_ws/acp` socket, one chat. Resolves to
  * one `{ turn, ok, stopReason | error }` per turn; after the last turn it waits (≤ `settleMs`) for the
@@ -101,7 +112,6 @@ export async function runAcp(
   trialDir,
   { port, timeoutMin = 20, settleMs = 30_000, WebSocketImpl = globalThis.WebSocket } = {}
 ) {
-  void project;
   if (!port) throw new Error('acp lane: no studio port');
   const tools = toolLog(trialDir);
   const names = tools.names;
@@ -210,6 +220,10 @@ export async function runAcp(
     // the registry publishes a turn's stage after turn-end: wait for the chat's runs to end
     const until = Date.now() + settleMs;
     while (!closed && Date.now() < until && [...runs.values()].some((s) => s !== 'ended'))
+      await new Promise((r) => setTimeout(r, 250));
+    // A run that has ended can still hold its stage a moment: the one AI action is in Version history
+    // only once the stage file has no open run (a loaded machine took seconds). Wait for that too.
+    while (!closed && Date.now() < until && stageOpen(project))
       await new Promise((r) => setTimeout(r, 250));
   } finally {
     tools.flush();
