@@ -15,7 +15,8 @@
 
 import assert from 'node:assert/strict';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
@@ -694,6 +695,172 @@ describe('Wave B — team libraries, grants and DS revisions: a 1.9.1 desktop se
         if (v === undefined) delete process.env[k];
         else process.env[k] = v;
       }
+    }
+  });
+});
+
+// ------------------------------------------------------------- F2 (wave B)
+//
+// A read-only session that makes a canvas locally opens a document the hub has
+// never stored. Hocuspocus drops its content (SyncStep2/Update), but the hub
+// used to LIST the live, empty document from the peers map ("a live-but-unsaved
+// canvas"). Every writable peer then pulled the advertised name — the cell's
+// own studio first — and stamped `syncMeta.path` from where it would land on
+// its disk, which the hub stored: a 48-byte stub nobody wrote, advertised to
+// every desktop (1.9.1 pulls every listed name as a canvas). The refused write
+// must leave nothing: no row, no listing, nothing for a writer to pull.
+
+const sqliteRequire = createRequire(import.meta.url);
+
+/** Is a row for `name` persisted in the hub's document table? */
+function storedRow(name) {
+  const path = join(dataDir, 'hub.db');
+  if (!existsSync(path)) return false;
+  const Database = sqliteRequire('better-sqlite3');
+  const db = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    return !!db.prepare('SELECT 1 FROM "documents" WHERE name = ?').get(name);
+  } catch {
+    return false; // no table yet: nothing stored
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * A desktop's new local canvas: the path stamp and the body exist before the
+ * socket does, then an edit after the handshake. Resolves with a `close()`
+ * once synced — the session STAYS connected, as a desktop does.
+ */
+function openLocalCanvas(port, peerToken, name, path) {
+  return new Promise((resolve, reject) => {
+    const doc = new Y.Doc();
+    doc.getMap('syncMeta').set('path', path);
+    doc.getText('html').insert(0, '<main>made here</main>');
+    const timer = setTimeout(() => {
+      provider.destroy();
+      reject(new Error('no sync within 3s'));
+    }, 3000);
+    const provider = new HocuspocusProvider({
+      url: `ws://127.0.0.1:${port}`,
+      name,
+      token: peerToken,
+      document: doc,
+      connect: true,
+      onSynced: () => {
+        clearTimeout(timer);
+        doc.getText('html').insert(0, '<!-- edit -->');
+        resolve({ close: () => provider.destroy() });
+      },
+      onAuthenticationFailed: ({ reason }) => {
+        clearTimeout(timer);
+        provider.destroy();
+        reject(new Error(`refused: ${reason}`));
+      },
+    });
+  });
+}
+
+/**
+ * A writable peer's pull, as the studio does it (sync/index.ts
+ * stampFromLocalFile): open every listed name it lacks and stamp the path the
+ * canvas would land at. Returns the names it pulled.
+ */
+async function writerPulls(port, writerToken) {
+  const listed = (await (await v1Get(port, writerToken, '/api/documents')).json()).documents;
+  const pulled = [];
+  for (const { name } of listed) {
+    pulled.push(name);
+    await new Promise((resolve, reject) => {
+      const doc = new Y.Doc();
+      const timer = setTimeout(() => reject(new Error(`pull ${name}: no sync`)), 3000);
+      const provider = new HocuspocusProvider({
+        url: `ws://127.0.0.1:${port}`,
+        name,
+        token: writerToken,
+        document: doc,
+        connect: true,
+        onSynced: () => {
+          clearTimeout(timer);
+          doc.getMap('syncMeta').set('path', `ui/${name.split('/').pop()}.tsx`);
+          setTimeout(() => {
+            provider.destroy();
+            resolve();
+          }, 300);
+        },
+      });
+    });
+  }
+  return pulled;
+}
+
+const listedNames = async (port, token) =>
+  (await (await v1Get(port, token, '/api/documents')).json()).documents.map((d) => d.name);
+
+/** The v2 desktop's sign-in: it declares the access format it reads. */
+function v2Login(port, projectToken) {
+  return fetch(`http://127.0.0.1:${port}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-maude-access': '2' },
+    body: JSON.stringify({ token: projectToken }),
+  });
+}
+
+/** The read-only sessions: a 1.9.1 viewer and the two v2 read-only claims. */
+const READ_ONLY_SESSIONS = [
+  {
+    who: 'v1.9.1 viewer',
+    login: () => v1Login(PORT, v1ProjectToken('viewer')),
+    doc: 'ws/alligators/main/ui-viewer-local2',
+    path: 'ui/viewer-local2.tsx',
+  },
+  {
+    who: 'v2 project viewer (Can comment)',
+    login: () => v2Login(PORT, v2ProjectToken({ role: 'viewer' })),
+    doc: 'ws/alligators/main/ui-viewer-local3',
+    path: 'ui/viewer-local3.tsx',
+  },
+  {
+    who: 'v2 canvas-only viewer, on its granted canvas',
+    login: () =>
+      v2Login(PORT, v2ProjectToken({ role: null, grants: [{ c: 'ui/a.tsx', r: 'viewer' }] })),
+    doc: 'ws/alligators/main/ui-a',
+    path: 'ui/a.tsx',
+  },
+];
+
+describe('F2 — a read-only session creating a canvas leaves nothing on the hub', () => {
+  for (const s of READ_ONLY_SESSIONS) {
+    test(`${s.who}: no document stored, none listed, nothing for a writer to pull`, async () => {
+      const res = await s.login();
+      assert.equal(res.status, 200, `${s.who} signs in`);
+      const { token } = await res.json();
+      const { token: owner } = await (await v1Login(PORT, v1ProjectToken('owner'))).json();
+
+      const session = await openLocalCanvas(PORT, token, s.doc, s.path);
+      try {
+        // While the read-only desktop holds the document open: not advertised.
+        assert.deepEqual(await listedNames(PORT, owner), [], 'listed to the owner while open');
+        // The cell's studio (a writer) polls the list and pulls what it lacks.
+        assert.deepEqual(await writerPulls(PORT, owner), [], 'a writer pulled it');
+      } finally {
+        session.close();
+      }
+      await new Promise((r) => setTimeout(r, 2500)); // past the store debounce
+      assert.equal(storedRow(s.doc), false, 'a row is stored');
+      assert.deepEqual(await listedNames(PORT, owner), [], 'listed after it closed');
+    });
+  }
+
+  test('a writer’s live, not-yet-stored canvas is still listed', async () => {
+    const { token: member } = await (await v1Login(PORT, v1ProjectToken('member'))).json();
+    const { token: owner } = await (await v1Login(PORT, v1ProjectToken('owner'))).json();
+    const name = 'ws/alligators/main/ui-member-new';
+    const session = await openLocalCanvas(PORT, member, name, 'ui/member-new.tsx');
+    try {
+      assert.deepEqual(await listedNames(PORT, owner), [name]);
+    } finally {
+      session.close();
     }
   });
 });
