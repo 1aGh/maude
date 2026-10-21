@@ -158,6 +158,7 @@ describe('RC-F · the copy names neither the app, the tool nor a design board (C
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .split('\n')
       .filter((l) => !/^\s*\/\//.test(l))
+      .map((l) => l.replace(/\s\/\/\s.*$/, '')) // a trailing `// …` comment
       .join('\n');
   test('no banned phrase in a string the client, the history titles or the AI readiness check renders', () => {
     const files = [
