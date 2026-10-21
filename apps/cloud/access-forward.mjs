@@ -322,6 +322,62 @@ async function mailInvite(env, { project, email, role, inviteUrl, invitedBy }) {
 }
 
 /**
+ * Write one invitation row and mail its link — the ONE way an invitation is made, for an address with an account
+ * and an address without one alike (gate-b-sec3 finding 1). The answer never depends on whether the address has an
+ * account: no lookup happens here, so neither the body nor the timing can tell the two apart, and nobody is ever
+ * added without accepting. An account holder accepts from the e-mail's link (the invite page signs them in) or in
+ * the app (the Join sheet, or Home › Shared with you); `redeem` then raises them, never lowering (G1).
+ */
+export async function createProjectInvite(
+  env,
+  {
+    project,
+    invitedBy = null,
+    invitedByEmail = '',
+    email,
+    role,
+    canvas = null,
+    thread = null,
+    origin,
+    now = Date.now(),
+  }
+) {
+  const db = env.DB;
+  const id = crypto.randomUUID();
+  const expiresAt = now + INVITE_TTL_MS;
+  try {
+    // v18: who invited (an account id — the invite page shows a NAME, never
+    // this person's e-mail) and the comment it points at.
+    await db
+      .prepare(
+        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path, invited_by, thread)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, project.id, email, role, now, expiresAt, canvas, invitedBy, thread)
+      .run();
+  } catch {
+    // The hour a deploy can meet a v17 D1 (the cron migrates): the
+    // invitation still works; only the inviter's name and the comment wait.
+    await db
+      .prepare(
+        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, project.id, email, role, now, expiresAt, canvas)
+      .run();
+  }
+  const inviteUrl = `${origin}/invite/${id}`;
+  const sent = await mailInvite(env, {
+    project,
+    email,
+    role,
+    inviteUrl,
+    invitedBy: invitedByEmail,
+  });
+  return { id, expiresAt, sent: !!sent.ok, inviteUrl };
+}
+
+/**
  * Route `/internal/projects/:p/access/*`. Returns a Response, or null when the
  * path is not ours.
  */
@@ -393,27 +449,35 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
     }
     if (!access.can('request', canvas)) return refuse(403, 'not-allowed', NOT_ALLOWED);
     // S9.21 — at most ACCESS_REQUEST_LIMIT.max asks per person per project per window, whatever
-    // the scope or the answer: each one is a toast on every owner's screen.
-    const recent = await db
-      .prepare(
-        'SELECT COUNT(*) AS n FROM access_requests WHERE project_id = ? AND account_id = ? AND created_at > ?'
-      )
-      .bind(projectId, actor.id, now - ACCESS_REQUEST_LIMIT.windowMs)
-      .first();
-    if (Number(recent?.n ?? 0) >= ACCESS_REQUEST_LIMIT.max) {
-      return refuse(429, 'rate-limited', ASKED_TOO_OFTEN);
-    }
+    // the scope or the answer: each one is a toast on every owner's screen. ONE statement counts and
+    // inserts (gate-b-sec3 finding 4): a count read before a separate insert let parallel POSTs all
+    // see room and all land; a conditional INSERT … SELECT is atomic in D1/SQLite.
     const id = `req_${crypto.randomUUID()}`;
+    let wrote;
     try {
-      await db
+      wrote = await db
         .prepare(
-          'INSERT INTO access_requests (id, project_id, account_id, canvas_path, created_at) VALUES (?, ?, ?, ?, ?)'
+          `INSERT INTO access_requests (id, project_id, account_id, canvas_path, created_at)
+           SELECT ?, ?, ?, ?, ?
+            WHERE (SELECT COUNT(*) FROM access_requests
+                    WHERE project_id = ? AND account_id = ? AND created_at > ?) < ?`
         )
-        .bind(id, projectId, actor.id, canvas, now)
+        .bind(
+          id,
+          projectId,
+          actor.id,
+          canvas,
+          now,
+          projectId,
+          actor.id,
+          now - ACCESS_REQUEST_LIMIT.windowMs,
+          ACCESS_REQUEST_LIMIT.max
+        )
         .run();
     } catch {
       return refuse(409, 'pending', 'You already asked. The owner has your request.');
     }
+    if (!wrote?.meta?.changes) return refuse(429, 'rate-limited', ASKED_TOO_OFTEN);
     await record('access.request', { id, canvas });
     return json({ id }, 201);
   }
@@ -517,59 +581,22 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
         'That is a lot of invitations for one day. Try again tomorrow.'
       );
     }
-    const existing = await getAccountByEmail(db, email);
-    if (existing) {
-      // Somebody with an account is ADDED, as the people page does — but an
-      // invitation never lowers what they already have (G1).
-      let raised = false;
-      if (canvas) {
-        const w = await writeGrant(db, {
-          projectId,
-          accountId: existing.id,
-          canvas,
-          role,
-          source: 'invite',
-          grantedBy: actor.id,
-          now,
-        });
-        if (!w.ok)
-          return refuse(422, w.reason, 'That person already has the most canvases allowed.');
-        raised = w.changed;
-      } else {
-        raised = (
-          await raiseMembership(db, { project, accountId: existing.id, role, source: null, now })
-        ).changed;
-      }
-      await record('access.invite', { canvas, role, existing: true });
-      if (raised) await notifyAccessChanged(env, projectId, { email, change: 'raised' }, { ctx });
-      return json({ id: null, added: true });
-    }
-    const id = crypto.randomUUID();
-    const expiresAt = now + INVITE_TTL_MS;
-    try {
-      // v18: who invited (an account id — the invite page shows a NAME, never
-      // this person's e-mail) and the comment it points at.
-      await db
-        .prepare(
-          `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path, invited_by, thread)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(id, projectId, email, role, now, expiresAt, canvas, actor.id, thread)
-        .run();
-    } catch {
-      // The hour a deploy can meet a v17 D1 (the cron migrates): the
-      // invitation still works; only the inviter's name and the comment wait.
-      await db
-        .prepare(
-          `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(id, projectId, email, role, now, expiresAt, canvas)
-        .run();
-    }
+    // One answer whoever the address belongs to (gate-b-sec3 finding 1): an account holder gets the same pending
+    // invitation a newcomer does — 201, an id, the same shape — and is a member only once they accept.
+    const made = await createProjectInvite(env, {
+      project,
+      invitedBy: actor.id,
+      invitedByEmail: actorEmail,
+      email,
+      role,
+      canvas,
+      thread,
+      origin: url.origin,
+      now,
+    });
+    const { id, expiresAt, inviteUrl } = made;
     await record('access.invite', { id, canvas, role });
-    const inviteUrl = `${url.origin}/invite/${id}`;
-    const sent = await mailInvite(env, { project, email, role, inviteUrl, invitedBy: actorEmail });
+    const sent = { ok: made.sent };
     // A failed send still made a real invitation; the OWNER gets the link to
     // pass on (the people page's rule) — it is theirs to share either way.
     return json({ id, expiresAt, sent: !!sent.ok, ...(sent.ok ? {} : { url: inviteUrl }) }, 201);

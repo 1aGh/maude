@@ -578,7 +578,8 @@ export function CanvasesPanel({
         <div
           ref={treeRef}
           className="st-tree cv-tree"
-          role="tree"
+          // a tree with no treeitem fails axe aria-required-children: a project with no canvases is a labelled group
+          role={emptyProject ? 'group' : 'tree'}
           aria-label="Project file tree"
           data-testid="canvas-list"
           data-rows={rows.length}
@@ -602,11 +603,13 @@ export function CanvasesPanel({
             ))}
           </div>
           {searching && shown === 0 ? <SearchNone query={search.trim()} /> : null}
-          {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
           {kind !== 'all' && !searching && shown === 0 ? (
             <KindNone kind={kind} project={projectLabel} total={tree.total} />
           ) : null}
         </div>
+        {/* gate-b-a11y: the "New canvas" button is not a treeitem — it sits beside `role=tree`, not in it
+            (axe aria-required-children, the wave-A B1 class). */}
+        {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
       {children}
       <p

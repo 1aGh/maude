@@ -140,8 +140,12 @@
   .tla-btn:disabled {
     color: var(--fg-3);
   }
+  /* gate-b-a11y: a <button> with no `background` wears the browser's grey (#6b6b6b in the dark scheme):
+     "Open in code view" read 1.7:1, the unselected Timecode | Frames | EDL | Code segments 2.8:1 */
   .tla-link {
     padding: 0;
+    border: 0;
+    background: transparent;
     color: var(--accent-text);
     font-size: inherit;
   }
@@ -163,6 +167,8 @@
   .tla-seg-btn {
     height: 20px;
     padding: 0 var(--space-2);
+    border: 0;
+    background: transparent;
     border-radius: var(--radius-xs);
     color: var(--fg-1);
     font-size: var(--type-xs);

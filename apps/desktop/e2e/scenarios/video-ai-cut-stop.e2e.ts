@@ -131,6 +131,9 @@ describe('video-ai-cut-stop — reel-place × 7, Stop, one action, one ⌘Z', ()
     rmSync(EDL, { force: true });
   });
 
+  // the readout is "at / length" and the length grows with every shot placed: the playhead is the left half
+  const atTime = async () => (await text('timeline-readout')).split('/')[0];
+
   it('a run on the video, seven shots land one by one; your playhead stays put', async () => {
     await waitForSidecar();
     const row = await canvasRow('canvas-row-ui-videoaicut');
@@ -165,9 +168,9 @@ describe('video-ai-cut-stop — reel-place × 7, Stop, one action, one ⌘Z', ()
       if (i === 3) {
         // scrub into the placed part: your playhead is yours, the AI edge is the run's
         await (await $('[data-testid="timeline-seq-0"]')).click();
-        playhead = await text('timeline-readout');
+        playhead = await atTime();
       }
-      if (i > 3) expect(await text('timeline-readout')).toBe(playhead);
+      if (i > 3) expect(await atTime()).toBe(playhead);
     }
     await $('[data-testid="timeline-ai-edge"]').waitForExist({ timeout: 10_000 });
     expect(await text('timeline-ai-status')).toContain('AI is cutting');

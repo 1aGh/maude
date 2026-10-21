@@ -276,39 +276,43 @@ export function CommentsPanel({
                 const on = onLabel(t, { artboardLabel, canvasLabel: canvasLabel(g.file) });
                 const ai = t.authorKind === 'ai';
                 return (
-                  // biome-ignore lint/a11y/useSemanticElements: a row that holds buttons cannot itself be a <button>
+                  // gate-b-a11y (axe nested-interactive): the row is NOT itself a button — a `role=button` row
+                  // that holds the Resolve / menu buttons has focusable descendants. The row is a plain
+                  // container (a click anywhere on it still opens the thread, for the pointer); the keyboard's
+                  // way in is the real <button> that holds the avatar and the words.
+                  // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: pointer convenience; the .cmp-open button is the keyboard path
                   <div
                     key={t.id}
-                    role="button"
-                    tabIndex={0}
                     data-testid={`comment-item-${t.id}`}
                     className={`cmp-row${t.resolved ? ' is-resolved' : ''}${t.id === focusedId ? ' is-active' : ''}`}
                     aria-current={t.id === focusedId ? 'true' : undefined}
                     onClick={() => onJump?.(g.file, t.id)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        onJump?.(g.file, t.id);
-                      }
-                    }}
                   >
-                    <span className={`cmp-av${ai ? ' is-ai' : ''}`} aria-hidden="true">
-                      {ai ? 'AI' : initialsOf(t.author)}
-                    </span>
-                    <span className="cmp-txt">
-                      {on ? (
-                        <span className="cmp-on" data-testid={`comment-where-${t.id}`}>
-                          {on}
-                        </span>
-                      ) : null}
-                      <span className="cmp-body-t">{t.text}</span>
-                      <span className="cmp-meta">
-                        {[t.time, t.replies ? repliesWord(t.replies) : null]
-                          .filter(Boolean)
-                          .join(' · ')}
+                    <button
+                      type="button"
+                      className="cmp-open"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onJump?.(g.file, t.id);
+                      }}
+                    >
+                      <span className={`cmp-av${ai ? ' is-ai' : ''}`} aria-hidden="true">
+                        {ai ? 'AI' : initialsOf(t.author)}
                       </span>
-                    </span>
+                      <span className="cmp-txt">
+                        {on ? (
+                          <span className="cmp-on" data-testid={`comment-where-${t.id}`}>
+                            {on}
+                          </span>
+                        ) : null}
+                        <span className="cmp-body-t">{t.text}</span>
+                        <span className="cmp-meta">
+                          {[t.time, t.replies ? repliesWord(t.replies) : null]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      </span>
+                    </button>
                     <RowActions
                       t={t}
                       onResolve={onResolve}

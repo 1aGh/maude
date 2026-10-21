@@ -8,10 +8,10 @@
 //   · PANEL  draws the Transcript island when `transcriptUi.open`.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { menuRunner } from '../shell/menu-runner.js';
 import { usePanelLayout } from '../shell/use-panel-layout.js';
 import {
   cutSelection,
@@ -121,7 +121,7 @@ export default function TranscriptHost() {
           live.current.timelineClipVerb(clipRef, verb, params, { quiet: true }),
         analyse: (asset) => analyseAsset(asset),
         toast: (text, ok, action) => shellToast(text, ok, action),
-        undo: () => live.current.postToActiveCanvas(runActionMessage('edit.undo')),
+        undo: () => menuRunner.run('edit.undo'),
         fail: (prefix, message) => live.current.timelineOpFailed(prefix, message),
         openSettings: () => live.current.setSettingsOpen(true),
         nameOf: (src) => sourceNamer(live.current.sequences)(src),

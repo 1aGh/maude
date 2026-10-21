@@ -336,6 +336,8 @@ export function redeemInvite(
       email: address,
       password,
       role: check.invite.role,
+      // the owner named THIS address (gate-b-sec3): only then may an existing account accept it
+      bound: Boolean(bound),
       ...(check.invite.access ? { access: check.invite.access } : {}),
     });
   } catch (err) {

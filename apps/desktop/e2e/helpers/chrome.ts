@@ -144,3 +144,20 @@ export async function toggleTheme(): Promise<void> {
   }, next);
   await (await $(tid('settings-close'))).click();
 }
+
+/**
+ * Close every notification card on screen. The shell raises first-run notices ("You're in Edit", the tour offer) on
+ * a clean profile, and they stack over the bottom edge — right on top of the timeline's trim handles — so a scenario
+ * that drags there would press the notice, not the handle. Closing them is what a person does first.
+ */
+export async function dismissNotices(): Promise<void> {
+  await browser.execute(() => {
+    for (const b of Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-testid^="notice-"] [aria-label="Dismiss notification"]'
+      )
+    ))
+      b.click();
+  });
+  await browser.pause(300);
+}

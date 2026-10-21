@@ -31,6 +31,15 @@ const MATCHES = {
   'tok-owner': { owner: 'ann@x.test', label: 'ann', role: 'owner', readOnly: false, scope: '*' },
   'tok-member': { owner: 'bob@x.test', label: 'bob', role: 'member', readOnly: false, scope: '*' },
   'tok-viewer': { owner: 'vic@x.test', label: 'vic', role: 'viewer', readOnly: true, scope: '*' },
+  // A v2 session for the same role: Can comment (the matrix's `viewer`) carries the claim.
+  'tok-commenter': {
+    owner: 'cam@x.test',
+    label: 'cam',
+    role: 'viewer',
+    readOnly: true,
+    scope: '*',
+    access: { v: 1, role: 'viewer' },
+  },
   'tok-observer': {
     owner: 'oli@x.test',
     label: 'oli',
@@ -45,6 +54,15 @@ const MATCHES = {
     readOnly: true,
     scope: 'label:cy',
     access: { v: 1, role: null, grants: [{ c: 'ui/a.tsx', r: 'member' }] },
+  },
+  // canvas-only, Can comment on its one canvas
+  'tok-canvas-comment': {
+    owner: 'cleo@x.test',
+    label: 'cleo',
+    role: null,
+    readOnly: true,
+    scope: 'label:cleo',
+    access: { v: 1, role: null, grants: [{ c: 'ui/a.tsx', r: 'viewer' }] },
   },
   // S8.5b-4 — canvas-only with TWO exportable canvases: a job on one must never carry the other.
   'tok-canvas2': {
@@ -296,12 +314,53 @@ test('T9/T5: the studio sees no authorization, no cookie and no inbound x-maude-
   assert.deepEqual(JSON.parse(post.body), { v: 2, spec: spec() });
 });
 
-test('T4: a read-only project session and Can view render nothing (403, never forwarded)', async () => {
-  for (const tok of ['tok-viewer', 'tok-observer']) {
-    const r = await submit(tok, { jobId: JOB(3), spec: spec() });
-    assert.equal(r.status, 403, tok);
+// Michal 2026-10-21 (decision:maude/v2-michal-viewer-renders-from-mac) — supersedes the S8.5b-2
+// line "read-only -> 403" for viewers: a read-only project session renders from the Mac app, as it
+// exports from the browser. Can view (observer) keeps the matrix's refusal (A19); a removed member
+// and a request with no session are still nobody.
+test('a viewer (Can comment) renders from the Mac app: submit, status and file, forwarded read-only', async () => {
+  for (const [tok, n] of [
+    ['tok-viewer', 3],
+    ['tok-commenter', 4],
+    ['tok-canvas-comment', 5],
+  ]) {
+    seen.length = 0;
+    const r = await submit(tok, { jobId: JOB(n), spec: spec(), expect: [fp('ui/a.tsx')] });
+    assert.equal(r.status, 202, tok);
+    const post = posts()[0];
+    assert.ok(post, `${tok} reached the studio`);
+    assert.equal(post.headers['x-maude-readonly'], '1', tok);
+    assert.notEqual(post.headers['x-maude-role'], 'owner', tok);
+    assert.equal((await call(`/${JOB(n)}`, { token: tok })).status, 200, `${tok} status`);
+    jobs.get(JOB(n)).status = 'done';
+    assert.equal((await call(`/${JOB(n)}/file`, { token: tok })).status, 200, `${tok} file`);
   }
+});
+
+test('a viewer keeps the per-person caps (2 in flight, N an hour) and its own job scope', async () => {
+  limits = { active: 2, perHour: 30, perMinute: 100 };
+  buildDoor();
+  assert.equal((await submit('tok-viewer', { jobId: JOB(60), spec: spec() })).status, 202);
+  assert.equal((await submit('tok-viewer', { jobId: JOB(61), spec: spec() })).status, 202);
+  const busy = await submit('tok-viewer', { jobId: JOB(62), spec: spec() });
+  assert.equal(busy.status, 429);
+  assert.equal((await busy.json()).code, 'busy');
+  // someone else's job id is missing, viewer or not
+  assert.equal((await call(`/${JOB(60)}`, { token: 'tok-commenter' })).status, 404);
+});
+
+test('Can view (observer) still renders nothing (A19): 403, never forwarded', async () => {
+  const r = await submit('tok-observer', { jobId: JOB(7), spec: spec() });
+  assert.equal(r.status, 403);
   assert.equal(posts().length, 0);
+});
+
+test('a removed member and a request with no session are still refused (401), nothing forwarded', async () => {
+  for (const token of ['tok-removed', null]) {
+    const r = await submit(token, { jobId: JOB(8), spec: spec() });
+    assert.equal(r.status, 401, String(token));
+  }
+  assert.equal(seen.length, 0);
 });
 
 test('T3: canvas-only + Folder / Whole project → 404, never forwarded', async () => {

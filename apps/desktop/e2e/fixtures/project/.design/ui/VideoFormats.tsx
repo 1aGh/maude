@@ -18,7 +18,7 @@ const FPS = 30;
 const Recap = () => (
   <AbsoluteFill style={{ background: "#101014" }}>
     <TransitionSeries>
-      <TransitionSeries.Sequence name="shot" durationInFrames={TOTAL}>
+      <TransitionSeries.Sequence name="shot" durationInFrames={90}>
         <Img src="assets/pic.png" />
       </TransitionSeries.Sequence>
     </TransitionSeries>

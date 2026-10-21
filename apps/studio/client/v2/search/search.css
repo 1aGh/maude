@@ -140,6 +140,11 @@
     border-radius: var(--radius-xs);
     padding: 0 1px;
   }
+  /* gate-b-a11y: a match inside the quiet meta ("Video" in "Video · ui") sits on the accent tint — --fg-2 there
+     was 4.24:1 (wave-A B4's twin: it fixed the selected row's meta, not the marks inside every row's meta) */
+  .st-pal-meta .st-pal-mark {
+    color: var(--fg-0);
+  }
   .st-pal-icon--spark,
   .st-pal-item.is-active .st-pal-icon--spark {
     background: var(--accent);

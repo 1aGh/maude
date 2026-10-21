@@ -1,5 +1,9 @@
 // client/home/InviteSheet.jsx — "Open the invite as you@work-studio.cz?" (02 ob-edge-accounts, S6.11, S6 Q12).
 //
+// `join` mode (gate-b-sec3 M2): the invite's address IS signed in here. A `maude://invite` link can come from any
+// web page, so it never accepts by itself — the sheet names the project, who invited, and the account that joins,
+// and Join is the one explicit step.
+//
 // Shown when the invite's address is not an account this Mac is signed in with (or nobody is signed in). It says
 // who the invite is for, and Open signs that address in — in a NEW profile, its own tab — so the person's other
 // tabs keep their accounts. It never names anything from the invite link itself: the words come from the peek
@@ -21,7 +25,7 @@ function Face({ id, label, email }) {
 }
 
 /**
- * @param {{ sheet: { mode: 'other-account'|'signed-out', invite: { projectName: string, fromName: string|null,
+ * @param {{ sheet: { mode: 'join'|'other-account'|'signed-out', invite: { projectName: string, fromName: string|null,
  *           email: string }, current: { profile: string, email: string|null } | null, busy: boolean },
  *           waiting: boolean, onOpen: () => void, onCancel: () => void, onReopen?: (() => void) | null }} props
  */
@@ -35,6 +39,7 @@ export function InviteSheet({ sheet, waiting, onOpen, onCancel, onReopen = null 
   }, [onCancel]);
   const w = inviteSheetWords(sheet);
   const other = sheet.mode === 'other-account';
+  const join = sheet.mode === 'join';
   return (
     <div
       className="home-link-modal"
@@ -74,6 +79,20 @@ export function InviteSheet({ sheet, waiting, onOpen, onCancel, onReopen = null 
             </span>
           </span>
         ) : null}
+        {join ? (
+          <span className="home-inv-acc" data-testid="invite-sheet-account">
+            <span className="home-inv-row">
+              <Face
+                id={sheet.current?.profile ?? ''}
+                email={sheet.current?.email ?? sheet.invite.email}
+              />
+              <span className="home-inv-t">
+                <strong>{sheet.current?.email || sheet.invite.email}</strong>
+                <span>{INVITE_WORDS.newTab}</span>
+              </span>
+            </span>
+          </span>
+        ) : null}
         <p className="home-inv-fine">{w.fine}</p>
         {waiting ? (
           <p className="home-inv-wait" role="status" data-testid="invite-sheet-waiting">
@@ -99,17 +118,31 @@ export function InviteSheet({ sheet, waiting, onOpen, onCancel, onReopen = null 
           >
             {INVITE_WORDS.cancel}
           </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            data-testid="invite-sheet-open"
-            disabled={sheet.busy || waiting}
-            // biome-ignore lint/a11y/noAutofocus: the sheet asks one question; Open is its answer
-            autoFocus
-            onClick={onOpen}
-          >
-            {INVITE_WORDS.open}
-          </button>
+          {join ? (
+            <button
+              type="button"
+              className="btn btn--primary"
+              data-testid="invite-sheet-join"
+              disabled={sheet.busy}
+              // biome-ignore lint/a11y/noAutofocus: the sheet asks one question; Join is its answer
+              autoFocus
+              onClick={onOpen}
+            >
+              {INVITE_WORDS.join}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--primary"
+              data-testid="invite-sheet-open"
+              disabled={sheet.busy || waiting}
+              // biome-ignore lint/a11y/noAutofocus: the sheet asks one question; Open is its answer
+              autoFocus
+              onClick={onOpen}
+            >
+              {INVITE_WORDS.open}
+            </button>
+          )}
         </div>
       </div>
     </div>

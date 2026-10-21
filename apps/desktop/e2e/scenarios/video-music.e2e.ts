@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { waitForArtboard } from '../helpers/canvas-frame';
+import { dismissNotices } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { lineDiff, withNetProbe } from '../helpers/net-probe';
 import { pointerClick } from '../helpers/pointer';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
@@ -89,6 +91,7 @@ describe('video-music — a music bed with its beat: ticks, Music inspector, Low
     expect(box).not.toBeNull();
     await clickAt(box.x + 12, box.y - 10);
     await $('[data-testid="timeline-island"]').waitForExist({ timeout: 15_000 });
+    await dismissNotices(); // first-run notices stack over the island's bottom edge
     await $('[data-testid="timeline-beat-ticks"]').waitForExist({
       timeout: 20_000,
       timeoutMsg: 'the Music track drew no beat ticks',
@@ -100,25 +103,31 @@ describe('video-music — a music bed with its beat: ticks, Music inspector, Low
 
   it('click the bed: the inspector is Music; Lower under speech wraps it in <Duck> once, ⌘Z undoes it', async () => {
     const before = onDisk();
-    await (await $('[data-testid="timeline-audio-0"] .tl-audio-block')).click();
-    await $('[data-testid="inspector-frame"][data-kind="music"]').waitForExist({
-      timeout: 10_000,
-      timeoutMsg: 'a music pick did not fill the inspector',
-    });
-    expect(await text('inspector-kind')).toBe('Music');
-    await $('[data-testid="insp-music-volume"]').waitForExist({ timeout: 5000 });
-    await $('[data-testid="insp-music-snap"]').waitForExist({ timeout: 5000 });
-    await $('[data-testid="insp-music-cut-to-beat"]').waitForExist({ timeout: 5000 });
-    await capture('video-music-inspector');
-    await (await $('[data-testid="insp-music-duck"] input')).click();
-    await browser.waitUntil(async () => onDisk() !== before && onDisk().includes('<Duck'), {
-      timeout: 15_000,
-      timeoutMsg: 'Lower under speech never reached the file',
-    });
-    await key({ key: 'z', metaKey: true });
-    await browser.waitUntil(async () => onDisk() === before, {
-      timeout: 15_000,
-      timeoutMsg: '⌘Z did not put the file back exactly',
+    await withNetProbe(async () => {
+      await (await $('[data-testid="timeline-audio-0"] .tl-audio-block')).click();
+      await $('[data-testid="inspector-frame"][data-kind="music"]').waitForExist({
+        timeout: 10_000,
+        timeoutMsg: 'a music pick did not fill the inspector',
+      });
+      expect(await text('inspector-kind')).toBe('Music');
+      await $('[data-testid="insp-music-volume"]').waitForExist({ timeout: 5000 });
+      await $('[data-testid="insp-music-snap"]').waitForExist({ timeout: 5000 });
+      await $('[data-testid="insp-music-cut-to-beat"]').waitForExist({ timeout: 5000 });
+      await capture('video-music-inspector');
+      await (await $('[data-testid="insp-music-duck"] input')).click();
+      await browser.waitUntil(async () => onDisk() !== before && onDisk().includes('<Duck'), {
+        timeout: 15_000,
+        timeoutMsg: 'Lower under speech never reached the file',
+      });
+      await key({ key: 'z', metaKey: true });
+      await browser
+        .waitUntil(async () => onDisk() === before, {
+          timeout: 15_000,
+          timeoutMsg: '⌘Z did not put the file back exactly',
+        })
+        .catch((e: Error) => {
+          throw new Error(`${e.message}\n${lineDiff(before, onDisk())}`);
+        });
     });
   });
 
