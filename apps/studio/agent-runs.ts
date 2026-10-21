@@ -439,8 +439,12 @@ type AstNode = { type?: string; start?: number; end?: number; [k: string]: unkno
 export function artboardSpans(source: string): Span[] | null {
   const parsed = parseSync('canvas.tsx', source, { sourceType: 'module', lang: 'tsx' });
   if (parsed.errors.length) return null;
+  return spansOf(parsed.program);
+}
+
+function spansOf(program: unknown): Span[] {
   const out: Span[] = [];
-  const stack: unknown[] = [parsed.program];
+  const stack: unknown[] = [program];
   while (stack.length) {
     const n = stack.pop();
     if (!n || typeof n !== 'object') continue;
@@ -471,18 +475,155 @@ export function artboardSpans(source: string): Span[] | null {
   return out.sort((a, b) => a.start - b.start);
 }
 
-/** The artboards a [from, to) range of `source` reaches; `outside` = it also changes code outside every artboard. */
-function reach(source: string, spans: Span[], from: number, to: number) {
+/** A part of the source an edit inside reaches exactly these artboards. */
+interface Zone {
+  ids: string[];
+  start: number;
+  end: number;
+}
+
+interface TopDecl {
+  name: string;
+  /** the binding identifier's own position (not a reference) */
+  idStart: number;
+  start: number;
+  end: number;
+}
+
+/** Top-level `function X`, `class X`, `const X = …` (also exported), one span per name. */
+function topDecls(program: AstNode): TopDecl[] {
+  const out: TopDecl[] = [];
+  const named = (n: AstNode | undefined, start: number, end: number) => {
+    const id = n?.id as (AstNode & { name?: string }) | undefined;
+    if (id?.type === 'Identifier' && typeof id.name === 'string')
+      out.push({ name: id.name, idStart: id.start ?? -1, start, end });
+  };
+  for (const stmt of (program.body as AstNode[] | undefined) ?? []) {
+    const s = stmt.start ?? 0;
+    const e = stmt.end ?? 0;
+    const inner =
+      stmt.type === 'ExportNamedDeclaration' || stmt.type === 'ExportDefaultDeclaration'
+        ? (stmt.declaration as AstNode | undefined)
+        : stmt;
+    if (!inner) continue;
+    if (inner.type === 'FunctionDeclaration' || inner.type === 'ClassDeclaration')
+      named(inner, s, e);
+    else if (inner.type === 'VariableDeclaration') {
+      const ds = (inner.declarations as AstNode[] | undefined) ?? [];
+      for (const d of ds)
+        named(d, ds.length === 1 ? s : (d.start ?? 0), ds.length === 1 ? e : (d.end ?? 0));
+    }
+  }
+  return out;
+}
+
+/**
+ * S12.16 (S5) — the helpers an artboard renders. A top-level declaration (a component, a const) is
+ * a zone when every reference to it lies inside an artboard, or inside another declaration that
+ * resolves (transitively): an edit inside it reaches exactly those artboards. A declaration that
+ * holds an artboard itself (the canvas component), one referenced anywhere else (module scope, a
+ * cycle), or one nobody references is not a zone — an edit there still reaches the whole file.
+ * References are counted by name, so a shadowing local only ever adds artboards (sound).
+ */
+function helperZones(program: AstNode, artboards: Span[]): Zone[] {
+  const decls = topDecls(program);
+  if (!decls.length) return [];
+  const byName = new Map<string, TopDecl>();
+  const dup = new Set<string>();
+  for (const d of decls) {
+    if (byName.has(d.name)) dup.add(d.name);
+    byName.set(d.name, d);
+  }
+  const refs = new Map<string, number[]>();
+  const stack: unknown[] = [program];
+  while (stack.length) {
+    const n = stack.pop();
+    if (!n || typeof n !== 'object') continue;
+    if (Array.isArray(n)) {
+      for (const c of n) stack.push(c);
+      continue;
+    }
+    const node = n as AstNode & { name?: unknown };
+    if (
+      (node.type === 'Identifier' || node.type === 'JSXIdentifier') &&
+      typeof node.name === 'string' &&
+      byName.has(node.name) &&
+      typeof node.start === 'number'
+    ) {
+      const list = refs.get(node.name) ?? [];
+      list.push(node.start);
+      refs.set(node.name, list);
+    }
+    for (const k of Object.keys(node)) {
+      if (k === 'parent') continue;
+      const v = node[k];
+      if (v && typeof v === 'object') stack.push(v);
+    }
+  }
+  const FILE = null;
+  const memo = new Map<string, Set<string> | null>();
+  const busy = new Set<string>();
+  const inside = (p: number, s: { start: number; end: number }) => s.start <= p && p < s.end;
+  function resolve(d: TopDecl): Set<string> | null {
+    if (memo.has(d.name)) return memo.get(d.name) as Set<string> | null;
+    if (busy.has(d.name) || dup.has(d.name)) return FILE;
+    if (artboards.some((a) => a.start >= d.start && a.end <= d.end)) {
+      memo.set(d.name, FILE);
+      return FILE;
+    }
+    busy.add(d.name);
+    let out: Set<string> | null = new Set();
+    for (const p of refs.get(d.name) ?? []) {
+      if (p === d.idStart || inside(p, d)) continue; // its own name, or itself (recursion)
+      const a = artboards.find((s) => inside(p, s));
+      if (a) {
+        out.add(a.id);
+        continue;
+      }
+      const host = decls.find((x) => x !== d && inside(p, x));
+      const via = host ? resolve(host) : FILE;
+      if (via === FILE) {
+        out = FILE;
+        break;
+      }
+      for (const id of via) out.add(id);
+    }
+    busy.delete(d.name);
+    memo.set(d.name, out);
+    return out;
+  }
+  const zones: Zone[] = [];
+  for (const d of decls) {
+    const r = resolve(d);
+    if (r?.size) zones.push({ ids: [...r], start: d.start, end: d.end });
+  }
+  return zones;
+}
+
+/** The artboards and the helpers that render them, as zones. Null = the source does not parse. */
+function artboardZones(source: string): { spans: Span[]; zones: Zone[] } | null {
+  const parsed = parseSync('canvas.tsx', source, { sourceType: 'module', lang: 'tsx' });
+  if (parsed.errors.length) return null;
+  const spans = spansOf(parsed.program);
+  const zones: Zone[] = [
+    ...spans.map((s) => ({ ids: [s.id], start: s.start, end: s.end })),
+    ...helperZones(parsed.program as unknown as AstNode, spans),
+  ].sort((a, b) => a.start - b.start);
+  return { spans, zones };
+}
+
+/** The artboards a [from, to) range of `source` reaches; `outside` = it also changes code no zone covers. */
+function reach(source: string, zones: Zone[], from: number, to: number) {
   const ids: string[] = [];
   if (from === to) {
-    for (const s of spans) if (s.start < from && from < s.end) ids.push(s.id);
+    for (const s of zones) if (s.start < from && from < s.end) ids.push(...s.ids);
     return { ids, outside: false };
   }
   let outside = false;
   let pos = from;
-  for (const s of spans) {
+  for (const s of zones) {
     if (s.end <= from || s.start >= to) continue;
-    ids.push(s.id);
+    ids.push(...s.ids);
     if (s.start > pos && source.slice(pos, s.start).trim()) outside = true;
     pos = Math.max(pos, s.end);
   }
@@ -492,18 +633,19 @@ function reach(source: string, spans: Span[], from: number, to: number) {
 
 /**
  * Which artboards turning `before` into `after` reaches. `before` null = a new file (every
- * artboard it has). A change outside every artboard (imports, shared consts, styles) — or a side
- * that does not parse — reaches the whole file. Pure.
+ * artboard it has). A change inside a helper the artboards render reaches the artboards that
+ * render it (`helperZones`, S12.16); a change no artboard or helper covers (imports, an unused
+ * helper, module scope) — or a side that does not parse — reaches the whole file. Pure.
  */
 export function changedArtboards(
   before: string | null,
   after: string
 ): { scope: 'artboards' | 'file' | 'new'; artboards: string[] } {
-  const afterSpans = artboardSpans(after);
-  if (before === null) return { scope: 'new', artboards: (afterSpans ?? []).map((s) => s.id) };
-  const beforeSpans = artboardSpans(before);
-  const all = [...new Set([...(beforeSpans ?? []), ...(afterSpans ?? [])].map((s) => s.id))];
-  if (!beforeSpans || !afterSpans) return { scope: 'file', artboards: all };
+  const afterZ = artboardZones(after);
+  if (before === null) return { scope: 'new', artboards: (afterZ?.spans ?? []).map((s) => s.id) };
+  const beforeZ = artboardZones(before);
+  const all = [...new Set([...(beforeZ?.spans ?? []), ...(afterZ?.spans ?? [])].map((s) => s.id))];
+  if (!beforeZ || !afterZ) return { scope: 'file', artboards: all };
   let p = 0;
   const max = Math.min(before.length, after.length);
   while (p < max && before.charCodeAt(p) === after.charCodeAt(p)) p++;
@@ -513,8 +655,8 @@ export function changedArtboards(
     before.charCodeAt(before.length - 1 - s) === after.charCodeAt(after.length - 1 - s)
   )
     s++;
-  const b = reach(before, beforeSpans, p, before.length - s);
-  const a = reach(after, afterSpans, p, after.length - s);
+  const b = reach(before, beforeZ.zones, p, before.length - s);
+  const a = reach(after, afterZ.zones, p, after.length - s);
   if (b.outside || a.outside) return { scope: 'file', artboards: all };
   const ids = new Set([...b.ids, ...a.ids]);
   return { scope: 'artboards', artboards: all.filter((id) => ids.has(id)) };

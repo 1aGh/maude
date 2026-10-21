@@ -42,6 +42,13 @@ When in BOOTSTRAP mode, classify into sub-modes:
 
 If both modes seem plausible, **prefer READ** — bootstrap should be the explicit choice.
 
+**Changing a token of an existing system** is not a bootstrap. A system on its Design system canvas (it has
+`revisions/head.json`) takes a waiting change: `maude design ds pending <ds> --set <file.json>`, applied with **Update N
+canvases** or `maude design ds publish <ds>`. A **folder system** (no `head.json`; the `ds` verbs answer
+`ds-not-converted`) has no review: files are the API, so edit its token CSS directly (`tokensCssRel` in
+`config.json`, default `system/<ds>/colors_and_type.css`), then run `maude design ds-check <ds> --emit` to refresh its
+`tokens.json`. Never edit `tokens.json`, `revisions/` or `head.json` by hand.
+
 Once the mode is resolved, **load the matching sub-doc** ([`_read.md`](./_read.md) or [`_bootstrap.md`](./_bootstrap.md)) and follow it. The sub-mode adaptations (`additional-ds`, `re-bootstrap`) are documented inside `_bootstrap.md`.
 
 ---

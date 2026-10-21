@@ -571,11 +571,20 @@ export function createDsEngine(opts: EngineOptions) {
     pending: DsPending;
   }
 
+  /**
+   * S12.16 (S10) — a folder (unconverted) system has no review: files are the API (V2-1.18). The
+   * refusal names the token file to edit and the verb that refreshes its manifest.
+   */
+  function folderSystemWords(s: SystemConfig): string {
+    const css = `${path.basename(designRoot)}/${s.tokensCssRel}`;
+    return `${s.name} is a folder system (not converted), so it has no review to propose to: change its tokens by editing ${css} directly, then run \`maude design ds-check ${s.name} --emit\` to refresh its tokens.json (never edit tokens.json by hand)`;
+  }
+
   function load(ds: string): Loaded {
     const s = system(ds);
     const abs = dsAbs(s);
     const h = readHead(abs);
-    if (h.state === 'absent') throw fail('ds-not-converted', `${ds} is not converted`);
+    if (h.state === 'absent') throw fail('ds-not-converted', folderSystemWords(s));
     if (h.state !== 'ok')
       throw fail('ds-head-invalid', `${ds}: head.json is ${h.state} (${h.detail})`);
     // S10.16a: a system still being made has no revision to review, publish or keep (head = base = null)

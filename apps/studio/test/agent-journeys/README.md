@@ -5,9 +5,12 @@ restore a version, trash it, bring it back"), written once as JSON and run in **
 
 - **terminal** — `claude -p --plugin-dir plugins/design` in the project, one `claude -p` per turn
   on one session (`--session-id`, then `--resume`);
-- **AI chat** — the adapter the AI chat panel runs, driven through `acp/bridge.ts`'s `AcpBridge`,
-  with the panel's session shape (`newSessionParams`: `MAUDE_DEFAULT_ALLOWED_TOOLS`,
-  `settingSources: ['user']`, the studio brief, the injected design plugin + its suppression).
+- **AI chat** — the AI chat panel's own path: the lane is the panel's client on the trial studio's
+  `/_ws/acp` socket, so every prompt goes through the studio's run registry and the run's stage and
+  an edit lands in Version history as the AI's (S12.16). The studio's bridge has the panel's session
+  shape (`newSessionParams`: `MAUDE_DEFAULT_ALLOWED_TOOLS`, `settingSources: ['user']`, the studio
+  brief, this tree's design plugin + its suppression); the trial's `maude` shim rides the studio's
+  PATH and its prefs file is the trial's own.
 
 Both lanes use the same permissions: the AI chat's allow list, in-project edits accepted, and
 nobody answers a permission card (it is refused) — except for the prompt-tier verbs a journey names

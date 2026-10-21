@@ -227,19 +227,28 @@ async function live() {
       let tap = null;
       let held = [];
       try {
+        shimDir(trialDir);
+        // acp: the studio hosts the chat (lanes/acp.mjs), so the agent's `maude` shim rides the
+        // studio's PATH (the terminal lane puts it on the agent's own PATH instead), and its prefs are the trial's own (the plugin injection never reads this
+        // Mac's `ownPluginCopy`, and nothing is written to the real prefs)
+        if (l === 'acp') {
+          env.PATH = `${join(trialDir, 'bin')}:${env.PATH ?? ''}`;
+          env.MAUDE_UI_PREFS_PATH = join(trialDir, 'prefs.json');
+        }
         const port = studioUp(project, env);
         tap = await shellTap(port, trialDir);
         held = await runLiveSetup(project, j);
-        shimDir(trialDir);
         if (l === 'terminal') {
           const plan = planTerminal(j, { project, trialDir, env, model, budgetUsd });
           writeJson(join(trialDir, 'plan.json'), { ...plan, env: undefined });
           turns = await runTerminal(plan, trialDir, { timeoutMin });
         } else {
-          process.env.PATH = `${join(trialDir, 'bin')}:${process.env.PATH}`;
           const plan = planAcp(j, { project });
-          writeJson(join(trialDir, 'plan.json'), plan);
-          turns = await runAcp(plan, project, trialDir, { timeoutMin });
+          writeJson(join(trialDir, 'plan.json'), {
+            ...plan,
+            transport: `ws://127.0.0.1:${port}/_ws/acp`,
+          });
+          turns = await runAcp(plan, project, trialDir, { port, timeoutMin });
         }
       } catch (e) {
         infra = String(e?.message ?? e);

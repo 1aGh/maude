@@ -254,6 +254,10 @@ export function createAgentActivityTracker(
   chatId = 'default'
 ): AgentActivityTracker {
   const kindByToolCall = new Map<string, string>(); // toolCallId → kind
+  // S12.16 — toolCallId → the canvas keys its earlier updates named. The adapter's `completed`
+  // update carries no path (it came with the input, before): without this the turn never claims
+  // its write, and with two runs open the store cannot tell whose it is (`outside`).
+  const keysByToolCall = new Map<string, Set<string>>();
   const lastBeat = new Map<string, number>(); // ai-activity key → last beat ms
   const actionKey = `acp:${chatId}`;
   let turnLabel = 'Claude edit';
@@ -308,9 +312,14 @@ export function createAgentActivityTracker(
       | undefined;
     if (raw && typeof raw === 'object') candidates.push(raw.file_path, raw.abs_path, raw.path);
     const now = Date.now();
+    const seen = u.toolCallId ? keysByToolCall.get(u.toolCallId) : undefined;
+    const keys = new Set<string>(seen ?? []);
     for (const p of candidates) {
       const key = keyFor(p);
-      if (!key) continue;
+      if (key) keys.add(key);
+    }
+    if (u.toolCallId && keys.size) keysByToolCall.set(u.toolCallId, keys);
+    for (const key of keys) {
       if (!actionOpen) {
         // T16 — the turn's first canvas edit opens its project action.
         actionOpen = true;
@@ -335,6 +344,7 @@ export function createAgentActivityTracker(
     for (const key of lastBeat.keys()) ai.end(key);
     lastBeat.clear();
     kindByToolCall.clear();
+    keysByToolCall.clear();
     if (actionOpen) {
       actionOpen = false;
       // A registry run's stage is the registry's to end (publish / partial / hold).

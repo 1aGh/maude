@@ -130,6 +130,11 @@ with **Update N canvases** on the Design system canvas (or asks you for `maude d
 whose Dark follows Light, send the Light value only: the DS engine sets Dark (decision
 `v2-S10.21-dark-follows-in-engine`).
 
+A **folder system** (not converted: no `revisions/head.json`) has no waiting change — the `ds` verbs answer
+`ds-not-converted` and name its token file. Edit that CSS directly (`tokensCssRel` in `config.json`, default
+`system/<ds>/colors_and_type.css`; files are the API), then `maude design ds-check <ds> --emit` refreshes its
+`tokens.json` and `maude design ds-check <ds>` checks it. Never edit `tokens.json` by hand.
+
 ## A team library that needs linking again
 
 When a verb answers `ds-library-relink`, the library link on this design system was not made on this Mac (it came by

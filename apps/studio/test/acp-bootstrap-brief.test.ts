@@ -212,6 +212,19 @@ describe('buildStudioBrief — v2 words and capability facts (S12.3)', () => {
       expect(w).not.toMatch(/\bStamps\b/);
     });
 
+    // S12.16 (S11 acp) — a diagnostics question reads the studio's own verbs, not the app's
+    // files outside the project (reads stay Claude Code's default: this is a fact, not a block).
+    test(`${name}: names the diagnostics verbs logs / sync status / comments list`, () => {
+      for (const verb of ['logs', 'sync status', 'comments list']) {
+        expect(b).toContain(`\`maude design ${verb}\``);
+      }
+    });
+
+    test(`${name}: a new canvas is made with the create, never by hand (S12.16, S1)`, () => {
+      expect(b).toContain('`POST /_api/canvas`');
+      expect(b).toContain('never written by hand');
+    });
+
     test(`${name}: names the studio verbs open / check / history / trash / comments`, () => {
       for (const verb of ['open', 'check', 'history', 'trash', 'comments']) {
         expect(b).toContain(`\`maude design ${verb}`);
