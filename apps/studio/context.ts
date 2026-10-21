@@ -6,6 +6,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { linkConsent } from './sync/link-consent.ts';
+
 export type ConfigSource = '.design/config.json' | 'defaults' | 'defaults (config invalid)';
 
 export interface CanvasGroup {
@@ -219,6 +221,13 @@ export interface Context {
   projectLabel: string;
   paths: Paths;
   bus: Bus;
+  /**
+   * gate-b-sec4 (M1) — the folder's committed `linkedHub` when THIS Mac never linked or confirmed it
+   * (sync/link-consent.ts). Parked here, NOT in `cfg`: everything that reads `cfg.linkedHub` sees a
+   * solo project and nothing reaches that hub. Connect (routes/sync.ts) records consent, adopts it
+   * and clears this. Never set in a workspace cell (the hub's env gates that one).
+   */
+  unconfirmedHub?: LinkedHub;
   /**
    * T2 (9.1-A) — origin of the segregated canvas-content server (e.g.
    * `http://localhost:51234`), set by server.ts once the second listener binds.
@@ -655,9 +664,11 @@ export function createContext(): Context {
   const designRel = cfg.designRoot.replace(/^\/+|\/+$/g, '');
   const designRoot = path.join(repoRoot, designRel);
   const systemDirRel = cfg.canvasGroups.find((g) => /system/i.test(g.path))?.path ?? 'system';
+  const unconfirmedHub = parkUnconfirmedLink(cfg, repoRoot, designRoot);
 
   return {
     cfg,
+    ...(unconfirmedHub ? { unconfirmedHub } : {}),
     projectLabel: cfg.projectLabel || `${cfg.name} Design`,
     paths: {
       repoRoot,
@@ -728,6 +739,10 @@ export function reloadConfig(ctx: Context): boolean {
   // trusted app chrome, whose hub credential this same process just stored.
   // That path cycles the runtime itself (sync/supervisor.ts) instead of hoping
   // a watcher notices.
+  // A parked claim (gate-b-sec4) is the file's value by definition — keep it parked, quietly.
+  const parkedAgain =
+    !!ctx.unconfirmedHub && JSON.stringify(next.linkedHub) === JSON.stringify(ctx.unconfirmedHub);
+  if (parkedAgain) delete next.linkedHub;
   if (JSON.stringify(next.linkedHub) !== JSON.stringify(ctx.cfg.linkedHub)) {
     console.warn('  warn: linkedHub changed — not hot-reloadable, restart the server to apply.');
     if (ctx.cfg.linkedHub === undefined) delete next.linkedHub;
@@ -771,4 +786,31 @@ export function reloadConfig(ctx: Context): boolean {
  */
 export function adoptLinkedHub(ctx: Context, linkedHub: LinkedHub): void {
   ctx.cfg.linkedHub = linkedHub;
+  delete ctx.unconfirmedHub;
+}
+
+/**
+ * gate-b-sec4 (M1) — a committed `linkedHub` this Mac never linked or confirmed is a claim: take it
+ * OUT of `cfg` (returned, to park on the context) so the sync runtime, the share / history doors and
+ * every `cfg.linkedHub` reader run solo. A cell keeps its own gates (cell-pairing.ts) and holds no
+ * person's credential. Exported for tests.
+ */
+export function parkUnconfirmedLink(
+  cfg: DevServerConfig,
+  repoRoot: string,
+  designRoot: string,
+  env: Record<string, string | undefined> = process.env
+): LinkedHub | undefined {
+  const claim = cfg.linkedHub;
+  if (!claim || env.MAUDE_WORKSPACE_MODE === '1') return undefined;
+  const verdict = linkConsent(
+    { url: claim.url, ...(claim.workspaceId ? { workspaceId: claim.workspaceId } : {}) },
+    { repoRoot, designRoot, env }
+  );
+  if (verdict.ok) return undefined;
+  delete cfg.linkedHub;
+  console.warn(
+    `[sync] this project says it syncs with ${String(claim.url).slice(0, 200)}, but that link was not made on this Mac — solo until Connect.`
+  );
+  return claim;
 }

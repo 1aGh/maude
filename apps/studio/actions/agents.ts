@@ -1284,6 +1284,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'external',
     agent: human('billing', 'moves the project to the person’s billed Maude Cloud account'),
   },
+  // gate-b-sec4: Connect is the person consenting that THIS Mac's credential for that hub may serve
+  // this folder — a committed config cannot give it, and neither can an agent (human-only).
+  'sync.connect-link': {
+    effect: 'external',
+    minRole: 'edit',
+    server: { route: '/_api/sync/link/confirm', method: 'POST' },
+    agent: human(
+      'hub-link',
+      'confirms on this Mac that the folder’s hub may receive this Mac’s credential'
+    ),
+  },
   // S9.19 — owner-only, decided by the hub; routes/share.ts refuses a session without `invite` first.
   'share.invite': {
     effect: 'shared',

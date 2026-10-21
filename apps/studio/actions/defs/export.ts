@@ -112,6 +112,17 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     visible: { shell: ['desktop'], notFacts: ['linkedHub'] },
   },
   {
+    // gate-b-sec4 — "This project says it syncs with <host>. Connect?": the folder's committed
+    // linkedHub was never linked on this Mac, so it waits for this row in the Share sheet. Hidden in
+    // ⌘K (it exists only while a link waits); POST /_api/sync/link/confirm enforces Can edit.
+    id: 'sync.connect-link',
+    label: 'Connect',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit', notFacts: ['linkedHub'] },
+    search: { hidden: true, where: 'Share' },
+  },
+  {
     // S9.20 (10 co-share-advanced): Share › Advanced › This link — who can open the link, the role
     // it gives, when it ends. The owner's; the server refuses every other session
     // (routes/share.ts), and the rows are drawn only where the hub has links (Q13).

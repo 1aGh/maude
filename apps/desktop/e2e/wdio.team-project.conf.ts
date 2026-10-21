@@ -171,6 +171,8 @@ async function setUp(): Promise<string> {
       env: {
         ...process.env,
         HUBS_CONFIG_PATH: teammateHubs,
+        // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+        MAUDE_APP_BOUND_HUB: hub.http,
         MAUDE_NO_AUTOBUILD: '1',
         NO_OPEN: '1',
       },

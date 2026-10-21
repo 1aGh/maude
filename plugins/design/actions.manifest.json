@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f287ee2226ec",
+  "manifestVersion": "06cd47422bd5",
   "actions": [
     {
       "id": "search.open",
@@ -3991,6 +3991,23 @@
         "path": "human",
         "because": "billing",
         "note": "moves the project to the person’s billed Maude Cloud account"
+      }
+    },
+    {
+      "id": "sync.connect-link",
+      "label": "Connect",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/link/confirm",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "confirms on this Mac that the folder’s hub may receive this Mac’s credential"
       }
     },
     {

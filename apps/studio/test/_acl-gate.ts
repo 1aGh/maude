@@ -237,7 +237,8 @@ export async function bootGateCell(
     MAUDE_CLOUD_CONFIG: join(home, 'cloud.json'),
     MAUDE_GEN_KEYS_PATH: join(home, 'gen-keys.json'),
     ...(opts.desktop
-      ? {}
+      ? // gate-b-sec4: the harness is the app that made this link (sync/link-consent.ts)
+        { MAUDE_APP_BOUND_HUB: DESKTOP_HUB }
       : {
           MAUDE_WORKSPACE_MODE: '1',
           MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
