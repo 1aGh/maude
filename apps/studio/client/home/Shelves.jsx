@@ -86,13 +86,75 @@ export function Face({ name, size = 'sm' }) {
 }
 
 /**
- * @param {{ rows: object[], newCount: number, canOpen: boolean, onOpen: (row: object) => void }} props
+ * One pending invitation (gate-b-sec3b): who invited you to what, the role, and the two answers. The row is not a
+ * button — Join and Leave are — and it names the project (and canvas), never an invite id.
  */
-export function SharedWithYou({ rows, newCount, canOpen, onOpen }) {
+function InviteRow({ row, canJoin, busy, onJoin, onLeave }) {
+  const slug = `${row.projectId}-${row.canvasPath ? rowSlug(row.canvasPath) : 'project'}`;
+  return (
+    <div className="row-item home-shrow" data-testid={`home-invite-row-${slug}`}>
+      <ProjectSquare id={row.projectId} name={row.projectName} size="md" />
+      <span className="home-shrow-t">
+        <strong>{row.title}</strong>
+        <span>
+          {row.fromName ? <Face name={row.fromName} /> : null}
+          {row.meta || row.projectName}
+        </span>
+      </span>
+      <span className="chip">{row.roleWord}</span>
+      <span className="home-shrow-act">
+        <button
+          type="button"
+          className="btn btn--sm"
+          data-testid={`home-invite-join-${slug}`}
+          disabled={!canJoin || busy}
+          onClick={() => onJoin(row)}
+        >
+          Join
+        </button>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          data-testid={`home-invite-leave-${slug}`}
+          disabled={busy}
+          onClick={() => onLeave(row)}
+        >
+          Leave
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * @param {{ rows: object[], invites?: object[], newCount: number, canOpen: boolean,
+ *   busyKey?: string|null, onOpen: (row: object) => void, onJoin?: (row: object) => void,
+ *   onLeave?: (row: object) => void }} props
+ */
+export function SharedWithYou({
+  rows,
+  invites = [],
+  newCount,
+  canOpen,
+  busyKey = null,
+  onOpen,
+  onJoin,
+  onLeave,
+}) {
   return (
     <Shelf title="Shared with you" aside={sharedAside(newCount)} testid="home-shared">
-      {rows.length ? (
+      {rows.length || invites.length ? (
         <div className="island home-shared">
+          {invites.map((r) => (
+            <InviteRow
+              key={`invite:${r.key}`}
+              row={r}
+              canJoin={canOpen}
+              busy={busyKey === r.key}
+              onJoin={onJoin}
+              onLeave={onLeave}
+            />
+          ))}
           {rows.map((r) => (
             <button
               key={r.key}

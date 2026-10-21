@@ -104,6 +104,30 @@ function cleanShared(v: unknown) {
   };
 }
 
+/**
+ * A pending invitation addressed to the signed-in account (gate-b-sec3b): the project, the inviter's NAME, the canvas
+ * and the role. The cloud sends no invite id and none is read here — only these fields survive, so the bearer secret
+ * (and any other address) can never reach the page.
+ */
+function cleanInvited(v: unknown) {
+  const s = (v ?? {}) as Record<string, unknown>;
+  const projectId = str(s.projectId, 128);
+  if (!projectId) return null;
+  const c = s.canvas as Record<string, unknown> | null | undefined;
+  const role = str(s.role, 16);
+  return {
+    projectId,
+    projectName: str(s.projectName, 200) ?? projectId,
+    fromName: str(s.fromName, 200),
+    canvas:
+      c && typeof c === 'object' && str(c.path, 512)
+        ? { path: str(c.path, 512), name: str(c.name, 200) }
+        : null,
+    role: role === 'observer' || role === 'viewer' || role === 'member' ? role : 'observer',
+    invitedAt: num(s.invitedAt),
+  };
+}
+
 export interface CloudListing {
   ok: boolean;
   profile: string;
@@ -115,6 +139,8 @@ export interface CloudListing {
   account: { email: string | null } | null;
   projects: NonNullable<ReturnType<typeof cleanProject>>[];
   shared: NonNullable<ReturnType<typeof cleanShared>>[];
+  /** invitations waiting for this account to accept (an older control plane sends none) */
+  invited: NonNullable<ReturnType<typeof cleanInvited>>[];
   fetchedAt: number;
   error?: string;
 }
@@ -144,6 +170,8 @@ async function getCapped(url: string, token: string): Promise<{ status: number; 
 
 export interface HomeCloud {
   listing(profile: string): Promise<CloudListing | { ok: false; status: 400; error: string }>;
+  /** Drop a profile's cached listing — after an accept or a leave, so the next read is fresh. */
+  forget(profile: string): void;
   prepare(body: Record<string, unknown>): Promise<PrepareResult>;
 }
 
@@ -165,6 +193,7 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
       account: null,
       projects: [],
       shared: [],
+      invited: [],
       fetchedAt: now(),
       ...extra,
     });
@@ -192,7 +221,12 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
       if (hit && hit.tokenHash === th) return { ...hit.value, offline: true };
       return empty({ signedIn: true, offline: true, error: 'Maude Cloud could not be reached.' });
     }
-    const b = r.body as { account?: { email?: unknown }; projects?: unknown; shared?: unknown };
+    const b = r.body as {
+      account?: { email?: unknown };
+      projects?: unknown;
+      shared?: unknown;
+      invited?: unknown;
+    };
     const value: CloudListing = {
       ok: true,
       profile,
@@ -206,6 +240,11 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
         ? []
         : (Array.isArray(b.shared) ? b.shared.slice(0, MAX_ROWS) : [])
             .map(cleanShared)
+            .filter((s): s is NonNullable<typeof s> => !!s),
+      invited: fallback
+        ? []
+        : (Array.isArray(b.invited) ? b.invited.slice(0, MAX_ROWS) : [])
+            .map(cleanInvited)
             .filter((s): s is NonNullable<typeof s> => !!s),
       fetchedAt: now(),
     };
@@ -250,5 +289,9 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
     return r.ok ? { ...r, profile } : r;
   }
 
-  return { listing, prepare };
+  const forget = (profile: string) => {
+    cache.delete(profile);
+  };
+
+  return { listing, prepare, forget };
 }

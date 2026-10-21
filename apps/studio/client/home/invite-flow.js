@@ -215,6 +215,20 @@ export async function acceptAndOpen({ id, profile, invite }, deps) {
   return plan;
 }
 
+/**
+ * Join an invitation listed on Home (Shared with you): accept it by project (and canvas) with the profile it was
+ * listed under, trade the code, open the landing. No invite id exists on this path. deps: { acceptPending(profile,
+ * projectId, canvas), prepareLink, openPrepared }. Returns the accept plan, so the caller can say a refusal in words.
+ */
+export async function joinPendingAndOpen({ profile, projectId, canvasPath, projectName }, deps) {
+  const r = await deps.acceptPending(profile, projectId, canvasPath);
+  const plan = planAccept(r, { profile, invite: { projectName, email: null } });
+  if (plan.kind !== 'open') return plan;
+  const prep = await deps.prepareLink(profile, { project: plan.landing.project, code: plan.code });
+  await deps.openPrepared(prep, projectName, profile, landingTarget(plan.landing));
+  return plan;
+}
+
 /** The deferred landing: a normal prepare of the project, then the canvas and thread. deps: { prepare,
  *  openPrepared }. */
 export async function openLanding({ profile, landing }, deps) {

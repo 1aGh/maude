@@ -15,6 +15,9 @@ import { cloudUrl } from '../cloud/endpoints.ts';
 import { HANDOFF_CODE_RE, PROFILE_RE, profileToken } from './cloud.ts';
 import { cleanLanding, type HomeAnswer, INVITE_ID_RE } from './signin.ts';
 
+/** A project id as the cloud mints them (the same grammar `/_home/cloud/prepare` checks). */
+const PROJECT_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const UNREACHABLE = {
   ok: false,
   reason: 'unreachable',
@@ -39,7 +42,7 @@ function refusal(body: unknown): Record<string, string> {
 
 async function cloudCall(
   route: string,
-  init: { method: 'GET' | 'POST'; token?: string }
+  init: { method: 'GET' | 'POST'; token?: string; body?: unknown }
 ): Promise<{ status: number; body: unknown }> {
   try {
     const res = await fetch(`${cloudUrl()}${route}`, {
@@ -47,7 +50,9 @@ async function cloudCall(
       headers: {
         accept: 'application/json',
         ...(init.token ? { authorization: `Bearer ${init.token}`, 'x-maude-access': '2' } : {}),
+        ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
+      ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
       signal: AbortSignal.timeout(10_000),
       redirect: 'error',
     });
@@ -73,9 +78,12 @@ const inviteId = (body: unknown): string | null => {
 export interface HomeInvite {
   peek(body: unknown): Promise<HomeAnswer>;
   accept(body: unknown): Promise<HomeAnswer>;
+  /** Home › Shared with you: accept / decline the invitation addressed to the profile's account (no invite id). */
+  pendingAccept(body: unknown): Promise<HomeAnswer>;
+  pendingLeave(body: unknown): Promise<HomeAnswer>;
 }
 
-export function createHomeInvite(): HomeInvite {
+export function createHomeInvite(opts: { forget?: (profile: string) => void } = {}): HomeInvite {
   async function peek(body: unknown): Promise<HomeAnswer> {
     const id = inviteId(body);
     if (!id) return { status: 400, body: { ok: false, reason: 'bad-invite' } };
@@ -140,5 +148,57 @@ export function createHomeInvite(): HomeInvite {
     return { status: 200, body: { ok: true, code: a.code, landing } };
   }
 
-  return { peek, accept };
+  /**
+   * `{profile, projectId, canvas?}` → the cloud's `POST /api/invites/pending/accept|leave` with that profile's device
+   * token. The invitation is named by project (and canvas) — the account's own address is the key on the cloud side,
+   * so no invite id is ever read, sent or returned here. The profile's cached listing is dropped on success so the
+   * next read no longer shows the row.
+   */
+  async function pending(verb: 'accept' | 'leave', body: unknown): Promise<HomeAnswer> {
+    const b = (body ?? {}) as Record<string, unknown>;
+    const profile = b.profile;
+    const projectId = b.projectId;
+    const canvas = b.canvas ?? null;
+    if (
+      typeof profile !== 'string' ||
+      !PROFILE_RE.test(profile) ||
+      typeof projectId !== 'string' ||
+      projectId.length > 128 ||
+      !PROJECT_ID_RE.test(projectId) ||
+      (canvas !== null && (typeof canvas !== 'string' || canvas.length > 512))
+    )
+      return { status: 400, body: { ok: false, reason: 'bad-invite' } };
+    const signedOut = { status: 401, body: { ok: false, reason: 'signed-out' } };
+    const token = profileToken(profile);
+    if (!token) return signedOut;
+    const r = await cloudCall(`/api/invites/pending/${verb}`, {
+      method: 'POST',
+      token,
+      body: { projectId, canvas },
+    });
+    if (r.status === 401) return signedOut;
+    if (r.status === 404 || r.status === 426 || r.status === 429) {
+      // gone: the list is stale — the next read fixes it
+      if (r.status === 404) opts.forget?.(profile);
+      return { status: r.status, body: refusal(r.body) };
+    }
+    if (verb === 'leave') {
+      if (r.status !== 200) return { status: 502, body: UNREACHABLE };
+      opts.forget?.(profile);
+      return { status: 200, body: { ok: true } };
+    }
+    const a = (r.body ?? {}) as { code?: unknown; landing?: unknown };
+    const landing = cleanLanding(a.landing);
+    if (r.status !== 200 || typeof a.code !== 'string' || !HANDOFF_CODE_RE.test(a.code) || !landing)
+      return { status: 502, body: UNREACHABLE };
+    opts.forget?.(profile);
+    return { status: 200, body: { ok: true, code: a.code, landing } };
+  }
+
+  return {
+    peek,
+    accept,
+    pendingAccept: (b) => pending('accept', b),
+    pendingLeave: (b) => pending('leave', b),
+  };
 }
