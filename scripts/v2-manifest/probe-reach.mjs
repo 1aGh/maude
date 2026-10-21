@@ -550,6 +550,11 @@ async function runOpener(browser, srv, probe, opener) {
   try {
     const page = await ctx.newPage();
     if (process.env.PROBE_DEBUG)
+      page.on('console', (m) => {
+        // the shell's error boundary reports through console.error, not as a page error
+        if (m.type() === 'error') console.log(`  [console ${opener.id}] ${m.text().slice(0, 500)}`);
+      });
+    if (process.env.PROBE_DEBUG)
       page.on('pageerror', (e) =>
         console.log(`  [pageerror ${opener.id}] ${String(e).slice(0, 300)}`)
       );

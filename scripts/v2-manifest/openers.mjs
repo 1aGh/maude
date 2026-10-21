@@ -282,7 +282,15 @@ export const ROUTE_ANSWERS = {
         resolvedPath: '/Users/probe/.local/bin/claude',
         resolvedViaMaude: false,
       },
-      { id: 'plugins', label: 'Plugins', status: 'present', required: true },
+      // every item carries a `detail` (readiness.ts ReadinessItem): the list renders it as text, and a stub without it
+      // crashed the desktop shell ("This window stopped drawing")
+      {
+        id: 'plugins',
+        label: 'Plugins',
+        status: 'present',
+        required: true,
+        detail: 'Design and flow plugins are installed.',
+      },
     ],
   },
   // ── comments: the Comments panel's list, the in-canvas overlay's, and who "me" is ───────────────────
