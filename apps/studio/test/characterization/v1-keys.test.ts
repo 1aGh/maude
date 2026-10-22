@@ -138,8 +138,13 @@
 //     Servers boot with the stub `claude` first on PATH and an empty MAUDE_CLAUDE_BIN (a throwaway HOME has no keychain:
 //     the real CLI made macOS ask about "Keychain Not Found"), and without the harness's own V1_KEYS_* / MAUDE_V1_KEYS
 //     env (an update run and a verify run booted different servers: `s` and Settings differed between them).
-//     Known remaining nondeterminism: `browser/in-canvas/canvas Meta+Equal` (the zoom-in translate follows the fit's
-//     timing; one in several runs differs after the retries). Proposed: mask that case's `@world translate` and regenerate it.
+//     Lead, wave-B gate (Ready to try (7), decision v2-gate-b-keys-zoom-pan-and-port-masked): the pan of a zoom key's
+//     `@world translate` is masked for ⌘0 / ⌘= / ⌘− (it follows where the boot fit landed; ⌘0 and ⌘= differed on the
+//     pan alone, never on the scale or a write), and Settings' "Local server port" value is masked (each lane has its own
+//     PORT). Regenerated, then verified: 237 of 240 cases match. Known lane-state variants left (they match on a single
+//     repeated lane — two V1_KEYS_ONLY dumps are identical — and differ only by which server the deal gives them): the two
+//     ⌘, Settings cases (hidden-line hash only, salient lines equal) and `in-canvas Shift+P` (its debounced
+//     `POST /_api/ui-prefs` lands inside the window or just after). None is a key behaviour.
 //  (iii) one real regression, fixed (decision v2-gate-b-keys-handoff-focus): ⇧⌘H opened the Handoff sheet with focus
 //     left behind it (its primary button is disabled until the targets arrive, and a disabled button takes no focus),
 //     so Esc and ↵ went to the shell. The golden now shows `@focus div[data-testid="export-sheet"]`.
@@ -912,6 +917,11 @@ interface DocSnap {
 async function snapDoc(target: Page | Frame, lane: Lane): Promise<DocSnap | null> {
   try {
     const lines = await target.evaluate(fingerprintInPage, { work: lane.work });
+    // Settings › "Local server port" shows the lane's own port as bare digits (each lane has its own PORT).
+    const at = lines.findIndex((l) => l.includes('data-testid="settings-server-port"'));
+    if (at >= 0)
+      for (let i = at + 1; i < Math.min(lines.length, at + 4); i++)
+        lines[i] = lines[i].replace(/(v2s-val--mono )"\d{2,5}"/, '$1"<port>"');
     return { lines: lines.filter((l) => !VOLATILE_DOM.test(l)) };
   } catch {
     return null;
@@ -1255,10 +1265,23 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
         : summarise('shell', maskNums(shellBefore), maskNums(shellAfter)))
     );
     lines.push(...LATE);
+    // A zoom key's pan follows where the boot fit happened to land (timing): ⌘0 / ⌘= / ⌘− differed run to
+    // run on the pan alone at the wave-B gate, never on the scale or a write. The pan is masked for those
+    // keys only; the scale stays pinned.
+    const ZOOM_KEYS = /^Meta\+(?:0|Equal|Minus)$/;
+    const maskPan = (d: DocSnap | null): DocSnap | null =>
+      d && ZOOM_KEYS.test(c.keys)
+        ? {
+            ...d,
+            lines: d.lines.map((l) =>
+              l.startsWith('@world ') ? l.replace(/translate\([^)]*\)/, 'translate(<pan>)') : l
+            ),
+          }
+        : d;
     lines.push(
       ...(frame1 !== frame0 && frame0 && frame1
         ? ['  canvas: (reloaded)']
-        : summarise('canvas', maskNums(canvasBefore), maskNums(canvasAfter)))
+        : summarise('canvas', maskPan(maskNums(canvasBefore)), maskPan(maskNums(canvasAfter))))
     );
     return lines.join('\n');
   } finally {

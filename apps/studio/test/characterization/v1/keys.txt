@@ -268,7 +268,7 @@
   to-shell: child mode-request tool=section mode=preview · child tool-panel-open · child tool-cursor tool=section · child tool-panel-open · child tool-cursor tool=section · child active-artboard id=home-pricing · {mode-changed tool=section mode=preview,peers,viewport-zoom}
   to-canvas: parent run-action id=tool.key · {occluded-insets,set-mode tool=section mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
-  shell: +18 -12 #1205ede813
+  shell: +111 -12 #12a665bf0a
     - @focus body
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
     - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
@@ -280,13 +280,13 @@
     - … 1 more
     + @focus iframe[data-testid="canvas-frame"]
     + button .is-on.st-share-ic [data-testid="share-cluster-panels"] [aria-label="Show panels"] [title="Show panels ⌘\\"] [type="button"]
+    + button .st-iconbtn [aria-label="Close"] [type="button"]
     + button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases (⌘\\ shows all panels)"] [type="button"]
     + button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector (⌘\\ shows all panels)"] [type="button"]
     + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
     + button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
-    + div .island.st-pbar [data-testid="preview-bar"] [data-state="in"]
-    + div .island.st-zoomonly [data-testid="zoom-only"] [data-state="in"]
-    + … 5 more
+    + button .tp-send [data-testid="templates-ask-send"] [aria-label="Ask AI to build it"] [type="button"] [disabled]
+    + … 30 more
   canvas: +23 -16 #5401aee8fb
     - @focus body
     - @html data-maude-theme=dark lang=en
@@ -2136,10 +2136,8 @@
   shell: +1 -1 #26786c162b
     - strong .insp-title [data-testid="inspector-title"] "main"
     + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
-  canvas: +9 -2 #ad6c10650d
-    - @world translate(466.84px, 502.565px)
+  canvas: +8 -1 #e10f372fbc
     - div .ed-sr-only [data-testid="edit-aria-live"] [role="status"]
-    + @world translate(131.25px, 540.781px)
     + div .ed-focus-ring [data-testid="edit-focus-ring"] [aria-hidden="true"]
     + div .ed-sr-only [data-testid="edit-aria-live"] [role="status"] "Hero, frame, 4 items. Press Return to go inside."
     + div [data-testid="edit-order-badges"] [aria-hidden="true"]
@@ -2147,7 +2145,7 @@
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.1"
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.2"
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.3"
-    + … 1 more
+    + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.4"
 ## browser/in-canvas/canvas Meta+1
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="1" default
   to-shell: (none)
@@ -2188,10 +2186,8 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +9 -2 #fb509178d5
-    - @world translate(47.069px, 293.103px)
+  canvas: +8 -1 #e10f372fbc
     - div .ed-sr-only [data-testid="edit-aria-live"] [role="status"]
-    + @world translate(-97.7586px, 202.586px)
     + div .ed-focus-ring [data-testid="edit-focus-ring"] [aria-hidden="true"]
     + div .ed-sr-only [data-testid="edit-aria-live"] [role="status"] "Hero, frame, 4 items. Press Return to go inside."
     + div [data-testid="edit-order-badges"] [aria-hidden="true"]
@@ -2199,17 +2195,15 @@
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.1"
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.2"
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.3"
-    + … 1 more
+    + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.4"
 ## browser/in-canvas/canvas Meta+Minus
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
   to-shell: {viewport-zoom}
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +9 -2 #e91ac0d83e
-    - @world translate(443.42px, 502.565px)
+  canvas: +8 -1 #e10f372fbc
     - div .ed-sr-only [data-testid="edit-aria-live"] [role="status"]
-    + @world translate(668.253px, 643.086px)
     + div .ed-focus-ring [data-testid="edit-focus-ring"] [aria-hidden="true"]
     + div .ed-sr-only [data-testid="edit-aria-live"] [role="status"] "Hero, frame, 4 items. Press Return to go inside."
     + div [data-testid="edit-order-badges"] [aria-hidden="true"]
@@ -2217,7 +2211,7 @@
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.1"
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.2"
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.3"
-    + … 1 more
+    + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.4"
 ## browser/in-canvas/canvas Shift+P
   keydown: canvas ⇧key="Shift" default · canvas ⇧key="P" PREVENTED
   to-shell: child annotations-visibility visible=false
