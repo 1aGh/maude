@@ -381,7 +381,8 @@ export function closureConfigOf(raw: unknown): ClosureConfig {
     canvasGroups: [...groups],
     newComponentDir: relDir(cfg.newComponentDir),
     designSystems,
-    defaultDesignSystem: typeof cfg.defaultDesignSystem === 'string' ? cfg.defaultDesignSystem : null,
+    defaultDesignSystem:
+      typeof cfg.defaultDesignSystem === 'string' ? cfg.defaultDesignSystem : null,
   });
 }
 
@@ -399,11 +400,7 @@ function readJsonObject(project: ProjectReader, rel: string): Record<string, unk
 /** The system a canvas renders under — the same chain as `ds-resolver.ts` `canvasSystemFor`
  *  (owner by path → meta `designSystem` → `defaultDesignSystem` → first), read through the
  *  ProjectReader instead of the disk. */
-function canvasSystem(
-  project: ProjectReader,
-  canvas: string,
-  cfg: ClosureConfig
-): DsSystem | null {
+function canvasSystem(project: ProjectReader, canvas: string, cfg: ClosureConfig): DsSystem | null {
   const systems = cfg.designSystems;
   if (!systems.length) return null;
   const owner = systems.find((s) => canvas.startsWith(`${s.path}/`));
@@ -579,7 +576,10 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
 
 /** The canvas a source, same-name stylesheet or path-keyed sidecar belongs to (`x.tsx`). */
 const canvasOfFile = (rel: string): string =>
-  rel.replace(/\.(css|meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i, '.tsx');
+  rel.replace(
+    /\.(css|meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i,
+    '.tsx'
+  );
 
 function walkImports(
   env: WalkEnv,

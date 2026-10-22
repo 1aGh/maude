@@ -427,13 +427,13 @@ export async function localGate(req: Request, pathname: string, g: GateInput): P
   const target = await gateTarget(req, g, pathname);
   if (target === undefined) {
     // gate-b-c4i — an upload from a frame (`unnarrowed` is set on a frame's access only) that may
-    // edit a canvas of its grant. A read-only frame (c4h `readOnlyBecause`) holds `observer`, a
-    // Can view / Can comment frame never held `edit`: both still refused, and so is frame-less.
+    // edit a canvas of its grant. A Can view / Can comment frame never held `edit`: still refused,
+    // and so is frame-less. (gate-b-c4j: there is no read-only frame any more — a frame inlines no
+    // canvas outside its own grant, so no frame is writing another canvas's content.)
     if (
       cap === 'edit' &&
       FRAME_UPLOAD_WRITES.has(pathname) &&
       g.access.unnarrowed !== undefined &&
-      g.access.readOnlyBecause === undefined &&
       g.access.grants.some((gr) => g.access.can('edit', gr.c))
     )
       return { ok: true };

@@ -143,7 +143,8 @@ describe("the DS folder in a canvas's closure holds no canvas (LOW)", () => {
 
 describe("the closure judges with the studio's effective config (LOW)", () => {
   const NO_CONFIG: Record<string, string> = {
-    'screens/a.tsx': "import S from './s.tsx';\nimport C from '../ui/kit/Chip.tsx';\nexport default () => <S />;\n",
+    'screens/a.tsx':
+      "import S from './s.tsx';\nimport C from '../ui/kit/Chip.tsx';\nexport default () => <S />;\n",
     'screens/s.tsx': 'export default () => <p>S</p>;\n',
     'ui/kit/Chip.tsx': 'export default () => <i />;\n',
   };

@@ -7,8 +7,9 @@
 // harness (`maude design photo-bg-remove`, canvas-lib `PhotoBgRemoveHarness`) all answered 403.
 //
 // Now: an upload that names no target passes when the frame holds `edit` on at least one canvas
-// of its grant. Still refused: a read-only frame (its canvas imports another canvas — c4h
-// `readOnlyBecause`), a Can view member's frame, and a request with no frame capability at all.
+// of its grant. Still refused: a Can view member's frame, and a request with no frame capability at
+// all. (gate-b-c4j: an importing canvas's frame is no longer read-only — its module is refused
+// instead, so no canvas code runs there — and it uploads like any editable frame.)
 // The upload's own caps (sniff, size, content-addressed name) are untouched.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
@@ -122,14 +123,10 @@ describe('a desktop — the owner', () => {
     expect((await chunkStart(b, fc)).status).toBe(201);
   }, 30000);
 
-  test('a frame read-only because its canvas imports another canvas: refused', async () => {
+  test("gate-b-c4j: an importing canvas's frame is not read-only — it uploads like any", async () => {
     const fc = await frameCap(b, {}, IMPORTER);
-    const up = await upload(b, fc);
-    expect({ status: up.status, read: /read-only/.test(up.body) }).toEqual({
-      status: 403,
-      read: true,
-    });
-    expect((await chunkStart(b, fc)).status).toBe(403);
+    expect((await upload(b, fc)).status).toBe(201);
+    expect((await chunkStart(b, fc)).status).toBe(201);
   }, 30000);
 
   test('no frame capability: refused', async () => {

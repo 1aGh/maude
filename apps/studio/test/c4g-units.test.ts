@@ -170,9 +170,9 @@ describe('2 — a meta-less canvas is a canvas (the index rule)', () => {
     expect(c.read.has('ui/_parts/p.tsx')).toBe(true);
   });
 
-  test('the owner’s frame on A reads B (the opener may)', () => {
+  test('the owner’s frame on A does not read B either (gate-b-c4j)', () => {
     const frame = narrowToFrame(resolveAccess({ v: 1, role: 'owner' }), ['ui/a.tsx']);
-    expect(closureFor(frame, project(FILES)).read.has('ui/b.tsx')).toBe(true);
+    expect(closureFor(frame, project(FILES)).read.has('ui/b.tsx')).toBe(false);
   });
 
   test('the index and the closure share one predicate', () => {

@@ -63,7 +63,8 @@ export function listCanvases(ctx: IndexContext): string[] {
       const r = rel ? `${rel}/${name}` : name;
       // a symlink is neither — skipped, like the file tree (api.ts findFiles)
       if (e.isDirectory()) walk(path.join(abs, name), r);
-      else if (e.isFile() && name.endsWith('.tsx') && !isComponentRel(r, ctx.componentDir)) out.add(r);
+      else if (e.isFile() && name.endsWith('.tsx') && !isComponentRel(r, ctx.componentDir))
+        out.add(r);
     }
   };
   for (const g of ctx.groups) walk(path.join(ctx.designRoot, g.path), g.path.replace(/\/+$/, ''));
