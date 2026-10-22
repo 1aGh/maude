@@ -1173,6 +1173,19 @@ export const ASSET_FRAME_BUDGET = (() => {
 })();
 
 /**
+ * gate-b-c4l (LOW) — what ALL frames together may write per server instance: one shared counter
+ * over every frame-originated upload, capped at half of `ASSET_SESSION_BUDGET` (an override,
+ * `MAUDE_ASSET_FRAMES_BUDGET`, can only lower it). Per-frame budgets alone summed to the global
+ * one across N frames (one per canvas the opener can open), and the owner's main-origin drops then
+ * answered 429; the main origin now always keeps at least the other half.
+ */
+export const ASSET_FRAMES_BUDGET = (() => {
+  const half = Math.floor(ASSET_SESSION_BUDGET / 2);
+  const env = Number(process.env.MAUDE_ASSET_FRAMES_BUDGET);
+  return Number.isFinite(env) && env > 0 ? Math.min(env, half) : half;
+})();
+
+/**
  * Phase 23 — content-type sniff from the first bytes (magic numbers). The
  * declared name / extension / Content-Type is NEVER trusted — the bytes decide
  * the stored extension (a `.png` name carrying GIF bytes is stored as `.gif`).
@@ -3030,11 +3043,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   let assetBytesWritten = 0;
   // gate-b-c4k — per frame (`currentFrameKey`): bytes written + held by its open chunk sessions.
   const frameAssetBytes = new Map<string, number>();
+  // gate-b-c4l — the sum over every frame (`ASSET_FRAMES_BUDGET`), kept with the per-frame entries.
+  let framesAssetBytes = 0;
   const frameOver = (key: string | null, bytes: number) =>
-    key !== null && (frameAssetBytes.get(key) ?? 0) + bytes > ASSET_FRAME_BUDGET;
+    key !== null &&
+    ((frameAssetBytes.get(key) ?? 0) + bytes > ASSET_FRAME_BUDGET ||
+      framesAssetBytes + bytes > ASSET_FRAMES_BUDGET);
   const frameCharge = (key: string | null, bytes: number) => {
     if (key === null) return;
-    const next = Math.max(0, (frameAssetBytes.get(key) ?? 0) + bytes);
+    const prev = frameAssetBytes.get(key) ?? 0;
+    const next = Math.max(0, prev + bytes);
+    framesAssetBytes = Math.max(0, framesAssetBytes + next - prev);
     if (next === 0) frameAssetBytes.delete(key);
     else frameAssetBytes.set(key, next);
   };
