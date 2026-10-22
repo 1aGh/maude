@@ -708,8 +708,10 @@ const canvasCache = new Map<string, CanvasCacheEntry>();
 /**
  * gate-b-c4e — may THIS request receive a module built from `inputs` (absolute paths)? null = yes.
  * The build is shared by every requester (cached per path), so the check runs on every serve.
+ * gate-b-c4g — `entry`: the canvas the module was built from; a list that does not name it is
+ * refused (an empty metafile is no evidence the module inlined nothing).
  */
-export type CanvasInputsGate = (inputs: readonly string[]) => Response | null;
+export type CanvasInputsGate = (inputs: readonly string[], entry: string) => Response | null;
 
 // Per-process boot id, folded into every canvas ETag. The canvas transpile
 // BUNDLES the shared chrome (canvas-lib → tool-palette / annotations-layer /
@@ -837,6 +839,10 @@ export async function serveCanvasTsx(
         etag: built.etag,
         inputs: built.inputs,
       } as Awaited<ReturnType<typeof buildCanvasModule>>;
+      // gate-b-c4g — judged BEFORE anything is kept or written: a refused request leaves no
+      // cache entry, no remembered source and no locator file (the sandbox caches the build).
+      const refusedHere = inputsGate?.(result.inputs, absPath);
+      if (refusedHere) return refusedHere;
       cached = {
         sig: builtSig,
         etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
@@ -847,7 +853,7 @@ export async function serveCanvasTsx(
       canvasCache.set(absPath, cached);
       rememberCanvasBuild(absPath, { source, locator: result.locator });
       await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
-      return inputsGate?.(cached.inputs) ?? respondWithCanvasModule(req, cached);
+      return respondWithCanvasModule(req, cached);
     }
     try {
       result = await buildCanvasModule(absPath, source, {
@@ -876,6 +882,10 @@ export async function serveCanvasTsx(
       }
       return canvasBuildErrorResponse(err, ctx);
     }
+    // gate-b-c4g — judged BEFORE anything is kept or written: a refused request leaves no cache
+    // entry, no remembered source and no locator file; the next permitted request builds afresh.
+    const refusedHere = inputsGate?.(result.inputs, absPath);
+    if (refusedHere) return refusedHere;
     // The signature against the freshly-parsed deps — this very edit may have
     // added or removed a `.css` import — stamped before the build (above).
     cached = {
@@ -896,9 +906,10 @@ export async function serveCanvasTsx(
     // mounts. Per-path mutex inside writeLocator() makes concurrent transpiles
     // safe.
     await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
+    return respondWithCanvasModule(req, cached);
   }
 
-  return inputsGate?.(cached.inputs) ?? respondWithCanvasModule(req, cached);
+  return inputsGate?.(cached.inputs, absPath) ?? respondWithCanvasModule(req, cached);
 }
 
 /** The conditional-GET half of serving a built canvas module. Shared by the
@@ -1166,7 +1177,7 @@ async function serveHistoricalCanvas(
       return canvasBuildErrorResponse(err, ctx);
     }
   }
-  const refused = inputsGate?.(cached.inputs);
+  const refused = inputsGate?.(cached.inputs, absPath);
   if (refused) return refused;
   if (req.headers.get('if-none-match') === cached.etag) {
     return new Response(null, {
@@ -7558,7 +7569,9 @@ export function createHttp(
   // canvas code verify for everybody).
   const frameSecret = loadFrameSecret(
     join(projectDir(pidOf(ctx.paths.repoRoot)), 'frame-cap.key'),
-    join(ctx.paths.designRoot, '_state', 'frame-cap.key')
+    join(ctx.paths.designRoot, '_state', 'frame-cap.key'),
+    // gate-b-c4g (L2) — asserted at boot: never inside the design root or the repo.
+    [ctx.paths.designRoot, ctx.paths.repoRoot]
   );
   function frameKeyOf(req?: Request): Buffer | null {
     if (!isWorkspaceMode()) return frameKeyFor(frameSecret, '');
@@ -7654,7 +7667,7 @@ export function createHttp(
   function canvasInputsGate(req: Request): CanvasInputsGate | undefined {
     const see = seerFor(req);
     if (see === null) return undefined;
-    return (inputs) => inputsRefusal(inputs, designRoots, see);
+    return (inputs, entry) => inputsRefusal(inputs, designRoots, see, { entry });
   }
 
   function closureOf(access: Access): Closure | null {

@@ -91,7 +91,8 @@ describe('1c — inputsRefusal', () => {
       inputsRefusal(
         ['/p/.design/ui/a.tsx', '/private/p/.design/ui/parts/btn.tsx', '/m/lib.tsx'],
         roots,
-        sees
+        sees,
+        { ours: ['/m'] } // gate-b-c4g: an out-of-root input must be one of our module roots
       )
     ).toBeNull();
   });
@@ -127,13 +128,13 @@ describe('2 — the closure', () => {
   }
   const FILES = {
     'ui/a.tsx':
-      "import B from './b.tsx';\nimport H from './parts/h.tsx';\n// import C from './c.tsx'\nexport default () => <B />;\n",
+      "import B from './b.tsx';\nimport H from '../components/h.tsx';\n// import C from './c.tsx'\nexport default () => <B />;\n",
     'ui/a.meta.json': '{}',
     'ui/b.tsx': 'export default () => <p>B</p>;',
     'ui/b.meta.json': '{}',
     'ui/c.tsx': 'export default () => <p>C</p>;',
     'ui/c.meta.json': '{}',
-    'ui/parts/h.tsx': 'export default () => <i />;',
+    'components/h.tsx': 'export default () => <i />;',
     'ui/board.tsx': "import x from '../ui-b.annotations.json';\nexport default () => x;",
     'ui-b.annotations.json': '{}',
   };
@@ -141,7 +142,7 @@ describe('2 — the closure', () => {
 
   test('a member of A only: helper yes, imported canvas B no, mentioned canvas C no', () => {
     const c = closureFor(resolveAccess(grantA), project(FILES));
-    expect(c.read.has('ui/parts/h.tsx')).toBe(true);
+    expect(c.read.has('components/h.tsx')).toBe(true);
     expect(c.read.has('ui/b.tsx')).toBe(false);
     expect(c.read.has('ui/c.tsx')).toBe(false);
   });

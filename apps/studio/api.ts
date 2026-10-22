@@ -20,6 +20,7 @@ import {
   filterSystemData,
   projectVisibility,
 } from './access/filters.ts';
+import { currentAccess } from './access/request.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -1589,7 +1590,22 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!slug || slug.includes('\\') || slug.includes('\0') || path.dirname(abs) !== base) {
       throw new Error('not a canvas path');
     }
+    if (slugSidecarRefused(abs)) throw new Error('not a canvas path');
     return abs;
+  }
+
+  /**
+   * gate-b-c4g — a canvas-only session (every frame is one) reaches a SLUG-keyed sidecar only when
+   * its closure owns it. `ui/a-b.tsx`, `ui/a/b.tsx` and `UI/A-B.tsx` fold to one slug and so share
+   * one comments file and one board; the closure gives that shared set to none of them
+   * (access/closure.ts `ownedOf`), so a frame on A neither reads nor writes B's threads.
+   */
+  function slugSidecarRefused(abs: string): boolean {
+    const access = currentAccess();
+    if (!access.canvasOnly) return false;
+    const closure = projectVisibility(ctx).closureOf(access);
+    const rel = path.relative(paths.designRoot, abs).split(path.sep).join('/');
+    return !closure?.owned.has(rel);
   }
 
   function commentsPath(file: string): string {
@@ -1693,6 +1709,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         const arr = JSON.parse(raw);
         if (!Array.isArray(arr) || arr.length === 0) continue;
         const file = arr[0]?.file as string | undefined;
+        // gate-b-c4g — a canvas's own (slug-named) comments file that its canvas-only session's
+        // closure does not own is a file two canvases share (one slug): the map below keys it by
+        // its first row's canvas, which may be the other one. Not this session's.
+        if (
+          file &&
+          `${fileSlug(file)}.json` === e.name &&
+          slugSidecarRefused(path.join(paths.commentsDir, e.name))
+        )
+          continue;
         // Backfill legacy rows so callers see the v2 shape uniformly.
         if (file) out[file] = arr.map(backfillComment);
       } catch {

@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 
+import { bothForms } from './access/frame.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 
 /** Wall clock a single canvas build may take. */
@@ -464,9 +465,13 @@ async function runWorker({
     const parsed = JSON.parse(out);
     if (parsed.ok) {
       // gate-b-c4e — no input list, no module: the serve path cannot hold it to a closure.
+      // gate-b-c4g (M2) — nor a list that does not name the canvas itself: an empty or missing
+      // metafile is no evidence of what the module read. Fail closed.
+      const entryForms = bothForms(canvasAbs);
       if (
         !Array.isArray(parsed.inputs) ||
-        !parsed.inputs.every((p: unknown) => typeof p === 'string')
+        !parsed.inputs.every((p: unknown) => typeof p === 'string') ||
+        !parsed.inputs.some((p: string) => entryForms.includes(resolve(p)))
       )
         return { ok: false, kind: 'runtime', error: 'the build reported no inputs' };
       return {
