@@ -132,6 +132,14 @@
 //     4399–4408 walk ran out twice with other suites' servers on it. Camera `@world translate`, name-tag sizes, a
 //     restored selection's ring / Inspector and a four-node toast-shaped element (`div div li ol`, not identified) that is
 //     only there while the machine is loaded moved with the load, not with a key.
+//  After gate-b-c4b (frame capability) merged: the viewer canvas renders again (`viewer/in-canvas/canvas c` now lists its
+//     `tool-cursor tool=comment`), and the closure listing skips `_` at the first segment, so the Canvases search results lose
+//     the "Runtime files" section / `_` rows (`tree-section-*` lines in the `canvas/text` cases). Both are C4b, intended.
+//     Servers boot with the stub `claude` first on PATH and an empty MAUDE_CLAUDE_BIN (a throwaway HOME has no keychain:
+//     the real CLI made macOS ask about "Keychain Not Found"), and without the harness's own V1_KEYS_* / MAUDE_V1_KEYS
+//     env (an update run and a verify run booted different servers: `s` and Settings differed between them).
+//     Known remaining nondeterminism: `browser/in-canvas/canvas Meta+Equal` (the zoom-in translate follows the fit's
+//     timing; one in several runs differs after the retries). Proposed: mask that case's `@world translate` and regenerate it.
 //  (iii) one real regression, fixed (decision v2-gate-b-keys-handoff-focus): ⇧⌘H opened the Handoff sheet with focus
 //     left behind it (its primary button is disabled until the targets arrive, and a disabled button takes no focus),
 //     so Esc and ↵ went to the shell. The golden now shows `@focus div[data-testid="export-sheet"]`.
