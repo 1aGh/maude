@@ -95,6 +95,9 @@ main().catch((err) => {
       // A NUMBER, never the specifiers. The host counts these; the strings
       // stay between the canvas and the person who wrote it.
       rejectedImports: Number(err?.rejectedImports ?? 0) || 0,
+      // gate-b-c4m — a syntax error in the canvas's own source (the host keeps only that legible
+      // to a frame; any other failure answers like a refusal).
+      transpile: err?.name === 'TranspileError',
     })
   );
   process.exit(1);

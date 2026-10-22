@@ -48,6 +48,8 @@ export interface SandboxBuildFail {
   kind: 'build' | 'timeout' | 'memory' | 'runtime';
   /** How many imports the allowlist refused. A COUNT — never the specifiers. */
   rejectedImports?: number;
+  /** gate-b-c4m — the canvas's own source did not parse (a `TranspileError`), nothing it imports. */
+  transpile?: boolean;
 }
 export type SandboxBuildResult = SandboxBuildOk | SandboxBuildFail;
 
@@ -488,6 +490,7 @@ async function runWorker({
       kind: 'build',
       error: String(parsed.error),
       rejectedImports: Number(parsed.rejectedImports ?? 0) || 0,
+      transpile: parsed.transpile === true,
     };
   } catch {
     return {

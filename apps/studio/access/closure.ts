@@ -44,7 +44,13 @@ const SPEC_RES = [
   /\bfrom\s*["']([^"'\n]+)["']/g, // import … from / export … from
   // dynamic import('./x') and require('./x') (gate-b-c4l: whitespace or a comment may sit inside)
   /\b(?:import|require)\s*\(\s*["']([^"'\n]+)["']\s*[,)]/g,
+  // gate-b-c4m (defender L-B) — the forms Bun also resolves at build time: a template with no
+  // substitution (`import(\`./x\`)`) and CSS `@import url(./x.css)` / `url("./x.css")`. Unseen, a
+  // missing target was a 500 "Could not resolve" beside the refusal's 403 — an existence oracle.
+  /\b(?:import|require)\s*\(\s*`([^`$\n]+)`\s*[,)]/g,
 ];
+/** CSS only (in a JS file the same text is JSX copy, not an import). */
+const CSS_URL_IMPORT_RE = /@import\s+url\(\s*["']?([^"')\s]+)["']?\s*\)/gi;
 
 const CODE_EXT_RE = /\.(css|tsx|ts|jsx|js)$/i;
 /** A JS/TS module the walk reads for imports and the lib-proxy rule reads for re-exports. */
@@ -119,10 +125,11 @@ export function relativeImportGroups(
   canvasAbsPath: string,
   designRoot: string
 ): string[][] {
-  const source = importScanText(rawSource, /\.css$/i.test(canvasAbsPath));
+  const css = /\.css$/i.test(canvasAbsPath);
+  const source = importScanText(rawSource, css);
   const groups: string[][] = [];
   const specs = new Set<string>();
-  for (const re of SPEC_RES) {
+  for (const re of css ? [...SPEC_RES, CSS_URL_IMPORT_RE] : SPEC_RES) {
     re.lastIndex = 0;
     for (let m = re.exec(source); m !== null; m = re.exec(source)) {
       const spec = decodeJsString(m[1] ?? '');

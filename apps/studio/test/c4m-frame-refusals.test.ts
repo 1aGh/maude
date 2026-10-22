@@ -45,6 +45,29 @@ const FILES: Record<string, string> = {
   'ui/v2/01 Create Flow.meta.json': '{}\n',
   [OK]: 'export default () => <main>OK-RENDER</main>;\n',
   'ui/ok.meta.json': '{}\n',
+  // defender L-B — imports the closure walk does not follow, missing vs existing
+  'ui/t1.tsx': 'const m = import(`./absent.tsx`);\nexport default () => <main />;\n',
+  'ui/t1.meta.json': '{}\n',
+  'ui/t2.tsx': 'const m = import(`./other.tsx`);\nexport default () => <main />;\n',
+  'ui/t2.meta.json': '{}\n',
+  'ui/other.tsx': 'export default function O() { return <p>CANARY-OTHER</p>; }\n',
+  'ui/other.meta.json': '{}\n',
+  'ui/c1.tsx': "import './c1.css';\nexport default () => <main />;\n",
+  'ui/c1.meta.json': '{}\n',
+  'ui/c1.css': '@import url(./absent.css);\n',
+  'ui/c2.tsx': "import './c2.css';\nexport default () => <main />;\n",
+  'ui/c2.meta.json': '{}\n',
+  'ui/c2.css': '@import url(./other.css);\n',
+  'ui/other.css': '.canary-other-css { color: red; }\n',
+  'ui/u1.tsx': "import './u1.css';\nexport default () => <main />;\n",
+  'ui/u1.meta.json': '{}\n',
+  'ui/u1.css': '.u { background: url(./absent.png); }\n',
+  'ui/u2.tsx': "import './u2.css';\nexport default () => <main />;\n",
+  'ui/u2.meta.json': '{}\n',
+  'ui/u2.css': '.u { background: url(./secret.png); }\n',
+  'ui/secret.png': 'PNG-CANARY',
+  'ui/syntax.tsx': 'export default () => <main>{</main>;\n',
+  'ui/syntax.meta.json': '{}\n',
 };
 
 interface Booted {
@@ -75,7 +98,19 @@ const CELL_ENV = {
   HUB_DASHBOARD_URL: 'https://cloud.maude.sh',
   MAUDE_PROJECT_NAME: 'C4l',
 };
-const GRANTED = [HTML_USER, MD_USER, LIFT, OK];
+const PAIRS: Array<[string, string, string]> = [
+  ['a template-literal import()', 'ui/t1.tsx', 'ui/t2.tsx'],
+  ['a CSS @import url()', 'ui/c1.tsx', 'ui/c2.tsx'],
+  ['a CSS background url()', 'ui/u1.tsx', 'ui/u2.tsx'],
+];
+const GRANTED = [
+  HTML_USER,
+  MD_USER,
+  LIFT,
+  OK,
+  'ui/syntax.tsx',
+  ...PAIRS.flatMap(([, x, y]) => [x, y]),
+];
 const member = asUser(
   {
     'x-maude-access': header({
@@ -136,6 +171,23 @@ function suite(
       expect(ok.text).toContain('LIFT-OK');
       expect(ok.text).not.toContain('CANARY-SPECIMEN');
     }, 30000);
+
+    for (const [what, missing, present] of PAIRS)
+      test(`${what}: a missing and an existing target answer the frame identically (defender L-B)`, async () => {
+        const m = await moduleVia(missing, missing);
+        const p = await moduleVia(present, present);
+        expect(m.status).toBe(p.status);
+        // a refusal is one body; a built module never carries the target's bytes
+        if (m.status !== 200) expect(m.text).toBe(p.text);
+        expect(p.text).not.toContain('CANARY');
+      }, 30000);
+
+    if (!cell)
+      test('the owner still reads a syntax error in the canvas’s own source', async () => {
+        const r = await moduleVia('ui/syntax.tsx', 'ui/syntax.tsx');
+        expect(r.status).toBe(500);
+        expect(r.text).toContain('Transpile error');
+      }, 30000);
   });
 }
 

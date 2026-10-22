@@ -105,6 +105,19 @@ function endsInSpecifierLead(out: string): boolean {
   return wordEndsAt(out, k, 'from') || wordEndsAt(out, k, 'import');
 }
 
+/** Does `out` end in `import(` / `require(` (whitespace allowed)? */
+function endsInCallLead(out: string): boolean {
+  let k = out.length;
+  while (k > 0 && isWs(out[k - 1])) k--;
+  if (out[k - 1] !== '(') return false;
+  k--;
+  while (k > 0 && isWs(out[k - 1])) k--;
+  return wordEndsAt(out, k, 'import') || wordEndsAt(out, k, 'require');
+}
+
+/** CSS: the text right before the string of `@import url("./x.css")`. */
+const CSS_IMPORT_URL_LEAD_RE = /@import\s+url\(\s*$/i;
+
 /**
  * gate-b-c4e — `source` as the import scanner may read it: comments blanked and every string
  * literal blanked EXCEPT a module specifier (a string right after `from`, `import`, `import(` or
@@ -151,7 +164,12 @@ export function importScanText(source: string, css = false): string {
       }
       const stop = Math.min(j, n);
       const body = source.slice(i + 1, stop);
-      const keep = c !== '`' && endsInSpecifierLead(out);
+      // gate-b-c4m (defender L-B) — a template with no substitution after `import(` / `require(`
+      // is a module specifier Bun resolves at build time; in CSS, the string of `@import url("…")`.
+      const keep =
+        c === '`'
+          ? !body.includes('${') && endsInCallLead(out)
+          : endsInSpecifierLead(out) || (css && CSS_IMPORT_URL_LEAD_RE.test(out));
       out += c + (keep ? body : body.replace(/[^\n]/g, ' ')) + (source[j] === c ? c : '');
       i = source[j] === c ? j + 1 : stop;
       continue;

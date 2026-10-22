@@ -10,7 +10,12 @@
 // Booted halves: c4m-frame-refusals.test.ts. Hub file plane: apps/hub/test/access-c4m-html-import.test.mjs.
 
 import { describe, expect, test } from 'bun:test';
-import { canvasImportsReport, closureFor, type ProjectReader } from '../access/closure.ts';
+import {
+  canvasImportsReport,
+  closureFor,
+  type ProjectReader,
+  relativeImportCandidates,
+} from '../access/closure.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile as activityIsCanvasFile } from '../activity.ts';
 import { isCanvasFile, isCanvasSource, isDsSurfaceRel, moduleLinks } from '../skip-dirs.ts';
@@ -198,7 +203,7 @@ describe('defender L-A — a namespace name that is no identifier is unreadable,
   });
 });
 
-describe('defender M-A —a re-export cycle never caches a wrong "carries nothing"', () => {
+describe('defender M-A — a re-export cycle never caches a wrong "carries nothing"', () => {
   // a.ts re-exports DesignCanvas as Foo and everything of b.ts; b.ts re-exports Foo from a.ts. Walking
   // a.ts first used to cache b.ts as carrying nothing (a.ts was still in progress), so x.tsx — which
   // renders <Foo> from b.ts — was "not a canvas" for every later grant in the same closure.
@@ -225,4 +230,51 @@ describe('defender M-A —a re-export cycle never caches a wrong "carries nothin
       expect(c.read.has('ui/x.tsx')).toBe(false);
       expect(c.read.has('ui/y.tsx')).toBe(false);
     });
+});
+
+describe('defender L-B — the scanner sees a template-literal import() and a CSS @import url()', () => {
+  const R = '/r/.design';
+  test('both forms are import candidates', () => {
+    expect(
+      relativeImportCandidates('const m = import(`./x.tsx`);\n', `${R}/ui/a.tsx`, R)
+    ).toContain(`${R}/ui/x.tsx`);
+    expect(
+      relativeImportCandidates('const m = require( `./y.js` );\n', `${R}/ui/a.tsx`, R)
+    ).toContain(`${R}/ui/y.js`);
+    for (const css of [
+      '@import url(./t.css);\n',
+      '@import url("./t.css");\n',
+      "@import url( './t.css' ) screen;\n",
+    ])
+      expect(relativeImportCandidates(css, `${R}/ui/a.css`, R)).toContain(`${R}/ui/t.css`);
+  });
+  test('a computed template, a plain template string and a background url() are not imports', () => {
+    expect(relativeImportCandidates('import(`./x/$' + '{n}.tsx`);\n', `${R}/ui/a.tsx`, R)).toEqual(
+      []
+    );
+    expect(relativeImportCandidates('const s = `./x.tsx`;\n', `${R}/ui/a.tsx`, R)).toEqual([]);
+    expect(
+      relativeImportCandidates('.a { background: url(./bg.css); }\n', `${R}/ui/a.css`, R)
+    ).toEqual([]);
+  });
+  test('a template-literal import of a canvas, or of a missing file, blocks the grant', () => {
+    for (const line of ['const m = import(`./b.tsx`);', 'const m = import(`./absent.tsx`);']) {
+      const files = {
+        ...BASE,
+        [A]: `${line}\nimport H from './helper.ts';\nexport default () => <p />;\n`,
+        'ui/b.tsx': "import { DesignCanvas } from '@maude/canvas-lib';\nexport default 1;\n",
+      };
+      expect(closureOf(files).blocked.has(A)).toBe(true);
+    }
+  });
+  test('a CSS @import url() of a canvas’s stylesheet blocks the grant', () => {
+    const files = {
+      ...BASE,
+      [A]: "import './a.css';\nexport default () => <p />;\n",
+      'ui/a.css': '@import url(./b.css);\n',
+      'ui/b.tsx': "import { DesignCanvas } from '@maude/canvas-lib';\nexport default 1;\n",
+      'ui/b.css': '.b{}',
+    };
+    expect(closureOf(files).blocked.has(A)).toBe(true);
+  });
 });
