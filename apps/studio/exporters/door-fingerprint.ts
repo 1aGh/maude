@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, fstatSync, openSync, readSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, resolve, sep } from 'node:path';
 
-import { closureFor, type ProjectReader } from '../access/closure.ts';
+import { type ClosureConfig, closureFor, type ProjectReader } from '../access/closure.ts';
 import { diskProjectReader } from '../access/request.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isProjectFileShape, isRuntimeStateRel } from '../sync/file-membership.ts';
@@ -117,19 +117,23 @@ function rootRealOf(root: string): string | null {
 /**
  * DESKTOP side, at send time: what this Mac expects the cloud copy to hold for `canvases`
  * (design-root rels; a Folder scope passes every canvas in it — the closure is their union).
- * Only files that exist here are listed, sorted by rel.
+ * Only files that exist here are listed, sorted by rel. `config`: the studio's EFFECTIVE config
+ * (`closureConfigOf(ctx.cfg)`, gate-b-c4k) — the same the frame's closure judges with, so the
+ * fingerprint names the design system a custom designRoot declares outside its own config.json.
  */
 export function closureFingerprint(
   designRoot: string,
   canvases: string | readonly string[],
-  opts: { reader?: ProjectReader } = {}
+  opts: { reader?: ProjectReader; config?: ClosureConfig } = {}
 ): FingerprintResult {
   const list = typeof canvases === 'string' ? [canvases] : [...canvases];
   const rootReal = rootRealOf(designRoot);
   if (!rootReal || list.length === 0) return { ok: true, expect: [] };
   const access = resolveAccess({ v: 1, role: null, grants: list.map((c) => ({ c, r: 'viewer' })) });
   const reader = opts.reader ?? diskProjectReader(rootReal, () => 'fingerprint');
-  const rels = [...closureFor(access, reader).read].filter(judgeable).sort();
+  const rels = [...closureFor(access, reader, undefined, opts.config).read]
+    .filter(judgeable)
+    .sort();
   const expect: FingerprintEntry[] = [];
   for (const rel of rels) {
     const file = containedFile(rootReal, rel);
