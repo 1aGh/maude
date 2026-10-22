@@ -21,3 +21,13 @@ describe('Inspector', () => {
     expect(r).toMatch(/min-width:\s*0/);
   });
 });
+
+describe('"?" sheet', () => {
+  const search = css('v2/search/search.css');
+  test('the sticky footer owns the sheet bottom padding (rows scrolled past it showed through a 24 px strip)', () => {
+    expect(rule(search, '.so-overlay--v2')).toMatch(/padding-bottom:\s*0/);
+    expect(rule(search, '.so-overlay--v2 .so-overlay-ft')).toMatch(
+      /padding-bottom:\s*var\(--space-6\)/
+    );
+  });
+});
