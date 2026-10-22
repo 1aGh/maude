@@ -45,10 +45,13 @@ export function UsesLink({ ds, cfg, onShellAction }) {
         title={`Open ${label}`}
         onClick={() => onShellAction('ds.go-to', { ds })}
       >
-        <span>
+        <span className="insp-uses-ic" aria-hidden="true">
+          <StIcon name="layers" size={12} />
+        </span>
+        <span className="insp-uses-t">
           Uses <strong>{label}</strong>
         </span>
-        <StIcon name="external" size={12} />
+        <StIcon name="chevron-right" size={12} />
       </button>
     </p>
   );

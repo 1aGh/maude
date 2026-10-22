@@ -207,7 +207,7 @@ export function InspectorFrame({
         <strong className="insp-title" data-testid="inspector-title">
           {titleOf(selected, layersTree)}
         </strong>
-        <span className="insp-chip" data-testid="inspector-kind">
+        <span className="chip insp-kind" data-testid="inspector-kind">
           {chip}
         </span>
       </div>

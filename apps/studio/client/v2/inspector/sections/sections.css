@@ -4,26 +4,43 @@
  * rows, the token chip and its menu, Bind, the constraints picture. */
 
 @layer shell {
+  /* V2-8.5 C2 — 14 Editing `.k-insp-row` / `.ed-row`: the label on the left in body type (fg-1), the control on the
+     right, 32 px tall; the label never wraps ("Show on canvas" stayed on one line only because the column was 76 px). */
   .insp-row {
-    display: grid;
-    grid-template-columns: 76px minmax(0, 1fr);
+    display: flex;
     align-items: center;
-    column-gap: var(--space-2);
-    min-height: 28px;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: 32px;
+    padding: 0 var(--space-1);
+    font-size: var(--type-sm);
   }
   /* a quiet row ("None", an unused fill) reads in --fg-1; the old opacity .6 took its text to 2.3-2.9:1 (a11y gate) */
   .insp-row[data-dim="true"] .insp-row-v {
     color: var(--fg-1);
   }
   .insp-row-k {
-    font-size: var(--type-xs);
-    color: var(--fg-2);
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    max-width: 50%;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
   }
   .insp-row-v {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    justify-content: flex-end;
+    flex: 0 1 auto;
+    gap: var(--space-1);
     min-width: 0;
+  }
+  /* the kit's control widths (`.k-in-select` 140, `.k-num` 68, `.k-num--one` 140) */
+  .insp-row-v > .st-cp-nsel,
+  .insp-row-v > [data-testid] > .st-cp-nsel {
+    width: 140px;
+    max-width: 100%;
   }
   /* gate-B polish (RC-E): a read-only value (a video's length, a footage fact, "Shared · 3 places") had no rule
      and rendered at the inherited ~15 px beside 12 px rows */
@@ -603,5 +620,103 @@
   .insp-unit {
     font-size: var(--type-xs);
     color: var(--fg-2);
+  }
+
+  /* ── V2-8.5 C2: the card's controls are the kit's (`.k-num`, `.ed-n`, `.ed-tok`), not v1's `st-cp-*` ──
+     A number field: a filled bg-3 well, no border, 28 px, the body face (mono is Advanced-only, CONTRACT §5),
+     the unit/lead as a small fg-2 word INSIDE the well, not a bordered cell. */
+  .insp .st-cp-num {
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    height: 28px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+    overflow: hidden;
+  }
+  .insp .st-cp-num:hover {
+    border-color: transparent;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .insp .st-cp-num:focus-within {
+    border-color: transparent;
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--focus-ring);
+  }
+  .insp .st-cp-numlead {
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    color: var(--fg-2);
+  }
+  .insp .st-cp-numin {
+    padding: 0;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .insp .st-cp-numin--mini {
+    font-size: var(--type-sm);
+  }
+  .insp .insp-nf {
+    width: 68px;
+    max-width: none;
+  }
+  .insp .insp-pair {
+    gap: var(--space-1);
+  }
+  /* a token / colour chip (`.ed-tok`): accent-muted pill, 26 px; a plain value (not a token) is a bg-3 well */
+  .insp-chip {
+    min-height: 26px;
+    padding: 0 var(--space-2) 0 6px;
+    border-radius: var(--radius-md);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-size: var(--type-sm);
+  }
+  .insp-chip:hover:not(:disabled) {
+    background: var(--accent-soft);
+  }
+  .insp-chip-face b {
+    font-weight: var(--w-semibold);
+  }
+  .insp-chip-face--css,
+  .insp-chip-face--none {
+    color: var(--fg-1);
+  }
+  .insp-chip:has(.insp-chip-face--css, .insp-chip-face--none, [data-mixed="true"]) {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .insp-bind {
+    font-weight: var(--w-semibold);
+    color: var(--accent-text);
+  }
+  .insp-num-in {
+    width: 56px;
+    min-height: 28px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+    font-size: var(--type-sm);
+  }
+  .insp-sub {
+    padding: 0 var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .insp-quiet {
+    padding: 0 var(--space-1);
   }
 }

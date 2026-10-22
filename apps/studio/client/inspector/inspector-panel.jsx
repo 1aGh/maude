@@ -14,6 +14,7 @@ import { LayersEmpty } from '../v2/empty/layers-empty.jsx';
 import { useDsAdvanced } from '../v2/ds/advanced.jsx';
 import { useDsTruthCards } from '../v2/ds/truth-card.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import { isArtboardSelection, kindChipOf } from '../v2/inspector/kinds/index.js';
 import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
 import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
 import { ArtboardLayers, currentBoard } from '../v2/layers/artboard-layers.jsx';
@@ -47,6 +48,8 @@ export function isPhotoPerUse(photoTarget, el) {
 
 export function photoAssetOfSelection(el) {
   if (!el || Array.isArray(el)) return null;
+  // V2-8.5 C2 (08 · ak-web-hug) — a whole artboard is never a photo, however many pictures it holds
+  if (isArtboardSelection(el)) return null;
   if (el.photoAsset) return el.photoAsset;
   const html = el.html || '';
   // feature-4 regression fix (2026-07-20) — the select tool's bare click now
@@ -583,57 +586,76 @@ export function InspectorPanel({
   // next element you clicked showed facts instead of the controls to change it.
   // S2.2 — Inspect and CSS were one idea twice: both open the Inspector frame (its Advanced fold carries what
   // each showed), so a tab id the tour or a saved state still names lands on the frame.
+  // V2-8.5 C2 (12 · ia-photo-inspector) — a placed photo opens on its Photo card; the viewer's own pick of a view
+  // (the seg below) holds for that selection only.
+  const selKey = `${el?.id ?? ''}:${el?.index ?? 0}:${el?.selector ?? ''}`;
+  const [picked, setPicked] = useState(null);
+  const opensOnPhoto =
+    !layersOnly && photoPerUse && (el?.tag || '').toLowerCase() === 'img' && picked !== selKey;
   const effTab = photoOnly
     ? 'photo'
-    : tab === 'photo' && !photoTarget
-      ? 'css'
-      : tab === 'inspect'
+    : opensOnPhoto
+      ? 'photo'
+      : tab === 'photo' && !photoTarget
         ? 'css'
-        : tab;
-  const tabBtn = (id, label, icon) => (
+        : tab === 'inspect'
+          ? 'css'
+          : tab;
+  // V2-8.5 C2 — the inspector is a card (14 Editing `.k-insp`): no title row, no close button (the corner icon is
+  // the way back) and no tab strip. Two views of one selection — the element's rows and the Photo card — are a
+  // `.seg` that exists only where both apply (12 · ia-photo-inspector: a photo opens on Photo).
+  const tabBtn = (id, label) => (
     <button
       type="button"
-      className={'st-rp-tab' + (effTab === id ? ' is-active' : '')}
-      onClick={() => setTab(id)}
+      className="k-seg-b"
+      data-testid={`inspector-view-${id}`}
+      aria-pressed={effTab === id}
+      onClick={() => {
+        setPicked(selKey);
+        setTab(id);
+      }}
     >
-      <StIcon name={icon} size={14} />
       {label}
     </button>
   );
+  const showViews = !layersOnly && !photoOnly && !!photoTarget;
+  const showTabs = layersOnly ? false : !hideLayersTab;
   return (
     <aside
-      className={'st-rpanel' + (resizing ? ' is-resizing' : '')}
+      className={
+        'st-rpanel' + (layersOnly ? '' : ' st-rpanel--insp') + (resizing ? ' is-resizing' : '')
+      }
       style={width ? { width, flexBasis: width } : undefined}
       aria-label="Inspector"
       data-tour="inspector"
       data-testid={testId}
     >
-      <div
-        className="st-rp-tabs"
-        data-tour="inspector-tabs"
-        style={layersOnly ? { display: 'none' } : undefined}
-      >
-        {photoOnly ? (
-          tabBtn('photo', 'Photo', 'image')
-        ) : !hideLayersTab || photoTarget ? (
-          <>
-            {tabBtn('css', 'Inspector', 'sliders')}
-            {!hideLayersTab && tabBtn('layers', 'Layers', 'layers')}
-            {photoTarget ? tabBtn('photo', 'Photo', 'image') : null}
-          </>
-        ) : (
-          <span className="st-rp-title">Inspector</span>
-        )}
-        <button
-          type="button"
-          className="st-iconbtn"
-          aria-label="Close inspector"
-          style={{ marginLeft: 'auto' }}
-          onClick={onClose}
-        >
-          <StIcon name="x" size={14} />
-        </button>
-      </div>
+      {showViews ? (
+        <div className="st-rp-views" data-tour="inspector-tabs">
+          <span className="seg k-in-seg" role="group" aria-label="Inspector view">
+            {tabBtn('css', kindChipOf(selected) || 'Object')}
+            {tabBtn('photo', 'Photo')}
+          </span>
+        </div>
+      ) : null}
+      {showTabs && !showViews ? (
+        <div className="st-rp-tabs" data-tour="inspector-tabs">
+          <button
+            type="button"
+            className={'st-rp-tab' + (effTab === 'css' ? ' is-active' : '')}
+            onClick={() => setTab('css')}
+          >
+            Inspector
+          </button>
+          <button
+            type="button"
+            className={'st-rp-tab' + (effTab === 'layers' ? ' is-active' : '')}
+            onClick={() => setTab('layers')}
+          >
+            Layers
+          </button>
+        </div>
+      ) : null}
       {/* S11.18: the edit-scope strip (Stage H, INV-3: "Shared · Card · edits N places", Detach) is retired from
           the header. Inspector > Advanced > Used in says the same and keeps Detach (v2/inspector/advanced-rows-default.jsx,
           `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
@@ -779,6 +801,7 @@ export function InspectorPanel({
               photoTarget && !photoOnly
                 ? (intent) => {
                     setPhotoIntent(typeof intent === 'string' ? intent : null);
+                    setPicked(selKey);
                     setTab('photo');
                   }
                 : undefined
