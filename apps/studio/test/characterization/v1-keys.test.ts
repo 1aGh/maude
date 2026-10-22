@@ -311,7 +311,11 @@ async function bootLane(n: number, root: string, gen = 0): Promise<Lane> {
   writeFileSync(join(stubBin, 'claude'), `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
   const server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', project], {
     env: {
-      ...process.env,
+      // the harness's own switches (V1_KEYS_*, MAUDE_V1_KEYS) are not the server's business: an update
+      // run and a verify run must boot byte-identical servers
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([k]) => !/^(V1_KEYS_|MAUDE_V1_KEYS$)/.test(k))
+      ),
       PATH: `${stubBin}:${process.env.PATH ?? ''}`,
       MAUDE_CLAUDE_BIN: '',
       HOME: home,
@@ -1063,12 +1067,12 @@ async function clearRec(target: Page | Frame | null) {
 // toolbar island's geometry, posted at most once a frame after layout, so where it lands in the stream is
 // frame timing; a key that changes the toolbar still shows in the canvas DOM diff (`toolbar-slot-*`).
 const NOISE =
-  /^(child|parent|self) (presence|cursor|camera|viewport-state|hover|perf|heartbeat|canvas-rects|select-set|select-by-id|layers-tree|request-layers|toolbar-rect|canvas-mounted|run-action id=presence\.context)\b/;
+  /^(child|parent|self) (presence|cursor|camera|viewport-state|hover|perf|heartbeat|canvas-rects|select-set|select-by-id|layers-tree|request-layers|toolbar-rect|canvas-mounted|canvas-notice|run-action id=presence\.context)\b/;
 
 /** The message kinds whose arrival inside the snapshot window is a race (see runCase). */
 const VOLATILE =
-  /^(?:child|parent) (canvas-notice|artboards|undo-key|undo-mode|viewport-zoom|peers|mode-changed|hold-view|set-mode|occluded-insets|timeline-request-comps|ds-update-dots|locked-set)\b/;
-/** The toast's DOM is volatile for the same reason; its presence is recorded as the `canvas-notice` kind. */
+  /^(?:child|parent) (artboards|undo-key|undo-mode|viewport-zoom|peers|mode-changed|hold-view|set-mode|occluded-insets|timeline-request-comps|ds-update-dots|locked-set)\b/;
+/** The toast's DOM is volatile for the same reason; its message (`canvas-notice`) is NOISE: whether it lands in the window is a race. */
 const VOLATILE_DOM =
   /maude-notice|canvases-ds-row-warn|^(?:ol \[tabindex="-1"\]|li \[tabindex="0"\]|div)$/;
 // ^ `canvases-ds-row-warn` is the pinned design-system row's "Made before the schema" chip (S10.13): it

@@ -142,7 +142,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +34 -1 #26a2d22b7a
+  shell: +34 -1 #b87ba9f52d
     - @focus body
     + @focus div[data-testid="export-sheet"]
     + button .btn [data-testid="export-cancel"] [type="button"] "Cancel"
@@ -159,7 +159,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +166 -1 #c8e0e6b9f9
+  shell: +147 -1 #9b7d919b63
     - @focus body
     + @focus button[data-testid="settings-tab-general"][type="button"]
     + button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Manage on cloud.maude.sh"
@@ -169,7 +169,7 @@
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-    + … 41 more
+    + … 40 more
   canvas: =
 ## browser/canvas/chrome Meta+Shift+T
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="T" PREVENTED
@@ -268,7 +268,7 @@
   to-shell: child mode-request tool=section mode=preview · child tool-panel-open · child tool-cursor tool=section · child tool-panel-open · child tool-cursor tool=section · child active-artboard id=home-pricing · {mode-changed tool=section mode=preview,peers,viewport-zoom}
   to-canvas: parent run-action id=tool.key · {occluded-insets,set-mode tool=section mode=preview}
   writes: PATCH (canvas)/_api/canvas-meta
-  shell: +111 -12 #12a665bf0a
+  shell: +18 -12 #1205ede813
     - @focus body
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
     - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
@@ -280,13 +280,13 @@
     - … 1 more
     + @focus iframe[data-testid="canvas-frame"]
     + button .is-on.st-share-ic [data-testid="share-cluster-panels"] [aria-label="Show panels"] [title="Show panels ⌘\\"] [type="button"]
-    + button .st-iconbtn [aria-label="Close"] [type="button"]
     + button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Open Canvases"] [title="Canvases (⌘\\ shows all panels)"] [type="button"]
     + button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector (⌘\\ shows all panels)"] [type="button"]
     + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
     + button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
-    + button .tp-send [data-testid="templates-ask-send"] [aria-label="Ask AI to build it"] [type="button"] [disabled]
-    + … 30 more
+    + div .island.st-pbar [data-testid="preview-bar"] [data-state="in"]
+    + div .island.st-zoomonly [data-testid="zoom-only"] [data-state="in"]
+    + … 5 more
   canvas: +23 -16 #5401aee8fb
     - @focus body
     - @html data-maude-theme=dark lang=en
@@ -677,7 +677,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +34 -1 #47ca7785ba
+  shell: +34 -1 #99fe3052c5
     - @focus input[data-testid="canvas-search"][aria-label="Filter canvases"][type="search"][placeholder="Search canvases…"]
     + @focus div[data-testid="export-sheet"]
     + button .btn [data-testid="export-cancel"] [type="button"] "Cancel"
@@ -694,7 +694,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +166 -1 #fee2ea7071
+  shell: +147 -1 #48b1b3f0fd
     - @focus input[data-testid="canvas-search"][aria-label="Filter canvases"][type="search"][placeholder="Search canvases…"]
     + @focus button[data-testid="settings-tab-general"][type="button"]
     + button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Manage on cloud.maude.sh"
@@ -704,7 +704,7 @@
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-    + … 41 more
+    + … 40 more
   canvas: =
 ## browser/canvas/text Meta+Shift+T
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="T" PREVENTED
@@ -728,7 +728,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +39 -32 #af0a91f0e2
+  shell: +26 -31 #e24b23fe11
     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
@@ -737,16 +737,16 @@
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .cv-head [data-testid="canvases-head-project"]
-    - … 13 more
+    - … 12 more
     + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
     + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
     + button .st-search-clear [aria-label="Clear search"] "×"
     + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
     + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
-    + … 16 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + … 8 more
   canvas: =
 ## browser/canvas/text Meta+Slash
   keydown: shell ⌘key="Meta" default · shell ⌘key="/" default
@@ -774,7 +774,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +40 -32 #1427fe76b0
+  shell: +26 -31 #3f195e3fda
     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
@@ -783,23 +783,23 @@
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .cv-head [data-testid="canvases-head-project"]
-    - … 13 more
+    - … 12 more
     + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
     + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
     + button .st-search-clear [aria-label="Clear search"] "×"
     + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
     + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
-    + … 16 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + … 8 more
   canvas: =
 ## browser/canvas/text Shift+T
   keydown: shell ⇧key="Shift" default · shell ⇧key="T" default
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +40 -32 #634eb7245b
+  shell: +26 -31 #71d7670134
     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
@@ -808,23 +808,23 @@
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .cv-head [data-testid="canvases-head-project"]
-    - … 13 more
+    - … 12 more
     + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
     + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
     + button .st-search-clear [aria-label="Clear search"] "×"
     + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
     + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
-    + … 16 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + … 8 more
   canvas: =
 ## browser/canvas/text h
   keydown: shell key="h" default
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +30 -20 #dc003ef39f
+  shell: +7 -19 #0d9f47899a
     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
@@ -833,23 +833,68 @@
     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
     - p .cv-foot [data-testid="canvases-foot"] "1 canvas · ⌘K searches every project"
     - span .lp-ds-sub [data-testid="canvases-ds-row-sub"] "demo · 1 canvas"
-    - … 4 more
+    - … 3 more
     + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Project"] [aria-expanded="true"] [tabindex="0"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Runtime files"] [aria-expanded="true"] [tabindex="-1"]
-    + … 8 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="0"]
+    + input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] {value="h"}
+    + p .cv-foot [data-testid="canvases-foot"] "1 result · ⌘K searches every project"
   canvas: =
 ## browser/canvas/text s
   keydown: shell key="s" default
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +39 -32 #8d7361426c
+  shell: +26 -31 #b8a1c2e9b8
+    - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
+    - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
+    - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
+    - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
+    - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
+    - div .cv-head [data-testid="canvases-head-project"]
+    - … 12 more
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
+    + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + … 8 more
+  canvas: =
+## browser/canvas/text n
+  keydown: shell key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +31 -19 #cfe1860b8e
+    - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
+    - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
+    - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
+    - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
+    - div .cv-head [data-testid="canvases-head-project"]
+    - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
+    - div .lp-pinned [data-testid="canvases-pinned"]
+    - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+    - … 4 more
+    + button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Hide the artboards in Home"] [aria-expanded="true"] [title="Hide artboards"] [type="button
+    + button .cv-main [data-testid="jump-artboard-ui-home-home-pricing"] [title="Pricing — Web"] [type="button"] [tabindex="-1"]
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="true"] [aria-selected="true"] [tabindex="0"]
+    + div .cv-item [role="treeitem"] [aria-label="Pricing"] [aria-selected="false"] [tabindex="-1"]
+    + … 11 more
+  canvas: =
+## browser/canvas/text Shift+Slash
+  keydown: shell ⇧key="Shift" default · shell ⇧key="?" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +10 -32 #a5a3ca8f4c
     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
@@ -859,65 +904,13 @@
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .cv-head [data-testid="canvases-head-project"]
     - … 13 more
-    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
-    + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
     + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
     + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
-    + … 16 more
-  canvas: =
-## browser/canvas/text n
-  keydown: shell key="n" default
-  to-shell: (none)
-  to-canvas: (none)
-  writes: (none)
-  shell: +44 -20 #e6b9b19345
-    - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
-    - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
-    - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
-    - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
-    - div .cv-head [data-testid="canvases-head-project"]
-    - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
-    - div .lp-pinned [data-testid="canvases-pinned"]
-    - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
-    - … 5 more
-    + button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Hide the artboards in Home"] [aria-expanded="true"] [title="Hide artboards"] [type="button
-    + button .cv-main [data-testid="jump-artboard-ui-home-home-pricing"] [title="Pricing — Web"] [type="button"] [tabindex="-1"]
-    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
-    + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
-    + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + … 19 more
-  canvas: =
-## browser/canvas/text Shift+Slash
-  keydown: shell ⇧key="Shift" default · shell ⇧key="?" default
-  to-shell: (none)
-  to-canvas: (none)
-  writes: (none)
-  shell: +33 -33 #64246a3e30
-    - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
-    - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
-    - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
-    - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
-    - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
-    - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
-    - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
-    - div .cv-head [data-testid="canvases-head-project"]
-    - … 14 more
-    + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
-    + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
-    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
-    + … 11 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="0"]
+    + input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] {value="?"}
+    + p .cv-foot [data-testid="canvases-foot"] "Searched 1 canvas and its artboards"
+    + svg .es-spot [data-testid="empty-spot-none"] [aria-hidden="true"]
   canvas: =
 ## browser/canvas/text Meta+Shift+Slash
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="?" default
@@ -982,24 +975,17 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +26 -13 #4328de9ddf
+  shell: +3 -12 #123170c8bc
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .lp-pinned [data-testid="canvases-pinned"]
     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
     - span .lp-ds-sub [data-testid="canvases-ds-row-sub"] "demo · 1 canvas"
-    - span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema — click to bring it up"]
     - span [aria-hidden="true"] "⋯"
     - svg [aria-hidden="true"]
     + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Project"] [aria-expanded="true"] [tabindex="0"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Runtime files"] [aria-expanded="true"] [tabindex="-1"]
-    + … 7 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="0"]
+    + input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] {value=""}
   canvas: =
 ## browser/canvas/text ArrowRight
   keydown: shell key="ArrowRight" default
@@ -1027,7 +1013,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +44 -20 #44a7664a9c
+  shell: +31 -19 #0467e75fd6
     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
@@ -1036,23 +1022,23 @@
     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
     - div .lp-pinned [data-testid="canvases-pinned"]
     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
-    - … 5 more
+    - … 4 more
     + button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Hide the artboards in Home"] [aria-expanded="true"] [title="Hide artboards"] [type="button
     + button .cv-main [data-testid="jump-artboard-ui-home-home-pricing"] [title="Pricing — Web"] [type="button"] [tabindex="-1"]
     + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
     + button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
     + button .st-search-clear [aria-label="Clear search"] "×"
     + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + … 19 more
+    + div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="true"] [aria-selected="true"] [tabindex="0"]
+    + div .cv-item [role="treeitem"] [aria-label="Pricing"] [aria-selected="false"] [tabindex="-1"]
+    + … 11 more
   canvas: =
 ## browser/canvas/text Digit0
   keydown: shell key="0" default
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +33 -33 #7f3185104d
+  shell: +10 -32 #d41350dfae
     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
@@ -1061,16 +1047,14 @@
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .cv-head [data-testid="canvases-head-project"]
-    - … 14 more
+    - … 13 more
     + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
     + div .es-e.es-e--center.es-e--inpanel.es-e--panel [data-testid="canvases-nothing"]
-    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
-    + … 11 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="0"]
+    + input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] {value="0"}
+    + p .cv-foot [data-testid="canvases-foot"] "Searched 1 canvas and its artboards"
+    + svg .es-spot [data-testid="empty-spot-none"] [aria-hidden="true"]
   canvas: =
 ## browser/canvas/text Meta+n
   keydown: shell ⌘key="Meta" default · shell ⌘key="n" default
@@ -1675,7 +1659,7 @@
   to-shell: (none)
   to-canvas: {occluded-insets}
   writes: (none)
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -1708,7 +1692,7 @@
   to-shell: (none)
   to-canvas: {occluded-insets}
   writes: (none)
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -1741,7 +1725,7 @@
   to-shell: (none)
   to-canvas: {occluded-insets}
   writes: (none)
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -1897,7 +1881,7 @@
   to-shell: child key
   to-canvas: {occluded-insets}
   writes: (none)
-  shell: +2 -236 #d8e555c6e5
+  shell: +2 -236 #0ecbb9207f
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -1914,7 +1898,7 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +21 -233 #d8db7ead2c
+  shell: +21 -233 #27018b6f6e
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -1958,7 +1942,7 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +34 -1 #8751b27289
+  shell: +34 -1 #d09022aa80
     - @focus iframe[data-testid="canvas-frame"]
     + @focus div[data-testid="export-sheet"]
     + button .btn [data-testid="export-cancel"] [type="button"] "Cancel"
@@ -1993,7 +1977,7 @@
     + @focus body
 ## browser/in-canvas/canvas Meta+Shift+G
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="G" PREVENTED
-  to-shell: child edit-op op=object.unframe · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child edit-op op=object.unframe · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent edit-op-result · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/edit-op
   shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
@@ -2204,10 +2188,10 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +9 -2 #8374029898
-    - @world translate(466.84px, 502.565px)
+  canvas: +9 -2 #fb509178d5
+    - @world translate(47.069px, 293.103px)
     - div .ed-sr-only [data-testid="edit-aria-live"] [role="status"]
-    + @world translate(279.48px, 385.465px)
+    + @world translate(-97.7586px, 202.586px)
     + div .ed-focus-ring [data-testid="edit-focus-ring"] [aria-hidden="true"]
     + div .ed-sr-only [data-testid="edit-aria-live"] [role="status"] "Hero, frame, 4 items. Press Return to go inside."
     + div [data-testid="edit-order-badges"] [aria-hidden="true"]
@@ -2247,7 +2231,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +17 -149 #6c90137c44
+  shell: +17 -149 #8359908e64
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
@@ -2285,7 +2269,7 @@
     + … 18 more
 ## browser/in-canvas/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child duplicate-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
   shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
@@ -2296,7 +2280,7 @@
     + input [aria-label="Name"] [placeholder="Name"]
 ## browser/in-canvas/canvas Meta+g
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" PREVENTED
-  to-shell: child edit-op op=object.frame · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child edit-op op=object.frame · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent edit-op-result · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/edit-op
   shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
@@ -2308,10 +2292,10 @@
     + div .ed-name-tag [data-testid="edit-name-tag"] [aria-hidden="true"] "Frame · 800 × 216"
 ## browser/in-canvas/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
-  to-shell: child delete-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child delete-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent run-action id=select.none · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/delete-element
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2359,7 +2343,7 @@
     + … 1 more
 ## browser/in-canvas/canvas BracketRight
   keydown: canvas key="]" PREVENTED
-  to-shell: child edit-op op=object.bring-forward · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child edit-op op=object.bring-forward · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent edit-op-result · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/edit-op
   shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
@@ -2541,7 +2525,7 @@
   to-shell: child key
   to-canvas: {occluded-insets}
   writes: (none)
-  shell: +2 -264 #74a0a6217c
+  shell: +2 -264 #020219448a
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2579,7 +2563,7 @@
   to-shell: (none)
   to-canvas: {occluded-insets}
   writes: (none)
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2639,7 +2623,7 @@
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.4"
 ## browser/in-canvas-selected/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child duplicate-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child active-artboard id=home-pricing · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
   shell: (after a write — the Inspector re-render is pinned by the v2-inspector-* tests)
@@ -2670,10 +2654,10 @@
     + span .ed-order.ed-order--in [data-testid="edit-order-badge"] [aria-hidden="true"] "1.4"
 ## browser/in-canvas-selected/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
-  to-shell: child delete-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,canvas-notice kind=undo,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-shell: child delete-request id=3807c330 · child timeline-peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child loaded · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
   to-canvas: parent record-edit · parent run-action id=select.none · parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · {occluded-insets,set-mode mode=edit}
   writes: POST /_api/delete-element
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -2777,7 +2761,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +17 -149 #6c90137c44
+  shell: +17 -149 #8359908e64
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
@@ -2993,7 +2977,7 @@
   to-shell: (none)
   to-canvas: parent run-action id=ui.step-back · {occluded-insets}
   writes: (none)
-  shell: +69 -224 #abb1ec07a7
+  shell: +69 -224 #eae36d2e06
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .btn.insp-export-go [data-testid="insp-export-go"] [type="button"] "Export 2 files"
     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
@@ -3090,24 +3074,17 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +26 -13 #4328de9ddf
+  shell: +3 -12 #123170c8bc
     - button .lp-ds-more [data-testid="canvases-ds-row-menu"] [aria-label="Design system menu"] [type="button"]
     - button .lp-ds.lp-ds--two.lp-row [data-testid="canvases-ds-row"] [title="Design system — demo · 1 canvas"] [type="button"]
     - div .lp-pinned [data-testid="canvases-pinned"]
     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
     - span .lp-ds-sub [data-testid="canvases-ds-row-sub"] "demo · 1 canvas"
-    - span .lp-ds-warn [data-testid="canvases-ds-row-warn"] [role="img"] [aria-label="Made before the schema"] [title="Made before the schema — click to bring it up"]
     - span [aria-hidden="true"] "⋯"
     - svg [aria-hidden="true"]
     + button .st-search-clear [aria-label="Clear search"] "×"
-    + button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
-    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Project"] [aria-expanded="true"] [tabindex="0"]
-    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Runtime files"] [aria-expanded="true"] [tabindex="-1"]
-    + … 7 more
+    + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="0"]
+    + input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] {value=""}
   canvas: =
 ## browser/timeline/text ArrowRight
   keydown: shell key="ArrowRight" default
@@ -3331,8 +3308,8 @@
   canvas: =
 ## tauri/canvas/chrome Meta+n
   keydown: shell ⌘key="Meta" default · shell ⌘key="n" PREVENTED
-  to-shell: child loaded · child loaded · child timeline-peers · child active-artboard · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child canvas-rendered · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
-  to-canvas: (canvas reloaded) parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome · parent gen-takes · parent vote-state · {ds-update-dots,occluded-insets,set-mode mode=edit}
+  to-shell: child loaded · child timeline-peers · child active-artboard · child tool-cursor tool=move · child tool-cursor tool=browse · child render-ok · child canvas-rendered · child annotation-selection · {artboards,hold-view,mode-changed tool=move mode=edit,peers,viewport-zoom}
+  to-canvas: (canvas reloaded) parent gen-takes · parent vote-state · parent comments-set · parent theme · parent view-chrome
   writes: POST /_api/canvas
   shell: +29 -7 #4446facb47
     - button .kf-chip [data-testid="kind-chip-all"] [aria-label="All, 1"] [aria-pressed="true"] [title="All · 1"] [type="button"]
@@ -3355,7 +3332,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +166 -1 #8f282cf4e8
+  shell: +147 -1 #15d6183728
     - @focus body
     + @focus button[data-testid="settings-tab-general"][type="button"]
     + button .btn.btn--sm [data-testid="settings-open-dashboard"] [type="button"] "Manage on cloud.maude.sh"
@@ -3365,7 +3342,7 @@
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-    + … 41 more
+    + … 40 more
   canvas: =
 ## tauri/canvas/text Meta+Shift+A
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="A" default
@@ -3438,7 +3415,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +144 -1 #c6aaf6f813
+  shell: +125 -1 #6cae27da25
     - @focus body
     + @focus button[data-testid="settings-tab-general"][type="button"]
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
@@ -3448,7 +3425,7 @@
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-    + … 35 more
+    + … 34 more
   canvas: =
 ## viewer/canvas/chrome Meta+z
   keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
@@ -3490,11 +3467,21 @@
   canvas: =
 ## viewer/in-canvas/canvas c
   keydown: canvas key="c" PREVENTED
-  to-shell: (none)
+  to-shell: child tool-cursor tool=comment · child tool-cursor tool=comment
   to-canvas: (none)
   writes: (none)
   shell: =
-  canvas: =
+  canvas: +5 -5 #dcc07cfa2e
+    - body [data-active-tool="browse"]
+    - button [data-testid="toolbar-slot-browse"] [aria-label="Hand (H)"] [aria-pressed="true"] [title="Hand (H)"] [type="button"]
+    - button [data-testid="toolbar-slot-comment"] [aria-label="Comment (C)"] [aria-pressed="false"] [title="Comment (C)"] [type="button"]
+    - div .dc-canvas [data-active-tool="browse"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="comment"]
+    + button [data-testid="toolbar-slot-browse"] [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
+    + button [data-testid="toolbar-slot-comment"] [aria-label="Comment (C)"] [aria-pressed="true"] [title="Comment (C)"] [type="button"]
+    + div .dc-canvas [data-active-tool="comment"] [tabindex="0"]
+    + div [data-active-tool="comment"]
 ## viewer/in-canvas/canvas b
   keydown: canvas key="b" default
   to-shell: (none)
@@ -3535,7 +3522,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +144 -1 #c6aaf6f813
+  shell: +125 -1 #6cae27da25
     - @focus body
     + @focus button[data-testid="settings-tab-general"][type="button"]
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Left"
@@ -3545,5 +3532,5 @@
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
     + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
-    + … 35 more
+    + … 34 more
   canvas: =
