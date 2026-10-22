@@ -11,7 +11,7 @@
 //
 // Reduced motion collapses `--dur-panel` to 1 ms: no ghost at all, the cut stays a cut.
 
-/** The fold duration when the token is unreadable (`--dur-panel`, client/styles/1-tokens-maude.css). */
+/** The fold duration when the token is unreadable (`--dur-panel`, client/styles/1-tokens-shell.css). */
 export const FOLD_MS = 220;
 
 /** `--dur-panel` in ms from the computed style of `el`; 1 under reduced motion; `FOLD_MS` when unreadable. */

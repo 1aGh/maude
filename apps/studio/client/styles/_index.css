@@ -17,17 +17,12 @@
 @layer reset, tokens, layout, shell, components, utilities;
 
 @import url("./0-reset.css");
-@import url("./1-tokens.css");
-/* Plan B — maude DS token ladder, scoped under `.maude[data-theme]` (additive;
-   drives the rewritten `.st-*` chrome without disturbing the legacy amber tokens). */
-@import url("./1-tokens-maude.css");
-/* V2-2.6 — maude-v2 ladder, GENERATED (scripts/gen-tokens.mjs), scoped under `.maude-v2[data-theme]`
-   only: inert until the v2 chrome mounts under that wrapper (Phase 4). */
+/* P8 C0 — THE shell token ladder, GENERATED (scripts/gen-tokens.mjs) from maude-v2: on <html data-theme> (so a
+   popover portalled to <body> resolves it) and on the shell root `.maude[data-theme]`. It replaced the v1 amber
+   `:root` palette (1-tokens.css), the indigo `.maude` ladder (1-tokens-maude.css) and the additive gap-filler. */
+@import url("./1-tokens-shell.css");
+/* V2-2.6 — the same maude-v2 ladder, GENERATED, scoped under `.maude-v2[data-theme]` (Home's root, v2Scope panels). */
 @import url("./1-tokens-maude-v2.css");
-/* Gate-B polish — the maude-v2 names the shell ladder leaves undefined (--scrim, --island-*, --w-*,
-   --font-rounded …), GENERATED onto `.maude[data-theme]`, additive only: a v2 sheet or panel mounted in
-   the shell resolves them; no shell token is overridden. */
-@import url("./1-tokens-maude-v2-shell.css");
 @import url("./2-layout.css");
 @import url("./3-shell.css");
 /* Plan B — maude DS studio chrome (.st-* ported from Studio.css), grown per slice. */

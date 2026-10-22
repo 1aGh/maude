@@ -150,15 +150,3 @@ div
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]
-    div .ex-scrim [role="presentation"]
-      div .ex-sheet.ho-sheet.island [data-testid="export-sheet"] [role="dialog"] [aria-modal="true"] [tabindex="-1"]
-        div .ex-sheet-hd [data-testid="handoff-sheet"]
-          h2 .ex-title [data-testid="export-title"] "Hand off “this canvas” to production"
-        div .ho-targets [data-testid="export-handoff-body"] [role="radiogroup"] [aria-label="Where the code goes"]
-        div .ex-sheet-a
-          span
-          span .ex-btns
-            button .btn [data-testid="export-cancel"] [type="button"] "Cancel"
-            button .btn.btn--primary.ex-go [data-testid="export-submit"] [type="button"] [disabled]
-              span [data-testid="export-submit-label"] "Hand off"
-              span .ex-ret [aria-hidden="true"] "↵"

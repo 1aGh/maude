@@ -5,7 +5,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-import { contrastRatio, oklchToRgb, parseOklch } from '../draw/palette';
+import { contrastRatio } from '../draw/palette';
+import { shellColor } from './fixtures/shell-palette';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -45,15 +46,11 @@ function render(node: unknown) {
 }
 
 describe('color-contrast', () => {
-  const tokens = read('../client/styles/1-tokens-maude.css');
   for (const theme of ['dark', 'light'] as const) {
     test(`${theme}: --accent-text is defined in the shell scope and holds 4.5:1 on --accent-muted and the islands`, () => {
-      const palette = rule(tokens, `.maude[data-theme="${theme}"]`);
-      const get = (name: string) => {
-        const v = palette.match(new RegExp(`${name}:\\s*(oklch\\([^)]*\\))`))?.[1];
-        if (!v) throw new Error(`${theme} ${name} is not defined`);
-        return oklchToRgb(parseOklch(v));
-      };
+      // P8 C0: the shell ladder is the generated maude-v2 one; --accent-muted is the translucent --accent-soft,
+      // composited over the island (--bg-1) it sits on.
+      const get = (name: string) => shellColor(theme, name);
       const text = get('--accent-text');
       for (const surface of ['--accent-muted', '--bg-1', '--bg-2'])
         expect(contrastRatio(text, get(surface))).toBeGreaterThanOrEqual(4.5);

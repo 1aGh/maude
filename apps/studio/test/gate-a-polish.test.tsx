@@ -116,22 +116,37 @@ const ratio = (a: [number, number, number], b: [number, number, number]) => {
   return ((hi as number) + 0.05) / ((lo as number) + 0.05);
 };
 
-describe('--fg-3 is text-safe (a11y B2)', () => {
-  const css = read('client/styles/1-tokens-maude.css');
+// P8 C0: the shell ladder is maude-v2, where --fg-3 is the DISABLED grade. The v1 chrome's --fg-3 (made text-safe by
+// a11y B2) was re-pointed to --fg-2, so the text-safe pledge now sits on --fg-2 and the v1 files never say --fg-3.
+describe("the v1 chrome's meta text grade (--fg-2, was --fg-3) is text-safe (a11y B2)", () => {
+  const css = read('client/styles/1-tokens-shell.css');
   const dark = css.slice(
     css.indexOf('.maude[data-theme="dark"] {'),
-    css.indexOf('.maude[data-theme="light"] {')
+    css.indexOf('@media (prefers-color-scheme: dark)')
   );
-  const light = css.slice(css.indexOf('.maude[data-theme="light"] {'));
+  const light = css.slice(
+    css.indexOf('.maude[data-theme="light"] {'),
+    css.indexOf('.maude[data-theme="dark"] {')
+  );
   test('dark: >= 4.5:1 on --bg-1, --bg-2 and --bg-3', () => {
     for (const bg of ['bg-1', 'bg-2', 'bg-3']) {
-      expect(ratio(tokenIn(dark, 'fg-3'), tokenIn(dark, bg))).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(tokenIn(dark, 'fg-2'), tokenIn(dark, bg))).toBeGreaterThanOrEqual(4.5);
     }
   });
   test('light: >= 4.5:1 on --bg-0..--bg-3', () => {
     for (const bg of ['bg-0', 'bg-1', 'bg-2', 'bg-3']) {
-      expect(ratio(tokenIn(light, 'fg-3'), tokenIn(light, bg))).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(tokenIn(light, 'fg-2'), tokenIn(light, bg))).toBeGreaterThanOrEqual(4.5);
     }
+  });
+  test('the v1 chrome files never use the disabled grade for text', () => {
+    for (const f of [
+      '3-shell-maude',
+      '4-components',
+      '4-components-maude',
+      '5-maude-overrides',
+      '6-acp-chat',
+    ])
+      expect(read(`client/styles/${f}.css`)).not.toMatch(/var\(--fg-3\b/);
   });
 });
 

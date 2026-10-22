@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { contrastRatio, oklchToRgb, parseOklch } from '../draw/palette';
+import { contrastRatio } from '../draw/palette';
+import { shellColor } from './fixtures/shell-palette';
 
 const shell = readFileSync(new URL('../client/styles/3-shell-maude.css', import.meta.url), 'utf8');
 const leftPanel = readFileSync(
@@ -8,10 +9,6 @@ const leftPanel = readFileSync(
   'utf8'
 );
 const callouts = readFileSync(new URL('../client/v2/shell/callouts.css', import.meta.url), 'utf8');
-const tokens = readFileSync(
-  new URL('../client/styles/1-tokens-maude.css', import.meta.url),
-  'utf8'
-);
 function block(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);
   if (start < 0) throw new Error(`Missing selector ${selector}`);
@@ -22,12 +19,8 @@ function block(css: string, selector: string): string {
 // decorative content. Pin their real CSS/token pairs; live axe additionally
 // checks cascade, opacity and rendered backgrounds on the affected screens.
 for (const theme of ['light', 'dark']) {
-  const palette = block(tokens, `.maude[data-theme="${theme}"]`);
-  const color = (token: string) => {
-    const value = palette.match(new RegExp(`${token}:\\s*(oklch\\([^)]*\\))`))?.[1];
-    if (!value) throw new Error(`Missing ${theme} ${token}`);
-    return oklchToRgb(parseOklch(value));
-  };
+  // P8 C0: the generated maude-v2 shell ladder; translucent values composite over the island (--bg-1)
+  const color = (token: string) => shellColor(theme as 'light' | 'dark', token);
   for (const [selector, css] of [
     ['.st-callout-t > span', callouts],
     ['.lp-tab', leftPanel],
@@ -88,12 +81,8 @@ const TEXT_RULES: [string, string, string][] = [
 ];
 
 for (const theme of ['light', 'dark']) {
-  const palette = block(tokens, `.maude[data-theme="${theme}"]`);
-  const color = (token: string) => {
-    const value = palette.match(new RegExp(`${token}:\\s*(oklch\\([^)]*\\))`))?.[1];
-    if (!value) throw new Error(`Missing ${theme} ${token}`);
-    return oklchToRgb(parseOklch(value));
-  };
+  // P8 C0: the generated maude-v2 shell ladder; translucent values composite over the island (--bg-1)
+  const color = (token: string) => shellColor(theme as 'light' | 'dark', token);
   const ratio = (fg: string, bg: string) => contrastRatio(color(fg), color(bg));
   const SURFACES = ['--bg-1', '--bg-2', '--bg-3'];
 

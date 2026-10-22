@@ -113,7 +113,7 @@ div
                           span .insp-pair
                             span [data-testid="insp-num-height"]
                               div .insp-nf.st-cp-num
-                                input .st-cp-numin [role="spinbutton"] [aria-label="Height"] [value="216"] {value="216"}
+                                input .st-cp-numin [role="spinbutton"] [aria-label="Height"] [value="217"] {value="217"}
                             select .st-cp-nsel.st-cp-nsel--mini [data-testid="insp-mode-height"] [aria-label="Height sizing"] {value="fixed"}
                               option [value="hug"] "Hug"
                               option [value="fill"] "Fill"

@@ -90,7 +90,7 @@ const EL_RESIZE_CSS = `
 /* INV-2 — reveal/settle collapses to 1ms, same idiom as every other overlay
    stylesheet in this codebase (equal-spacing-handles.tsx, etc). This overlay
    is mounted inside the canvas iframe's OWN document, which never loads the
-   shell's 1-tokens-maude.css — the prefers-reduced-motion guard has to be
+   shell's 1-tokens-shell.css — the prefers-reduced-motion guard has to be
    re-declared per injected stylesheet, it doesn't cascade in from the shell.
    Comment stays backtick-free — it lives inside the template literal. */
 @media (prefers-reduced-motion: reduce) {

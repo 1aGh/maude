@@ -515,18 +515,21 @@
   }
 }
 
-/* The Share / Ask to edit button and the icon buttons never shrink — the status word gives way first
-   (it ellipsises), so the primary action is always whole (seen squeezed to 28 px, V2-4.3 lead). */
-.st-share .st-share-btn,
-.st-share .st-share-ic,
-.st-share .st-modes {
-  flex: none;
-  white-space: nowrap;
-}
-/* `.st-share-btn` is also a v1 rule (4-components.css: a 28 px square, from the Share icon of the menubar
-   V2-4.8a deleted) — the cluster's button is a labelled button, so it takes its own width. The v1 rule
-   can go with the next CSS sweep; this override is harmless without it. */
-.st-share .btn.st-share-btn {
-  width: auto;
-  min-width: max-content;
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+@layer components {
+  /* The Share / Ask to edit button and the icon buttons never shrink — the status word gives way first
+     (it ellipsises), so the primary action is always whole (seen squeezed to 28 px, V2-4.3 lead). */
+  .st-share .st-share-btn,
+  .st-share .st-share-ic,
+  .st-share .st-modes {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* `.st-share-btn` is also a v1 rule (4-components.css: a 28 px square, from the Share icon of the menubar
+     V2-4.8a deleted) — the cluster's button is a labelled button, so it takes its own width. The v1 rule
+     can go with the next CSS sweep; this override is harmless without it. */
+  .st-share .btn.st-share-btn {
+    width: auto;
+    min-width: max-content;
+  }
 }

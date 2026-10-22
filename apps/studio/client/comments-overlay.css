@@ -571,7 +571,7 @@ button.cm-chip--seek:focus-visible {
   box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
 }
 .cm-thread__menu-item {
-  font: 500 12px / 1.4 var(--font-ui, system-ui, sans-serif);
+  font: 500 12px / 1.4 var(--maude-chrome-font-body, system-ui, sans-serif);
   text-align: left;
   padding: 6px 8px;
   border: 0;

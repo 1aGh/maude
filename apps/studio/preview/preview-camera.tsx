@@ -34,7 +34,7 @@ export interface BoardRect {
   h: number;
 }
 
-/** `--dur-panel` when the token is absent (client/styles/1-tokens-maude.css). */
+/** `--dur-panel` when the token is absent (client/styles/1-tokens-shell.css). */
 export const EASE_MS = 220;
 /** `--ease-out` when the token is absent. */
 export const EASE_OUT: readonly [number, number, number, number] = [0.2, 0, 0, 1];

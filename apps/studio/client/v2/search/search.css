@@ -1,6 +1,6 @@
 /* client/v2/search/search.css — V2-4.6: Search ⌘K (01 cf-search-k, 05 es-search-k, 06 ad-search) and the
  * "?" sheet. Extends the v1 `.st-palette` / `.so-overlay` looks in 3-shell-maude.css (loaded earlier, so
- * equal-specificity rules here win). Tokens are the shell's (v1 ladder), as floating-panels.css. */
+ * equal-specificity rules here win). Tokens are the shell's (maude-v2 since P8 C0). */
 
 @layer shell {
   /* ── ⌘K ── */

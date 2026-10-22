@@ -28,7 +28,7 @@
     background: var(--bg-1);
     /* title + SKU sat glued together (flex space-between, no gap) */
     justify-content: flex-start;
-    gap: var(--space-4);
+    gap: var(--space-3);
   }
   .maude .help-modal-hd .title {
     font-family: var(--font-display);
@@ -39,7 +39,7 @@
   }
   .maude .help-modal-hd .sku {
     font-family: var(--font-mono);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .maude .help-modal-close {
     color: var(--fg-2);
@@ -67,7 +67,7 @@
   /* the load-bearing fix — descriptions sat far-right (margin-left:auto). Pull them
    inline-left next to the key so each row reads as a definition, maude-style. */
   .maude .help-modal-body li {
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .maude .help-modal-body li > span {
     margin-left: 0;
@@ -124,7 +124,7 @@
   }
   .mdcc-tour__step {
     font-family: var(--font-mono);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .mdcc-tour__spot {
     border-radius: var(--radius-md);
@@ -161,18 +161,18 @@
     width: min(580px, 92vw) !important;
   }
   .mdcc-tour__graphic {
-    margin: var(--space-2) 0 var(--space-4);
+    margin: var(--space-1) 0 var(--space-3);
   }
   .cm-info {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .cm-live {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-4);
+    gap: var(--space-1);
+    padding: var(--space-3);
     border: 1px solid color-mix(in oklab, var(--presence-online) 32%, var(--border-default));
     border-radius: var(--radius-md);
     background: color-mix(in oklab, var(--presence-online) 8%, var(--bg-2));
@@ -180,7 +180,7 @@
   .cm-live-hd {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-size: var(--type-sm);
     color: var(--fg-1);
   }
@@ -198,13 +198,13 @@
   .cm-live-items {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .cm-live-item {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 2px var(--space-2);
+    padding: 2px var(--space-1);
     border-radius: var(--radius-pill);
     background: var(--bg-1);
     border: 1px solid var(--border-subtle);
@@ -221,7 +221,7 @@
   .cm-bridge {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .cm-bridge-line {
     flex: 1;
@@ -233,14 +233,14 @@
     font-size: 10px;
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .cm-cycle {
     position: relative;
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .cm-cycle::before {
     content: "";
@@ -265,8 +265,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-2);
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-1);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     background: var(--bg-1);
@@ -321,7 +321,7 @@
     background: var(--accent-hover);
   }
   .maude .mdcc-tour-nudge__skip {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .maude .mdcc-tour-nudge__skip:hover {
     color: var(--fg-0);
@@ -361,7 +361,7 @@
     background: var(--accent-hover);
   }
   .mdcc-wn-toast__close {
-    color: var(--fg-3);
+    color: var(--fg-2);
     border-radius: var(--radius-sm);
   }
   .mdcc-wn-toast__close:hover {
@@ -387,7 +387,7 @@
   }
   .mdcc-wn-item__ver {
     font-family: var(--font-mono);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .mdcc-wn-item__summary {
     color: var(--fg-1);
@@ -410,7 +410,7 @@
     border: 0;
   }
   .mdcc-wn-empty {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
 
   /* ─── SystemView (DS overview) ─────────────────────────────────────────────── */
@@ -435,7 +435,7 @@
   }
   .maude .sv-loc code {
     font-family: var(--font-mono);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .maude .sv-ds-picker {
     font-family: var(--font-mono);
@@ -464,7 +464,7 @@
   .maude .sv-h-num,
   .maude .sv-count {
     font-family: var(--font-mono);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .maude .sv-tok-cell {
     border: 1px solid var(--border-subtle);
@@ -482,7 +482,7 @@
     align-items: flex-start;
     justify-content: flex-start;
     gap: 1px;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
   }
   .maude .sv-tok-name {
     font-family: var(--font-mono);
@@ -521,10 +521,10 @@
     font-family: var(--font-body);
   }
   .maude .sv-preview-foot code {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .maude .sv-empty {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .maude .sv-empty code {
     font-family: var(--font-mono);

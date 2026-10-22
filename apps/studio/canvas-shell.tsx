@@ -169,7 +169,7 @@ import { ViewOnlyGesture } from './view-only-gesture.tsx';
 //     attribute on the iframe `documentElement`, propagated over the existing
 //     `dgn:*` postMessage bridge (see CanvasRouter onMessage + app.jsx).
 //
-// Values mirror the Maude app-chrome neutrals (client/styles/1-tokens.css) so
+// Values mirror the Maude app-chrome neutrals (client/styles/1-tokens-shell.css) so
 // the in-iframe chrome and the outer shell read as one product. The DARK set is
 // also the default (attribute absent / "dark") so a canvas that never receives
 // a theme message renders coherent-dark — matching the dev-server's own default

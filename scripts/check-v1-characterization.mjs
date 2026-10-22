@@ -114,6 +114,15 @@
 // MAUDE_CLAUDE_BIN empty (a throwaway HOME + the real CLI raised macOS keychain dialogs), and masks the Settings
 // "Local server port" value (it is the run's own port). `--build --update`, then `--build --repeat`: 0 changed.
 //
+// Approved delta (P8 C0, 2026-10-22, decision:maude/v2-p8-c0-one-shell-ladder): 8 states. The token flip itself is
+// CSS-only and moves ONE value: `browser/inspector-selected` reads the selection's Height 217 (was 216) — the v2
+// ladder re-sizes the panels, so the inset-aware fit lands on another zoom and the rounding shifts by a pixel. The
+// other 7 (`browser/export-dialog`, `browser/handoff-dialog`, `browser/menu-file`, `tauri/menu-file`,
+// `browser/settings`, `browser/settings-tabs`, `cloud/settings`) were already stale on the feat tip from merged
+// slices, not from C0: the no-selection export sheet is the whole-project sheet grouped by kind, the handoff sheet
+// is not reachable without a canvas, the project menu's canvas rows read aria-disabled with no canvas open, and a
+// Settings row reads "Version history" (was "Changes"). `--build --update`, then `--build --repeat`: all 30 identical.
+//
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
 //                                              [--build] [--shots <dir>] [--repeat]

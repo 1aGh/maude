@@ -94,7 +94,7 @@
   }
   .fi-frame-sz {
     color: var(--fg-2);
-    font-size: var(--type-2xs, 11px);
+    font-size: var(--type-xs, 11px);
     font-variant-numeric: tabular-nums;
   }
   .fi-dest {
@@ -146,7 +146,7 @@
     color: var(--ok, var(--accent));
   }
   .fi-sum-m--warn {
-    color: var(--warn, var(--fg-0));
+    color: var(--status-warn-text, var(--fg-0));
   }
   .fi-sum-m--skip {
     color: var(--fg-3);

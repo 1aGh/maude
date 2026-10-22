@@ -112,7 +112,7 @@ export function liveRects(
   });
 }
 
-/** The lift tween, in ms, when the token is absent: `--dur-route` (client/styles/1-tokens-maude.css). */
+/** The lift tween, in ms, when the token is absent: `--dur-route` (client/styles/1-tokens-shell.css). */
 export const LIFT_MS = 280;
 const MASK_SPREAD_PX = 100000;
 const ZOOM_MIN = 0.02;

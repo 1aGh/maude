@@ -1,95 +1,98 @@
 /* client/v2/ds/edges.css — S10.17: the three edges of the Design system canvas (13 · ds-edge-contrast, ds-edge-trash,
    ds-edge-suggest). The trash sheet reuses the .dsr-* rows of review.css; tokens only, motion collapses under
    reduced motion. */
-.ds-edge-line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.ds-edge-warn {
-  flex: 1;
-  min-width: 0;
-}
-.ds-edge-act {
-  flex: none;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-2);
-  color: var(--fg-0);
-  font: inherit;
-  font-size: var(--type-xs);
-  cursor: pointer;
-}
-.ds-edge-act:hover:not(:disabled) {
-  background: var(--bg-3);
-}
-.ds-edge-act:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-.ds-edge-act:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.ds-edge-dialog {
-  width: min(460px, calc(100vw - 32px));
-}
-.ds-edge-pair {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: var(--space-3) 0;
-  font-size: var(--type-sm);
-  color: var(--fg-1);
-}
-.ds-edge-chip {
-  display: inline-block;
-  flex: none;
-  width: 14px;
-  height: 14px;
-  margin-right: var(--space-1);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-default);
-}
-
-/* the quiet question: one card above the bottom edge, never over the canvas's centre */
-.ds-edge-ask {
-  position: fixed;
-  left: 50%;
-  bottom: var(--space-5);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: min(420px, calc(100vw - 32px));
-  padding: var(--space-3);
-  transform: translateX(-50%);
-  animation: ds-edge-ask-in var(--dur-flip) var(--ease-out);
-}
-.ds-edge-ask-t {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  font-size: var(--type-sm);
-  line-height: var(--lh-sm);
-  color: var(--fg-0);
-}
-.ds-edge-ask-b {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-@keyframes ds-edge-ask-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 6px);
+/* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
+@layer components {
+  .ds-edge-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
   }
-}
-@media (prefers-reduced-motion: reduce) {
+  .ds-edge-warn {
+    flex: 1;
+    min-width: 0;
+  }
+  .ds-edge-act {
+    flex: none;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .ds-edge-act:hover:not(:disabled) {
+    background: var(--bg-3);
+  }
+  .ds-edge-act:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .ds-edge-act:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .ds-edge-dialog {
+    width: min(460px, calc(100vw - 32px));
+  }
+  .ds-edge-pair {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .ds-edge-chip {
+    display: inline-block;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin-right: var(--space-1);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-default);
+  }
+
+  /* the quiet question: one card above the bottom edge, never over the canvas's centre */
   .ds-edge-ask {
-    animation-duration: 1ms;
+    position: fixed;
+    left: 50%;
+    bottom: var(--space-5);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: min(420px, calc(100vw - 32px));
+    padding: var(--space-3);
+    transform: translateX(-50%);
+    animation: ds-edge-ask-in var(--dur-flip) var(--ease-out);
+  }
+  .ds-edge-ask-t {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-0);
+  }
+  .ds-edge-ask-b {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  @keyframes ds-edge-ask-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ds-edge-ask {
+      animation-duration: 1ms;
+    }
   }
 }

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
 const FLOAT = read('client/v2/shell/floating-panels.css');
-const TOKENS = read('client/styles/1-tokens-maude.css');
+const TOKENS = read('client/styles/1-tokens-shell.css');
 
 const declarations = (css: string, prop: RegExp) =>
   [...css.matchAll(/^\s*([a-z-]+)\s*:\s*([^;]+);/gm)]
@@ -29,8 +29,8 @@ describe('reduced motion is a cut', () => {
   test('the ladder the shell resolves collapses --dur-panel to 1ms under prefers-reduced-motion', () => {
     const block =
       /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n  \}/.exec(TOKENS)?.[1] ?? '';
-    expect(block).toMatch(/\.maude\[data-theme="dark"\]/);
-    expect(block).toMatch(/\.maude\[data-theme="light"\]/);
+    // P8 C0: the shell ladder (1-tokens-shell.css) collapses on the shell roots, theme-independent
+    expect(block).toMatch(/:root,\s*\.maude\s*\{/);
     const panel = /--dur-panel:\s*(\d+)ms/.exec(block);
     expect(Number(panel?.[1])).toBeLessThanOrEqual(1);
     // …and the normal value is a real animation, so the test above is not vacuous.

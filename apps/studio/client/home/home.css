@@ -868,8 +868,8 @@
     width: 100%;
     box-sizing: border-box;
     padding: var(--space-2);
-    border: 1px solid var(--line-1, var(--fg-3));
-    border-radius: var(--radius-2, 6px);
+    border: 1px solid var(--border-default, var(--fg-3));
+    border-radius: var(--radius-sm, 6px);
     background: var(--bg-0);
     font: inherit;
     font-size: var(--type-sm);

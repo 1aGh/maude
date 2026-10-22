@@ -36,7 +36,7 @@
   .sv {
     max-width: 1280px;
     margin: 0 auto;
-    padding: var(--space-7) var(--space-7) var(--space-9);
+    padding: var(--space-6) var(--space-6) var(--space-8);
     font-family: var(--u-font-mono);
   }
   .sv-empty {
@@ -51,7 +51,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--space-5);
+    gap: var(--space-4);
     border-bottom: 2px solid var(--u-fg-0);
     padding-bottom: var(--u-s-3);
     margin-bottom: var(--u-s-5);
@@ -1277,7 +1277,7 @@
     color: var(--u-fg-2);
     border: 1px solid var(--u-bg-3);
     border-radius: var(--radius-md);
-    font: 500 11px / 1.2 var(--font-sans, system-ui, sans-serif);
+    font: 500 11px / 1.2 var(--font-body, system-ui, sans-serif);
     letter-spacing: 0.02em;
     cursor: pointer;
   }
@@ -1318,7 +1318,7 @@
     border-left: 3px solid var(--u-accent);
     border-radius: var(--radius-md);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-    font: 400 12px / 1.4 var(--font-sans, system-ui, sans-serif);
+    font: 400 12px / 1.4 var(--font-body, system-ui, sans-serif);
     animation: mdcc-wn-rise 0.28s ease both;
   }
   @keyframes mdcc-wn-rise {
@@ -1356,7 +1356,7 @@
     color: var(--u-accent-fg);
     border: none;
     border-radius: var(--radius-md);
-    font: 600 11px / 1 var(--font-sans, system-ui, sans-serif);
+    font: 600 11px / 1 var(--font-body, system-ui, sans-serif);
     cursor: pointer;
   }
   .mdcc-wn-toast__close {
@@ -1604,7 +1604,7 @@
     }
   }
   .maude-notice .st-export-progress {
-    margin-top: var(--space-1, 4px);
+    margin-top: 2px;
   }
   /* Busy state for the Save…/Download button — the bytes fetch + (native) the
    OS save-dialog handoff can take several seconds on a large export; without
@@ -1665,7 +1665,7 @@
     border-radius: var(--radius-md);
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
     padding: 16px;
-    font: 400 13px / 1.5 var(--font-sans, system-ui, sans-serif);
+    font: 400 13px / 1.5 var(--font-body, system-ui, sans-serif);
   }
   .mdcc-tour__step {
     font-size: 10px;
@@ -1781,7 +1781,7 @@
     border-left: 3px solid var(--u-accent);
     border-radius: var(--radius-md);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-    font: 400 12px / 1.4 var(--font-sans, system-ui, sans-serif);
+    font: 400 12px / 1.4 var(--font-body, system-ui, sans-serif);
   }
   .mdcc-tour-nudge__body {
     flex: 1;
@@ -1794,7 +1794,7 @@
     color: var(--u-accent-fg);
     border: none;
     border-radius: var(--radius-md);
-    font: 600 11px / 1 var(--font-sans, system-ui, sans-serif);
+    font: 600 11px / 1 var(--font-body, system-ui, sans-serif);
     cursor: pointer;
   }
   .mdcc-tour-nudge__skip {
@@ -1825,7 +1825,7 @@
     color: var(--u-accent);
     border: none;
     border-radius: var(--radius-sm, 2px);
-    font: 600 10px / 1.4 var(--font-sans, system-ui, sans-serif);
+    font: 600 10px / 1.4 var(--font-body, system-ui, sans-serif);
     text-transform: uppercase;
     letter-spacing: 0.03em;
     cursor: pointer;
@@ -1872,7 +1872,7 @@
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--fg-3);
+    color: var(--fg-2);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-pill, 999px);
     padding: 1px 7px;
@@ -1892,7 +1892,7 @@
   .st-provider-modalities {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--fg-3);
+    color: var(--fg-2);
     margin-top: 4px;
   }
   .st-provider-notes {
@@ -1938,7 +1938,7 @@
     color: var(--fg-1);
   }
   .st-step.is-done .st-step-title {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-setup-more {
     margin-top: 10px;
@@ -1946,7 +1946,7 @@
   .st-setup-more > summary {
     cursor: pointer;
     font-size: 11px;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-setup-more > summary:hover {
     color: var(--fg-1);
@@ -2061,7 +2061,7 @@
   }
   .st-model-size {
     font-size: 11px;
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-weight: 400;
   }
   .st-model-progress {
@@ -2085,7 +2085,7 @@
   }
   .st-model-action-note {
     font-size: 10px;
-    color: var(--fg-3);
+    color: var(--fg-2);
     text-align: right;
   }
 
@@ -2094,7 +2094,7 @@
     width: 100%;
     resize: vertical;
     min-height: 60px;
-    font-family: var(--font-sans, system-ui, sans-serif);
+    font-family: var(--font-body, system-ui, sans-serif);
     margin-bottom: 10px;
   }
   .st-gen-go {
@@ -2130,18 +2130,18 @@
  * the canvas CSP (`style-src 'self'`) drops inline styles SILENTLY. */
   .st-figma-dialog {
     width: min(560px, 92vw);
-    padding-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
   }
   .st-figma-label {
     display: block;
-    padding: var(--space-3) var(--space-5) 4px;
+    padding: var(--space-2) var(--space-4) 4px;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
   .st-figma-input {
     display: block;
-    width: calc(100% - (2 * var(--space-5)));
-    margin: 0 var(--space-5);
+    width: calc(100% - (2 * var(--space-4)));
+    margin: 0 var(--space-4);
     padding: 8px 10px;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
@@ -2153,7 +2153,7 @@
   .st-figma-modes {
     border: 0;
     margin: 0;
-    padding: 0 var(--space-5);
+    padding: 0 var(--space-4);
   }
   .st-figma-mode {
     display: flex;
@@ -2164,17 +2164,17 @@
     color: var(--fg-1);
   }
   .st-figma-mode-hint {
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-xs, 12px);
   }
   .st-figma-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    padding: var(--space-4) var(--space-5) 0;
+    padding: var(--space-3) var(--space-4) 0;
   }
   .st-figma-notice {
-    margin: var(--space-3) var(--space-5) 0;
+    margin: var(--space-2) var(--space-4) 0;
     padding: 8px 10px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -2190,12 +2190,12 @@
     color: var(--fg-1);
   }
   .st-figma-error {
-    margin: var(--space-3) var(--space-5) 0;
-    color: var(--status-danger, var(--fg-0));
+    margin: var(--space-2) var(--space-4) 0;
+    color: var(--status-error, var(--fg-0));
     font-size: var(--type-xs, 12px);
   }
   .st-figma-summary {
-    margin: var(--space-3) var(--space-5) 0;
+    margin: var(--space-2) var(--space-4) 0;
     padding: 10px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -2209,7 +2209,7 @@
     margin-bottom: 6px;
   }
   .st-figma-summary-row {
-    margin: var(--space-2) var(--space-5) 0;
+    margin: var(--space-1) var(--space-4) 0;
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
@@ -2233,7 +2233,7 @@
   .st-figma-summary-ids {
     display: block;
     font-family: var(--font-mono);
-    color: var(--fg-3);
+    color: var(--fg-2);
     overflow-wrap: anywhere;
   }
 
@@ -2252,7 +2252,7 @@
     height: 100%;
     background: var(--accent);
     border-radius: 2px;
-    transition: width var(--dur-2, 240ms) ease;
+    transition: width var(--dur-panel, 240ms) ease;
   }
   @media (prefers-reduced-motion: reduce) {
     .sp-progress-fill {
@@ -2300,12 +2300,12 @@
   .st-share-link {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .st-share-link input {
     flex: 1;
     min-width: 0;
-    padding: var(--space-2);
+    padding: var(--space-1);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     background: var(--bg-2);

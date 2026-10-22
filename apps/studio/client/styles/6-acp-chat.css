@@ -32,8 +32,8 @@
   .chat-bar {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
     border-bottom: 1px solid var(--border-subtle);
   }
   /* Custom chat dropdown — status dot (running/open/saved) + delete per row. */
@@ -45,7 +45,7 @@
   .chat-switch-trigger {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     width: 100%;
     appearance: none;
     border: 1px solid var(--border-default);
@@ -54,7 +54,7 @@
     font-family: var(--font-body);
     font-size: var(--type-xs);
     border-radius: var(--radius-sm);
-    padding: 4px var(--space-3);
+    padding: 4px var(--space-2);
     cursor: pointer;
     transition: border-color var(--dur-soft) var(--ease-out);
   }
@@ -70,7 +70,7 @@
     text-align: left;
   }
   .chat-switch-caret {
-    color: var(--fg-3);
+    color: var(--fg-2);
     flex-shrink: 0;
   }
   .chat-menu-backdrop {
@@ -90,7 +90,7 @@
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-lg);
-    padding: var(--space-1);
+    padding: 2px;
   }
   .chat-menu-row {
     position: relative;
@@ -107,7 +107,7 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     appearance: none;
     border: 0;
     background: transparent;
@@ -115,7 +115,7 @@
     color: var(--fg-1);
     font-family: var(--font-body);
     font-size: var(--type-xs);
-    padding: var(--space-2);
+    padding: var(--space-1);
     text-align: left;
   }
   .chat-menu-title {
@@ -137,7 +137,7 @@
     color: var(--fg-0);
     font-family: var(--font-body);
     font-size: var(--type-xs);
-    padding: var(--space-2);
+    padding: var(--space-1);
     margin: 2px;
     outline: none;
   }
@@ -152,7 +152,7 @@
     border: 0;
     background: transparent;
     cursor: pointer;
-    color: var(--fg-3);
+    color: var(--fg-2);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -175,7 +175,7 @@
     display: flex;
     flex-direction: column;
     min-width: 150px;
-    padding: var(--space-1);
+    padding: 2px;
     background: var(--bg-2);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
@@ -190,7 +190,7 @@
     color: var(--fg-1);
     font-family: var(--font-body);
     font-size: var(--type-xs);
-    padding: var(--space-2);
+    padding: var(--space-1);
     border-radius: var(--radius-xs);
   }
   .chat-menu-overflow button:hover {
@@ -226,22 +226,22 @@
   .chat-view-label-tx {
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
     white-space: nowrap;
   }
   /* Connection status strip */
   .chat-statusrow {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
     border-bottom: 1px solid var(--border-subtle);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
   .chat-statusrow-sep {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-statusrow-cc {
     color: var(--fg-1);
@@ -276,7 +276,7 @@
   .chat-activity {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--presence-agent);
@@ -310,10 +310,10 @@
   .chat-feed {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-4);
+    padding: var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-3);
   }
 
   /* Empty state */
@@ -322,9 +322,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
     text-align: center;
-    padding: var(--space-4) var(--space-2);
+    padding: var(--space-3) var(--space-1);
   }
   .chat-empty-mark {
     color: var(--accent-muted);
@@ -346,9 +346,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     width: 100%;
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     font-family: var(--font-body);
     font-size: var(--type-sm);
     font-weight: 600;
@@ -356,7 +356,7 @@
     background: var(--accent);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     cursor: pointer;
     transition:
       background var(--dur-soft) var(--ease-out),
@@ -378,9 +378,9 @@
   .chat-sugs {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
     width: 100%;
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
   }
   .chat-sug {
     text-align: left;
@@ -388,7 +388,7 @@
     font-family: var(--font-body);
     font-size: var(--type-sm);
     color: var(--fg-1);
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -411,7 +411,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
     animation: chat-msg-in var(--dur-soft) var(--ease-out) both;
   }
   @keyframes chat-msg-in {
@@ -427,7 +427,7 @@
   .chat-msg-role {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     letter-spacing: var(--tracking-wide);
@@ -446,7 +446,7 @@
     background: var(--bg-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     white-space: pre-wrap;
   }
   .chat-bubble code {
@@ -465,7 +465,7 @@
      marks it as a continuation of the message above, not a fresh reply. */
   .chat-msg--continued {
     border-top: 1px dashed var(--border-subtle);
-    padding-top: var(--space-3);
+    padding-top: var(--space-2);
   }
 
   /* Per-message hover actions (Task C2 — Copy / Retry). Absolutely positioned
@@ -473,7 +473,7 @@
      tab to the buttons, which triggers :focus-within even without a pointer). */
   .chat-msg-actions {
     position: absolute;
-    top: calc(-1 * var(--space-2));
+    top: calc(-1 * var(--space-1));
     right: 0;
     display: flex;
     gap: 2px;
@@ -483,7 +483,7 @@
     background: var(--bg-2);
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--dur-fast, 120ms) ease;
+    transition: opacity var(--dur-flip, 120ms) ease;
   }
   .chat-msg:hover .chat-msg-actions,
   .chat-msg:focus-within .chat-msg-actions {
@@ -522,7 +522,7 @@
 
   /* Rendered markdown inside the assistant bubble (chat-markdown.jsx) */
   .chat-msg--assistant .chat-bubble > * + * {
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
   }
   .chat-md-p {
     margin: 0;
@@ -535,17 +535,17 @@
   }
   .chat-md-list {
     margin: 0;
-    padding-left: var(--space-4);
+    padding-left: var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-md-list li {
     font-size: var(--type-sm);
   }
   .chat-code {
     margin: 0;
-    padding: var(--space-3);
+    padding: var(--space-2);
     background: var(--bg-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -563,7 +563,7 @@
   }
   .chat-md-table th,
   .chat-md-table td {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     text-align: left;
     border-bottom: 1px solid var(--border-subtle);
     white-space: pre-wrap;
@@ -607,8 +607,8 @@
   .chat-think-sum {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--fg-2);
@@ -635,7 +635,7 @@
     border-bottom: 1px solid var(--border-subtle);
   }
   .chat-think-body {
-    padding: var(--space-3);
+    padding: var(--space-2);
     font-size: var(--type-xs);
     color: var(--fg-2);
     line-height: var(--lh-base);
@@ -655,8 +655,8 @@
   .chat-toolgroup-sum {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--fg-1);
@@ -670,7 +670,7 @@
   .chat-toolgroup-sum::after {
     content: "▸";
     margin-left: auto;
-    color: var(--fg-3);
+    color: var(--fg-2);
     transition: transform var(--dur-soft) var(--ease-out);
   }
   .chat-toolgroup[open] .chat-toolgroup-sum::after {
@@ -688,10 +688,10 @@
      calls are now plain rows separated by a hairline, not their own
      `.chat-tool` card, so the whole group stays one lightweight shape. */
   .chat-tool-row {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-tool-row + .chat-tool-row {
     border-top: 1px solid var(--border-subtle);
@@ -699,7 +699,7 @@
   .chat-tool-row-main {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--fg-1);
@@ -710,7 +710,7 @@
   }
   .chat-tool-row-status {
     margin-left: auto;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-tool-row-status.del {
     color: var(--status-error);
@@ -726,8 +726,8 @@
   .chat-tool-hd {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--fg-1);
@@ -754,15 +754,15 @@
     background: var(--status-success);
   }
   .chat-tool-body {
-    padding: var(--space-3);
+    padding: var(--space-2);
     display: grid;
-    gap: var(--space-1);
+    gap: 2px;
     font-family: var(--font-mono);
     font-size: var(--type-xs);
   }
   .chat-tool-line {
     display: flex;
-    gap: var(--space-2);
+    gap: var(--space-1);
     color: var(--fg-1);
   }
   .chat-tool-line.add {
@@ -774,7 +774,7 @@
   /* Raw args/result preview — Verbose transcript view only (Task C4). */
   .chat-tool-detail {
     margin: 0;
-    padding: var(--space-2);
+    padding: var(--space-1);
     background: var(--bg-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-xs);
@@ -790,9 +790,9 @@
   .chat-perm {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    margin: 0 var(--space-4);
-    padding: var(--space-3);
+    gap: var(--space-1);
+    margin: 0 var(--space-3);
+    padding: var(--space-2);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -803,7 +803,7 @@
   .chat-perm-hd {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--fg-1);
@@ -826,7 +826,7 @@
   }
   .chat-perm-queue {
     flex-shrink: 0;
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-weight: 400;
   }
   .chat-perm-body {
@@ -837,7 +837,7 @@
   .chat-perm-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   /* feature-acp-write-path-scope Task 4 — the out-of-project WRITE variant.
@@ -856,7 +856,7 @@
   .chat-perm-outside {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   /* The resolved absolute paths. Monospaced + wrapping at any character: these
      are the one string on the card the user actually has to READ, and a path
@@ -869,10 +869,10 @@
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-perm-path {
-    padding: var(--space-1) var(--space-2);
+    padding: 2px var(--space-1);
     border-radius: var(--radius-xs);
     background: var(--bg-1);
     color: var(--fg-0);
@@ -884,7 +884,7 @@
   .chat-perm-note {
     margin: 0;
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-perm-root {
     font-family: var(--font-mono);
@@ -897,9 +897,9 @@
   .chat-elicit {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-    margin: 0 var(--space-4);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+    margin: 0 var(--space-3);
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--border-default);
     border-left: 2px solid var(--accent);
     border-radius: var(--radius-sm);
@@ -911,7 +911,7 @@
   .chat-elicit-hd {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-elicit-hd b {
     color: var(--fg-0);
@@ -922,19 +922,19 @@
   .chat-elicit-meta {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-elicit-meta > span + span::before {
     content: "·";
-    margin-right: var(--space-2);
+    margin-right: var(--space-1);
   }
   .chat-elicit-question {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
     margin: 0;
     padding: 0;
     border: none;
@@ -942,7 +942,7 @@
   .chat-elicit-question-hd {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
     padding: 0;
     font-size: var(--type-sm);
     color: var(--fg-0);
@@ -950,7 +950,7 @@
   }
   .chat-elicit-question-chip {
     align-self: flex-start;
-    padding: 2px var(--space-2);
+    padding: 2px var(--space-1);
     border-radius: var(--radius-pill);
     background: var(--bg-3);
     color: var(--accent);
@@ -963,12 +963,12 @@
   .chat-elicit-options {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-elicit-option {
     display: flex;
     align-items: flex-start;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-size: var(--type-xs);
     color: var(--fg-1);
     cursor: pointer;
@@ -985,20 +985,20 @@
   .chat-elicit-custom--inline {
     margin-left: calc(
       16px +
-      var(--space-2)
+      var(--space-1)
     ); /* aligns under the "Other" label, not the radio dot */
   }
   .chat-elicit-option-body {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-elicit-option-desc {
     color: var(--fg-2);
   }
   .chat-elicit-option-preview {
     margin: 0;
-    padding: var(--space-1) var(--space-2);
+    padding: 2px var(--space-1);
     background: var(--bg-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-xs);
@@ -1010,7 +1010,7 @@
   }
   .chat-elicit-text {
     width: 100%;
-    padding: var(--space-1) var(--space-2);
+    padding: 2px var(--space-1);
     background: var(--bg-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-xs);
@@ -1031,7 +1031,7 @@
   .chat-elicit-custom-wrap {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 2px;
   }
   .chat-elicit-custom-note {
     margin: 0;
@@ -1045,7 +1045,7 @@
      review once already, per DDR-097's file-tree badge fix). */
   .chat-elicit-secret-warning {
     margin: 0;
-    padding: var(--space-1) var(--space-2);
+    padding: 2px var(--space-1);
     border: 1px solid var(--status-warn);
     border-radius: var(--radius-xs);
     background: color-mix(in oklab, var(--status-warn) 12%, transparent);
@@ -1056,14 +1056,14 @@
      credential ask; pairs with the masked input in ElicitationPrompt.jsx. */
   .chat-elicit-secret-warning {
     margin: 0;
-    color: var(--warn, hsl(38 92% 50%));
+    color: var(--status-warn-text, hsl(38 92% 50%));
     font-size: var(--type-xs);
   }
   .chat-elicit-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .chat-elicit-actions-spacer {
     flex: 1 1 auto;
@@ -1074,9 +1074,9 @@
   .chat-error-card {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    margin: 0 var(--space-4);
-    padding: var(--space-3);
+    gap: var(--space-1);
+    margin: 0 var(--space-3);
+    padding: var(--space-2);
     border: 1px solid var(--status-error);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -1084,7 +1084,7 @@
   .chat-error-hd {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     color: var(--status-error);
@@ -1095,12 +1095,12 @@
     color: var(--fg-2);
   }
   .chat-error-detail--muted {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-error-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   /* Usage (Milestone D) — context-window bar, rendered inside .chat-foot-popover. */
@@ -1135,9 +1135,9 @@
   .chat-usage-banner {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    margin: 0 0 var(--space-3);
-    padding: var(--space-2) var(--space-3);
+    gap: var(--space-1);
+    margin: 0 0 var(--space-2);
+    padding: var(--space-1) var(--space-2);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -1150,11 +1150,11 @@
     appearance: none;
     border: 0;
     background: transparent;
-    color: var(--fg-3);
+    color: var(--fg-2);
     cursor: pointer;
     font-size: var(--type-sm);
     line-height: 1;
-    padding: 0 var(--space-1);
+    padding: 0 2px;
   }
   .chat-usage-banner-x:hover {
     color: var(--fg-0);
@@ -1164,8 +1164,8 @@
   .chat-quick {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4) 0;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3) 0;
   }
   .chat-qa {
     font-family: var(--font-mono);
@@ -1186,15 +1186,15 @@
   /* Composer */
   .chat-composer {
     flex: none;
-    padding: var(--space-3) var(--space-4) var(--space-4);
+    padding: var(--space-2) var(--space-3) var(--space-3);
     border-top: 1px solid var(--border-subtle);
-    margin-top: var(--space-3);
+    margin-top: var(--space-2);
   }
   .chat-ctx {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
+    gap: var(--space-1);
+    margin-bottom: var(--space-2);
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
@@ -1210,19 +1210,19 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 2px var(--space-2);
+    padding: 2px var(--space-1);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
     color: var(--fg-1);
   }
   .chat-ctx--stale .chat-ctx-label {
-    border-color: var(--warn, hsl(38 92% 50%));
-    color: var(--warn, hsl(38 92% 50%));
+    border-color: var(--status-warn, hsl(38 92% 50%));
+    color: var(--status-warn-text, hsl(38 92% 50%));
   }
   .chat-ctx-x {
     flex: none;
-    padding: 0 var(--space-1);
+    padding: 0 2px;
     border: 0;
     background: none;
     color: var(--fg-2);
@@ -1258,20 +1258,20 @@
     resize: none;
     width: 100%;
     min-height: 54px;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     font-family: var(--font-body);
     font-size: var(--type-sm);
     color: var(--fg-0);
     outline: none;
   }
   .chat-input::placeholder {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-toolbar {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
+    gap: 2px;
+    padding: 2px var(--space-1);
   }
   .chat-toolbar-spacer {
     flex: 1;
@@ -1281,14 +1281,14 @@
   .chat-caps {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: 2px;
     flex-wrap: wrap;
   }
   .chat-caps--connecting {
     font-family: var(--font-body);
     font-size: var(--type-xs);
-    color: var(--fg-3);
-    padding: 2px var(--space-2);
+    color: var(--fg-2);
+    padding: 2px var(--space-1);
   }
   /* Compact toolbar dropdowns — borderless, hover-revealed (Zed-style).
      Without `field-sizing`, a closed <select> sizes itself to its WIDEST
@@ -1308,7 +1308,7 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--radius-xs);
-    padding: 2px var(--space-2);
+    padding: 2px var(--space-1);
     cursor: pointer;
     flex-shrink: 0;
     field-sizing: content;
@@ -1360,12 +1360,12 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
   }
   .chat-attach-row {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     min-width: 0;
     font-size: var(--type-xs);
   }
@@ -1379,7 +1379,7 @@
   }
   .chat-attach-arrow {
     flex-shrink: 0;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-attach-val {
     min-width: 0;
@@ -1407,10 +1407,10 @@
     border: 0;
     background: transparent;
     cursor: pointer;
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-sm);
     line-height: 1;
-    padding: 2px var(--space-1);
+    padding: 2px 2px;
     border-radius: var(--radius-xs);
   }
   .chat-foot-info-btn:hover,
@@ -1435,7 +1435,7 @@
     display: flex;
     flex-direction: column;
     min-width: 240px;
-    padding: var(--space-3);
+    padding: var(--space-2);
     background: var(--bg-2);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
@@ -1452,18 +1452,18 @@
   .chat-foot-popover-sep {
     height: 1px;
     background: var(--border-subtle);
-    margin: var(--space-2) calc(var(--space-3) * -1);
+    margin: var(--space-1) calc(var(--space-2) * -1);
   }
   .chat-foot-popover-label-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-2);
+    gap: var(--space-1);
     color: var(--fg-0);
     font-weight: 600;
   }
   .chat-foot-popover-row--muted {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .chat-foot-popover-foot {
     display: flex;
@@ -1492,7 +1492,7 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     font-family: var(--font-body);
     font-size: var(--type-sm);
     line-height: var(--lh-base);
@@ -1543,14 +1543,14 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(100% + var(--space-2));
+    bottom: calc(100% + var(--space-1));
     z-index: 20;
     max-height: 280px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 1px;
-    padding: var(--space-1);
+    padding: 2px;
     background: var(--bg-2);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
@@ -1558,7 +1558,7 @@
   }
   /* S5.18 G8 — the "Slash commands" group header (03 `ai-adv-edges`) */
   .chat-cmd-group {
-    padding: var(--space-1) var(--space-3);
+    padding: 2px var(--space-2);
     font-size: var(--type-xs);
     font-weight: 600;
     color: var(--fg-2);
@@ -1570,14 +1570,14 @@
   .chat-cmd-item {
     display: flex;
     align-items: baseline;
-    gap: var(--space-2);
+    gap: var(--space-1);
     width: 100%;
     text-align: left;
     appearance: none;
     border: 0;
     background: transparent;
     border-radius: var(--radius-xs);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     cursor: pointer;
     color: var(--fg-1);
   }
@@ -1607,21 +1607,21 @@
     flex-shrink: 0;
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
 
   /* Streaming → Stop bar */
   .chat-stopbar {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .chat-stop-meta {
     font-size: var(--type-xs);
     color: var(--fg-2);
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   /* Not-connected explainer */
@@ -1629,11 +1629,11 @@
     margin: auto 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-4);
+    gap: var(--space-3);
+    padding: var(--space-3);
   }
   .chat-disabled-mark {
-    color: var(--fg-3);
+    color: var(--fg-2);
     align-self: center;
   }
   .chat-disabled-title {
@@ -1659,8 +1659,8 @@
   .chat-trust {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-3);
+    gap: var(--space-1);
+    padding: var(--space-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -1668,7 +1668,7 @@
   .chat-trust-row {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
@@ -1698,7 +1698,7 @@
     object-fit: cover;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
-    transition: border-color var(--dur-fast, 120ms) ease;
+    transition: border-color var(--dur-flip, 120ms) ease;
   }
   .chat-thumb-btn:hover .chat-thumb {
     border-color: var(--border-strong);
@@ -1716,8 +1716,8 @@
   .chat-thumbrow {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
+    gap: var(--space-1);
+    margin-top: var(--space-1);
   }
   /* A REFERENCED image (assistant merely named the path) — captioned with its
      filename so it reads as "a file that was referenced", not first-class agent
@@ -1732,7 +1732,7 @@
   .chat-thumb-cap {
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1762,8 +1762,8 @@
   }
   .chat-lightbox-close {
     position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
+    top: var(--space-3);
+    right: var(--space-3);
     appearance: none;
     width: 32px;
     height: 32px;
@@ -1811,8 +1811,8 @@
 
   /* V2-4.4b — the 03 header (kit `.k-ai-hd--chat`): spark · title ⌄ · "✦ N" · New chat · Hide, one row. */
   .chat-bar--v2 {
-    gap: var(--space-1);
-    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    gap: 2px;
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
   }
   .chat-bar--v2 .chat-hd-spark {
     display: inline-flex;
@@ -1829,7 +1829,7 @@
   .chat-bar--v2 .chat-switch-trigger {
     border-color: transparent;
     background: transparent;
-    padding: 4px var(--space-2);
+    padding: 4px var(--space-1);
     color: var(--fg-0);
     font-size: var(--type-sm);
     font-weight: 600;
@@ -1848,7 +1848,7 @@
     background: var(--bg-2);
     color: var(--accent);
     border-radius: 999px;
-    padding: 1px var(--space-2);
+    padding: 1px var(--space-1);
     font-size: var(--type-xs);
     cursor: pointer;
   }
@@ -1870,7 +1870,7 @@
   .rdy {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .rdy-list {
     list-style: none;
@@ -1878,13 +1878,13 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .rdy-row {
     display: flex;
-    gap: var(--space-2);
+    gap: var(--space-1);
     align-items: flex-start;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -1905,7 +1905,7 @@
   }
   /* optional, missing → muted, not alarming */
   .rdy-row--opt.rdy-row--missing .rdy-ic {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .rdy-tx {
     display: flex;
@@ -1924,9 +1924,9 @@
     line-height: var(--lh-xs);
   }
   .rdy-fix {
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     display: flex;
-    gap: var(--space-2);
+    gap: var(--space-1);
     align-items: flex-start;
     font-size: var(--type-xs);
     color: var(--fg-1);
@@ -1964,9 +1964,9 @@
   }
   /* DDR-166 T0c/T0d — verbatim install command + Sign-in action rows. */
   .rdy-cmd {
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     display: flex;
-    gap: var(--space-2);
+    gap: var(--space-1);
     align-items: center;
     flex-wrap: wrap;
   }
@@ -1975,7 +1975,7 @@
     font-size: var(--type-xs);
     color: var(--fg-0);
     background: var(--bg-3);
-    padding: var(--space-1) var(--space-2);
+    padding: 2px var(--space-1);
     border-radius: var(--radius-xs);
     overflow-wrap: anywhere;
     flex: 1 1 auto;
@@ -1985,17 +1985,17 @@
   }
   .rdy-fallback-label {
     display: block;
-    margin-top: var(--space-2);
-    color: var(--fg-3);
+    margin-top: var(--space-1);
+    color: var(--fg-2);
   }
   /* DDR-166 Decision 3 — the resolved-binary disclosure shown before Sign-in. */
   .rdy-resolved-path {
     display: block;
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     /* gate-B polish (RC-E): the line rendered at the inherited ~15 px outside .rdy-fix */
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
     word-break: break-all;
   }
   .rdy-resolved-path code {
@@ -2021,7 +2021,7 @@
     max-width: 520px;
   }
   .rdy-modal-note {
-    margin: 0 0 var(--space-3);
+    margin: 0 0 var(--space-2);
     color: var(--fg-2);
     font-size: var(--type-sm);
     line-height: var(--lh-md);
@@ -2035,7 +2035,7 @@
   .setup-cl {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .setup-cl-list {
     list-style: none;
@@ -2043,13 +2043,13 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .setup-cl-row {
     display: flex;
-    gap: var(--space-2);
+    gap: var(--space-1);
     align-items: flex-start;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-2);
@@ -2063,7 +2063,7 @@
     color: var(--status-success);
   }
   .setup-cl-row--missing .setup-cl-ic {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .setup-cl-tx {
     display: flex;
@@ -2084,7 +2084,7 @@
   .setup-cl-foot {
     display: flex;
     justify-content: flex-end;
-    gap: var(--space-2);
+    gap: var(--space-1);
     flex-wrap: wrap;
   }
   .setup-cl-brand {
@@ -2094,7 +2094,7 @@
     max-width: 520px;
   }
   .setup-cl-note {
-    margin: 0 0 var(--space-3);
+    margin: 0 0 var(--space-2);
     color: var(--fg-2);
     font-size: var(--type-sm);
     line-height: var(--lh-md);
@@ -2108,7 +2108,7 @@
     max-width: 480px;
   }
   .brand-up-note {
-    margin: 0 0 var(--space-4);
+    margin: 0 0 var(--space-3);
     color: var(--fg-2);
     font-size: var(--type-sm);
     line-height: var(--lh-md);
@@ -2116,16 +2116,16 @@
   .brand-up-pick {
     display: flex;
     justify-content: center;
-    padding: var(--space-5) 0;
+    padding: var(--space-4) 0;
   }
   .brand-up-error {
-    margin: var(--space-2) 0 0;
+    margin: var(--space-1) 0 0;
     color: var(--status-error);
     font-size: var(--type-sm);
   }
   .brand-up-empty {
     margin: 0;
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-xs);
     line-height: var(--lh-sm);
   }
@@ -2133,14 +2133,14 @@
     display: block;
     max-width: 100%;
     max-height: 120px;
-    margin: 0 auto var(--space-4);
+    margin: 0 auto var(--space-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-3);
-    padding: var(--space-3);
+    padding: var(--space-2);
   }
   .brand-up-sechd {
-    margin: var(--space-4) 0 var(--space-2);
+    margin: var(--space-3) 0 var(--space-1);
     font-size: var(--type-xs);
     font-weight: 600;
     text-transform: uppercase;
@@ -2153,12 +2153,12 @@
     padding: 0;
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .brand-up-swatch {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .brand-up-swatch-chip {
     display: inline-block;
@@ -2178,10 +2178,10 @@
     padding: 0;
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
   .brand-up-font-chip {
-    padding: 2px var(--space-2);
+    padding: 2px var(--space-1);
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-default);
     background: var(--bg-2);
@@ -2189,7 +2189,7 @@
     color: var(--fg-1);
   }
   .brand-up-nextstep {
-    margin: var(--space-4) 0 0;
+    margin: var(--space-3) 0 0;
     font-size: var(--type-sm);
     color: var(--fg-1);
     line-height: var(--lh-md);
@@ -2202,8 +2202,8 @@
   }
   .brand-up-actions {
     display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
+    gap: var(--space-1);
+    margin-top: var(--space-2);
   }
 
   /* DDR-184 #3 — loud top-of-thread alert while the current mode can't edit
@@ -2212,10 +2212,10 @@
   .chat-mode-banner {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    margin: 0 var(--space-4) var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--warn, hsl(38 92% 50%));
+    gap: var(--space-1);
+    margin: 0 var(--space-3) var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--status-warn, hsl(38 92% 50%));
     border-radius: var(--radius-sm);
     background: var(--bg-2);
     color: var(--fg-1);
@@ -2224,7 +2224,7 @@
   }
   .chat-mode-banner-icon {
     flex-shrink: 0;
-    color: var(--warn, hsl(38 92% 50%));
+    color: var(--status-warn-text, hsl(38 92% 50%));
   }
   .chat-mode-banner-text {
     flex: 1 1 auto;
@@ -2241,7 +2241,7 @@
     background: var(--bg-3);
     color: var(--fg-0);
     font-size: var(--type-xs);
-    padding: 2px var(--space-2);
+    padding: 2px var(--space-1);
   }
   .chat-mode-banner-cta:hover {
     background: var(--bg-4);

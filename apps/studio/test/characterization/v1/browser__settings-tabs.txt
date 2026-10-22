@@ -135,7 +135,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Changes"
+              span .st-pref-label "Version history"
             span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
@@ -281,7 +281,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Changes"
+              span .st-pref-label "Version history"
             span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
@@ -487,7 +487,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Changes"
+              span .st-pref-label "Version history"
             span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Right"

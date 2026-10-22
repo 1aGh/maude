@@ -92,7 +92,7 @@
     border: 0;
     height: 1px;
     margin: 4px 0;
-    background: var(--border-1, rgba(127, 127, 127, 0.2));
+    background: var(--border-subtle, rgba(127, 127, 127, 0.2));
   }
   .st-pmenu-row {
     display: flex;
