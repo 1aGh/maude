@@ -1,7 +1,6 @@
 // whats-new.jsx — Maude UI "What's New" surfaces.
 //
 //   useWhatsNew(version)  → headless handle (fetch + seen-state + open-state)
-//   <WhatsNewBadge>       → menubar entry point (✦ + unseen-count dot)
 //   <WhatsNewToast>       → first-run notice (bottom-left, mirrors ai-banner.tsx)
 //   <WhatsNewPanel>       → list of entries (reuses the help-modal backdrop)
 //
@@ -12,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { dismissNotice, notify } from '../notifications.tsx';
 import {
   bestSeenVersion,
+  canReplayTour,
   computeUnseen,
   LEGACY_SEEN_KEY,
   resolveSeen,
@@ -172,27 +172,6 @@ export function useWhatsNew(currentVersion) {
   };
 }
 
-export function WhatsNewBadge({ count = 0, onOpen }) {
-  return (
-    <button
-      type="button"
-      className="mdcc-wn-badge"
-      data-tour="whatsnew"
-      onClick={onOpen}
-      title="What's new"
-      aria-label={count > 0 ? `What's new — ${count} new` : "What's new"}
-    >
-      <span aria-hidden="true">✦</span>
-      <span className="mdcc-wn-badge__label">New</span>
-      {count > 0 && (
-        <span className="mdcc-wn-badge__dot" aria-hidden="true">
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
 /** S11.18 (design W5): a toast is one short line, not the changelog — the first sentence, 90 characters at most. */
 export function toastLine(summary) {
   const text = String(summary ?? '')
@@ -295,7 +274,7 @@ export function WhatsNewPanel({ wn, onStartTour }) {
                       Learn more →
                     </a>
                   )}
-                  {onStartTour && Array.isArray(e.tour) && e.tour.length > 0 && (
+                  {onStartTour && canReplayTour(e) && (
                     <button
                       type="button"
                       className="mdcc-wn-item__tour"

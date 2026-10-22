@@ -51,6 +51,17 @@ export function bestSeenVersion(entries, currentVersion) {
   return best;
 }
 
+/**
+ * Is "Take tour" offered for this entry? It needs spotlight steps AND an entry that has not been marked
+ * `replayable: false` — those spotlight chrome that no longer exists (V2-7.3), so replaying one would
+ * point at nothing. An absent field means replayable.
+ */
+export function canReplayTour(entry) {
+  return (
+    !!entry && Array.isArray(entry.tour) && entry.tour.length > 0 && entry.replayable !== false
+  );
+}
+
 // ── one seen version per Mac (S6.6 / Q11) ────────────────────────────────────────────────────
 // The mark lives in ui-prefs (`~/.config/maude/prefs.json`, field `whatsNewSeen`), so Home and every
 // project tab agree; localStorage (`mdcc-whatsnew-seen`) was per port origin. The server only moves

@@ -174,7 +174,6 @@
     },
     "region": "menubar",
     "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
       "apps/studio/whats-new.json"
     ],
     "v2": "stable",
@@ -205,7 +204,6 @@
     },
     "region": "menubar",
     "consumers": [
-      "apps/studio/client/tour/collab-tour.js",
       "apps/studio/whats-new.json"
     ],
     "v2": "stable",
@@ -220,16 +218,10 @@
       "file": "apps/studio/client/app.jsx",
       "symbol": "Menubar"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/whats-new.jsx",
-        "symbol": "WhatsNewBadge"
-      }
-    ],
     "region": "menubar",
     "consumers": [],
     "v2": "retired",
-    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. Menu › Help › What's new (`project-menu-row-help.whats-new`); the Help row carries the unseen count as its status word. Was: `WhatsNewBadge` also emits this anchor but is exported and never mounted."
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. Menu › Help › What's new (`project-menu-row-help.whats-new`); the Help row carries the unseen count as its status word. The unmounted `WhatsNewBadge` that also emitted this anchor was removed in V2-7.3."
   },
   {
     "hook": "exports",
@@ -451,10 +443,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/client/tour/quick-setup-tour.js",
-      "apps/studio/client/tour/usage-tour.js"
-    ],
+    "consumers": [],
     "v2": "moves"
   },
   {
@@ -754,7 +743,8 @@
     },
     "region": "inspector",
     "consumers": [
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
+      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts",
+      "apps/studio/client/tour/usage-tour.js"
     ],
     "v2": "moves",
     "notes": "Passed as the `testId` prop from `renderPanelBody` in `App()`."
@@ -828,7 +818,6 @@
     },
     "region": "inspector",
     "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
       "apps/studio/whats-new.json"
     ],
     "v2": "moves"
@@ -2923,9 +2912,7 @@
       "symbol": "SaveDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": [],
     "v2": "stable"
   },
   {
@@ -2938,9 +2925,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": [],
     "v2": "stable"
   },
   {
@@ -2953,9 +2938,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": [],
     "v2": "stable"
   },
   {
@@ -5312,7 +5295,7 @@
     "hook": "share-link-unconfirmed",
     "kind": "testid",
     "pattern": false,
-    "meaning": "gate-b-sec4: the folder's committed linkedHub was never linked on this Mac — \u201cThis project says it syncs with <host>. Connect?\u201d",
+    "meaning": "gate-b-sec4: the folder's committed linkedHub was never linked on this Mac — “This project says it syncs with <host>. Connect?”",
     "producer": {
       "file": "apps/studio/client/v2/share/share-sheet.jsx",
       "symbol": "ShareSheet"
@@ -5821,7 +5804,8 @@
     },
     "region": "other",
     "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
+      "apps/studio/test/mode-toggle.test.tsx",
+      "apps/studio/client/tour/usage-tour.js"
     ],
     "v2": "new"
   },
@@ -6324,7 +6308,10 @@
       "symbol": "PanelTabs"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/usage-tour.js",
+      "apps/studio/client/tour/quick-setup-tour.js"
+    ],
     "v2": "stable"
   },
   {
@@ -6428,7 +6415,10 @@
       "symbol": "AiChatIsland"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/usage-tour.js",
+      "apps/studio/client/tour/quick-setup-tour.js"
+    ],
     "v2": "stable"
   },
   {
@@ -7217,7 +7207,10 @@
       "symbol": "CornerIcons"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/usage-tour.js",
+      "apps/studio/client/tour/quick-setup-tour.js"
+    ],
     "v2": "stable"
   },
   {
@@ -7230,7 +7223,10 @@
       "symbol": "ProjectPill"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/usage-tour.js",
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "new"
   },
   {
@@ -7308,7 +7304,9 @@
       "symbol": "PresenceFaces"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "new"
   },
   {
@@ -7561,7 +7559,9 @@
       "symbol": "ShareCluster"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "new"
   },
   {
@@ -7600,7 +7600,9 @@
       "symbol": "ShareCluster"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "new"
   },
   {
@@ -7652,7 +7654,9 @@
       "symbol": "ShareCluster"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "new"
   },
   {
