@@ -60,3 +60,22 @@ Pair image: `07-video-editing/<id>-<theme>.jpg` (spec left, impl right; label st
 - artboards on the board: 26
 - pair images (id × theme): 36
 - artboards with no impl frame (spec-only): 8 — ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust, ve-render, ve-together, ve-fit-fill
+
+## After — stage C3-timeline (p8-c-timeline)
+
+The pairs above were re-shot (light + dark) on the C3 release client — except **ve-drop** (harness step failed; the
+stage-A pair stands). "after" judges the timeline island only; the inspector (C2), toasts (C1), canvas chrome (C5) and
+export (C4) are other areas. Details: `fix-timeline.md`.
+
+| artboard id | after (timeline) |
+|---|---|
+| ve-select · ak-video (08) | header, chips gutter, clip material, joins, poster flag, ruler, playhead match; no thumbnails for missing footage (fixture) |
+| ve-long · ve-advanced | Full header (zoom − bar +, Fit, Compact), grip, Advanced in Full only; Advanced overflow still differs (open) |
+| ve-play | Sound on chip, loop band style match; on-screen Step/Pause tips still differ |
+| ve-transition | join dot + keyboard placement fixed; picker styling still differs (open) |
+| ve-trim-split · ve-move-transition | names on chips, trim handles, lifted clip style; toast is C1 |
+| ve-text | title named by its words; Title inspector on insert still open (app.jsx) |
+| ve-music | bars waveform, ticks from the top, "name · BPM" chip, bed selects when comp-media knows it |
+| ve-captions · ve-footage · ve-reframe | missing/waiting hatch; transcript / re-frame not reachable with the fixture |
+| ve-none | scrub-at-rest still differs (video-play-chrome.tsx, open) |
+| ve-deselect · ve-formats · ve-fullscreen · ve-export | timeline parts match where shown; rest belongs to other areas |
