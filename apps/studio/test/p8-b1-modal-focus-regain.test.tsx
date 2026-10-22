@@ -26,8 +26,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function Sheet({ onClose }: { onClose: () => void }) {
-  const ref = useModalFocus({ onClose, modal: false });
+function Sheet({ onClose, esc }: { onClose: () => void; esc?: boolean | 'bubble' }) {
+  const ref = useModalFocus({ onClose, modal: false, ...(esc === undefined ? {} : { esc }) });
   return (
     <section ref={ref as never} tabIndex={-1} data-testid="sheet">
       <button type="button">inside</button>
@@ -63,5 +63,40 @@ describe('P8 B1 — an overlay keeps the keyboard a canvas grabs right after it 
     frame.focus();
     await wait(20);
     expect(document.activeElement).toBe(frame);
+  });
+});
+
+describe('P8 B1 — esc: "bubble" is the net under a sheet with its own esc ladder', () => {
+  const press = (target: Element) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+    });
+  function mountBubble() {
+    let closed = 0;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const r = createRoot(host);
+    roots.push(r);
+    act(() =>
+      r.render(
+        <Sheet
+          esc="bubble"
+          onClose={() => {
+            closed++;
+          }}
+        />
+      )
+    );
+    return { closed: () => closed, host };
+  }
+
+  test('focus dropped to <body> (the button that held it disabled itself): esc still closes the sheet', () => {
+    const { closed } = mountBubble();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    press(document.body);
+    expect(closed()).toBe(1);
   });
 });

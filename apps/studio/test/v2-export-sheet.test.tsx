@@ -586,6 +586,21 @@ describe('the sheet: Other…', () => {
   });
 });
 
+describe('the sheet: esc with focus on <body>', () => {
+  test('P8 B1: the Export button disables itself while it works and focus drops to <body>; esc still closes', async () => {
+    const sheet = await mountSheet();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => {
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      await tick(10);
+    });
+    expect(sheet.closed()).toBe(1);
+  });
+});
+
 describe('the sheet: ↵ runs it', () => {
   test('return on a segment submits once and closes the sheet on enqueue', async () => {
     const sheet = await mountSheet();

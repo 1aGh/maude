@@ -205,7 +205,9 @@ export function ExportSheet({
   const [otherOpen, setOtherOpen] = useState(false);
   const [recent, setRecent] = useState([]);
   const primary = useRef(null);
-  const root = useModalFocus({ onClose, esc: false, initialRef: primary });
+  // The sheet runs its own esc ladder (the "Other…" menu first); 'bubble' adds the net under it: the Export
+  // button disables itself while it works, which drops focus to <body> — and esc reached nobody (P8 B1).
+  const root = useModalFocus({ onClose, esc: 'bubble', initialRef: primary });
 
   // DDR-231 T7 — wake the render service the moment the sheet opens on a remote-lane workspace.
   useEffect(() => {
