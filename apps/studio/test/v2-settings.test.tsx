@@ -516,7 +516,7 @@ describe('the sheet’s own behaviour', () => {
       'Assets',
       'Inspector',
       'Comments',
-      'Changes',
+      'Version history', // P8 B1: was "Changes" (CONTRACT §3)
       'AI chat panel',
     ]);
     expect(new Set(names).size).toBe(7);

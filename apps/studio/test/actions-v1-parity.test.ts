@@ -270,7 +270,7 @@ describe('canvas document', () => {
       ['⇧⌘G', inCanvas, null], // V2-4 gate: moved to ⌥⌘H
       ['⌥⌘H', inCanvas, 'history.open'],
       ['⇧⌘A', inCanvas, null],
-      ['⌘,', inCanvas, null],
+      ['⌘,', inCanvas, 'settings.open'], // P8 B1 approved delta: forwarded like ⌘K — with the canvas focused it did nothing
       ['?', inCanvas, null],
       ['F1', inCanvas, null],
     ];

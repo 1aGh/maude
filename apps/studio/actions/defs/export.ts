@@ -47,7 +47,9 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     visible: { minRole: 'comment' },
     fromCanvas: true,
     // S8.9: Can comment sees Handoff, greyed with "Needs Can edit" (the sheet says the same words).
-    enabled: { minRole: 'edit' },
+    // P8 B1: and a canvas to hand off — with none open the sheet read "Hand off “this canvas”" and asked the
+    // server for targets of no design system (a 400).
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
     keys: [kb('⇧⌘H', 'global', { inText: true })],
     legacy: {
       palette: 'Handoff to production',

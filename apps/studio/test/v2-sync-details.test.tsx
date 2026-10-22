@@ -23,6 +23,7 @@ import SyncDetails, {
   CONFLICT_PICK,
 } from '../client/v2/diagnostics/sync-details/sync-details.jsx';
 import {
+  canvasNamesBySlug,
   conflictSlugs,
   resolvedWords,
   syncDetailsModel,
@@ -302,5 +303,80 @@ describe('Sync details — the model and the registry', () => {
     expect(resolvedWords('keep-both', { ok: false, code: 'no-local-version' })).toBe(
       'This Mac’s version is gone — nothing to keep.'
     );
+  });
+});
+
+describe('P8 B1 — the conflict card names the canvas, not its slug', () => {
+  const groups = [
+    { kind: 'project', label: 'Project', fullPath: '.design' },
+    {
+      kind: 'canvas',
+      label: 'UI kit',
+      fullPath: '.design/ui',
+      paths: [
+        '.design/ui/Smoke.tsx',
+        '.design/ui/Smoke.meta.json',
+        '.design/ui/Club rebrand.tsx',
+        '.design/ui/old/Pricing.html',
+      ],
+    },
+  ];
+
+  test('canvasNamesBySlug maps the sync slug (sync/index.ts slugFor) to the canvas name', () => {
+    const m = canvasNamesBySlug(groups);
+    expect(m.get('ui-smoke')).toBe('Smoke');
+    expect(m.get('ui-club_rebrand')).toBe('Club rebrand'); // spaces → "_" in the slug
+    expect(m.get('ui-old-pricing')).toBe('Pricing'); // a legacy .html canvas in a folder
+    expect(m.size).toBe(3); // a sidecar is not a canvas
+    expect(canvasNamesBySlug(null).size).toBe(0);
+  });
+
+  test('"ui-smoke changed here and in the cloud." reads "Smoke changed …" once the names are known', async () => {
+    await mount({
+      status: base({ notices: [conflict('ui-smoke')] }),
+      names: canvasNamesBySlug(groups),
+    });
+    expect(q('diag-sync-conflict-ui-smoke')?.textContent).toContain(
+      'Smoke changed here and in the cloud.'
+    );
+  });
+});
+
+describe('P8 B1 — failed media uploads are in Needs you (the menu already said "Needs you")', () => {
+  const failed = {
+    total: 3,
+    done: 3,
+    pushed: 0,
+    skipped: 0,
+    failedCount: 3,
+    finished: true,
+    failures: [
+      { key: 'assets/pic.png', reason: 'HTTP 405 — this hub does not accept file writes' },
+      { key: 'assets/song.beats.json', reason: 'HTTP 405 — this hub does not accept file writes' },
+    ],
+  };
+
+  test('a card says what happened, what is safe and the reasons it has', async () => {
+    await mount({ status: base({ assets: failed }) });
+    expect(q('diag-sync-need-word')?.textContent).toBe('1 need you');
+    const card = q('sync-assets-failed');
+    expect(card?.textContent).toContain('3 media uploads failed.');
+    expect(card?.textContent).toContain('They try again the next time Maude starts.');
+    expect(q('sync-assets-failed-list')?.textContent).toContain('assets/pic.png');
+    expect(q('sync-assets-failed-list')?.textContent).toContain('+1 more'); // 3 failed, 2 listed
+  });
+
+  test('one failure reads in the singular; none shows no card', async () => {
+    await mount({
+      status: base({
+        assets: { ...failed, failedCount: 1, failures: failed.failures.slice(0, 1) },
+      }),
+    });
+    expect(q('sync-assets-failed')?.textContent).toContain('1 media upload failed.');
+    act(() => root?.unmount());
+    host?.remove();
+    await mount({ status: base({ assets: { ...failed, failedCount: 0, failures: [] } }) });
+    expect(q('sync-assets-failed')).toBeNull();
+    expect(q('diag-sync-need-word')).toBeNull();
   });
 });

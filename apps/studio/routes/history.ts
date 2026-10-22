@@ -483,10 +483,11 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
           if (!Number.isSafeInteger(revision) || revision < 0)
             return new Response('body must include { path, revision }', { status: 400 });
         }
-        // S1.14 — a restore by `at` says what it restored in the action's label ("Restored “<name>”" /
+        // S1.14 — a restore says what it restored in the action's label ("Restored “<name>”" /
         // "Restored 5 Oct, 18:40", §5.8): the row in Version history and the toast read it. The v1 body
-        // (`revision`) is left as it was.
-        const label = b.at !== undefined ? await restoreLabel(t, revision) : undefined;
+        // (`revision`) gets it too — the panel's own "Restore this version" sends that body, and without a
+        // label the row read "Restore Smoke to version 4" (P8 B1: an internal revision number, never shown).
+        const label = await restoreLabel(t, revision);
         const r = await runtime()?.acceptedRestore?.(
           t.repoRel,
           revision,

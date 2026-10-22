@@ -557,7 +557,7 @@ export function usePaletteAndPanels({
   // IS the history (the hub commits server-side), so its tab must say so —
   // otherwise the one visible word still promises a working-tree surface that
   // panel no longer has.
-  const dockLabels = cfg.cloud ? { changes: 'History' } : null;
+  const dockLabels = cfg.cloud ? { changes: 'Version history' } : null;
   // V2-4.4b — the AI chat is its own island (CONTRACT §7), not one of a side's tabbed panels: the ids and
   // the "active" panel below are the side's MAIN panel only; `leftHostsAssistant` / `rightHostsAssistant`
   // say which side the chat island sits on, `assistantOpen` whether it shows.

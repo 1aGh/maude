@@ -50,6 +50,19 @@ describe('the sheet model', () => {
     expect(initialState({}, { hasSelection: false }).nothingSelected).toBe(true);
   });
 
+  test('P8 B1: ⇧⌘E with no canvas open opens Whole project — there is no “this canvas” to name', () => {
+    // it opened on `Export “”` with This canvas on, and the button answered {"error":"bad-spec"}
+    const s = initialState({ mode: 'export' }, { hasSelection: false, canvasOpen: false });
+    expect([s.scope, s.nothingSelected]).toEqual(['project', false]);
+    // a stale ask for the canvas or a selection moves too
+    expect(
+      initialState({ scope: 'canvas' }, { canvasOpen: false, hasSelection: false }).scope
+    ).toBe('project');
+    expect(initialState({}, { canvasOpen: false, hasSelection: true }).scope).toBe('project');
+    // a canvas open: untouched
+    expect(initialState({}, { canvasOpen: true, hasSelection: false }).scope).toBe('canvas');
+  });
+
   test('S2.13: the Export area opens This canvas with its region as ONE picture (unit one)', () => {
     const region = { rect: { x: 10, y: 20, w: 300, h: 200 } };
     const s = initialState(
@@ -578,6 +591,21 @@ describe('the sheet: Other…', () => {
     expect(sheet.closed()).toBe(0);
     await act(async () => {
       $('[data-testid="export-sheet"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      await tick(10);
+    });
+    expect(sheet.closed()).toBe(1);
+  });
+});
+
+describe('the sheet: esc with focus on <body>', () => {
+  test('P8 B1: the Export button disables itself while it works and focus drops to <body>; esc still closes', async () => {
+    const sheet = await mountSheet();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => {
+      document.body.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
       );
       await tick(10);

@@ -23,6 +23,32 @@ export function cleanName(raw, fallback = '') {
   return s.length > 120 ? `${s.slice(0, 120)}…` : s;
 }
 
+/**
+ * Canvas slug → the name a person knows it by. The sync runtime names a canvas by its slug (`ui/Smoke.tsx` →
+ * `ui-smoke`: path separators to `-`, spaces to `_`, lower-case — sync/index.ts `slugFor`); the Needs-you card
+ * read "ui-smoke changed here and in the cloud." (P8 B1). `groups` is the tree's: canvas groups list repo-relative
+ * `paths`, the design root is the first segment of `fullPath`.
+ */
+export function canvasNamesBySlug(groups) {
+  const out = new Map();
+  for (const g of Array.isArray(groups) ? groups : []) {
+    if (!g || g.kind !== 'canvas' || !Array.isArray(g.paths)) continue;
+    const designRel = typeof g.fullPath === 'string' ? g.fullPath.split('/')[0] : '';
+    for (const p of g.paths) {
+      if (typeof p !== 'string' || !/\.(tsx|html)$/i.test(p)) continue;
+      const rel = designRel && p.startsWith(`${designRel}/`) ? p.slice(designRel.length + 1) : p;
+      const slug = rel
+        .replace(/\//g, '-')
+        .replace(/\s+/g, '_')
+        .replace(/\.(tsx|html)$/i, '')
+        .replace(/^\.+/, '')
+        .toLowerCase();
+      out.set(slug, rel.slice(rel.lastIndexOf('/') + 1).replace(/\.(tsx|html)$/i, ''));
+    }
+  }
+  return out;
+}
+
 /** The canvases with a held source conflict (the runtime's `source-conflict-<slug>` notices). */
 export function conflictSlugs(status) {
   const out = [];
@@ -79,6 +105,20 @@ export function syncDetailsModel(
   }
 
   const assets = readAssets(status?.assets);
+  // P8 B1 — failed media uploads ("3 media uploads failed", the menu's own word for them) sat under Needs you
+  // in the menu but not in this tab: the card list had no row for them, so "Needs you" opened onto nothing.
+  // The v1 Sync panel listed them with their reasons and "retry on the next launch"; so does this.
+  if (assets && assets.failedCount > 0) {
+    const failures = Array.isArray(assets.failures) ? assets.failures : [];
+    needs.push({
+      kind: 'assets-failed',
+      count: assets.failedCount,
+      failures: failures.slice(0, 5).map((f) => ({
+        name: cleanName(f?.key, '(unnamed)'),
+        reason: cleanName(f?.reason, 'failed'),
+      })),
+    });
+  }
   const moving =
     assets && !assets.finished && assets.total > 0
       ? {

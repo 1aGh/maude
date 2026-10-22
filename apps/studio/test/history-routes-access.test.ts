@@ -271,9 +271,11 @@ describe('Can edit: name, aside, restore reach the home', () => {
     // S1.14: the action says what it restored — the row and the toast read this line
     expect(calls.restore).toEqual([['.design/ui/a.tsx', 2, { label: 'Restored 18 Oct, 09:05' }]]);
     expect(r.body.line).toBe('Restored 18 Oct, 09:05');
-    // v1 body shape still accepted (maude design history restore)
+    // v1 body shape still accepted (maude design history restore, the panel's "Restore this version"), and
+    // it says what it restored too — P8 B1: unlabelled, the row read "Restore a to version 1", a revision
+    // number nobody sees anywhere else in the panel.
     await post(specs, '/_api/project/restore', { path: '.design/ui/a.tsx', revision: 1 });
-    expect(calls.restore[1]).toEqual(['.design/ui/a.tsx', 1]);
+    expect(calls.restore[1]).toEqual(['.design/ui/a.tsx', 1, { label: 'Restored 18 Oct, 09:00' }]);
   });
 
   test('restoring a named version says its name (S1.14)', async () => {

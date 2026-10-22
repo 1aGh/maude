@@ -83,7 +83,16 @@ export function HandoffSheet({
     }),
     []
   );
-  const root = useModalFocus({ onClose, esc: false, initialRef: initialFocus });
+  // The sheet's own onKeyDown handles esc; 'bubble' is the net under it — with focus dropped to <body> (the Hand
+  // off button disables itself the moment it is pressed) esc reached nobody (P8 B1).
+  const root = useModalFocus({
+    onClose: () => {
+      if (phase === 'connect') abortRef.current?.abort();
+      onClose();
+    },
+    esc: 'bubble',
+    initialRef: initialFocus,
+  });
   const runs = useAiRuns();
   const lastUsed = useMemo(() => readLastUsed(), []);
   const q = query(subject);

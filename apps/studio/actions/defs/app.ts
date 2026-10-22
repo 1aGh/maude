@@ -14,7 +14,10 @@ export const APP_ACTIONS: ActionDef[] = [
     // Decision v2-A6c-can-view-menu-minrole: an app-level row — every role keeps it (Canvas 04's Can view
     // list governs project rows only).
     // v1: shell only (never forwarded). V2-4.9: a read-only session opens Settings too — General only.
-    keys: [kb('⌘,', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
+    // P8 B1: forwarded from the canvas like ⌘K / ⌘R — with the canvas holding the keyboard (after opening one
+    // from the Canvases panel, or a click on it) ⌘, did nothing, though the Menu row says "Settings… ⌘,".
+    fromCanvas: true,
+    keys: [kb('⌘,', 'global', { inText: true })],
     legacy: { palette: 'Settings…', menu: 'Settings…' },
   },
   // S11.13 — Settings › Advanced (06 ad-settings). The sections are the desktop server's (a cloud tab

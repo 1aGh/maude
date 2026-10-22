@@ -818,9 +818,15 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'handoff.open',
     exec: 'shell',
     visible: { minRole: 'comment' },
-    enabled: { minRole: 'edit' },
+    enabled: { minRole: 'edit', facts: ['canvasOpen'] },
     fromCanvas: true,
     keys: [{ chord: '⇧⌘H', layer: 'global', inText: true }],
+  },
+  {
+    id: 'settings.open',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [{ chord: '⌘,', layer: 'global', inText: true }],
   },
   {
     id: 'annotation.group',

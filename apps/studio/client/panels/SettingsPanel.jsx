@@ -1007,7 +1007,8 @@ const LAYOUT_PANELS = [
   { id: 'assets', label: 'Assets' },
   { id: 'inspector', label: 'Inspector' },
   { id: 'comments', label: 'Comments' },
-  { id: 'changes', label: 'Changes' },
+  // CONTRACT §3: the panel is "Version history" (it was "Changes" — a v1 word the table bans). The id stays.
+  { id: 'changes', label: 'Version history' },
   { id: 'assistant', label: 'AI chat panel' },
 ];
 

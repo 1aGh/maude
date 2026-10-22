@@ -87,6 +87,9 @@ export function restoreFocus(opener, fallback, doc = document) {
   if (usable(to, doc)) to.focus({ preventScroll: true });
 }
 
+/** How long after opening an overlay keeps taking its focus back from a canvas that grabbed it (ms). */
+const REGAIN_MS = 500;
+
 /** The open overlays, topmost last (module state: one shell document). */
 const STACK = [];
 
@@ -97,7 +100,8 @@ const STACK = [];
  * @param {boolean} [o.open=true] — the overlay is showing (a component that renders null while closed)
  * @param {() => void} o.onClose — esc
  * @param {boolean} [o.modal=true] — trap Tab (`aria-modal`); a non-modal sheet only restores focus
- * @param {boolean} [o.esc=true] — esc closes from anywhere inside (window capture, before React)
+ * @param {boolean | 'bubble'} [o.esc=true] — esc closes from anywhere inside (window capture, before React); 'bubble': the
+ *   overlay handles esc itself and only an esc nobody handled (focus on <body>) closes it
  * @param {{ current: HTMLElement | null }} [o.initialRef] — focused on open (else — or when it is disabled — the dialog itself
  *   when nothing inside has focus)
  * @param {() => HTMLElement | null} [o.fallback] — where focus goes when the opener is gone
@@ -125,9 +129,23 @@ export function useModalFocus({
     const first = initialRef?.current;
     if (first && !first.disabled) first.focus({ preventScroll: true });
     else if (root && !root.contains(doc.activeElement)) root.focus?.({ preventScroll: true });
+    // P8 B1 — opened from the Menu with the pointer resting where its row was: closing the menu uncovers
+    // the canvas iframe, which sees a pointerenter and pulls the keyboard into itself (canvas-lib
+    // "auto-focus on pointer enter") a few ms after this overlay took it — so esc and Tab went to the canvas
+    // and the sheet could not be closed from the keyboard. For the first moments, take it back; nobody
+    // clicks the canvas that fast on purpose.
+    const openedAt = Date.now();
+    const onFocusOut = () => {
+      if (Date.now() - openedAt > REGAIN_MS) return;
+      setTimeout(() => {
+        const a = doc.activeElement;
+        if (a?.tagName === 'IFRAME' && root?.isConnected) root.focus?.({ preventScroll: true });
+      }, 0);
+    };
+    root?.addEventListener('focusout', onFocusOut);
     const onKey = (e) => {
       if (STACK[STACK.length - 1] !== entry) return;
-      if (esc && e.key === 'Escape' && !e.defaultPrevented) {
+      if (esc === true && e.key === 'Escape' && !e.defaultPrevented) {
         e.preventDefault();
         e.stopPropagation();
         live.current.onClose?.();
@@ -135,11 +153,23 @@ export function useModalFocus({
       }
       if (modal) trapTab(e, ref.current);
     };
+    // esc: 'bubble' — a sheet with its own esc ladder (the Export sheet's "Other…" menu closes first) keeps
+    // handling esc inside, and this is the net under it: an esc that reached the window unhandled — focus
+    // had dropped to <body> because the button that held it disabled itself — closes the sheet (P8 B1).
+    const onEscNet = (e) => {
+      if (STACK[STACK.length - 1] !== entry) return;
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      live.current.onClose?.();
+    };
     // Window capture: before React (a row's own keydown) and before the shell's key listener.
     const win = doc.defaultView ?? window;
     win.addEventListener('keydown', onKey, true);
+    if (esc === 'bubble') win.addEventListener('keydown', onEscNet);
     return () => {
       win.removeEventListener('keydown', onKey, true);
+      win.removeEventListener('keydown', onEscNet);
+      root?.removeEventListener('focusout', onFocusOut);
       const at = STACK.indexOf(entry);
       if (at >= 0) STACK.splice(at, 1);
       const { fallback: fb } = live.current;

@@ -83,6 +83,15 @@
     /* V2-4.3a: the Share cluster is the top-right island; the panel starts below it (kit: 68px). */
     padding-top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
+  /* A folded AI chat leaves its icon in the slot's bottom corner (.st-corner--ai): the panel above stops short of
+     it, or the icon sat on the panel's last row (P8 B1: Version history's "Advanced · Branch, git, changed fi…").
+     28px button + the corner's own padding, and a gap. */
+  .st-body--float:has(> .st-corner--ai) > .st-dockslot--right {
+    padding-bottom: calc(var(--float-gap) + 44px);
+  }
+  .st-body--float:has(> .st-corner--ai-left) > .st-dockslot--left {
+    padding-bottom: calc(var(--float-gap) + 44px);
+  }
   .st-body--float .st-dockslot-inner {
     flex: 1 1 auto;
     min-height: 0;

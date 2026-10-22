@@ -93,10 +93,10 @@ function Compare({ slug, fetchImpl }) {
   );
 }
 
-function ConflictCard({ slug, fetchImpl, onResolved }) {
+function ConflictCard({ slug, canvasName, fetchImpl, onResolved }) {
   const [busy, setBusy] = useState('');
   const [said, setSaid] = useState('');
-  const name = cleanName(slug, 'This canvas');
+  const name = cleanName(canvasName || slug, 'This canvas');
   async function pick(actionId) {
     setBusy(actionId);
     setSaid('');
@@ -131,6 +131,28 @@ function ConflictCard({ slug, fetchImpl, onResolved }) {
         <p className="dg-hint" role="status" data-testid={`diag-sync-conflict-note-${slug}`}>
           {said}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function AssetsFailedCard({ need }) {
+  const n = need.count;
+  return (
+    <div className="sd-card" data-testid="sync-assets-failed">
+      <strong className="sd-ct">
+        {n} media upload{n === 1 ? '' : 's'} failed.
+      </strong>
+      <span className="sd-cd">They try again the next time Maude starts. Nothing is lost.</span>
+      {need.failures.length ? (
+        <ul className="sd-failed" data-testid="sync-assets-failed-list">
+          {need.failures.map((f) => (
+            <li key={f.name}>
+              <span className="dg-mono">{f.name}</span> {f.reason}
+            </li>
+          ))}
+          {n > need.failures.length ? <li>+{n - need.failures.length} more</li> : null}
+        </ul>
       ) : null}
     </div>
   );
@@ -186,6 +208,7 @@ export default function SyncDetails({
   project,
   cloud,
   native = false,
+  names = null,
   onSignInAgain,
   fetchImpl = fetch,
 }) {
@@ -208,7 +231,14 @@ export default function SyncDetails({
           <p className="sd-sub">Needs you · {m.needs.length}</p>
           {m.needs.map((need) =>
             need.kind === 'conflict' ? (
-              <ConflictCard key={need.slug} slug={need.slug} fetchImpl={fetchImpl} />
+              <ConflictCard
+                key={need.slug}
+                slug={need.slug}
+                canvasName={names?.get?.(need.slug)}
+                fetchImpl={fetchImpl}
+              />
+            ) : need.kind === 'assets-failed' ? (
+              <AssetsFailedCard key="assets-failed" need={need} />
             ) : (
               <AiCard key="ai" need={need} fetchImpl={fetchImpl} />
             )

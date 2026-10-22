@@ -18,7 +18,7 @@ export const DOCK_PANELS = [
   { id: 'assets', label: 'Assets' },
   { id: 'inspector', label: 'Inspector' },
   { id: 'comments', label: 'Comments' },
-  { id: 'changes', label: 'Changes' },
+  { id: 'changes', label: 'Version history' }, // CONTRACT §3 (was "Changes"); the id stays `changes`
   { id: 'sync', label: 'Sync' }, // feature-sync-progress-modal — linked projects only
   { id: 'assistant', label: 'Assistant' },
 ];

@@ -273,7 +273,7 @@ export function useShellCore({}) {
       const total = (p.blocked ?? []).reduce((n, b) => n + b.count, 0);
       notifyDesktop(
         'Sync needs a decision',
-        `${total} file${total === 1 ? '' : 's'} could not be sent. Open the Sync panel for the reason.`
+        `${total} file${total === 1 ? '' : 's'} could not be sent. Menu › Diagnostics › Sync has the reason.`
       );
     }
   }, [syncStatus?.files?.progress]);
@@ -796,7 +796,7 @@ export function useShellCore({}) {
   const handleAssistantFinished = useCallback(() => {
     if (!assistantOpenRef.current || document.hidden) {
       setAssistantUnseen(true);
-      notifyDesktop('Claude finished', 'Your assistant turn is ready in Maude.');
+      notifyDesktop('AI finished', 'Your answer is ready in Maude.');
     }
   }, []);
   // DDR-185 — same "you weren't looking" gate as handleAssistantFinished
@@ -821,10 +821,7 @@ export function useShellCore({}) {
       const now = Date.now();
       if (now - lastAttentionNotifyRef.current < ATTENTION_NOTIFY_COOLDOWN_MS) return;
       lastAttentionNotifyRef.current = now;
-      notifyDesktop(
-        'Maude needs your input',
-        'Claude is waiting on an approval or a question in Maude.'
-      );
+      notifyDesktop('Maude needs your input', 'AI is waiting on an answer in Maude.');
     }
   }, []);
   // Inspector tab is lifted so View ▸ Layers can open the panel ON the Layers

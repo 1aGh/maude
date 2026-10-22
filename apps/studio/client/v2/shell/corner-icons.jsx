@@ -28,7 +28,7 @@ const LABEL = {
   assets: 'Assets',
   inspector: 'Inspector',
   comments: 'Comments',
-  changes: 'Changes',
+  changes: 'Version history', // CONTRACT §3 — the folded icon read "Open Changes"
   sync: 'Sync',
 };
 
