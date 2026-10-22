@@ -398,6 +398,34 @@
     gap: 0;
     padding: var(--space-3);
   }
+  /* V2-8.5 C2 (09 · ex-inspector) — the Export rows in the card: one row per size is `1fr 1fr auto` (scale, format, −),
+     and the one-click button is the card's width, centred, with the download glyph. */
+  .insp .insp-export-size {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: var(--space-1);
+    padding: 0 var(--space-1);
+  }
+  .insp .insp-export-size .st-cp-nsel {
+    width: 100%;
+  }
+  .insp .insp-export-go.btn {
+    align-self: stretch;
+    justify-content: center;
+    gap: var(--space-2);
+    width: calc(100% - var(--space-2));
+    margin: var(--space-1) var(--space-1) 0;
+  }
+  .insp .insp-export-line {
+    min-height: 28px;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .insp .insp-x {
+    width: 28px;
+    height: 28px;
+  }
+
   /* the one place a title strip survives: a photo is an Image AND a Photo card (a seg, no tabs) */
   .st-rp-views {
     flex: none;

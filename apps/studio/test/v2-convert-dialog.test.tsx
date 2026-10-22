@@ -300,9 +300,11 @@ describe('the one warning style — the inspector rows', () => {
       WARN.map((w) => w.text)
     );
     expect(rows.map((r) => r.querySelector('button')?.textContent)).toEqual(['Replace…', 'Show']);
-    // at the top of the artboard's rows
-    const sec = must(q('insp-sec-size', host), 'section');
-    expect(sec.querySelector('.insp-warn')).toBe(sec.querySelector('.insp-warn, .insp-row'));
+    // V2-8.5 C2 (08 ak-warnings): the first row of the inspector — before every section, not inside the first one
+    const first = must(host.querySelector('[data-testid="inspector-frame"] .insp-warn'), 'warning');
+    const sections = must(q('insp-sec-size', host), 'section');
+    expect(sections.contains(first)).toBe(false);
+    expect(first.compareDocumentPosition(sections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(q('insp-made-from', host)?.textContent).toBe('Oznámení události · 4:5');
   });
 

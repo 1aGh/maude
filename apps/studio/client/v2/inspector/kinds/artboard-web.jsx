@@ -8,9 +8,11 @@
 // (`artboard-advanced-rows.jsx`). The copies are `artboard.duplicate-at-width` (S2.10) asked of the open canvas, which
 // knows where the boards stand; the toast with Undo is settled by the bridge when that write comes back (add-width.js).
 
-import { Select } from '../../../inspector-controls.jsx';
+import { Copy } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { registerSlot } from '../slots.js';
 import { Row } from '../sections/row.jsx';
+import { useDismiss } from '../token-chip.jsx';
 import { expectAddedWidths } from './add-width.js';
 import { ADD_PAIR, canAddPair, widthWord } from './artboard-kinds-model.js';
 import { otherWidths } from './artboard-model.js';
@@ -38,30 +40,74 @@ export function addWidths({ f, id, ctx, widths }) {
   for (const w of widths) h.onDuplicateArtboard?.(id, w);
 }
 
+/**
+ * V2-8.5 C2 (08 ak-web-widths) — "Add a width" is a small button with the duplicate glyph that opens a short menu of
+ * the widths this board is not (the board's `btn--sm`), not a native select with a placeholder option.
+ */
+function AddWidthMenu({ options, onPick }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useDismiss(open, () => setOpen(false), ref);
+  return (
+    <span className="insp-len" ref={ref}>
+      <button
+        type="button"
+        className="btn btn--sm"
+        data-testid="insp-ab-add-width"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
+        Add a width
+      </button>
+      {open ? (
+        <div
+          className="insp-menu insp-menu--end"
+          role="menu"
+          aria-label="Add a width"
+          data-testid="insp-ab-add-width-menu"
+        >
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="menuitem"
+              className="insp-menu-i"
+              data-testid={`insp-ab-add-width-${o.value}`}
+              onClick={() => {
+                setOpen(false);
+                onPick(o.value);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
 export function AddWidthRow({ f, id, ctx }) {
   const h = handlersOf(ctx);
   if (!id || !(ctx?.onRunAction || h.onDuplicateArtboard)) return null;
   const pair = canAddPair(f);
   return (
     <Row k="Other widths" name="ab-add-width">
-      <Select
-        value=""
-        ariaLabel="Add a width"
-        testId="insp-ab-add-width"
+      <AddWidthMenu
         options={[
-          { value: '', label: 'Add a width…' },
           ...(pair ? [{ value: ADD_PAIR.value, label: 'Tablet and Mobile' }] : []),
           ...otherWidths(f).map((p) => ({ value: String(p.w), label: `${p.label} · ${p.w}` })),
         ]}
-        onChange={(v) => {
-          if (!v) return;
+        onPick={(v) =>
           addWidths({
             f,
             id,
             ctx,
             widths: v === ADD_PAIR.value ? [...ADD_PAIR.widths] : [Number(v)],
-          });
-        }}
+          })
+        }
       />
     </Row>
   );

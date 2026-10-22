@@ -228,14 +228,12 @@ describe('what an artboard shows', () => {
 
   test('Other widths offers every preset width this board is not', async () => {
     const host = await frame();
-    const sel = q(host, 'insp-ab-add-width') as HTMLSelectElement;
-    expect([...sel.options].map((o) => o.textContent)).toEqual([
-      'Add a width…',
-      'Tablet and Mobile',
-      'Laptop · 1280',
-      'Tablet · 834',
-      'Mobile · 390',
-    ]);
+    await click(q(host, 'insp-ab-add-width'), 'Add a width');
+    expect(
+      [...host.querySelectorAll('[data-testid="insp-ab-add-width-menu"] [role="menuitem"]')].map(
+        (o) => o.textContent
+      )
+    ).toEqual(['Tablet and Mobile', 'Laptop · 1280', 'Tablet · 834', 'Mobile · 390']);
   });
 
   test('a print artboard swaps the screens for the paper ladder and adds orientation + bleed', async () => {
@@ -355,7 +353,8 @@ describe('what an edit sends', () => {
 
   test('Add a width duplicates this board at that width', async () => {
     const host = await frame();
-    await pick(q(host, 'insp-ab-add-width'), '834');
+    await click(q(host, 'insp-ab-add-width'), 'Add a width');
+    await click(q(host, 'insp-ab-add-width-834'), 'Tablet');
     expect(calls).toEqual([['duplicate', 'desktop', 834]]);
   });
 

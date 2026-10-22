@@ -115,7 +115,7 @@ function ComponentBody({ el, ctx }) {
         <span className="insp-sec-name">Component</span>
       </p>
       <Row k="Component" name="component">
-        <span aria-disabled={!editable || swaps.length < 2 || undefined}>
+        <span className="insp-row-ctl" aria-disabled={!editable || swaps.length < 2 || undefined}>
           <Select
             value={info.component}
             options={swaps}

@@ -12,10 +12,10 @@ import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { runWarningFix } from '../warning-fix.js';
+import { registerBlock } from '../blocks.js';
 import { registerSlot } from '../slots.js';
 import { Quiet, Row } from './row.jsx';
 
-const first = (selection) => (Array.isArray(selection) ? selection[0] : selection);
 const ARTBOARD = ['artboard'];
 
 /** The warnings an artboard's selection payload carries, tolerant of anything unreadable. */
@@ -68,11 +68,13 @@ export function WarningRows({ el, ctx }) {
           data-testid={`insp-warning-${w.code}`}
           data-warning={w.id}
         >
-          <AlertTriangle size={12} aria-hidden="true" className="insp-warn-ic" />
+          <span className="insp-warn-ic">
+            <AlertTriangle size={14} aria-hidden="true" />
+          </span>
           <span className="insp-warn-t">{w.text}</span>
           <button
             type="button"
-            className="btn btn--sm"
+            className="btn btn--ghost btn--sm insp-warn-a"
             data-testid={`insp-warning-fix-${w.code}`}
             disabled={busy === w.id}
             onClick={() => run(w)}
@@ -105,22 +107,28 @@ export function MadeFromRow({ el }) {
 }
 
 export const WARNING_SLOTS = Object.freeze([
-  [
-    'size',
-    {
-      id: 'size.artboard-warnings',
-      order: 1,
-      kinds: ARTBOARD,
-      when: ({ selection }) => !!first(selection),
-      Body: WarningRows,
-    },
-  ],
   ['size', { id: 'size.artboard-made-from', order: 60, kinds: ARTBOARD, Body: MadeFromRow }],
 ]);
 
+/**
+ * V2-8.5 C2 (08 ak-warnings) — the warning is the FIRST row of the inspector, above every section: "a mark beside the
+ * label, one row at the top of the inspector, one verb". It is a block, not a row of the Artboard section it used to
+ * sit under (below the head and the system line).
+ */
+export const WARNING_BLOCK = Object.freeze({
+  id: 'artboard.warnings',
+  kinds: ARTBOARD,
+  at: 'top',
+  order: 1,
+  Body: WarningRows,
+});
+
 /** @returns {() => void} take the warning rows back out of the registry */
 export function registerWarningSlots() {
-  const offs = WARNING_SLOTS.map(([section, entry]) => registerSlot(section, entry));
+  const offs = [
+    ...WARNING_SLOTS.map(([section, entry]) => registerSlot(section, entry)),
+    registerBlock(WARNING_BLOCK),
+  ];
   return () => {
     for (const off of offs) off();
   };

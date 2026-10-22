@@ -38,8 +38,15 @@
   }
   /* the kit's control widths (`.k-in-select` 140, `.k-num` 68, `.k-num--one` 140) */
   .insp-row-v > .st-cp-nsel,
-  .insp-row-v > [data-testid] > .st-cp-nsel {
+  .insp-row-v > [data-testid] > .st-cp-nsel,
+  .insp-row-ctl .st-cp-nsel {
     width: 140px;
+    max-width: 100%;
+  }
+  /* a control wrapped in a span (an instance's Component) shrinks with the row — it overflowed the card */
+  .insp-row-ctl {
+    display: inline-flex;
+    min-width: 0;
     max-width: 100%;
   }
   /* gate-B polish (RC-E): a read-only value (a video's length, a footage fact, "Shared · 3 places") had no rule
@@ -204,6 +211,10 @@
     border-radius: var(--radius-md);
     background: var(--bg-2);
     box-shadow: var(--shadow-md);
+  }
+  .insp-menu--end {
+    left: auto;
+    right: 0;
   }
   .insp-menu-i {
     appearance: none;
