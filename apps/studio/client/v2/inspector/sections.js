@@ -118,6 +118,8 @@ export const SECTIONS = Object.freeze(
       n: 22,
       id: 'safe-zones',
       title: 'Safe zones',
+      // 08 ak-social: two plain rows ("Safe zones", "Show on canvas") under the size — no heading that repeats the row
+      headless: true,
       explain:
         'Where a platform’s own interface covers the artboard. Drawn on the canvas for you; never exported.',
     },

@@ -105,7 +105,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1);
-    padding: var(--space-1) var(--space-2) var(--space-2) calc(var(--space-2) + 14px + var(--space-2));
+    padding: var(--space-1) var(--space-2) var(--space-2)
+      calc(var(--space-2) + 14px + var(--space-2));
   }
   .cp-chip {
     appearance: none;
@@ -119,7 +120,7 @@
     font-size: var(--type-xs);
     cursor: pointer;
   }
-  .cp-chip[aria-current='true'] {
+  .cp-chip[aria-current="true"] {
     background: var(--accent-muted);
     box-shadow: inset 0 0 0 1.5px var(--accent);
     color: var(--fg-0);

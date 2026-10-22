@@ -166,6 +166,9 @@
     font-weight: var(--w-semibold);
     color: var(--fg-2);
   }
+  .insp-sec-t[hidden] {
+    display: none;
+  }
   .insp-sec-name {
     cursor: default;
   }

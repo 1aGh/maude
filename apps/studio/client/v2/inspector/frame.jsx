@@ -53,7 +53,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
       data-n={def.n}
       aria-label={title}
     >
-      <p className="insp-sec-t">
+      <p className="insp-sec-t" hidden={def.headless || undefined}>
         <span className="insp-sec-name" title={def.explain}>
           {title}
         </span>

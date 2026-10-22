@@ -68,7 +68,7 @@ export function SizeSelectRow({ k, f, resize, onConvert }) {
 /** W × H, in world px. */
 export function SizePairRow({ f, can, resize, commitHeight }) {
   return (
-    <Row k="Size" name="ab-size">
+    <Row k="" name="ab-size">
       <span className="insp-pair">
         <span data-testid="insp-num-ab-w">
           <NumberField

@@ -253,7 +253,7 @@ describe('Fixed size (ak-social)', () => {
   test('chip, then Size (a catalogue preset) and the exact pixels; no Height mode, no Add a width', async () => {
     const host = await frame(STORY);
     expect(q(host, 'inspector-kind')?.textContent).toBe('Fixed size');
-    expect(rowsOf(host)).toEqual(['ab-preset = Size', 'ab-size = Size']);
+    expect(rowsOf(host)).toEqual(['ab-preset = Size', 'ab-size = ']);
     expect(shown(host)).toBe('Story 9:16 (still)');
     const value = (id: string) =>
       (must(q(host, id)?.querySelector('input') ?? null, id) as HTMLInputElement).value;
