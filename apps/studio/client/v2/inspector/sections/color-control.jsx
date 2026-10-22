@@ -13,6 +13,7 @@ import { isCssColor, swatchCss } from '../../../../edit-ops/words-paint.ts';
 import { NumberField } from '../../../inspector-controls.jsx';
 import { StIcon } from '../../../shell/icons.jsx';
 import { useDismiss } from '../token-chip.jsx';
+import { colourWords } from './colour-words.js';
 
 const SW = ({ colour }) => (
   <i className="insp-sw" aria-hidden="true" style={{ background: swatchCss(colour) }} />
@@ -34,6 +35,7 @@ export function ColorControl({
   disabled = false,
   showOpacity = false,
   mixed = null, // several objects that differ: their distinct colours (null / a missing one = none) — drawn as swatches + "Mixed"
+  vals = {}, // every token's resolved value (`useDsFamilies().vals`): names a resolved colour by the token that has it
 }) {
   const [open, setOpen] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -88,7 +90,8 @@ export function ColorControl({
                 isToken ? (
                   <b>{tokenLabel(value.paint.token)}</b>
                 ) : (
-                  value.paint.css
+                  // V2-8.5 C2 — a resolved colour is said in words ("Ink", "White"), not `rgb(20, 24, 31)`
+                  (colourWords(value.paint.css, colors, vals) ?? value.paint.css)
                 )
               ) : (
                 noneLabel

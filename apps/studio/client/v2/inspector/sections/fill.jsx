@@ -109,6 +109,7 @@ export function FillBody({ el, selection, kind, ctx }) {
           value={fill?.color ?? null}
           mixed={red.mixed ? red.values.map((f) => f.color) : null}
           colors={fam.color}
+          vals={fam.vals}
           allowNone
           showOpacity
           disabled={!editable}

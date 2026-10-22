@@ -41,6 +41,7 @@ function ArtboardFillRow({ el, ctx }) {
         label="Artboard background"
         value={value}
         colors={fam.color}
+        vals={fam.vals}
         allowNone
         noneLabel="None"
         disabled={!f.id}

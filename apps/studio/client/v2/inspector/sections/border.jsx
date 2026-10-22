@@ -74,6 +74,7 @@ export function BorderBody({ el, kind, ctx }) {
           label={stroke ? 'Stroke colour' : 'Border colour'}
           value={{ paint: line.color, opacity: 100 }}
           colors={fam.color}
+          vals={fam.vals}
           allowNone
           noneLabel="None"
           disabled={!editable}
