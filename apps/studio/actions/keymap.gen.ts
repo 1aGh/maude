@@ -823,6 +823,12 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⇧⌘H', layer: 'global', inText: true }],
   },
   {
+    id: 'settings.open',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [{ chord: '⌘,', layer: 'global', inText: true }],
+  },
+  {
     id: 'annotation.group',
     exec: 'canvas',
     keys: [

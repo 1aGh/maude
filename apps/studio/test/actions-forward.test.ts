@@ -27,6 +27,9 @@ const V1_HAND_LIST = {
   // way out of a canvas (any canvas, even one that failed to build) is forwarded too — the one bare-key chord.
   F6: 'ui.cycle-region',
   '⇧F6': 'ui.cycle-region',
+  // P8 B1: ⌘, opens Settings from the canvas too — the Menu row reads "Settings… ⌘," and, with the canvas holding
+  // the keyboard (a canvas opened from the Canvases panel, a click on it), the chord did nothing.
+  '⌘,': 'settings.open',
 };
 
 test('the generated forward table is exactly v1’s hand list', () => {
@@ -59,11 +62,13 @@ describe('the injected chord normaliser agrees with chordFromEvent', () => {
     ev('Enter', 'NumpadEnter', { metaKey: true, altKey: true }),
     ev('F6', 'F6'), // S2.21
     ev('F6', 'F6', { shiftKey: true }),
+    ev(',', 'Comma', { metaKey: true }), // P8 B1 ⌘,
   ];
   for (const e of rows)
     test(`${JSON.stringify(e)} → ${chordFromEvent(e)}`, () =>
       expect(chordOf(e)).toBe(chordFromEvent(e)));
   test('every forwarded chord is ⌘ + modifiers + a letter, the backslash or ↵, or F6 (the normaliser’s domain)', () => {
-    for (const c of Object.keys(canvasForwards())) expect(c).toMatch(/^([⌥⇧]*⌘([A-Z]|\\|↵)|⇧?F6)$/);
+    for (const c of Object.keys(canvasForwards()))
+      expect(c).toMatch(/^([⌥⇧]*⌘([A-Z]|\\|↵|,)|⇧?F6)$/);
   });
 });
