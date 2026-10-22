@@ -21,7 +21,7 @@ export function baseOptions(): BaseLayoutProps {
     links: [
       { text: 'Docs', url: '/docs' },
       { text: 'Download', url: '/desktop' },
-      { text: 'Plugins', url: '/#plugins' },
+      { text: 'Advanced', url: '/#advanced' },
       { text: 'Changelog', url: '/changelog' },
       { text: 'Source', url: githubUrl, external: true },
       {
