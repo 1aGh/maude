@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createIndexLoader } from '../index-loader.ts';
 import { buildTree } from '../shell/util.js';
+import { installFrameWriteGate, setImportingCanvases } from '../v2/access/frame-write-gate.js';
 import { writeThemeAuto } from '../v2/settings/theme-auto.js';
+
+// gate-b-c4h — installed at module load, before any bridge host's listener: a frame of a canvas that
+// imports another canvas gets no write relayed (v2/access/frame-write-gate.js).
+if (typeof window !== 'undefined') installFrameWriteGate(window);
 
 export function useProjectData({
   setGroups,
@@ -42,6 +47,7 @@ export function useProjectData({
         setGroups(built);
         setTreeLoaded(true);
         setTreeLoadFailures(0);
+        setImportingCanvases(data.canvasImportsCanvases ?? {});
         // DDR-093 — fold the server-resolved per-canvas DS map into cfg so
         // canvasUrl() injects each UI canvas's OWN design-system tokens instead of
         // always designSystems[0]. Functional merge to coexist with the /_config
