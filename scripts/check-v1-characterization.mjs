@@ -148,6 +148,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STUDIO = join(REPO, 'apps', 'studio');
@@ -380,19 +381,13 @@ async function bootServer() {
   const project = join(work, 'project');
   const home = join(work, 'home');
   mkdirSync(home, { recursive: true });
-  // Never the real `claude` under a throwaway HOME: it looks for a keychain that HOME doesn't have
-  // and macOS raises "Keychain Not Found" dialogs (memory maude-fake-home-real-claude-keychain). A
-  // stub first on PATH answers signed-out at once, as the v1-keys and ACL gate harnesses do.
-  const stubBin = join(home, 'bin');
-  mkdirSync(stubBin, { recursive: true });
-  writeFileSync(join(stubBin, 'claude'), `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
   makeFixture(project);
   const log = [];
   const server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', project], {
     env: {
       ...process.env,
-      PATH: `${stubBin}:${process.env.PATH ?? ''}`,
-      MAUDE_CLAUDE_BIN: '',
+      // Never the real `claude` under a throwaway HOME (macOS keychain dialogs) — the shared stub.
+      ...stubClaudeEnv(home),
       HOME: home,
       XDG_CONFIG_HOME: join(home, '.config'),
       // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.

@@ -26,8 +26,6 @@ const SKIP_DIR = new Set(['node_modules', 'target', 'dist', '.git']);
 
 /** Files that match the isolation + studio-boot heuristic yet legitimately carry no stub. */
 const EXEMPT: Record<string, string> = {
-  'scripts/check-v1-characterization.mjs':
-    'the lead has an uncommitted edit on it (gate-b-stub brief); port it to stubClaudeEnv when that lands and drop this line',
   'apps/studio/test/export-e2e-lanes.test.ts':
     'its HOME env belongs to the apps/render server (no ACP probe); studios boot via bootServer, which inherits the preload stub',
   'apps/hub/test/studio-child.test.mjs':
