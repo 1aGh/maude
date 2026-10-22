@@ -54,3 +54,7 @@ Pair image: `09-export/<id>-<theme>.jpg` (spec left, impl right; label strip "<i
 - artboards on the board: 21
 - pair images (id × theme): 34
 - artboards with no impl frame (spec-only): 4 — ex-progress, ex-states, ex-handoff-ready, ex-edges
+
+## After stage C (C4-export)
+
+Pairs in this folder were re-shot after the fixes (light + dark); per-id status and what is still open: see `fix-export.md`.
