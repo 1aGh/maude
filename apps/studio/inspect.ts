@@ -702,7 +702,12 @@ const INSPECTOR_SCRIPT = `
   var chordOf = ${CHORD_OF_EVENT_JS};
   document.addEventListener('keydown', function(e) {
     // S2.21: a bare F-key (F6, the way out of the canvas to the panels) is forwarded too; the table decides
-    if (!(e.metaKey || e.ctrlKey) && !/^F[0-9]{1,2}$/.test(e.key || '')) return;
+    // P8-B2: a bare "?" is forwarded too (the cheat sheet is a global key) — never from a text field
+    if (!(e.metaKey || e.ctrlKey) && !/^F[0-9]{1,2}$/.test(e.key || '')) {
+      if (e.key !== '?') return;
+      var tg = e.target;
+      if (tg && (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName || ''))) return;
+    }
     var chord = chordOf(e);
     if (FORWARD.indexOf(chord) < 0) return;
     e.preventDefault();

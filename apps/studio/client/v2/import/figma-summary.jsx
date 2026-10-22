@@ -9,18 +9,23 @@ import { reasonLines } from './figma-model.js';
 
 const MARK = { ok: '✓', warn: '!', skip: '–' };
 
-/** @param {{ title: string, rows: Array<{tone:string,text:string}>, dispositions?: Array<object>, testid?: string }} props */
+/**
+ * @param {{ title: string, rows: Array<{tone:string,text:string}>, dispositions?: Array<object>, testid?: string,
+ *   showTitle?: boolean }} props `showTitle` false: the card sits under a header that already says it (the
+ *   title stays as its accessible name)
+ */
 export default function FigmaSummary({
   title,
   rows,
   dispositions = [],
   testid = 'figma-import-summary',
+  showTitle = true,
 }) {
   const [adv, setAdv] = useState(false);
   const lines = reasonLines(dispositions);
   return (
     <section className="fi-sum" data-testid={testid} aria-label={title}>
-      <strong className="fi-sum-t">{title}</strong>
+      {showTitle ? <strong className="fi-sum-t">{title}</strong> : null}
       <ul className="fi-sum-rows">
         {rows.map((r) => (
           <li key={r.text} className="fi-sum-row" data-tone={r.tone}>

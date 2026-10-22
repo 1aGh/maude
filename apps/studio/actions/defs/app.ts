@@ -4,6 +4,12 @@
 import type { ActionDef } from '../types.ts';
 import { kb, mods, SHELL_FOCI, SHELL_NOT_TYPING } from './_v1.ts';
 
+/** `?` with the focus on the chrome, the timeline or the canvas — never in a text field or a range slider. */
+const SHELL_AND_CANVAS_NOT_TYPING = {
+  focus: ['chrome', 'timeline', 'canvas'],
+  notFacts: ['rangeFocused'],
+} as typeof SHELL_NOT_TYPING;
+
 export const APP_ACTIONS: ActionDef[] = [
   {
     id: 'settings.open',
@@ -11,13 +17,13 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'sliders',
     exec: 'shell',
+    // P8-B2: ⌘, answers from the canvas too — most of a session is spent with the canvas holding the focus,
+    // and a global key that goes quiet there reads as a dead key (the canvas forwards it, like ⌘K).
+    fromCanvas: true,
     // Decision v2-A6c-can-view-menu-minrole: an app-level row — every role keeps it (Canvas 04's Can view
     // list governs project rows only).
     // v1: shell only (never forwarded). V2-4.9: a read-only session opens Settings too — General only.
-    // P8 B1: forwarded from the canvas like ⌘K / ⌘R — with the canvas holding the keyboard (after opening one
-    // from the Canvases panel, or a click on it) ⌘, did nothing, though the Menu row says "Settings… ⌘,".
-    fromCanvas: true,
-    keys: [kb('⌘,', 'global', { inText: true })],
+    keys: [kb('⌘,', 'global', { inText: true, when: { focus: [...SHELL_FOCI, 'canvas'] } })],
     legacy: { palette: 'Settings…', menu: 'Settings…' },
   },
   // S11.13 — Settings › Advanced (06 ad-settings). The sections are the desktop server's (a cloud tab
@@ -133,10 +139,13 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     icon: 'help',
     exec: 'shell',
+    // P8-B2: "?" opens the cheat sheet from the canvas too (CONTRACT §2 lists it as a global key); the canvas
+    // forwards it when no text field holds the focus (inspect.ts › the forwarder's editable guard).
+    fromCanvas: true,
     // v1 `e.key === '?'` — ⇧⌘/ produces '?' too.
     keys: [
-      kb('?', 'global', { inText: false, when: SHELL_NOT_TYPING }),
-      kb('⌘?', 'global', { inText: false, alias: true, when: SHELL_NOT_TYPING }),
+      kb('?', 'global', { inText: false, when: SHELL_AND_CANVAS_NOT_TYPING }),
+      kb('⌘?', 'global', { inText: false, alias: true, when: SHELL_AND_CANVAS_NOT_TYPING }),
     ],
     legacy: {
       palette: 'Keyboard shortcuts',

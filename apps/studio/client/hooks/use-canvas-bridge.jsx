@@ -88,6 +88,8 @@ export function useCanvasBridge({
   theme,
   setPaletteOpen,
   setExportDialog,
+  setSettingsOpen,
+  setShortcutsOpen,
   setTimelineOpen,
   setActiveComps,
   setTimelineFrame,
@@ -1129,6 +1131,9 @@ export function useCanvasBridge({
             toggleRightPanel,
             toggleTimeline,
             setExportDialog,
+            // P8-B2: "?" and ⌘, are forwarded from the canvas too (their handlers need these two)
+            setSettingsOpen,
+            setShortcutsOpen,
           });
         }
       } else if (m.dgn === 'open-export') {

@@ -214,6 +214,9 @@
     max-height: 86vh;
     overflow-x: hidden;
     overflow-y: auto;
+    /* the sticky footer owns the sheet's bottom padding: a sticky bar sticks above the scroller's padding, and
+       the rows scrolled past it showed through that 24 px strip, under "close with esc" */
+    padding-bottom: 0;
   }
   .so-overlay--v2 .so-overlay-hd {
     align-items: center;
@@ -283,6 +286,7 @@
     bottom: 0;
     background: var(--bg-1);
     padding-top: var(--space-3);
+    padding-bottom: var(--space-6);
     border-top: 1px solid var(--border-subtle);
   }
   /* The label keeps a floor (a word never breaks mid-letter); the combos take what is left and wrap. */

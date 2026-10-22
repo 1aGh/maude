@@ -1455,6 +1455,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return seq;
   }
 
+  /**
+   * The studio just wrote `after` to canvas `rel` itself: say so, with what it did. The home then records the
+   * person's own `edit` (undoable by ⌘Z) rather than an `outside` change the ⌘Z projection never reaches —
+   * the file-watcher alone cannot tell a ⌘D from an external editor's save (P8-B2).
+   */
+  function noteSourceWritten(rel: string, after: string, label: string): void {
+    ctx.bus.emit('source-written', { rel, content: after, label });
+  }
+
   // ── Structural-write throttle + source-size ceiling (G3 security, DDR-152) ──
   // The new structural verbs (delete / insert-element / insert-artboard /
   // resize-artboard) are the first that let an UNTRUSTED active canvas both
@@ -6175,7 +6184,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, deletedId: res.deletedId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Deleted an object');
+      return { ok: true, deletedId: res.deletedId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -6262,7 +6273,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, newId: res.newId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(
+        rel,
+        after,
+        kind === 'text' ? 'Added text' : kind === 'image' ? 'Added a picture' : 'Added a box'
+      );
+      return { ok: true, newId: res.newId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {
@@ -7080,7 +7097,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       } catch {
         /* snapshot best-effort */
       }
-      return { ok: true, newId: res.newId, seq: logUndo(r.abs, before, after) };
+      const seq = logUndo(r.abs, before, after);
+      noteSourceWritten(rel, after, 'Duplicated an object');
+      return { ok: true, newId: res.newId, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       return {

@@ -6,11 +6,19 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    flex: none;
+    /* The slot yields to the field below it (it scrolls); it never pushes the composer out of the island. */
+    flex: 0 1 auto;
     min-height: 0;
-    max-height: 60%;
     overflow-y: auto;
     padding: 0 var(--space-3) var(--space-2);
+  }
+  /* The setup sheet is the one thing to read; the quick-reply chips beside it have nothing to run. */
+  .chat-thread:has(.ai-conn-sheet) .ai-suggest {
+    display: none;
+  }
+  /* The feed gives its padding up first while the sheet is open: Connect / Cancel must stay in view. */
+  .chat-thread:has(.ai-conn-sheet) .chat-feed {
+    padding-block: 0;
   }
   /* Claude Code is not ready: the v1 setup list shares the slot with the field below it. */
   .ai-nc-slot > .chat-disabled {
@@ -393,6 +401,13 @@
   .ai-conn-sheet--inline {
     padding: var(--space-4);
     border-radius: var(--radius-lg);
+  }
+  /* The sheet's paragraphs carry no browser margin: their gaps are the flex gap's alone (a bare <p> added
+     ~78 px and pushed Connect / Cancel out of the AI island). */
+  .ai-conn-t,
+  .ai-conn-b p,
+  .ai-conn-fine {
+    margin: 0;
   }
   .ai-conn-t {
     font-size: var(--type-md);

@@ -270,8 +270,8 @@ describe('canvas document', () => {
       ['⇧⌘G', inCanvas, null], // V2-4 gate: moved to ⌥⌘H
       ['⌥⌘H', inCanvas, 'history.open'],
       ['⇧⌘A', inCanvas, null],
-      ['⌘,', inCanvas, 'settings.open'], // P8 B1 approved delta: forwarded like ⌘K — with the canvas focused it did nothing
-      ['?', inCanvas, null],
+      ['⌘,', inCanvas, 'settings.open'], // P8-B2 delta: CONTRACT §1 / §2 global keys answer with the canvas focused
+      ['?', inCanvas, 'help.shortcuts'], // P8-B2 delta (the forwarder skips it in a text field)
       ['F1', inCanvas, null],
     ];
     for (const [spec, c, want] of rows)
@@ -297,13 +297,13 @@ describe('registry integrity', () => {
     for (const a of ACTIONS)
       if (a.keys?.length) expect(`${a.id} ${!!a.keys[0].alias}`).toBe(`${a.id} false`);
   });
-  test('a fromCanvas action is a shell action with a ⌘ chord (or F6) the canvas resolves', () => {
+  test('a fromCanvas action is a shell action with a ⌘ chord (or F6, or ?) the canvas resolves', () => {
     for (const a of ACTIONS.filter((x) => x.fromCanvas)) {
       expect(a.exec).toBe('shell');
       const live = (a.keys ?? []).filter((b) => bindingInDocument(b, 'canvas'));
       expect(live.length).toBeGreaterThan(0);
-      // S2.21: F6 / ⇧F6 (`ui.cycle-region`) are the one bare-key forward
-      for (const b of live) expect(b.chord.includes('⌘') || /^⇧?F6$/.test(b.chord)).toBe(true);
+      // S2.21: F6 / ⇧F6 (`ui.cycle-region`) are a bare-key forward; P8-B2: so is "?" (`help.shortcuts`)
+      for (const b of live) expect(b.chord.includes('⌘') || /^(⇧?F6|\?)$/.test(b.chord)).toBe(true);
     }
   });
   test('k() is the only chord source the defs use (no raw, un-normalised strings)', () => {

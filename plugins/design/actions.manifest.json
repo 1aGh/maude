@@ -4292,6 +4292,7 @@
       "label": "Keyboard shortcuts",
       "kind": "toggle",
       "exec": "shell",
+      "fromCanvas": true,
       "effect": "none",
       "agent": {
         "path": "cli",

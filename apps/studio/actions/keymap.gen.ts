@@ -826,7 +826,34 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'settings.open',
     exec: 'shell',
     fromCanvas: true,
-    keys: [{ chord: '⌘,', layer: 'global', inText: true }],
+    keys: [
+      {
+        chord: '⌘,',
+        layer: 'global',
+        inText: true,
+        when: { focus: ['chrome', 'timeline', 'text', 'canvas'] },
+      },
+    ],
+  },
+  {
+    id: 'help.shortcuts',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [
+      {
+        chord: '?',
+        layer: 'global',
+        inText: false,
+        when: { focus: ['chrome', 'timeline', 'canvas'], notFacts: ['rangeFocused'] },
+      },
+      {
+        chord: '⌘?',
+        layer: 'global',
+        inText: false,
+        alias: true,
+        when: { focus: ['chrome', 'timeline', 'canvas'], notFacts: ['rangeFocused'] },
+      },
+    ],
   },
   {
     id: 'annotation.group',

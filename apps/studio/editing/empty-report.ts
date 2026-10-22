@@ -58,9 +58,23 @@ function hasContent(article: Element): boolean {
   return false;
 }
 
+/**
+ * The artboard's name. canvas-lib stamps it on `data-dc-label`; failing that, the label element's OWN text
+ * (a non-digital artboard's label starts with the aria-hidden kind chip and ends with the warning mark, so
+ * `firstChild` is not the name), and last the artboard id.
+ */
 export function labelOf(article: Element): string {
-  const raw = article.querySelector(':scope > .dc-artboard-label')?.firstChild?.textContent;
-  return (raw ?? article.getAttribute('data-dc-screen') ?? '').trim().slice(0, LABEL_MAX);
+  const stamped = article.getAttribute('data-dc-label');
+  if (stamped?.trim()) return stamped.trim().slice(0, LABEL_MAX);
+  const el = article.querySelector(':scope > .dc-artboard-label');
+  const own = el
+    ? Array.from(el.childNodes)
+        .filter((n) => n.nodeType === 3)
+        .map((n) => n.textContent ?? '')
+        .join('')
+        .trim()
+    : '';
+  return (own || article.getAttribute('data-dc-screen') || '').slice(0, LABEL_MAX);
 }
 
 const whole = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0);

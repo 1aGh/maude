@@ -532,7 +532,9 @@
   }
   /* ── Combine shapes (S2.14): four plain buttons, greyed for one ── */
   .insp-combine {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
+    min-width: 0;
     gap: var(--space-1);
   }
   .insp-combine-btn {

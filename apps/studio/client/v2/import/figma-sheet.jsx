@@ -408,6 +408,7 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
           <div className="bi-body">
             <FigmaSummary
               title={doneTitle}
+              showTitle={false}
               rows={result.kind === 'figjam' ? boardSummaryRows(result) : frameSummaryRows(result)}
               dispositions={result.dispositions ?? []}
             />

@@ -1185,6 +1185,7 @@
 
   /* Composer */
   .chat-composer {
+    flex: none;
     padding: var(--space-3) var(--space-4) var(--space-4);
     border-top: 1px solid var(--border-subtle);
     margin-top: var(--space-3);

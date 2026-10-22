@@ -190,6 +190,9 @@ describe('Import from Figma sheet', () => {
     expect(text).toContain('3 comments came across as comments (1 resolved)');
     expect(text).toContain("1 frame Figma couldn't draw");
     expect(text).toContain('1 hidden layer left out');
+    // the sheet's own title says what arrived; the summary card under it does not say it again (P8-B2)
+    const panel = tid('figma-import-panel')?.textContent ?? '';
+    expect(panel.match(/Imported \d+ frames? from/g)?.length).toBe(1);
     expect(tid('figma-renamed')?.textContent).toContain('Uniformy-2027 (Figma)');
     expect(opened).toEqual(['.design/2026/dresy/Uniformy-2027 (Figma).tsx']);
     unbind();
