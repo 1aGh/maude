@@ -1,0 +1,17 @@
+{
+  "03-ai-chat": {
+    "title": "03 AI Chat",
+    "file": "03 AI Chat",
+    "how": "AI states are driven by a scripted FAKE ACP agent (MAUDE_ACP_ADAPTER_ENTRY, never a provider) that calls the design plugin's own hook code, so the studio's run registry, leases, scope checks and result card are the real ones; the prompt text picks the behaviour (hang / permission / question / fail / tell / default edit). Project: generated \"Alligators brand\" with a 5-artboard Combine-kampan. The not-ready frames use the default signed-out claude stub."
+  },
+  "04-modes": {
+    "title": "04 Modes",
+    "file": "04 Modes",
+    "how": "Project: generated \"Studio site\" (Homepage with a data-cd-link to Pricing, Pricing, Combine-kampan, six photos in Assets). Modes are driven through the Share-cluster testids and the in-frame toolbar (frameLocator); the md-edge-ai frame uses the fake agent from 03."
+  },
+  "06-advanced": {
+    "title": "06 Advanced",
+    "file": "06 Advanced",
+    "how": "Project: the 03 \"Alligators brand\" fixture plus a deliberately broken canvas (Broken.tsx). Every frame opens one panel's Advanced fold through its testid or the visible 'Advanced' row, or the Diagnostics / Settings / palette routes."
+  }
+}
