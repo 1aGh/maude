@@ -95,6 +95,7 @@ export default function TemplatesPanel({
   const [active, setActive] = useState(0);
   const [ask, setAsk] = useState('');
   const gridRef = useRef(null);
+  const dialogRef = useRef(null);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -106,6 +107,29 @@ export default function TemplatesPanel({
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
+
+  // The panel takes the keyboard when it opens (arrows move the tile, ↵ picks it — the header says so); with the
+  // focus left in the canvas those keys went to the canvas instead.
+  useEffect(() => {
+    gridRef.current?.querySelector('button')?.focus();
+  }, []);
+
+  // Pinned to the toolbar there is no scrim — the panel says "or drag on the canvas for a blank one", and a scrim
+  // swallowed that first drag (it closed the panel and drew nothing). Like the F size picker: a press outside
+  // closes it, and so does the focus moving into the canvas iframe (a press there never reaches this document).
+  useEffect(() => {
+    if (!anchor) return undefined;
+    const onDown = (e) => {
+      if (dialogRef.current && !dialogRef.current.contains(e.target)) onClose();
+    };
+    const onBlur = () => onClose();
+    document.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [anchor, onClose]);
 
   const pick = (t) => {
     onPick?.({ id: t.id });
@@ -129,13 +153,14 @@ export default function TemplatesPanel({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a click-outside surface; Escape (window listener) and the Close button are the keyboard routes
     <div
-      className={anchor ? 'st-scrim st-scrim--anchored' : 'st-scrim'}
+      className={anchor ? 'st-scrim st-scrim--anchored tp-scrim' : 'st-scrim'}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
+        ref={dialogRef}
         {...v2Scope(
           anchor
             ? 'st-dialog st-sticker-picker tp st-sticker-picker--anchored'
