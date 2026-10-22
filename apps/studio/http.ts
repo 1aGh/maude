@@ -1322,9 +1322,11 @@ export interface Http {
    */
   serveCanvasShell(
     applyCsp: boolean,
-    capture?: boolean,
-    query?: URLSearchParams,
-    req?: Request
+    capture: boolean,
+    query: URLSearchParams | undefined,
+    // gate-b-c4d — required: what the shell inlines about a canvas is held to this request's frame,
+    // and a caller that left it out would read with unnarrowed access.
+    req: Request
   ): Promise<Response>;
   /**
    * T2 (9.1-A) — allowlist gate for the segregated canvas origin. Returns true
@@ -7215,8 +7217,7 @@ export function createHttp(
     if (!BG_REMOVE_HARNESS.test(rel) || !HARNESS_NONCE.test(nonce)) return null;
     // Belt over the nonce: only a navigation the user agent started itself (agent-browser's
     // `open` — `none`; no header from a non-browser client). A canvas's iframe is `same-site`.
-    const site = req.headers.get('sec-fetch-site');
-    if (site !== null && site !== 'none' && site !== 'same-origin') return null;
+    if (!startedByUserAgent(req)) return null;
     // gate-b-c4b (lead: Option A) — the frame spans the harness AND every canvas that uses the
     // photo it processes (`source=` in the generated harness): it must read that photo and write
     // its every-use edit, which only a frame that may edit every user of the photo may. The
@@ -7251,7 +7252,18 @@ export function createHttp(
     });
   }
 
-  function captureRedirect(url: URL, req?: Request): Response | null {
+  /**
+   * gate-b-c4d — Fetch Metadata: did the user agent start this request itself (a typed URL, an
+   * automation `goto`/`open` — `none`), did one of this origin's own pages (`same-origin`), or is it
+   * a non-browser client (no header)? Anything else was started by another site — and every
+   * canvas runs on one (the canvas and capture origins are other ports: `same-site`).
+   */
+  function startedByUserAgent(req: Request): boolean {
+    const site = req.headers.get('sec-fetch-site');
+    return site === null || site === 'none' || site === 'same-origin';
+  }
+
+  function captureRedirect(url: URL, req: Request): Response | null {
     if (!ctx.captureOrigin) return null;
     // gate-b-c4 — the capture is a frame too: scoped to the canvas the URL names (a server-minted
     // capability; a URL naming no canvas, or a bad path, goes frame-less and reads nothing).
@@ -7262,7 +7274,11 @@ export function createHttp(
     // `frame` names the canvas of a shell that imports its module itself (a thumbnail tile).
     const named = search.get('canvas') ?? search.get('frame');
     const rel = named ? toDesignRel(named, designRel) : null;
-    const fc = rel ? frameCapFor(req, [rel]) : null;
+    // gate-b-c4d — minted only for a navigation the user agent or this origin started. Canvas A
+    // running in a capture could otherwise `window.open` this URL for canvas B: the popup lands
+    // on A's own (capture) origin, A reads `fc` from its `location` and reads B as the owner. Such
+    // a request (`same-site`) still redirects — frame-less, so the capture reads nothing.
+    const fc = rel && startedByUserAgent(req) ? frameCapFor(req, [rel]) : null;
     if (fc) search.set(FRAME_PARAM, fc);
     const qs = search.toString();
     return new Response(null, {
@@ -7297,7 +7313,7 @@ export function createHttp(
    * and the query's own `designRel` (`pairingCssFor`) — so neither reads a canvas the other did
    * not check. A query naming no canvas inlines nothing about one.
    */
-  function shellCanvasVisible(req: Request | undefined, query?: URLSearchParams): boolean {
+  function shellCanvasVisible(req: Request, query?: URLSearchParams): boolean {
     const raw = query?.get('canvas');
     if (!raw) return true;
     const access = accessOf(req);
@@ -7315,9 +7331,9 @@ export function createHttp(
 
   async function serveCanvasShell(
     applyCsp: boolean,
-    capture = false,
-    query?: URLSearchParams,
-    req?: Request
+    capture: boolean,
+    query: URLSearchParams | undefined,
+    req: Request
   ): Promise<Response> {
     // `comment-mount.js` is versioned for the same reason as the studio page's
     // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
