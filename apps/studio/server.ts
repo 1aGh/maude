@@ -26,6 +26,7 @@ import {
   runWithAccess,
   setAccessFallback,
 } from './access/request.ts';
+import type { Access } from './access/scope.ts';
 import type { AskQueue } from './acp/ask-queue.ts';
 import { type Acp, createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
@@ -610,6 +611,7 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
         // S9.11 (V2-1.16 L11) — a canvas-only session joins only its canvases' rooms.
         const access = http.accessOf(req);
         if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
+        if (!(await seesRoomCanvas(access, collabSlug))) return notInScopeResponse();
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
@@ -749,6 +751,21 @@ function captureWriteRefusal(): Response {
  *     it would answer the NEXT canvas's capture with whatever the first chose;
  *   - GET/HEAD only.
  */
+/**
+ * gate-b-c4e — a slug folds a path (`/`→`-`, lowercased, whitespace→`_`), so two canvases can
+ * share one room: `ui/a-b.tsx` and `ui/a/b.tsx` are both `ui-a-b`. A canvas-only session (every
+ * frame is one) joins a room only when it sees the canvas the room is really bound to — the same
+ * slug→file resolution the room persists through (api.fileForSlug, first match). No canvas behind
+ * the slug yet: `seesSlug` alone decides, as before.
+ */
+async function seesRoomCanvas(access: Access, slug: string): Promise<boolean> {
+  if (access.role !== null) return true;
+  const file = await api.fileForSlug(slug);
+  if (file === null) return true;
+  const prefix = `${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
+  return access.seesCanvas(file.startsWith(prefix) ? file.slice(prefix.length) : file);
+}
+
 function captureRefusal(req: Request): Response | null {
   if (!isLoopbackHost(req.headers.get('host')))
     return new Response('local request required (DNS-rebinding guard)', { status: 403 });
@@ -848,6 +865,7 @@ function startCanvasServer(
           // S9.11 (V2-1.16 L11/L15) — the render token's access joins only its canvases' rooms.
           const access = http.accessOf(req);
           if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
+          if (!(await seesRoomCanvas(access, collabSlug))) return notInScopeResponse();
           const ok = srv.upgrade(req, {
             data: {
               id: crypto.randomUUID(),

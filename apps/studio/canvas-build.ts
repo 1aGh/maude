@@ -73,6 +73,22 @@ export interface CanvasBundleResult {
   locator: LocatorMap;
   /** Content-derived hash; suitable as HTTP ETag. */
   etag: string;
+  /**
+   * gate-b-c4e — every file the module inlined, absolute (the build's metafile `inputs`; virtual
+   * modules included). The serve path holds them to the requesting frame's closure before the
+   * bytes leave (http.ts `inputsRefusal`): an import the closure does not admit — another
+   * canvas's board, a canvas the opener cannot read — fails the serve closed.
+   */
+  inputs: string[];
+}
+
+/** The build's metafile `inputs` as absolute paths (Bun reports them relative to the cwd). */
+function metafileInputs(metafile: { inputs?: Record<string, unknown> } | undefined): string[] {
+  const out: string[] = [];
+  for (const key of Object.keys(metafile?.inputs ?? {})) {
+    out.push(path.isAbsolute(key) ? key : path.resolve(process.cwd(), key));
+  }
+  return out;
 }
 
 export interface BuildCanvasOptions {
@@ -369,6 +385,8 @@ export async function buildCanvasModule(
     // sandbox arrived, the allowlist's own explanation of what it refused.
     // Take the result, report it ourselves.
     throw: false,
+    // gate-b-c4e — what was inlined, so the serve path can hold it to the frame's closure.
+    metafile: true,
     define: {
       // Match runtime-bundle.ts: production React. Without this the canvas's
       // `import { jsxDEV } from "react/jsx-dev-runtime"` resolves against a
@@ -507,7 +525,7 @@ export async function buildCanvasModule(
   }
 
   const etag = Bun.hash(js).toString(16);
-  return { js, locator: pass1.locator, etag };
+  return { js, locator: pass1.locator, etag, inputs: metafileInputs(built.metafile) };
 }
 
 /**
@@ -530,6 +548,9 @@ function buildCssInjector(slug: string, css: string, sources: readonly string[] 
   const src = JSON.stringify(sources.join('|'));
   return `// canvas-build: inject bundled sibling CSS so the canvas is self-contained.\n(function(){if(typeof document==="undefined")return;var s=document.getElementById(${id});if(!s){s=document.createElement("style");s.id=${id};s.dataset.canvasCss="bundled";document.head.appendChild(s);}s.dataset.canvasCssSources=${src};if(s.textContent!==${enc})s.textContent=${enc};})();\n`;
 }
+
+/** What the allowlist reads of a resolve (`kind`: `entry-point-build` for the entry itself). */
+type AllowlistArgs = { path: string; importer: string; kind?: string };
 
 /**
  * The sandbox's import allowlist (Cloud Phase 25 A1).
@@ -593,6 +614,12 @@ function importAllowlist(
     }
   };
   const isOurs = (p: string) => ours.some((r) => isUnderOrEqual(p, r));
+  /** Under a design root, with a first design-root-relative segment that starts with `_`. */
+  const isRuntimeTarget = (p: string) =>
+    roots.some((r) => {
+      if (!isUnderOrEqual(p, r) || p === r) return false;
+      return path.relative(r, p).split(path.sep)[0]?.startsWith('_') === true;
+    });
   const deny = (specifier: string, reason: string): never => {
     denials.push({ specifier, reason });
     throw new Error(reason);
@@ -600,7 +627,7 @@ function importAllowlist(
   return {
     name: 'maude-import-allowlist',
     setup(builder) {
-      builder.onResolve({ filter: /.*/ }, (args: { path: string; importer: string }) => {
+      builder.onResolve({ filter: /.*/ }, (args: AllowlistArgs) => {
         // `data:` / `blob:` are SELF-CONTAINED — no request leaves the page, so
         // the sandbox has nothing to say about them. They reach this hook
         // because bundled CSS runs every `url()` through onResolve, and
@@ -637,11 +664,28 @@ function importAllowlist(
         // directory) still points wherever it points. The nearest existing
         // ancestor is resolved, so `./dirlink/secret` and an extensionless
         // specifier through a linked folder are both judged by their real home.
-        if (!inRoot(resolved) || !inRoot(realTarget(resolved))) {
+        const real = realTarget(resolved);
+        if (!inRoot(resolved) || !inRoot(real)) {
           deny(
             args.path,
             `This canvas imports "${args.path}", which is outside the project (${path.relative(root, resolved)}). ` +
               `A canvas may only import files inside its own design.`
+          );
+        }
+        // gate-b-c4e — never the design root's RUNTIME STATE (DDR-115: a `_`-prefixed first
+        // segment — `_state/`, `_comments/`, `_chat/`, `_photo/`, `_active.json`, …). Bun inlines
+        // whatever an import names (`with { type: 'text' }` takes any file's bytes) into the
+        // module served to the canvas's own frame, and those files hold per-machine secrets and
+        // other canvases' threads. Judged on the logical AND the real path; the entry itself (a
+        // `_draw/` or `_photo/` harness, which import only `@maude/canvas-lib`) is not an import.
+        if (
+          args.kind !== 'entry-point-build' &&
+          (isRuntimeTarget(resolved) || isRuntimeTarget(real))
+        ) {
+          deny(
+            args.path,
+            `This canvas imports "${args.path}", which is Maude's own runtime state, not part of the design. ` +
+              `A canvas may import its design's files, but not the folders whose names start with "_".`
           );
         }
         return null; // inside the root — let Bun's resolver finish the job

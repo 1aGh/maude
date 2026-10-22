@@ -43,6 +43,15 @@ export function bridgedExportPayload(payload, activePath, designRel) {
       : {};
   delete options.folder;
   options.canvasFile = activePath;
+  // gate-b-c4e — the Selection scope renders `selection.file` before `canvasFile`
+  // (exporters/scope.ts), so the selection is pinned to the active canvas too.
+  if (
+    options.selection &&
+    typeof options.selection === 'object' &&
+    !Array.isArray(options.selection)
+  )
+    options.selection = { ...options.selection, file: activePath };
+  else delete options.selection;
   return { ok: true, payload: { ...payload, options } };
 }
 

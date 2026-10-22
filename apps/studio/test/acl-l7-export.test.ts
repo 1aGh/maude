@@ -42,22 +42,30 @@ describe('L7 — export targets for a canvas-only session', () => {
     expect(r.text).toContain('SVG');
   });
 
-  test('B by hint, B by selection, a missing canvas: the same not-in-scope', async () => {
+  test('B by hint, a missing canvas: the same not-in-scope', async () => {
     const byHint = await job(A_ONLY, { ...PAST_THE_GATE, options: { canvasFile: B } });
-    const bySelection = await job(A_ONLY, {
-      format: 'png',
-      scope: 'selection',
-      options: { canvasFile: A, selection: { selector: '[data-dc-screen]', file: B } },
-    });
     const missing = await job(A_ONLY, {
       ...PAST_THE_GATE,
       options: { canvasFile: '.design/ui/missing.tsx' },
     });
-    for (const r of [byHint, bySelection, missing]) {
+    for (const r of [byHint, missing]) {
       expect(r.status).toBe(403);
       expect(r.text).toBe(NOT_IN_SCOPE);
     }
-    expect(canaries(byHint.text + bySelection.text)).toEqual([]);
+    expect(canaries(byHint.text)).toEqual([]);
+  });
+
+  test('B by selection (canvas pinned to A): the selection is ignored — the job is A’s', async () => {
+    // gate-b-c4e — a selection naming another canvas than the export's is not this export's
+    // (exporters/scope.ts), so the target is A: past the gate. `html` + `selection` is an
+    // incoherent pair the HANDLER refuses, so no render starts.
+    const bySelection = await job(A_ONLY, {
+      format: 'html',
+      scope: 'selection',
+      options: { canvasFile: A, selection: { selector: '[data-dc-screen]', file: B } },
+    });
+    expect(bySelection.status).toBe(400);
+    expect(canaries(bySelection.text)).toEqual([]);
   });
 
   test('project-raw is project-class: not-in-scope', async () => {
