@@ -5,8 +5,8 @@
 import { describe, expect, test } from 'bun:test';
 
 import { createLocalLeaseHome } from '../ai/lease-home.ts';
-import { publicRun } from '../ai/run-lifecycle.ts';
 import { doingOf } from '../ai/run-doing.ts';
+import { publicRun } from '../ai/run-lifecycle.ts';
 import { createRunRegistry } from '../ai/runs.ts';
 import { workingText } from '../client/v2/ai/run-model.js';
 
