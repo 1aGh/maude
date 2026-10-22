@@ -181,7 +181,17 @@ describe('the model', () => {
   test('title: the layer name, else the element text, else its tag', () => {
     expect(titleOf({ id: 'book-call', index: 0 }, TREE)).toBe('Book a call');
     expect(titleOf({ id: 'x', text: '  See   pricing  ', tag: 'a' }, null)).toBe('See pricing');
-    expect(titleOf({ id: 'x', tag: 'section' }, null)).toBe('section');
+    // 14 R4 — the kind word, never the code's own: not "section", "h1.dc-text-editing", "div"
+    expect(titleOf({ id: 'x', tag: 'section' }, null)).toBe('Frame');
+    expect(titleOf({ id: 'x', tag: 'img' }, null)).toBe('Photo');
+    expect(titleOf({ id: 'x', tag: 'button' }, null)).toBe('Button');
+    expect(titleOf({ id: 'x', tag: 'h1' }, null)).toBe('Text');
+    const selectorTree = {
+      artboardId: 'desktop',
+      nodes: [{ id: 'x', index: 0, tag: 'h1', label: 'h1.dc-text-editing', children: [] }],
+    };
+    expect(titleOf({ id: 'x', index: 0, tag: 'h1' }, selectorTree)).toBe('Text');
+    expect(crumbsOf(selectorTree, { id: 'x', index: 0 })).toEqual(['desktop', 'Text']);
     expect(titleOf([{ id: 'a' }, { id: 'b' }, { id: 'c' }], null)).toBe('3 objects');
     expect(titleOf({ selector: '[data-dc-screen="desktop"]', artboardId: 'desktop' }, null)).toBe(
       'desktop'
@@ -431,4 +441,15 @@ describe('the new testids are registered (an API)', () => {
       expect(md).toContain(`\`${hook}\``);
     });
   }
+});
+
+// V2-8.5 C2 (14 R4) — a picture is named by its file, and an inlined one by "Photo", never by the tail of its bytes
+describe('an image is named like a person would', () => {
+  test('the file name; "Photo" for a data: URL (it used to read "2Q==")', async () => {
+    const { fileNameOf } = await import('../client/v2/inspector/kinds/image.jsx');
+    expect(fileNameOf('assets/Hráč.jpg')).toBe('Hráč.jpg');
+    expect(fileNameOf('assets/a.png?v=2')).toBe('a.png');
+    expect(fileNameOf('data:image/png;base64,iVBORw0KGgo/2Q==')).toBe('Photo');
+    expect(fileNameOf('')).toBe('Photo');
+  });
 });

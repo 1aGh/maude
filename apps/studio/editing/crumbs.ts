@@ -39,7 +39,40 @@ function clip(s: string): string {
   return s.length > MAX_LABEL ? `${s.slice(0, MAX_LABEL - 1)}…` : s;
 }
 
-/** A rung's words: layer name → aria-label → the first words of its own text → the tag. */
+const TEXT_TAGS = new Set([
+  'p',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'span',
+  'label',
+  'li',
+  'blockquote',
+  'figcaption',
+  'em',
+  'strong',
+  'small',
+]);
+
+/**
+ * What a rung is called when the designer named nothing and it carries no words: the KIND word the inspector's chip
+ * speaks (CONTRACT: Frame · Text · Button · Photo …), never the code's own word — "div", "h1.dc-text-editing".
+ */
+export function tagWord(tag: string): string {
+  const t = tag.toLowerCase();
+  if (t === 'img' || t === 'picture' || t === 'image') return 'Photo';
+  if (t === 'video') return 'Video';
+  if (t === 'button') return 'Button';
+  if (t === 'a') return 'Link';
+  if (t === 'svg' || t === 'path') return 'Shape';
+  if (TEXT_TAGS.has(t)) return 'Text';
+  return 'Frame';
+}
+
+/** A rung's words: layer name → aria-label → the first words of its own text → the kind word (never the tag). */
 export function crumbLabel(n: CrumbNode): string {
   if (n.artboardLabel !== undefined) return clip(n.artboardLabel.trim() || 'Artboard');
   if (n.name) return clip(sentence(n.name));
@@ -50,7 +83,7 @@ export function crumbLabel(n: CrumbNode): string {
   // tag reads "Rectangle · 120 × 27", not "div · 120 × 27". The id is the name the Layers panel would show.
   const drawn = n.id ? DRAWN_ID.exec(n.id) : null;
   if (drawn) return sentence(drawn[1]);
-  return n.tag;
+  return tagWord(n.tag);
 }
 
 /** `chain` is the artboard first, the selected object last. */

@@ -62,7 +62,8 @@ describe('crumbs (pure)', () => {
       { id: 'x2', tag: 'p', text: 'Made in Brno, Czechia' },
       { id: 'x3', tag: 'div' },
     ]);
-    expect(c.map((x) => x.label)).toEqual(['Main menu', 'Made in Brno,', 'div']);
+    // 14 R4 — the last rung is the KIND word ("Frame"), never the code's own ("div")
+    expect(c.map((x) => x.label)).toEqual(['Main menu', 'Made in Brno,', 'Frame']);
   });
   test('G8: a shape the drawing tools made is named by its id, a name or text still wins', () => {
     const c = buildCrumbs('a', [
@@ -77,7 +78,7 @@ describe('crumbs (pure)', () => {
       'Ellipse',
       'Hero card',
       'Hello there friend',
-      'div',
+      'Frame',
     ]);
     expect(nameTag(c[0].label, 120, 27)).toBe('Rectangle · 120 × 27');
   });

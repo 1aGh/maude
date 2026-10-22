@@ -5,7 +5,14 @@
 //   cssTextOf            Copy CSS: the declarations the element carries, never a canvas-only attribute
 //   validateElementId    the id rule of V2-1.4 §5.5, said in plain words
 
+import { tagWord } from '../../../editing/crumbs.ts';
 import { isArtboardSelection, singleOf } from './kinds/index.js';
+
+/** "div", "h1.dc-text-editing", "button.cta" — a tag with classes, i.e. the CSS selector the tree fell back to. */
+const DOTTED_SELECTOR = /^[a-z][a-z0-9-]*[.#][\w.#-]+$/;
+// a name the designer typed ("hero") stays a name; the node's own tag, or tag.class, is not one
+const isSelectorLabel = (label, tag) =>
+  DOTTED_SELECTOR.test(label) || (!!tag && label === String(tag).toLowerCase());
 
 const collapse = (t) =>
   String(t ?? '')
@@ -47,11 +54,14 @@ export function titleOf(selection, layersTree) {
   );
   if (token) return token;
   const hit = el.id ? findNode(layersTree?.nodes, el.id, el.index) : null;
+  // the Layers tree labels an unnamed node by its selector ("h1.dc-text-editing", "div.__remotion-player"): a
+  // label that is the tag's own selector is no name at all
   const label = collapse(hit?.node?.label);
-  if (label) return label;
+  if (label && !isSelectorLabel(label, hit?.node?.tag)) return label;
   const text = collapse(el.text);
   if (text) return clip(text, 48);
-  return el.tag || 'element';
+  // V2-8.5 C2 (14 R4) — the kind word, never "div" / "h1.dc-text-editing"
+  return tagWord(el.tag || 'div');
 }
 
 /** Artboard, then each ancestor, then the element. [] when the tree has not got it (never invented). */
@@ -59,7 +69,10 @@ export function crumbsOf(layersTree, el) {
   if (!el || Array.isArray(el) || !el.id) return [];
   const hit = findNode(layersTree?.nodes, el.id, el.index);
   if (!hit) return [];
-  const trail = [...hit.trail, hit.node].map((n) => collapse(n.label) || n.tag || n.id);
+  const trail = [...hit.trail, hit.node].map((n) => {
+    const label = collapse(n.label);
+    return label && !isSelectorLabel(label, n.tag) ? label : tagWord(n.tag || 'div');
+  });
   return [layersTree.artboardId, ...trail].filter(Boolean);
 }
 
