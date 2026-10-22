@@ -97,6 +97,17 @@ export function SuggestOnlyBanner({ modes, onSetMode }) {
 }
 
 /**
+ * "Connecting…" is said only while a session exists and its roster has not arrived. A fresh chat has no session
+ * until the first message (the Session row says so), so the fold used to read "Connecting…" for as long as
+ * nothing was sent — and for good when Claude is not connected (P8-B2).
+ * @param {boolean} noCaps the roster is empty
+ * @param {string|null|undefined} sessionId undefined = unknown, null = none yet
+ */
+export function capsConnecting(noCaps, sessionId) {
+  return !!noCaps && typeof sessionId === 'string';
+}
+
+/**
  * @param {object} p
  * @param {string} p.chatId
  * @param {string} [p.chatTitle]
@@ -142,7 +153,8 @@ export function ChatAdvanced({
   const parsed = caps?.parsedOptions ?? { model: null, effort: null, fast: null, others: [] };
   const modes = caps?.modes ?? null;
   const modeList = modeOptions(modes);
-  const connecting = !modeList.length && !parsed.model && !parsed.effort && !parsed.fast;
+  const noCaps = !modeList.length && !parsed.model && !parsed.effort && !parsed.fast;
+  const connecting = capsConnecting(noCaps, sessionId);
   const ctxMeter = contextMeter(usage);
   const limit = limitMeter(usage, (t) => {
     const ms = t > 1e11 ? t : t * 1000;
@@ -269,7 +281,7 @@ export function ChatAdvanced({
           body: 'ai-adv-body',
         }}
       >
-        <div className="ai-adv-rows" data-testid={connecting ? undefined : 'chat-caps-bar'}>
+        <div className="ai-adv-rows" data-testid={noCaps ? undefined : 'chat-caps-bar'}>
           {connecting ? (
             <p className="ai-adv-hint ai-adv-hint--row" data-testid="chat-caps-connecting">
               Connecting…
