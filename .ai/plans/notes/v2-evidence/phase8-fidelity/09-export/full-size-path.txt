@@ -1,0 +1,2 @@
+/Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/pairs/09
+(spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/spec/09/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/impl/09/)
