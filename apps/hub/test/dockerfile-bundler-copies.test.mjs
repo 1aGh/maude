@@ -7,7 +7,17 @@
 // them — and asserts each file is COPY'd into the bundler stage (a file, or a directory holding it).
 
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +57,15 @@ function relativeImports(source) {
 
 function resolveSpec(fromAbs, spec) {
   const base = resolve(dirname(fromAbs), spec);
-  for (const c of [base, `${base}.ts`, `${base}.mjs`, `${base}.js`, join(base, 'index.ts')])
+  for (const c of [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.mjs`,
+    `${base}.js`,
+    join(base, 'index.ts'),
+    join(base, 'index.tsx'),
+  ])
     if (existsSync(c) && statSync(c).isFile()) return c;
   return null;
 }
@@ -62,22 +80,51 @@ function hubSources(dir = join(HUB, 'src')) {
   return out;
 }
 
-test('every module the hub bundle reaches outside apps/hub is COPY’d into the bundler stage', () => {
-  const copies = bundlerCopies();
-  const copied = (rel) => copies.some((c) => rel === c || rel.startsWith(`${c}/`));
+// gate-b-c4m (defender L-C) — the walk resolves `.tsx` modules too, and an import it cannot resolve
+// is a failure, not a silently dropped edge (a dropped edge hid every module behind it).
+test('resolveSpec finds a .tsx module; an unresolvable import is reported', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'c4m-docker-'));
+  try {
+    mkdirSync(join(dir, 'lib'));
+    writeFileSync(join(dir, 'lib', 'view.tsx'), 'export default 1;\n');
+    writeFileSync(join(dir, 'lib', 'index.tsx'), 'export default 1;\n');
+    const from = join(dir, 'entry.ts');
+    assert.equal(resolveSpec(from, './lib/view'), join(dir, 'lib', 'view.tsx'));
+    assert.equal(resolveSpec(from, './lib'), join(dir, 'lib', 'index.tsx'));
+    writeFileSync(from, "import V from './lib/view';\nimport G from './gone';\n");
+    assert.deepEqual(walkHub([from]).unresolved, [`${relative(REPO, from)} → ./gone`]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** The hub's transitive relative import graph from `sources`: what it saw, and what it could not resolve. */
+function walkHub(sources) {
   const seen = new Set();
-  const queue = [...hubSources()];
-  const missing = [];
+  const unresolved = [];
+  const queue = [...sources];
   while (queue.length) {
     const abs = queue.shift();
     if (seen.has(abs)) continue;
     seen.add(abs);
-    const rel = relative(REPO, abs).split('\\').join('/');
-    if (!rel.startsWith('apps/hub/') && !copied(rel)) missing.push(rel);
     for (const spec of relativeImports(readFileSync(abs, 'utf8'))) {
       const dep = resolveSpec(abs, spec);
-      if (dep && !/\/node_modules\//.test(dep)) queue.push(dep);
+      if (dep === null) unresolved.push(`${relative(REPO, abs).split('\\').join('/')} → ${spec}`);
+      else if (!/\/node_modules\//.test(dep)) queue.push(dep);
     }
+  }
+  return { seen, unresolved };
+}
+
+test('every module the hub bundle reaches outside apps/hub is COPY’d into the bundler stage', () => {
+  const copies = bundlerCopies();
+  const copied = (rel) => copies.some((c) => rel === c || rel.startsWith(`${c}/`));
+  const { seen, unresolved } = walkHub(hubSources());
+  assert.deepEqual(unresolved, [], `imports the walk cannot resolve: ${unresolved.join(', ')}`);
+  const missing = [];
+  for (const abs of seen) {
+    const rel = relative(REPO, abs).split('\\').join('/');
+    if (!rel.startsWith('apps/hub/') && !copied(rel)) missing.push(rel);
   }
   assert.ok(seen.has(join(REPO, 'apps/studio/access/closure.ts')), 'the walk reaches closure.ts');
   assert.deepEqual(

@@ -1,7 +1,7 @@
 // Directories that never hold user-facing canvases. One source for the tree
 // (`api.ts`), the external-canvas watcher (`canvas-list-watch.ts`) and the
-// project index (`index/extract.ts`). (activity.ts still carries its own
-// historical mirror.) A leaf module on purpose: the `maude design index`
+// project index (`index/extract.ts`); activity.ts re-exports `isCanvasFile` from here.
+// A leaf module on purpose: the `maude design index`
 // helper imports the index, and everything a helper imports is staged into the
 // packaged app (apps/desktop/scripts/helper-deps.mjs) — reaching this list
 // through api.ts pulled the whole studio API into the helper.
@@ -105,6 +105,19 @@ function endsInSpecifierLead(out: string): boolean {
   return wordEndsAt(out, k, 'from') || wordEndsAt(out, k, 'import');
 }
 
+/** Does `out` end in `import(` / `require(` (whitespace allowed)? */
+function endsInCallLead(out: string): boolean {
+  let k = out.length;
+  while (k > 0 && isWs(out[k - 1])) k--;
+  if (out[k - 1] !== '(') return false;
+  k--;
+  while (k > 0 && isWs(out[k - 1])) k--;
+  return wordEndsAt(out, k, 'import') || wordEndsAt(out, k, 'require');
+}
+
+/** CSS: the text right before the string of `@import url("./x.css")`. */
+const CSS_IMPORT_URL_LEAD_RE = /@import\s+url\(\s*$/i;
+
 /**
  * gate-b-c4e — `source` as the import scanner may read it: comments blanked and every string
  * literal blanked EXCEPT a module specifier (a string right after `from`, `import`, `import(` or
@@ -151,7 +164,12 @@ export function importScanText(source: string, css = false): string {
       }
       const stop = Math.min(j, n);
       const body = source.slice(i + 1, stop);
-      const keep = c !== '`' && endsInSpecifierLead(out);
+      // gate-b-c4m (defender L-B) — a template with no substitution after `import(` / `require(`
+      // is a module specifier Bun resolves at build time; in CSS, the string of `@import url("…")`.
+      const keep =
+        c === '`'
+          ? !body.includes('${') && endsInCallLead(out)
+          : endsInSpecifierLead(out) || (css && CSS_IMPORT_URL_LEAD_RE.test(out));
       out += c + (keep ? body : body.replace(/[^\n]/g, ' ')) + (source[j] === c ? c : '');
       i = source[j] === c ? j + 1 : stop;
       continue;
@@ -290,7 +308,9 @@ export function moduleLinks(source: string): ModuleLinks {
     const ns = /\*\s*as\s+([^\s,{}]+)/.exec(clause)?.[1];
     if (ns !== undefined) {
       imp.all = true;
-      if (nameOf(ns) === ODD_NAME) imp.odd = true;
+      // gate-b-c4m (defender L-A) — a name that is no plain identifier (`* as X(`) is unreadable:
+      // it errs to "canvas" and never reaches `new RegExp` (it threw for every closure reaching it).
+      if (nameOf(ns) === ODD_NAME || !/^[A-Za-z_$][\w$]*$/.test(ns)) imp.odd = true;
       else {
         const esc = ns.replace(/\$/g, '\\$');
         const useRe = new RegExp(`(?<![\\w$.\\\\])${esc}(?![\\w$\\\\])`, 'g');
@@ -384,15 +404,40 @@ export function isCanvasSource(source: string | null): boolean {
 
 /**
  * gate-b-c4l (defender M1) — a design system's specimens and UI kits are canvases by PATH, config
- * free: every `.tsx` under `system/<ds>/preview/` or `system/<ds>/ui_kits/` with no `_`-prefixed
+ * free: every `.tsx` / `.html` under `system/<ds>/preview/` or `system/<ds>/ui_kits/` with no `_`-prefixed
  * segment below `system/<ds>/` (`preview/_ds.tsx`, `preview/_kit.tsx` stay modules). The index
  * lists and grants them; a specimen has no DesignCanvas and no meta, so only this keeps one out of
  * another canvas's frame. Pure.
  */
 export function isDsSurfaceRel(rel: string): boolean {
-  if (!/\.tsx$/i.test(rel)) return false;
+  // gate-b-c4m — `.html` specimens too (the inspiration template ships `preview/*.html`).
+  if (!/\.(tsx|html)$/i.test(rel)) return false;
   const segs = rel.split('/');
   if (segs.length < 4 || segs[0] !== 'system') return false;
   if (segs[2] !== 'preview' && segs[2] !== 'ui_kits') return false;
   return segs.slice(2).every((s) => !s.startsWith('_'));
+}
+
+/**
+ * An openable canvas file by PATH: a `.tsx` or `.html`, no `_`-prefixed or SKIP_DIRS segment, not a
+ * DS preview specimen (`system/<ds>/preview/**`). THE index-side shape predicate — activity.ts
+ * re-exports it (the AI-activity overlay), and (gate-b-c4m) the access closure asks it for `.html`
+ * canvases, which carry no DesignCanvas marker. The closure errs further to "canvas" on DS
+ * surfaces (`isDsSurfaceRel`) itself. Pure — accepts back-slash or forward-slash input.
+ */
+export function isCanvasFile(rel: string): boolean {
+  if (typeof rel !== 'string') return false;
+  const p = rel.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!p) return false;
+  const segs = p.split('/');
+  const base = segs[segs.length - 1] ?? '';
+  const dot = base.lastIndexOf('.');
+  const ext = dot >= 0 ? base.slice(dot).toLowerCase() : '';
+  if (ext !== '.tsx' && ext !== '.html') return false;
+  for (const s of segs) {
+    if (SKIP_DIRS.has(s)) return false;
+    if (s.startsWith('_')) return false;
+  }
+  if (/(^|\/)system\/[^/]+\/preview\//.test(p)) return false;
+  return true;
 }

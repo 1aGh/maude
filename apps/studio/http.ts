@@ -844,6 +844,11 @@ export async function serveCanvasTsx(
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
       if (!built.ok) {
+        // gate-b-c4m (defender L-B) — a frame's failed build answers like a refused one: Bun
+        // resolves imports the closure walk does not follow (a CSS `url()`), and "Could not resolve"
+        // beside the refusal's 403 was an existence oracle. A syntax error in the canvas's own source
+        // stays legible — the session can already read that file.
+        if (inputsGate && !built.transpile) return notInScopeResponse();
         return new Response(`Canvas build error: ${built.error}`, {
           status: built.kind === 'build' ? 422 : 500,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -896,6 +901,9 @@ export async function serveCanvasTsx(
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
       }
+      // gate-b-c4m (defender L-B) — to a frame, any other build failure answers like a refusal (the
+      // sandboxed branch above says why); the error itself reaches the shell via /_api/canvas-errors.
+      if (inputsGate) return notInScopeResponse();
       return canvasBuildErrorResponse(err, ctx);
     }
     // gate-b-c4g — judged BEFORE anything is kept or written: a refused request leaves no cache
