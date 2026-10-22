@@ -22,6 +22,16 @@ describe('Inspector', () => {
   });
 });
 
+describe('pinned panels', () => {
+  test('the sidebar and right panel fill the slot through the display:contents wrapper (Canvases list was 6 px tall)', () => {
+    const shell = css('styles/3-shell-maude.css');
+    expect(shell).toMatch(
+      /\.st-dockslot > \.st-dockslot-inner > \.st-sidebar\s*\{\s*flex:\s*1 1 auto/
+    );
+    expect(shell).toMatch(/\.st-dockslot > \.st-dockslot-inner > \.st-rpanel,/);
+  });
+});
+
 describe('"?" sheet', () => {
   const search = css('v2/search/search.css');
   test('the sticky footer owns the sheet bottom padding (rows scrolled past it showed through a 24 px strip)', () => {
