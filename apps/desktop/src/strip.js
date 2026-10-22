@@ -31,6 +31,8 @@
   const MIN_TAB = 120;
   /** The "N more" control's width. */
   const MORE_W = 88;
+  /** Its horizontal margins (strip.html `.more`: 2px left, 6px right). */
+  const MORE_MARGIN = 8;
 
   let state = null; // the last TabStripState
   let pending = null; // a state that arrived during a drag
@@ -321,7 +323,11 @@
       return;
     }
     state = s;
-    const width = tabsEl.clientWidth || window.innerWidth - 78 - 46;
+    // The row's whole budget. `.tabs` is narrower by "N more" whenever that is showing, and fit() takes the
+    // button's room off again — measured from the shrunken row it counted it twice: the first draw (more
+    // hidden) fitted four tabs, the next (after a resize or any push) three, and "N more" grew by one.
+    const moreRoom = moreEl.hidden ? 0 : moreEl.offsetWidth + MORE_MARGIN;
+    const width = (tabsEl.clientWidth || window.innerWidth - 78 - 46) + moreRoom;
     const row = fit(s.tabs, width, editing || s.active);
     overflowed = row.rest.map((t) => t.label);
     const frag = document.createDocumentFragment();
