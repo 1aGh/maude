@@ -50,15 +50,27 @@ export function specimenFiles(
   sys: SystemConfig,
   source: string
 ): Array<{ src: string; abs: string }> {
+  return specimenRels(sys.path, source)
+    .map(({ src, rel }) => ({ src, abs: path.join(designRoot, ...rel.split('/')) }))
+    .filter((s) => existsSync(s.abs));
+}
+
+/**
+ * The `<Specimen src>` targets of `source` as design-root-relative POSIX paths inside `sysPath`
+ * (`.tsx` only; existence not checked). The one rule the build (`specimenFiles`) and the access
+ * closure (`access/closure.ts`, phase-8 DS board unit) share, so what the board module inlines and
+ * what the frame may read cannot drift.
+ */
+export function specimenRels(sysPath: string, source: string): Array<{ src: string; rel: string }> {
   const out = new Map<string, string>();
-  const base = path.resolve(designRoot, sys.path);
+  const base = path.posix.resolve('/', sysPath.split(path.sep).join('/'));
   for (const m of source.matchAll(SPECIMEN_SRC_RE)) {
-    const src = m[1];
-    const abs = path.resolve(base, src);
-    if (!abs.startsWith(base + path.sep) || !/\.tsx$/.test(abs) || !existsSync(abs)) continue;
-    out.set(src, abs);
+    const src = m[1] as string;
+    const abs = path.posix.resolve(base, src);
+    if (!abs.startsWith(`${base}/`) || !/\.tsx$/.test(abs)) continue;
+    out.set(src, abs.slice(1));
   }
-  return [...out].map(([src, abs]) => ({ src, abs }));
+  return [...out].map(([src, rel]) => ({ src, rel }));
 }
 
 function readJson(abs: string): Record<string, unknown> | null {
