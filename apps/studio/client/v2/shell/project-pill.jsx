@@ -156,6 +156,8 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
  * @param onOpen (opener) => void — called with the element that had focus before the menu opened
  *   (Cut / Paste act on it)
  * @param pillRef optional ref to the pill button
+ * @param tree optional menu tree (actions/menu.ts node shape) — Home passes its own (home/home-menu.js); a
+ *   project leaves it and gets PROJECT_MENU
  */
 export function ProjectPill({
   project,
@@ -167,6 +169,7 @@ export function ProjectPill({
   folded = false,
   onOpen,
   pillRef: outerRef,
+  tree,
 }) {
   const [open, setOpen] = useState(false);
   const [openPath, setOpenPath] = useState([]);
@@ -176,7 +179,10 @@ export function ProjectPill({
   const btnRef = outerRef ?? ownBtn;
   const menuRef = useRef(null);
   const opener = useRef(null);
-  const model = useMemo(() => buildProjectMenu(ctx, state), [ctx, state]);
+  const model = useMemo(
+    () => buildProjectMenu(ctx, state, tree ? { tree } : undefined),
+    [ctx, state, tree]
+  );
 
   const close = useCallback(
     (focusPill = true) => {

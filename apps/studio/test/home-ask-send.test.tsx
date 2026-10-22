@@ -434,14 +434,15 @@ describe('the shelves (05 es-home-*, 11 pn-home)', () => {
     expect($('home-shared')).toBeNull();
   });
 
-  test('not signed in: this Mac, and the one next step is opening a folder you already have', async () => {
+  test('not signed in, nothing yet: the sign-in card alone (P8-C8 — no empty shelf under it); Open project… is in the pill menu', async () => {
     shellOverride = EMPTY_SHELL;
     mount();
     await flush();
-    const shelf = $('home-projects-empty');
-    expect(shelf?.textContent).toContain('No projects on this Mac yet.');
-    expect(shelf?.textContent).toContain('On this Mac');
-    act(() => $('home-open-folder')?.click());
+    expect($('signin-card')).not.toBeNull();
+    expect($('home-projects-empty')).toBeNull();
+    act(() => $('project-pill')?.click());
+    act(() => $('project-menu-row-sub-file')?.click());
+    act(() => $('project-menu-row-project.open')?.click());
     await flush();
     expect(invokes.some((i) => i.cmd === 'open_project_folder')).toBe(true);
     // no Shared shelf and no cloud door for someone who has not signed in

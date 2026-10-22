@@ -11,6 +11,7 @@
 import { useState } from 'react';
 
 import { HIcon } from '../../home/home-icons.jsx';
+import { useModalFocus } from '../shell/modal-focus.js';
 
 /** The folder name `create-local` will use for a name (home/create-local.ts `projectFolderName`, shown only). */
 export function folderNameFor(name) {
@@ -32,8 +33,11 @@ export function folderNameFor(name) {
  */
 export function CreateLocalSheet({ value, onChange, onSubmit, onCancel, onChooseFolder = null }) {
   const [adv, setAdv] = useState(false);
+  const trap = useModalFocus({ onClose: onCancel });
   return (
     <div
+      ref={trap}
+      tabIndex={-1}
       className="home-link-modal"
       role="dialog"
       aria-modal="true"
