@@ -747,7 +747,7 @@ export function createKernel({
     const family = new Set(targets.map((t) => t.actionId));
     const actor = targets[0]?.actor;
     const rows = new Map();
-    return async (ids) => {
+    const history = async (ids) => {
       const want = [...new Set(ids)].filter((id) => typeof id === 'string' && !rows.has(id));
       for (let i = 0; i < want.length; i += MAX_UNDO_TARGETS) {
         const chunk = want.slice(i, i + MAX_UNDO_TARGETS);
@@ -768,6 +768,28 @@ export function createKernel({
       }
       return new Set(ids.filter((id) => family.has(id)));
     };
+    /**
+     * P8-B2 — `steps` (later lane effects, oldest first) without the actor's finished round trips: an edit of
+     * the same actor and the undo / redo of theirs that reverted it cancel to "no change", so neither is
+     * later work a revert must rebase through. Without this, ⌘Z ⌘Z over two edits that touch side by side in
+     * one string (an element's `style`: opacity, then corners) rebased the older edit's revert through the
+     * newer edit AND its own undo; diff3 calls touching hunks a conflict, and the actor was told someone else
+     * had changed it. An undo whose targets are not ALL still live in `steps` stays (it is real work);
+     * a redo cancels the undo it re-applies, leaving the original edit live again.
+     */
+    history.withoutRoundTrips = async (steps) => {
+      await history(steps.map((x) => x.actionId));
+      let live = steps;
+      for (const step of steps) {
+        const a = rows.get(step.actionId);
+        if (!a || a.actor !== actor || (a.kind !== 'undo' && a.kind !== 'redo')) continue;
+        const of = (Array.isArray(a.undoes) ? a.undoes : [a.undoes]).filter(Boolean);
+        if (of.length === 0 || !of.every((id) => live.some((x) => x.actionId === id))) continue;
+        live = live.filter((x) => x.actionId !== step.actionId && !of.includes(x.actionId));
+      }
+      return live;
+    };
+    return history;
   }
 
   /** `(entry, lane)` — the unit a lane revert works on. */
@@ -808,7 +830,7 @@ export function createKernel({
         (x) => x.op !== 'move' && !targetIds.has(x.actionId)
       );
       const own = await ownHistory(later.map((x) => x.actionId));
-      const chain = later.filter((x) => !own.has(x.actionId));
+      const chain = await ownHistory.withoutRoundTrips(later.filter((x) => !own.has(x.actionId)));
       let x = before;
       for (const step of chain) {
         const m = mergeLane(
