@@ -108,6 +108,13 @@
     cursor: not-allowed;
     transform: none;
   }
+  /* the sign-in doors (02 ob-door): the kit's large button — 40 px, type-base, radius-lg */
+  .home-root .btn--lg {
+    height: 40px;
+    padding: 0 var(--space-4);
+    font-size: var(--type-base);
+    border-radius: var(--radius-lg);
+  }
   .home-root .btn--ghost {
     background: transparent;
     color: var(--fg-1);
@@ -215,6 +222,12 @@
   }
   .home-top > * {
     pointer-events: auto;
+  }
+  /* the Home pill is the project pill (ProjectPill): in the header's row, not floating at the window's corner */
+  .home-top .st-pill.island {
+    position: relative;
+    left: auto;
+    top: auto;
   }
   .island.home-pill {
     display: inline-flex;
@@ -1031,6 +1044,11 @@
   }
   .home-below {
     margin-top: var(--space-3);
+    /* the sign-in card is 600 wide (02 ob-door): in a centred column the wrapper shrank to the card's content */
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   /* the target chip + its menu */

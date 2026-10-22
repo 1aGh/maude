@@ -48,7 +48,9 @@ import { cardMode, isFirstRun, signedInToast } from '../v2/signin/signin-model.j
 import { useCloudSignIn } from '../v2/signin/use-signin.js';
 import { useWhatsNewLine } from '../v2/signin/use-whats-new-line.js';
 import { WhatsNewDialog, WhatsNewLine } from '../v2/signin/WhatsNewLine.jsx';
+import { ProjectPill } from '../v2/shell/project-pill.jsx';
 import { HomeAsk } from './HomeAsk.jsx';
+import { HOME_MENU, homeMenuCtx, homeMenuState } from './home-menu.js';
 import { InviteSheet } from './InviteSheet.jsx';
 import { INVITE_WORDS, joinPendingAndOpen, useInviteFlow } from './invite-flow.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
@@ -721,15 +723,38 @@ export function HomeApp() {
     return () => document.removeEventListener('keydown', onKey);
   }, [creating]);
 
+  // The Home pill's menu (P8-C8): the one pill + the rows Home can run. Menu › Help › What's new is the
+  // door that was shut while the pill was a <span>.
+  const menuCtx = useMemo(
+    () => homeMenuCtx({ native: data.native, online }),
+    [data.native, online]
+  );
+  const menuState = useMemo(
+    () => homeMenuState({ unseen: whatsNew.entries.length }),
+    [whatsNew.entries.length]
+  );
+  const runMenu = useCallback(
+    (id) => {
+      if (id === 'project.new') askNewProject();
+      else if (id === 'project.open') openFolder();
+      else if (id === 'canvas.new') startEmpty();
+      else if (id === 'help.whats-new') whatsNew.open();
+    },
+    [askNewProject, openFolder, startEmpty, whatsNew.open]
+  );
+
   const hasProjects = model.groups.some((g) => g.rows.length);
   const showShared = signedIn && (hasProjects || shared.length > 0 || invited.length > 0);
   return (
     <div className="maude-v2 home-root" data-theme={theme} data-testid="home-root">
       <header className="home-top">
-        <span className="island home-pill">
-          <HMark size={22} />
-          <span className="home-pill-name">Home</span>
-        </span>
+        <ProjectPill
+          project="Home"
+          tree={HOME_MENU}
+          ctx={menuCtx}
+          state={menuState}
+          run={runMenu}
+        />
         <div className="home-top-end">
           {data.native && data.cloudsReady && !signedIn && !firstRun && !signinLive ? (
             <SignInQuiet onClick={() => signin.begin()} disabled={!online} />
@@ -859,70 +884,76 @@ export function HomeApp() {
           </section>
         ) : null}
 
-        <section className="home-sec" aria-labelledby="home-h-recent">
-          <h2 className="home-h" id="home-h-recent">
-            Recent canvases
-            {model.recentProjects.length > 1 || filterPid ? (
-              <span className="home-h-right">
-                <label className="home-filter">
-                  <span className="home-sr">Show recent canvases from</span>
-                  <select
-                    className="chip home-filter-select"
-                    data-testid="home-recent-filter"
-                    value={filterPid}
-                    onChange={(e) => setFilterPid(e.target.value)}
-                  >
-                    <option value="">All projects</option>
-                    {model.recentProjects.map((p) => (
-                      <option key={p.pid} value={p.pid}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <HIcon name="chevron" size={12} />
-                </label>
-              </span>
-            ) : null}
-          </h2>
-          {model.recent.length ? (
-            <ul className="home-cards">
-              {model.recent.map((r) => (
-                <li key={`${r.pid}:${r.rel}`} className="home-card">
-                  <button
-                    type="button"
-                    className="home-card-main"
-                    data-testid={`home-recent-row-${r.pid}-${r.slug}`}
-                    onClick={() => open(r.pid, r.rel)}
-                    disabled={!data.native}
-                  >
-                    <span className="home-card-pic">
-                      <Thumb src={r.thumb} className="home-thumb-card" />
-                      {r.madeByAi ? (
-                        <span className="chip chip--spark home-card-ai">
-                          <HSpark size={9} />
-                          Made by AI
-                        </span>
-                      ) : null}
-                    </span>
-                    <strong>{r.name}</strong>
-                    <span className="home-card-meta home-card-proj">
-                      <ProjectSquare id={r.pid} name={r.projectName} />
-                      <span>{r.projectName}</span>
-                    </span>
-                    <span className="home-card-meta">
-                      {[r.folder, relativeTime(r.openedAt)].filter(Boolean).join(' · ')}
-                    </span>
-                  </button>
-                  <PinButton row={r} testid={`home-pin-${r.pid}-${r.slug}`} onToggle={togglePin} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="home-empty-line">
-              {data.status === 'loading' ? 'Loading…' : 'Canvases you open show up here.'}
-            </p>
-          )}
-        </section>
+        {model.recent.length || filterPid ? (
+          <section className="home-sec" aria-labelledby="home-h-recent">
+            <h2 className="home-h" id="home-h-recent">
+              Recent canvases
+              {model.recentProjects.length > 1 || filterPid ? (
+                <span className="home-h-right">
+                  <label className="home-filter">
+                    <span className="home-sr">Show recent canvases from</span>
+                    <select
+                      className="chip home-filter-select"
+                      data-testid="home-recent-filter"
+                      value={filterPid}
+                      onChange={(e) => setFilterPid(e.target.value)}
+                    >
+                      <option value="">All projects</option>
+                      {model.recentProjects.map((p) => (
+                        <option key={p.pid} value={p.pid}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <HIcon name="chevron" size={12} />
+                  </label>
+                </span>
+              ) : null}
+            </h2>
+            {model.recent.length ? (
+              <ul className="home-cards">
+                {model.recent.map((r) => (
+                  <li key={`${r.pid}:${r.rel}`} className="home-card">
+                    <button
+                      type="button"
+                      className="home-card-main"
+                      data-testid={`home-recent-row-${r.pid}-${r.slug}`}
+                      onClick={() => open(r.pid, r.rel)}
+                      disabled={!data.native}
+                    >
+                      <span className="home-card-pic">
+                        <Thumb src={r.thumb} className="home-thumb-card" />
+                        {r.madeByAi ? (
+                          <span className="chip chip--spark home-card-ai">
+                            <HSpark size={9} />
+                            Made by AI
+                          </span>
+                        ) : null}
+                      </span>
+                      <strong>{r.name}</strong>
+                      <span className="home-card-meta home-card-proj">
+                        <ProjectSquare id={r.pid} name={r.projectName} />
+                        <span>{r.projectName}</span>
+                      </span>
+                      <span className="home-card-meta">
+                        {[r.folder, relativeTime(r.openedAt)].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                    <PinButton
+                      row={r}
+                      testid={`home-pin-${r.pid}-${r.slug}`}
+                      onToggle={togglePin}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="home-empty-line">
+                {data.status === 'loading' ? 'Loading…' : 'Canvases you open show up here.'}
+              </p>
+            )}
+          </section>
+        ) : null}
 
         {/* Shared with you (when signed in) sits beside Projects — canvas 11 pn-home. A first run with
             nothing on either keeps the page quiet: the question does the work (05 es-home-cloud). */}
@@ -987,7 +1018,7 @@ export function HomeApp() {
                 </div>
               </div>
             </section>
-          ) : data.status !== 'loading' ? (
+          ) : data.status !== 'loading' && !cardOn ? (
             <ProjectsEmpty signedIn={signedIn} native={data.native} onOpenFolder={openFolder} />
           ) : null}
         </div>
@@ -1051,7 +1082,10 @@ export function HomeApp() {
       ) : null}
 
       {whatsNew.reading ? (
-        <WhatsNewDialog entries={whatsNew.entries} onClose={whatsNew.close} />
+        <WhatsNewDialog
+          entries={whatsNew.entries.length ? whatsNew.entries : whatsNew.recent}
+          onClose={whatsNew.close}
+        />
       ) : null}
       {invite.sheet ? (
         <InviteSheet
