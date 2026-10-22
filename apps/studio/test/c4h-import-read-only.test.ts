@@ -72,8 +72,6 @@ async function boot(env: Record<string, string>): Promise<Booted> {
 
 type Door = {
   name: string;
-  /** false: refused from EVERY frame already (no target the gate can judge) — the RO half only. */
-  control?: false;
   send: (b: Booted, fc: string, canvas: string, who: Record<string, string>) => Promise<Response>;
 };
 /** A JSON request carrying the proxy's headers (a cell; a desktop ignores them). */
@@ -130,9 +128,8 @@ const DOORS: Door[] = [
   },
   {
     name: 'POST /_api/asset',
-    // A frame is a canvas-only session and an upload names no target, so the write gate refuses
-    // it from any frame (access/request.ts localGate) — closed before this change too.
-    control: false,
+    // gate-b-c4i — an upload names no target; a frame that may edit a canvas of its grant passes
+    // (access/request.ts FRAME_UPLOAD_WRITES), so the helper-only canvas's frame is the control.
     send: (b, fc, _c, who) =>
       fetch(withFc(`${b.canvasBase}/_api/asset`, fc), {
         method: 'POST',
@@ -204,7 +201,6 @@ function suite(label: string, env: Record<string, string>, who: Record<string, s
           door: door.name,
           ro: { status: 403, reason: 'read-only' },
         });
-        if (door.control === false) return;
         const ok = await statusOf(door, b, who, H);
         expect({ door: door.name, okRefused: ok.status === 403 }).toEqual({
           door: door.name,
