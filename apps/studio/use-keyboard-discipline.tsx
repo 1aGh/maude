@@ -93,6 +93,13 @@ export function isSelectAllElementsChord(
   return (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a';
 }
 
+/** ⌘A's level: no selection, or only whole artboards (no element id), is the canvas level. */
+export function selectsArtboardLevel(
+  selected: readonly Pick<Selection, 'id' | 'artboardId'>[]
+): boolean {
+  return selected.length === 0 || selected.every((s) => !!s.artboardId && !s.id);
+}
+
 export function useKeyboardDiscipline(): void {
   const selSet = useSelectionSet();
   const artboardsCtx = useArtboardsContext();
@@ -137,6 +144,24 @@ export function useKeyboardDiscipline(): void {
       const isMeta = e.metaKey || e.ctrlKey;
       if (isSelectAllElementsChord(e)) {
         if (!artboardsCtx) return;
+        // V2-8.5 C2 (08 · ak-mixed-select) — select all is "everything at this level": with nothing selected, or only
+        // artboards, the level is the canvas, so ⌘A takes every artboard (the inspector then speaks for them all: "2
+        // artboards · 2 kinds"); once an object is selected the level is that artboard's own objects, below.
+        if (selectsArtboardLevel(selSet.selected)) {
+          const ids = [...document.querySelectorAll('[data-dc-screen]')]
+            .map((n) => n.getAttribute('data-dc-screen'))
+            .filter((n): n is string => !!n);
+          if (ids.length > 0) {
+            e.preventDefault();
+            selSet.replace(
+              ids.map((boardId) => ({
+                selector: `[data-dc-screen="${CSS.escape(boardId)}"]`,
+                artboardId: boardId,
+              }))
+            );
+            return;
+          }
+        }
         const id = artboardsCtx.activeArtboardId;
         if (!id) return;
         const root = document.querySelector(`[data-dc-screen="${id}"] .dc-artboard-body`);
