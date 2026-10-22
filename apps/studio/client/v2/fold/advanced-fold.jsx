@@ -13,7 +13,17 @@
 // the markup is the same, only the class names differ.
 
 import { StIcon } from '../../shell/icons.jsx';
-import { useFold } from './use-fold.js';
+import { useFold, useFoldRemembered } from './use-fold.js';
+
+/** The kit fold anatomy (_kit.css `.k-adv*`, Phase 8 C1-kit): on EVERY fold, beside a panel's own classes,
+ *  so the row reads the same in every panel (30 px, type-sm semibold fg-1, the "›" in fg-2). */
+const KIT = Object.freeze({
+  root: 'k-adv',
+  btn: 'k-adv-btn',
+  ch: 'k-adv-ch',
+  hint: 'k-adv-count',
+  body: 'k-adv-body',
+});
 
 export const FOLD_CLASSES = Object.freeze({
   root: 'v2-fold',
@@ -42,8 +52,11 @@ export function AdvancedFold({
   const [stored, setStored] = useFold(panel);
   const controlled = openProp !== undefined;
   const open = controlled ? !!openProp : stored;
-  const c = { ...FOLD_CLASSES, ...classes };
+  const own = { ...FOLD_CLASSES, ...classes };
+  const c = Object.fromEntries(Object.entries(own).map(([k, v]) => [k, `${KIT[k]} ${v}`]));
   const bodyId = foldBodyId(panel);
+  // 06 Advanced: open by a remembered choice → "kept open" (the pin says it stays open next time)
+  const remembered = useFoldRemembered(panel) && open;
   return (
     <div
       className={c.root}
@@ -61,10 +74,17 @@ export function AdvancedFold({
         onClick={() => (onToggle ? onToggle() : setStored((v) => !v))}
       >
         <span className={c.ch}>
-          <StIcon name="chevron-right" size={12} />
+          <StIcon name="submenu" size={12} />
         </span>
         {label}
-        {hint ? <span className={c.hint}>{hint}</span> : null}
+        {remembered ? (
+          <span className="ad-kept" title="Stays open next time">
+            <StIcon name="pin" size={11} />
+            kept open
+          </span>
+        ) : null}
+        {/* what's inside (≤ 3 nouns) — said while closed; open, the body says it (06 Advanced.tsx Fold) */}
+        {hint && !open ? <span className={c.hint}>{hint}</span> : null}
       </button>
       {open ? (
         <div id={bodyId} className={c.body} data-testid={`fold-${panel}-body`}>
