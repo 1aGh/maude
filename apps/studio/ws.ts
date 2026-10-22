@@ -3,7 +3,8 @@
 
 import type { ServerWebSocket, WebSocketHandler } from 'bun';
 
-import type { WsVisibility } from './access/filters.ts';
+import { canvasOfSlug, type WsVisibility } from './access/filters.ts';
+import { toDesignRel } from './access/request.ts';
 import { type Access, accessWiderThan } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
@@ -479,9 +480,16 @@ export function createWs(
     const follow = ws.data.kind === 'collab' && ws.data.follow === true;
     // gate-b-c4h — a frame read-only because its canvas imports another canvas (access/frame.ts
     // `frameAccess`) writes no lane at all, comments included: presence only.
+    // gate-b-c4i — so does a socket whose access cannot COMMENT on this canvas: Can view
+    // (`observer`, access/roles.ts) holds read, session and request only, and a read-only conn
+    // alone keeps the comments lane writable (collab/room.ts — the Can comment path). Both
+    // listeners stamp `access`; a hand-built test socket without one keeps the old rule.
+    const mayComment =
+      access === undefined ||
+      access.can('comment', canvasOfSlug(access, slug, ctx.paths.designRel));
     const lanesClosed =
       ws.data.kind === 'collab' &&
-      (ws.data.lanesClosed === true || access?.readOnlyBecause !== undefined);
+      (ws.data.lanesClosed === true || access?.readOnlyBecause !== undefined || !mayComment);
     const conn: RoomConn = {
       id: ws.data.id,
       realm,
@@ -647,6 +655,21 @@ export function createWs(
           })
         )
           return;
+        // gate-b-c4i — `comments-add` needs the `comment` capability on the canvas it names: a
+        // Can view socket (`observer`) is read-only AND may not comment (access/roles.ts). After
+        // the scope check, so a canvas the socket does not see stays answered with nothing.
+        if (ws.data.kind === 'inspector' && ws.data.access && msg.type === 'comments-add') {
+          const file = typeof msg.payload?.file === 'string' ? msg.payload.file : '';
+          const canvas = toDesignRel(file, ctx.paths.designRel);
+          if (!ws.data.access.can('comment', canvas)) {
+            send(ws, {
+              type: 'refused',
+              reason: 'read-only',
+              message: 'Your access here is view-only — that comment was not added.',
+            });
+            return;
+          }
+        }
         const inspect = inspects.for(ws.data.kind === 'inspector' ? ws.data.session : '');
         if (msg.type === 'active' && typeof msg.file === 'string') inspect.setActive(msg.file);
         else if (msg.type === 'tabs' && Array.isArray(msg.tabs)) inspect.setOpenTabs(msg.tabs);
