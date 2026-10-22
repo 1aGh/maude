@@ -643,11 +643,14 @@ export function createWs(
         }
         // S9.11 (L10/L12) — a canvas-only socket names only canvases it sees: asking for (or
         // commenting on) another canvas is answered as if it did not exist — nothing at all.
+        // gate-b-c4k — judged on the file each frame ACTS on: `comments-request` reads `msg.file`,
+        // `comments-add` writes `msg.payload.file` (the handler and the comment check below), so a
+        // top-level `file` naming a visible canvas cannot vouch for the payload's.
         if (
           scope &&
           (msg.type === 'comments-request' || msg.type === 'comments-add') &&
           !scope.visibleTo(ws, {
-            file: typeof msg.file === 'string' ? msg.file : msg.payload?.file,
+            file: msg.type === 'comments-add' ? msg.payload?.file : msg.file,
           })
         )
           return;

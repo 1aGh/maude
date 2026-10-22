@@ -22,7 +22,7 @@ import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
-import { isCanvasRelInGroups } from '../skip-dirs.ts';
+import { importScanText, isCanvasSource } from '../skip-dirs.ts';
 import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
 
 /** Relative import specifiers (side-effect, `from`, literal dynamic `import()`), in source order. */
@@ -35,61 +35,9 @@ const SPEC_RES = [
 const CODE_EXT_RE = /\.(css|tsx|ts|jsx|js)$/i;
 /** A specifier with an extension of its own (`./data.json`, `./logo.svg`): the exact file. */
 const ANY_EXT_RE = /\/[^/]*[^/.]\.[A-Za-z0-9]+$/;
-/** What a module specifier string follows: `from`, `import`, `import(` (and CSS `@import`). */
-const SPECIFIER_LEAD_RE = /(?:\bfrom|\bimport|\bimport\s*\()\s*$/;
 
-/**
- * gate-b-c4e — `source` as the import scanner may read it: comments removed and every string
- * literal blanked EXCEPT a module specifier (a string right after `from`, `import` or `import(`).
- * A text scan over the raw source took `// import './b.tsx'` — or a string that merely spells an
- * import — for a real import, and the closure then opened B to A's frame. Not a parser (the hub
- * imports this under Node's strip-only TypeScript; there is none to share): a string never spans
- * a line, so a misread regex literal costs at most the rest of its line — an import missed there
- * fails CLOSED (the serve path refuses a module whose inputs the closure lacks). CSS: only
- * `/* … *\/` comments (`//` is a URL there).
- */
-export function importScanText(source: string, css = false): string {
-  let out = '';
-  let i = 0;
-  const n = source.length;
-  while (i < n) {
-    const c = source[i] as string;
-    const next = source[i + 1];
-    if (c === '/' && next === '*') {
-      const end = source.indexOf('*/', i + 2);
-      const stop = end === -1 ? n : end + 2;
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
-      i = stop;
-      continue;
-    }
-    if (!css && c === '/' && next === '/') {
-      const end = source.indexOf('\n', i);
-      i = end === -1 ? n : end;
-      continue;
-    }
-    if (c === '"' || c === "'" || (!css && c === '`')) {
-      let j = i + 1;
-      while (j < n) {
-        const d = source[j];
-        if (d === '\\') {
-          j += 2;
-          continue;
-        }
-        if (d === c) break;
-        if (d === '\n' && c !== '`') break; // an unterminated string ends with its line
-        j++;
-      }
-      const body = source.slice(i + 1, Math.min(j, n));
-      const keep = c !== '`' && SPECIFIER_LEAD_RE.test(out.slice(-32));
-      out += c + (keep ? body : body.replace(/[^\n]/g, ' ')) + (source[j] === c ? c : '');
-      i = source[j] === c ? j + 1 : j;
-      continue;
-    }
-    out += c;
-    i++;
-  }
-  return out;
-}
+// gate-b-c4k — `importScanText` moved to skip-dirs.ts (the canvas content marker reads it too).
+export { importScanText };
 
 /**
  * Every resolution candidate of every RELATIVE import in `source`, as absolute paths clamped to
@@ -335,22 +283,16 @@ interface DsSystem {
   path: string;
 }
 
-/** The defaults `context.ts` serves when a config names no groups. */
-const DEFAULT_CANVAS_GROUPS = ['system', 'ui'];
-
 /**
  * gate-b-c4j — the config the closure judges by, normalized. The studio passes its EFFECTIVE config
  * (`ctx.cfg` — loadConfig reads `<repo>/.design/config.json`, which is not `<designRoot>/config.json`
  * under a custom designRoot); the hub and test readers pass none and the project's own
  * `config.json` is read. Both go through `closureConfigOf`, so they agree.
  *
- * `canvasGroups`: the config's own (sanitized: contained relative paths) PLUS the defaults (c4g) —
- * a wider set only makes more imports count as canvases, which a frame refuses: fail closed.
- * `newComponentDir`: exactly the config's (default `ui/components`) — it widens what is importable.
+ * gate-b-c4k — only the design systems: `canvasGroups` / `newComponentDir` no longer decide what is
+ * a canvas (the file does — `walkEnv` `isCanvas`), so they are not read here.
  */
 export interface ClosureConfig {
-  readonly canvasGroups: readonly string[];
-  readonly newComponentDir: string | null;
   readonly designSystems: readonly DsSystem[];
   readonly defaultDesignSystem: string | null;
 }
@@ -363,13 +305,6 @@ const relDir = (v: unknown): string | null => {
 
 export function closureConfigOf(raw: unknown): ClosureConfig {
   const cfg = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const groups = new Set(DEFAULT_CANVAS_GROUPS);
-  if (Array.isArray(cfg.canvasGroups)) {
-    for (const g of cfg.canvasGroups as Array<Record<string, unknown> | null>) {
-      const p = relDir(g?.path);
-      if (p) groups.add(p);
-    }
-  }
   const designSystems: DsSystem[] = [];
   if (Array.isArray(cfg.designSystems)) {
     for (const e of cfg.designSystems as Array<Record<string, unknown> | null>) {
@@ -378,8 +313,6 @@ export function closureConfigOf(raw: unknown): ClosureConfig {
     }
   }
   return Object.freeze({
-    canvasGroups: [...groups],
-    newComponentDir: relDir(cfg.newComponentDir),
     designSystems,
     defaultDesignSystem:
       typeof cfg.defaultDesignSystem === 'string' ? cfg.defaultDesignSystem : null,
@@ -560,14 +493,14 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     if (!textCache.has(rel)) textCache.set(rel, files.has(rel) ? project.text(rel) : null);
     return textCache.get(rel) ?? null;
   };
-  // gate-b-c4g — "a canvas" is the index's own rule (skip-dirs.ts `isCanvasRelInGroups`: a `.tsx`
-  // in a canvas group that is not a component — gate-b-c4j), not "has a meta or a board": a
-  // meta-less canvas B imported by A was inlined for a member with no grant on B. A meta or a board
-  // still marks one anywhere.
+  // gate-b-c4k — "a canvas" is decided by the FILE, the same on every machine and the hub: its
+  // source renders DesignCanvas (skip-dirs.ts `isCanvasSource`), or it has a meta or a board. No
+  // path rule and no config: c4g/c4j's groups + `components/` + `newComponentDir` were per-machine
+  // (`.design/config.json` never syncs), so a meta-less canvas was "a component" on one machine and
+  // inlined there (M1), and any DesignCanvas file under a `components/` folder was importable (M2).
   const isCanvas = (rel: string): boolean =>
     /\.tsx$/i.test(rel) &&
-    ((files.has(rel) &&
-      cfg.canvasGroups.some((g) => isCanvasRelInGroups([g], rel, cfg.newComponentDir))) ||
+    ((files.has(rel) && isCanvasSource(textOf(rel))) ||
       files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));

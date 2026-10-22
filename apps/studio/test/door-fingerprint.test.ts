@@ -227,3 +227,22 @@ console.log(JSON.stringify(r));`;
   expect(p.stderr.toString()).not.toContain('Error');
   expect(JSON.parse(p.stdout.toString().trim())).toEqual({ ok: true });
 });
+
+test("gate-b-c4k — the fingerprint judges with the studio's effective config, like the frame", () => {
+  // a custom designRoot: the systems live in the studio's config, not <designRoot>/config.json
+  const root = mkdtempSync(join(tmpdir(), 'fp-cfg-'));
+  try {
+    const { 'config.json': _none, ...rest } = FILES;
+    writeTree(root, rest);
+    const without = closureFingerprint(root, 'ui/Hype.tsx');
+    const withCfg = closureFingerprint(root, 'ui/Hype.tsx', {
+      config: { designSystems: [{ name: 'brand', path: 'system/brand' }] },
+    });
+    if (!without.ok || !withCfg.ok) throw new Error('too large');
+    const rels = (r: FingerprintEntry[]) => r.map((e) => e.rel);
+    expect(rels(without.expect)).not.toContain('system/brand/colors_and_type.css');
+    expect(rels(withCfg.expect)).toContain('system/brand/colors_and_type.css');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

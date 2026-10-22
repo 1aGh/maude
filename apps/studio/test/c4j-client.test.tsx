@@ -66,9 +66,10 @@ describe('the card text', () => {
     });
   });
   test('a hidden name and no configured dir still read', () => {
+    // b6cc0b3d6 — no configured dir names the default newComponentDir
     expect(canvasImportsText([], undefined)).toEqual({
       title: 'This canvas imports another canvas.',
-      body: 'Move the shared part into a component file (e.g. components/…) to render it here.',
+      body: 'Move the shared part into a component file (e.g. ui/components/…) to render it here.',
     });
   });
 });

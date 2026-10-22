@@ -140,7 +140,12 @@ describe('1a / 4 — inputsRefusal', () => {
   });
 });
 
-describe('2 — a meta-less canvas is a canvas (the index rule)', () => {
+// gate-b-c4k — "a canvas" is now the file's own marker (it renders DesignCanvas), not the index's
+// group rule: the meta-less canvases below render DesignCanvas; the group config no longer matters.
+const DC =
+  "import { DesignCanvas } from '@maude/canvas-lib';\nexport default () => <DesignCanvas />;";
+
+describe('2 — a meta-less canvas is a canvas (the file says so)', () => {
   function project(files: Record<string, string>): ProjectReader {
     return { list: () => Object.keys(files), text: (r) => files[r] ?? null, head: () => 'h1' };
   }
@@ -149,9 +154,9 @@ describe('2 — a meta-less canvas is a canvas (the index rule)', () => {
     'ui/a.tsx':
       "import B from './b.tsx';\nimport S from '../screens/s.tsx';\nimport H from '../components/h.tsx';\nimport P from './_parts/p.tsx';\nimport '../ui/b.css';\nexport default () => <B />;\n",
     'ui/a.meta.json': '{}',
-    'ui/b.tsx': 'export default () => <p>B</p>;', // no meta, no board — still a canvas
+    'ui/b.tsx': DC, // no meta, no board — still a canvas
     'ui/b.css': '.b{}',
-    'screens/s.tsx': 'export default () => <p>S</p>;', // a configured group's canvas
+    'screens/s.tsx': DC, // a canvas whatever group a machine's config names
     'components/h.tsx': 'export default () => <i />;', // outside every group — a helper
     'ui/_parts/p.tsx': 'export default () => <i />;', // `_` segment — not a canvas
   };

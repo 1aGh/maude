@@ -18,7 +18,12 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { assetReferrers, type Closure, localDepsFromSource } from './access/closure.ts';
+import {
+  assetReferrers,
+  type Closure,
+  closureConfigOf,
+  localDepsFromSource,
+} from './access/closure.ts';
 import {
   canvasOnlyLogPaths,
   canvasOriginTarget,
@@ -1882,7 +1887,10 @@ export function createHttp(
         : folder
           ? all.filter((r) => r.startsWith(`${folder}/`))
           : all;
-      const r = closureFingerprint(ctx.paths.designRoot, list);
+      // gate-b-c4k — judged with the effective config, like the frame's closure (access/filters.ts)
+      const r = closureFingerprint(ctx.paths.designRoot, list, {
+        config: ctx.cfg ? closureConfigOf(ctx.cfg) : undefined,
+      });
       return r.ok ? r.expect : r.reason === 'too-large' ? 'too-big' : null;
     },
   });
@@ -7581,7 +7589,10 @@ export function createHttp(
   }
   function frameScopeOf(req: Request): FrameScope {
     const key = frameKeyOf(req);
-    return { canvases: key ? verifyFrameCap(key, frameTokenOf(req)) : null };
+    // gate-b-c4k — the subject the key was minted for (the same rule as frameKeyOf): a desktop's is
+    // '' whatever the request's headers say, so canvas code cannot rotate it for a fresh budget.
+    const subject = isWorkspaceMode() ? (frameSubjectOf(req.headers) ?? '') : '';
+    return { canvases: key ? verifyFrameCap(key, frameTokenOf(req)) : null, subject };
   }
   /** A capability for `canvases`, minted for the subject of `req` (headless callers, redirects). */
   function frameCapFor(req: Request | undefined, canvases: readonly string[]): string | null {

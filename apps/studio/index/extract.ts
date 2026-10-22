@@ -14,7 +14,13 @@ import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
 
-import { HIDDEN_OK, isCanvasRelInGroups, isComponentRel, SKIP_DIRS } from '../skip-dirs.ts';
+import {
+  HIDDEN_OK,
+  isCanvasSource,
+  isComponentRel,
+  isInCanvasGroup,
+  SKIP_DIRS,
+} from '../skip-dirs.ts';
 import type { ArtboardKind, ArtboardRow, CanvasKind, CanvasRow, Stamp } from './types.ts';
 
 const ARTBOARD_KINDS = new Set<ArtboardKind>(['digital', 'print', 'web', 'video']);
@@ -63,30 +69,48 @@ export function listCanvases(ctx: IndexContext): string[] {
       const r = rel ? `${rel}/${name}` : name;
       // a symlink is neither — skipped, like the file tree (api.ts findFiles)
       if (e.isDirectory()) walk(path.join(abs, name), r);
-      else if (e.isFile() && name.endsWith('.tsx') && !isComponentRel(r, ctx.componentDir))
-        out.add(r);
+      else if (e.isFile() && name.endsWith('.tsx') && listsAsCanvas(ctx, r)) out.add(r);
     }
   };
   for (const g of ctx.groups) walk(path.join(ctx.designRoot, g.path), g.path.replace(/\/+$/, ''));
   return [...out].sort();
 }
 
+/**
+ * gate-b-c4k — a `.tsx` in a group the index lists: not at a component path (`isComponentRel`),
+ * OR a canvas by the file itself — it has a `.meta.json` or renders DesignCanvas (`isCanvasSource`,
+ * the access closure's marker). Groups decide what is LISTED; they never hide a canvas the closure
+ * refuses to inline (M2). Only a file at a component path is read.
+ */
+function listsAsCanvas(ctx: IndexContext, rel: string): boolean {
+  if (!isComponentRel(rel, ctx.componentDir)) return true;
+  const abs = path.join(ctx.designRoot, rel);
+  if (existsSync(abs.replace(/\.tsx$/, '.meta.json'))) return true;
+  try {
+    const st = statSync(abs);
+    return st.size <= MAX_DEP_BYTES && isCanvasSource(readFileSync(abs, 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
 /** Is `rel` a canvas by the same rules as listCanvases()? One stat, no walk (per-event updates). */
 export function isCanvasRel(ctx: IndexContext, rel: string): boolean {
-  // gate-b-c4g — the one path predicate (skip-dirs.ts), shared with the access closure.
+  // gate-b-c4g — the group path rule (skip-dirs.ts); gate-b-c4k — a component path only when the
+  // file is no canvas by itself (`listsAsCanvas`).
   if (
-    !isCanvasRelInGroups(
+    !isInCanvasGroup(
       ctx.groups.map((g) => g.path),
-      rel,
-      ctx.componentDir
+      rel
     )
   )
     return false;
   try {
-    return lstatSync(path.join(ctx.designRoot, rel)).isFile();
+    if (!lstatSync(path.join(ctx.designRoot, rel)).isFile()) return false;
   } catch {
     return false;
   }
+  return listsAsCanvas(ctx, rel);
 }
 
 const metaRelOf = (rel: string) => rel.replace(/\.tsx$/, '.meta.json');
