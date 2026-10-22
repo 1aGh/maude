@@ -61,6 +61,12 @@ export interface Access {
   seesCanvas(canvas: string): boolean;
   /** What the client said it understands (V2-1.7 §5.4). */
   readonly minted: { declaredAccess: 1 | 2 };
+  /**
+   * gate-b-c4e — set on a FRAME's access only (access/frame.ts `narrowToFrame`): the opener's own
+   * access before narrowing. Grants nothing by itself; the closure asks it whether a canvas the
+   * frame's canvas imports may be read (access/closure.ts).
+   */
+  readonly unnarrowed?: Access;
 }
 
 const isGrantRole = (r: unknown): r is GrantRole =>

@@ -19,6 +19,7 @@
 import path, { dirname, resolve, sep } from 'node:path';
 
 import { canvasArtifacts } from '../canvas-artifacts.ts';
+import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
 import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
@@ -31,18 +32,78 @@ const SPEC_RES = [
 ];
 
 const CODE_EXT_RE = /\.(css|tsx|ts|jsx|js)$/i;
+/** A specifier with an extension of its own (`./data.json`, `./logo.svg`): the exact file. */
+const ANY_EXT_RE = /\/[^/]*[^/.]\.[A-Za-z0-9]+$/;
+/** What a module specifier string follows: `from`, `import`, `import(` (and CSS `@import`). */
+const SPECIFIER_LEAD_RE = /(?:\bfrom|\bimport|\bimport\s*\()\s*$/;
+
+/**
+ * gate-b-c4e — `source` as the import scanner may read it: comments removed and every string
+ * literal blanked EXCEPT a module specifier (a string right after `from`, `import` or `import(`).
+ * A text scan over the raw source took `// import './b.tsx'` — or a string that merely spells an
+ * import — for a real import, and the closure then opened B to A's frame. Not a parser (the hub
+ * imports this under Node's strip-only TypeScript; there is none to share): a string never spans
+ * a line, so a misread regex literal costs at most the rest of its line — an import missed there
+ * fails CLOSED (the serve path refuses a module whose inputs the closure lacks). CSS: only
+ * `/* … *\/` comments (`//` is a URL there).
+ */
+export function importScanText(source: string, css = false): string {
+  let out = '';
+  let i = 0;
+  const n = source.length;
+  while (i < n) {
+    const c = source[i] as string;
+    const next = source[i + 1];
+    if (c === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2);
+      const stop = end === -1 ? n : end + 2;
+      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
+      i = stop;
+      continue;
+    }
+    if (!css && c === '/' && next === '/') {
+      const end = source.indexOf('\n', i);
+      i = end === -1 ? n : end;
+      continue;
+    }
+    if (c === '"' || c === "'" || (!css && c === '`')) {
+      let j = i + 1;
+      while (j < n) {
+        const d = source[j];
+        if (d === '\\') {
+          j += 2;
+          continue;
+        }
+        if (d === c) break;
+        if (d === '\n' && c !== '`') break; // an unterminated string ends with its line
+        j++;
+      }
+      const body = source.slice(i + 1, Math.min(j, n));
+      const keep = c !== '`' && SPECIFIER_LEAD_RE.test(out.slice(-32));
+      out += c + (keep ? body : body.replace(/[^\n]/g, ' ')) + (source[j] === c ? c : '');
+      i = source[j] === c ? j + 1 : j;
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
 
 /**
  * Every resolution candidate of every RELATIVE import in `source`, as absolute paths clamped to
  * `designRoot` (a canvas source is attacker-influenced under linked mode, DDR-054). Extensionless
- * specifiers contribute every candidate (`.tsx`, `.ts`, `.jsx`, `.js`, `index.tsx`, `index.ts`).
- * Bare / virtual specifiers are skipped. No `@maude/ds` handling — see `localDepsFromSource`.
+ * specifiers contribute every candidate (`.tsx`, `.ts`, `.jsx`, `.js`, `index.tsx`, `index.ts`);
+ * one with another extension (`./data.json`) contributes the exact file too (gate-b-c4e: the
+ * build inlines it). Comments and plain strings are not imports (`importScanText`). Bare /
+ * virtual specifiers are skipped. No `@maude/ds` handling — see `localDepsFromSource`.
  */
 export function relativeImportCandidates(
-  source: string,
+  rawSource: string,
   canvasAbsPath: string,
   designRoot: string
 ): string[] {
+  const source = importScanText(rawSource, /\.css$/i.test(canvasAbsPath));
   const dir = dirname(canvasAbsPath);
   const root = resolve(designRoot);
   const deps: string[] = [];
@@ -62,6 +123,7 @@ export function relativeImportCandidates(
       if (CODE_EXT_RE.test(spec)) {
         push(base);
       } else {
+        if (ANY_EXT_RE.test(spec)) push(base);
         for (const cand of [
           `${base}.tsx`,
           `${base}.ts`,
@@ -382,19 +444,33 @@ const VROOT = '/__maude_closure__';
 export function closureFor(access: Access, project: ProjectReader, cache?: ClosureCache): Closure {
   const head = project.head();
   const grantsKey = access.grants.map((g) => `${g.c}\u0000${g.r}`).join('\u0001');
-  const key = `${head}\u0002${grantsKey}`;
+  // gate-b-c4e — an imported CANVAS counts only when the reader may read it: a frame's access is
+  // the opener's narrowed to one canvas, so ask the opener's own (`unnarrowed`) access.
+  const reader = access.unnarrowed ?? access;
+  const readerKey = reader.role !== null ? '*' : reader.grants.map((g) => g.c).join('\u0001');
+  const key = `${head}\u0002${grantsKey}\u0003${readerKey}`;
   const hit = cache?.get(key);
   if (hit) return hit;
   const computed = compute(
     access.grants.map((g) => g.c),
     project,
-    head
+    head,
+    (canvas) => reader.seesCanvas(canvas)
   );
   cache?.set(key, computed);
   return computed;
 }
 
-function compute(canvases: string[], project: ProjectReader, head: string): Closure {
+/** A canvas's slug-keyed and same-name sidecars that are never a module of another canvas. */
+const CANVAS_SIDECAR_RE =
+  /\.(meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i;
+
+function compute(
+  canvases: string[],
+  project: ProjectReader,
+  head: string,
+  readsCanvas: (canvas: string) => boolean
+): Closure {
   const owned = new Set<string>();
   const ownedBy = new Map<string, string>();
   const read = new Set<string>();
@@ -421,6 +497,24 @@ function compute(canvases: string[], project: ProjectReader, head: string): Clos
   };
   const existingAssetRefs = (text: string) =>
     staticAssetRefs(text).filter((r) => files.has(r) && !isAssetSidecar(r, files));
+
+  // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
+  // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
+  // canvas's, not a module). Another CANVAS — a `.tsx` with its own meta or board — and its
+  // same-name stylesheet only when the reader may read that canvas; helpers, components and the
+  // design system stay reachable through imports.
+  const granted = new Set(canvases);
+  const isCanvas = (rel: string): boolean =>
+    /\.tsx$/i.test(rel) &&
+    (files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
+      files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
+      files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));
+  const importable = (dep: string): boolean => {
+    if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
+    const asCanvas = /\.css$/i.test(dep) ? dep.replace(/\.css$/i, '.tsx') : dep;
+    if (granted.has(asCanvas) || !isCanvas(asCanvas)) return true;
+    return readsCanvas(asCanvas);
+  };
 
   const closureAssets = new Set<string>();
   const perUse = new Set<string>();
@@ -455,7 +549,7 @@ function compute(canvases: string[], project: ProjectReader, head: string): Clos
           .slice(VROOT.length + 1)
           .split(sep)
           .join('/');
-        if (files.has(dep) && !visited.has(dep)) queue.push(dep);
+        if (files.has(dep) && !visited.has(dep) && importable(dep)) queue.push(dep);
       }
     }
     // Static asset references in the canvas's own sidecars (meta, board).

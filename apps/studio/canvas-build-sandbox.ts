@@ -37,6 +37,8 @@ export interface SandboxBuildOk {
   js: string;
   locator: unknown;
   etag: string;
+  /** gate-b-c4e — every file the module inlined, absolute (canvas-build.ts `inputs`). */
+  inputs: string[];
   cached: boolean;
 }
 export interface SandboxBuildFail {
@@ -152,8 +154,9 @@ export function _resetBuildStats(): void {
   cache.clear();
 }
 
-/** key → { js, locator, etag } */
-const cache = new Map<string, { js: string; locator: unknown; etag: string }>();
+type CachedBuild = { js: string; locator: unknown; etag: string; inputs: string[] };
+/** key → { js, locator, etag, inputs } */
+const cache = new Map<string, CachedBuild>();
 
 /**
  * The cache key: the canvas source plus every sibling source it could pull in.
@@ -231,7 +234,7 @@ function graphBytes(designRoot: string, canvasAbs: string): number {
   return total;
 }
 
-function remember(key: string, value: { js: string; locator: unknown; etag: string }): void {
+function remember(key: string, value: CachedBuild): void {
   cache.set(key, value);
   while (cache.size > CACHE_MAX_ENTRIES) {
     const oldest = cache.keys().next().value as string;
@@ -363,7 +366,12 @@ export async function buildCanvasSandboxed({
 
   if (result.ok) {
     counters.builds++;
-    const value = { js: result.js, locator: result.locator, etag: result.etag };
+    const value = {
+      js: result.js,
+      locator: result.locator,
+      etag: result.etag,
+      inputs: result.inputs,
+    };
     remember(key, value);
     return { ...value, ok: true, cached: false };
   }
@@ -455,7 +463,20 @@ async function runWorker({
   try {
     const parsed = JSON.parse(out);
     if (parsed.ok) {
-      return { ok: true, js: parsed.js, locator: parsed.locator, etag: parsed.etag, cached: false };
+      // gate-b-c4e — no input list, no module: the serve path cannot hold it to a closure.
+      if (
+        !Array.isArray(parsed.inputs) ||
+        !parsed.inputs.every((p: unknown) => typeof p === 'string')
+      )
+        return { ok: false, kind: 'runtime', error: 'the build reported no inputs' };
+      return {
+        ok: true,
+        js: parsed.js,
+        locator: parsed.locator,
+        etag: parsed.etag,
+        inputs: parsed.inputs,
+        cached: false,
+      };
     }
     return {
       ok: false,

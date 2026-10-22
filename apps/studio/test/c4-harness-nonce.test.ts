@@ -139,9 +139,12 @@ describe('gate-b-c4c — the bg-remove harness frame needs the one-time nonce', 
       const fcA = await frameCap({ base: `http://localhost:${port}` }, {}, 'ui/a.tsx');
       expect(fcA).toBeTruthy();
       const at = (p: string) => fetch(`${canvas}${p}`, { signal: AbortSignal.timeout(5000) });
-      // A's own module serves inside A's frame (control)…
-      expect((await at(withFc('/.design/ui/a.tsx', fcA))).status).toBe(200);
-      // …the harness does not, although A's source imports it, nor its meta lane, nor frame-less
+      // gate-b-c4e — A's own module no longer builds at all: its import of the harness is an
+      // import of runtime state (`_photo/`), which the build refuses (and never inlines)…
+      const own0 = await at(withFc('/.design/ui/a.tsx', fcA));
+      expect(own0.status).not.toBe(200);
+      expect(await own0.text()).not.toContain(NONCE);
+      // …the harness does not serve to A's frame either, nor its meta lane, nor frame-less
       for (const p of [
         withFc(`/.design/${REL}`, fcA),
         withFc(`/_api/canvas-meta?file=.design/${REL}`, fcA),

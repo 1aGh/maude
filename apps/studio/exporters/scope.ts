@@ -250,6 +250,17 @@ interface SelectionShape {
   cssPath?: string;
 }
 
+/** gate-b-c4e — do two canvas paths (designRel-prefixed or not) name the same file? Exact, not
+ *  by slug: a slug folds `ui/a-b.tsx` and `ui/a/b.tsx` together. */
+function sameCanvas(a: string, b: string, designRel: string): boolean {
+  const prefix = `${designRel.replace(/^\/+|\/+$/g, '')}/`;
+  const strip = (p: string) => {
+    const q = String(p).replace(/^\/+/, '');
+    return q.startsWith(prefix) ? q.slice(prefix.length) : q;
+  };
+  return strip(a) === strip(b);
+}
+
 function firstSelection(selected: ActiveJsonShape['selected']): SelectionShape | null {
   if (!selected) return null;
   if (Array.isArray(selected)) return selected[0] ?? null;
@@ -372,13 +383,23 @@ export async function resolveScope(args: ResolveScopeArgs): Promise<Target[]> {
     // Prefer the live submit-time snapshot over the persisted `_active.json`
     // selection — the dialog can clear the canvas selection before the bridged
     // export runs, leaving `activeJson.selected` null (item 3 root cause #1).
-    const selector = hints.selection?.selector ?? sel?.selector ?? sel?.cssPath;
+    // gate-b-c4e — a selection names its own `file`; one that names ANOTHER canvas than the
+    // export's is not this export's selection, so it is ignored rather than rendering that other
+    // canvas. The stored one (`_active.json`) always: canvas code can plant it through the select
+    // relay. The request's own hint once the request pinned the canvas (`canvasFile` — the canvas
+    // bridge always does); without a pin it still names its canvas, as before.
+    const own = (s: { file?: string } | null | undefined) =>
+      !!s && (typeof s.file !== 'string' || sameCanvas(s.file, activeFile, designRel));
+    const pinned = typeof hints.canvasFile === 'string';
+    const hinted = !pinned || own(hints.selection) ? hints.selection : undefined;
+    const stored = own(sel) ? sel : null;
+    const selector = hinted?.selector ?? stored?.selector ?? stored?.cssPath;
     if (!selector) {
       // No selection anywhere → fall back to artboard scope so the export
       // still produces something useful. Single fallback site.
       return resolveScope({ ...args, scope: 'artboard' });
     }
-    const file = hints.selection?.file ?? sel?.file ?? activeFile;
+    const file = (hinted?.selector ? hinted.file : undefined) ?? activeFile;
     return [
       {
         kind: 'element',

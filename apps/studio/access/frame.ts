@@ -31,6 +31,9 @@
 // canvas code in A can reach a sibling frame's document (`parent.frames[i]`, same-origin) and read
 // ITS `fc` from its URL — and then ask as that sibling's canvas, B, with the opener's rights on B.
 // The capability narrows a frame to its canvas only while no other canvas is open beside it.
+// The gap is wider than split view: the design-system "reach" view (client/v2/ds/reach-view.jsx,
+// the `ds-reach-iframe` grid) opens EVERY canvas that uses a design system as live sibling frames
+// in one click, so any one of them can read every other's `fc` and act as each of those canvases.
 // Closing that needs a distinct origin per canvas (or per open frame), so a sibling's document
 // is cross-origin to A's code.
 //
@@ -39,8 +42,8 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, posix } from 'node:path';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, posix, relative, sep } from 'node:path';
 import type { ProjectRole } from './roles.ts';
 import { type Access, type GrantRole, resolveAccess } from './scope.ts';
 
@@ -67,11 +70,22 @@ export function newFrameSecret(): Buffer {
 }
 
 /**
- * The secret kept in per-machine runtime state (`<designRoot>/_state/`, DDR-115: ignored, never
- * synced, never served to a canvas origin), so a restarted server still accepts the capabilities
- * of the frames already open. Unreadable or unwritable: a fresh one for this process.
+ * The secret, kept in this machine's per-project state OUTSIDE the design root (gate-b-c4e: the
+ * caller passes `<index dir>/projects/<pid>/frame-cap.key`), so a restarted server still accepts
+ * the capabilities of the frames already open. Never under the design root: the canvas build
+ * reaches everything there (an `import … with { type: 'text' }` inlines a file's bytes into the
+ * module served to the canvas's own frame), so a key kept in `_state/` was a key handed to every
+ * canvas author. `legacy` — the old in-tree file — is deleted, never migrated: it may already
+ * have been read. Unreadable or unwritable: a fresh one for this process.
  */
-export function loadFrameSecret(file: string): Buffer {
+export function loadFrameSecret(file: string, legacy?: string): Buffer {
+  if (legacy) {
+    try {
+      rmSync(legacy, { force: true });
+    } catch {
+      /* read-only tree — the build refuses `_state/` imports regardless */
+    }
+  }
   try {
     const hex = readFileSync(file, 'utf8').trim();
     if (/^[0-9a-f]{64}$/.test(hex)) return Buffer.from(hex, 'hex');
@@ -80,10 +94,10 @@ export function loadFrameSecret(file: string): Buffer {
   }
   const fresh = newFrameSecret();
   try {
-    mkdirSync(dirname(file), { recursive: true });
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     writeFileSync(file, `${fresh.toString('hex')}\n`, { mode: 0o600 });
   } catch {
-    /* read-only tree — this process's own secret */
+    /* read-only home — this process's own secret */
   }
   return fresh;
 }
@@ -175,10 +189,13 @@ export function narrowToFrame(base: Access, canvases: readonly string[] | null):
     const r = frameRole(base.roleFor(c));
     if (r) grants.push({ c, r });
   }
-  return resolveAccess(
+  const narrowed = resolveAccess(
     { v: 1, role: null, grants },
     { declaredAccess: base.minted.declaredAccess }
   );
+  // gate-b-c4e — the opener's own access rides along, for the closure only: whether an imported
+  // canvas may be read is the opener's question, not the frame's (access/closure.ts).
+  return Object.freeze({ ...narrowed, unnarrowed: base.unnarrowed ?? base });
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +236,34 @@ export function framelessAllowed(rawPathname: string): boolean {
   if (pathname.startsWith('/_canvas-runtime/')) return true;
   if (pathname.startsWith('/_client/')) return true;
   return false;
+}
+
+/**
+ * gate-b-c4e — defence in depth behind the build's import allowlist: a built canvas module goes
+ * to a canvas-only session (every frame is one) only when EVERY design-root file the build
+ * inlined is one the session sees. `inputs` are absolute (the bundler reports real paths, so
+ * `roots` carries the design root's logical and real spellings); a file outside the design root
+ * is the allowlist's business (only our own modules get there). Anything not seen → the
+ * missing-file answer (U1), fail closed: the module is never cut down to what is visible.
+ */
+export function inputsRefusal(
+  inputs: readonly string[],
+  roots: readonly string[],
+  sees: (rel: string) => boolean
+): Response | null {
+  for (const abs of inputs) {
+    for (const root of roots) {
+      const rel = relative(root, abs);
+      if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) continue;
+      if (!sees(rel.split(sep).join('/')))
+        return Response.json(
+          { error: 'not-in-scope', reason: 'not-in-scope' },
+          { status: 403, headers: { 'Cache-Control': 'no-store' } }
+        );
+      break;
+    }
+  }
+  return null;
 }
 
 /**

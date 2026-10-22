@@ -72,7 +72,14 @@ async function main() {
     ...(assetUrlBase ? { assetUrlBase } : {}),
   });
   process.stdout.write(
-    JSON.stringify({ ok: true, js: built.js, locator: built.locator, etag: built.etag })
+    JSON.stringify({
+      ok: true,
+      js: built.js,
+      locator: built.locator,
+      etag: built.etag,
+      // gate-b-c4e — what the module inlined (the serve path holds it to the frame's closure)
+      inputs: built.inputs,
+    })
   );
 }
 

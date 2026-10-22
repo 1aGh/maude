@@ -318,7 +318,28 @@ export function createInspect(
     };
   }
 
-  function setSelected(sel: SetSelectedInput) {
+  /** gate-b-c4e — `file` names the active canvas (exactly — a slug folds distinct paths). */
+  function namesActive(file: unknown): boolean {
+    if (typeof file !== 'string' || !state.active) return true;
+    const prefix = `${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
+    const strip = (p: string) => {
+      const q = p.replace(/^\/+/, '');
+      return q.startsWith(prefix) ? q.slice(prefix.length) : q;
+    };
+    return strip(file) === strip(state.active);
+  }
+
+  function setSelected(input: SetSelectedInput) {
+    // gate-b-c4e — a selection belongs to the canvas the person is looking at. The shell relays
+    // a frame's `select`, and canvas code in A could name `file: B` — `state.selected` then
+    // carried B into `_active.json`, where an export's Selection scope (exporters/scope.ts) and
+    // the agent read it. An entry naming another canvas is dropped; nothing left = no change.
+    let sel = input;
+    if (Array.isArray(sel)) {
+      const kept = sel.filter((s) => !s || typeof s !== 'object' || namesActive(s.file));
+      if (sel.length > 0 && kept.length === 0) return;
+      sel = kept;
+    } else if (sel && typeof sel === 'object' && !namesActive(sel.file)) return;
     if (sel == null) {
       state.selected = null;
       // Explicit deselect clears the active canvas's parked memory too — a

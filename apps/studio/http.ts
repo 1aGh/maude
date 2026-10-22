@@ -46,6 +46,7 @@ import {
   frameKeyFor,
   frameSubjectOf,
   frameTokenOf,
+  inputsRefusal,
   loadFrameSecret,
   mintFrameCap,
   narrowToFrame,
@@ -222,7 +223,7 @@ import {
 import { historySourceFromRuntime } from './index/history-source.ts';
 import { kickWhenReady } from './index/scan-kick.ts';
 import { createIndexService } from './index/service.ts';
-import { pidOf } from './index/snapshot.ts';
+import { pidOf, projectDir } from './index/snapshot.ts';
 import { feedVersionsToIndex } from './index/version-feed.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
@@ -699,8 +700,16 @@ interface CanvasCacheEntry {
    *  local `.tsx/.ts` modules, incl. unresolved extensionless candidates) —
    *  re-statted each request to recompute `sig` without re-reading the source. */
   deps: string[];
+  /** gate-b-c4e — every file the build inlined (absolute), held to the frame's closure on serve. */
+  inputs: readonly string[];
 }
 const canvasCache = new Map<string, CanvasCacheEntry>();
+
+/**
+ * gate-b-c4e — may THIS request receive a module built from `inputs` (absolute paths)? null = yes.
+ * The build is shared by every requester (cached per path), so the check runs on every serve.
+ */
+export type CanvasInputsGate = (inputs: readonly string[]) => Response | null;
 
 // Per-process boot id, folded into every canvas ETag. The canvas transpile
 // BUNDLES the shared chrome (canvas-lib → tool-palette / annotations-layer /
@@ -763,7 +772,8 @@ export async function serveCanvasTsx(
   req: Request,
   ctx: Context,
   locatorAbsPath: string,
-  testHooks?: ServeCanvasTestHooks
+  testHooks?: ServeCanvasTestHooks,
+  inputsGate?: CanvasInputsGate
 ): Promise<Response> {
   // Phase 27 (E2) — DiffView "before" pane. `?sha=<ref>` builds the canvas from
   // its source AT a past version (git show) instead of the working-tree file, so
@@ -772,7 +782,7 @@ export async function serveCanvasTsx(
   // resolves sibling imports against the CURRENT on-disk files (an accepted
   // approximation: the canvas code at the sha, with today's DS/lib).
   const shaParam = new URL(req.url).searchParams.get('sha');
-  if (shaParam) return serveHistoricalCanvas(absPath, shaParam, req, ctx);
+  if (shaParam) return serveHistoricalCanvas(absPath, shaParam, req, ctx, inputsGate);
 
   const file = Bun.file(absPath);
   if (!(await file.exists())) return new Response('Not found', { status: 404 });
@@ -825,17 +835,19 @@ export async function serveCanvasTsx(
         js: built.js,
         locator: built.locator,
         etag: built.etag,
+        inputs: built.inputs,
       } as Awaited<ReturnType<typeof buildCanvasModule>>;
       cached = {
         sig: builtSig,
         etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
         js: result.js,
         deps,
+        inputs: result.inputs,
       };
       canvasCache.set(absPath, cached);
       rememberCanvasBuild(absPath, { source, locator: result.locator });
       await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
-      return respondWithCanvasModule(req, cached);
+      return inputsGate?.(cached.inputs) ?? respondWithCanvasModule(req, cached);
     }
     try {
       result = await buildCanvasModule(absPath, source, {
@@ -874,6 +886,7 @@ export async function serveCanvasTsx(
       etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
       js: result.js,
       deps,
+      inputs: result.inputs,
     };
     canvasCache.set(absPath, cached);
     rememberCanvasBuild(absPath, { source, locator: result.locator });
@@ -885,7 +898,7 @@ export async function serveCanvasTsx(
     await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
   }
 
-  return respondWithCanvasModule(req, cached);
+  return inputsGate?.(cached.inputs) ?? respondWithCanvasModule(req, cached);
 }
 
 /** The conditional-GET half of serving a built canvas module. Shared by the
@@ -921,7 +934,7 @@ function respondWithCanvasModule(req: Request, cached: { js: string; etag: strin
 // lane of its own (the build then used today's file), so such an entry goes stale with that file.
 const historicalCanvasCache = new Map<
   string,
-  { js: string; etag: string; cssSig: string | null }
+  { js: string; etag: string; cssSig: string | null; inputs: readonly string[] }
 >();
 const HIST_MAX_CACHE = 96;
 // Rate-limit the EXPENSIVE miss path (git show + Bun.build, or a non-resolving
@@ -1048,7 +1061,8 @@ async function serveHistoricalCanvas(
   absPath: string,
   sha: string,
   req: Request,
-  ctx: Context
+  ctx: Context,
+  inputsGate?: CanvasInputsGate
 ): Promise<Response> {
   const repoRel = relative(ctx.paths.repoRoot, absPath).replace(/\\/g, '/');
   const key = `${absPath}\0${sha}\0${RUNTIME_BOOT_ID}\0${CHROME_EPOCH}`;
@@ -1141,6 +1155,7 @@ async function serveHistoricalCanvas(
         js: result.js,
         etag: `${result.etag}-${sha}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
         cssSig,
+        inputs: result.inputs,
       };
       historicalCanvasCache.set(key, cached);
       if (historicalCanvasCache.size > HIST_MAX_CACHE) {
@@ -1151,6 +1166,8 @@ async function serveHistoricalCanvas(
       return canvasBuildErrorResponse(err, ctx);
     }
   }
+  const refused = inputsGate?.(cached.inputs);
+  if (refused) return refused;
   if (req.headers.get('if-none-match') === cached.etag) {
     return new Response(null, {
       status: 304,
@@ -7099,7 +7116,14 @@ export function createHttp(
       const underDesignRoot = isUnderOrEqual(fp, ctx.paths.designRoot);
       // .tsx under designRoot is a canvas — transpile + emit locator, return JS.
       if (e === '.tsx' && underDesignRoot) {
-        return serveCanvasTsx(fp, req, ctx, join(ctx.paths.designRoot, '_locator.json'));
+        return serveCanvasTsx(
+          fp,
+          req,
+          ctx,
+          join(ctx.paths.designRoot, '_locator.json'),
+          undefined,
+          canvasInputsGate(req)
+        );
       }
       // Video/audio get Range support (scrubbing + WKWebView compat) — the
       // `/.design/assets/…` form comps reference goes through here.
@@ -7527,10 +7551,15 @@ export function createHttp(
   }
 
   // gate-b-c4 — the per-frame capability's key material (access/frame.ts). The secret lives in
-  // this machine's runtime state; a key is per SUBJECT: a desktop's is '' (the secret is its
-  // own), a cell's is the proxy's vouched member — and a cell request without one gets no key
-  // (one shared key would let a capability baked into canvas code verify for everybody).
-  const frameSecret = loadFrameSecret(join(ctx.paths.designRoot, '_state', 'frame-cap.key'));
+  // this machine's per-project state OUTSIDE the design root (gate-b-c4e: the canvas build can
+  // inline any file under it; the old `_state/frame-cap.key` is deleted on boot); a key is per
+  // SUBJECT: a desktop's is '' (the secret is its own), a cell's is the proxy's vouched member —
+  // and a cell request without one gets no key (one shared key would let a capability baked into
+  // canvas code verify for everybody).
+  const frameSecret = loadFrameSecret(
+    join(projectDir(pidOf(ctx.paths.repoRoot)), 'frame-cap.key'),
+    join(ctx.paths.designRoot, '_state', 'frame-cap.key')
+  );
   function frameKeyOf(req?: Request): Buffer | null {
     if (!isWorkspaceMode()) return frameKeyFor(frameSecret, '');
     const subject = frameSubjectOf(req?.headers ?? new Headers());
@@ -7607,6 +7636,25 @@ export function createHttp(
   function seerFor(req?: Request): Seer | null {
     const access = accessOf(req);
     return seerOf(access, () => closureOf(access));
+  }
+
+  // gate-b-c4e — the design root in both spellings (the bundler reports real paths).
+  const designRoots = [ctx.paths.designRoot];
+  try {
+    const real = realpathSync(ctx.paths.designRoot);
+    if (real !== ctx.paths.designRoot) designRoots.push(real);
+  } catch {
+    /* gone — the logical spelling only */
+  }
+  /**
+   * gate-b-c4e — a built canvas module reaches a canvas-only session (every frame on the canvas
+   * and capture listeners is one) only when every design-root file it inlined is in that
+   * session's closure (access/frame.ts `inputsRefusal`). A project session: no gate.
+   */
+  function canvasInputsGate(req: Request): CanvasInputsGate | undefined {
+    const see = seerFor(req);
+    if (see === null) return undefined;
+    return (inputs) => inputsRefusal(inputs, designRoots, see);
   }
 
   function closureOf(access: Access): Closure | null {
