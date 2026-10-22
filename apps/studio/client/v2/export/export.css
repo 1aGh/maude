@@ -98,10 +98,14 @@
   .ex-seg-b:hover:not(:disabled) {
     color: var(--fg-0);
   }
+  /* the kit's pressed segment (_kit.css .k-seg-b[aria-pressed]): raised bg-2 + the 1 px accent ring — a
+     white-on-bg-3 fill alone was 1.09:1 L / 1.20:1 D against its neighbours (09 a11y R1). */
   .ex-seg-b[aria-checked="true"] {
-    background: var(--bg-1);
+    background: var(--bg-2);
     color: var(--fg-0);
-    box-shadow: var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.08));
+    box-shadow:
+      var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.08)),
+      inset 0 0 0 1px var(--accent);
   }
   .ex-seg-b:disabled {
     color: var(--fg-3);
@@ -197,7 +201,8 @@
     margin-top: 1px;
     border-radius: var(--radius-xs, 4px);
     background: var(--bg-2);
-    box-shadow: inset 0 0 0 1px var(--border-strong);
+    /* the DS checkbox's off edge is --control-off (3.3:1) — --border-strong was 2.0:1 L / 2.3:1 D (09 a11y R6) */
+    box-shadow: inset 0 0 0 1px var(--control-off);
     color: var(--accent-fg);
   }
   .ex-box[data-on] {

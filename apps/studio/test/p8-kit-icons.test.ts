@@ -23,7 +23,9 @@ describe('StIcon vocabulary', () => {
     const missing: string[] = [];
     for (const file of walk(CLIENT)) {
       const src = readFileSync(file, 'utf8');
-      for (const m of src.matchAll(/<StIcon\b[^>]*?\bname=(?:"([a-z0-9-]+)"|'([a-z0-9-]+)'|\{\s*'([a-z0-9-]+)'\s*\})/g)) {
+      for (const m of src.matchAll(
+        /<StIcon\b[^>]*?\bname=(?:"([a-z0-9-]+)"|'([a-z0-9-]+)'|\{\s*'([a-z0-9-]+)'\s*\})/g
+      )) {
         const name = m[1] ?? m[2] ?? m[3];
         if (!(name in STICONS)) missing.push(`${file.slice(CLIENT.length + 1)}: ${name}`);
       }
@@ -32,7 +34,16 @@ describe('StIcon vocabulary', () => {
   });
 
   test('the kit glyphs the boards draw are present (chevron, submenu, pin, duplicate, more, history)', () => {
-    for (const n of ['chevron', 'submenu', 'pin', 'duplicate', 'more', 'history', 'home', 'trash']) {
+    for (const n of [
+      'chevron',
+      'submenu',
+      'pin',
+      'duplicate',
+      'more',
+      'history',
+      'home',
+      'trash',
+    ]) {
       expect(STICONS).toHaveProperty(n);
     }
   });

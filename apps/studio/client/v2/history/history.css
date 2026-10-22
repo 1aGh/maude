@@ -29,23 +29,31 @@
     display: inline-flex;
     gap: 2px;
     padding: 2px;
-    background: var(--bg-2);
+    background: var(--bg-3);
     border-radius: var(--radius-md, 8px);
   }
   .vh-seg-b {
     appearance: none;
     border: 0;
     background: transparent;
-    color: var(--fg-2);
+    color: var(--fg-1);
     font: inherit;
     font-size: var(--type-xs);
     min-height: 22px;
     padding: 0 var(--space-2);
-    border-radius: 6px;
+    border-radius: calc(var(--radius-md) - 2px);
+    cursor: pointer;
   }
-  .vh-seg-b[aria-pressed="true"] {
-    background: var(--bg-1);
+  .vh-seg-b:hover {
     color: var(--fg-0);
+  }
+  /* the kit pressed segment (Phase 8 C1-kit): bg-2 + shadow-sm + the 1 px accent ring (fill alone was 1.1:1) */
+  .vh-seg-b[aria-pressed="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
   }
   .vh-seg-b:focus-visible,
   .vh-row:focus-visible {

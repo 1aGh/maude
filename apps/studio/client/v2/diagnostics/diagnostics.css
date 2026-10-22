@@ -19,14 +19,40 @@
   .st-pm-status--mono {
     font-family: var(--font-mono);
   }
-  .st-pm-status[data-tone="ok"] {
-    color: var(--status-success-text, var(--status-success));
+  /* the kit status word (_kit.css .k-sw, Phase 8 C1-kit): a 7 px status dot + the word in fg-1 — never a
+     coloured word alone (06 R7; colour is not the only carrier). A neutral value (a version) has no dot. */
+  .st-pm-status:is([data-tone="ok"], [data-tone="warn"], [data-tone="error"], [data-tone="info"]),
+  .dg-word:is([data-tone], [data-state]) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-1);
   }
-  .st-pm-status[data-tone="warn"] {
-    color: var(--status-warn-text, var(--status-warn));
+  .st-pm-status:is(
+    [data-tone="ok"],
+    [data-tone="warn"],
+    [data-tone="error"],
+    [data-tone="info"]
+  )::before,
+  .dg-word:is([data-tone], [data-state])::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-3);
   }
-  .st-pm-status[data-tone="error"] {
-    color: var(--status-error-text, var(--status-error));
+  :is(.st-pm-status, .dg-word)[data-tone="ok"]::before {
+    background: var(--status-success);
+  }
+  :is(.st-pm-status, .dg-word):is([data-tone="warn"], [data-state="warn"])::before {
+    background: var(--status-warn);
+  }
+  :is(.st-pm-status, .dg-word)[data-tone="error"]::before {
+    background: var(--status-error);
+  }
+  :is(.st-pm-status, .dg-word)[data-tone="info"]::before {
+    background: var(--status-info);
   }
   /* the key hint stays right of the word */
   .st-pm-status + .kbd {
@@ -133,15 +159,6 @@
     font-size: var(--type-xs, 12px);
     color: var(--fg-2);
   }
-  .dg-word[data-tone="ok"] {
-    color: var(--status-success-text, var(--status-success));
-  }
-  .dg-word[data-tone="warn"] {
-    color: var(--status-warn-text, var(--status-warn));
-  }
-  .dg-word[data-tone="error"] {
-    color: var(--status-error-text, var(--status-error));
-  }
   .dg-when {
     margin-left: auto;
     font-size: var(--type-xs, 12px);
@@ -232,23 +249,31 @@
     min-inline-size: 0;
     border: 0;
     padding: 2px;
-    background: var(--bg-2);
+    background: var(--bg-3);
     border-radius: var(--radius-md, 8px);
   }
   .dg-seg-b {
     appearance: none;
     border: 0;
     background: transparent;
-    color: var(--fg-2);
+    color: var(--fg-1);
     font: inherit;
     font-size: var(--type-xs, 12px);
     min-height: 22px;
     padding: 0 var(--space-2, 8px);
-    border-radius: 6px;
+    border-radius: calc(var(--radius-md) - 2px);
+    cursor: pointer;
   }
+  .dg-seg-b:hover {
+    color: var(--fg-0);
+  }
+  /* the kit pressed segment (Phase 8 C1-kit, 06 InSeg) */
   .dg-seg-b[aria-pressed="true"] {
-    background: var(--bg-1);
-    color: var(--fg-1);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
   }
   .dg-seg-b:focus-visible {
     outline: 2px solid var(--accent);
