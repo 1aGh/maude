@@ -71,8 +71,15 @@ export function initialState(request = {}, ctx = {}) {
   // the world menu's "Export project ZIP" is a legacy `project-raw` with no format
   if (!format && request.scope === 'project-raw') format = 'zip';
   format ||= 'png';
-  // ⇧⌘E with nothing selected exports THIS CANVAS, never the project
-  const scope = scopeForFormat(format, asked ?? (ctx.hasSelection ? 'selection' : 'canvas'));
+  // ⇧⌘E with nothing selected exports THIS CANVAS, never the project — unless no canvas is open (⇧⌘E from an
+  // empty window): there is no "this canvas", so the sheet opens on the one scope that exists (P8 B1: it opened
+  // on `Export “”` and the button answered with a raw {"error":"bad-spec"}).
+  const noCanvas = ctx.canvasOpen === false;
+  const wanted = asked ?? (ctx.hasSelection ? 'selection' : 'canvas');
+  const scope = scopeForFormat(
+    format,
+    noCanvas && (wanted === 'selection' || wanted === 'canvas') ? 'project' : wanted
+  );
   return {
     scope,
     format,
@@ -83,7 +90,7 @@ export function initialState(request = {}, ctx = {}) {
     at: request.at ?? null,
     // S8.7 — the person (or the caller) named a format; until then a print page opens on its own Print PDF
     picked: typeof request.format === 'string',
-    nothingSelected: !ctx.hasSelection && asked === null,
+    nothingSelected: !ctx.hasSelection && asked === null && !noCanvas,
   };
 }
 
