@@ -131,6 +131,9 @@ export function collectImports(entryFile) {
         if (local) stack.push(local);
         continue;
       }
+      // A bare specifier must be a valid npm name: the lazy `from` alternative can match string
+      // text (sync/doc-name.ts's "…could not be read from ' +" message once read as package `+`).
+      if (!/^(?:@[a-z0-9~][a-z0-9._~-]*\/)?[a-z0-9~][a-z0-9._~-]*(?:\/.*)?$/i.test(spec)) continue;
       bare.add(pkgName(spec));
     }
   }

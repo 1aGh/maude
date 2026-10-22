@@ -33,6 +33,19 @@ test('an interpolated specifier in generated code is not an import', () => {
   }
 });
 
+test('string text that reads like "from \' +" is not a package (sync/doc-name.ts message)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-helper-deps-'));
+  try {
+    writeFileSync(
+      join(dir, '_entry.mjs'),
+      "const msg = 'export it — could not be read from ' +\n  'git';\nimport 'svgo';\n"
+    );
+    assert.deepEqual(collectImports(join(dir, '_entry.mjs')), ['svgo']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('no helper in apps/studio/bin stages an interpolated package name', () => {
   const deps = standaloneHelperNpmDeps(BIN);
   assert.ok(deps.length > 0);
