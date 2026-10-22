@@ -6,6 +6,8 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { facesOf } from '../client/v2/shell/save-status.js';
+
 const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
 
 describe('P8 B1 — words', () => {
@@ -27,5 +29,10 @@ describe('P8 B1 — words', () => {
     expect(src).not.toMatch(/Claude is waiting/);
     expect(src).not.toMatch(/Open the Sync panel/);
     expect(src).toMatch(/Menu › Diagnostics › Sync/);
+  });
+
+  test('the AI face in the Share cluster is "AI · editing" — never "Claude" (CONTRACT §3)', () => {
+    const faces = facesOf({ you: 'Michal', agentActive: true });
+    expect(faces.find((f: { agent?: boolean }) => f.agent)?.name).toBe('AI · editing');
   });
 });

@@ -134,13 +134,13 @@ export function exportsRing(jobs) {
 
 const MAX_FACES = 4;
 
-/** Who is here: you first, Claude while it is editing, then other people (name only — hub-supplied,
+/** Who is here: you first, AI while it is editing, then other people (name only — hub-supplied,
  *  so initials are all that is drawn). */
 export function facesOf({ you, agentActive = false, peers = [], max = MAX_FACES } = {}) {
   const out = [
     { initials: initialsOf(you || 'you'), name: you ? `${you} (you)` : 'You', you: true },
   ];
-  if (agentActive) out.push({ initials: 'C', name: 'Claude · editing', agent: true });
+  if (agentActive) out.push({ initials: 'C', name: 'AI · editing', agent: true });
   for (const p of peers)
     out.push({
       initials: initialsOf(p?.name),
