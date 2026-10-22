@@ -21,8 +21,8 @@ import { defaultActionId, postOps, runIdForChat } from '../bin/_annotate-post.mj
 import { createActionStage, type StageProposal } from '../sync/action-stage.ts';
 import { laneValueFromFile } from '../sync/codec.ts';
 import type { LaneProposal } from '../sync/projection.ts';
-import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 import { frameCap, withFc } from './_acl-cell.ts';
+import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 import { board, elements, sticky } from './fixtures/annotations-v2/boards.ts';
 
 /* ------------------------------------------------------------------ 1. the verb */
