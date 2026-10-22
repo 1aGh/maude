@@ -169,10 +169,12 @@ describe('2 — a meta-less canvas is a canvas (the file says so)', () => {
     expect(c.read.has('screens/s.tsx')).toBe(false);
   });
 
-  test('a member of A only: helpers outside the groups or under `_` dirs still are', () => {
+  // gate-b-c4l — A's walk refuses B, so A reads only what it owns: no helper either (fail closed)
+  test('a member of A only: a blocked walk reads no helper, outside the groups or under `_`', () => {
     const c = closureFor(resolveAccess(grantA), project(FILES));
-    expect(c.read.has('components/h.tsx')).toBe(true);
-    expect(c.read.has('ui/_parts/p.tsx')).toBe(true);
+    expect(c.blocked.has('ui/a.tsx')).toBe(true);
+    expect(c.read.has('components/h.tsx')).toBe(false);
+    expect(c.read.has('ui/_parts/p.tsx')).toBe(false);
   });
 
   test('the owner’s frame on A does not read B either (gate-b-c4j)', () => {

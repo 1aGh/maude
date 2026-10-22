@@ -22,14 +22,27 @@ import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
-import { importScanText, isCanvasSource } from '../skip-dirs.ts';
+import {
+  CANVAS_LIB_SPEC,
+  CARRIES_ALL,
+  decodeJsString,
+  importReaches,
+  importScanText,
+  isCanvasSource,
+  isDsSurfaceRel,
+  LIB_CARRIED,
+  type ModuleLinks,
+  moduleLinks,
+  ODD_NAME,
+} from '../skip-dirs.ts';
 import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
 
 /** Relative import specifiers (side-effect, `from`, literal dynamic `import()`), in source order. */
 const SPEC_RES = [
-  /\bimport\s+["']([^"']+)["']/g, // side-effect: import './x.css' (also CSS `@import './x.css'`)
-  /\bfrom\s+["']([^"']+)["']/g, // import … from / export … from
-  /\bimport\(\s*["']([^"']+)["']\s*\)/g, // dynamic import('./x')
+  /\bimport\s*["']([^"'\n]+)["']/g, // side-effect: import './x.css' (also CSS `@import './x.css'`)
+  /\bfrom\s*["']([^"'\n]+)["']/g, // import … from / export … from
+  // dynamic import('./x') and require('./x') (gate-b-c4l: whitespace or a comment may sit inside)
+  /\b(?:import|require)\s*\(\s*["']([^"'\n]+)["']\s*[,)]/g,
 ];
 
 const CODE_EXT_RE = /\.(css|tsx|ts|jsx|js)$/i;
@@ -52,40 +65,62 @@ export function relativeImportCandidates(
   canvasAbsPath: string,
   designRoot: string
 ): string[] {
-  const source = importScanText(rawSource, /\.css$/i.test(canvasAbsPath));
-  const dir = dirname(canvasAbsPath);
-  const root = resolve(designRoot);
   const deps: string[] = [];
   const seen = new Set<string>();
-  const push = (abs: string) => {
-    if (abs !== root && !abs.startsWith(root + sep)) return; // clamp (DDR-054)
-    if (seen.has(abs)) return;
-    seen.add(abs);
-    deps.push(abs);
-  };
+  for (const group of relativeImportGroups(rawSource, canvasAbsPath, designRoot))
+    for (const abs of group) {
+      if (seen.has(abs)) continue;
+      seen.add(abs);
+      deps.push(abs);
+    }
+  return deps;
+}
+
+/**
+ * The resolution candidates of ONE relative specifier written in a file at `fromAbs` (absolute,
+ * clamped to `designRoot`; empty when it points outside). `relativeImportCandidates`' unit.
+ */
+export function specCandidates(spec: string, fromAbs: string, designRoot: string): string[] {
+  const root = resolve(designRoot);
+  const base = resolve(dirname(fromAbs), spec);
+  const cands = CODE_EXT_RE.test(spec)
+    ? [base]
+    : [
+        ...(ANY_EXT_RE.test(spec) ? [base] : []),
+        `${base}.tsx`,
+        `${base}.ts`,
+        `${base}.jsx`,
+        `${base}.js`,
+        resolve(base, 'index.tsx'),
+        resolve(base, 'index.ts'),
+      ];
+  return cands.filter((abs) => abs === root || abs.startsWith(root + sep)); // clamp (DDR-054)
+}
+
+/**
+ * gate-b-c4l — `relativeImportCandidates` per specifier (source order, one group per distinct
+ * specifier, escapes decoded): the closure walk must see an import that resolves to NONE of its
+ * candidates (it blocks the grant — the same refusal as an imported canvas, so a planted import is
+ * no existence probe, defender L-b).
+ */
+export function relativeImportGroups(
+  rawSource: string,
+  canvasAbsPath: string,
+  designRoot: string
+): string[][] {
+  const source = importScanText(rawSource, /\.css$/i.test(canvasAbsPath));
+  const groups: string[][] = [];
+  const specs = new Set<string>();
   for (const re of SPEC_RES) {
     re.lastIndex = 0;
     for (let m = re.exec(source); m !== null; m = re.exec(source)) {
-      const spec = m[1];
-      if (!spec?.startsWith('.')) continue;
-      const base = resolve(dir, spec);
-      if (CODE_EXT_RE.test(spec)) {
-        push(base);
-      } else {
-        if (ANY_EXT_RE.test(spec)) push(base);
-        for (const cand of [
-          `${base}.tsx`,
-          `${base}.ts`,
-          `${base}.jsx`,
-          `${base}.js`,
-          resolve(base, 'index.tsx'),
-          resolve(base, 'index.ts'),
-        ])
-          push(cand);
-      }
+      const spec = decodeJsString(m[1] ?? '');
+      if (!spec.startsWith('.') || specs.has(spec)) continue;
+      specs.add(spec);
+      groups.push(specCandidates(spec, canvasAbsPath, designRoot));
     }
   }
-  return deps;
+  return groups;
 }
 
 /**
@@ -172,6 +207,10 @@ export interface Closure {
   readonly assetStems: ReadonlySet<string>;
   /** Granted canvases with a computed (runtime) asset or module reference (G3). */
   readonly dynamic: ReadonlySet<string>;
+  /** gate-b-c4l — granted canvases whose import walk refused something (another canvas, a file
+   *  that is never a module, an import that resolves to nothing): each contributes only its owned
+   *  files to `read`, and a frame on it is refused before any build (one answer, no probe). */
+  readonly blocked: ReadonlySet<string>;
 }
 
 /** Sidecars that ride with an asset (`assets/<base>.<ext>` → `assets/<base><suffix>`). */
@@ -498,12 +537,77 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
   // path rule and no config: c4g/c4j's groups + `components/` + `newComponentDir` were per-machine
   // (`.design/config.json` never syncs), so a meta-less canvas was "a component" on one machine and
   // inlined there (M1), and any DesignCanvas file under a `components/` folder was importable (M2).
-  const isCanvas = (rel: string): boolean =>
-    /\.tsx$/i.test(rel) &&
-    ((files.has(rel) && isCanvasSource(textOf(rel))) ||
+  // gate-b-c4l — and it errs to "canvas": a DS specimen / UI-kit file by path (`isDsSurfaceRel`),
+  // and a `.tsx` that imports a name a lib PROXY carries (`carriedBy` — a barrel re-exporting
+  // DesignCanvas, a `.ts`/`.jsx` wrapper around it, any chain of them).
+  const linksCache = new Map<string, ModuleLinks | null>();
+  const linksOf = (rel: string): ModuleLinks | null => {
+    if (!linksCache.has(rel)) {
+      const text = /\.(tsx|ts|jsx|js)$/i.test(rel) ? textOf(rel) : null;
+      linksCache.set(rel, text === null ? null : moduleLinks(text));
+    }
+    return linksCache.get(rel) ?? null;
+  };
+  const NONE: ReadonlySet<string> = new Set();
+  const carriedCache = new Map<string, ReadonlySet<string>>();
+  /** The names `spec` (written in `from`) exports that may be DesignCanvas. */
+  const carriedBySpec = (from: string, spec: string): ReadonlySet<string> => {
+    if (spec === CANVAS_LIB_SPEC) return LIB_CARRIED;
+    if (!spec.startsWith('.')) return NONE;
+    const out = new Set<string>();
+    for (const abs of specCandidates(spec, `${VROOT}/${from}`, VROOT)) {
+      const dep = abs
+        .slice(VROOT.length + 1)
+        .split(sep)
+        .join('/');
+      if (files.has(dep)) for (const n of carriedBy(dep)) out.add(n);
+    }
+    return out;
+  };
+  /** The names module `rel` exports that may be DesignCanvas (`CARRIES_ALL`: any of them). */
+  const carriedBy = (rel: string): ReadonlySet<string> => {
+    const hit = carriedCache.get(rel);
+    if (hit) return hit;
+    carriedCache.set(rel, NONE); // a cycle reads nothing new through itself
+    const links = linksOf(rel);
+    const out = new Set<string>();
+    if (links) {
+      // It uses DesignCanvas itself, or imports a carried name: any export may be it.
+      if (
+        links.namesRoot ||
+        links.computedImport ||
+        links.imports.some((i) => importReaches(i, carriedBySpec(rel, i.spec)))
+      )
+        out.add(CARRIES_ALL);
+      for (const re of links.reexports) {
+        const via = carriedBySpec(rel, re.spec);
+        if (via.size === 0) {
+          for (const [from, to] of re.items) if (from === 'DesignCanvas') out.add(to);
+          continue;
+        }
+        if (re.star) for (const n of via) if (n !== 'default') out.add(n);
+        if (re.nsName !== null) out.add(re.nsName);
+        for (const [from, to] of re.items)
+          if (via.has(CARRIES_ALL) || via.has(from) || from === ODD_NAME) out.add(to);
+      }
+      if (out.has(ODD_NAME)) out.add(CARRIES_ALL);
+    }
+    carriedCache.set(rel, out);
+    return out;
+  };
+  const isCanvas = (rel: string): boolean => {
+    if (!/\.tsx$/i.test(rel)) return false;
+    if (files.has(rel)) {
+      if (isDsSurfaceRel(rel) || isCanvasSource(textOf(rel))) return true;
+      const links = linksOf(rel);
+      if (links?.imports.some((i) => importReaches(i, carriedBySpec(rel, i.spec)))) return true;
+    }
+    return (
       files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
-      files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));
+      files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`)
+    );
+  };
   return { files, textOf, isCanvas, cfg, project };
 }
 
@@ -518,7 +622,7 @@ function walkImports(
   env: WalkEnv,
   canvas: string,
   granted: ReadonlySet<string>
-): { visited: Array<{ rel: string; text: string }>; refused: Set<string> } {
+): { visited: Array<{ rel: string; text: string }>; refused: Set<string>; blocked: boolean } {
   // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
   // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
   // canvas's, not a module). Helpers, components and the design system stay reachable.
@@ -527,6 +631,8 @@ function walkImports(
   // too — A's author chose the import, and the opener's access is not A's author's). The frame's
   // module is then refused at serve time (the inputs gate, 403) and the shell says why.
   const refused = new Set<string>();
+  // gate-b-c4l — anything the walk does not follow, or cannot resolve, blocks the canvas.
+  let blocked = false;
   const importable = (dep: string): boolean => {
     if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
     const asCanvas = /\.css$/i.test(dep) ? canvasOfFile(dep) : dep;
@@ -550,15 +656,23 @@ function walkImports(
     if (text === null) continue;
     visited.push({ rel, text });
     if (!/\.(tsx|ts|jsx|js|css)$/i.test(rel)) continue;
-    for (const abs of relativeImportCandidates(text, `${VROOT}/${rel}`, VROOT)) {
-      const dep = abs
-        .slice(VROOT.length + 1)
-        .split(sep)
-        .join('/');
-      if (env.files.has(dep) && !seen.has(dep) && importable(dep)) queue.push(dep);
+    for (const group of relativeImportGroups(text, `${VROOT}/${rel}`, VROOT)) {
+      let resolved = false;
+      for (const abs of group) {
+        const dep = abs
+          .slice(VROOT.length + 1)
+          .split(sep)
+          .join('/');
+        if (!env.files.has(dep)) continue;
+        resolved = true;
+        if (seen.has(dep)) continue;
+        if (importable(dep)) queue.push(dep);
+        else blocked = true;
+      }
+      if (!resolved) blocked = true;
     }
   }
-  return { visited, refused };
+  return { visited, refused, blocked: blocked || refused.size > 0 };
 }
 
 /**
@@ -594,10 +708,11 @@ function compute(
   const ownedBy = new Map<string, string>();
   const read = new Set<string>();
   const dynamic = new Set<string>();
+  const blocked = new Set<string>();
   const assetUsers = new Map<string, Set<string>>();
   const assetStems = new Set<string>();
   const frozen = () =>
-    Object.freeze({ head, owned, ownedBy, read, assetUsers, assetStems, dynamic });
+    Object.freeze({ head, owned, ownedBy, read, assetUsers, assetStems, dynamic, blocked });
   if (!canvases.length) return frozen();
 
   const files = new Set<string>();
@@ -627,6 +742,15 @@ function compute(
       if (text !== null) for (const p of perUsePhotoRefs(text)) if (files.has(p)) perUse.add(p);
     }
     const walk = walkImports(env, canvas, granted);
+    // gate-b-c4l (STRUCTURAL) — a walk that refused anything grants nothing past the canvas's own
+    // files: not the helpers it walked (one of them may BE a canvas the marker missed — a wrapper's
+    // user, a barrel's user), not the design system, not an asset. Its frame is refused anyway.
+    if (walk.blocked) {
+      blocked.add(canvas);
+      const own = walk.visited.find((v) => v.rel === canvas);
+      if (own && DYNAMIC_RES.some((re) => re.test(own.text))) dynamic.add(canvas);
+      continue;
+    }
     for (const { rel, text } of walk.visited) {
       read.add(rel);
       if (DYNAMIC_RES.some((re) => re.test(text))) dynamic.add(canvas);

@@ -716,7 +716,16 @@ const canvasCache = new Map<string, CanvasCacheEntry>();
  * gate-b-c4g — `entry`: the canvas the module was built from; a list that does not name it is
  * refused (an empty metafile is no evidence the module inlined nothing).
  */
-export type CanvasInputsGate = (inputs: readonly string[], entry: string) => Response | null;
+export type CanvasInputsGate = ((inputs: readonly string[], entry: string) => Response | null) & {
+  /**
+   * gate-b-c4l (defender L-b) — judged BEFORE any build: a frame on a canvas whose import walk the
+   * closure blocked (another canvas, a file that is never a module, an import that resolves to
+   * nothing) is refused with the one not-in-scope answer. Without it a planted import of a MISSING
+   * file failed the build (500, "Could not resolve") while an existing canvas built and was refused
+   * (403): an existence probe. The build's own errors also quote the files they read.
+   */
+  before?: (entry: string) => Response | null;
+};
 
 // Per-process boot id, folded into every canvas ETag. The canvas transpile
 // BUNDLES the shared chrome (canvas-lib → tool-palette / annotations-layer /
@@ -793,6 +802,8 @@ export async function serveCanvasTsx(
 
   const file = Bun.file(absPath);
   if (!(await file.exists())) return new Response('Not found', { status: 404 });
+  const refusedBefore = inputsGate?.before?.(absPath);
+  if (refusedBefore) return refusedBefore;
 
   // Freshness = the .tsx mtime AND every inlined sibling `.css` mtime. Keying on
   // the .tsx alone meant a direct edit to `<canvas>.css` was a cache HIT, so the
@@ -1080,6 +1091,8 @@ async function serveHistoricalCanvas(
   ctx: Context,
   inputsGate?: CanvasInputsGate
 ): Promise<Response> {
+  const refusedBefore = inputsGate?.before?.(absPath);
+  if (refusedBefore) return refusedBefore;
   const repoRel = relative(ctx.paths.repoRoot, absPath).replace(/\\/g, '/');
   const key = `${absPath}\0${sha}\0${RUNTIME_BOOT_ID}\0${CHROME_EPOCH}`;
   let cached = historicalCanvasCache.get(key);
@@ -1179,6 +1192,9 @@ async function serveHistoricalCanvas(
         if (oldest !== undefined) historicalCanvasCache.delete(oldest);
       }
     } catch (err) {
+      // gate-b-c4l (L-b) — a past version is not what the closure walked: to a gated session
+      // (a frame) a failed build answers like a refused one, so it probes nothing.
+      if (inputsGate) return notInScopeResponse();
       return canvasBuildErrorResponse(err, ctx);
     }
   }
@@ -7679,7 +7695,20 @@ export function createHttp(
   function canvasInputsGate(req: Request): CanvasInputsGate | undefined {
     const see = seerFor(req);
     if (see === null) return undefined;
-    return (inputs, entry) => inputsRefusal(inputs, designRoots, see, { entry });
+    const gate: CanvasInputsGate = (inputs, entry) =>
+      inputsRefusal(inputs, designRoots, see, { entry });
+    // gate-b-c4l (L-b) — a canvas whose import walk the closure blocked is refused before the build.
+    gate.before = (entry) => {
+      const closure = closureOf(accessOf(req));
+      if (!closure?.blocked.size) return null;
+      for (const root of designRoots) {
+        const rel = relative(root, resolve(entry)).split(sep).join('/');
+        if (rel.startsWith('..') || rel === '') continue;
+        return closure.blocked.has(rel) ? notInScopeResponse() : null;
+      }
+      return null;
+    };
+    return gate;
   }
 
   function closureOf(access: Access): Closure | null {

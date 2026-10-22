@@ -46,24 +46,25 @@ describe('isCanvasSource — the content marker', () => {
     ).toBe(true);
   });
 
-  test('not a canvas: other canvas-lib exports, a type-only import, comments, strings', () => {
+  test('not a canvas: other canvas-lib exports by name or as NS.member', () => {
     expect(isCanvasSource("import { MotionDemo } from '@maude/canvas-lib';\n<MotionDemo />")).toBe(
       false
     );
     expect(isCanvasSource("import * as CL from '@maude/canvas-lib';\n<CL.DCPostIt />")).toBe(false);
-    expect(isCanvasSource("import type { DesignCanvas } from '@maude/canvas-lib';")).toBe(false);
-    expect(isCanvasSource("import { type DesignCanvas } from '@maude/canvas-lib';")).toBe(false);
-    expect(isCanvasSource("// import { DesignCanvas } from '@maude/canvas-lib';\n")).toBe(false);
-    expect(isCanvasSource('const s = "import { DesignCanvas } from \'@maude/canvas-lib\'";')).toBe(
-      false
-    );
-    expect(isCanvasSource("import { DesignCanvas } from './local-lib';")).toBe(false);
-    // two imports on one line: the clause of the first never borrows the second's specifier
-    expect(
-      isCanvasSource(
-        "import { DesignCanvas } from './mine'; import { DCArtboard } from '@maude/canvas-lib';"
-      )
-    ).toBe(false);
+  });
+
+  // gate-b-c4l — the marker errs to "canvas": the raw word anywhere (a type import, a comment, a
+  // string, any specifier) makes the file one; a false positive only refuses an import.
+  test('the raw word anywhere is a canvas (c4l: err to canvas)', () => {
+    for (const src of [
+      "import type { DesignCanvas } from '@maude/canvas-lib';",
+      "import { type DesignCanvas } from '@maude/canvas-lib';",
+      "// import { DesignCanvas } from '@maude/canvas-lib';\n",
+      'const s = "import { DesignCanvas } from \'@maude/canvas-lib\'";',
+      "import { DesignCanvas } from './local-lib';",
+      "import { DesignCanvas } from './mine'; import { DCArtboard } from '@maude/canvas-lib';",
+    ])
+      expect(isCanvasSource(src)).toBe(true);
     expect(isCanvasSource('export default () => <button>OK</button>;')).toBe(false);
   });
 });
@@ -102,10 +103,11 @@ describe('a canvas by content is never importable, wherever it sits (M1, M2)', (
     ['a canvas-only member of A', member(A)],
     ["the owner's frame on A", narrowToFrame(OWNER, [A])],
   ] as const) {
-    test(`${who}: none of the meta-less DesignCanvas files is in the closure; Button is`, () => {
+    test(`${who}: none of the meta-less DesignCanvas files is in the closure, nor Button (c4l)`, () => {
       const c = closureFor(access, project(FILES));
       for (const rel of REFUSED) expect(c.read.has(rel)).toBe(false);
-      expect(c.read.has('ui/components/Button.tsx')).toBe(true);
+      // gate-b-c4l — A's walk refused them: A reads only what it owns, its component included
+      expect(c.read.has('ui/components/Button.tsx')).toBe(false);
     });
   }
 
@@ -118,7 +120,7 @@ describe('a canvas by content is never importable, wherever it sits (M1, M2)', (
     for (const files of [bare, other]) {
       const c = closureFor(member(A), project(files));
       for (const rel of REFUSED) expect(c.read.has(rel)).toBe(false);
-      expect(c.read.has('ui/components/Button.tsx')).toBe(true);
+      expect(c.blocked.has(A)).toBe(true);
     }
   });
 

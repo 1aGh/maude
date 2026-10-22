@@ -82,6 +82,32 @@ COPY apps/studio/ds/ds-resolver.ts /build/apps/studio/ds/ds-resolver.ts
 COPY apps/studio/ds/system.ts /build/apps/studio/ds/system.ts
 COPY apps/studio/ds/css-scan.ts /build/apps/studio/ds/css-scan.ts
 COPY apps/studio/paths.ts /build/apps/studio/paths.ts
+# gate-b-c4l (M2) — the canvas marker and import scanner the closure reads (since gate-b-c4g); the
+# image did not bundle without it. test/dockerfile-bundler-copies.test.mjs walks the hub's real
+# import graph and fails when a module it reaches is not COPY'd here.
+COPY apps/studio/skip-dirs.ts /build/apps/studio/skip-dirs.ts
+# The comment door (routes-v2/comments.mjs) applies the studio's own ops + mentions + anchors.
+COPY apps/studio/comment-anchor.ts /build/apps/studio/comment-anchor.ts
+COPY apps/studio/comments/anchors.ts /build/apps/studio/comments/anchors.ts
+COPY apps/studio/comments/mentions.ts /build/apps/studio/comments/mentions.ts
+COPY apps/studio/comments/ops.ts /build/apps/studio/comments/ops.ts
+COPY apps/studio/sync/atomic-write.ts /build/apps/studio/sync/atomic-write.ts
+# The render door's fingerprint (routes-v2/render-jobs.mjs → exporters/door-fingerprint.ts) hashes
+# the generated `@maude/ds` module with the studio's own DS engine.
+COPY apps/studio/exporters/door-fingerprint.ts /build/apps/studio/exporters/door-fingerprint.ts
+COPY apps/studio/draw/palette.ts /build/apps/studio/draw/palette.ts
+COPY apps/studio/ds/board/build-model.ts /build/apps/studio/ds/board/build-model.ts
+COPY apps/studio/ds/board/component-states.ts /build/apps/studio/ds/board/component-states.ts
+COPY apps/studio/ds/board/directions-model.ts /build/apps/studio/ds/board/directions-model.ts
+COPY apps/studio/ds/board/types.ts /build/apps/studio/ds/board/types.ts
+COPY apps/studio/ds/contrast.ts /build/apps/studio/ds/contrast.ts
+COPY apps/studio/ds/emit.ts /build/apps/studio/ds/emit.ts
+COPY apps/studio/ds/engine.ts /build/apps/studio/ds/engine.ts
+COPY apps/studio/ds/generate.ts /build/apps/studio/ds/generate.ts
+COPY apps/studio/ds/head.ts /build/apps/studio/ds/head.ts
+COPY apps/studio/ds/registry.ts /build/apps/studio/ds/registry.ts
+COPY apps/studio/ds/revision.ts /build/apps/studio/ds/revision.ts
+COPY apps/studio/ds/value-types.ts /build/apps/studio/ds/value-types.ts
 # The source validator the studio projector gates disk writes with, and the
 # byte ceilings it reads. The workspace agent refuses to write or commit a body
 # it rejects (audit 2026-09-13 P0 #2) — with the SAME parser, not a hub-side
