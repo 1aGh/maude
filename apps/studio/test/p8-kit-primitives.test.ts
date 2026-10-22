@@ -55,7 +55,10 @@ describe('one switch', () => {
     ] as const) {
       expect(() => rule(css(file), cls)).toThrow();
     }
-    const r = rule(KIT, ':where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch)');
+    const r = rule(
+      KIT,
+      ':where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch)'
+    );
     expect(r).toMatch(/background:\s*var\(--control-off\)/);
     expect(r).toMatch(/width:\s*34px/);
     expect(r).toMatch(/height:\s*20px/);
@@ -82,6 +85,25 @@ describe('a pressed segment carries the accent ring', () => {
   }
 });
 
+describe('sheets and dialogs are the kit dialog material (bg-2, radius-xl, the island edge)', () => {
+  for (const [file, sel] of [
+    ['v2/export/export.css', '.ex-sheet.island'],
+    ['v2/settings/settings.css', '.v2s-sheet'],
+    ['styles/3-shell-maude.css', '.cp-dialog'],
+    ['v2/import/brand.css', '.bi-sheet'],
+  ] as const) {
+    test(`${file} ${sel}`, () => {
+      const r = rule(css(file), sel);
+      expect(r).toMatch(/background:\s*var\(--bg-2\)/);
+      expect(r).toMatch(/border-radius:\s*var\(--radius-xl/);
+      expect(r).toMatch(/inset 0 0 0 0\.5px var\(--island-edge\)/);
+    });
+  }
+  test('the quit dialog has the kit padding (the shared .gi-dialog has none)', () => {
+    expect(rule(css('v2/ai/quit.css'), '.ai-quit-dialog')).toMatch(/padding:\s*var\(--space-5\)/);
+  });
+});
+
 describe('chips and status words', () => {
   test('a pressed filter chip is the soft chip, not a solid accent fill', () => {
     const r = rule(css('v2/left-panel/left-panel.css'), '.lp-chip[aria-pressed="true"]');
@@ -90,7 +112,9 @@ describe('chips and status words', () => {
   });
   test('a status word is a dot + the word in fg-1 (never a coloured word alone)', () => {
     const d = css('v2/diagnostics/diagnostics.css');
-    expect(d).toMatch(/\.dg-word:is\(\[data-tone\], \[data-state\]\)::before\s*\{[^}]*width:\s*7px/);
+    expect(d).toMatch(
+      /\.dg-word:is\(\[data-tone\], \[data-state\]\)::before\s*\{[^}]*width:\s*7px/
+    );
     expect(d).not.toMatch(/\.dg-word\[data-tone="ok"\]\s*\{[^}]*color:/);
   });
 });

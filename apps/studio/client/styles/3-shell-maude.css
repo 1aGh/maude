@@ -7779,13 +7779,17 @@
     inset: 0;
     background: color-mix(in oklab, var(--bg-0) 72%, transparent);
   }
+  /* the kit dialog material (Phase 8 C1-kit, _kit.css .k-dialog): bg-2, radius-xl, the 0.5 px island edge,
+     shadow-lg. It was bg-1 + a 1 px border, radius-lg. */
   .gi-dialog,
   .cp-dialog {
     position: relative;
-    background: var(--bg-1);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    background: var(--bg-2);
+    border: 0;
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
     display: flex;
     flex-direction: column;
     overflow: hidden;
