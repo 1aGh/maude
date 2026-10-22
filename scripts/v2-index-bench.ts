@@ -23,6 +23,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (k: string) => argv.includes(k);
@@ -149,7 +150,7 @@ const server = Bun.spawn(
   ],
   {
     cwd: path.join(import.meta.dir, '..', 'apps', 'studio'),
-    env: { ...process.env, NO_OPEN: '1', MAUDE_NO_AUTOBUILD: '1' },
+    env: { ...process.env, NO_OPEN: '1', MAUDE_NO_AUTOBUILD: '1', ...stubClaudeEnv(scratch) },
     stdout: 'ignore',
     stderr: 'ignore',
   }

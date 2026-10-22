@@ -35,6 +35,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { stubClaudeEnv } from '../lib/stub-claude.mjs';
 import { ACP_SCRIPTS, acpOpenFrames, acpReplies } from './acp-stub.mjs';
 import { OPENERS, PALETTE, resolveOpener, tid, WS_PUSH } from './openers.mjs';
 import {
@@ -466,6 +467,8 @@ async function bootServer() {
       XDG_CONFIG_HOME: join(home, '.config'),
       // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
       MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
+      // never the machine's real `claude` (keychain dialog in a throwaway HOME): scripts/lib/stub-claude.mjs
+      ...stubClaudeEnv(home),
       NO_OPEN: '1',
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',
