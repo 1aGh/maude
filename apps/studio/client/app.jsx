@@ -1124,6 +1124,8 @@ function ShellState({ children }) {
     theme,
     setPaletteOpen,
     setExportDialog,
+    setSettingsOpen,
+    setShortcutsOpen,
     setTimelineOpen,
     setActiveComps,
     setTimelineFrame,
