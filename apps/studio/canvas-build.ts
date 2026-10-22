@@ -22,7 +22,7 @@
 // serves the resulting JS at /<designRel>/ui/<slug>.tsx with Content-Type
 // `application/javascript`.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
@@ -30,6 +30,7 @@ import { transpileCanvasSource } from './canvas-pipeline.ts';
 import { CanvasBuildError, errorAt, fromBuildLogs, scrubPaths } from './canvas-source/errors.ts';
 import { dsResolver, usesDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
+import { hasMacroImport, macroImportRefusal } from './macro-guard.ts';
 import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
 import { RUNTIME_PACKAGES } from './runtime-bundle.ts';
@@ -323,6 +324,14 @@ export async function buildCanvasModule(
   source: string,
   options: BuildCanvasOptions = {}
 ): Promise<CanvasBundleResult> {
+  // gate-b-c4n — a Bun macro import runs at build time, in THIS process (or the sandbox worker):
+  // pass 1's Bun.Transpiler and Bun.build below both evaluate it. Refuse it before either sees the
+  // text; `macroGuard` (first plugin) does the same for every file the bundle loads.
+  const macroCtx = {
+    designRoot: options.restrictImportsTo ?? options.designRoot ?? path.dirname(canvasAbsPath),
+    canvasAbs: canvasAbsPath,
+  };
+  if (hasMacroImport(source)) throw macroRefused(macroCtx, canvasAbsPath);
   // Pass 1: inject data-cd-id, capture the locator.
   const pass1 = transpileCanvasSource(canvasAbsPath, source);
   // S7.5 (V2-1.10 §5.3) — the comp vocabulary's derived data (`__words` on <Captions>, `__speech`
@@ -331,6 +340,8 @@ export async function buildCanvasModule(
   const withMedia = injectCompMedia(canvasAbsPath, source, pass1.withIds, {
     designRoot: options.restrictImportsTo ?? options.designRoot,
   }).code;
+  // What Bun.build will parse as the entry (pass 1 + the injected comp data), held to the same rule.
+  if (hasMacroImport(withMedia)) throw macroRefused(macroCtx, canvasAbsPath);
 
   // Sanity-check the dev-server-bundled canvas-lib once per process — if the
   // install is corrupt, fail loud before Bun.build collapses plugin throws.
@@ -354,6 +365,7 @@ export async function buildCanvasModule(
   // needed; RUNTIME_PACKAGES already lists every specifier the importmap covers.
   const externalSpecifiers = new Set<string>(RUNTIME_PACKAGES);
   const denials: Array<{ specifier: string; reason: string }> = [];
+  const macroRefusals: string[] = [];
   const allowlist = options.restrictImportsTo
     ? importAllowlist(options.restrictImportsTo, denials, canvasAbsPath)
     : null;
@@ -399,7 +411,10 @@ export async function buildCanvasModule(
       'process.env.NODE_ENV': '"production"',
     },
     plugins: [
-      // FIRST: an overridden stylesheet's onLoad must win over the disk read below.
+      // gate-b-c4n — FIRST, so it reads every file the bundle loads before any other loader
+      // answers for it (it never answers itself).
+      macroGuard(macroRefusals, macroCtx.designRoot),
+      // An overridden stylesheet's onLoad must win over the disk read below.
       ...(overrides ? [overrides.load] : []),
       ...(options.assetUrlBase && options.designRoot
         ? [cssUrlAssets(options.designRoot, options.assetUrlBase)]
@@ -452,6 +467,10 @@ export async function buildCanvasModule(
     ],
   });
 
+  if (macroRefusals.length > 0) {
+    const reason = macroRefusals[0] as string;
+    throw new CanvasBuildError(reason, [errorAt(macroCtx, reason)]);
+  }
   if (!built.success) {
     const errorCtx = {
       designRoot: options.restrictImportsTo ?? options.designRoot ?? path.dirname(canvasAbsPath),
@@ -764,6 +783,47 @@ function importAllowlist(
     },
   };
   return { plugin, vetInputs };
+}
+
+/** gate-b-c4n — the refusal for a macro import in `file`, naming it only inside the design. */
+function macroRefused(ctx: { designRoot: string; canvasAbs: string }, file: string) {
+  const reason = macroImportRefusal(macroDisplayName(file, ctx.designRoot));
+  return new CanvasBuildError(reason, [errorAt(ctx, reason)]);
+}
+
+function macroDisplayName(file: string, designRoot: string): string {
+  const rel = path.relative(path.resolve(designRoot), path.resolve(file));
+  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : path.basename(file);
+}
+
+/**
+ * gate-b-c4n — every file Bun is about to READ, whatever its extension: an import attribute
+ * (`with { type: 'tsx' }`) makes Bun parse a `.txt` as TSX while `args.loader` still says "text",
+ * so the extension proves nothing. A refusal is recorded (Bun collapses a plugin throw into
+ * "Bundle failed") and thrown, which stops Bun before it parses — and so before any macro runs.
+ * Returning nothing lets the next loader read the file as before.
+ */
+function macroGuard(refusals: string[], designRoot: string): import('bun').BunPlugin {
+  return {
+    name: 'maude-macro-guard',
+    setup(builder) {
+      builder.onLoad({ filter: /.*/ }, (args: { path: string; namespace?: string }) => {
+        if (args.namespace && args.namespace !== 'file') return undefined;
+        let text: string;
+        try {
+          text = readFileSync(args.path, 'utf8');
+        } catch {
+          return undefined; // a virtual module (its contents are ours) or a file Bun cannot read either
+        }
+        if (hasMacroImport(text)) {
+          const reason = macroImportRefusal(macroDisplayName(args.path, designRoot));
+          refusals.push(reason);
+          throw new Error(reason);
+        }
+        return undefined;
+      });
+    },
+  };
 }
 
 function filterForExactPath(absPath: string): RegExp {

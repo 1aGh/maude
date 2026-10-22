@@ -22,10 +22,13 @@
 // oxc-parser. The pipeline itself is unaware of the workaround — it's a
 // build-layer concern. See DDR-042-oxc-parser-bun-compile-workaround.md.
 
+import path from 'node:path';
+
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
 import type { LocatorEntry, LocatorMap } from './locator.ts';
+import { hasMacroImport, macroImportRefusal } from './macro-guard.ts';
 
 export interface TranspileResult {
   /** TSX -> JS output from Bun.Transpiler. Browser-loadable contract is Task 6's job. */
@@ -62,6 +65,14 @@ function getTranspiler(): InstanceType<typeof Bun.Transpiler> {
  * @param source         Raw TSX source. Caller is responsible for reading it via Bun.file().
  */
 export function transpileCanvasSource(canvasAbsPath: string, source: string): TranspileResult {
+  // gate-b-c4n — `transformSync` below RUNS a Bun macro import (file reads, child processes) in
+  // this process. Refused before any parse; a TranspileError, so callers report it like pass 1's.
+  if (hasMacroImport(source)) {
+    throw new TranspileError(macroImportRefusal(path.basename(canvasAbsPath)), {
+      canvas: canvasAbsPath,
+      byte: 0,
+    });
+  }
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     const first = parsed.errors[0];
