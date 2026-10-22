@@ -20,6 +20,7 @@ import {
   filterSystemData,
   projectVisibility,
 } from './access/filters.ts';
+import { currentFrameKey } from './access/frame.ts';
 import { currentAccess } from './access/request.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
@@ -1157,6 +1158,18 @@ export const ASSET_SESSION_BUDGET = (() => {
   // restart). Still an aggregate per-server-instance disk-fill bound, now also
   // charged up front by chunk-session reservations; env-overridable.
   return Number.isFinite(env) && env > 0 ? env : 4 * 1024 * 1024 * 1024;
+})();
+
+/**
+ * gate-b-c4k — what ONE canvas frame (subject + canvas set, access/frame.ts `currentFrameKey`) may
+ * write to `assets/` per server instance, inside `ASSET_SESSION_BUDGET` (still the global
+ * backstop). Canvas code in a frame is untrusted (DDR-054) and c4i lets an editable frame upload:
+ * without this one frame's loop spent the whole budget and the owner's own drops answered 429
+ * until a restart. Two full chunked clips by default; `MAUDE_ASSET_FRAME_BUDGET` (bytes).
+ */
+export const ASSET_FRAME_BUDGET = (() => {
+  const env = Number(process.env.MAUDE_ASSET_FRAME_BUDGET);
+  return Number.isFinite(env) && env > 0 ? env : 1024 * 1024 * 1024;
 })();
 
 /**
@@ -3015,6 +3028,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   //     user input, but a poisoned designRoot must still not escape).
   // Running total of bytes this server instance has actually written (post-dedupe).
   let assetBytesWritten = 0;
+  // gate-b-c4k — per frame (`currentFrameKey`): bytes written + held by its open chunk sessions.
+  const frameAssetBytes = new Map<string, number>();
+  const frameOver = (key: string | null, bytes: number) =>
+    key !== null && (frameAssetBytes.get(key) ?? 0) + bytes > ASSET_FRAME_BUDGET;
+  const frameCharge = (key: string | null, bytes: number) => {
+    if (key === null) return;
+    const next = Math.max(0, (frameAssetBytes.get(key) ?? 0) + bytes);
+    if (next === 0) frameAssetBytes.delete(key);
+    else frameAssetBytes.set(key, next);
+  };
   // S3/R2 asset lane (Cloud Phase 3 Task 2). Unconfigured by default — a local
   // project and a single-box self-hoster both work with no bucket at all.
   const assetMirror = createAssetMirror(s3ConfigFromEnv());
@@ -3062,6 +3085,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     mediaCap: number;
     /** 'reserved' — a chunk session already charged the budget at chunk-start. */
     budget: 'check' | 'reserved';
+    /** gate-b-c4k — the frame the write is charged to (null: the main origin / no frame). */
+    frameKey: string | null;
     allowImages: boolean;
   }
 
@@ -3177,7 +3202,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // what those sessions were promised.
       if (
         opts.budget === 'check' &&
-        assetBytesWritten + assetBytesReserved + total > ASSET_SESSION_BUDGET
+        (assetBytesWritten + assetBytesReserved + total > ASSET_SESSION_BUDGET ||
+          frameOver(opts.frameKey, total))
       ) {
         await rm(tmpAbs, { force: true });
         return {
@@ -3188,6 +3214,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       await rename(tmpAbs, fileAbs);
       assetBytesWritten += total;
+      // a chunk session's reservation is released when it drops (finish included), like the global
+      frameCharge(opts.frameKey, total);
       const rel = `assets/${name}`;
       announceWritten(rel);
       // S3/R2 lane (Cloud Phase 3) — mirror the bytes so a second machine can
@@ -3229,6 +3257,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return consumeAssetStream(stream, {
       mediaCap: ASSET_MAX_VIDEO_BYTES,
       budget: 'check',
+      frameKey: currentFrameKey(),
       allowImages: true,
     });
   }
@@ -3242,6 +3271,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // never the versioned + synced `assets/`. See DDR-248.
   interface ChunkSession {
     id: string;
+    /** gate-b-c4k — the frame that started it (its reservation is charged there too), or null. */
+    frameKey: string | null;
     dir: string;
     totalSize: number;
     chunkCount: number;
@@ -3263,6 +3294,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (chunkSessions.get(s.id) === s) {
       chunkSessions.delete(s.id);
       assetBytesReserved = Math.max(0, assetBytesReserved - s.totalSize);
+      frameCharge(s.frameKey, -s.totalSize);
     }
     try {
       await rm(s.dir, { recursive: true, force: true });
@@ -3340,7 +3372,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (chunkSessions.size >= ASSET_CHUNK_MAX_SESSIONS) {
       return { ok: false, status: 429, error: 'too many uploads in progress — try again shortly' };
     }
-    if (assetBytesWritten + assetBytesReserved + totalSize > ASSET_SESSION_BUDGET) {
+    const frameKey = currentFrameKey();
+    if (
+      assetBytesWritten + assetBytesReserved + totalSize > ASSET_SESSION_BUDGET ||
+      frameOver(frameKey, totalSize)
+    ) {
       return {
         ok: false,
         status: 429,
@@ -3355,6 +3391,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const now = Date.now();
     const session: ChunkSession = {
       id,
+      frameKey,
       dir,
       totalSize,
       chunkCount: Math.ceil(totalSize / ASSET_CHUNK_BYTES),
@@ -3366,6 +3403,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     };
     chunkSessions.set(id, session);
     assetBytesReserved += totalSize;
+    frameCharge(frameKey, totalSize);
     try {
       await mkdir(dir, { recursive: true });
     } catch (err) {
@@ -3493,6 +3531,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return await consumeAssetStream(reassembledStream(s), {
         mediaCap: ASSET_MAX_CHUNKED_BYTES,
         budget: 'reserved',
+        frameKey: s.frameKey,
         allowImages: false,
       });
     } finally {

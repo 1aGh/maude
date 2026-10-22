@@ -223,6 +223,16 @@ export function narrowToFrame(base: Access, canvases: readonly string[] | null):
 export interface FrameScope {
   /** The verified canvases, or null = frame-less (no valid capability). */
   canvases: string[] | null;
+  /** gate-b-c4k — the subject the capability was minted for (`''` on a desktop; a cell's vouched
+   *  member, `frameSubjectOf`). With `canvases` it keys the frame's own upload budget (api.ts). */
+  subject?: string;
+}
+
+/** gate-b-c4k — the per-frame key (subject + sorted canvas set) of THIS request, or null. */
+export function currentFrameKey(): string | null {
+  const f = frameAls.getStore();
+  if (!f?.canvases?.length) return null;
+  return `${f.subject ?? ''}\u0000${[...f.canvases].sort().join('\n')}`;
 }
 
 const frameAls = new AsyncLocalStorage<FrameScope>();

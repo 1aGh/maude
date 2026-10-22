@@ -7589,7 +7589,10 @@ export function createHttp(
   }
   function frameScopeOf(req: Request): FrameScope {
     const key = frameKeyOf(req);
-    return { canvases: key ? verifyFrameCap(key, frameTokenOf(req)) : null };
+    // gate-b-c4k — the subject the key was minted for (the same rule as frameKeyOf): a desktop's is
+    // '' whatever the request's headers say, so canvas code cannot rotate it for a fresh budget.
+    const subject = isWorkspaceMode() ? (frameSubjectOf(req.headers) ?? '') : '';
+    return { canvases: key ? verifyFrameCap(key, frameTokenOf(req)) : null, subject };
   }
   /** A capability for `canvases`, minted for the subject of `req` (headless callers, redirects). */
   function frameCapFor(req: Request | undefined, canvases: readonly string[]): string | null {
