@@ -1566,51 +1566,8 @@
     color: var(--fg-2);
     line-height: 1.45;
   }
-  /* Switch — styled checkbox; compositor-only transition (transform/background). */
-  .st-switch {
-    appearance: none;
-    flex: none;
-    position: relative;
-    width: 34px;
-    height: 20px;
-    border-radius: 999px;
-    background: var(--bg-4);
-    border: 1px solid var(--border-default);
-    cursor: pointer;
-    transition: background var(--dur-soft) var(--ease-out);
-    margin-top: 2px;
-  }
-  .st-switch::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--fg-2);
-    transition:
-      transform var(--dur-soft) var(--ease-out),
-      background var(--dur-soft) var(--ease-out);
-  }
-  .st-switch:checked {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-  .st-switch:checked::after {
-    transform: translateX(14px);
-    background: var(--accent-fg);
-  }
-  .st-switch:disabled {
-    cursor: default;
-  }
-  .st-switch:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+  /* .st-switch: the DS switch — 3-kit-maude-v2.css "Switch" (Phase 8 C1-kit: one switch, not four). */
   @media (prefers-reduced-motion: reduce) {
-    .st-switch,
-    .st-switch::after,
     .st-settings-tab {
       transition-duration: 1ms;
     }
@@ -3026,47 +2983,7 @@
   .st-cp-toggle-lbl {
     color: var(--fg-1);
   }
-  /* handoff — Toggle is a real switch (not a checkbox), matching the DS .switch. */
-  .st-cp-switch {
-    appearance: none;
-    -webkit-appearance: none;
-    position: relative;
-    flex: none;
-    width: 34px;
-    height: 18px;
-    border-radius: var(--radius-pill);
-    background: var(--bg-4);
-    border: 1px solid var(--border-default);
-    cursor: pointer;
-    transition:
-      background var(--dur-flip) var(--ease-out),
-      border-color var(--dur-flip) var(--ease-out);
-  }
-  .st-cp-switch::after {
-    content: "";
-    position: absolute;
-    top: 1px;
-    left: 1px;
-    width: 14px;
-    height: 14px;
-    border-radius: var(--radius-pill);
-    background: var(--fg-1);
-    transition:
-      transform var(--dur-flip) var(--ease-out),
-      background var(--dur-flip) var(--ease-out);
-  }
-  .st-cp-switch:checked {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-  .st-cp-switch:checked::after {
-    transform: translateX(16px);
-    background: var(--accent-fg);
-  }
-  .st-cp-switch:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+  /* .st-cp-switch (Toggle): the DS switch — 3-kit-maude-v2.css "Switch" (Phase 8 C1-kit: one switch, not four). */
   /* inline help text under a Field control; wrapping a wide row keeps 3 controls fitting */
   .st-cp-help {
     flex-basis: 100%;
@@ -3587,40 +3504,49 @@
     flex: 0 1 auto;
   }
 
-  /* segmented control (text-align) with drawn align glyphs — 26px tall targets */
+  /* segmented control (Height, Orientation, text-align …) — the kit `.seg` (Phase 8 C1-kit): a bg-3 track
+     with a 2 px inset, no divider rules, the pressed segment raised (bg-2 + shadow-sm + the 1 px accent
+     ring). The accent-tint wash it used was 1.20:1 L / 1.31:1 D against its neighbours (08 a11y R1). */
   .st-cp-seg {
     display: inline-flex;
+    gap: 2px;
+    padding: 2px;
     background: var(--bg-3);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-xs);
-    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-md);
   }
   .st-cp-segbtn {
     appearance: none;
     cursor: pointer;
     border: 0;
+    border-radius: calc(var(--radius-md) - 2px);
     background: transparent;
-    min-width: 26px;
-    min-height: 26px;
-    padding: 0 7px;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0 var(--space-2);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-right: 1px solid var(--border-subtle);
     /* gate-a-polish: a <button> takes the UA face (~15px) without this */
     font: inherit;
-    font-size: var(--type-sm, 12px);
+    font-size: var(--type-xs, 11px);
     color: var(--fg-1);
     white-space: nowrap;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out);
   }
-  .st-cp-segbtn:last-child {
-    border-right: 0;
-  }
-  .st-cp-segbtn.is-active {
-    background: var(--accent-tint);
+  .st-cp-segbtn.is-active,
+  .st-cp-segbtn[aria-pressed="true"],
+  .st-cp-segbtn[aria-checked="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
   }
   .st-cp-segbtn:hover:not(.is-active) {
-    background: var(--bg-4);
+    color: var(--fg-0);
   }
   .st-cp-bars {
     display: flex;
@@ -4085,9 +4011,8 @@
   .st-cp-modeseg .st-cp-seg {
     flex: none;
     display: inline-flex;
-    height: 26px;
-    background: var(--bg-2);
-    border-radius: var(--radius-sm);
+    height: 28px;
+    box-sizing: border-box;
   }
   .st-cp-modeseg .st-cp-segbtn {
     flex: none;
@@ -4102,11 +4027,10 @@
     padding: 0 var(--space-3);
   }
   .st-cp-modeseg .st-cp-segbtn.is-active {
-    background: var(--bg-4);
+    background: var(--bg-2);
     color: var(--fg-0);
   }
   .st-cp-modeseg .st-cp-segbtn:hover:not(.is-active) {
-    background: var(--bg-3);
     color: var(--fg-0);
   }
   /* .st-cp-modebtn — still used by the artboard height-sizing control (not CssKnobs). */
@@ -4940,19 +4864,7 @@
     border-bottom-color: var(--accent-muted);
   }
 
-  /* select chevron — `appearance:none` dropped the UA arrow and left the control
- * affordance-less. Data-URIs can't read tokens, so the stroke is the resolved
- * --fg-1 per theme (dark ≈ #c0c4cf, light ≈ #4f5563). */
-  .st-select {
-    padding-right: 30px;
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23c0c4cf' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3.5 6 8 10.5 12.5 6'/%3E%3C/svg%3E");
-  }
-  .maude[data-theme="light"] .st-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234f5563' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3.5 6 8 10.5 12.5 6'/%3E%3C/svg%3E");
-  }
+  /* select chevron: one kit caret for every native <select> lives in 3-kit-maude-v2.css (Phase 8 C1-kit). */
 
   /* unified thin scrollbars — one material everywhere (tree, panels, palette,
  * system view, modals). Hairline thumb, transparent track. */
@@ -7867,13 +7779,17 @@
     inset: 0;
     background: color-mix(in oklab, var(--bg-0) 72%, transparent);
   }
+  /* the kit dialog material (Phase 8 C1-kit, _kit.css .k-dialog): bg-2, radius-xl, the 0.5 px island edge,
+     shadow-lg. It was bg-1 + a 1 px border, radius-lg. */
   .gi-dialog,
   .cp-dialog {
     position: relative;
-    background: var(--bg-1);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    background: var(--bg-2);
+    border: 0;
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
     display: flex;
     flex-direction: column;
     overflow: hidden;

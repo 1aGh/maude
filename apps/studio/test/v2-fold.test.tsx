@@ -294,8 +294,8 @@ describe('the fold component', () => {
         x
       </AdvancedFold>
     );
-    expect(q('my-fold')?.className).toBe('r');
-    expect(q('my-btn')?.className).toBe('b');
+    expect(q('my-fold')?.className).toBe('k-adv r');
+    expect(q('my-btn')?.className).toBe('k-adv-btn b');
     expect(q('my-btn')?.textContent).toBe('Hub, commands');
     await click(q('my-btn'));
     expect(document.querySelector('.bd')?.textContent).toBe('x');
@@ -380,9 +380,9 @@ describe('the folds that existed keep their hooks', () => {
     await mount(<Panel />);
     const fold = q('canvases-advanced-fold');
     const btn = q('canvases-advanced');
-    expect(fold?.className).toBe('lp-adv');
+    expect(fold?.className).toBe('k-adv lp-adv');
     expect(fold?.getAttribute('data-fold')).toBe('left.canvases');
-    expect(btn?.className).toBe('lp-adv-btn');
+    expect(btn?.className).toBe('k-adv-btn lp-adv-btn');
     expect(btn?.getAttribute('aria-expanded')).toBe('false');
     expect(q('canvases-hidden-files')).toBeNull();
     await click(btn);
@@ -398,7 +398,7 @@ describe('the folds that existed keep their hooks', () => {
   test('"?" sheet: shortcuts-advanced / -toggle, open on a fresh Mac, and it remembers a fold', async () => {
     const { ShortcutsOverlay } = await import('../client/dialogs/shortcuts-overlay.jsx');
     await mount(<ShortcutsOverlay open onClose={() => {}} />);
-    expect(q('shortcuts-advanced')?.className).toBe('so-adv');
+    expect(q('shortcuts-advanced')?.className).toBe('k-adv so-adv');
     expect(q('shortcuts-advanced-toggle')?.getAttribute('aria-expanded')).toBe('true');
     expect(q('shortcuts-moved')).not.toBeNull();
     await click(q('shortcuts-advanced-toggle'));

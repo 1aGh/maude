@@ -220,46 +220,176 @@
     padding-top: var(--space-1);
     box-shadow: inset 0 0.5px 0 var(--border-default);
   }
-  :where(.maude) .k-adv-btn {
-    appearance: none;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-    height: 30px;
-    padding: 0 var(--space-1);
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    font: inherit;
-    font-size: var(--type-sm);
-    font-weight: var(--w-semibold);
-    color: var(--fg-1);
-    text-align: left;
-    cursor: pointer;
-  }
-  :where(.maude) .k-adv-btn:hover {
-    background: var(--bg-3);
-    color: var(--fg-0);
-  }
-  :where(.maude) .k-adv-btn:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
-  }
-  :where(.maude) .k-adv-count {
-    margin-left: auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--type-xs);
-    font-weight: var(--w-regular);
-    color: var(--fg-2);
-  }
+  /* the row itself (.k-adv-btn, .k-adv-ch, .k-adv-count, "kept open") is in @layer components below: every
+     <AdvancedFold> carries these classes beside its panel's own, and the row must read the same everywhere. */
   :where(.maude) .k-adv-body {
     display: grid;
     gap: 2px;
     padding: var(--space-1) var(--space-1) 2px;
+  }
+
+  /* ─── Switch (_components.css .switch) — Phase 8 C1-kit: ONE switch ───
+     The shell had four (Canvases `.lp-switch` 30×18 with an fg-0 knob — black in light; Settings
+     `.st-switch` with a 14 px fg-2 off knob; the Inspector Toggle `.st-cp-switch` 34×18; Export's
+     `.ex-switch` edged --border-strong at 2.1:1). The DS switch: 34×20 pill, off track --control-off
+     (3.3:1, the 1.4.11 floor), a 16 px bg-2 knob with shadow-sm, on = accent. Markup stays per surface:
+     a button[role=switch][aria-checked], a checkbox (:checked), or Export's span knob ([data-on]). */
+  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch) {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex: none;
+    box-sizing: border-box;
+    width: 34px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--control-off);
+    box-shadow: none;
+    cursor: pointer;
+    transition: background var(--dur-flip) var(--ease-out);
+  }
+  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch)::after,
+  :where(.maude) .ex-switch-k {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-2);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--dur-flip) var(--ease-out);
+  }
+  :where(.maude)
+    :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch):is(
+      [aria-checked="true"],
+      :checked,
+      [data-on]
+    ) {
+    background: var(--accent);
+  }
+  :where(.maude)
+    :is(.switch, .lp-switch, .st-switch, .st-cp-switch):is([aria-checked="true"], :checked)::after,
+  :where(.maude) .ex-switch[data-on] .ex-switch-k {
+    transform: translateX(14px);
+  }
+  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch):disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch, .ex-switch),
+    :where(.maude) :is(.switch, .lp-switch, .st-switch, .st-cp-switch)::after,
+    :where(.maude) .ex-switch-k {
+      transition-duration: 1ms;
+    }
+  }
+
+  /* ─── Checkbox / radio (_components.css .checkbox / .radio) — Phase 8 C1-kit ───
+     A plain native checkbox drew the OS box (a 1 px grey edge under the 3:1 floor). Zero specificity:
+     any surface that styles or hides its own input keeps it; only an unstyled one picks the kit up. */
+  :where(
+    .maude
+      input[type="checkbox"]:not(
+        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+      ),
+    .maude input[type="radio"]
+  ) {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    box-sizing: border-box;
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    display: inline-grid;
+    place-items: center;
+    vertical-align: middle;
+    cursor: pointer;
+    border: 0;
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--control-off);
+    border-radius: var(--radius-xs);
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      box-shadow var(--dur-flip) var(--ease-out);
+  }
+  :where(.maude input[type="radio"]) {
+    border-radius: var(--radius-pill);
+  }
+  :where(
+    .maude
+      input[type="checkbox"]:not(
+        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+      )
+  )::after {
+    content: "";
+    width: 8px;
+    height: 4px;
+    margin-top: -2px;
+    border-left: 2px solid var(--accent-fg);
+    border-bottom: 2px solid var(--accent-fg);
+    transform: rotate(-45deg) scale(0.4);
+    opacity: 0;
+  }
+  :where(.maude input[type="radio"])::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-fg);
+    opacity: 0;
+  }
+  :where(
+    .maude
+      input[type="checkbox"]:not(
+        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+      ):is(:checked, :indeterminate),
+    .maude input[type="radio"]:checked
+  ) {
+    background: var(--accent);
+    box-shadow: none;
+  }
+  :where(
+    .maude
+      input[type="checkbox"]:not(
+        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+      ):checked
+  )::after {
+    transform: rotate(-45deg) scale(1);
+    opacity: 1;
+  }
+  :where(.maude input[type="radio"]:checked)::after {
+    opacity: 1;
+  }
+  :where(
+    .maude
+      input[type="checkbox"]:not(
+        :is(.switch, .lp-switch, .st-switch, .st-cp-switch, [role="switch"])
+      ):indeterminate
+  )::after {
+    width: 8px;
+    height: 0;
+    margin-top: 0;
+    border-left: 0;
+    transform: none;
+    opacity: 1;
+  }
+  :where(.maude input[type="checkbox"], .maude input[type="radio"]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  :where(.maude input[type="checkbox"], .maude input[type="radio"]):disabled {
+    cursor: default;
+    opacity: 0.5;
   }
 
   /* ─── Small parts ─── */
@@ -281,5 +411,258 @@
   :where(.maude) .k-canvas--dots {
     background-image: radial-gradient(var(--x-canvas-dot) 1px, transparent 1.2px);
     background-size: var(--x-canvas-grid) var(--x-canvas-grid);
+  }
+}
+
+/* ─── Advanced fold row (_kit.css .k-adv-btn; 06 Advanced `Fold`) — Phase 8 C1-kit ───
+ * Six panels drew their own row (Canvases/Layers `.lp-adv-btn`, Details `.lp-dt-adv-btn`, "?" `.so-adv-btn`,
+ * Diagnostics `.dg-fold-btn`, AI `.ai-adv-btn`, the default `.v2-fold-btn`): 28 px, type-xs regular, fg-2.
+ * The kit row is 30 px, type-sm SEMIBOLD fg-1, the "›" fg-2 turning on open, the hint xs fg-2 (closed only),
+ * and the "kept open" pin. In @layer components at (0,2,0) so it wins over every panel's shell-layer row. */
+@layer components {
+  .maude .k-adv-btn {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+    text-align: left;
+    cursor: pointer;
+  }
+  .maude .k-adv-btn:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .maude .k-adv-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+  .maude .k-adv-ch {
+    display: inline-grid;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .maude .k-adv[data-open] > .k-adv-btn .k-adv-ch {
+    transform: rotate(90deg);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .maude .k-adv-ch {
+      transition: transform var(--dur-flip) var(--ease-out);
+    }
+  }
+  .maude .k-adv-count {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  /* 06 Advanced.css .ad-kept: open by a remembered choice */
+  .maude .ad-kept {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: var(--space-2);
+    padding: 1px var(--space-2) 1px var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+  }
+}
+
+/* ─── Button (_components.css .btn) — in @layer components where the v1 `.maude .btn` lived, so every surface
+ * that composed with it keeps its rank ─── */
+@layer components {
+  /* ─── Buttons ───────────────────────────────────────────────────────────── */
+  /* Phase 8 C1-kit: the maude-v2 kit button (.design/system/maude-v2/preview/_components.css .btn), not the v1
+     outlined one — borderless, a filled bg-3 rest, radius-md, semibold, 32 px. A disabled primary is a muted
+     bg-3 fill with fg-3 words (it read as an enabled outlined secondary before). `min-height`, not `height`:
+     this rule is in @layer components, so a fixed height would beat every shell-layer surface that sizes a
+     .btn of its own. */
+  .maude .btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 32px;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    line-height: 1;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    cursor: pointer;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out),
+      transform var(--dur-flip) var(--ease-out);
+  }
+  .maude .btn:hover {
+    background: var(--bg-4);
+  }
+  .maude .btn:active {
+    transform: scale(0.97);
+  }
+  .maude .btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .maude .btn svg {
+    flex: none;
+  }
+
+  .maude .btn--primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .maude .btn--primary:hover {
+    background: var(--accent-hover);
+  }
+  .maude .btn--primary:active {
+    background: var(--accent-active);
+  }
+  /* An AI action is still an action: azure fill, the spark only as its glyph (_components.css .btn--spark). */
+  .maude .btn--spark {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .maude .btn--spark:hover {
+    background: var(--accent-hover);
+  }
+
+  .maude .btn--ghost {
+    background: transparent;
+    color: var(--fg-1);
+  }
+  .maude .btn--ghost:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+
+  /* destructive: the kit shape, the words in the error colour; a dialog's "Move to trash" stays quiet too */
+  .maude .btn--danger {
+    background: var(--bg-3);
+    color: var(--status-error-text);
+  }
+  .maude .btn--danger:hover {
+    background: color-mix(in oklab, var(--status-error) 14%, var(--bg-3));
+  }
+
+  .maude .btn:disabled,
+  .maude .btn[aria-disabled="true"],
+  .maude .btn--primary:disabled,
+  .maude .btn--spark:disabled,
+  .maude .btn--danger:disabled {
+    background: var(--bg-3);
+    color: var(--fg-3);
+    cursor: not-allowed;
+    transform: none;
+  }
+  .maude .btn--ghost:disabled {
+    background: transparent;
+  }
+
+  .maude .btn--icon {
+    padding: 0;
+    width: 28px;
+    min-height: 28px;
+    height: 28px;
+    justify-content: center;
+  }
+  .maude .btn--sm {
+    min-height: 26px;
+    font-size: var(--type-xs);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+  .maude .btn--lg {
+    min-height: 40px;
+    padding: 0 var(--space-4);
+    font-size: var(--type-base);
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* ─── Select — the kit's `select k-in-select` for EVERY native <select> (Phase 8 C1-kit) ─────────────────
+ * Boards draw a select as a bg-3 field, radius-md, type-sm, 28 px, a 0.5 px inset edge and the 12 px kit
+ * `chevron` in fg-2 (_kit.css .k-in-select). The shell had nine local looks (1 px border, radius-xs, 11 px,
+ * the OS arrow). A data-URI can't read a token, so the caret is a custom property holding the resolved fg-2
+ * per theme (light oklch(.505 .010 250) ≈ #646a70, dark oklch(.72 .008 250) ≈ #a6abb0).
+ * The look is in @layer utilities: a surface that sets `background:` (shorthand) or a v1 border would
+ * otherwise win and drop the caret again. */
+@layer shell {
+  :root,
+  :root[data-theme="light"],
+  .maude[data-theme="light"] {
+    --k-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23646a70' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.5l3 3 3-3'/%3E%3C/svg%3E");
+  }
+  :root[data-theme="dark"],
+  .maude[data-theme="dark"] {
+    --k-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a6abb0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.5l3 3 3-3'/%3E%3C/svg%3E");
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --k-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a6abb0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.5l3 3 3-3'/%3E%3C/svg%3E");
+    }
+  }
+}
+@layer utilities {
+  :is(.maude, .maude-v2) select:not([multiple]):not([size]) {
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+    min-height: 28px;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: var(--space-2);
+    padding-right: calc(var(--space-2) + 12px + var(--space-1));
+    border: 0;
+    border-radius: var(--radius-md);
+    background-color: var(--bg-3);
+    background-image: var(--k-caret);
+    background-repeat: no-repeat;
+    background-position: right var(--space-2) center;
+    background-size: 12px 12px;
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  :is(.maude, .maude-v2) select:not([multiple]):not([size]):hover {
+    background-color: var(--bg-4);
+  }
+  :is(.maude, .maude-v2) select:not([multiple]):not([size]):focus-visible {
+    outline: none;
+    background-color: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--focus-ring);
+  }
+  :is(.maude, .maude-v2) select:not([multiple]):not([size]):disabled {
+    color: var(--fg-3);
+    cursor: default;
+    background-color: var(--bg-3);
   }
 }

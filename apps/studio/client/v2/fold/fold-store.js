@@ -92,6 +92,10 @@ export function createFoldStore({ persist = () => {} } = {}) {
     get(id) {
       return shown(id);
     },
+    /** Open because this Mac remembers the choice (06 Advanced's "kept open" pin) — not merely by default. */
+    isRemembered(id) {
+      return explicit.get(id) === true;
+    },
     subscribe(fn) {
       subs.add(fn);
       return () => subs.delete(fn);

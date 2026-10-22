@@ -763,7 +763,7 @@ export function AssetsPanel({
                       <span>{g.title}</span>
                       <span className="lp-count">
                         {g.items.length}
-                        <StIcon name="chevron" size={11} />
+                        <StIcon name="submenu" size={11} />
                       </span>
                     </button>
                   )}

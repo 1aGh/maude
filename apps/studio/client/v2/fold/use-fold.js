@@ -25,3 +25,12 @@ export function useFold(panel) {
   );
   return [open, setOpen];
 }
+
+/** Is this panel's fold open by a remembered choice ("kept open")? */
+export function useFoldRemembered(panel) {
+  return useSyncExternalStore(
+    foldStore.subscribe,
+    () => foldStore.isRemembered(panel),
+    () => foldStore.isRemembered(panel)
+  );
+}

@@ -78,7 +78,7 @@ export function BrowseView({
           data-testid="assets-browse-back"
           onClick={onBack}
         >
-          <StIcon name="chevron" size={12} />
+          <StIcon name="submenu" size={12} />
           Assets
         </button>
         <strong className="lp-browse-t">

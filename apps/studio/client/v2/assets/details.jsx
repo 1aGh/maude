@@ -125,7 +125,7 @@ export function AssetDetails({
           data-testid="assets-details-close"
           onClick={onBack}
         >
-          <StIcon name="chevron" size={12} />
+          <StIcon name="submenu" size={12} />
           Assets
         </button>
       </div>
@@ -241,7 +241,7 @@ export function AssetDetails({
                 <span>{r.name}</span>
                 {r.board ? <span className="lp-dt-use-b">{r.board}</span> : null}
               </span>
-              <StIcon name="chevron" size={11} />
+              <StIcon name="submenu" size={11} />
             </button>
           ))}
         </div>

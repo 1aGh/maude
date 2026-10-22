@@ -20,7 +20,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    padding: var(--space-4);
+    padding: var(--space-5); /* the kit dialog padding (Phase 8 C1-kit) */
     border-radius: var(--radius-xl);
     background: var(--bg-2);
     box-shadow:
@@ -80,26 +80,42 @@
   }
 
   /* Scope segment: This canvas · Whole project */
+  /* the kit `.seg` (Phase 8 C1-kit): bg-3 track, type-xs segments, pressed = bg-2 + shadow-sm + the 1 px
+     accent ring — the bespoke bg-1 track / bg-3 press was 1.25:1 D / 1.13:1 L (10 a11y R1) */
   .v2sh-seg {
     display: flex;
+    gap: 2px;
     padding: 2px;
     border-radius: var(--radius-md);
-    background: var(--bg-1);
+    background: var(--bg-3);
   }
   .v2sh-seg-b {
     flex: 1;
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1) var(--space-3);
     border: 0;
-    border-radius: var(--radius-sm);
+    border-radius: calc(var(--radius-md) - 2px);
     background: transparent;
     color: var(--fg-1);
     font: inherit;
+    font-size: var(--type-xs);
     cursor: pointer;
+    transition:
+      background var(--dur-flip) var(--ease-out),
+      color var(--dur-flip) var(--ease-out);
+  }
+  .v2sh-seg-b:hover {
+    color: var(--fg-0);
   }
   .v2sh-seg-b[aria-pressed="true"] {
-    background: var(--bg-3);
+    background: var(--bg-2);
     color: var(--fg-0);
-    font-weight: var(--w-medium);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .v2sh-seg-b:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
   }
 
   /* Invite row */

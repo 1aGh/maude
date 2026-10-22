@@ -34,6 +34,32 @@ export function Icon({ d, size = 14, color }) {
 export const STICONS = {
   'chevron-down': <polyline points="3.5 6 8 10.5 12.5 6" />,
   'chevron-right': <polyline points="6 3.5 10.5 8 6 12.5" />,
+  // Phase 8 C1-kit: the maude-v2 kit glyphs the boards draw (.design/ui/v2/_kit.tsx `Icon`), path for path.
+  // `chevron` is the small select/menu caret (a select, a chip, the "‹ Assets" back rotated); `submenu` is
+  // the row "›" (a fold, a group count, a Used-in row). StIcon draws an empty svg for an unknown name.
+  chevron: <path d="M5 6.5l3 3 3-3" />,
+  submenu: <path d="M6 4.5l3.5 3.5L6 11.5" />,
+  more: (
+    <g fill="currentColor" stroke="none">
+      <circle cx="3.5" cy="8" r="1.1" />
+      <circle cx="8" cy="8" r="1.1" />
+      <circle cx="12.5" cy="8" r="1.1" />
+    </g>
+  ),
+  history: <path d="M2.75 8A5.25 5.25 0 1 0 4.3 4.3M4.3 1.8v2.5h2.5M8 5.25V8l2 1.5" />,
+  pin: <path d="M6 2.5h4l-.5 4 2.5 2.5H4l2.5-2.5zM8 9v4.5" />,
+  duplicate: (
+    <>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />
+      <path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" />
+    </>
+  ),
+  home: (
+    <path d="M2.5 7.25L8 2.75l5.5 4.5v5.25a1 1 0 0 1-1 1h-2.75V10h-3.5v3.5H3.5a1 1 0 0 1-1-1z" />
+  ),
+  trash: (
+    <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1" />
+  ),
   file: (
     <>
       <path d="M4 2h5l3 3v9H4z" />
