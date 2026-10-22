@@ -57,7 +57,7 @@ const FILES: Record<string, string> = {
   'ui-b.annotations.json': '{}',
   // biome-ignore lint/suspicious/noTemplateCurlyInString: a canvas source that computes its asset path
   'ui/D.tsx': 'export default ({ n }) => <img src={`assets/${n}.png`} />;',
-  'shared/Card.tsx': `import './card.css';\nimport { Icon } from './Icon.tsx';\nimport x from '../../outside';\nexport const Card = () => <img src="../assets/5ade0001.svg" />;`,
+  'shared/Card.tsx': `import './card.css';\nimport { Icon } from './Icon.tsx';\nexport const Card = () => <img src="../assets/5ade0001.svg" />;`,
   'shared/card.css': '.card {}',
   'shared/Icon.tsx': 'export const Icon = () => null;',
   'shared/Unused.tsx': 'export const Unused = 1;',
@@ -109,6 +109,21 @@ describe('closure on the hand fixture', () => {
     }
     expect(a.read.has('shared/Unused.tsx')).toBe(false);
     for (const rel of a.read) expect(rel.startsWith('..')).toBe(false);
+  });
+
+  // gate-b-c4l — an import that leaves the design root resolves to nothing the walk may follow: the
+  // grant is blocked and reads only what it owns (the build refuses it too — restrictImportsTo).
+  test('an import outside the design root blocks the grant: nothing outside, nothing walked', () => {
+    const out = closureFor(
+      grant('ui/A.tsx'),
+      reader({
+        ...FILES,
+        'shared/Card.tsx': `import x from '../../outside';\n${FILES['shared/Card.tsx']}`,
+      })
+    );
+    expect(out.blocked.has('ui/A.tsx')).toBe(true);
+    for (const rel of out.read) expect(rel.startsWith('..')).toBe(false);
+    expect(out.read.has('shared/Card.tsx')).toBe(false);
   });
 
   test("read ⊇ the canvas's design system, minus specimens and ui kits", () => {

@@ -140,9 +140,10 @@ describe('2 — the closure', () => {
   };
   const grantA = { v: 1 as const, role: null, grants: [{ c: 'ui/a.tsx', r: 'member' as const }] };
 
-  test('a member of A only: helper yes, imported canvas B no, mentioned canvas C no', () => {
+  test('a member of A only: imported canvas B no, mentioned canvas C no, helper no (c4l)', () => {
     const c = closureFor(resolveAccess(grantA), project(FILES));
-    expect(c.read.has('components/h.tsx')).toBe(true);
+    // gate-b-c4l — A's walk refused B: A reads only what it owns, the helper included
+    expect(c.read.has('components/h.tsx')).toBe(false);
     expect(c.read.has('ui/b.tsx')).toBe(false);
     expect(c.read.has('ui/c.tsx')).toBe(false);
   });

@@ -62,8 +62,9 @@ describe('a frame never inlines a canvas outside its own grant', () => {
       const c = closureFor(narrowToFrame(opener, ['ui/a.tsx']), project(FILES));
       expect(c.read.has('ui/b.tsx')).toBe(false);
       expect(c.read.has('ui/b.css')).toBe(false);
-      // the component on the way still comes along — only the canvas behind it is refused
-      expect(c.read.has('ui/components/Wrap.tsx')).toBe(true);
+      // gate-b-c4l — A's walk refused B, so A reads only what it owns: not the component on the way
+      expect(c.read.has('ui/components/Wrap.tsx')).toBe(false);
+      expect(c.blocked.has('ui/a.tsx')).toBe(true);
     });
   }
 
@@ -158,7 +159,8 @@ describe("the closure judges with the studio's effective config (LOW)", () => {
   test('passed in: a configured group is a canvas group, the configured component dir is components', () => {
     const c = closureFor(member('screens/a.tsx'), project(NO_CONFIG), undefined, cfg);
     expect(c.read.has('screens/s.tsx')).toBe(false);
-    expect(c.read.has('ui/kit/Chip.tsx')).toBe(true);
+    // gate-b-c4l — a's walk refused s: a reads only what it owns, the component included
+    expect(c.read.has('ui/kit/Chip.tsx')).toBe(false);
   });
 
   test('projectVisibility passes ctx.cfg (a custom designRoot has no <designRoot>/config.json)', () => {
@@ -180,7 +182,8 @@ describe("the closure judges with the studio's effective config (LOW)", () => {
       } as unknown as Parameters<typeof projectVisibility>[0];
       const c = projectVisibility(ctx).closureOf(member('screens/a.tsx'));
       expect(c?.read.has('screens/s.tsx')).toBe(false);
-      expect(c?.read.has('ui/kit/Chip.tsx')).toBe(true);
+      // gate-b-c4l — a's walk refused s: a reads only what it owns, the component included
+      expect(c?.read.has('ui/kit/Chip.tsx')).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -196,6 +199,7 @@ describe("the closure judges with the studio's effective config (LOW)", () => {
     };
     const c = closureFor(member('screens/a.tsx'), project(withConfig));
     expect(c.read.has('screens/s.tsx')).toBe(false);
-    expect(c.read.has('ui/kit/Chip.tsx')).toBe(true);
+    // gate-b-c4l — a's walk refused s: a reads only what it owns, the component included
+    expect(c.read.has('ui/kit/Chip.tsx')).toBe(false);
   });
 });

@@ -38,13 +38,14 @@ describe('the hub file plane: a canvas by content is never in an importer’s cl
   });
   after(() => rmSync(designRoot, { recursive: true, force: true }));
 
-  test('a member of A sees A and Button, none of the meta-less DesignCanvas files', () => {
+  test('a member of A sees A, none of the meta-less DesignCanvas files (nor Button: c4l)', () => {
     const files = fileAccessForClaim(
       { v: 1, role: null, grants: [{ c: A, r: 'member' }] },
       { designRoot }
     );
     assert.equal(files.sees(A), true);
-    assert.equal(files.sees('ui/components/Button.tsx'), true);
+    // gate-b-c4l — A's walk refused the canvases: A reads only what it owns, its component included
+    assert.equal(files.sees('ui/components/Button.tsx'), false);
     for (const rel of ['ui/components/Secret.tsx', 'system/x/Board.tsx', 'elsewhere/Plan.tsx'])
       assert.equal(files.sees(rel), false, rel);
   });
