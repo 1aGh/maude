@@ -146,7 +146,8 @@ describe('the route is wired to the whole-sync restart, and refuses rather than 
   test('S11.11: the route starts the trace and /_sync-status reports it (one trace, one place)', () => {
     expect(SYNC_ROUTES).toContain('deps.trace.begin()');
     // the SAME trace instance feeds the route (allSpecs `sync:`) and the status the toast / card / verb poll
-    expect(HTTP).toMatch(/sync: \{ control: \(\) => ctx\.syncControl, trace: resyncTrace \}/);
+    // (gate-b-sec4 added `link:` beside them — the pin is the shared trace, not the deps' exact list)
+    expect(HTTP).toMatch(/sync: \{ control: \(\) => ctx\.syncControl, trace: resyncTrace[,} ]/);
     expect(HTTP).toMatch(
       /const resync = resyncTrace\.view\(\);[\s\S]{0,160}\{ \.\.\.status, resync \}/
     );
