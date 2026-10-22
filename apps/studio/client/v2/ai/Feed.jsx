@@ -9,6 +9,7 @@ import ToolGroup, { groupToolCalls } from '../../panels/ToolGroup.jsx';
 import {
   DEFAULT_TRANSCRIPT_VIEW,
   filterTranscriptParts,
+  showsToolSteps,
   transcriptForcesExpand,
 } from '../../panels/transcript-view.js';
 import { stripOffer } from './ai-offer.js';
@@ -336,16 +337,18 @@ export function AssistantMessage() {
   const { transcriptView } = useContext(ChatMediaContext) || {};
   const view = transcriptView || DEFAULT_TRANSCRIPT_VIEW;
   const parts = useMemo(() => filterTranscriptParts(rawParts, view), [rawParts, view]);
-  const grouped = useMemo(() => groupToolCalls(parts), [parts]);
+  const grouped = useMemo(
+    () =>
+      groupToolCalls(showsToolSteps(view) ? parts : parts.filter((p) => p?.type !== 'tool-call')),
+    [parts, view]
+  );
   const forceExpand = transcriptForcesExpand(view);
+  // A turn that has only called tools so far says nothing yet: no empty bubble, no empty gap.
+  const bare = grouped.length === 0;
   return (
-    <div className="chat-msg chat-msg--assistant">
-      <div className="chat-msg-role">
-        <span className="chat-msg-spark">
-          <Spark size={13} />
-        </span>
-        AI
-      </div>
+    <div
+      className={`chat-msg chat-msg--assistant${bare ? ' chat-msg--bare' : ''}${status === 'running' ? ' chat-msg--live' : ''}`}
+    >
       {grouped.map((g, i) =>
         g.type === 'tool-group' ? (
           <ToolGroup
@@ -467,12 +470,6 @@ export function ContinuationBubble({ parts: rawParts, viewMode }) {
   const forceExpand = transcriptForcesExpand(view);
   return (
     <div className="chat-msg chat-msg--assistant chat-msg--continued">
-      <div className="chat-msg-role">
-        <span className="chat-msg-spark">
-          <Spark size={13} />
-        </span>
-        Claude
-      </div>
       {grouped.map((g, i) =>
         g.type === 'tool-group' ? (
           <ToolGroup

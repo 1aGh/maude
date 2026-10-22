@@ -17,16 +17,17 @@ export const QUICK_ACTIONS = [
 
 export function ChatEmpty() {
   return (
-    <div className="chat-empty">
-      <div className="chat-empty-title" data-testid="ai-hint">
-        Ask for a change, a few variants, or an answer.
-      </div>
-      <div className="chat-empty-sub">AI works on what the chip says.</div>
+    <>
+      {/* P8-C6 (03 `.ai-hint`): one quiet paragraph, left-aligned, type-sm fg-2 — it sits right above the
+          suggestion strip, not centred in the panel like the v1 empty state. */}
+      <p className="ai-hint" data-testid="ai-hint">
+        Ask for a change, a few variants, or an answer. AI works on what the chip says.
+      </p>
       {/* S5.17 G4 — 03 `ai-open` draws only this hint and the one suggestion strip above the field
           (SuggestStrip). The v1 "Create new design system" CTA, the four /design:* verb buttons and the
           three slash suggestions are gone from the EMPTY state only: every /design:* verb (setup-ds
           included) is still one `/` away in the composer's slash menu, and QuickActions stays exported. */}
-    </div>
+    </>
   );
 }
 
@@ -99,20 +100,21 @@ export function SuggestStrip({
   return (
     <div className="ai-suggest" data-testid="ai-suggest" data-context={sug.context}>
       <div className="ai-suggest-chips">
-        {sug.chips.map((c) => (
+        {sug.chips.map((c, i) => (
           <ThreadPrimitive.Suggestion
             key={c.id}
             prompt={c.prompt}
             send={false}
-            className="ai-chip"
+            className={`chip ai-chip${i === 0 ? ' ai-sugg-lead' : ''}`}
             data-testid={c.testid || 'ai-suggest-chip'}
           >
+            {/* 03 `Suggest`: the LEAD chip carries the context's glyph (the one the strip follows) */}
+            {i === 0 ? <StIcon name={STRIP_ICON[sug.context] || 'sparkle'} size={12} /> : null}
             {c.label}
           </ThreadPrimitive.Suggestion>
         ))}
       </div>
       <p className="ai-suggest-why" data-testid="ai-suggest-why">
-        <StIcon name={STRIP_ICON[sug.context] || 'sparkle'} size={11} />
         {sug.why}
       </p>
     </div>

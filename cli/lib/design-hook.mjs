@@ -1083,7 +1083,7 @@ async function postEdit(ctx, input, self) {
       studio,
       '/_api/agent/edit/touched',
       { ...runKey(ctx), toolUseId, path: t.rel, via: 'tool' },
-      { timeoutMs: 300 }
+      { timeoutMs: 900 }
     );
     if (r?.status === 200 && Array.isArray(r.body?.artboards)) artboards = r.body.artboards;
   }
@@ -1273,7 +1273,7 @@ async function postBash(ctx, input) {
         studio,
         '/_api/agent/edit/touched',
         { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at },
-        { timeoutMs: 300 }
+        { timeoutMs: 900 }
       );
   }
   rmSync(markP, { force: true });

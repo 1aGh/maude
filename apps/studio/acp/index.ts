@@ -4,8 +4,8 @@
 // NEVER exposed on the canvas origin (DDR-054/DDR-123) — the untrusted iframe
 // must not reach the agent bridge.
 
-import { readFileSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type {
   AvailableCommand,
   CreateElicitationRequest,
@@ -279,11 +279,34 @@ export function createAgentActivityTracker(
     ctx.syncControl?.current?.()?.claimAiWrite?.(turnRun ?? actionKey, key, hash);
   }
 
+  /** `abs` relative to the design root, by the path as given first, then by REAL paths (null: outside). */
+  function relUnderDesignRoot(abs: string): string | null {
+    const inside = (r: string) => !!r && !r.startsWith('..') && !isAbsolute(r);
+    const direct = relative(ctx.paths.designRoot, abs);
+    if (inside(direct)) return direct;
+    // The agent reports real paths (`process.cwd()` resolves links), while the project may sit behind one —
+    // macOS /tmp and /var, a linked ~/git: without this the edit never opens the run's stage and lands as
+    // "changed outside the app" instead of an AI action.
+    try {
+      const root = realpathSync(ctx.paths.designRoot);
+      let real: string;
+      try {
+        real = realpathSync(abs);
+      } catch {
+        real = join(realpathSync(dirname(abs)), basename(abs)); // the file is new: its folder is real
+      }
+      const via = relative(root, real);
+      return inside(via) ? via : null;
+    } catch {
+      return null;
+    }
+  }
+
   function keyFor(p: unknown): string | null {
     if (typeof p !== 'string' || !p) return null;
     const abs = isAbsolute(p) ? p : resolve(ctx.paths.repoRoot, p);
-    const rel = relative(ctx.paths.designRoot, abs);
-    if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
+    const rel = relUnderDesignRoot(abs);
+    if (!rel) return null;
     const posix = rel.split(sep).join('/');
     if (!isCanvasFile(posix)) return null;
     return `${ctx.paths.designRel}/${posix}`;

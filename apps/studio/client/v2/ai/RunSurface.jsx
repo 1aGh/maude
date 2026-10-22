@@ -23,6 +23,7 @@ import {
   followUps,
   interruptedText,
   isWorking,
+  showsWorkingLine,
   lastAssistantDigest,
   resultVerbs,
   runCutShort,
@@ -85,8 +86,7 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   const digest = useMemo(() => JSON.parse(digestKey), [digestKey]);
 
   const live = running || tools.length > 0 || isWorking(run);
-  const needsYou = run?.state === 'needs-you';
-  const showWorking = live && !needsYou;
+  const showWorking = showsWorkingLine(live, run);
   const ended = !!run && run.state === 'ended';
   const cutShort = runCutShort(run);
   const versions = useRunVersions(run, designRel);

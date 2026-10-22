@@ -28,6 +28,7 @@ import {
 import path from 'node:path';
 
 import { type Busy, type Granted, type LeaseHome, leaseKeyId } from './lease-home.ts';
+import { doingOf } from './run-doing.ts';
 import {
   ASK_ID_RE,
   cleanLabel,
@@ -554,6 +555,9 @@ export function createRunRegistry(opts: RegistryOptions) {
       actor,
       device,
       label: cleanLabel(input.label),
+      ...(doingOf(input.prompt || input.label)
+        ? { doing: doingOf(input.prompt || input.label) }
+        : {}),
       ...(input.prompt ? { prompt: input.prompt } : {}),
       ...(attached.length ? { attached } : {}),
       scope: keyedScope(input.scope),

@@ -27,6 +27,7 @@ import {
   makeAcpAdapter,
 } from './acp-runtime.js';
 import { ChatHeader } from './chat-header.jsx';
+import { StIcon } from '../shell/icons.jsx';
 import { menuCtx } from '../v2/shell/project-menu-model.js';
 import { ChatAdvanced, SuggestOnlyBanner } from '../v2/ai/Advanced.jsx';
 import { AiChatIsland } from '../v2/ai/AiChatIsland.jsx';
@@ -891,13 +892,12 @@ export default function ChatPanel({
             onClick={() => setMenuOpen((v) => !v)}
             aria-expanded={menuOpen}
           >
-            <span
-              className={`chat-dot ${busyChats[activeChatId] ? 'chat-dot--busy' : 'chat-dot--idle'}`}
-            />
             <span className="chat-switch-title">
               {chatOptions.find((c) => c.id === activeChatId)?.title || 'New chat'}
             </span>
-            <span className="chat-switch-caret">▾</span>
+            <span className="chat-switch-chev" aria-hidden="true">
+              <StIcon name="chevron-down" size={12} />
+            </span>
           </button>
         </div>
         {/* S5.11 — "✦ N": YOUR live runs (the run registry), never anyone else's; its list jumps to the artboard. */}

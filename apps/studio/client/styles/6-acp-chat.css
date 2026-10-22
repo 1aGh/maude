@@ -307,13 +307,14 @@
   }
 
   /* Feed (scrolls live) */
+  /* P8-C6 (03 `.k-ai-msgs`): the island carries the padding; the feed is a column of bubbles, gap space-2. */
   .chat-feed {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-3);
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 
   /* Empty state */
@@ -424,40 +425,46 @@
       transform: none;
     }
   }
-  .chat-msg-role {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--fg-2);
-  }
-  .chat-msg-spark {
-    color: var(--presence-agent);
-    display: inline-flex;
+  /* P8-C6 (03 `.k-ai-msg`, CONTRACT §5 "AI chat replies: --type-base (14), never 12"): AI's words and yours are
+     bubbles, 8/12 padding, radius-md, 14 px. Yours sits right at 86 % on bg-4; AI's fills the width on bg-3. No role
+     label above a reply: the spark in the header says whose panel it is. */
+  .chat-msg--user {
+    align-self: flex-end;
+    align-items: flex-end;
+    max-width: 86%;
   }
   .chat-msg--user .chat-bubble {
-    align-self: flex-start;
     max-width: 100%;
-    font-size: var(--type-sm);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
     color: var(--fg-0);
-    background: var(--bg-3);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    background: var(--bg-4);
+    border: 0;
+    border-radius: var(--radius-md);
     padding: var(--space-2) var(--space-3);
     white-space: pre-wrap;
   }
   .chat-bubble code {
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--accent);
+    color: var(--accent-text);
   }
   .chat-msg--assistant .chat-bubble {
-    font-size: var(--type-sm);
-    color: var(--fg-1);
+    font-size: var(--type-base);
+    color: var(--fg-0);
     line-height: var(--lh-base);
+    background: var(--bg-3);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+  }
+  /* P8-C6 (03 `ai-working`): progress is ONE line. While the working line is up, the reply that is still streaming
+     waits (its words land whole when the turn ends) — a half-sentence above the line made one run read as four items. */
+  .chat-feed:has(.ai-working) .chat-msg--live {
+    display: none;
+  }
+  /* a turn that has only called tools says nothing yet — no empty row (and no empty gap) */
+  .chat-msg--bare:not(:has(.ai-nc, .ai-unchanged)) {
+    display: none;
   }
 
   /* Continuation bubble — background work (subagent results / consolidation)
@@ -1186,9 +1193,9 @@
   /* Composer */
   .chat-composer {
     flex: none;
-    padding: var(--space-2) var(--space-3) var(--space-3);
-    border-top: 1px solid var(--border-subtle);
-    margin-top: var(--space-2);
+    padding: 0;
+    border-top: 0;
+    margin-top: 0;
   }
   .chat-ctx {
     display: inline-flex;
@@ -1234,31 +1241,74 @@
     color: var(--fg-0);
   }
 
-  /* Composer box — textarea on top, a bottom toolbar (model · effort · send),
-     Zed-style. One border + focus ring around the whole box. */
+  /* Composer box (P8-C6, 03 `.ask.ai-ask`): ONE row — 📎 · ◆ scope chip · text · send — in a radius-lg bg-2 well with a
+     0.5 px inset edge; what you attach sits on top; a long prompt wraps ABOVE the row (`--multi`, set by the
+     composer from the textarea's own height). No divider between the feed and the field. Layout is `order`, so the DOM
+     stays the v1 one (chips, clip, chip, text, send). */
   .chat-box {
+    --chat-in-pad: 6px var(--space-1);
+    position: relative;
     display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
-    background: var(--bg-3);
-    overflow: hidden;
-    transition:
-      border-color var(--dur-soft) var(--ease-out),
-      box-shadow var(--dur-soft) var(--ease-out);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 36px;
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    transition: box-shadow var(--dur-soft) var(--ease-out);
+  }
+  .chat-box--multi {
+    --chat-in-pad: var(--space-1) var(--space-2) 0;
   }
   .chat-box:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-tint);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--focus-ring);
+  }
+  .chat-box > .ai-ask-chips-wrap {
+    order: 0;
+    flex: 1 0 100%;
+  }
+  .chat-box > .ai-clip-wrap {
+    order: 1;
+    margin-right: calc(-1 * var(--space-1));
+  }
+  .chat-box > .ai-scope {
+    order: 2;
+  }
+  .chat-box > .chat-input-wrap {
+    order: 3;
+    flex: 1 1 0;
+    min-width: 40px;
+  }
+  .chat-box > .chat-send {
+    order: 4;
+  }
+  .chat-box--multi > .chat-input-wrap {
+    order: 1;
+    flex: 1 0 100%;
+  }
+  .chat-box--multi > .ai-clip-wrap {
+    order: 2;
+  }
+  .chat-box--multi > .ai-scope {
+    order: 3;
+  }
+  .chat-box--multi > .chat-send {
+    margin-left: auto;
   }
   .chat-input {
     appearance: none;
     border: none;
     background: transparent;
     resize: none;
+    display: block;
     width: 100%;
-    min-height: 54px;
-    padding: var(--space-2) var(--space-3);
+    min-height: 0;
+    padding: var(--chat-in-pad);
     font-family: var(--font-body);
     font-size: var(--type-sm);
     color: var(--fg-0);
@@ -1336,7 +1386,7 @@
     height: 28px;
     padding: 0;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: var(--accent);
     color: var(--accent-fg);
     display: inline-flex;
@@ -1350,7 +1400,8 @@
     background: var(--accent-hover);
   }
   .chat-send:disabled {
-    opacity: 0.45;
+    background: var(--bg-3);
+    color: var(--fg-3);
     cursor: default;
   }
   /* Attachment reveal strip — shows what each paste chip expands to BEFORE send,
@@ -1492,10 +1543,10 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--chat-in-pad);
     font-family: var(--font-body);
     font-size: var(--type-sm);
-    line-height: var(--lh-base);
+    line-height: var(--lh-sm);
     letter-spacing: 0;
     color: var(--fg-0);
     white-space: pre-wrap;
@@ -1507,7 +1558,7 @@
   .chat-input--overlay {
     position: relative;
     z-index: 1;
-    line-height: var(--lh-base);
+    line-height: var(--lh-sm);
     letter-spacing: 0;
     color: transparent;
     caret-color: var(--fg-0);
@@ -1809,34 +1860,59 @@
     }
   }
 
-  /* V2-4.4b — the 03 header (kit `.k-ai-hd--chat`): spark · title ⌄ · "✦ N" · New chat · Hide, one row. */
+  /* V2-4.4b / P8-C6 — the 03 header (kit `.k-ai-hd` + `.k-ai-title` + `.k-ai-count`): spark (vermilion, the AI's
+     colour) · the chat's title in the rounded face with a chevron (it opens the list; no status dot, no text caret) ·
+     "✦ N" · New chat · Pin · Hide, one row. No rule under it: the island is one surface. */
   .chat-bar--v2 {
-    gap: 2px;
-    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+    gap: var(--space-1);
+    padding: 0;
+    margin-bottom: var(--space-2);
+    border-bottom: 0;
   }
   .chat-bar--v2 .chat-hd-spark {
     display: inline-flex;
     flex: none;
-    color: var(--accent);
+    color: var(--spark);
   }
   .chat-bar--v2 .chat-hd-title {
     flex: 1;
     min-width: 0;
+    margin-left: var(--space-1);
+    font-family: var(--font-rounded);
     font-size: var(--type-sm);
-    font-weight: 600;
+    font-weight: var(--w-semibold);
     color: var(--fg-0);
   }
   .chat-bar--v2 .chat-switch-trigger {
-    border-color: transparent;
+    width: auto;
+    max-width: 100%;
+    margin-left: var(--space-1);
+    border: 0;
     background: transparent;
-    padding: 4px var(--space-1);
+    padding: 0;
     color: var(--fg-0);
+    font-family: var(--font-rounded);
     font-size: var(--type-sm);
-    font-weight: 600;
+    font-weight: var(--w-semibold);
   }
   .chat-bar--v2 .chat-switch-trigger:hover {
-    background: var(--bg-3);
-    border-color: transparent;
+    background: transparent;
+  }
+  .chat-bar--v2 .chat-switch-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-bar--v2 .chat-switch-chev {
+    display: inline-flex;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .chat-bar--v2 .chat-switch-trigger:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
   .chat-bar--v2 .chat-hd-count {
     appearance: none;
@@ -1844,20 +1920,25 @@
     align-items: center;
     gap: 3px;
     flex: none;
-    border: 1px solid var(--border-default);
-    background: var(--bg-2);
-    color: var(--accent);
-    border-radius: 999px;
-    padding: 1px var(--space-1);
+    height: 22px;
+    border: 0;
+    background: var(--bg-3);
+    color: var(--spark);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1) 0 var(--space-2);
     font-size: var(--type-xs);
     cursor: pointer;
   }
   .chat-bar--v2 .chat-hd-count b {
-    font-weight: 600;
-    color: var(--fg-1);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-0);
+  }
+  .chat-bar--v2 .chat-hd-count svg:last-child {
+    color: var(--fg-2);
   }
   .chat-bar--v2 .chat-hd-count:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
   }
 }

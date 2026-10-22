@@ -4,7 +4,7 @@
 // publishes a partial version instead of the tracker's "failed" holding it first.
 
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -99,5 +99,32 @@ describe('acp / a registry run is one stage, ended by the registry', () => {
     expect(calls.map((c) => c[0])).toEqual(['begin', 'claim', 'end']);
     expect(calls[0][3]).toEqual({ chatId: 'c2' });
     expect(calls[2]).toEqual(['end', 'acp:c2', 'done']);
+  });
+});
+
+describe('acp / the agent reports REAL paths; the project may sit behind a symlink', () => {
+  // The fidelity lane's fake agent edited through /private/var/… while the studio's root was /var/… (macOS
+  // tmpdir): `keyFor` found the path outside the design root, the stage never began, and the run's edit landed
+  // as "changed outside the app" instead of an AI action. Claude reports `process.cwd()`'s real path, so a
+  // project reached through a linked folder (~/git, /tmp) hits the same thing.
+  test('an edit named by its real path still opens the run stage (and claims its write)', () => {
+    const link = join(ROOT, 'via-link');
+    symlinkSync(ROOT, link);
+    const calls: Call[] = [];
+    const ctx = mkCtx(calls);
+    (ctx.paths as { repoRoot: string; designRoot: string }).repoRoot = link;
+    (ctx.paths as { repoRoot: string; designRoot: string }).designRoot = join(link, '.design');
+    const t = createAgentActivityTracker(ctx, ai, 'c3');
+    t.beginTurn?.('make it greener', 'r_link');
+    editTurn(t, 'export default () => <p>z</p>;\n'); // FILE is the real path (no link)
+    t.endTurn('failed');
+    expect(calls.map((c) => c[0])).toEqual(['begin', 'claim']);
+    expect(calls[0]).toEqual([
+      'begin',
+      'acp:c3',
+      'make it greener',
+      { runId: 'r_link', chatId: 'c3' },
+    ]);
+    expect(calls[1][2]).toBe('.design/ui/k.tsx');
   });
 });
