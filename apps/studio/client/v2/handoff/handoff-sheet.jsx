@@ -71,7 +71,19 @@ export function HandoffSheet({
   const [advOpen, setAdvOpen] = useState(false);
   const primary = useRef(null);
   const abortRef = useRef(null);
-  const root = useModalFocus({ onClose, esc: false, initialRef: primary });
+  // Focus the primary button on open, but only while it can take focus: Hand off is `disabled` until
+  // the targets have arrived and one is picked, and a disabled button keeps the focus where it was
+  // (behind the sheet, so Esc and ↵ never reached it). Then the dialog itself takes it.
+  const initialFocus = useMemo(
+    () => ({
+      get current() {
+        const b = primary.current;
+        return b && !b.disabled ? b : null;
+      },
+    }),
+    []
+  );
+  const root = useModalFocus({ onClose, esc: false, initialRef: initialFocus });
   const runs = useAiRuns();
   const lastUsed = useMemo(() => readLastUsed(), []);
   const q = query(subject);

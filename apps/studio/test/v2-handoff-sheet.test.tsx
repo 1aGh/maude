@@ -201,6 +201,51 @@ describe('S8.10 ⇧⌘H — pick where the code goes', () => {
   });
 });
 
+describe('S8.10 ⇧⌘H — focus goes into the sheet (gate-b-keys, the v1-keys golden)', () => {
+  test('the sheet opens with focus inside it although the targets have not arrived (its Hand off is off until they do)', async () => {
+    // The mount-time focus lands on the primary button, which is `disabled` until a target is
+    // picked: a disabled button takes no focus, so focus stayed behind the sheet and Esc / ↵ went
+    // to the shell instead of the dialog.
+    await mount();
+    const sheet = $('[data-testid="export-sheet"]') as HTMLElement;
+    expect(sheet).not.toBeNull();
+    expect(sheet.contains(document.activeElement)).toBe(true);
+  });
+
+  test('Esc closes the sheet from where focus landed', async () => {
+    let closed = 0;
+    stub();
+    const { ExportSheet } = await import('../client/v2/export/export-sheet.jsx');
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(
+        <ExportSheet
+          mode="handoff"
+          request={{ mode: 'handoff' }}
+          activePath=".design/ui/Pricing.tsx"
+          designRel=".design"
+          exportLane="local"
+          access={{ canEdit: true, role: 'member' }}
+          aiRuns={{ seq: 1, mine: [], others: [], needsYou: 0, live: 0 }}
+          onClose={() => {
+            closed++;
+          }}
+        />
+      );
+    });
+    await settle();
+    await act(async () => {
+      (document.activeElement ?? document.body).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      await tick(5);
+    });
+    expect(closed).toBe(1);
+  });
+});
+
 describe('S8.10 edges — not connected, queued', () => {
   test('not connected: the one connect sheet, and nothing is sent until Connect', async () => {
     await mount({ connected: false });
