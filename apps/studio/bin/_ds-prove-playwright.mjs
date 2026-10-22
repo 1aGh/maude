@@ -14,7 +14,7 @@
 // changed, area, fail, reason?}]}] }.
 
 import { readFileSync } from 'node:fs';
-import { launchChromium } from './_pw-launch.mjs';
+import { launchChromium, newShellContext } from './_pw-launch.mjs';
 
 const argv = process.argv.slice(2);
 const jobAt = argv.indexOf('--job');
@@ -38,8 +38,8 @@ const shellUrl = (origin, c) => {
 };
 
 /** Open a canvas; returns its artboards' ids and the themes each one carries. */
-async function open(page, url) {
-  await page.goto(url, { waitUntil: 'load', timeout: TIMEOUT });
+async function open(page, url, gotoShell) {
+  await gotoShell(page, url, { waitUntil: 'load', timeout: TIMEOUT });
   await page.evaluate(() => document.fonts.ready);
   // Ready = an artboard is there, or the shell said why not, or it mounted a canvas that has no
   // artboard (a specimen): that one is given a moment, then taken as it is — never the whole timeout.
@@ -216,12 +216,12 @@ async function diffInPage(page, a, b, deltaE) {
 }
 
 /** One canvas on one worker's pages → its row. Never throws: a canvas that cannot render is a row with an error. */
-async function proveCanvas(c, { pa, pb, pd }) {
+async function proveCanvas(c, { pa, pb, pd, goto }) {
   const row = { path: c.path, artboards: [] };
   try {
     const [A, B] = await Promise.all([
-      open(pa, shellUrl(job.before, c)),
-      open(pb, shellUrl(job.after, c)),
+      open(pa, shellUrl(job.before, c), goto),
+      open(pb, shellUrl(job.after, c), goto),
     ]);
     if (A.err || B.err) {
       row.error = A.err ? 'before' : 'after';
@@ -273,13 +273,19 @@ try {
   let next = 0;
   let done = 0;
   const worker = async () => {
-    const ctx = await browser.newContext({
+    // gate-b-c4d — each page confined to the origin its shell lands on (popups, other origins refused).
+    const { ctx, goto } = await newShellContext(browser, {
       serviceWorkers: 'block',
       viewport: { width: 1440, height: 900 },
       deviceScaleFactor: 1,
       reducedMotion: 'reduce',
     });
-    const pages = { pa: await ctx.newPage(), pb: await ctx.newPage(), pd: await ctx.newPage() };
+    const pages = {
+      pa: await ctx.newPage(),
+      pb: await ctx.newPage(),
+      pd: await ctx.newPage(),
+      goto,
+    };
     await pages.pd.setContent('<!doctype html><title>ds prove diff</title>');
     for (;;) {
       const i = next++;

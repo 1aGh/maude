@@ -24,7 +24,12 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { assertRenderOutputSizeOk, launchChromium, safeArtboardFilename } from './_pw-launch.mjs';
+import {
+  assertRenderOutputSizeOk,
+  launchChromium,
+  newShellContext,
+  safeArtboardFilename,
+} from './_pw-launch.mjs';
 import { layoutRegion, parseRegionArg } from './_region.mjs';
 
 const args = Object.fromEntries(
@@ -66,13 +71,14 @@ const deviceScaleFactor = Math.max(1, Math.min(8, Number(scale) || 1));
 
 const browser = await launchChromium();
 try {
-  const ctx = await browser.newContext({
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
     serviceWorkers: 'block',
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor,
   });
   const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+  await gotoShell(page, url, { waitUntil: 'load', timeout: timeoutMs });
   // Wait for web fonts so `@font-face` glyphs land in the PDF instead of
   // fallback Latin (puppeteer #3183 / playwright equivalent).
   await page.evaluate(() => document.fonts.ready);

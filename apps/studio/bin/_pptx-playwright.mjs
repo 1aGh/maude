@@ -11,7 +11,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { launchChromium } from './_pw-launch.mjs';
+import { launchChromium, newShellContext } from './_pw-launch.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -36,12 +36,13 @@ mkdirSync(dirname(out), { recursive: true });
 
 const browser = await launchChromium();
 try {
-  const ctx = await browser.newContext({
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
     viewport: { width: 1440, height: 900 },
     serviceWorkers: 'block',
   });
   const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: 'networkidle', timeout: timeoutMs });
+  await gotoShell(page, url, { waitUntil: 'networkidle', timeout: timeoutMs });
   await page.evaluate(() => document.fonts.ready);
   // Reset the world plane's CSS zoom + transform so dom-to-pptx reads the
   // artboard at its declared 1440×900 instead of the pan-zoomed thumbnail.

@@ -7,7 +7,7 @@
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { launchChromium, safeArtboardFilename } from './_pw-launch.mjs';
+import { launchChromium, newShellContext, safeArtboardFilename } from './_pw-launch.mjs';
 import { layoutRegion, parseRegionArg } from './_region.mjs';
 
 const args = Object.fromEntries(
@@ -89,7 +89,8 @@ const browser = await launchChromium(
 try {
   // 1440x900 matches the canvas viewport the design tool uses everywhere;
   // exporters resize per-target before each shot to fit the artboard exactly.
-  const ctx = await browser.newContext({
+  // gate-b-c4d — confined to the origin the shell lands on (popups, other origins refused).
+  const { ctx, goto: gotoShell } = await newShellContext(browser, {
     serviceWorkers: 'block',
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor,
@@ -110,7 +111,7 @@ try {
     diag.push(`requestfailed: ${r.url()} — ${r.failure()?.errorText ?? '?'}`)
   );
   try {
-    await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+    await gotoShell(page, url, { waitUntil: 'load', timeout: timeoutMs });
   } catch (e) {
     if (diag.length) console.error(`[page diagnostics]\n${diag.slice(0, 40).join('\n')}`);
     throw e;
