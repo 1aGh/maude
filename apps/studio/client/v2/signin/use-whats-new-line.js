@@ -87,5 +87,8 @@ export function useWhatsNewLine({ enabled, native }) {
     if (feed) markWhatsNewSeen(bestSeenVersion(feed.entries, feed.version));
   }, [feed]);
 
-  return { show, entry, entries, reading, open, close, dismiss };
+  // the newest few entries, seen or not — Menu › Help › What's new reads them even when nothing is unseen
+  const recent = (feed?.entries ?? []).filter((e) => e && typeof e.title === 'string').slice(0, 5);
+
+  return { show, entry, entries, recent, reading, open, close, dismiss };
 }
