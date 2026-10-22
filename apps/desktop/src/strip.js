@@ -166,6 +166,30 @@
     editInput.select();
   }
 
+  // ── Arrow keys along the tab list (WAI-ARIA tabs: ← → Home End move between the tabs, Enter picks) ─────
+
+  /** Home, then the tabs the row draws, in order. */
+  function rovers() {
+    return [homeEl].concat(Array.from(tabsEl.querySelectorAll('.tab')));
+  }
+
+  /** ← → Home End on a tab or on Home: the keyboard moves to the neighbour (P8 B1 — only the active tab was a
+   *  tab stop, so no other tab could be reached from the keyboard at all). True when it handled the key. */
+  function roveFocus(ev, from) {
+    if (editing || ev.altKey || ev.ctrlKey || ev.metaKey) return false;
+    const els = rovers();
+    const at = els.indexOf(from);
+    let to = -1;
+    if (ev.key === 'ArrowRight') to = Math.min(els.length - 1, at + 1);
+    else if (ev.key === 'ArrowLeft') to = Math.max(0, at - 1);
+    else if (ev.key === 'Home') to = 0;
+    else if (ev.key === 'End') to = els.length - 1;
+    if (to < 0 || at < 0) return false;
+    ev.preventDefault();
+    if (to !== at) els[to].focus();
+    return true;
+  }
+
   // ── One tab ─────────────────────────────────────────────────────────────────
 
   function tabEl(t, active) {
@@ -235,6 +259,7 @@
       openMenu(t.label, ev.clientX, ev.clientY);
     });
     el.addEventListener('keydown', (ev) => {
+      if (roveFocus(ev, el)) return;
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
         activate(t.label);
@@ -332,7 +357,18 @@
     overflowed = row.rest.map((t) => t.label);
     const frag = document.createDocumentFragment();
     for (let i = 0; i < row.shown.length; i++) frag.appendChild(tabEl(row.shown[i], s.active));
+    // The row is rebuilt on every push from Rust (an AI dot turning, a rename): the tab the keyboard is on
+    // keeps it (P8 B1 — focus fell to <body> and the arrow keys with it).
+    const focused = tabsEl.contains(document.activeElement)
+      ? document.activeElement.getAttribute('data-label')
+      : null;
     tabsEl.replaceChildren(frag);
+    if (focused && !editing) {
+      const again = Array.from(tabsEl.querySelectorAll('.tab')).find(
+        (e) => e.getAttribute('data-label') === focused
+      );
+      if (again) again.focus();
+    }
     if (editInput && document.activeElement !== editInput) editInput.focus();
 
     moreEl.hidden = row.rest.length === 0;
@@ -499,6 +535,7 @@
     homePressed = false;
   });
   homeEl.addEventListener('keydown', (ev) => {
+    if (roveFocus(ev, homeEl)) return;
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
       activate('home');

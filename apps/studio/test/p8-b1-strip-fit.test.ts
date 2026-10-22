@@ -93,3 +93,35 @@ describe('P8 B1 — the tab row fits the same tabs on every draw', () => {
     expect((document.getElementById('more') as HTMLElement).hidden).toBe(true);
   });
 });
+
+describe('P8 B1 — the keyboard can walk the tab list', () => {
+  const key = (el: Element, k: string) =>
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+  const tabAt = (i: number) => document.querySelectorAll('#tabs .tab')[i] as HTMLElement;
+
+  test('→ ← Home End move between Home and the tabs (only the active tab was a tab stop)', async () => {
+    await mountRow(3);
+    tabAt(0).focus();
+    key(tabAt(0), 'ArrowRight');
+    expect(document.activeElement).toBe(tabAt(1));
+    key(tabAt(1), 'ArrowRight');
+    key(tabAt(2), 'ArrowRight'); // the last one stays put
+    expect(document.activeElement).toBe(tabAt(2));
+    key(tabAt(2), 'ArrowLeft');
+    expect(document.activeElement).toBe(tabAt(1));
+    key(tabAt(1), 'Home'); // Home is the pinned first slot
+    expect(document.activeElement).toBe(document.getElementById('home'));
+    key(document.getElementById('home') as HTMLElement, 'ArrowRight');
+    expect(document.activeElement).toBe(tabAt(0));
+    key(tabAt(0), 'End');
+    expect(document.activeElement).toBe(tabAt(2));
+  });
+
+  test('a push from Rust rebuilds the row without dropping the keyboard', async () => {
+    const row = await mountRow(3);
+    tabAt(1).focus();
+    const label = tabAt(1).getAttribute('data-label');
+    await row.redraw();
+    expect((document.activeElement as HTMLElement).getAttribute('data-label')).toBe(label);
+  });
+});
