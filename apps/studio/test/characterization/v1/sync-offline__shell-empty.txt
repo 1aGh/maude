@@ -9,12 +9,6 @@ div
           span "3 edits kept on this Mac, waiting to sync."
         button .btn.btn--primary.btn--sm [data-testid="callout-sync-offline-long-action"] [type="button"] "Details"
         button .st-callout-x [data-testid="callout-sync-offline-long-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
-      div .st-callout.st-callout--info [data-testid="callout-tour-usage"] [role="status"]
-        span .st-callout-ic [aria-hidden="true"]
-          svg [aria-hidden="true"]
-        span .st-callout-t "New here? Take a 60-second tour of the canvas browser."
-        button .btn.btn--primary.btn--sm [data-testid="callout-tour-usage-action"] [type="button"] "Start"
-        button .st-callout-x [data-testid="callout-tour-usage-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
     div .st-shell
@@ -157,6 +151,9 @@ div
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
+            div .st-empty
+              div .st-empty-title "No canvas open"
+              div .st-empty-body "Open a canvas from the Canvases panel, or start a new one."
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]

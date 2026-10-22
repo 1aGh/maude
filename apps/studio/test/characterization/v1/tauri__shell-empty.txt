@@ -2,12 +2,6 @@
 div
   div .maude
     div .st-callouts [data-testid="callouts"]
-      div .st-callout.st-callout--info [data-testid="callout-tour-usage"] [role="status"]
-        span .st-callout-ic [aria-hidden="true"]
-          svg [aria-hidden="true"]
-        span .st-callout-t "New here? Take a 60-second tour of the canvas browser."
-        button .btn.btn--primary.btn--sm [data-testid="callout-tour-usage-action"] [type="button"] "Start"
-        button .st-callout-x [data-testid="callout-tour-usage-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
     div .st-shell
@@ -158,6 +152,10 @@ div
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
+            div .st-empty
+              div .st-empty-title "No canvas open"
+              div .st-empty-body "Open a canvas from the Canvases panel, or start a new one."
+              button .btn.btn--primary.st-empty-quick-setup [data-testid="st-empty-start-quick-setup"] [type="button"] "Start quick setup"
         div .is-collapsed.st-dockslot.st-dockslot--right
           div .island.st-dockslot-ai.st-dockslot-inner [data-testid="dock-ai-right"] [hidden]
             aside .ai-island.st-rpanel [data-testid="ai-chat-island"] [aria-label="AI chat panel"] [aria-hidden="true"]
@@ -173,69 +171,13 @@ div
                 div .chat-panel
                   span [hidden]
                   div .chat-thread
-                    div .chat-feed
+                    div .chat-feed [aria-label="Conversation"] [tabindex="0"]
                       div .chat-empty
                         div .chat-empty-title [data-testid="ai-hint"] "Ask for a change, a few variants, or an answer."
                         div .chat-empty-sub "AI works on what the chip says."
                       div .ai-sr-only [data-testid="ai-live"] [role="status"]
                       span .ai-jump-host
                     div .ai-nc-slot [data-testid="ai-needs-slot"]
-                      div .chat-disabled [data-testid="acp-not-connected"]
-                        span .chat-disabled-mark
-                          svg [aria-hidden="true"]
-                        div .chat-disabled-title "AI editing isn't ready yet"
-                        div .chat-disabled-sub
-                          p "Claude Code is installed but not signed in — sign in to connect."
-                          p "AI editing pairs with a Claude Code you have installed. Here's what it still needs:"
-                        div .rdy
-                          ul .rdy-list
-                            li .rdy-row.rdy-row--missing [data-testid="rdy-row-claude"]
-                              span .rdy-ic [aria-hidden="true"]
-                                svg [aria-hidden="true"]
-                              span .rdy-tx
-                                span .rdy-label "Claude Code (the `claude` CLI)"
-                                span .rdy-detail "Installed, but not signed in."
-                                span .rdy-fix
-                                  span .rdy-fix-tx "Sign in to connect it to your Pro/Max subscription."
-                                span .rdy-fix-tx.rdy-resolved-path "Found on your PATH:"
-                                  code "<user-home>/.local/bin/claude"
-                                span .rdy-fix
-                                  button .rdy-signin [data-testid="acp-setup-signin"] [type="button"] "Sign in to Claude"
-                            li .rdy-row.rdy-row--present [data-testid="rdy-row-maude"]
-                              span .rdy-ic [aria-hidden="true"]
-                                svg [aria-hidden="true"]
-                              span .rdy-tx
-                                span .rdy-label "maude CLI"
-                                span .rdy-detail "On PATH — can reach its helpers."
-                                  code "/design:edit"
-                            li .rdy-row.rdy-row--present [data-testid="rdy-row-plugins"]
-                              span .rdy-ic [aria-hidden="true"]
-                                svg [aria-hidden="true"]
-                              span .rdy-tx
-                                span .rdy-label "Maude design plugin in Claude Code"
-                                span .rdy-detail "Bundled with this app — loads automatically in the chat session."
-                            li .rdy-row.rdy-row--present [data-testid="rdy-row-agent-browser"]
-                              span .rdy-ic [aria-hidden="true"]
-                                svg [aria-hidden="true"]
-                              span .rdy-tx
-                                span .rdy-label "Screenshot engine (design critics)"
-                                span .rdy-detail "Bundled — artboard screenshots for critics are ready."
-                                  code "/design:*"
-                            li .rdy-row.rdy-row--present [data-testid="rdy-row-adapter"]
-                              span .rdy-ic [aria-hidden="true"]
-                                svg [aria-hidden="true"]
-                              span .rdy-tx
-                                span .rdy-label "Claude agent bridge"
-                                span .rdy-detail "Bundled — the chat panel can spawn it."
-                          div .rdy-foot
-                            button .btn.btn--ghost.btn--sm.rdy-recheck [type="button"] "Re-check"
-                        div .chat-trust
-                          div .chat-trust-row "Runs on your Pro/Max subscription"
-                            svg [aria-hidden="true"]
-                          div .chat-trust-row "Signs in via Claude Code's own login — Maude never sees your credentials"
-                            svg [aria-hidden="true"]
-                          div .chat-trust-row "Never metered API billing"
-                            svg [aria-hidden="true"]
                     div .chat-composer [data-testid="chat-composer"]
                       div .chat-cmd-anchor
                         form .chat-box

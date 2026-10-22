@@ -16,7 +16,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         h3 .v2s-group-t "Account"
         div .v2s-row
           span .v2s-row-t
-            span .v2s-row-k "Maude Cloud"
+            span .v2s-row-k "cloud.maude.sh"
             span .v2s-hint "Sign in under Connections to sync projects."
           span .v2s-val
             span [data-testid="settings-account-state"] "Not signed in"
@@ -29,41 +29,22 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .v2s-row
           span .v2s-row-t
             span .v2s-row-k "E-mails"
-            span .v2s-hint "Change which e-mails you get — a mention while Maude is closed, for one."
+            span .v2s-hint "Change which e-mails you get — a mention while you’re away, for one."
           span .v2s-val
             button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
       section .v2s-group [aria-label="Look"]
         h3 .v2s-group-t "Look"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Theme"
-          div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
-          div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
-            label .st-engine-radio
-              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Light"
-                span .st-engine-radio-note "Bright shell chrome"
-            label .is-selected.st-engine-radio
-              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Dark"
-                span .st-engine-radio-note "Dim shell chrome"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Inspector vocabulary"
-          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
-          div .st-engine-radios [data-testid="settings-inspector-vocabulary"] [role="radiogroup"] [aria-label="Inspector vocabulary"]
-            label .is-selected.st-engine-radio
-              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Advanced"
-                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
-            label .st-engine-radio
-              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Designer"
-                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+        div .v2s-row
+          span .v2s-row-t
+            span .v2s-row-k "Theme"
+          span .v2s-val
+            div .v2s-seg [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
+              label .v2s-seg-b "Light"
+                input .v2s-seg-in [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              label .v2s-seg-b "Dark"
+                input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              label .v2s-seg-b "Auto"
+                input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
       section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
         h3 .v2s-group-t "Canvas and view"
         label .is-disabled.st-pref-row
@@ -181,7 +162,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         h3 .v2s-group-t "Account"
         div .v2s-row
           span .v2s-row-t
-            span .v2s-row-k "Maude Cloud"
+            span .v2s-row-k "cloud.maude.sh"
             span .v2s-hint "Sign in under Connections to sync projects."
           span .v2s-val
             span [data-testid="settings-account-state"] "Not signed in"
@@ -194,41 +175,22 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .v2s-row
           span .v2s-row-t
             span .v2s-row-k "E-mails"
-            span .v2s-hint "Change which e-mails you get — a mention while Maude is closed, for one."
+            span .v2s-hint "Change which e-mails you get — a mention while you’re away, for one."
           span .v2s-val
             button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
       section .v2s-group [aria-label="Look"]
         h3 .v2s-group-t "Look"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Theme"
-          div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
-          div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
-            label .st-engine-radio
-              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Light"
-                span .st-engine-radio-note "Bright shell chrome"
-            label .is-selected.st-engine-radio
-              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Dark"
-                span .st-engine-radio-note "Dim shell chrome"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Inspector vocabulary"
-          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
-          div .st-engine-radios [data-testid="settings-inspector-vocabulary"] [role="radiogroup"] [aria-label="Inspector vocabulary"]
-            label .is-selected.st-engine-radio
-              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Advanced"
-                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
-            label .st-engine-radio
-              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Designer"
-                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+        div .v2s-row
+          span .v2s-row-t
+            span .v2s-row-k "Theme"
+          span .v2s-val
+            div .v2s-seg [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
+              label .v2s-seg-b "Light"
+                input .v2s-seg-in [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              label .v2s-seg-b "Dark"
+                input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              label .v2s-seg-b "Auto"
+                input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
       section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
         h3 .v2s-group-t "Canvas and view"
         label .is-disabled.st-pref-row
@@ -406,7 +368,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         h3 .v2s-group-t "Account"
         div .v2s-row
           span .v2s-row-t
-            span .v2s-row-k "Maude Cloud"
+            span .v2s-row-k "cloud.maude.sh"
             span .v2s-hint "Sign in under Connections to sync projects."
           span .v2s-val
             span [data-testid="settings-account-state"] "Not signed in"
@@ -419,41 +381,22 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .v2s-row
           span .v2s-row-t
             span .v2s-row-k "E-mails"
-            span .v2s-hint "Change which e-mails you get — a mention while Maude is closed, for one."
+            span .v2s-hint "Change which e-mails you get — a mention while you’re away, for one."
           span .v2s-val
             button .btn.btn--sm [data-testid="settings-open-emails"] [type="button"] "Open e-mail settings"
       section .v2s-group [aria-label="Look"]
         h3 .v2s-group-t "Look"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Theme"
-          div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
-          div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
-            label .st-engine-radio
-              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Light"
-                span .st-engine-radio-note "Bright shell chrome"
-            label .is-selected.st-engine-radio
-              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Dark"
-                span .st-engine-radio-note "Dim shell chrome"
-        div .st-provider-card
-          div .st-provider-hd
-            span .st-provider-name "Inspector vocabulary"
-          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
-          div .st-engine-radios [data-testid="settings-inspector-vocabulary"] [role="radiogroup"] [aria-label="Inspector vocabulary"]
-            label .is-selected.st-engine-radio
-              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Advanced"
-                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
-            label .st-engine-radio
-              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
-              span .st-engine-radio-body
-                span .st-engine-radio-label "Designer"
-                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+        div .v2s-row
+          span .v2s-row-t
+            span .v2s-row-k "Theme"
+          span .v2s-val
+            div .v2s-seg [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
+              label .v2s-seg-b "Light"
+                input .v2s-seg-in [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              label .v2s-seg-b "Dark"
+                input .v2s-seg-in [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              label .v2s-seg-b "Auto"
+                input .v2s-seg-in [type="radio"] [value="auto"] [name="maude-theme"] {value="auto"} {off}
       section .v2s-group [data-testid="settings-canvas-view"] [aria-label="Canvas and view"]
         h3 .v2s-group-t "Canvas and view"
         label .is-disabled.st-pref-row
@@ -632,7 +575,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .v2s-row [data-testid="settings-server-port"]
           span .v2s-row-t
             span .v2s-row-k "Local server port"
-          span .v2s-val.v2s-val--mono "4400"
+          span .v2s-val.v2s-val--mono "<port>"
         div .v2s-row [data-testid="settings-runtime"]
           span .v2s-row-t
             span .v2s-row-k "Runtime"

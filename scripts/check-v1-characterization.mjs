@@ -102,6 +102,18 @@
 // `.is-quiet` with its `.st-pal-where` place (S1.4/S11.18); the remaining states carry the same cluster/menu rows.
 // Refreshed with `--build --update`, then `--build --repeat` all 30 identical.
 //
+// Approved delta (wave-B gate, Ready to try (7), 2026-10-22, decision:maude/v2-waveB-gate-v1-goldens-2): 21 states
+// move with the gate's own fixes and nothing else. No tour offer in the callout stack (polish2: tours stay at
+// Menu › Help); a shell with no canvas shows the `st-empty` "No canvas open" card with Start quick setup
+// (polish2); the AI panel is a normal conversation (`chat-feed` labelled Conversation, tabindex 0 — a11y) and the
+// v1 "AI editing isn't ready yet" readiness list (`acp-not-connected`, `rdy-*`) is gone from it — it lives at
+// Menu › Diagnostics › AI setup (polish2 RC-C); Settings › General › Look is one Theme segmented row Light · Dark ·
+// Auto (`v2s-seg`), the Inspector-words radio left for Inspector › Advanced (polish2; nothing-deleted row
+// A-inspector-vocabulary-advanced-designer); the account row reads "cloud.maude.sh" and the e-mail hint "while
+// you're away" (S9.20 / copy). The harness now boots every server with a stub `claude` first on PATH and
+// MAUDE_CLAUDE_BIN empty (a throwaway HOME + the real CLI raised macOS keychain dialogs), and masks the Settings
+// "Local server port" value (it is the run's own port). `--build --update`, then `--build --repeat`: 0 changed.
+//
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
 //                                              [--build] [--shots <dir>] [--repeat]
@@ -368,11 +380,19 @@ async function bootServer() {
   const project = join(work, 'project');
   const home = join(work, 'home');
   mkdirSync(home, { recursive: true });
+  // Never the real `claude` under a throwaway HOME: it looks for a keychain that HOME doesn't have
+  // and macOS raises "Keychain Not Found" dialogs (memory maude-fake-home-real-claude-keychain). A
+  // stub first on PATH answers signed-out at once, as the v1-keys and ACL gate harnesses do.
+  const stubBin = join(home, 'bin');
+  mkdirSync(stubBin, { recursive: true });
+  writeFileSync(join(stubBin, 'claude'), `#!/bin/sh\necho '{"loggedIn":false}'\n`, { mode: 0o755 });
   makeFixture(project);
   const log = [];
   const server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', project], {
     env: {
       ...process.env,
+      PATH: `${stubBin}:${process.env.PATH ?? ''}`,
+      MAUDE_CLAUDE_BIN: '',
       HOME: home,
       XDG_CONFIG_HOME: join(home, '.config'),
       // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
@@ -819,8 +839,10 @@ async function runState([name, shell, drive]) {
   const { context, page, errors } = await openShell(ctx, shell);
   try {
     const r = await drive(page);
-    const text =
-      typeof r === 'string' ? await page.evaluate(snapshotInPage, snapArg(page, r)) : r.text;
+    // The Settings "Local server port" row shows this run's own port (4400, 4403 …) as bare digits.
+    const text = (
+      typeof r === 'string' ? await page.evaluate(snapshotInPage, snapArg(page, r)) : r.text
+    ).replace(/(data-testid="settings-server-port"\][^"]*(?:"[^"]*"[^"]*)*?v2s-val--mono ")\d{2,5}"/g, '$1<port>"');
     let shot = null;
     if (SHOTS && SHOT_STATES.has(name)) {
       await page.evaluate(() => document.fonts?.ready);
