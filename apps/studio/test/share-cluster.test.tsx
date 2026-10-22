@@ -77,11 +77,13 @@ describe('the cluster', () => {
     expect(q('share-cluster-status')?.getAttribute('data-sync-label')).toBeNull();
   });
 
-  test('faces: you, then Claude while it works', async () => {
+  test('faces: you (one letter), then the AI while it works (the spark, never a letter)', async () => {
     const { q } = await mount({ faces: facesOf({ you: 'Michal Dovrtěl', agentActive: true }) });
     const faces = q('share-cluster-faces');
     expect(faces?.querySelectorAll('li').length).toBe(2);
-    expect(faces?.textContent).toBe('MDC');
+    // P8 C7 (10 co-presence): "M", not "MD"; the AI face has no letter at all, it draws the spark
+    expect(faces?.textContent).toBe('M');
+    expect(faces?.querySelector('li.is-agent svg')).not.toBeNull();
   });
 
   test('a peer’s face is the Follow control (moved from the canvas stack)', async () => {

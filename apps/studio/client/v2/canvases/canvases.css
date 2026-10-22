@@ -151,10 +151,14 @@
   .cv-meta[data-tone="azure"] {
     color: var(--accent);
   }
-  .cv-row.is-dim .cv-name,
+  /* A dim row (a canvas in the trash, still open here): the thumbnail and badges recede, the NAME does
+     not — opacity on the text put it at 3.6:1 dark / 2.8:1 light (10 a11y). It reads in fg-2 instead. */
   .cv-row.is-dim .cv-thumb,
   .cv-row.is-dim .cv-badges {
     opacity: 0.55;
+  }
+  .cv-row.is-dim .cv-name {
+    color: var(--fg-2);
   }
   .cv-foot[data-tone="warn"] {
     color: var(--status-warn-text);

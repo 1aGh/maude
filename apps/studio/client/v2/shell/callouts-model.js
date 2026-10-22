@@ -117,16 +117,10 @@ function stuckCallout(status, now) {
  */
 export function syncCallout(status, now = Date.now()) {
   if (!status || status.linked === false || status.notSyncable) return null;
-  const { state, queuedOps, flash, conflicts } = status;
-  if (flash === 'synced') {
-    return {
-      key: `${state}:flash`,
-      kind: 'sync-back',
-      tone: 'ok',
-      icon: 'cloud',
-      title: 'Back online. Everything is synced.',
-    };
-  }
+  const { state, queuedOps, conflicts } = status;
+  // P8 C7: the reconnect flash ("Back online. Everything is synced.") is NOT a callout any more — a
+  // second back-online line landed beside S9.24's own toast ("Back online. Your changes are going
+  // up."). Reconnecting is said once, by sync-states/back-online.jsx.
   if (state === 'offline-long') {
     const n = Number.isFinite(queuedOps) && queuedOps > 0 ? queuedOps : 0;
     return {

@@ -19,6 +19,9 @@ import { StIcon } from '../../shell/icons.jsx';
 import { PresenceFaces } from '../presence/faces.jsx';
 import { keyHint } from './project-menu-model.js';
 
+/** The words under Share while this Mac is offline — the same sentence the sheet gives a queued invite. */
+export const OFFLINE_INVITE_TIP = 'Invites send when this Mac is online.';
+
 function Ring({ value }) {
   return (
     <svg className="st-ex-ring" viewBox="0 0 36 36" aria-hidden="true">
@@ -86,6 +89,23 @@ export function ShareCluster({
   accountSlot = null,
 }) {
   const cluster = mode ? modeCell('share-cluster', mode, present) : 'full';
+  const offline = !access && status?.kind === 'offline';
+  const shareButton = (
+    <button
+      type="button"
+      className="btn btn--primary btn--sm st-share-btn"
+      data-testid="share-cluster-share"
+      aria-disabled={canShare ? undefined : 'true'}
+      aria-describedby={offline ? 'share-offline-tip' : undefined}
+      title={canShare ? undefined : 'Open a canvas to share it'}
+      onClick={() => {
+        if (canShare) run('share.open');
+      }}
+    >
+      <StIcon name="share-up" size={14} />
+      Share
+    </button>
+  );
   const panelsLabel = panelsHidden ? 'Show panels' : 'Hide panels';
   const exportsLabel = ex.ring !== undefined ? `Exports — ${ex.ring} % done` : 'Exports';
   // S9.22b — the shell passes the unread @mention threads (canvas 10's "unread count on Comments")
@@ -198,20 +218,23 @@ export function ShareCluster({
         >
           {access.action}
         </button>
+      ) : offline ? (
+        // 10 co-sync-offline: an invite made offline waits in line; the tooltip says so before the
+        // press (the sheet repeats it once an invite is queued). Wrapped only while offline, so the
+        // cluster's child order is the same in every other state.
+        <span className="st-tipwrap">
+          {shareButton}
+          <span
+            id="share-offline-tip"
+            role="tooltip"
+            className="st-tip"
+            data-testid="share-offline-tip"
+          >
+            {OFFLINE_INVITE_TIP}
+          </span>
+        </span>
       ) : (
-        <button
-          type="button"
-          className="btn btn--primary btn--sm st-share-btn"
-          data-testid="share-cluster-share"
-          aria-disabled={canShare ? undefined : 'true'}
-          title={canShare ? undefined : 'Open a canvas to share it'}
-          onClick={() => {
-            if (canShare) run('share.open');
-          }}
-        >
-          <StIcon name="share-up" size={14} />
-          Share
-        </button>
+        shareButton
       )}
       {status?.detail && !access ? (
         // The full-disk sentence (C37): a note under the cluster, in the popover plane's place.
