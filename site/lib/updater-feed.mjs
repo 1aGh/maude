@@ -146,3 +146,28 @@ export function pickArtifact(release, target, arch) {
   if (!sigAsset) return { missing: 'signature' };
   return { asset, sigAsset };
 }
+
+// The user-facing installer per platform (the marketing "Download for Mac" button, V2-7.2) — NOT
+// the updater artifact above: no .app.tar.gz / .sig here.
+export const INSTALLER_EXT = {
+  macos: ['.dmg'],
+  windows: ['.msi'],
+  // Linux ships a .deb (the AppImage target was dropped — the Bun-static sidecar breaks
+  // linuxdeploy). `.AppImage` stays as a fallback match in case a release brings it back.
+  linux: ['.deb', '.AppImage'],
+};
+
+/**
+ * The installer asset a first-time visitor downloads, or null (the caller then sends them to the
+ * releases page). Always the newest STABLE release — the same rule a stable install gets from the
+ * updater feed, so a release candidate (flagged or not) can never become the front-door download.
+ *
+ * @param {Array<{ tag_name?: string, draft?: boolean, prerelease?: boolean, assets?: Array<{ name: string }> }>} releases
+ * @param {string} platform macos | windows | linux
+ */
+export function pickInstaller(releases, platform) {
+  const exts = INSTALLER_EXT[platform];
+  if (!exts) return null;
+  const release = selectRelease(releases, '0.0.0');
+  return release?.assets?.find((a) => exts.some((e) => a.name.endsWith(e))) ?? null;
+}

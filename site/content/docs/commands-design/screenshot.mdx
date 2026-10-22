@@ -7,7 +7,7 @@ description: "Capture the active canvas, one artboard, an element or all screens
 | -------- | ----- |
 | **Command** | `/design:screenshot` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `[--screen\|--element <id> \| --selector <css> \| --full \| --all-screens] [--area <n>]` |
+| **Argument hint** | `[--screen\|--element <id> \| --selector <css> \| --full \| --all-screens \| --shell] [--area <n>]` |
 | **Source** | [`plugins/design/commands/screenshot.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/screenshot.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Capture the active canvas, one artboard, an element or all screens.
 **Claude Code**
 
 ```text
-/design:screenshot [--screen|--element <id> | --selector <css> | --full | --all-screens] [--area <n>]
+/design:screenshot [--screen|--element <id> | --selector <css> | --full | --all-screens | --shell] [--area <n>]
 ```
 
 **Codex**
 
 ```text
-$design:source-command-screenshot [--screen|--element <id> | --selector <css> | --full | --all-screens] [--area <n>]
+$design:source-command-screenshot [--screen|--element <id> | --selector <css> | --full | --all-screens | --shell] [--area <n>]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

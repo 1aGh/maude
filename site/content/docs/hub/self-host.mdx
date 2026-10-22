@@ -40,7 +40,7 @@ The hub image carries **no browser** — that is a security invariant (no tenant
 
 Two honest options:
 
-- **Do nothing.** PNG/SVG of the active artboard, the PPTX deck, ZIP and AI handoff all work in the hosted studio; video/PDF show up disabled in the export dialog with the reason, and the desktop app exports every format. Many teams never need more.
+- **Do nothing.** PNG/SVG of the active artboard, the PPTX deck, ZIP and AI handoff all work in the hosted studio; video/PDF show up disabled in the Export sheet with the reason, and the desktop app exports every format. Many teams never need more.
 - **Add `--render`** to `workspace-up`. It deploys the **`maude-render` sidecar** — a separate container that holds the Chromium and nothing else: no hub secret, no volume, no public port (the hub reaches it over the compose network only), and a boot-time refusal if any known secret variable is present in its environment. Renders authenticate back to the hub with the same short-lived read-only capability a member's own browser holds.
 
 ```sh
