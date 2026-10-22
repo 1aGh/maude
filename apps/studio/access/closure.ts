@@ -21,7 +21,7 @@ import path, { dirname, resolve, sep } from 'node:path';
 import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
-import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
+import { dsDepsFor, importsDs, importsDsBoard, specimenRels } from '../ds/ds-resolver.ts';
 import {
   CANVAS_LIB_SPEC,
   CARRIES_ALL,
@@ -684,6 +684,9 @@ const canvasesOfFile = (rel: string): string[] => {
 const isDsSurfaceStyle = (rel: string): boolean =>
   /\.css$/i.test(rel) && isDsSurfaceRel(rel.replace(/\.css$/i, '.tsx'));
 
+/** The Design system canvas's file name inside `system/<ds>/` (ds/engine.ts `DS_CANVAS`). */
+const DS_BOARD_FILE = 'design-system.tsx';
+
 function walkImports(
   env: WalkEnv,
   canvas: string,
@@ -716,6 +719,20 @@ function walkImports(
   const canvasText = env.textOf(canvas);
   if (sys && canvasText !== null && importsDs(canvasText))
     queue.push(`${sys.path}/preview/_ds.tsx`);
+  // p8-ds-board-specimens — the specimens a canvas draws with `<Specimen src>` are imports too: the
+  // generated `@maude/ds/board` module inlines each one (ds-resolver `specimenFiles`, the same
+  // `specimenRels` rule). The Design system canvas (`system/<ds>/design-system.tsx`) and its OWN
+  // system's specimens / UI kits are one unit — the board is how a system is drawn — so its walk
+  // admits them although each is a canvas by path (c4l). Every other `<Specimen>` user goes through
+  // `importable` like any import, so a specimen is refused to it (c4j), and a specimen the board
+  // admits is walked under the same rules (its own canvas imports still block the board).
+  const specimens =
+    sys && canvasText !== null && importsDsBoard(canvasText)
+      ? specimenRels(sys.path, canvasText)
+          .map((s) => s.rel)
+          .filter((r) => env.files.has(r))
+      : [];
+  const ownBoard = sys !== null && canvas === `${sys.path}/${DS_BOARD_FILE}`;
   const seen = new Set<string>();
   const visited: Array<{ rel: string; text: string }> = [];
   while (queue.length) {
@@ -725,6 +742,12 @@ function walkImports(
     const text = env.textOf(rel);
     if (text === null) continue;
     visited.push({ rel, text });
+    if (rel === canvas)
+      for (const dep of specimens) {
+        if (seen.has(dep)) continue;
+        if ((ownBoard && isDsSurfaceRel(dep)) || importable(dep)) queue.push(dep);
+        else blocked = true;
+      }
     if (!MODULE_EXT_RE.test(rel) && !/\.css$/i.test(rel)) continue;
     for (const group of relativeImportGroups(text, `${VROOT}/${rel}`, VROOT)) {
       let resolved = false;
