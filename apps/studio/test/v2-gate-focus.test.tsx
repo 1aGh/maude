@@ -17,7 +17,7 @@ afterAll(() => {
   GlobalRegistrator.unregister();
 });
 
-import { act, type ReactNode } from 'react';
+import { act, type ReactNode, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import { CommandPalette } from '../client/dialogs/command-palette.jsx';
@@ -25,7 +25,7 @@ import { ShortcutsOverlay } from '../client/dialogs/shortcuts-overlay.jsx';
 import { PanelTabs } from '../client/shell/dock.jsx';
 import { bindPaletteEnv } from '../client/v2/search/search-env.js';
 import { actionSearchRows } from '../client/v2/search/search-model.js';
-import { installFocusRescue } from '../client/v2/shell/modal-focus.js';
+import { installFocusRescue, useModalFocus } from '../client/v2/shell/modal-focus.js';
 import { menuCtx } from '../client/v2/shell/project-menu-model.js';
 
 let roots: Root[] = [];
@@ -180,6 +180,32 @@ describe('overlays keep and return focus (a11y B2, W3)', () => {
     act(() => view.r.render(<ShortcutsOverlay open={false} onClose={() => {}} />));
     await flush();
     expect(document.activeElement).toBe(back);
+  });
+});
+
+describe('a disabled initial control (gate-b-keys patch: ⇧⌘H focus behind the sheet)', () => {
+  function Sheet({ disabled }: { disabled: boolean }) {
+    const go = useRef<HTMLButtonElement | null>(null);
+    const ref = useModalFocus({ onClose: () => {}, initialRef: go });
+    return (
+      <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1} data-testid="sheet">
+        <button type="button" ref={go} disabled={disabled}>
+          Go
+        </button>
+      </div>
+    );
+  }
+  test('initialRef disabled → focus lands on the dialog, not left on the opener', async () => {
+    opener();
+    mount(<Sheet disabled />);
+    await flush();
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('sheet');
+  });
+  test('initialRef enabled → focus lands on it', async () => {
+    opener();
+    mount(<Sheet disabled={false} />);
+    await flush();
+    expect(document.activeElement?.textContent).toBe('Go');
   });
 });
 

@@ -98,7 +98,7 @@ const STACK = [];
  * @param {() => void} o.onClose — esc
  * @param {boolean} [o.modal=true] — trap Tab (`aria-modal`); a non-modal sheet only restores focus
  * @param {boolean} [o.esc=true] — esc closes from anywhere inside (window capture, before React)
- * @param {{ current: HTMLElement | null }} [o.initialRef] — focused on open (else the dialog itself
+ * @param {{ current: HTMLElement | null }} [o.initialRef] — focused on open (else — or when it is disabled — the dialog itself
  *   when nothing inside has focus)
  * @param {() => HTMLElement | null} [o.fallback] — where focus goes when the opener is gone
  */
@@ -120,8 +120,10 @@ export function useModalFocus({
     const entry = { ref };
     STACK.push(entry);
     const root = ref.current;
+    // A disabled initial control takes no focus (⇧⌘H: Hand off is off until the targets load), so
+    // the dialog itself does — never the opener behind the sheet.
     const first = initialRef?.current;
-    if (first) first.focus({ preventScroll: true });
+    if (first && !first.disabled) first.focus({ preventScroll: true });
     else if (root && !root.contains(doc.activeElement)) root.focus?.({ preventScroll: true });
     const onKey = (e) => {
       if (STACK[STACK.length - 1] !== entry) return;
