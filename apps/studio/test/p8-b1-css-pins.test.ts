@@ -20,4 +20,11 @@ describe('P8 B1 — layout rules', () => {
       /\.st-body--float:has\(> \.st-corner--ai-left\) > \.st-dockslot--left\s*\{[^}]*padding-bottom:/
     );
   });
+
+  test('Version history’s sub line ellipsises its words, not the flex row', () => {
+    const css = read('client/v2/history/history.css');
+    expect(css).toMatch(/\.vh-sub\s*\{[^}]*text-overflow:\s*ellipsis/);
+    // and the panel puts the words in it
+    expect(read('client/v2/history/history-panel.jsx')).toContain('className="vh-sub"');
+  });
 });

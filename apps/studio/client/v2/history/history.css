@@ -172,6 +172,13 @@
     gap: var(--space-1);
     white-space: nowrap;
     overflow: hidden;
+    min-width: 0;
+  }
+  /* text-overflow does not reach text inside a flex container: the sub line's words carry the ellipsis
+     themselves (P8 B1: "16:24 · You · changed outside the ap" ended mid-word at the panel's edge). */
+  .vh-sub {
+    min-width: 0;
+    overflow: hidden;
     text-overflow: ellipsis;
   }
   .vh-ai {

@@ -125,7 +125,9 @@ function Row({
           </strong>
           <span>
             <Face row={row} />
-            {row.sub}
+            <span className="vh-sub" title={row.sub}>
+              {row.sub}
+            </span>
           </span>
         </span>
         {row.chips?.map((c) => (
