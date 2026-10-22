@@ -1,31 +1,31 @@
 ---
 title: /design:rollback
-description: "Restore one or more snapshots of the active canvas."
+description: "Go back to an earlier version of the active canvas, from Version history."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:rollback` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `[--steps N] [--list]` |
+| **Argument hint** | `[<canvas>] [--steps N] [--list]` |
 | **Source** | [`plugins/design/commands/rollback.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/rollback.md) |
 
 ## Description
 
-Restore one or more snapshots of the active canvas.
+Go back to an earlier version of the active canvas, from Version history.
 
 ## Invocation
 
 **Claude Code**
 
 ```text
-/design:rollback [--steps N] [--list]
+/design:rollback [<canvas>] [--steps N] [--list]
 ```
 
 **Codex**
 
 ```text
-$design:source-command-rollback [--steps N] [--list]
+$design:source-command-rollback [<canvas>] [--steps N] [--list]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

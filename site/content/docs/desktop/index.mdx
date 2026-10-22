@@ -1,9 +1,11 @@
 ---
 title: Desktop app
-description: Install the Maude desktop app for macOS, Windows and Linux — canvas browser, git versioning, GitHub sign-in, and live collaboration, no terminal. Auto-updates in the background.
+description: Install and update the Maude desktop app for macOS, Windows and Linux. Requirements, Linux media playback, unsigned builds, auto-update and what AI needs. No terminal.
 ---
 
-The **desktop app** is Maude with no terminal. Download it, sign in with GitHub, and start designing — everything the CLI does (canvas browser, git versioning, collaboration, AI editing) lives in the UI. It keeps itself up to date in the background.
+The **desktop app** is Maude with no terminal. Download it, open a project, and start designing — canvases, Version history, sharing and AI all live in the window. It keeps itself up to date in the background.
+
+New here? [Getting started](/docs/getting-started) walks from download to first canvas. [Around the window](/docs/desktop/window) names every piece of the screen.
 
 <Cards>
   <Card title="Download Maude" href="/desktop" description="Platform-detected download for macOS, Windows and Linux." />
@@ -13,7 +15,7 @@ The **desktop app** is Maude with no terminal. Download it, sign in with GitHub,
 
 1. **[Download](/desktop)** the installer for your platform — `.dmg` (macOS), `.msi` (Windows) or `.deb` (Linux).
 2. Open it. On macOS, drag Maude to Applications; on Windows, run the installer; on Linux, `sudo apt install ./Maude_*.deb`.
-3. Launch Maude and **sign in with GitHub** (or open a local folder, or connect a team hub) in the onboarding wizard.
+3. Launch Maude. It opens on **Home**: say what to make, start with an empty canvas (<kbd>⌘N</kbd>), **Open project…** (<kbd>⌘O</kbd>), or sign in to cloud.maude.sh.
 4. You land in a working project. No terminal at any step.
 
 ### System requirements
@@ -24,7 +26,7 @@ The **desktop app** is Maude with no terminal. Download it, sign in with GitHub,
 | Windows  | 10 (64-bit) | `.msi` |
 | Linux    | Debian 12 / Ubuntu 22.04 (64-bit), WebKitGTK 4.1 | `.deb` |
 
-Disk: ~250 MB. The optional AI editing pairs with a [Claude Code](/docs/design) you already have installed and runs on your own Pro/Max subscription — never API billing.
+Disk: ~250 MB. AI runs on your own Claude account (Pro or Max, or an API key) — see [What AI needs](#what-ai-needs).
 
 ### Media playback on Linux
 
@@ -50,30 +52,21 @@ WEBKIT_GST_DISABLE_GL_SINK=0 maude-desktop
 
 Any value you set wins — Maude only fills it in when you have expressed no preference.
 
-### What AI editing needs
+### What AI needs
 
-The canvas browser, version history, and collaboration work the moment you open the app — no extra setup. **AI editing** is the one capability that reaches outside the app: its chat panel drives your paired Claude Code.
+Canvases, Version history and sharing work the moment you open the app — no extra setup. **AI** is the one part that reaches outside it, and it runs on your own Claude account.
 
-<Callout type="info" title="With Claude Code installed, the plugins just work">
-The desktop chat panel **auto-loads the `design` + `flow` plugins into its session**, so `/design:*` and `/flow:*` resolve out of the box — nothing to add to a marketplace, nothing to install by hand. A power user who already installed the plugins gets a no-op (no double-load, no version skew).
+The first time you use **Ask AI**, one sheet asks you to **Connect** your Claude account. Maude sets up what it needs and opens your browser to sign in; your prompt waits and runs as soon as you are connected. Nothing to install by hand, and nothing blocks the rest of the app while AI is not connected.
+
+<Callout type="info" title="The plugins are already loaded">
+The AI chat panel loads the `design` and `flow` plugins into its own session, so `/design:*` and `/flow:*` resolve with nothing to add to a marketplace. A power user who also installed the plugins gets a no-op — no double-load, no version skew.
 </Callout>
 
-So the paired Claude Code needs just:
-
-- a logged-in **`claude`** (`claude` → `/login`) — the single hard prerequisite, running on your own Pro/Max subscription;
-- the **`maude` CLI** on your PATH (`npm i -g @1agh/maude`) — needed for the full multi-step `/design:*` workflows (screenshots, critic passes) that shell out to it; the everyday "edit this canvas" path works without it.
-
-You do **not** run `/plugin marketplace add` or `/plugin install` in the desktop app — the plugins load automatically. Those steps remain the path for the web `maude design serve` flow, or for driving `/design:*` from your own terminal Claude Code (see [Getting Started](/docs/getting-started)).
-
-You don't have to hunt for any of this: the first-run welcome screen has an **AI editing** readiness strip that checks each piece and shows a copy-paste fix for anything missing, and the chat panel surfaces the same breakdown with a **Re-check** button. None of it blocks the rest of the app.
+If AI stops working, **Menu › Diagnostics › AI setup** lists each piece with a status word and a fix for whatever is missing, and **Check AI setup again** re-runs it. The `maude` command-line tool is only needed for the longest multi-step `/design:*` workflows (screenshots, critic passes); the everyday "change this canvas" path works without it. See the [CLI](/docs/cli) when you want it.
 
 ## Auto-update
 
-Maude polls a signed release feed, downloads new versions in the background, and shows a non-blocking banner:
-
-> **Maude updated · restart to apply** — *Restart now*
-
-Click **Restart now** and you're on the latest build. There's no `npm install`, no terminal. Updates are signed with an ed25519 key; the app refuses any update whose signature doesn't verify, so a tampered feed can't push a rogue build.
+Maude polls a signed release feed and downloads new versions in the background. When one is ready a quiet callout says so, with one action: **Restart now**. Click it and you're on the latest build. To look yourself, use **Maude › Check for Updates…** in the Mac’s own menu bar or **Settings › Advanced › Check for updates**. There's no `npm install`, no terminal. Updates are signed with an ed25519 key; the app refuses any update whose signature doesn't verify, so a tampered feed can't push a rogue build.
 
 ## Unsigned builds (early releases)
 
@@ -86,12 +79,12 @@ Signed builds remove these prompts; auto-update artifacts are always signed rega
 
 ## Teams
 
-The desktop app connects to a self-hosted [hub](/docs/hub) from the onboarding wizard's **Advanced** door — no `maude design link` in a terminal. Once linked, cursors, comments, and edits sync in real time with anyone on the same branch.
+The desktop app connects to a self-hosted [hub](/docs/hub) under **Settings › Connections** — no `maude design link` in a terminal. Once linked, cursors, comments and edits sync in real time with everyone on the project. To invite people to a cloud project, use **Share…**; see [Share links](/docs/share-links).
 
 ## What's included
 
-- **Canvas browser** — every screen as a live, multi-artboard canvas; Cmd+Click to edit CSS against your tokens.
-- **Git versioning, no git** — See changes, Save a version, Publish, Get latest, browse History, compare visual before/after.
-- **Sign in with GitHub** — device flow → OS keychain; start private projects, share by username.
-- **Live collaboration** — branch-scoped multiplayer over your own hub.
-- **AI editing** — a chat panel that drives your paired Claude Code (needs the Maude plugins + `maude` CLI in that Claude Code; the readiness strip walks you through it).
+- **Canvases** — every canvas is a live, multi-artboard surface; the Canvases panel lists them, with Layers and Assets beside it.
+- **Version history** — every saved version of the project with **Restore**, and <kbd>⌘Z</kbd> for the last step (AI's changes included).
+- **Sharing** — one Share sheet: Invite people, Copy link, Move to cloud…. Live collaboration over Maude Cloud or your own hub.
+- **AI** — an AI chat panel and **Ask AI** (<kbd>⌘/</kbd>) on your own Claude account.
+- **Export** — one Export sheet (<kbd>⇧⌘E</kbd>) for images, PDF, video and handoff.
