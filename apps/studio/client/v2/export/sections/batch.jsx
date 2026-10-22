@@ -8,6 +8,7 @@
 import { ANNOTATIONS_LABEL, ANNOTATIONS_SUB, summaryWords } from '../export-copy.js';
 import { Check, Hint, Row } from '../parts.jsx';
 import { Select } from '../advanced/fields.jsx';
+import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../../canvases/canvas-icons.jsx';
 import {
   bigWords,
   choiceFor,
@@ -24,17 +25,41 @@ import {
   WHERE_THIS_MAC,
 } from './batch-model.js';
 
-/** One kind: its title, where it renders, and the format row for it. */
-function Group({ kind, row, pick, cloud, onPick }) {
+const KIND_ICON = {
+  digital: DigitalIcon,
+  fixed: DigitalIcon,
+  web: WebIcon,
+  print: PrintIcon,
+  video: VideoIcon,
+};
+
+/** "Release plan, 4 FB event covers, the carousel…" — the first names of what the group holds. */
+export function namesLine(boards, { max = 3 } = {}) {
+  const names = boards.map((b) => String(b.label ?? b.id).trim()).filter(Boolean);
+  if (names.length === 0) return '';
+  const head = names.slice(0, max).join(', ');
+  return names.length > max ? `${head}…` : head;
+}
+
+/** One kind: its icon, title, the names it holds, where it renders, and the format row for it. */
+function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0 }) {
+  const Icon = KIND_ICON[kind] ?? DigitalIcon;
   const choice = choiceFor(kind, { [kind]: pick });
   const where = kind === 'video' ? (cloud ? WHERE_CLOUD : WHERE_THIS_MAC) : WHERE_THIS_MAC;
   return (
     <div className="ex-group" data-testid={`export-group-${kind}`} data-kind={kind}>
+      <span className="ex-grp-ic" aria-hidden="true">
+        <Icon size={16} />
+      </span>
       <div className="ex-group-t">
         <strong data-testid={`export-group-${kind}-title`}>
           {groupTitle(kind, row.artboards)}
         </strong>
-        <span className="ex-group-s">
+        <span className="ex-group-s" data-testid={`export-group-${kind}-names`}>
+          {canvases > 1 ? `from ${canvases} canvases — ` : ''}
+          {namesLine(boards) || where}
+        </span>
+        <span className="ex-group-w">
           {where}
           {choice.note ? ` · ${choice.note}` : ''}
         </span>
@@ -67,6 +92,7 @@ export function BatchSection({
   setFormat,
 }) {
   const byKind = est?.byKind ?? {};
+  const boards = est?.boards ?? [];
   const kinds = orderKinds(Object.keys(byKind));
   const picks = state.kindPicks ?? {};
   const cloud = est?.lane === 'cloud';
@@ -88,6 +114,11 @@ export function BatchSection({
             row={byKind[kind]}
             pick={picks[kind]}
             cloud={cloud}
+            boards={boards.filter((b) => (b.kind ?? 'digital') === kind)}
+            canvases={
+              new Set(boards.filter((b) => (b.kind ?? 'digital') === kind).map((b) => b.canvas))
+                .size
+            }
             onPick={(id) => set({ kindPicks: { ...picks, [kind]: id } })}
           />
         ))}

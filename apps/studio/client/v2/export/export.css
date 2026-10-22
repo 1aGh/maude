@@ -19,9 +19,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3, 12px);
-    width: min(100%, 680px);
-    max-height: calc(100% - var(--space-5, 24px));
-    overflow: auto;
+    width: min(100%, 660px);
+    max-height: calc(100vh - var(--space-7, 48px));
+    overflow: hidden;
     padding: var(--space-4, 16px);
     border-radius: var(--radius-lg, 14px);
     background: var(--bg-1);
@@ -33,6 +33,77 @@
       opacity: 0;
       translate: 0 6px;
     }
+  }
+  /* 09: each kind's sheet has its own width (post 660 · web 680 · batch 700 · video 720 · print 780) */
+  .ex-sheet.island[data-section="web"] {
+    width: min(100%, 680px);
+  }
+  .ex-sheet.island[data-section="batch"] {
+    width: min(100%, 700px);
+  }
+  .ex-sheet.island[data-section="video"] {
+    width: min(100%, 720px);
+  }
+  .ex-sheet.island[data-section="print"] {
+    width: min(100%, 780px);
+  }
+  /* the part that scrolls: scope, rows, the open Advanced; the header, the summary and the footer stay */
+  .ex-sheet-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: var(--space-3, 12px);
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .ex-sheet-body {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4, 16px);
+  }
+  /* the preview column: a quiet well beside the rows (a picture, or the paper) */
+  .ex-prev {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    width: 176px;
+    padding: var(--space-3, 12px);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--bg-3);
+  }
+  .ex-prev--print {
+    width: 300px;
+  }
+  .ex-pic {
+    position: relative;
+    display: block;
+    flex: none;
+    overflow: hidden;
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 0.5px var(--border-default);
+  }
+  .ex-fill {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* the first screen of a long page: everything under the dashed line is below the fold */
+  .ex-long-fold {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    border-bottom: 1.5px dashed var(--accent);
+    pointer-events: none;
   }
 
   .ex-sheet-hd {
@@ -121,9 +192,82 @@
 
   .ex-rows {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: var(--space-1, 4px);
     min-width: 0;
+  }
+  /* File name · Save to */
+  /* the name is typed inside the well, its extension is the well's own last word (board: `Field`) */
+  .ex-field-wrap {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+    height: 30px;
+    padding: 0 var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+  }
+  .ex-field-wrap:focus-within {
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 3px var(--accent-tint, transparent),
+      inset 0 0 0 1px var(--focus-ring, var(--accent));
+  }
+  .ex-field-wrap .input.ex-field {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .ex-field-wrap .input.ex-field:focus {
+    background: transparent;
+    box-shadow: none;
+  }
+  .ex-field-ext {
+    flex: none;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-2);
+  }
+  span.input.ex-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ex-field-t {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ex-more {
+    flex: none;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .input.ex-field {
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-3, 12px);
+  }
+  .ex-row-n--in {
+    flex: 1;
+    flex-basis: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ex-row--top {
+    align-items: flex-start;
   }
   .ex-row {
     display: flex;
@@ -340,6 +484,9 @@
     font-size: var(--type-sm, 13px);
     color: var(--fg-1);
   }
+  .ex-code .ex-kbd {
+    margin-left: 0;
+  }
   .ex-code-a {
     margin-left: auto;
     padding: 0;
@@ -372,6 +519,7 @@
     color: var(--fg-0);
   }
   .ex-sum {
+    flex: none;
     margin: 0;
     font-size: var(--type-xs, 11px);
     color: var(--fg-2);
@@ -407,11 +555,35 @@
   /* The foot: Cancel and the verb (↵). */
   .ex-sheet-a {
     display: flex;
+    flex: none;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3, 12px);
     padding-top: var(--space-3, 12px);
     box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .ex-adv-btn.v2-fold-btn {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .ex-adv-btn {
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  /* the hint follows the word (board: "› Advanced  Scale, colour, file names"), not the buttons */
+  .ex-adv-btn .v2-fold-hint {
+    margin-left: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-regular);
+  }
+  /* the toggle is not inside the fold's own root, so its chevron turns on its own state */
+  .ex-adv-btn[aria-expanded="true"] .v2-fold-ch {
+    transform: rotate(90deg);
   }
   .ex-btns {
     display: flex;

@@ -289,8 +289,9 @@ export function estimateSpec(
     canvasCounts: {
       folder: facts.canvasOnly || folder === null ? null : nonEmpty(inFolder.length),
       project: facts.canvasOnly ? null : nonEmpty(facts.canvases.length),
-      folders: new Set(facts.canvases.filter((c) => c.rel.includes('/')).map((c) => c.rel.split('/')[0]))
-        .size,
+      folders: new Set(
+        facts.canvases.filter((c) => c.rel.includes('/')).map((c) => c.rel.split('/')[0])
+      ).size,
       loose: facts.canvases.filter((c) => !c.rel.includes('/')).length,
     },
     basis: { bytes: 'table', seconds: secondsBasis },

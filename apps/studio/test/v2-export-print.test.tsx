@@ -346,7 +346,8 @@ async function mountSheet(props: Record<string, unknown> = {}, preflight: unknow
 describe('P8-C4 (09 ex-print): the paper does not wait for the safe-margin render', () => {
   test('a measurement that never comes still leaves the page drawn — paper, caption, the back', async () => {
     await mountSheet({}, 'measure-hangs');
-    for (let i = 0; i < 8 && !$('[data-testid="export-paper"]'); i++) await act(async () => tick(250));
+    for (let i = 0; i < 8 && !$('[data-testid="export-paper"]'); i++)
+      await act(async () => tick(250));
     expect($('[data-testid="export-paper"]') !== null).toBe(true);
     expect($('[data-testid="export-print-pending"]')).toBeNull();
     expect($('[data-testid="export-print-back"]') !== null).toBe(true);

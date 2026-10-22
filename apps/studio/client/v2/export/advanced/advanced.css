@@ -13,14 +13,28 @@
   .ex-group {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-3, 12px);
     padding: var(--space-2, 8px) var(--space-3, 12px);
     border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+  }
+  .ex-grp-ic {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md, 10px);
     background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .ex-group-w {
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
   }
   .ex-group-t {
     display: flex;
+    flex: 1;
     flex-direction: column;
     min-width: 0;
     font-size: var(--type-sm, 13px);
@@ -31,6 +45,9 @@
     font-variant-numeric: tabular-nums;
   }
   .ex-group-s {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: var(--type-xs, 11px);
     color: var(--fg-2);
   }
@@ -116,9 +133,11 @@
   .ex-adv.v2-fold {
     margin: 0;
   }
+  /* the body is a part of the sheet's own scroll (`.ex-sheet-main`), not a scroller of its own that clips the foot */
   .ex-adv-body.v2-fold-body {
     gap: var(--space-3, 12px);
-    max-height: 46vh;
+    max-height: none;
+    overflow: visible;
   }
   .ex-adv-cols {
     display: grid;

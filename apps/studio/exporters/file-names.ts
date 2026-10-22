@@ -73,7 +73,14 @@ const UNSAFE = new RegExp(`[\\\\/:*?"<>|\\x00-\\x1f\\x7f${BIDI_AND_SEPARATORS}]`
 /** Make one rendered stem safe (no extension). Never empty. */
 export function sanitizeStem(raw: string): string {
   // whitespace (tabs, newlines included) becomes one space BEFORE the control strip
-  let s = raw.normalize('NFC').replace(/\s+/g, ' ').replace(UNSAFE, '').replace(/\s+/g, ' ').trim();
+  // an aspect ratio keeps its two numbers: "Post 4:5" is "Post 4-5" on disk, not "Post 45" (09 ex-social)
+  let s = raw
+    .normalize('NFC')
+    .replace(/(\d):(?=\d)/g, '$1-')
+    .replace(/\s+/g, ' ')
+    .replace(UNSAFE, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   s = s.replace(/^\.+/, '').trim();
   if (s.length > MAX_NAME_CHARS) s = s.slice(0, MAX_NAME_CHARS).trim();
   // a cut can leave trailing dots / spaces (Windows-hostile, and `name.` + `.png` reads oddly)

@@ -84,14 +84,30 @@ export function reached(rows, ids, scope) {
   return rows.filter((r) => ids.includes(r.artboard));
 }
 
-/** The pixel size of a quality for a row: "1080 × 1920" at 1080p, twice that at 4K. */
+/** The pixel size a quality makes of a row: "1080 × 1920" at 1080p, "2160 × 3840" at 4K. */
 export function sizeWords(row, scale) {
   if (!row?.w || !row?.h) return '';
-  return `${row.w * scale} × ${row.h * scale}`;
+  return `${Math.round(row.w * scale)} × ${Math.round(row.h * scale)}`;
 }
 
-/** The scale the picked quality asks the engine for. */
-export const scaleOf = (vq) => (vq === '4k' ? 2 : 1);
+/**
+ * The scale the picked quality asks the engine for. 1080p and 4K are NAMES of a size — the shorter side is 1080 or
+ * 2160 px — so a 1080 × 1920 Reel is ×1 / ×2 and a 480 × 270 comp is ×4 (the spec allows up to 4; past it the
+ * quality cannot be reached and the chip is switched off, see `qualityReaches`). `shortSide` = the artboard's own
+ * shorter side.
+ */
+export const QUALITY_SIDE = { '1080p': 1080, '4k': 2160 };
+const SCALE_MIN = 0.25;
+const SCALE_MAX = 4;
+export function scaleOf(vq, shortSide = null) {
+  const edge = QUALITY_SIDE[vq] ?? QUALITY_SIDE['1080p'];
+  if (!(shortSide > 0)) return vq === '4k' ? 2 : 1;
+  const k = Math.round((edge / shortSide) * 1000) / 1000;
+  return Math.min(SCALE_MAX, Math.max(SCALE_MIN, k));
+}
+/** Does this quality make a different picture from the one below it? (A comp too small for 4K clamps to the same size.) */
+export const qualityReaches = (vq, shortSide) =>
+  vq !== '4k' || scaleOf('4k', shortSide) > scaleOf('1080p', shortSide);
 
 /**
  * The C22 state of the rows this export reaches: nothing to say, a warning with a way out, a note that the

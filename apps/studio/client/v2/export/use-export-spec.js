@@ -171,7 +171,7 @@ export function buildSpec(state, ctx = {}) {
   // S8.6 — a video: 1080p is the artboard's own size, 4K twice that; captions are Off unless asked (C19);
   // Allow longer is the person's word, the cap it lifts to is the server's. Sound only: m4a or wav.
   if (TEMPORAL.has(state.format) && !ctx.batch) {
-    if (state.format !== 'audio') options.size = { scale: scaleOf(state.vq) };
+    if (state.format !== 'audio') options.size = { scale: scaleOf(state.vq, ctx.video?.shortSide) };
     const video = {};
     if (state.captions === true && state.format !== 'gif') video.captions = true;
     if (ctx.video?.linked) video.linked = true;
@@ -373,8 +373,12 @@ export function useExportSpec(request, ctx) {
   );
   const vctx = useMemo(() => {
     const v = videoCtx(formats, state.videoTicks);
-    return isPartial(state.scope, formats, v.ids) ? { ...v, partial: true } : v;
-  }, [formats, state.videoTicks, state.scope]);
+    // 1080p / 4K name a size (the shorter side), so the scale depends on the artboard's own: its shorter side
+    const row = videoRows.find((r) => v.ids.includes(r.artboard)) ?? videoRows[0];
+    const shortSide = row?.w && row?.h ? Math.min(row.w, row.h) : null;
+    const withSide = shortSide ? { ...v, shortSide } : v;
+    return isPartial(state.scope, formats, v.ids) ? { ...withSide, partial: true } : withSide;
+  }, [formats, state.videoTicks, state.scope, videoRows]);
   const draft = useMemo(
     () => buildSpec(state, { ...ctx, kinds: kindsSeen, batch, video: vctx }),
     [state, ctx, kindsSeen, batch, vctx]

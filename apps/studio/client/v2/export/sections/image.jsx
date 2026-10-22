@@ -14,6 +14,7 @@ import {
 } from '../export-copy.js';
 import { RASTER, effectiveScale } from '../use-export-spec.js';
 import { Check, Row, Seg } from '../parts.jsx';
+import { sizeLine } from '../preview.jsx';
 
 const labelOf = (format) =>
   OTHER_GROUPS.flatMap((g) => g.items).find((i) => i.format === format && i.needs !== 'print')
@@ -27,6 +28,7 @@ export function ImageSection({
   other,
   annotationsOff = false,
   annotationsNote,
+  board = null,
 }) {
   const raster = RASTER.has(state.format);
   const formats = IMAGE_FORMATS.map(([id, label]) => ({
@@ -64,6 +66,8 @@ export function ImageSection({
             options={IMAGE_SIZES.map(([scale, label]) => ({
               id: String(scale),
               label,
+              // 09 ex-social: the pixels ride on the chip — "1× 1080 × 1350 · 2× 2160 × 2700"
+              small: board ? sizeLine(board.w * scale, board.h * scale) || undefined : undefined,
               testid: `export-size-${scale}x`,
             }))}
             value={String(effectiveScale(state, 'digital'))}

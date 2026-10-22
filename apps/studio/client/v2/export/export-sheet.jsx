@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultScopeForFormat, isScopeValidForFormat } from '../../../exporters/format-scopes.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
-import { StIcon } from '../../shell/icons.jsx';
+import { useFold } from '../fold/use-fold.js';
 import { useAiRuns } from '../ai/runs-store.js';
 import { basename, displayName } from '../../shell/util.js';
 import { dispatchArtboardJump } from '../left-panel/left-panel-bus.js';
@@ -28,10 +28,10 @@ import { menuRunner } from '../shell/menu-runner.js';
 import { useModalFocus } from '../shell/modal-focus.js';
 import {
   AGAIN_LABEL,
-  HANDOFF_BODY,
   HANDOFF_BUTTON,
   HANDOFF_TITLE,
   LANE_NONE_NOTE,
+  folderLabel,
   otherFormats,
   primaryLabel,
   RECENT_LABEL,
@@ -40,7 +40,10 @@ import {
   sheetTitle,
   summaryWords,
 } from './export-copy.js';
-import { AdvancedSection } from './advanced/advanced.jsx';
+import { AdvancedSection, AdvancedToggle } from './advanced/advanced.jsx';
+import { nameSamples } from './advanced/model.js';
+import { FileRows, SAVE_TO_DEFAULT } from './file-rows.jsx';
+import { fitBox, Pic, PreviewColumn, sizeLine, useBoardPicture } from './preview.jsx';
 import { AccessLine, exportAccess } from './access-line.jsx';
 import { annotationsState } from './annotations-policy.js';
 import { OtherFormats } from './other-formats.jsx';
@@ -53,7 +56,9 @@ import { PrintSection } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { videoButtonLabel } from './sections/video-copy.js';
 import { VideoSection } from './sections/video.jsx';
-import { WebSection } from './sections/web.jsx';
+import { VISIBLE_HEIGHT, WebCodeLine, WebSection } from './sections/web.jsx';
+import { Row } from './parts.jsx';
+import { FOLD_HINT, FOLD_HINT_BATCH } from './advanced/advanced-copy.js';
 import { RenderRow } from './sections/render-row.jsx';
 import { useOnline } from './cloud-queue.js';
 import { readLanePref, renderChoice, withRenderLane } from '../../export-lane.js';
@@ -79,6 +84,12 @@ const ENGINE_SCOPE_LABEL = {
   'selection-bounds': 'Selection area · one image',
   'project-raw': 'Whole project (raw)',
 };
+
+/** Save to is `options.saveTo`: the sheet always says where the file lands, so it always sends it. */
+export const withSaveTo = (spec, saveTo) => ({
+  ...spec,
+  options: { ...(spec.options ?? {}), saveTo },
+});
 
 export function ExportSheet({
   mode: modeProp = 'export',
@@ -163,6 +174,11 @@ export function ExportSheet({
     }),
     [projectName, designRel, ctx, selectionLabel]
   );
+  // 09 — the File name row: the server's own naming (`renderStem`) of this export's first file
+  const fileSamples = useMemo(
+    () => nameSamples(spec, state.adv?.nameTemplate, [...kindSet], nameFacts),
+    [spec, state.adv?.nameTemplate, kindSet, nameFacts]
+  );
   const people = useExportPeople();
   // S8.9 — who may export, and whether AI is changing what this export reaches
   const acc = useMemo(() => exportAccess(access), [access]);
@@ -202,6 +218,27 @@ export function ExportSheet({
       }),
     [lanePref, est, online, pickedLane]
   );
+  // 09 — one artboard exported (a post, a web page, a video, a print page): its picture + its size line beside the rows
+  const videoRow = section === 'video' ? (video.rows?.[0] ?? null) : null;
+  const board =
+    mode !== 'export' || state.scope !== 'selection'
+      ? null
+      : est?.boards?.length === 1
+        ? est.boards[0]
+        : videoRow
+          ? {
+              canvas: videoRow.canvas,
+              id: videoRow.artboard,
+              label: videoRow.label,
+              kind: 'video',
+              w: videoRow.w,
+              h: videoRow.h,
+            }
+          : null;
+  const picture = useBoardPicture(onBrowserCapture, board, {
+    enabled: !!board && section !== 'batch',
+  });
+  const [advOpen, setAdvOpen] = useFold('export');
   const [otherOpen, setOtherOpen] = useState(false);
   const [recent, setRecent] = useState([]);
   const primary = useRef(null);
@@ -247,25 +284,38 @@ export function ExportSheet({
   );
 
   const count = counts?.[state.scope] ?? null;
+  // the one artboard the sheet exports is named by the artboard's own label (the server's index knows it even
+  // when the canvas's selection carried only an id — a video, a comp)
+  const titleLabel =
+    state.scope === 'selection' && est?.boards?.length === 1 && est.boards[0].label
+      ? est.boards[0].label
+      : selectionLabel;
   const canvasName = canvasOpen ? displayName(basename(activePath)) : '';
   const folder = folderRel(ctx);
+  const canvasCounts = est?.canvasCounts ?? null;
   const title =
     mode === 'handoff'
       ? HANDOFF_TITLE
       : sheetTitle({
           scope: state.scope,
-          label: selectionLabel,
+          label: titleLabel,
           canvas: canvasName,
-          folder: folder ? basename(folder) : '',
+          folder,
           count,
+          canvases: canvasCounts,
+          project: projectName,
         });
   const sub =
     mode === 'handoff'
       ? ''
       : sheetSub({
+          scope: state.scope,
           canvas: canvasName,
           folder: state.scope === 'folder' ? folder : null,
           nothingSelected: state.nothingSelected && state.scope === 'canvas',
+          where: folderLabel(folder) || projectName || '',
+          kind: section === 'print' ? 'print' : null,
+          canvases: canvasCounts,
         });
   const summary = mode === 'export' ? summaryWords(est) : null;
   const button =
@@ -286,7 +336,13 @@ export function ExportSheet({
       return;
     }
     runExport({
-      body: { v: 2, spec: withRenderLane(waitForAi ? { ...spec, wait: 'ai' } : spec, render) },
+      body: {
+        v: 2,
+        spec: withRenderLane(
+          withSaveTo(waitForAi ? { ...spec, wait: 'ai' } : spec, state.saveTo ?? SAVE_TO_DEFAULT),
+          render
+        ),
+      },
       format: state.format,
       // a held export is a server job; the browser lane captures NOW, which is the other choice
       legacy: waitForAi ? null : browserLaneRequest(state, { ...ctx, kind }),
@@ -413,6 +469,60 @@ export function ExportSheet({
     );
   }
 
+  const filesMore = Math.max(0, (est?.files ?? 1) - 1);
+  const single = (est?.files ?? 1) === 1;
+  const fileRows = (
+    <FileRows
+      file={fileSamples[0] ?? ''}
+      more={filesMore}
+      onName={single ? (stem) => set({ adv: { ...(state.adv ?? {}), nameTemplate: stem } }) : null}
+      saveTo={state.saveTo}
+      onSaveTo={(saveTo) => set({ saveTo })}
+      folders={
+        batch ? (
+          <Row k="Folders" testid="export-row-folders">
+            <span className="ex-val">One folder</span>
+            <span className="ex-row-n ex-row-n--in" data-testid="export-folders-note">
+              {fileSamples[0] ?? ''}
+            </span>
+          </Row>
+        ) : null
+      }
+    />
+  );
+
+  // the preview column: one artboard → its picture and its size line (print draws its own paper)
+  const previewCol =
+    board && section !== 'print' ? (
+      <PreviewColumn>
+        {section === 'web' ? (
+          <WebPreview board={board} src={picture} />
+        ) : section === 'video' ? (
+          <VideoPreview board={board} src={picture} />
+        ) : (
+          <ImagePreview board={board} src={picture} />
+        )}
+      </PreviewColumn>
+    ) : null;
+
+  const sectionProps = {
+    state,
+    set,
+    setFormat: (f) => {
+      setFormat(f);
+      setStatus(null);
+    },
+    other,
+    onHandoff: handoff,
+    annotationsOff: annot.off,
+    annotationsNote: annot.note,
+    est,
+    video,
+    preflight,
+    onShowOnCanvas: showOnCanvas,
+    board,
+  };
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it
     <div
@@ -432,6 +542,7 @@ export function ExportSheet({
         data-testid="export-sheet"
         data-mode={mode}
         data-scope={state.scope}
+        data-section={section}
         onKeyDown={onKeyDown}
       >
         <div className="ex-sheet-hd">
@@ -445,119 +556,102 @@ export function ExportSheet({
           ) : null}
         </div>
 
-        {mode === 'handoff' ? (
-          <p className="ex-hand" data-testid="export-handoff-body">
-            {HANDOFF_BODY}
-          </p>
-        ) : (
-          <>
-            <AccessLine line={acc.line} />
-            <AiHint info={aiInfo} />
-            <ScopeBar
-              scope={state.scope}
-              counts={counts}
-              available={available}
-              onPick={(s) => {
-                setScope(s);
-                setStatus(null);
-              }}
-            />
-            {exportLane === 'none' ? (
-              <p className="ex-lane" data-testid="export-lane-note">
-                {LANE_NONE_NOTE}
-              </p>
-            ) : null}
-            <div className="ex-rows" data-testid="export-rows" data-section={section}>
-              <VersionRow
-                info={aiInfo}
-                value={waitForAi ? 'ai' : 'now'}
-                lastFinishedAt={lastFinishedAt}
-                onPick={(v) => set({ wait: v === 'ai' ? 'ai' : null })}
-              />
-              <Section
-                state={state}
-                set={set}
-                setFormat={(f) => {
-                  setFormat(f);
-                  setStatus(null);
-                }}
-                other={other}
-                onHandoff={handoff}
-                annotationsOff={annot.off}
-                annotationsNote={annot.note}
-                est={est}
-                video={video}
-                preflight={preflight}
-                onShowOnCanvas={showOnCanvas}
-              />
-              <RenderRow choice={render} onPick={setPickedLane} />
-            </div>
-            <AdvancedSection
-              state={state}
-              set={set}
-              spec={spec}
-              kinds={kindSet}
-              exportLane={exportLane}
-              facts={nameFacts}
-              batch={batch}
-              sheetScale={effectiveScale(state, kind)}
-            />
-            <ShareHint names={people} onCopyLink={copyLink} />
-          </>
-        )}
-
-        {status ? (
-          <div
-            className={`ex-status ${status.ok ? 'ex-status--ok' : 'ex-status--err'}`}
-            data-testid="export-status"
-            data-ok={status.ok ? '1' : '0'}
-            role="status"
-          >
-            {status.msg}
+        <div className="ex-sheet-main" data-testid="export-main">
+          <AccessLine line={acc.line} />
+          <AiHint info={aiInfo} />
+          <ScopeBar
+            scope={state.scope}
+            counts={counts}
+            available={available}
+            onPick={(s) => {
+              setScope(s);
+              setStatus(null);
+            }}
+          />
+          {exportLane === 'none' ? (
+            <p className="ex-lane" data-testid="export-lane-note">
+              {LANE_NONE_NOTE}
+            </p>
+          ) : null}
+          <VersionRow
+            info={aiInfo}
+            value={waitForAi ? 'ai' : 'now'}
+            lastFinishedAt={lastFinishedAt}
+            onPick={(v) => set({ wait: v === 'ai' ? 'ai' : null })}
+          />
+          <div className="ex-sheet-body" data-testid="export-body">
+            {previewCol}
+            {section === 'print' ? (
+              <Section {...sectionProps} picture={picture} tail={fileRows} />
+            ) : (
+              <div className="ex-rows" data-testid="export-rows" data-section={section}>
+                <Section {...sectionProps} />
+                <RenderRow choice={render} onPick={setPickedLane} />
+                {fileRows}
+                {section === 'web' ? <WebCodeLine onHandoff={handoff} /> : null}
+              </div>
+            )}
           </div>
-        ) : null}
+          <AdvancedSection
+            open={advOpen}
+            state={state}
+            set={set}
+            spec={spec}
+            kinds={kindSet}
+            exportLane={exportLane}
+            facts={nameFacts}
+            sheetScale={effectiveScale(state, kind)}
+          />
+          <ShareHint names={people} onCopyLink={copyLink} />
+
+          {status ? (
+            <div
+              className={`ex-status ${status.ok ? 'ex-status--ok' : 'ex-status--err'}`}
+              data-testid="export-status"
+              data-ok={status.ok ? '1' : '0'}
+              role="status"
+            >
+              {status.msg}
+            </div>
+          ) : null}
+
+          {recent.length > 0 ? (
+            <div className="st-export-recent ex-recent" data-testid="export-recent">
+              <p className="ex-recent-h">{RECENT_LABEL}</p>
+              {recent.map((h, i) => (
+                <div className="st-export-recent-row ex-recent-row" key={`${h.at ?? ''}-${i}`}>
+                  <span>
+                    {String(h.format || '').toUpperCase()} ·{' '}
+                    {ENGINE_SCOPE_LABEL[h.scope] || SCOPE_LABEL[h.scope] || h.scope}
+                  </span>
+                  <span className="ex-recent-f">{h.filename}</span>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    data-testid={`export-recent-again-${i}`}
+                    disabled={busy}
+                    onClick={() => exportAgain(h)}
+                  >
+                    {AGAIN_LABEL}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
         {summary ? (
           <p className="ex-sum" data-testid="export-summary">
             {summary}
           </p>
         ) : null}
 
-        {mode === 'export' && recent.length > 0 ? (
-          <div className="st-export-recent ex-recent" data-testid="export-recent">
-            <p className="ex-recent-h">{RECENT_LABEL}</p>
-            {recent.map((h, i) => (
-              <div className="st-export-recent-row ex-recent-row" key={`${h.at ?? ''}-${i}`}>
-                <span>
-                  {String(h.format || '').toUpperCase()} ·{' '}
-                  {ENGINE_SCOPE_LABEL[h.scope] || SCOPE_LABEL[h.scope] || h.scope}
-                </span>
-                <span className="ex-recent-f">{h.filename}</span>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  data-testid={`export-recent-again-${i}`}
-                  disabled={busy}
-                  onClick={() => exportAgain(h)}
-                >
-                  {AGAIN_LABEL}
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
         <div className="ex-sheet-a">
-          {mode === 'handoff' ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => setMode('export')}
-            >
-              Back to export
-            </button>
-          ) : (
-            <span />
-          )}
+          <AdvancedToggle
+            open={advOpen}
+            onToggle={() => setAdvOpen((v) => !v)}
+            hint={batch ? FOLD_HINT_BATCH : FOLD_HINT}
+          />
           <span className="ex-btns">
             <button type="button" className="btn" data-testid="export-cancel" onClick={onClose}>
               Cancel
@@ -570,7 +664,6 @@ export function ExportSheet({
               disabled={busy}
               onClick={submit}
             >
-              {mode === 'handoff' ? null : <StIcon name="download" size={14} />}
               <span data-testid="export-submit-label">{button}</span>
               <span className="ex-ret" aria-hidden="true">
                 ↵
@@ -580,5 +673,52 @@ export function ExportSheet({
         </div>
       </div>
     </div>
+  );
+}
+
+/** 09 ex-social — a post: its picture, then "1080 × 1350". */
+function ImagePreview({ board, src }) {
+  const box = fitBox(board.w, board.h, 136, 170);
+  return <Pic w={box.w} h={box.h} src={src} cap={sizeLine(board.w, board.h)} />;
+}
+
+/** 09 ex-web — a long page: its picture, the first screen dashed, and its size line. */
+function WebPreview({ board, src }) {
+  const box = fitBox(board.w, board.h, 92, 200);
+  const fold = Math.min(1, VISIBLE_HEIGHT / Math.max(1, board.h ?? VISIBLE_HEIGHT));
+  return (
+    <Pic
+      w={box.w}
+      h={box.h}
+      src={src}
+      cap={
+        <>
+          {sizeLine(board.w, board.h)}
+          <br />
+          dashed: visible area
+        </>
+      }
+    >
+      <span className="ex-long-fold" style={{ height: `${fold * 100}%` }} aria-hidden="true" />
+    </Pic>
+  );
+}
+
+/** 09 ex-video — the poster frame (the artboard as it draws) and the way to pick another. */
+function VideoPreview({ board, src }) {
+  const box = fitBox(board.w, board.h, 120, 213);
+  return (
+    <Pic
+      w={box.w}
+      h={box.h}
+      src={src}
+      cap={
+        <>
+          Frame at 0:00
+          <br />
+          scrub the strip below
+        </>
+      }
+    />
   );
 }

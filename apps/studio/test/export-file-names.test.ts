@@ -58,6 +58,10 @@ describe('sanitizeStem', () => {
     expect(sanitizeStem('a/b\\c:d*e?f"g<h>i|j')).toBe('abcdefghij');
     expect(sanitizeStem('x\u0000y\u001fz\u007f')).toBe('xyz');
     expect(sanitizeStem('  lots   of\t\nspace  ')).toBe('lots of space');
+    // P8-C4 — an aspect ratio keeps both numbers (09 ex-social "DOMA · Post 4-5 — feed matchday.png")
+    expect(sanitizeStem('DOMA · Post 4:5 — feed matchday')).toBe('DOMA · Post 4-5 — feed matchday');
+    expect(sanitizeStem('Reels 9:16')).toBe('Reels 9-16');
+    expect(sanitizeStem('Plan: v2')).toBe('Plan v2');
     expect(sanitizeStem(`rtl${String.fromCharCode(0x202e)}override`)).toBe('rtloverride');
   });
 

@@ -62,6 +62,8 @@ export function PrintSection({
   annotationsNote,
   preflight = null,
   onShowOnCanvas,
+  picture = null,
+  tail = null,
 }) {
   const c = printChoices(state, preflight);
   const adv = state.adv ?? {};
@@ -100,7 +102,7 @@ export function PrintSection({
 
   return (
     <div className="ex-print" data-testid="export-print" data-pages={pages}>
-      <div className="ex-print-prev" data-testid="export-print-preview">
+      <div className="ex-prev ex-prev--print" data-testid="export-print-preview">
         {paper ? (
           <>
             <span className="ex-pic ex-pic--paper">
@@ -109,6 +111,7 @@ export function PrintSection({
                 bleed={c.printPdf ? c.bleed : false}
                 marks={c.printPdf && c.crop}
                 registration={c.printPdf && c.registration}
+                picture={at === 0 ? picture : null}
                 findings={at === 0 ? findings : []}
                 stack={pages > 1 && at === 0}
               />
@@ -171,7 +174,7 @@ export function PrintSection({
         )}
       </div>
 
-      <div className="ex-print-rows">
+      <div className="ex-rows">
         <Row k="Format" testid="export-row-format">
           <Seg
             label="Format"
@@ -251,6 +254,7 @@ export function PrintSection({
             {ANNOTATIONS_LABEL}
           </Check>
         </Row>
+        {tail}
       </div>
     </div>
   );
