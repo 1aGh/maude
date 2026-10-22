@@ -20,6 +20,8 @@ export interface WhatsNewTourStep {
   title: string;
   body: string;
   placement?: 'top' | 'bottom' | 'left' | 'right' | 'auto';
+  /** Skip the step when its target is absent (instead of showing it centred). */
+  optional?: boolean;
 }
 
 export interface WhatsNewEntry {
@@ -32,6 +34,8 @@ export interface WhatsNewEntry {
   learnMore?: string;
   surface?: string;
   tour?: WhatsNewTourStep[];
+  /** false = the tour spotlights chrome that is gone; the panel does not offer "Take tour". Absent = true. */
+  replayable?: boolean;
 }
 
 export interface WhatsNewFeed {

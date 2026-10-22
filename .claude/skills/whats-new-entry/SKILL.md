@@ -9,7 +9,7 @@ Repo-internal skill (Maude-specific; lives in `.claude/skills/`, not shipped via
 
 ## What the feed is
 
-`apps/studio/whats-new.json` is the single source of truth (DDR-A) for the notices the Maude UI surfaces — the menubar `✦ New` badge, the first-run toast, and the panel (`GET /_api/whats-new`). It ships with the dev-server and describes **Maude's own product** updates. Schema: `apps/studio/whats-new.schema.json`. Background: `.ai/plans/feature-in-app-whats-new-tour.md`.
+`apps/studio/whats-new.json` is the single source of truth (DDR-A) for the notices the Maude UI surfaces — the Home "What's new" line (`client/v2/signin/WhatsNewLine.jsx`), the first-run toast, Menu › Help › What's new (the project menu's Help row, which carries the unseen count), and the panel it opens (`GET /_api/whats-new`). It ships with the dev-server and describes **Maude's own product** updates. Schema: `apps/studio/whats-new.schema.json`. Background: `.ai/plans/feature-in-app-whats-new-tour.md`.
 
 ## When to run
 
@@ -28,7 +28,7 @@ Invoked during `/flow:done` (step 4d) for a **user-visible** change to the desig
    - `summary` — 1–2 sentences, plain language, what the user can now do. No internal jargon (DDR refs, file paths, task numbers).
    - `learnMore` — optional docs URL (omit if none).
    - `surface` — `design-ui` for canvas-browser features.
-   - `tour` — **optional** spotlight steps, only if the feature added a visible UI affordance. Each: `{ target: "[data-tour=\"<key>\"]" | "<css>", title, body, placement? }`. (Consumed by the tour engine — Phase 3 of the plan.)
+   - `tour` — **optional** spotlight steps, only if the feature added a visible UI affordance. Each: `{ target, title, body, placement?, optional? }`. The target is a `[data-testid="…"]` or `[data-tour="…"]` hook that exists in `client/testids.json` (never a styling class; the toolbars are inside the canvas frame and cannot be spotlit); `optional: true` skips the step when the element is absent for a role or shell. `test/tour-targets.test.ts` pins every replayable target to a current hook, so add the hook to `testids.json` / `TESTIDS.md` first. When a later redesign removes the chrome a tour points at, set the entry's `replayable: false` (the panel then offers no "Take tour"); never leave a dead target on a replayable entry.
 
 3. **Idempotency.** If an entry with the same `id` already exists, update it in place instead of appending a duplicate.
 

@@ -39,10 +39,10 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 | `share-btn` | testid | Menubar Share button. *Now `share-cluster-share` (the Share cluster's primary button).* | `client/menus/menubar.jsx` · `Menubar` (deleted) | whats-new | retired — V2-4.8a |
 | `report-bug-toggle` | testid | Menubar bug icon. *Now Menu › Help › Report a bug… (`project-menu-row-help.report-bug`).* | `client/menus/menubar.jsx` · `Menubar` (deleted) | — | retired — V2-4.8a |
 | `[data-tour="brand"]` | data-tour | The maude mark in the project pill. *Re-emitted V2-4.8a (was the menubar wordmark).* | `client/v2/shell/project-pill.jsx` · `ProjectPill` | whats-new | stable — re-emit |
-| `[data-tour="menus"]` | data-tour | The project pill button that opens the one menu. *Re-emitted V2-4.8a (was the menubar's six-menu group).* | `client/v2/shell/project-pill.jsx` · `ProjectPill` | tour:usage-tour, whats-new | stable — re-emit |
+| `[data-tour="menus"]` | data-tour | The project pill button that opens the one menu. *Re-emitted V2-4.8a (was the menubar's six-menu group).* | `client/v2/shell/project-pill.jsx` · `ProjectPill` | whats-new | stable — re-emit |
 | `[data-tour="help"]` | data-tour | The Help menu trigger. *Help is a submenu of the project pill's menu (`project-menu-row-sub-help`).* | `client/menus/menubar.jsx` · `Menubar` (deleted) | whats-new | retired — V2-4.8a |
-| `[data-tour="status"]` | data-tour | The Share cluster (faces, status word, comments, mode switch, Exports, Hide panels, Share). *Re-emitted V2-4.8a on the cluster root (was the menubar's right-hand cluster).* | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | tour:collab-tour, whats-new | stable — re-emit |
-| `[data-tour="whatsnew"]` | data-tour | The What's New button of the menubar. *Now Menu › Help › What's new (`project-menu-row-help.whats-new`); the Help row carries the unseen count as its status word. `WhatsNewBadge` still emits the anchor but is exported and never mounted.* | `client/whats-new.jsx` · `WhatsNewBadge` | whats-new | retired — V2-4.8a |
+| `[data-tour="status"]` | data-tour | The Share cluster (faces, status word, comments, mode switch, Exports, Hide panels, Share). *Re-emitted V2-4.8a on the cluster root (was the menubar's right-hand cluster).* | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | whats-new | stable — re-emit |
+| `[data-tour="whatsnew"]` | data-tour | The What's New button of the menubar. *Now Menu › Help › What's new (`project-menu-row-help.whats-new`); the Help row carries the unseen count as its status word. The unmounted `WhatsNewBadge` that also emitted the anchor was removed in V2-7.3.* | `client/app.jsx` · `Menubar` (deleted) | whats-new | retired — V2-4.8a |
 | `[data-tour="exports"]` | data-tour | The Exports icon in the Share cluster (`data-busy`); opens the export job list. *Re-emitted V2-4.8a; present once any export exists (the v1 menubar badge was always there).* | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | whats-new | stable — re-emit |
 | `.st-menus` | selector | The menu-trigger group of the menubar. *Deleted: there is no menubar landmark; the project menu is a popup `role=menu` (`test/shell-accessibility.test.ts` pins that).* | `client/menus/menubar.jsx` · `Menubar` (deleted) | — | retired — V2-4.8a |
 | `.st-menubar` | selector | The outer menubar row. *Deleted.* | `client/menus/menubar.jsx` · `Menubar` (deleted) | — | retired — V2-4.8a |
@@ -79,7 +79,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `tree-section-<label>` | testid (pattern) | A top-level tree section header (e.g. `tree-section-design-system`); `aria-expanded` = open. `<label>` = group label lower-cased, non-alphanumerics → `-`. | `client/app.jsx` · `Sidebar` | e2e-helper:tree, e2e-mp:surface, test:export-e2e-lanes | stable — re-emit |
 | `tree-loading` | testid | The tree loading/failed-to-load placeholder (`role="status"`). | `client/app.jsx` · `TreeLoading` | — | stable — re-emit |
 | `tree-new-folder` | testid | The sidebar "new folder" button. | `client/app.jsx` · `Sidebar` | e2e-mp:surface, e2e:file-tree-move | stable — re-emit |
-| `[data-tour="sidebar"]` | data-tour | The whole left sidebar `aside.st-sidebar`. | `client/app.jsx` · `Sidebar` | tour:quick-setup-tour, tour:usage-tour | moves — map in Phase 4 |
+| `[data-tour="sidebar"]` | data-tour | The whole left sidebar `aside.st-sidebar`. | `client/app.jsx` · `Sidebar` | — | moves — map in Phase 4 |
 | `.st-tree` | selector | The file tree element (same element as `canvas-list`). | `client/file-tree.jsx` · `FileTree` | skill:desktop-e2e | stable — re-emit |
 | `.st-sb-title` | selector | The sidebar title row (clicked to dismiss an open row menu). "sb" means sidebar here, not status bar. | `client/app.jsx` · `Sidebar` | e2e-mp:surface | moves — map in Phase 4 |
 | `[role="tree"] / [role="treeitem"]` | selector | Tree semantics of the file tree and its rows (`file-tree-navigation` drives keyboard navigation by role and `aria-label`). | `client/file-tree.jsx` · `FileTree`<br>`client/app.jsx` · `FileRow`<br>`client/app.jsx` · `DirRow`<br>`client/app.jsx` · `CanvasRow` | test:file-tree-navigation | stable — re-emit |
@@ -568,12 +568,12 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `inspector-panel` | testid | The Inspector panel container (`InspectorPanel` rendered for dock id `inspector`). *Passed as the `testId` prop from `renderPanelBody` in `App()`.* | `client/app.jsx` · `InspectorPanel` | e2e:shell-parity | moves — map in Phase 4 |
+| `inspector-panel` | testid | The Inspector panel container (`InspectorPanel` rendered for dock id `inspector`). *Passed as the `testId` prop from `renderPanelBody` in `App()`.* | `client/app.jsx` · `InspectorPanel` | e2e:shell-parity, tour:usage-tour | moves — map in Phase 4 |
 | `layers-panel` | testid | The separate Layers panel container (`InspectorPanel` with `layersOnly`, dock id `layers`). *Passed as the `testId` prop from `renderPanelBody` in `App()`.* | `client/app.jsx` · `InspectorPanel` | — | moves — map in Phase 4 |
 | `inspector-section-<name>` | testid (pattern) | A collapsible CSS-knob section header in Advanced mode (`aria-expanded` = open). `<name>` = section title lower-cased, non-alphanumerics → `-` (e.g. `inspector-section-advanced`). Designer-mode sections (`dsec`) carry no testid. | `client/app.jsx` · `CssKnobs` | e2e-mp:surface | stable — re-emit |
 | `photo-knobs` | testid | Body of the Photo tab (photo adjustment knobs) in the Inspector. | `client/photo-knobs.jsx` · `PhotoKnobs` | e2e-mp:photo-trace.js, e2e-mp:surface | stable — re-emit |
 | `photo-remove-bg` | testid | Photo tab "Remove background" button. | `client/photo-knobs.jsx` · `PhotoKnobs` | — | stable — re-emit |
-| `[data-tour="inspector"]` | data-tour | The Inspector panel root. | `client/app.jsx` · `InspectorPanel` | tour:usage-tour, whats-new | moves — map in Phase 4 |
+| `[data-tour="inspector"]` | data-tour | The Inspector panel root. | `client/app.jsx` · `InspectorPanel` | whats-new | moves — map in Phase 4 |
 | `[data-tour="inspector-tabs"]` | data-tour | The Inspector tab strip (Inspect · Layers · CSS · Photo). | `client/app.jsx` · `InspectorPanel` | whats-new | moves — map in Phase 4 |
 | `[data-tour="css-panel"]` | data-tour | The CSS tab body for the selected element (`.st-cp`). Exists only with a selection. | `client/app.jsx` · `CssKnobs` | whats-new | moves — map in Phase 4 |
 | `[data-tour="cp-mode"]` | data-tour | The Advanced/Designer mode switch in the CSS tab header. Exists only with a selection. | `client/app.jsx` · `CssKnobs` | whats-new | moves — map in Phase 4 |
@@ -926,9 +926,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` emits
 | `switcher-chat-guard-confirm` | testid | Confirm on the chat guard. | `client/v2/history/git-parts.jsx` · `GuardDialog` | — | moves — map in Phase 4 |
 | `switcher-pr-link` | testid | Button that opens/copies the pull-request link after "Add to main". | `client/v2/history/git-parts.jsx` · `AddDialog` | — | moves — map in Phase 4 |
 | `switcher-pr-dismiss` | testid | "Got it" on the pull-request result. | `client/v2/history/git-parts.jsx` · `AddDialog` | — | moves — map in Phase 4 |
-| `[data-tour="save-local"]` | data-tour | The local save (commit) control: the primary button of the "Save a version" dialog. | `client/v2/history/git-parts.jsx` · `SaveDialog` | tour:collab-tour | stable — re-emit |
-| `[data-tour="publish"]` | data-tour | The Publish (push) button in Version history › Advanced (same element as `git-publish`). | `client/v2/history/git-advanced.jsx` · `GitBody` | tour:collab-tour | stable — re-emit |
-| `[data-tour="pull"]` | data-tour | The Get-latest (pull) button in Version history › Advanced (same element as one `git-get-latest`). | `client/v2/history/git-advanced.jsx` · `GitBody` | tour:collab-tour | stable — re-emit |
+| `[data-tour="save-local"]` | data-tour | The local save (commit) control: the primary button of the "Save a version" dialog. | `client/v2/history/git-parts.jsx` · `SaveDialog` | — | stable — re-emit |
+| `[data-tour="publish"]` | data-tour | The Publish (push) button in Version history › Advanced (same element as `git-publish`). | `client/v2/history/git-advanced.jsx` · `GitBody` | — | stable — re-emit |
+| `[data-tour="pull"]` | data-tour | The Get-latest (pull) button in Version history › Advanced (same element as one `git-get-latest`). | `client/v2/history/git-advanced.jsx` · `GitBody` | — | stable — re-emit |
 | `.gp-panel` | selector | Retired S11.10: the Changes panel is the git body of Version history › Advanced. Its root is `git-panel`. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e-mp:surface | retired |
 | `.gp-version` | selector | Retired S11.10: a version row is `.vh-git-ver` (or `project-history-row-<revision>`) in Version history › Advanced. | `client/panels/GitPanel.jsx` · `AcceptedRow` | e2e-mp:surface | retired |
 | `.gp-tabs / .gp-cloud-note` | selector | Retired S11.10: there are no tabs; the mode is `gitSurface()` (git-model.js) and the note is `git-cloud-managed`. `test/git-cloud-posture.test.ts` pins the new source text. | `client/panels/GitPanel.jsx` · `GitPanel` | test:git-cloud-posture (source text) | retired |
@@ -1497,7 +1497,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
 | `panel-tab-<id>` | testid (pattern) | A tab of the left panel's own header strip; `<id>` ∈ tree (reads "Canvases"), layers, assets (and any other panel a person docks on the left, Settings › Layout). Replaces the dock tab strip `dock-tab-<id>` (V2-4.4b). | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
-| `panel-head-<side>` | testid (pattern) | The panel's own header row (the tab strip + its Hide icon); `<side>` ∈ left, right. Only a side that hosts Canvases · Layers · Assets and more than one panel has one. | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
+| `panel-head-<side>` | testid (pattern) | The panel's own header row (the tab strip + its Hide icon); `<side>` ∈ left, right. Only a side that hosts Canvases · Layers · Assets and more than one panel has one. | `client/shell/dock.jsx` · `PanelTabs` | tour:quick-setup-tour, tour:usage-tour | stable |
 | `panel-fold-<side>` | testid (pattern) | The Hide icon in the panel's header: folds the panel to its corner icon. | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
 | `panel-grip-<side>` | testid (pattern) | The resize grip on the inner edge of the left / right panel (drag, arrow keys, Home / End, double-click resets). Role separator. | `client/shell/dock.jsx` · `PanelGrip` | — | stable |
 | `panel-side-<id>` | testid (pattern) | Settings › General › Layout › Panel positions: the Left / Right radio group of one panel (`<id>` ∈ tree, layers, assets, inspector, comments, changes, assistant). Persisted as prefs `panelSides`. | `client/panels/SettingsPanel.jsx` · `SideToggle` | — | stable |
@@ -1512,7 +1512,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-quit-cancel` | testid | S5.14: the quit dialog's Cancel — nothing stops, the app stays open. | `client/v2/ai/QuitDialog.jsx` · `QuitDialog` | `apps/desktop/e2e/scenarios/ai-quit.e2e.ts` | stable |
 | `ai-stopped-divider` | testid | S5.14: the end-of-chat line "Stopped when the app quit · <time>" (or Stopped / when the tab closed / when Maude quit unexpectedly) for a chat whose last run stopped. `data-run` = the run id. | `client/v2/ai/StoppedDivider.jsx` · `StoppedDivider` | `apps/desktop/e2e/scenarios/ai-quit.e2e.ts` | stable |
 | `ai-keep-going` | testid | S5.14: Keep going under the Stopped line — a new ask in the same chat resuming the stopped run (registry action ai.keep-going). | `client/v2/ai/StoppedDivider.jsx` · `StoppedDivider` | `apps/desktop/e2e/scenarios/ai-quit.e2e.ts` | stable |
-| `ai-chat-island` | testid | The AI chat panel itself (the `aside` frame, landmark "AI chat panel"). Hidden, never unmounted, while folded. | `client/v2/ai/AiChatIsland.jsx` · `AiChatIsland` | — | stable |
+| `ai-chat-island` | testid | The AI chat panel itself (the `aside` frame, landmark "AI chat panel"). Hidden, never unmounted, while folded. | `client/v2/ai/AiChatIsland.jsx` · `AiChatIsland` | tour:quick-setup-tour, tour:usage-tour | stable |
 | `ai-runs-list` | testid | The list under "✦ N": "Yours", then "On this canvas" (other people's runs, View only). Esc closes; a row takes you to its artboard. | `client/v2/ai/RunList.jsx` · `RunList` | — | stable |
 | `ai-run-<runId>` | testid | One row of the run list. `data-state` = working | waiting | needs, `data-view-only="true"` on another person's run. | `client/v2/ai/RunList.jsx` · `RunList` | — | stable |
 | `ai-waiting-stack` | testid | The waiting cards of the open chat (absent when nothing waits). | `client/v2/ai/WaitingCard.jsx` · `WaitingCards` | — | stable |
@@ -1672,8 +1672,8 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `templates-ask-input` | testid | The "describe it" text field ("Describe it — AI builds it on the canvas"). | `client/v2/annotations/templates-panel.jsx` · `TemplatesPanel` | test:templates-panel | new |
 | `templates-ask-send` | testid | The "describe it" send button; disabled until there are words. | `client/v2/annotations/templates-panel.jsx` · `TemplatesPanel` | test:templates-panel | new |
 | `dock-slot-<side>` | testid (pattern) | The MAIN panel island of a dock slot (`.st-dockslot-inner`); `<side>` ∈ left (Canvases · Layers · Assets), right (Inspector / Comments / Changes / Sync — one at a time, no tab strip). The AI chat is its own island, `dock-ai-<side>` (V2-4.4b). Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`. | `client/shell/dock.jsx` · `DockSlot` | — | stable |
-| `panel-icon-<which>` | testid (pattern) | The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\); `<which>` ∈ left (Canvases), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides. | `client/v2/shell/corner-icons.jsx` · `CornerIcons` | — | stable |
-| `project-pill` | testid | The project pill (mark + project name, top-left): the `.island` button that opens the one menu; accessible name "Project menu"; `data-occludes="top"` on its island (V2-4.2). | `client/v2/shell/project-pill.jsx` · `ProjectPill` | — | new in v2 (V2-4.2) |
+| `panel-icon-<which>` | testid (pattern) | The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\); `<which>` ∈ left (Canvases), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides. | `client/v2/shell/corner-icons.jsx` · `CornerIcons` | tour:quick-setup-tour, tour:usage-tour | stable |
+| `project-pill` | testid | The project pill (mark + project name, top-left): the `.island` button that opens the one menu; accessible name "Project menu"; `data-occludes="top"` on its island (V2-4.2). | `client/v2/shell/project-pill.jsx` · `ProjectPill` | tour:collab-tour, tour:usage-tour | new in v2 (V2-4.2) |
 | `project-menu` | testid | The root `role=menu` of the one menu (CONTRACT §1). | `client/v2/shell/project-pill.jsx` · `Level` | — | new in v2 (V2-4.2) |
 | `project-menu-row-<action-id>` | testid (pattern) | One row of the one menu; `<action-id>` is the registry action id (`export.open`, `settings.open`, …). Disabled rows carry `aria-disabled`; `export.open` shows twice with File open (top level and File). | `client/v2/shell/project-pill.jsx` · `Level` | — | new in v2 (V2-4.2) |
 | `project-menu-row-sub-<name>` | testid (pattern) | A submenu row; `<name>` ∈ file, edit, view, help, diagnostics, advanced, new-artboard. | `client/v2/shell/project-pill.jsx` · `Level` | — | new in v2 (V2-4.2) |
@@ -1951,7 +1951,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `diag-sync-failed` | testid | The files that need a look (stuck, only on this Mac, …) and the failed count. | `client/v2/diagnostics/sync-details/sync-details.jsx` · `SyncDetails` | test:v2-sync-details | new in v2 (S11.12) |
 | `diag-sync-signin` | testid | The "Sync stopped — the sign-in to the cloud ran out." card (desktop only). | `client/v2/diagnostics/sync-details/sync-details.jsx` · `SyncDetails` | test:v2-sync-details | new in v2 (S11.12) |
 | `share-cluster` | testid | The Share cluster (top-right `.island`): faces, status word, comments, Exports, Hide panels, Share. Carries `data-occludes="top"` (none when docked at the head of the pinned right column). | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
-| `share-cluster-faces` | testid | The faces list inside the Share cluster (you, Claude while it edits, other people). | `client/v2/presence/faces.jsx` · `PresenceFaces` | — | new in v2 (V2-4.3a) |
+| `share-cluster-faces` | testid | The faces list inside the Share cluster (you, Claude while it edits, other people). | `client/v2/presence/faces.jsx` · `PresenceFaces` | tour:collab-tour | new in v2 (V2-4.3a) |
 | `share-cluster-face-<clientID>` | testid (pattern) | A person's face in the Share cluster: opens the face menu (Follow, Go to, Bring everyone here). `aria-label` says where they are; the ring is their tone (never coral). | `client/v2/presence/faces.jsx` · `PresenceFaces` | test:presence-faces | new in v2 (S9.23) |
 | `share-cluster-faces-more` | testid | The "+N" after three faces when more people are here; opens the people list. | `client/v2/presence/faces.jsx` · `PresenceFaces` | test:presence-faces | new in v2 (S9.23) |
 | `presence-face-menu` | testid | The face menu: who, where and their role, then Follow, Go to, Bring everyone here. | `client/v2/presence/faces.jsx` · `FaceMenu` | test:presence-faces | new in v2 (S9.23) |
@@ -1968,14 +1968,14 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `presence-spotlight-stop` | testid | Stop on the spotlight pill: clears the Bring for everyone. Canvas iframe chrome. | `presence/canvas-presence.tsx` · `PresenceOverlay` | test:presence-canvas | new in v2 (S9.23) |
 | `presence-bring-glide` | testid | The layer that draws the glide: every cursor takes its own curve to the leader (spring 420 ms, 40 ms apart, nearest first; reduced motion = they appear). Canvas iframe chrome. | `presence/canvas-presence.tsx` · `PresenceOverlay` | test:presence-canvas | new in v2 (S9.23) |
 | `presence-bring-ghost-<clientID>` | testid (pattern) | One person's ghost cursor during the glide; `data-delay` and `data-duration` carry its timing in ms. | `presence/canvas-presence.tsx` · `PresenceOverlay` | test:presence-canvas | new in v2 (S9.23) |
-| `share-cluster-status` | testid | The status word (CONTRACT §6): `data-status` ∈ saved, syncing, offline, local, not-saved, or `access` (Can view / Can comment) for a person without edit rights. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
+| `share-cluster-status` | testid | The status word (CONTRACT §6): `data-status` ∈ saved, syncing, offline, local, not-saved, or `access` (Can view / Can comment) for a person without edit rights. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | tour:collab-tour | new in v2 (V2-4.3a) |
 | `share-cluster-<action>` | testid (pattern) | The one action beside a failed status; `<action>` ∈ retry, show-in-finder. Retry runs the Sync panel's Resync. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-detail` | testid | The full-disk sentence under the cluster (C37), shown only while Not saved carries one. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
-| `share-cluster-comments` | testid | The comments button in the Share cluster; runs `view.comments`. `aria-pressed` while the Comments panel shows. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
+| `share-cluster-comments` | testid | The comments button in the Share cluster; runs `view.comments`. `aria-pressed` while the Comments panel shows. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | tour:collab-tour | new in v2 (V2-4.3a) |
 | `share-cluster-comments-count` | testid | The open-comments count badge on the comments button; absent at zero. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-exports` | testid | The Exports icon (C9): present once any export exists; a progress ring while one runs (`data-busy`). Runs `view.exports`. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-panels` | testid | Hide panels / Show panels (`view.panels`, ⌘\); the label flips and there is no `aria-pressed` (V2-4.gate). | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
-| `share-cluster-share` | testid | Share (primary, editors): runs `share.open`; `aria-disabled` with no canvas open. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
+| `share-cluster-share` | testid | Share (primary, editors): runs `share.open`; `aria-disabled` with no canvas open. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | tour:collab-tour | new in v2 (V2-4.3a) |
 | `preview-bar` | testid | Preview's line, top centre: "Previewing <canvas>" and what esc does; `data-state` in/out drives the fade, `data-occludes="top"`. | `client/v2/preview/preview-bar.jsx` · `PreviewBar` | — | new in v2 (S3.9) |
 | `preview-bar-title` | testid | "Previewing <canvas>" inside the PreviewBar (the canvas name is the `<strong>`). | `client/v2/preview/preview-bar.jsx` · `PreviewBar` | — | new in v2 (S3.9) |
 | `preview-bar-esc` | testid | The esc hint: "esc to edit" for editors, "esc for Viewing" for a viewing role. | `client/v2/preview/preview-bar.jsx` · `PreviewBar` | — | new in v2 (S3.9) |
@@ -2241,48 +2241,48 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 
 ## What's New spotlights
 
-Every `tour[].target` in `apps/studio/whats-new.json`. The tour overlay (`client/tour/overlay.jsx`) resolves a target with `document.querySelector` on the shell document and shows the step centred, without a spotlight, when nothing matches, so a broken target fails silently. No test checks these targets today. "Needs state" means the element exists only in some shell state; the setup directives (`canvas`, `inspector`, `tab`, `requireSelection`) are noted where the step has them.
+Every `tour[].target` in `apps/studio/whats-new.json`. The tour overlay (`client/tour/overlay.jsx`) resolves a target with `document.querySelectorAll` on the shell document (the first match with a box on screen) and shows the step centred, without a spotlight, when nothing matches. Since V2-7.3 `test/tour-targets.test.ts` holds every replayable target to a non-retired hook in `testids.json` and to a literal in the client source, so a rename fails CI. An entry whose tour spotlights v1 chrome carries `replayable: false` (schema field, default `true`): its steps stay in the file as history and the What's New panel does not offer "Take tour" for it. A step may carry `optional: true` to be skipped, not shown centred, when its target is absent.
 
-| # | Entry (version) | Target | Resolves today | v2 |
-| --- | --- | --- | --- | --- |
-| 1 | `share-link-deeplink` step 0 (1.3.0) | `[data-testid="share-btn"]` | live — menubar; `canvas: true` opens a canvas first | moves — map in Phase 4 |
-| 2 | `sync-panel-per-file` step 0 (0.59.0) | `[data-testid="open-sync"]` | historical — the chip is gone (V2-4.8b); the Sync panel opens from Menu › Diagnostics › Sync | historical |
-| 3 | `report-a-bug-from-the-app` step 0 (0.52.0) | `[data-tour="help"]` | live | moves — map in Phase 4 |
-| 4 | `acp-ask-user-question` step 0 (0.45.2) | `[data-testid="chat-elicit-prompt"]` | needs state — only while Claude is asking a question; no setup directive, so the step usually shows centred | stable — re-emit |
-| 5 | `acp-live-capabilities` step 0 (0.45.2) | `[data-testid="chat-mode-picker"]` | needs state — only with the Assistant panel open and connected (native app); no setup directive | stable — re-emit |
-| 6 | `bring-your-brand` step 0 (0.44.0) | `[data-testid="onboarding-bring-brand"]` | needs state — only while the setup checklist dialog is open; no setup directive | moves — map in Phase 4 |
-| 7 | `inspector-designer-mode` step 0 (0.44.0) | `[data-tour="cp-mode"]` | needs state — setup opens the Inspector on the CSS tab and waits for a selection | moves — map in Phase 4 |
-| 8 | `watch-the-intro` step 0 (0.44.0) | `[data-tour="help"]` | live | moves — map in Phase 4 |
-| 9 | `ai-media-generation` step 0 (0.44.0) | `[data-tour="menubar-file"]` | dangling — no element carries `data-tour="menubar-file"`; the File menu is `data-testid="menu-file"` | historical spotlight |
-| 10 | `photo-editor` step 0 (0.43.0) | `[data-tour="inspector-tabs"]` | needs state — only if the Inspector is already open (the step has no `inspector: true`) | moves — map in Phase 4 |
-| 11 | `background-export-notification-center` step 0 (0.42.0) | `[data-tour="exports"]` | live — menubar Exports badge | moves — map in Phase 4 |
-| 12 | `in-canvas-token-editor` step 0 (0.30.0) | `[data-tour='inspector-tabs']` | needs state — setup opens the Inspector on the CSS tab | moves — map in Phase 4 |
-| 13 | `in-canvas-token-editor` step 1 (0.30.0) | `[data-tour='css-panel']` | needs state — setup + selection | moves — map in Phase 4 |
-| 14 | `in-canvas-token-editor` step 2 (0.30.0) | `.st-cp-row` | needs state — setup + selection | moves — map in Phase 4 |
-| 15 | `in-canvas-token-editor` step 3 (0.30.0) | `.st-cp-tokbtn` | needs state — setup + selection | moves — map in Phase 4 |
-| 16 | `in-canvas-token-editor` step 4 (0.30.0) | `.st-cp-sechd-row` | needs state — setup + selection | moves — map in Phase 4 |
-| 17 | `in-canvas-direct-edit` step 0 (0.30.0) | `[data-tour='inspector-tabs']` | needs state — setup opens the Inspector on the Layers tab + selection | moves — map in Phase 4 |
-| 18 | `in-canvas-direct-edit` step 1 (0.30.0) | `.st-layer-eye` | needs state — setup + selection | moves — map in Phase 4 |
-| 19 | `canvas-annotations-figjam-v3` step 0 (0.30.0) | `.dc-tool-palette` | unreachable — the palette lives inside the canvas iframe; the tour overlay queries the shell `document`, so this never resolves | historical spotlight |
-| 20 | `studio-full-functionality` step 0 (0.29.0) | `[data-tour='status']` | live — the menubar right cluster | moves — map in Phase 4 |
-| 21 | `studio-full-functionality` step 1 (0.29.0) | `[data-tour='inspector']` | needs state — setup opens the Inspector | moves — map in Phase 4 |
-| 22 | `studio-maude-ds-redesign` step 0 (0.29.0) | `[data-tour='brand']` | live | moves — map in Phase 4 |
-| 23 | `studio-maude-ds-redesign` step 1 (0.29.0) | `[data-tour='menus']` | live | moves — map in Phase 4 |
-| 24 | `annotation-tooling-polish` step 0 (0.29.0) | `[data-tour='viewport']` | live — `canvas: true` | moves — map in Phase 4 |
-| 25 | `in-app-whats-new-tour` step 0 (0.29.0) | `[data-tour='whatsnew']` | live | moves — map in Phase 4 |
-| 26 | `in-app-whats-new-tour` step 1 (0.29.0) | `[data-tour='help']` | live | moves — map in Phase 4 |
+| # | Entry (version) | Target | Status |
+| --- | --- | --- | --- |
+| 1 | `share-link-deeplink` step 0 (1.3.0) | `[data-testid="share-cluster-share"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts`; `canvas: true` |
+| 2 | `sync-panel-per-file` step 0 (0.59.0) | `[data-testid="share-cluster-status"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 3 | `report-a-bug-from-the-app` step 0 (0.52.0) | `[data-tour="menus"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 4 | `acp-ask-user-question` step 0 (0.45.2) | `[data-testid="chat-elicit-prompt"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 5 | `acp-live-capabilities` step 0 (0.45.2) | `[data-testid="chat-mode-picker"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 6 | `bring-your-brand` step 0 (0.44.0) | `[data-testid="onboarding-bring-brand"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 7 | `inspector-designer-mode` step 0 (0.44.0) | `[data-tour="cp-mode"]` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 8 | `watch-the-intro` step 0 (0.44.0) | `[data-tour="menus"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 9 | `ai-media-generation` step 0 (0.44.0) | `[data-tour="menus"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 10 | `photo-editor` step 0 (0.43.0) | `[data-tour="inspector-tabs"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts`; `inspector: true` |
+| 11 | `background-export-notification-center` step 0 (0.42.0) | `[data-tour="exports"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 12 | `in-canvas-token-editor` step 0 (0.30.0) | `[data-tour='inspector-tabs']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 13 | `in-canvas-token-editor` step 1 (0.30.0) | `[data-tour='css-panel']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 14 | `in-canvas-token-editor` step 2 (0.30.0) | `.st-cp-row` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 15 | `in-canvas-token-editor` step 3 (0.30.0) | `.st-cp-tokbtn` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 16 | `in-canvas-token-editor` step 4 (0.30.0) | `.st-cp-sechd-row` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 17 | `in-canvas-direct-edit` step 0 (0.30.0) | `[data-tour='inspector-tabs']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 18 | `in-canvas-direct-edit` step 1 (0.30.0) | `.st-layer-eye` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 19 | `canvas-annotations-figjam-v3` step 0 (0.30.0) | `.dc-tool-palette` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 20 | `studio-full-functionality` step 0 (0.29.0) | `[data-tour='status']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 21 | `studio-full-functionality` step 1 (0.29.0) | `[data-tour='inspector']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 22 | `studio-maude-ds-redesign` step 0 (0.29.0) | `[data-tour='brand']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 23 | `studio-maude-ds-redesign` step 1 (0.29.0) | `[data-tour='menus']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 24 | `annotation-tooling-polish` step 0 (0.29.0) | `[data-tour='viewport']` | not replayable — spotlights v1 chrome (`replayable: false`); the panel offers no "Take tour" |
+| 25 | `in-app-whats-new-tour` step 0 (0.29.0) | `[data-tour="menus"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
+| 26 | `in-app-whats-new-tour` step 1 (0.29.0) | `[data-tour="menus"]` | replayable — pinned to a current hook by `test/tour-targets.test.ts` |
 
-Totals: 26 targets — 10 live, 14 need a shell state, 1 dangling, 1 unreachable.
+Totals: 26 targets — 12 replayable, 14 not replayable.
 
 ## Tours
 
-The built-in tours in `client/tour/*.js` spotlight these anchors (all resolve today; a missing one degrades to a centred card).
+The built-in tours in `client/tour/*.js` (V2-7.3 rewrote all three for the v2 shell). Every target is a `data-testid` or `data-tour` hook pinned by `test/tour-targets.test.ts`; a step marked **optional** is skipped when its target is absent (a role or shell state without that element), a step without a target is a centred card. The toolbars live inside the canvas frame, which the shell cannot reach, so they are described in copy, not spotlit. Reached from Menu › Help: *Take the tour* (usage), *How sharing works* (collab), *Set up Maude…* (quick setup, started from its checklist).
 
 | Tour | Steps (in order) |
 | --- | --- |
-| `usage-tour.js` | `[data-tour="sidebar"]`, `[data-tour="viewport"]`, `[data-tour="menus"]`, `[data-tour="inspector"]` (`inspector: true`), `[data-tour="whatsnew"]`, `[data-tour="help"]` |
-| `collab-tour.js` | centred intro, `[data-tour="save-local"]`, `[data-tour="publish"]`, `[data-tour="pull"]` (each `changes: true`), `[data-tour="status"]` |
-| `quick-setup-tour.js` | centred intro, `[data-tour="sidebar"]`, `[data-testid="assistant-toggle"]`, `[data-tour="viewport"]` |
+| `usage-tour.js` | `project-pill`; centred Search (⌘K); `panel-head-left` (optional); `[data-tour="viewport"]` (`canvas: true`); `share-cluster-mode`; `inspector-panel` (`inspector: true`, optional); `ai-chat-island` or `panel-icon-assistant` (optional); centred Help |
+| `collab-tour.js` | centred two-layer infographic; `share-cluster-faces` (optional); `share-cluster-status` (optional); `share-cluster-comments`; `share-cluster-share` (optional); `project-pill` (Version history); centred "the one thing worth knowing" |
+| `quick-setup-tour.js` | centred intro; `panel-head-left` (optional); `ai-chat-island` or `panel-icon-assistant` (optional); `[data-tour="viewport"]`; centred close-out |
 
 ## Source-text consumers
 
@@ -2447,7 +2447,7 @@ Consumers that target a hook no producer emits today. Each one is a test, spec o
 Related producer-side gaps (not dangling, but they bite the same way):
 
 - **`canvas-row-<slug>` is missing in one state.** Only `FileRow` builds it. A canvas that has sidecars is rendered by `CanvasRow` when "show hidden files" is on, and that row has no `canvas-row-*` id, so `canvasRow()` / `expandTree()` cannot find it in that mode.
-- **`data-tour="whatsnew"` on an unmounted component.** `WhatsNewBadge` (`client/whats-new.jsx`) emits it but is never rendered; the live anchor is the `.st-whatsnew` button in `Menubar`.
+- **`data-tour="whatsnew"` has no producer.** The unmounted `WhatsNewBadge` that emitted it was removed in V2-7.3; What's New is Menu › Help › What's new.
 - **Same testid on two elements:** `cloud-account` (menubar chip in the cloud shell, and the CloudBar account button in the local shell); `export-include-annotations` and `export-pdf-text` (the shell Export dialog and the in-canvas export dialog `DialogShell`, two documents); `chat-msg-actions` (user and assistant messages, intended).
 - **Convention breaks:** `st-empty-start-quick-setup` (class-style name), `sync-setting-syncFiles` / `-propagateDeletes` / `-firstAnchor` (camelCase), `notice-<id>` (no area prefix).
 - **Survey corrections** (F-codebase-survey §5): `inspector-open` is a screenshot label in `shell-parity`, not a hook; there is no `menu-ui` hook (the `share-link` consumer is `tree-row-menu-ui-export`); `.st-sb-title` is the sidebar title, not a status-bar element.

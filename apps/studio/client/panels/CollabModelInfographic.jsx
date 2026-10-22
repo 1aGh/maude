@@ -2,8 +2,8 @@
 //
 // Carries the whole mental model the collab tour teaches (see the teaching-model
 // DDR): a LIVE layer (cursors · who's here · comments — automatic, no buttons)
-// floating ABOVE the work cycle (Save changes locally → Publish for everyone →
-// Pull changes — visible, has buttons). The two layers are NEVER mixed into one
+// floating ABOVE the work cycle (Save a version → Publish →
+// Get latest — visible, has buttons). The two layers are NEVER mixed into one
 // diagram — that split is the whole point. Rendered as the centered tour step's
 // graphic (overlay.jsx `render` field) and embeddable elsewhere (e.g. the wizard
 // success state). Pure presentational; cm-* classes live in 3-shell-maude.css.
@@ -113,15 +113,15 @@ export default function CollabModelInfographic() {
 
       {/* THE WORK — the visible three-verb cycle. */}
       <div className="cm-cycle">
-        <CycleStep icon="save" label="Save changes locally" sub="keep a version on your machine" />
+        <CycleStep icon="save" label="Save a version" sub="keep it on this Mac" />
         <span className="cm-cyc-arrow" aria-hidden="true">
           <Glyph name="arrow-right" size={15} />
         </span>
-        <CycleStep icon="publish" label="Publish for everyone" sub="share it with the team" />
+        <CycleStep icon="publish" label="Publish" sub="share it with the team" />
         <span className="cm-cyc-arrow" aria-hidden="true">
           <Glyph name="arrow-right" size={15} />
         </span>
-        <CycleStep icon="download" label="Pull changes" sub="get everyone else's work" />
+        <CycleStep icon="download" label="Get latest" sub="bring in everyone else's work" />
       </div>
     </div>
   );
