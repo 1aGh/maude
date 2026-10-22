@@ -189,6 +189,27 @@ describe('S8.10 ⇧⌘H — pick where the code goes', () => {
     expect($('[data-testid="handoff-drafting"]')).not.toBeNull();
   });
 
+  // P8-C4 (09 ex-handoff, a11y) — radio cards with a dot and the target's glyph; arrows reach every target
+  test('the targets are radio cards: a dot, a glyph, and ← ↑ → ↓ move and pick (Lottie, off, is skipped)', async () => {
+    await mount();
+    const web = $('[data-testid="handoff-target-web"]') as HTMLElement;
+    expect(web.querySelector('.ho-radio')).not.toBeNull();
+    expect(web.querySelector('.ho-target-ic svg')).not.toBeNull();
+    await act(async () => {
+      web.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      await tick(10);
+    });
+    expect($('[data-testid="handoff-target-app"]')?.getAttribute('aria-checked')).toBe('true');
+    await act(async () => {
+      $('[data-testid="handoff-target-app"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })
+      );
+      await tick(10);
+    });
+    // Lottie is off: the next live target wraps round to web
+    expect($('[data-testid="handoff-target-web"]')?.getAttribute('aria-checked')).toBe('true');
+  });
+
   test('blockers inform: the warn line names them, and Hand off stays on', async () => {
     const blockers = [
       { what: 'Tablet price text is 3.9 : 1 (needs 4.5 : 1)' },

@@ -3,8 +3,10 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   exportSelectionFor,
+  exportSelectionV2,
   isOwnSelectEcho,
   localSelectRecord,
+  stampSelectionFile,
 } from '../client/selection-scope.js';
 
 const A = { file: '.design/ui/a.tsx', artboardId: 'a-hero', selector: '[data-x]' };
@@ -47,5 +49,44 @@ describe('export scope', () => {
       activeArtboardId: 'b-viewport',
       selection: null,
     });
+  });
+});
+
+// P8-C4 (09 · ex-social, ex-batch-pick) — the sheet names the one artboard it exports, and a multi-selection
+// (⌘A, ⇧-click) reaches it: the canvas's list entries carry no `file`, so the shell stamps the open canvas on them.
+describe('export sheet selection (09 Export)', () => {
+  const board = (id: string, label: string) => ({
+    file: A.file,
+    artboardId: id,
+    selector: `[data-dc-screen="${id}"]`,
+    attrs: { 'data-dc-screen': id, 'data-dc-label': label },
+  });
+  test('one selected artboard: its label names the sheet', () => {
+    const r = exportSelectionV2(board('post', 'DOMA · Post 4:5 — feed matchday'), A.file);
+    expect(r.selectionLabel).toBe('DOMA · Post 4:5 — feed matchday');
+    expect(r.selectedArtboards).toEqual(['post']);
+  });
+  test('the label falls back to the artboard id; several artboards have no single label', () => {
+    expect(
+      exportSelectionV2({ file: A.file, artboardId: 'story', selector: 's' }, A.file).selectionLabel
+    ).toBe('story');
+    const two = exportSelectionV2([board('a', 'A'), board('b', 'B')], A.file);
+    expect(two.selectionLabel).toBeNull();
+    expect(two.selectedArtboards).toEqual(['a', 'b']);
+  });
+  test('list entries without a file are stamped with the open canvas, and then count', () => {
+    const entries = [
+      { id: 'fd13fd41', artboardId: 'hype', selector: 'x' },
+      { id: '9ebcb9ab', artboardId: 'hype', selector: 'y' },
+    ];
+    expect(exportSelectionV2(entries, A.file).hasSelection).toBe(false);
+    const stamped = stampSelectionFile(entries, A.file) as { file: string }[];
+    expect(stamped.map((s) => s.file)).toEqual([A.file, A.file]);
+    const r = exportSelectionV2(stamped, A.file);
+    expect(r.hasSelection).toBe(true);
+    expect(r.selectedElements).toEqual(['fd13fd41', '9ebcb9ab']);
+    // an entry that names another canvas is left alone
+    expect((stampSelectionFile([B], A.file) as { file: string }[])[0].file).toBe(B.file);
+    expect(stampSelectionFile(null, A.file)).toBeNull();
   });
 });

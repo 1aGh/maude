@@ -73,7 +73,15 @@ const px = (n) => `${Math.round(n * 10) / 10}px`;
  * @param paper     PaperInfo from the preflight reply
  * @param findings  safe-margin findings to ring (only the ones on this page)
  */
-export function Paper({ paper, bleed, marks, registration, findings = [], stack = false }) {
+export function Paper({
+  paper,
+  bleed,
+  marks,
+  registration,
+  findings = [],
+  stack = false,
+  picture = null,
+}) {
   const g = paperGeometry(paper, { bleed, marks, registration });
   const rings = findings.map((f) => ({
     key: `${f.artboard}:${f.element ?? f.label}`,
@@ -103,6 +111,10 @@ export function Paper({ paper, bleed, marks, registration, findings = [], stack 
           data-testid="export-paper-art"
           style={{ left: px(g.art.x), top: px(g.art.y), width: px(g.art.w), height: px(g.art.h) }}
         >
+          {/* the artboard as the canvas draws it (a capture, `useBoardPicture`) — the page the shop gets, in colour */}
+          {picture ? (
+            <img className="ex-fill ex-paper-pic" src={picture} alt="" draggable={false} />
+          ) : null}
           {bleed && g.bleedPx > 0 ? (
             <span
               className="ex-tint"

@@ -24,6 +24,7 @@ export const QUALITIES = [
 
 export const SOUND_MIXED = 'Music, mixed as on the timeline';
 export const SOUND_GIF = 'A GIF has no sound';
+export const SOUND_NONE = 'No sound on this timeline';
 /** 07 ve-export: under Format when more than one format is ticked. */
 export const SOUND_SHARED_NOTE = 'Sound only makes one file — the formats share their sound.';
 export const SOUND_ONLY_NOTE = 'The same mix the video has, with no picture.';
@@ -36,6 +37,9 @@ export const SOUND_FILES = [
 export const CAPTIONS_OFF = 'Off';
 export const CAPTIONS_BURNED = 'Burned in';
 export const CAPTIONS_NONE = 'No speech to caption';
+export const CAPTIONS_FILE = 'As a file';
+export const CAPTIONS_BOTH = 'Both';
+export const CAPTIONS_HELD = 'A caption file next to the video — not in this version yet.';
 export const CAPTIONS_GIF = 'A GIF has no captions';
 
 export const FILM_LABEL = 'The whole edit — scrub it to check any frame';
@@ -60,6 +64,21 @@ const clock = (frames, fps) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 export { clock };
+
+/**
+ * Whole-second marks along a cut of `seconds`: 0:00 0:05 0:10 0:15 — a step of 1, 2, 5, 10, 15, 30, 60 … seconds
+ * (never more than five marks), always ending on the cut's own length. A quarter of a short cut is a repeat
+ * ("0:01 0:02 0:02"); a mark is a second you can read.
+ */
+export function tickSeconds(seconds) {
+  const end = Math.max(1, Math.round(seconds));
+  const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200];
+  const step = steps.find((s) => end / s <= 4) ?? 7200;
+  const out = [];
+  for (let t = 0; t < end; t += step) out.push(t);
+  out.push(end);
+  return out;
+}
 
 const grouped = (n) => n.toLocaleString('en-US');
 

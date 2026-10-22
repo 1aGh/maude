@@ -55,11 +55,30 @@ export function exportSelectionV2(selected, activePath) {
     else if (s.artboardId && !artboards.includes(s.artboardId))
       artboards.push(String(s.artboardId));
   }
+  // 09 ex-social — the title names the ONE artboard it exports: its own label, else its id
+  const one = list.length === 1 && !list[0].id ? list[0] : null;
+  const label = one
+    ? String(one.attrs?.['data-dc-label'] ?? '')
+        .replace(/\s+/g, ' ')
+        .trim() || String(one.artboardId ?? one.attrs?.['data-dc-screen'] ?? '')
+    : '';
   return {
     hasSelection: list.length > 0,
     selectedArtboards: artboards,
     selectedElements: elements,
+    selectionLabel: label || null,
   };
+}
+
+/**
+ * 09 ex-batch-pick — the canvas's multi-select list (⌘A, ⇧-click) arrives without a `file` on its entries;
+ * the single selection carries one. Both are about the canvas that was open when the message came, so the shell
+ * stamps that canvas on the entries that name none — otherwise Export's "is this selection on the open canvas?"
+ * check drops the whole list and ⇧⌘E falls through to This canvas.
+ */
+export function stampSelectionFile(selection, activePath) {
+  if (!Array.isArray(selection) || !activePath) return selection;
+  return selection.map((s) => (s && s.file == null ? { ...s, file: activePath } : s));
 }
 
 /**

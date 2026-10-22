@@ -18,6 +18,11 @@ import {
 } from '../export-copy.js';
 import { RASTER, effectiveScale } from '../use-export-spec.js';
 import { Check, Row, Seg } from '../parts.jsx';
+import { sizeLine } from '../preview.jsx';
+import { StIcon } from '../../../shell/icons.jsx';
+
+/** The visible area of a web artboard: its first screen. */
+export const VISIBLE_HEIGHT = 900;
 
 const sizeId = (format, scale) => `${format}-${scale}`;
 const labelOf = (format) =>
@@ -32,6 +37,7 @@ export function WebSection({
   onHandoff,
   annotationsOff = false,
   annotationsNote,
+  board = null,
 }) {
   const image = RASTER.has(state.format);
   const pdf = state.format === 'pdf';
@@ -61,8 +67,35 @@ export function WebSection({
       </Row>
       {image ? (
         <>
-          <Row k="Area" note={WEB_AREA_NOTE} testid="export-row-area">
-            <span className="ex-val">Full page</span>
+          <Row k="Area" testid="export-row-area">
+            <Seg
+              label="Area"
+              testid="export-area"
+              options={[
+                {
+                  id: 'full',
+                  label: 'Full page',
+                  small: board ? sizeLine(board.w, board.h) || undefined : undefined,
+                  testid: 'export-area-full',
+                },
+                // the picture of the first screen only — the exporter has no such crop yet, so the choice is drawn and
+                // held back, not faked (P8-C4, handed back: capture a clipped artboard)
+                {
+                  id: 'visible',
+                  label: 'Visible area',
+                  small: board
+                    ? sizeLine(board.w, Math.min(board.h, VISIBLE_HEIGHT)) || undefined
+                    : undefined,
+                  disabled: true,
+                  testid: 'export-area-visible',
+                },
+              ]}
+              value="full"
+              onPick={() => {}}
+            />
+            <span className="ex-row-n" data-testid="export-area-note">
+              {WEB_AREA_NOTE}
+            </span>
           </Row>
           <Row k="Size" note={WEB_SIZE_NOTE} testid="export-row-size">
             <Seg
@@ -94,18 +127,25 @@ export function WebSection({
           {ANNOTATIONS_LABEL}
         </Check>
       </Row>
-      <div className="ex-code" data-testid="export-code-line">
-        <span>{WEB_CODE_LINE}</span>
-        <button
-          type="button"
-          className="ex-code-a"
-          onClick={onHandoff}
-          data-testid="export-code-action"
-        >
-          {WEB_CODE_ACTION}
-        </button>
-        <kbd className="ex-kbd">⇧⌘H</kbd>
-      </div>
     </>
+  );
+}
+
+/** Code is a way out, not a format: the line the sheet draws under its last row (after File name · Save to). */
+export function WebCodeLine({ onHandoff }) {
+  return (
+    <div className="ex-code" data-testid="export-code-line">
+      <StIcon name="code" size={14} />
+      <span>{WEB_CODE_LINE}</span>
+      <button
+        type="button"
+        className="ex-code-a"
+        onClick={onHandoff}
+        data-testid="export-code-action"
+      >
+        {WEB_CODE_ACTION}
+      </button>
+      <kbd className="ex-kbd">⇧⌘H</kbd>
+    </div>
   );
 }

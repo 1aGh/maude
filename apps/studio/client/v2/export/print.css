@@ -4,36 +4,9 @@
  * 1 ms under prefers-reduced-motion. */
 
 @layer shell {
-  /* A print page has a paper beside its rows, so the sheet is wider. */
-  .ex-sheet.island:has([data-testid="export-print"]) {
-    width: min(100%, 780px);
-  }
-
+  /* The print section is the sheet's own body: the paper column, then the rows (the sheet is 780 wide). */
   .ex-print {
-    display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: var(--space-4, 16px);
-    align-items: start;
-  }
-  @media (max-width: 720px) {
-    .ex-print {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-  .ex-print-prev {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    padding: var(--space-3, 12px);
-    border-radius: var(--radius-md, 10px);
-    background: var(--bg-2);
-  }
-  .ex-print-rows {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3, 12px);
-    min-width: 0;
+    display: contents;
   }
   .ex-checks {
     display: flex;

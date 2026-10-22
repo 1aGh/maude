@@ -17,6 +17,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAiRuns } from '../ai/runs-store.js';
 import { connectClaude } from '../ai/connect-flow.js';
+import { StIcon } from '../../shell/icons.jsx';
+import { DigitalIcon, WebIcon } from '../canvases/canvas-icons.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
 import { HandoffConnect, QueuedLine, ReviewHint } from './edges.jsx';
 import { ReadyCard } from './ready-card.jsx';
@@ -36,6 +38,35 @@ import {
 } from './targets.js';
 
 const POLL_MS = 2500;
+
+/** The target's glyph: a browser (web), a phone (app), a play triangle (Lottie), a swatch grid (tokens). */
+function TargetIcon({ kind }) {
+  if (kind === 'web') return <WebIcon size={16} />;
+  if (kind === 'rn') return <DigitalIcon size={16} />;
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === 'lottie' ? (
+        <path d="M5.5 3.5l7 4.5-7 4.5z" />
+      ) : (
+        <>
+          <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+          <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+          <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+          <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+        </>
+      )}
+    </svg>
+  );
+}
 const json = (r) => r.json().catch(() => null);
 
 function query(subject) {
@@ -74,11 +105,12 @@ export function HandoffSheet({
   // Focus the primary button on open, but only while it can take focus: Hand off is `disabled` until
   // the targets have arrived and one is picked, and a disabled button keeps the focus where it was
   // (behind the sheet, so Esc and ↵ never reached it). Then the dialog itself takes it.
+  const pickedRef = useRef(null);
   const initialFocus = useMemo(
     () => ({
       get current() {
         const b = primary.current;
-        return b && !b.disabled ? b : null;
+        return b && !b.disabled ? b : pickedRef.current;
       },
     }),
     []
@@ -252,6 +284,7 @@ export function HandoffSheet({
                 // biome-ignore lint/a11y/useSemanticElements: a rich radio row
                 <div
                   key={t.id}
+                  ref={t.id === pick ? pickedRef : null}
                   role="radio"
                   tabIndex={t.id === pick ? 0 : -1}
                   aria-checked={t.id === pick}
@@ -265,8 +298,28 @@ export function HandoffSheet({
                       e.preventDefault();
                       setPick(t.id);
                     }
+                    // ← ↑ → ↓ move to the next target that can be picked, and pick it (one tab stop, as a radio group)
+                    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+                    if (step) {
+                      const live = targets.filter((x) => !x.off);
+                      if (live.length === 0) return;
+                      e.preventDefault();
+                      const at = Math.max(
+                        0,
+                        live.findIndex((x) => x.id === pick)
+                      );
+                      const to = live[(at + step + live.length) % live.length];
+                      setPick(to.id);
+                      e.currentTarget.parentElement
+                        ?.querySelector(`[data-testid="handoff-target-${to.id}"]`)
+                        ?.focus();
+                    }
                   }}
                 >
+                  <span className="ho-radio" aria-hidden="true" />
+                  <span className="ho-target-ic" aria-hidden="true">
+                    <TargetIcon kind={t.kind} />
+                  </span>
                   <span className="ho-target-t">
                     {t.title}
                     {t.id === lastUsed && !t.off ? (
@@ -291,29 +344,18 @@ export function HandoffSheet({
               </label>
             ) : null}
             {info ? <ReviewHint review={info.review} onShowOnCanvas={onShowOnCanvas} /> : null}
-            {target?.outRel ? (
-              <div className="k-adv ho-adv" data-open={advOpen ? 'true' : 'false'}>
-                <button
-                  type="button"
-                  className="k-adv-btn"
-                  aria-expanded={advOpen}
-                  data-testid="handoff-advanced"
-                  onClick={() => setAdvOpen((v) => !v)}
-                >
-                  Advanced<span className="k-adv-count">{ADVANCED_HINT}</span>
-                </button>
-                {advOpen ? (
-                  <div className="ho-adv-body">
-                    <span className="ho-kv">
-                      <span>Writes</span>
-                      <span className="k-mono">{target.outRel}</span>
-                    </span>
-                    <span className="ho-kv">
-                      <span>Targets</span>
-                      <span className="k-mono">.design/config.json · handoff.targets</span>
-                    </span>
-                  </div>
-                ) : null}
+            {target?.outRel && advOpen ? (
+              <div className="k-adv ho-adv" data-open="true">
+                <div className="ho-adv-body">
+                  <span className="ho-kv">
+                    <span>Writes</span>
+                    <span className="k-mono">{target.outRel}</span>
+                  </span>
+                  <span className="ho-kv">
+                    <span>Targets</span>
+                    <span className="k-mono">.design/config.json · handoff.targets</span>
+                  </span>
+                </div>
               </div>
             ) : null}
           </>
@@ -355,6 +397,20 @@ export function HandoffSheet({
             {onBack && phase === 'pick' ? (
               <button type="button" className="btn btn--ghost btn--sm" onClick={onBack}>
                 Back to export
+              </button>
+            ) : phase === 'pick' && target?.outRel ? (
+              <button
+                type="button"
+                className="v2-fold-btn ex-adv-btn"
+                aria-expanded={advOpen}
+                data-testid="handoff-advanced"
+                onClick={() => setAdvOpen((v) => !v)}
+              >
+                <span className="v2-fold-ch">
+                  <StIcon name="chevron-right" size={12} />
+                </span>
+                Advanced
+                <span className="v2-fold-hint">{ADVANCED_HINT}</span>
               </button>
             ) : (
               <span />

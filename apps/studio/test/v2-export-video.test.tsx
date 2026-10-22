@@ -7,13 +7,17 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import {
   formatsNote,
   overCapLine,
+  tickSeconds,
   videoButtonLabel,
 } from '../client/v2/export/sections/video-copy.js';
 import {
   formatsFor,
   lengthState,
   mergeRows,
+  qualityReaches,
   reached,
+  scaleOf,
+  sizeWords,
   tickedIds,
   toggleTick,
   videoCtx,
@@ -117,6 +121,41 @@ describe('the spec a video builds', () => {
     const video = { ids: ['reels', 'wide'], linked: true };
     const spec = buildSpec(base('png'), { ...ctx, video });
     expect(spec.selection).toEqual({ artboards: ['reels'] });
+  });
+});
+
+// P8-C4 (09 ex-video) — 1080p / 4K name a SIZE, the strip counts whole seconds, sound and captions say what is true
+describe('P8-C4: quality names a size, the strip counts whole seconds', () => {
+  test('1080p and 4K are the shorter side: a Reel is ×1 / ×2, a small comp scales up to reach it', () => {
+    expect([scaleOf('1080p', 1080), scaleOf('4k', 1080)]).toEqual([1, 2]);
+    expect([scaleOf('1080p', 270), scaleOf('4k', 270)]).toEqual([4, 4]); // the spec allows up to ×4
+    expect(scaleOf('1080p', 2160)).toBe(0.5);
+    expect([scaleOf('1080p'), scaleOf('4k')]).toEqual([1, 2]); // size unknown: the old pair
+    expect(qualityReaches('4k', 270)).toBe(false); // clamped to the same picture as 1080p
+    expect(qualityReaches('4k', 1080)).toBe(true);
+    expect(sizeWords({ w: 1080, h: 1920 }, scaleOf('4k', 1080))).toBe('2160 × 3840');
+    expect(sizeWords({ w: 480, h: 270 }, scaleOf('1080p', 270))).toBe('1920 × 1080');
+  });
+  test('the spec asks the engine for that scale', () => {
+    const ctx = {
+      designRel: '.design',
+      activePath: '.design/ui/reel.tsx',
+      kind: 'video',
+      artboards: ['reels'],
+      video: { ids: ['reels'], shortSide: 270 },
+    };
+    const s = { ...initialState({}, { hasSelection: true }), format: 'mp4', vq: '1080p' };
+    expect(buildSpec(s, ctx).options?.size).toEqual({ scale: 4 });
+  });
+  test('the ticks are whole seconds and never repeat', () => {
+    expect(tickSeconds(15)).toEqual([0, 5, 10, 15]);
+    expect(tickSeconds(3)).toEqual([0, 1, 2, 3]);
+    expect(tickSeconds(72)).toEqual([0, 30, 60, 72]);
+    for (const n of [1, 2, 4, 7, 15, 45, 119, 600, 5000]) {
+      const t = tickSeconds(n);
+      expect(new Set(t).size).toBe(t.length);
+      expect(t.length).toBeLessThanOrEqual(6);
+    }
   });
 });
 
@@ -318,6 +357,24 @@ describe('the sheet: a video artboard', () => {
     expect($('[data-testid="export-video-length"]')).toBeNull(); // 900 frames: nothing to warn about
   });
 
+  test('P8-C4: Sound is a switch that says what is true; Captions has four choices; the ticks are seconds', async () => {
+    await mountSheet();
+    const sw = $('[data-testid="export-sound-switch"]') as HTMLButtonElement;
+    expect(sw.getAttribute('role')).toBe('switch');
+    expect(sw.getAttribute('aria-checked')).toBe('true'); // the cut has a music bed
+    expect(text('[data-testid="export-sound-note"]')).toBe('Music, mixed as on the timeline');
+    const caps = [...document.querySelectorAll('[data-testid="export-captions"] [role="radio"]')];
+    expect(caps.map((b) => b.textContent)).toEqual(['Burned in', 'As a file', 'Both', 'Off']);
+    // a caption FILE is held back with its reason, not faked
+    expect((caps[1] as HTMLButtonElement).disabled).toBe(true);
+    expect(caps[1].getAttribute('title')).toContain('not in this version yet');
+    // 0:00 0:05 0:10 — a 30 s cut at 30 fps is 900 frames: marks at whole seconds, none repeated
+    const ticks = [...document.querySelectorAll('.ex-film-ticks span')].map((e) => e.textContent);
+    expect(ticks).toEqual(['0:00', '0:10', '0:20', '0:30']);
+    // the preview column names the picture (a poster of the artboard)
+    expect(text('[data-testid="export-preview-caption"]')).toContain('scrub the strip below');
+  });
+
   test('MP4 exports the artboard at 1080p; 4K asks for twice the size', async () => {
     await mountSheet();
     await click('[data-testid="export-quality-4k"]');
@@ -325,7 +382,7 @@ describe('the sheet: a video artboard', () => {
     const spec = jobs()[0]?.body?.spec;
     expect(spec?.format).toBe('mp4');
     expect(spec?.selection).toEqual({ artboards: ['reels'] });
-    expect(spec?.options).toEqual({ size: { scale: 2 } });
+    expect(spec?.options).toEqual({ size: { scale: 2 }, saveTo: 'downloads' });
   });
 
   test('GIF has no sound and no captions; WebM is one click down, under Other…', async () => {
@@ -348,7 +405,7 @@ describe('the sheet: a video artboard', () => {
     const spec = jobs()[0]?.body?.spec;
     expect(spec?.format).toBe('audio');
     expect(spec?.selection).toEqual({ artboards: ['reels'] });
-    expect(spec?.options).toEqual({ audio: { codec: 'wav' } });
+    expect(spec?.options).toEqual({ audio: { codec: 'wav' }, saveTo: 'downloads' });
   });
 
   test('a video past 3 600 frames warns; Allow longer lifts the limit and says to what', async () => {

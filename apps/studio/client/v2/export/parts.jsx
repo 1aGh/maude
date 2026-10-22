@@ -56,6 +56,7 @@ export function Seg({ options, value, onPick, label, testid }) {
           role="radio"
           aria-checked={o.id === value}
           disabled={o.disabled}
+          title={o.title}
           tabIndex={o.id === value || (!picked && o === options[0]) ? 0 : -1}
           className="ex-seg-b"
           data-seg={o.id}

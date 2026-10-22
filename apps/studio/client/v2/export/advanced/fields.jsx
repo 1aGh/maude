@@ -81,7 +81,7 @@ export function NumberField({ value, onCommit, range, unit, label, testid, integ
 }
 
 /** An on/off switch — a button with `role="switch"`. */
-export function Switch({ checked, onChange, label, testid }) {
+export function Switch({ checked, onChange, label, testid, disabled = false }) {
   const id = useId();
   return (
     // biome-ignore lint/a11y/useSemanticElements: a switch is its own ARIA role, the design's control
@@ -91,6 +91,7 @@ export function Switch({ checked, onChange, label, testid }) {
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       className="ex-switch"
       data-testid={testid}
       data-on={checked ? 'true' : undefined}

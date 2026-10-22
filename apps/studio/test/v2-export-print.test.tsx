@@ -253,8 +253,15 @@ function stubFetch(preflight: unknown = PREFLIGHT) {
       new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
     if (url.endsWith('/_api/export-history')) return json({ history: [] });
     if (url.endsWith('/_api/export-estimate')) return json(EST_PRINT);
-    if (url.endsWith('/_api/export-preflight'))
-      return preflight === 'hang' ? new Promise<Response>(() => {}) : json(preflight);
+    if (url.endsWith('/_api/export-preflight')) {
+      if (preflight === 'hang') return new Promise<Response>(() => {});
+      // the headless safe-margin render never answers; the quick ask (`measure: false`) does
+      if (preflight === 'measure-hangs')
+        return calls.at(-1)?.body?.measure === false
+          ? json(PREFLIGHT)
+          : new Promise<Response>(() => {});
+      return json(preflight);
+    }
     if (url.endsWith('/_api/export-jobs')) return json({ jobId: 'job-1' }, 202);
     return json({}, 404);
   }) as typeof fetch;
@@ -335,6 +342,18 @@ async function mountSheet(props: Record<string, unknown> = {}, preflight: unknow
   }
   return { closed: () => closed };
 }
+
+describe('P8-C4 (09 ex-print): the paper does not wait for the safe-margin render', () => {
+  test('a measurement that never comes still leaves the page drawn — paper, caption, the back', async () => {
+    await mountSheet({}, 'measure-hangs');
+    for (let i = 0; i < 8 && !$('[data-testid="export-paper"]'); i++)
+      await act(async () => tick(250));
+    expect($('[data-testid="export-paper"]') !== null).toBe(true);
+    expect($('[data-testid="export-print-pending"]')).toBeNull();
+    expect($('[data-testid="export-print-back"]') !== null).toBe(true);
+    expect(preflights().some((c) => c.body?.measure === false)).toBe(true);
+  });
+});
 
 describe('gate-b-polish3: the preview column is never an empty box', () => {
   test('while the page is measured, a blank page and the words say so', async () => {

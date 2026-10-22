@@ -629,7 +629,9 @@ describe('the sheet: many at once', () => {
 describe('the sheet: Advanced', () => {
   test('closed by default: the row alone, no part and no mono', async () => {
     await mountSheet({ selectedArtboards: ['a1'] });
-    expect($('[data-testid="export-advanced"]')).not.toBeNull();
+    // the row alone: its toggle sits in the sheet's footer (09), the body is not drawn
+    expect($('[data-testid="export-advanced-toggle"]')).not.toBeNull();
+    expect($('[data-testid="export-advanced"]')).toBeNull();
     expect($('[data-testid="export-adv-parts"]')).toBeNull();
     expect($$('.ex-mono')).toHaveLength(0);
   });
@@ -682,6 +684,7 @@ describe('the sheet: Advanced', () => {
       size: { dpi: 300 },
       colorProfile: 'display-p3',
       nameTemplate: '{project} — {artboard}',
+      saveTo: 'downloads',
     });
   });
 
@@ -692,7 +695,7 @@ describe('the sheet: Advanced', () => {
     await type('[data-testid="export-adv-scale"]', '9');
     expect($('[data-testid="export-adv-scale"]')?.getAttribute('aria-invalid')).toBe('true');
     await click('[data-testid="export-submit"]');
-    expect(posted().options).toEqual({ size: { scale: 1 } });
+    expect(posted().options).toEqual({ size: { scale: 1 }, saveTo: 'downloads' });
   });
 
   test('the file-name preview is live', async () => {

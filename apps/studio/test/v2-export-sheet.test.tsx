@@ -11,11 +11,13 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { estimateWords as cliEstimateWords } from '../../../cli/lib/export-spec.mjs';
 import {
   estimateWords,
+  folderLabel,
   matchOther,
   OTHER_GROUPS,
   otherFormats,
   peopleWords,
   primaryLabel,
+  sheetSub,
   sheetTitle,
 } from '../client/v2/export/export-copy.js';
 import {
@@ -213,6 +215,54 @@ describe('the words', () => {
     );
     expect(primaryLabel({ count: 21 })).toBe('Export 21 artboards');
     expect(primaryLabel({ count: 1 })).toBe('Export');
+  });
+
+  // P8-C4 (09 ex-batch, ex-huge, ex-canvas, ex-print) — scopes name what they reach, not the folder behind it
+  test('a folder is "<its own name> — N canvases"; the design root’s ui/ is not a name', () => {
+    expect(
+      sheetTitle({ scope: 'folder', folder: 'ui/social', count: 115, canvases: { folder: 31 } })
+    ).toBe('Export “social” — 31 canvases');
+    expect(folderLabel('ui/2026/combine')).toBe('2026/combine');
+    expect(folderLabel('ui')).toBe('');
+    expect(
+      sheetTitle({
+        scope: 'folder',
+        folder: 'ui',
+        count: 19,
+        canvases: { folder: 13 },
+        project: 'e2e-fixture',
+      })
+    ).toBe('Export “e2e-fixture” — 13 canvases');
+  });
+  test('the whole project is "everything in <project>" with its canvases and folders in the sub', () => {
+    expect(sheetTitle({ scope: 'project', count: 524, project: 'Alligators brand' })).toBe(
+      'Export everything in Alligators brand'
+    );
+    expect(
+      sheetSub({
+        scope: 'project',
+        canvases: { folder: 31, project: 97, folders: 5, loose: 4 },
+      })
+    ).toBe('93 canvases in 5 folders, plus 4 at the top level');
+    expect(sheetSub({ scope: 'project', canvases: { project: 3, folders: 1, loose: 0 } })).toBe(
+      '3 canvases in 1 folder'
+    );
+  });
+  test('the sub line says where a canvas sits, and the kind a print sheet is', () => {
+    expect(
+      sheetSub({
+        scope: 'canvas',
+        canvas: 'Combine-kampan',
+        where: '2026/combine',
+        nothingSelected: true,
+      })
+    ).toBe('2026/combine · nothing was selected');
+    expect(
+      sheetSub({ scope: 'selection', canvas: 'LetakA6', where: 'Studio site', kind: 'print' })
+    ).toBe('LetakA6 · print');
+    expect(sheetSub({ scope: 'selection', canvas: 'Homepage', where: 'Studio site' })).toBe(
+      'Homepage · Studio site'
+    );
   });
 
   test('the estimate sentence equals the CLI’s (one set of words)', () => {
@@ -454,7 +504,12 @@ describe('the sheet: Scope', () => {
     expect(text('[data-testid="export-title"]')).toBe('Export the whole project — 524 artboards');
     await click('[data-testid="export-submit"]');
     expect(posts().map((c) => c.body?.spec)).toEqual([
-      { v: 2, scope: 'project', format: 'png', options: { size: { scale: 1 } } },
+      {
+        v: 2,
+        scope: 'project',
+        format: 'png',
+        options: { size: { scale: 1 }, saveTo: 'downloads' },
+      },
     ]);
   });
 });
@@ -473,7 +528,7 @@ describe('the sheet: Social → PNG or JPG, 1× or 2×', () => {
       scope: 'canvas',
       format: 'jpg',
       canvas: 'ui/combine.tsx',
-      options: { size: { scale: 2 } },
+      options: { size: { scale: 2 }, saveTo: 'downloads' },
     });
   });
 
@@ -681,6 +736,105 @@ describe('the v1 testids are re-emitted', () => {
     expect($('[data-testid="export-format-pdf"]')?.getAttribute('aria-disabled')).toBe('true');
     expect($('[data-testid="export-format-pdf"]')?.getAttribute('data-reason')).toContain(
       'render service'
+    );
+  });
+});
+
+// P8-C4 — the sheet as 09 draws it: the title names the artboard, a picture + its size beside the rows, pixels on
+// the size chips, File name / Save to in the body, the Advanced row in the footer under the summary.
+describe('P8-C4: the sheet anatomy (09 ex-social)', () => {
+  const POST = {
+    canvas: 'ui/combine.tsx',
+    id: 'post',
+    label: 'DOMA · Post 4:5 — feed matchday',
+    kind: 'digital',
+    w: 1080,
+    h: 1350,
+  };
+  const EST_POST = {
+    ...EST_CANVAS,
+    counts: { selection: 1, canvas: 21, folder: 38, project: 524 },
+    files: 1,
+    bytes: 1_400_000,
+    seconds: 1,
+    boards: [POST],
+    canvasCounts: { folder: 3, project: 12, folders: 2, loose: 1 },
+  };
+  const sel = {
+    hasSelection: true,
+    selectedArtboards: ['post'],
+    selectionLabel: 'DOMA · Post 4:5 — feed matchday',
+    projectName: 'Alligators brand',
+  };
+
+  test('the title names the artboard; the sub says where it sits', async () => {
+    estimate = EST_POST;
+    await mountSheet(sel);
+    expect(text('[data-testid="export-title"]')).toBe('Export “DOMA · Post 4:5 — feed matchday”');
+    expect(text('[data-testid="export-sub"]')).toBe('combine · Alligators brand');
+  });
+
+  test('a preview column carries the size line; the size chips carry the pixels', async () => {
+    estimate = EST_POST;
+    await mountSheet(sel);
+    expect(text('[data-testid="export-preview-caption"]')).toBe('1080 × 1350');
+    expect(text('[data-testid="export-size-1x"]')).toBe('1×1080 × 1350');
+    expect(text('[data-testid="export-size-2x"]')).toBe('2×2160 × 2700');
+  });
+
+  test('File name and Save to are rows of the body; one file is named by what you type', async () => {
+    estimate = EST_POST;
+    await mountSheet(sel);
+    const name = $('[data-testid="export-file-name"]') as HTMLInputElement;
+    expect(name.value).toBe('combine — DOMA · Post 4-5 — feed matchday@1x');
+    expect(text('[data-testid="export-row-file-name"]')).toContain('.png');
+    expect(($('[data-testid="export-save-to"]') as HTMLSelectElement).value).toBe('downloads');
+    // several files: the first name and "and N more", no field to type in
+    act(() => root?.unmount());
+    host?.remove();
+    estimate = { ...EST_POST, files: 3 };
+    await mountSheet(sel);
+    expect(text('[data-testid="export-row-file-name"]')).toContain('and 2 more');
+    expect($('input[data-testid="export-file-name"]')).toBeNull();
+  });
+
+  test('the footer: Advanced at the left, the summary above it, the verb with no icon', async () => {
+    estimate = EST_POST;
+    await mountSheet(sel);
+    const foot = $('.ex-sheet-a') as HTMLElement;
+    expect(foot.contains($('[data-testid="export-advanced-toggle"]'))).toBe(true);
+    expect(foot.contains($('[data-testid="export-submit"]'))).toBe(true);
+    expect($('[data-testid="export-submit"] svg')).toBeNull();
+    const sum = $('[data-testid="export-summary"]') as HTMLElement;
+    expect(sum.compareDocumentPosition(foot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // opening it draws the body above the summary, inside the part that scrolls
+    await click('[data-testid="export-advanced-toggle"]');
+    const main = $('[data-testid="export-main"]') as HTMLElement;
+    expect(main.contains($('[data-testid="export-advanced"]'))).toBe(true);
+  });
+
+  test('Save to travels with the spec (Downloads, or ask each time)', async () => {
+    estimate = EST_POST;
+    await mountSheet(sel);
+    const select = $('[data-testid="export-save-to"]') as HTMLSelectElement;
+    await act(async () => {
+      select.value = 'ask';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await tick(10);
+    });
+    await click('[data-testid="export-submit"]');
+    expect((posts()[0].body?.spec?.options as { saveTo?: string }).saveTo).toBe('ask');
+  });
+
+  test('a folder is named by its own name and counts canvases; the project says what is in it', async () => {
+    estimate = EST_POST;
+    await mountSheet({ ...sel, hasSelection: false, selectedArtboards: [], selectionLabel: null });
+    await click('[data-testid="export-scope-folder"]');
+    expect(text('[data-testid="export-title"]')).toBe('Export “Alligators brand” — 3 canvases');
+    await click('[data-testid="export-scope-project"]');
+    expect(text('[data-testid="export-title"]')).toBe('Export everything in Alligators brand');
+    expect(text('[data-testid="export-sub"]')).toBe(
+      '11 canvases in 2 folders, plus 1 at the top level'
     );
   });
 });

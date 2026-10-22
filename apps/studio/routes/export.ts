@@ -347,8 +347,18 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
           return json(400, { error: 'bad-json' });
         }
         const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
-        if (!b || Object.keys(b).some((k) => k !== 'spec'))
-          return json(400, { error: 'bad-spec', field: 'body', message: 'body must be {spec}' });
+        // `measure: false` (P8-C4): paper, back and fonts NOW, without the headless safe-margin render (seconds);
+        // the sheet asks again without it for the margin. Absent = measure, as before.
+        if (
+          !b ||
+          Object.keys(b).some((k) => k !== 'spec' && k !== 'measure') ||
+          (b.measure !== undefined && typeof b.measure !== 'boolean')
+        )
+          return json(400, {
+            error: 'bad-spec',
+            field: 'body',
+            message: 'body must be {spec, measure?: boolean}',
+          });
         const g = gateSpecV2(b.spec, deps, req);
         if (!g.ok) return g.response;
         if (!deps.preflight)
@@ -371,7 +381,7 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
           await preflightPrint({
             designRoot: deps.preflight.designRoot,
             targets,
-            ...(deps.preflight.rects ? { rects: deps.preflight.rects } : {}),
+            ...(deps.preflight.rects && b.measure !== false ? { rects: deps.preflight.rects } : {}),
           })
         );
       },

@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { StIcon } from '../../../shell/icons.jsx';
 import { Hint, Row, Seg } from '../parts.jsx';
+import { Switch } from '../advanced/fields.jsx';
 import {
   ALLOW_LONGER,
   ALLOW_LONGER_OFF,
@@ -17,6 +18,7 @@ import {
   CAPTIONS_NONE,
   CAPTIONS_OFF,
   clock,
+  tickSeconds,
   FILM_LABEL,
   FILM_SCRUB,
   FORMAT_LABEL,
@@ -30,11 +32,15 @@ import {
   SOUND_GIF,
   SOUND_LABEL,
   SOUND_MIXED,
+  SOUND_NONE,
+  CAPTIONS_BOTH,
+  CAPTIONS_FILE,
+  CAPTIONS_HELD,
   SOUND_ONLY_NOTE,
   SOUND_SHARED_NOTE,
   VIDEO_FORMATS,
 } from './video-copy.js';
-import { lengthState, sizeWords } from './video-model.js';
+import { lengthState, qualityReaches, scaleOf, sizeWords } from './video-model.js';
 
 const labelOf = (format) => (format === 'webm' ? 'WebM' : String(format).toUpperCase());
 
@@ -91,9 +97,9 @@ function Film({ row, at, onAt }) {
         />
       </div>
       <div className="ex-film-ticks" aria-hidden="true">
-        {[0, 0.25, 0.5, 0.75, 1].map((p) => (
-          <span key={p} style={{ left: `${p * 100}%` }}>
-            {clock(total * p, row.fps)}
+        {tickSeconds(total / Math.max(1, row.fps)).map((t) => (
+          <span key={t} style={{ left: `${((t * row.fps) / total) * 100}%` }}>
+            {clock(t * row.fps, row.fps)}
           </span>
         ))}
       </div>
@@ -110,10 +116,15 @@ export function VideoSection({ state, set, setFormat, other, video }) {
   const format = state.format;
   const picture = format !== 'audio';
   const gif = format === 'gif';
-  const audio = format === 'audio';
+  const _audio = format === 'audio';
   const formats = video?.formats ?? [];
   const rows = video?.rows ?? [];
   const first = rows[0] ?? null;
+  const shortSide = first?.w && first?.h ? Math.min(first.w, first.h) : null;
+  // the cut's own sound: a music bed on the timeline (the engine mixes what the timeline has)
+  const hasSound = rows.some((r) =>
+    r.clips?.some((c) => c.track === 'music' || c.track === 'music2')
+  );
   const vq = state.vq ?? '1080p';
   const allowLonger = state.allowLonger === true;
   const len = lengthState(rows, allowLonger);
@@ -183,10 +194,12 @@ export function VideoSection({ state, set, setFormat, other, video }) {
           <Seg
             label={QUALITY_LABEL}
             testid="export-quality"
-            options={QUALITIES.map(([id, label, scale]) => ({
+            options={QUALITIES.map(([id, label]) => ({
               id,
               label,
-              small: sizeWords(first, scale) || undefined,
+              // 1080p / 4K name the size (the shorter side): "1080 × 1920", "2160 × 3840"
+              small: sizeWords(first, scaleOf(id, shortSide)) || undefined,
+              disabled: !qualityReaches(id, shortSide),
               testid: `export-quality-${id}`,
             }))}
             value={vq}
@@ -212,8 +225,15 @@ export function VideoSection({ state, set, setFormat, other, video }) {
 
       {picture ? (
         <Row k={SOUND_LABEL} testid="export-row-sound">
-          <span className="ex-val" data-testid="export-sound-note">
-            {gif ? SOUND_GIF : SOUND_MIXED}
+          <Switch
+            checked={!gif && hasSound}
+            disabled
+            onChange={() => {}}
+            label={SOUND_LABEL}
+            testid="export-sound-switch"
+          />
+          <span className="ex-row-n ex-row-n--in" data-testid="export-sound-note">
+            {gif ? SOUND_GIF : hasSound ? SOUND_MIXED : SOUND_NONE}
           </span>
         </Row>
       ) : null}
@@ -224,13 +244,28 @@ export function VideoSection({ state, set, setFormat, other, video }) {
             label={CAPTIONS_LABEL}
             testid="export-captions"
             options={[
-              { id: 'off', label: CAPTIONS_OFF, testid: 'export-captions-off' },
               {
                 id: 'burned',
                 label: CAPTIONS_BURNED,
                 disabled: gif || !captions,
                 testid: 'export-captions-burned',
               },
+              // a caption FILE next to the video is an exporter feature that is not built yet: drawn, held back
+              {
+                id: 'file',
+                label: CAPTIONS_FILE,
+                disabled: true,
+                title: CAPTIONS_HELD,
+                testid: 'export-captions-file',
+              },
+              {
+                id: 'both',
+                label: CAPTIONS_BOTH,
+                disabled: true,
+                title: CAPTIONS_HELD,
+                testid: 'export-captions-both',
+              },
+              { id: 'off', label: CAPTIONS_OFF, testid: 'export-captions-off' },
             ]}
             value={state.captions && captions && !gif ? 'burned' : 'off'}
             onPick={(id) => set({ captions: id === 'burned' })}

@@ -319,6 +319,49 @@ describe('POST /_api/export-preflight', () => {
     expect(bad.status).toBe(400);
   });
 
+  // P8-C4 (09 ex-print) — the paper must not wait for the safe-margin render: a headless render of the canvas
+  // takes seconds (25 s when no browser answers), and the preview sat on "Drawing the page…" the whole time.
+  // `measure: false` answers paper, back and fonts now; the sheet asks again WITH the render for the margin.
+  test('measure:false answers without the geometry render; the default still waits for it', async () => {
+    let asked = 0;
+    const slow: ExportRouteDeps = {
+      ...deps(OWNER),
+      preflight: {
+        designRoot,
+        rects: () => {
+          asked += 1;
+          return new Promise(() => {}); // never answers
+        },
+      },
+    };
+    const route = createExportRoutes(slow).find((r) => r.path === '/_api/export-preflight');
+    if (!route) throw new Error('no route');
+    const ask = (body: unknown) =>
+      route.handle(
+        new Request('http://127.0.0.1/_api/export-preflight', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+        {}
+      );
+    const fast = (await ask({ spec: SEL, measure: false })) as Response;
+    const body = (await fast.json()) as { boards: Array<{ paper: unknown }>; measured: boolean };
+    expect(asked).toBe(0);
+    expect(body.measured).toBe(false);
+    expect(body.boards[0]?.paper).not.toBeNull();
+    // without the flag the route is still waiting on the render
+    const raced = await Promise.race([
+      ask({ spec: SEL }).then(() => 'answered'),
+      new Promise((r) => setTimeout(() => r('waiting'), 150)),
+    ]);
+    expect(raced).toBe('waiting');
+    expect(asked).toBe(1);
+    // anything else beside `spec` and `measure` is still a bad body
+    const bad = (await ask({ spec: SEL, measure: 'no' })) as Response;
+    expect(bad.status).toBe(400);
+  });
+
   test('a stub table without the dep answers "nothing to check", not an error', async () => {
     const { status, body } = await preflight(OWNER, SEL, false);
     expect([status, body.print]).toEqual([200, false]);

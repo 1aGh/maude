@@ -33,6 +33,7 @@ import {
   localSelectRecord,
   RESTORE_LEAD_MS,
   shellSelectionOf,
+  stampSelectionFile,
   renamesOf,
   startSelectionRestore,
 } from '../selection-scope.js';
@@ -309,7 +310,8 @@ export function useCanvasBridge({
         // For shell purposes we track the focused entry (head of array, or
         // the bare object) — comments + halo only act on one element at a
         // time today. Multi-target editing is an explicit Phase-4.1 non-goal.
-        const payload = m.selection;
+        // 09 ex-batch-pick — a list's entries name no file; they are about the canvas that is open
+        const payload = stampSelectionFile(m.selection, activePath);
         // S2.1 (S2-edit-ops.md §7) — refs / crumbs / kind ride the selection into the shell's
         // state (the inspector reads them), never into the ws `select` broadcast.
         const described = (sel) =>

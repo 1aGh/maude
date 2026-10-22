@@ -39,8 +39,25 @@ export const HANDOFF_VERB = 'Copy';
 
 const quoted = (s) => `“${s}”`;
 
-/** `{ scope, label, canvas, folder, count }` → "Export “Combine-kampan” — 21 artboards". */
-export function sheetTitle({ scope, label, canvas, folder, count }) {
+const canvasesWord = (n) => `${n} ${n === 1 ? 'canvas' : 'canvases'}`;
+
+/**
+ * The folder as a person reads it. The design root's own `ui/` folder is where canvases live, not a name:
+ * "2026/combine", never "ui/2026/combine"; the root itself has no name of its own ('' — the project is the name).
+ */
+export function folderLabel(folder) {
+  const f = String(folder ?? '').replace(/^\/+|\/+$/g, '');
+  if (f === 'ui') return '';
+  return f.replace(/^ui\//, '');
+}
+
+/**
+ * `{ scope, label, canvas, folder, count, canvases, project }` → "Export “Combine-kampan” — 21 artboards".
+ * A folder counts CANVASES ("Export “social” — 31 canvases", 09 ex-batch) and is named by its own last segment;
+ * the whole project is "Export everything in Alligators brand" (09 ex-huge). `canvases` = the estimate's
+ * `canvasCounts` ({ folder, project }); `project` = the project's name.
+ */
+export function sheetTitle({ scope, label, canvas, folder, count, canvases, project }) {
   const n = typeof count === 'number' && count > 0 ? count : null;
   if (scope === 'selection') {
     if (n === 1 || n === null) return label ? `${VERB} ${quoted(label)}` : `${VERB} 1 artboard`;
@@ -49,9 +66,13 @@ export function sheetTitle({ scope, label, canvas, folder, count }) {
   if (scope === 'canvas')
     return n ? `${VERB} ${quoted(canvas)} — ${artboardsWord(n)}` : `${VERB} ${quoted(canvas)}`;
   if (scope === 'folder') {
-    const name = folder || 'this folder';
+    const shown = folderLabel(folder);
+    const name = shown ? shown.slice(shown.lastIndexOf('/') + 1) : project || 'this folder';
+    const c = canvases?.folder;
+    if (typeof c === 'number' && c > 0) return `${VERB} ${quoted(name)} — ${canvasesWord(c)}`;
     return n ? `${VERB} ${quoted(name)} — ${artboardsWord(n)}` : `${VERB} ${quoted(name)}`;
   }
+  if (project) return `${VERB} everything in ${project}`;
   return n ? `${VERB} the whole project — ${artboardsWord(n)}` : `${VERB} the whole project`;
 }
 
@@ -61,10 +82,27 @@ export function primaryLabel({ count, busy }) {
   return typeof count === 'number' && count > 1 ? `${VERB} ${artboardsWord(count)}` : VERB;
 }
 
-export function sheetSub({ canvas, folder, nothingSelected }) {
+/**
+ * The line under the title (09: "LetakA6 · print", "Homepage · Studio site", "2026/combine · nothing was selected",
+ * "93 canvases in 5 folders, plus 4 at the top level"). `where` = what the canvas sits in — its folder, else the
+ * project's name; `kind` = the one kind a print / video sheet names. `canvases` = the estimate's `canvasCounts`.
+ */
+export function sheetSub({ scope, canvas, folder, nothingSelected, where, kind, canvases }) {
+  if (scope === 'project' && canvases?.project > 0) {
+    const f = canvases.folders;
+    const loose = canvases.loose;
+    return [
+      `${canvasesWord(canvases.project - loose)} in ${f} ${f === 1 ? 'folder' : 'folders'}`,
+      loose > 0 ? `plus ${loose} at the top level` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+  }
   const parts = [];
-  if (folder) parts.push(folder);
-  else if (canvas) parts.push(canvas);
+  if (folder) parts.push(folderLabel(folder) || folder);
+  else if (canvas && scope !== 'canvas') parts.push(canvas);
+  if (scope === 'canvas' && where) parts.push(where);
+  else if (scope === 'selection' && (where || kind)) parts.push(kind || where);
   if (nothingSelected) parts.push('nothing was selected');
   return parts.join(' · ');
 }
