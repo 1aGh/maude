@@ -2488,6 +2488,7 @@ export function createHttp(
       groups: ctx.cfg.canvasGroups,
       defaultDs: ctx.cfg.defaultDesignSystem || ctx.cfg.designSystems?.[0]?.name || null,
       designSystems: ctx.cfg.designSystems ?? [],
+      componentDir: ctx.cfg.newComponentDir,
     }),
     project: () => ({
       name: ctx.cfg.name ?? ctx.projectLabel,

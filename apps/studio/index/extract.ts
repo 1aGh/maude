@@ -14,7 +14,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
 
-import { HIDDEN_OK, isCanvasRelInGroups, SKIP_DIRS } from '../skip-dirs.ts';
+import { HIDDEN_OK, isCanvasRelInGroups, isComponentRel, SKIP_DIRS } from '../skip-dirs.ts';
 import type { ArtboardKind, ArtboardRow, CanvasKind, CanvasRow, Stamp } from './types.ts';
 
 const ARTBOARD_KINDS = new Set<ArtboardKind>(['digital', 'print', 'web', 'video']);
@@ -40,6 +40,8 @@ export interface IndexContext {
   groups: Array<{ path: string; label: string }>;
   defaultDs: string | null;
   designSystems: Array<{ name: string; path: string }>;
+  /** gate-b-c4j — the config's `newComponentDir` (default `ui/components`): never a canvas */
+  componentDir?: string;
 }
 
 /** Every canvas `.tsx` under the canvas groups, designRoot-relative, sorted. */
@@ -61,7 +63,7 @@ export function listCanvases(ctx: IndexContext): string[] {
       const r = rel ? `${rel}/${name}` : name;
       // a symlink is neither — skipped, like the file tree (api.ts findFiles)
       if (e.isDirectory()) walk(path.join(abs, name), r);
-      else if (e.isFile() && name.endsWith('.tsx')) out.add(r);
+      else if (e.isFile() && name.endsWith('.tsx') && !isComponentRel(r, ctx.componentDir)) out.add(r);
     }
   };
   for (const g of ctx.groups) walk(path.join(ctx.designRoot, g.path), g.path.replace(/\/+$/, ''));
@@ -74,7 +76,8 @@ export function isCanvasRel(ctx: IndexContext, rel: string): boolean {
   if (
     !isCanvasRelInGroups(
       ctx.groups.map((g) => g.path),
-      rel
+      rel,
+      ctx.componentDir
     )
   )
     return false;

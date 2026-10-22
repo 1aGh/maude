@@ -52,6 +52,7 @@ async function fromStatic(root) {
       ],
       defaultDs: cfg.defaultDesignSystem ?? cfg.designSystems?.[0]?.name ?? null,
       designSystems: cfg.designSystems ?? [],
+      componentDir: cfg.newComponentDir,
     }),
     project: () => ({
       name: cfg.name ?? path.basename(root),

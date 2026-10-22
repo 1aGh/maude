@@ -224,12 +224,6 @@ export interface Closure {
   readonly assetStems: ReadonlySet<string>;
   /** Granted canvases with a computed (runtime) asset or module reference (G3). */
   readonly dynamic: ReadonlySet<string>;
-  /**
-   * gate-b-c4h — the canvases OUTSIDE the grants that the import walk admitted, because the reader
-   * (a frame's opener, `unnarrowed`) may read them. A frame whose closure holds any is read-only
-   * (access/frame.ts `frameAccess`): A's author chose the import, the opener's access admitted it.
-   */
-  readonly importedCanvases: ReadonlySet<string>;
 }
 
 /** Sidecars that ride with an asset (`assets/<base>.<ext>` → `assets/<base><suffix>`). */
@@ -345,23 +339,50 @@ interface DsSystem {
 const DEFAULT_CANVAS_GROUPS = ['system', 'ui'];
 
 /**
- * gate-b-c4g — the canvas groups the closure judges "is this a canvas" by: the config's own
- * (sanitized: contained relative paths) PLUS the defaults. A wider set only ever makes more
- * imports count as canvases (each then needs the reader's access) — fail closed when the config
- * is unreadable or the studio's effective groups differ from the committed file.
+ * gate-b-c4j — the config the closure judges by, normalized. The studio passes its EFFECTIVE config
+ * (`ctx.cfg` — loadConfig reads `<repo>/.design/config.json`, which is not `<designRoot>/config.json`
+ * under a custom designRoot); the hub and test readers pass none and the project's own
+ * `config.json` is read. Both go through `closureConfigOf`, so they agree.
+ *
+ * `canvasGroups`: the config's own (sanitized: contained relative paths) PLUS the defaults (c4g) —
+ * a wider set only makes more imports count as canvases, which a frame refuses: fail closed.
+ * `newComponentDir`: exactly the config's (default `ui/components`) — it widens what is importable.
  */
-function canvasGroupsOf(project: ProjectReader): string[] {
-  const list = readJsonObject(project, 'config.json')?.canvasGroups;
-  const out = new Set(DEFAULT_CANVAS_GROUPS);
-  if (Array.isArray(list)) {
-    for (const g of list as Array<Record<string, unknown>>) {
-      if (!g || typeof g.path !== 'string') continue;
-      const p = g.path.replace(/^\.?\/+/, '').replace(/\/+$/, '');
-      if (!p || p.split('/').includes('..')) continue;
-      out.add(p);
+export interface ClosureConfig {
+  readonly canvasGroups: readonly string[];
+  readonly newComponentDir: string | null;
+  readonly designSystems: readonly DsSystem[];
+  readonly defaultDesignSystem: string | null;
+}
+
+const relDir = (v: unknown): string | null => {
+  if (typeof v !== 'string') return null;
+  const p = v.replace(/^\.?\/+/, '').replace(/\/+$/, '');
+  return p && !p.split('/').includes('..') ? p : null;
+};
+
+export function closureConfigOf(raw: unknown): ClosureConfig {
+  const cfg = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const groups = new Set(DEFAULT_CANVAS_GROUPS);
+  if (Array.isArray(cfg.canvasGroups)) {
+    for (const g of cfg.canvasGroups as Array<Record<string, unknown> | null>) {
+      const p = relDir(g?.path);
+      if (p) groups.add(p);
     }
   }
-  return [...out];
+  const designSystems: DsSystem[] = [];
+  if (Array.isArray(cfg.designSystems)) {
+    for (const e of cfg.designSystems as Array<Record<string, unknown> | null>) {
+      const p = relDir(e?.path);
+      if (p && typeof e?.name === 'string') designSystems.push({ name: e.name, path: p });
+    }
+  }
+  return Object.freeze({
+    canvasGroups: [...groups],
+    newComponentDir: relDir(cfg.newComponentDir),
+    designSystems,
+    defaultDesignSystem: typeof cfg.defaultDesignSystem === 'string' ? cfg.defaultDesignSystem : null,
+  });
 }
 
 function readJsonObject(project: ProjectReader, rel: string): Record<string, unknown> | null {
@@ -381,8 +402,9 @@ function readJsonObject(project: ProjectReader, rel: string): Record<string, unk
 function canvasSystem(
   project: ProjectReader,
   canvas: string,
-  systems: DsSystem[]
+  cfg: ClosureConfig
 ): DsSystem | null {
+  const systems = cfg.designSystems;
   if (!systems.length) return null;
   const owner = systems.find((s) => canvas.startsWith(`${s.path}/`));
   if (owner) return owner;
@@ -392,21 +414,7 @@ function canvasSystem(
   )?.designSystem;
   const byMeta = typeof declared === 'string' ? systems.find((s) => s.name === declared) : null;
   if (byMeta) return byMeta;
-  const def = readJsonObject(project, 'config.json')?.defaultDesignSystem;
-  return systems.find((s) => s.name === def) ?? systems[0] ?? null;
-}
-
-function systemsOf(project: ProjectReader): DsSystem[] {
-  const list = readJsonObject(project, 'config.json')?.designSystems;
-  if (!Array.isArray(list)) return [];
-  const out: DsSystem[] = [];
-  for (const e of list as Array<Record<string, unknown>>) {
-    if (!e || typeof e.name !== 'string' || typeof e.path !== 'string') continue;
-    const p = e.path.replace(/^\.?\/+/, '').replace(/\/+$/, '');
-    if (!p || p.split('/').includes('..')) continue;
-    out.push({ name: e.name, path: p });
-  }
-  return out;
+  return systems.find((s) => s.name === cfg.defaultDesignSystem) ?? systems[0] ?? null;
 }
 
 /** A design-system file a canvas-only session reads: not a specimen, not a UI kit. */
@@ -510,21 +518,23 @@ const VROOT = '/__maude_closure__';
  * The closure of `access`'s grants over `project`. Computed for any session with grants (a
  * canvas-only session, or a project role raised on one canvas, G1); empty without grants.
  */
-export function closureFor(access: Access, project: ProjectReader, cache?: ClosureCache): Closure {
+export function closureFor(
+  access: Access,
+  project: ProjectReader,
+  cache?: ClosureCache,
+  config?: ClosureConfig
+): Closure {
   const head = project.head();
+  const cfg = config ?? closureConfigOf(readJsonObject(project, 'config.json'));
   const grantsKey = access.grants.map((g) => `${g.c}\u0000${g.r}`).join('\u0001');
-  // gate-b-c4e — an imported CANVAS counts only when the reader may read it: a frame's access is
-  // the opener's narrowed to one canvas, so ask the opener's own (`unnarrowed`) access.
-  const reader = access.unnarrowed ?? access;
-  const readerKey = reader.role !== null ? '*' : reader.grants.map((g) => g.c).join('\u0001');
-  const key = `${head}\u0002${grantsKey}\u0003${readerKey}`;
+  const key = `${head}\u0002${grantsKey}\u0003${JSON.stringify(cfg)}`;
   const hit = cache?.get(key);
   if (hit) return hit;
   const computed = compute(
     access.grants.map((g) => g.c),
     project,
     head,
-    (canvas) => reader.seesCanvas(canvas)
+    cfg
   );
   cache?.set(key, computed);
   return computed;
@@ -535,64 +545,65 @@ const CANVAS_SIDECAR_RE =
   /\.(meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i;
 
 /**
- * gate-b-c4h — what one canvas's import walk reaches: the files read (in walk order, each with
- * its text) and the OTHER canvases it admitted. One walk, shared by the closure (`compute`) and
- * the shell's per-canvas report (`importedCanvasReport`), so the frame and the notice agree.
+ * What one canvas's import walk reaches: the files read (in walk order, each with its text) and
+ * (gate-b-c4j) the OTHER canvases it refused. One walk, shared by the closure (`compute`) and the
+ * shell's per-canvas report (`canvasImportsReport`), so the refusal and the card agree.
  */
 interface WalkEnv {
   files: ReadonlySet<string>;
   textOf: (rel: string) => string | null;
   isCanvas: (rel: string) => boolean;
-  systems: DsSystem[];
+  cfg: ClosureConfig;
   project: ProjectReader;
-  readsCanvas: (canvas: string) => boolean;
 }
 
-function walkEnv(
-  project: ProjectReader,
-  files: ReadonlySet<string>,
-  readsCanvas: (canvas: string) => boolean
-): WalkEnv {
+function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: ClosureConfig): WalkEnv {
   const textCache = new Map<string, string | null>();
   const textOf = (rel: string) => {
     if (!textCache.has(rel)) textCache.set(rel, files.has(rel) ? project.text(rel) : null);
     return textCache.get(rel) ?? null;
   };
-  // gate-b-c4g — "a canvas" is the index's own rule (skip-dirs.ts `isCanvasRelInGroups`: any
-  // `.tsx` in a canvas group), not "has a meta or a board": a meta-less canvas B imported by A was
-  // inlined for a member with no grant on B. A meta or a board still marks one anywhere.
-  const groups = canvasGroupsOf(project);
+  // gate-b-c4g — "a canvas" is the index's own rule (skip-dirs.ts `isCanvasRelInGroups`: a `.tsx`
+  // in a canvas group that is not a component — gate-b-c4j), not "has a meta or a board": a
+  // meta-less canvas B imported by A was inlined for a member with no grant on B. A meta or a board
+  // still marks one anywhere.
   const isCanvas = (rel: string): boolean =>
     /\.tsx$/i.test(rel) &&
-    ((files.has(rel) && groups.some((g) => isCanvasRelInGroups([g], rel))) ||
+    ((files.has(rel) &&
+      cfg.canvasGroups.some((g) => isCanvasRelInGroups([g], rel, cfg.newComponentDir))) ||
       files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));
-  return { files, textOf, isCanvas, systems: systemsOf(project), project, readsCanvas };
+  return { files, textOf, isCanvas, cfg, project };
 }
+
+/** The canvas a source, same-name stylesheet or path-keyed sidecar belongs to (`x.tsx`). */
+const canvasOfFile = (rel: string): string =>
+  rel.replace(/\.(css|meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i, '.tsx');
 
 function walkImports(
   env: WalkEnv,
   canvas: string,
   granted: ReadonlySet<string>
-): { visited: Array<{ rel: string; text: string }>; canvases: Set<string> } {
+): { visited: Array<{ rel: string; text: string }>; refused: Set<string> } {
   // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
   // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
-  // canvas's, not a module). Another CANVAS and its same-name stylesheet only when the reader may
-  // read that canvas; helpers, components and the design system stay reachable through imports.
-  // gate-b-c4h — every canvas admitted that way is recorded: it makes the frame read-only.
-  const canvases = new Set<string>();
+  // canvas's, not a module). Helpers, components and the design system stay reachable.
+  // gate-b-c4j — another CANVAS (or its same-name stylesheet) NEVER, unless the closure itself holds
+  // it: a frame never inlines a canvas outside its own grant, whoever opens it (the desktop owner
+  // too — A's author chose the import, and the opener's access is not A's author's). The frame's
+  // module is then refused at serve time (the inputs gate, 403) and the shell says why.
+  const refused = new Set<string>();
   const importable = (dep: string): boolean => {
     if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
-    const asCanvas = /\.css$/i.test(dep) ? dep.replace(/\.css$/i, '.tsx') : dep;
+    const asCanvas = /\.css$/i.test(dep) ? canvasOfFile(dep) : dep;
     if (granted.has(asCanvas) || !env.isCanvas(asCanvas)) return true;
-    if (!env.readsCanvas(asCanvas)) return false;
-    canvases.add(asCanvas);
-    return true;
+    refused.add(asCanvas);
+    return false;
   };
   // The transitive relative import graph, from the canvas (and the DS override it pulls in).
   const queue: string[] = [canvas];
-  const sys = canvasSystem(env.project, canvas, env.systems);
+  const sys = canvasSystem(env.project, canvas, env.cfg);
   const canvasText = env.textOf(canvas);
   if (sys && canvasText !== null && importsDs(canvasText))
     queue.push(`${sys.path}/preview/_ds.tsx`);
@@ -614,26 +625,28 @@ function walkImports(
       if (env.files.has(dep) && !seen.has(dep) && importable(dep)) queue.push(dep);
     }
   }
-  return { visited, canvases };
+  return { visited, refused };
 }
 
 /**
- * gate-b-c4h — per canvas, the other canvases a frame opened on it alone would admit for this
- * reader (sorted; a canvas importing none is absent). What the shell reads to open such a canvas
- * read-only and say why — the same walk as the frame's own closure, so the two agree.
+ * gate-b-c4j — per canvas, the other canvases its import walk refuses (sorted; a canvas importing
+ * none is absent): a frame on it renders none of them, so its module is refused. What the shell
+ * reads to say why on that canvas (`/_index-data` `canvasImportsCanvases`). Reader-free — the
+ * refusal is the same for everyone; the caller holds the names to what its reader sees.
  */
-export function importedCanvasReport(
+export function canvasImportsReport(
   project: ProjectReader,
   canvases: readonly string[],
-  readsCanvas: (canvas: string) => boolean
+  config?: ClosureConfig
 ): Map<string, string[]> {
   const files = new Set<string>(project.list());
-  const env = walkEnv(project, files, readsCanvas);
+  const cfg = config ?? closureConfigOf(readJsonObject(project, 'config.json'));
+  const env = walkEnv(project, files, cfg);
   const out = new Map<string, string[]>();
   for (const canvas of canvases) {
     if (!files.has(canvas)) continue;
-    const { canvases: hit } = walkImports(env, canvas, new Set([canvas]));
-    if (hit.size) out.set(canvas, [...hit].sort());
+    const { refused } = walkImports(env, canvas, new Set([canvas]));
+    if (refused.size) out.set(canvas, [...refused].sort());
   }
   return out;
 }
@@ -642,7 +655,7 @@ function compute(
   canvases: string[],
   project: ProjectReader,
   head: string,
-  readsCanvas: (canvas: string) => boolean
+  cfg: ClosureConfig
 ): Closure {
   const owned = new Set<string>();
   const ownedBy = new Map<string, string>();
@@ -650,18 +663,8 @@ function compute(
   const dynamic = new Set<string>();
   const assetUsers = new Map<string, Set<string>>();
   const assetStems = new Set<string>();
-  const importedCanvases = new Set<string>();
   const frozen = () =>
-    Object.freeze({
-      head,
-      owned,
-      ownedBy,
-      read,
-      assetUsers,
-      assetStems,
-      dynamic,
-      importedCanvases,
-    });
+    Object.freeze({ head, owned, ownedBy, read, assetUsers, assetStems, dynamic });
   if (!canvases.length) return frozen();
 
   const files = new Set<string>();
@@ -672,8 +675,8 @@ function compute(
     const dot = name.indexOf('.');
     assetStems.add(dot > 0 ? `assets/${name.slice(0, dot)}` : f);
   }
-  const env = walkEnv(project, files, readsCanvas);
-  const { systems, textOf } = env;
+  const env = walkEnv(project, files, cfg);
+  const { textOf } = env;
   const twins = slugTwins(files, canvases);
   const existingAssetRefs = (text: string) =>
     staticAssetRefs(text).filter((r) => files.has(r) && !isAssetSidecar(r, files));
@@ -691,13 +694,12 @@ function compute(
       if (text !== null) for (const p of perUsePhotoRefs(text)) if (files.has(p)) perUse.add(p);
     }
     const walk = walkImports(env, canvas, granted);
-    for (const c of walk.canvases) importedCanvases.add(c);
     for (const { rel, text } of walk.visited) {
       read.add(rel);
       if (DYNAMIC_RES.some((re) => re.test(text))) dynamic.add(canvas);
       for (const a of existingAssetRefs(text)) closureAssets.add(a);
     }
-    const sys = canvasSystem(project, canvas, systems);
+    const sys = canvasSystem(project, canvas, cfg);
     // Static asset references in the canvas's own sidecars (meta, board).
     for (const rel of ownedOf(canvas, twins)) {
       if (rel === canvas || !TEXT_SCAN_RE.test(rel)) continue;
@@ -706,8 +708,15 @@ function compute(
       if (DYNAMIC_RES.slice(0, 2).some((re) => re.test(text))) dynamic.add(canvas);
       for (const a of existingAssetRefs(text)) closureAssets.add(a);
     }
-    // The design system it renders under, minus specimens and UI kits.
-    if (sys) for (const f of files) if (isSystemFileInClosure(sys.path, f)) read.add(f);
+    // The design system it renders under, minus specimens, UI kits and (gate-b-c4j) any other canvas
+    // there — the DS board `design-system.tsx` and its sidecars are a canvas, not the system.
+    if (sys)
+      for (const f of files) {
+        if (!isSystemFileInClosure(sys.path, f)) continue;
+        const owner = canvasOfFile(f);
+        if (!granted.has(owner) && env.isCanvas(owner)) continue;
+        read.add(f);
+      }
   }
 
   for (const asset of closureAssets) {
