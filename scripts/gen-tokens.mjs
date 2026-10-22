@@ -259,7 +259,44 @@ const HUD_TEMPLATE = `
   --maude-chrome-font-mono: {guide:font-mono};
   /* gate-a-polish: the menu / label chrome speaks the body face (mono only in Advanced + code, README) */
   --maude-chrome-font-body: {guide:font-body};
+  --maude-chrome-bg-3:      {dark:bg-3};
+  --maude-chrome-fg-2:      {dark:fg-2};
+  --maude-chrome-border-default: {dark:border-default};
+  /* P8 C5 — the in-canvas chrome speaks the v2 kit (CONTRACT §1): the active tool is accent-muted with
+     accent text, the AI is the spark, a warning is status-warn, colour on the canvas is --object-*, and the
+     dock / pills / pins wear the island material. Same values as the shell, under the HUD's own names. */
+  --maude-hud-accent-muted:  {dark:accent-muted};
+  --maude-hud-accent-text:   {dark:accent-text};
+  --maude-hud-focus-ring:    {dark:focus-ring};
+  --maude-hud-spark:         {dark:spark};
+  --maude-hud-spark-fg:      {dark:spark-fg};
+  --maude-hud-spark-text:    {dark:spark-text};
+  --maude-hud-spark-muted:   {dark:spark-muted};
+  --maude-hud-warn:          {dark:status-warn};
+  --maude-hud-warn-text:     {dark:status-warn-text};
+  --maude-hud-object-ink:    {dark:object-ink};
+  --maude-hud-object-yellow: {dark:object-yellow};
+  --maude-hud-object-coral:  {dark:object-coral};
+  --maude-hud-object-green:  {dark:object-green};
+  --maude-hud-object-sky:    {dark:object-sky};
+  --maude-hud-object-lilac:  {dark:object-lilac};
+  --maude-hud-object-grey:   {dark:object-grey};
+  --maude-hud-island-bg:     {dark:island-bg};
+  --maude-hud-island-edge:   {dark:island-edge};
+  --maude-hud-island-shadow: {dark:island-shadow};
+  --maude-hud-shadow-md:     {dark:shadow-md};
+  --maude-hud-shadow-lg:     {dark:shadow-lg};
   --maude-chrome-error:     {dark:status-error-text};
+
+  /* theme-independent kit scale (radii, type, rounded face) */
+  --maude-hud-radius-xs:   {guide:radius-xs};
+  --maude-hud-radius-sm:   {guide:radius-sm};
+  --maude-hud-radius-md:   {guide:radius-md};
+  --maude-hud-radius-lg:   {guide:radius-lg};
+  --maude-hud-radius-xl:   {guide:radius-xl};
+  --maude-hud-type-xs:     {guide:type-xs};
+  --maude-hud-type-sm:     {guide:type-sm};
+  --maude-hud-font-rounded: {guide:font-rounded};
 }
 :root[data-maude-theme="light"] {
   --maude-hud-accent:        {light:accent};
@@ -276,6 +313,33 @@ const HUD_TEMPLATE = `
   --maude-chrome-border: {light:border-subtle};
   --maude-chrome-dot:    {light:canvas-dot};
   --maude-chrome-shadow: color-mix(in oklab, {light:fg-0} 14%, transparent);
+  --maude-chrome-bg-3:      {light:bg-3};
+  --maude-chrome-fg-2:      {light:fg-2};
+  --maude-chrome-border-default: {light:border-default};
+  /* P8 C5 — the in-canvas chrome speaks the v2 kit (CONTRACT §1): the active tool is accent-muted with
+     accent text, the AI is the spark, a warning is status-warn, colour on the canvas is --object-*, and the
+     dock / pills / pins wear the island material. Same values as the shell, under the HUD's own names. */
+  --maude-hud-accent-muted:  {light:accent-muted};
+  --maude-hud-accent-text:   {light:accent-text};
+  --maude-hud-focus-ring:    {light:focus-ring};
+  --maude-hud-spark:         {light:spark};
+  --maude-hud-spark-fg:      {light:spark-fg};
+  --maude-hud-spark-text:    {light:spark-text};
+  --maude-hud-spark-muted:   {light:spark-muted};
+  --maude-hud-warn:          {light:status-warn};
+  --maude-hud-warn-text:     {light:status-warn-text};
+  --maude-hud-object-ink:    {light:object-ink};
+  --maude-hud-object-yellow: {light:object-yellow};
+  --maude-hud-object-coral:  {light:object-coral};
+  --maude-hud-object-green:  {light:object-green};
+  --maude-hud-object-sky:    {light:object-sky};
+  --maude-hud-object-lilac:  {light:object-lilac};
+  --maude-hud-object-grey:   {light:object-grey};
+  --maude-hud-island-bg:     {light:island-bg};
+  --maude-hud-island-edge:   {light:island-edge};
+  --maude-hud-island-shadow: {light:island-shadow};
+  --maude-hud-shadow-md:     {light:shadow-md};
+  --maude-hud-shadow-lg:     {light:shadow-lg};
   --maude-chrome-error:  {light:status-error-text};
 }
 `;

@@ -27,7 +27,44 @@ export const HUD_TOKENS_CSS = `
   --maude-chrome-font-mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
   /* gate-a-polish: the menu / label chrome speaks the body face (mono only in Advanced + code, README) */
   --maude-chrome-font-body: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Inter", sans-serif;
+  --maude-chrome-bg-3:      oklch(0.300 0.008 250);
+  --maude-chrome-fg-2:      oklch(0.720 0.008 250);
+  --maude-chrome-border-default: oklch(1 0 0 / 0.11);
+  /* P8 C5 — the in-canvas chrome speaks the v2 kit (CONTRACT §1): the active tool is accent-muted with
+     accent text, the AI is the spark, a warning is status-warn, colour on the canvas is --object-*, and the
+     dock / pills / pins wear the island material. Same values as the shell, under the HUD's own names. */
+  --maude-hud-accent-muted:  oklch(0.64 0.165 238 / 0.18);
+  --maude-hud-accent-text:   oklch(0.72 0.140 238);
+  --maude-hud-focus-ring:    oklch(0.72 0.140 238);
+  --maude-hud-spark:         oklch(0.70 0.185 38);
+  --maude-hud-spark-fg:      oklch(0.20 0.030 38);
+  --maude-hud-spark-text:    oklch(0.74 0.150 38);
+  --maude-hud-spark-muted:   oklch(0.70 0.185 38 / 0.18);
+  --maude-hud-warn:          oklch(0.80 0.140 80);
+  --maude-hud-warn-text:     oklch(0.80 0.140 80);
+  --maude-hud-object-ink:    oklch(0.22 0.014 250);
+  --maude-hud-object-yellow: oklch(0.80 0.120 95);
+  --maude-hud-object-coral:  oklch(0.72 0.100 32);
+  --maude-hud-object-green:  oklch(0.72 0.110 152);
+  --maude-hud-object-sky:    oklch(0.74 0.080 230);
+  --maude-hud-object-lilac:  oklch(0.72 0.080 300);
+  --maude-hud-object-grey:   oklch(0.62 0.008 250);
+  --maude-hud-island-bg:     oklch(0.245 0.007 250 / 0.88);
+  --maude-hud-island-edge:   oklch(1 0 0 / 0.09);
+  --maude-hud-island-shadow: 0 4px 14px oklch(0 0 0 / 0.30), 0 0.5px 1.5px oklch(0 0 0 / 0.26);
+  --maude-hud-shadow-md:     0 3px 10px oklch(0 0 0 / 0.30), 0 1px 2px oklch(0 0 0 / 0.22);
+  --maude-hud-shadow-lg:     0 10px 28px oklch(0 0 0 / 0.38), 0 2px 4px oklch(0 0 0 / 0.26);
   --maude-chrome-error:     oklch(0.69 0.170 22);
+
+  /* theme-independent kit scale (radii, type, rounded face) */
+  --maude-hud-radius-xs:   4px;
+  --maude-hud-radius-sm:   6px;
+  --maude-hud-radius-md:   10px;
+  --maude-hud-radius-lg:   14px;
+  --maude-hud-radius-xl:   20px;
+  --maude-hud-type-xs:     11px;
+  --maude-hud-type-sm:     12px;
+  --maude-hud-font-rounded: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
 }
 :root[data-maude-theme="light"] {
   --maude-hud-accent:        oklch(0.53 0.175 238);
@@ -44,6 +81,33 @@ export const HUD_TOKENS_CSS = `
   --maude-chrome-border: oklch(0.24 0.014 250 / 0.07);
   --maude-chrome-dot:    oklch(0.80 0.010 240);
   --maude-chrome-shadow: color-mix(in oklab, oklch(0.24 0.014 250) 14%, transparent);
+  --maude-chrome-bg-3:      oklch(0.958 0.006 240);
+  --maude-chrome-fg-2:      oklch(0.505 0.010 250);
+  --maude-chrome-border-default: oklch(0.24 0.014 250 / 0.12);
+  /* P8 C5 — the in-canvas chrome speaks the v2 kit (CONTRACT §1): the active tool is accent-muted with
+     accent text, the AI is the spark, a warning is status-warn, colour on the canvas is --object-*, and the
+     dock / pills / pins wear the island material. Same values as the shell, under the HUD's own names. */
+  --maude-hud-accent-muted:  oklch(0.53 0.175 238 / 0.12);
+  --maude-hud-accent-text:   oklch(0.47 0.170 238);
+  --maude-hud-focus-ring:    oklch(0.53 0.175 238);
+  --maude-hud-spark:         oklch(0.66 0.200 36);
+  --maude-hud-spark-fg:      oklch(0.20 0.030 36);
+  --maude-hud-spark-text:    oklch(0.50 0.170 36);
+  --maude-hud-spark-muted:   oklch(0.66 0.200 36 / 0.12);
+  --maude-hud-warn:          oklch(0.72 0.150 78);
+  --maude-hud-warn-text:     oklch(0.54 0.120 70);
+  --maude-hud-object-ink:    oklch(0.24 0.014 250);
+  --maude-hud-object-yellow: oklch(0.91 0.120 95);
+  --maude-hud-object-coral:  oklch(0.83 0.095 32);
+  --maude-hud-object-green:  oklch(0.82 0.120 152);
+  --maude-hud-object-sky:    oklch(0.85 0.070 230);
+  --maude-hud-object-lilac:  oklch(0.83 0.075 300);
+  --maude-hud-object-grey:   oklch(0.90 0.006 250);
+  --maude-hud-island-bg:     oklch(0.995 0.002 240 / 0.88);
+  --maude-hud-island-edge:   oklch(0.24 0.014 250 / 0.10);
+  --maude-hud-island-shadow: 0 2px 10px oklch(0.24 0.030 250 / 0.07), 0 0.5px 1.5px oklch(0.24 0.030 250 / 0.06);
+  --maude-hud-shadow-md:     0 3px 10px oklch(0.24 0.030 250 / 0.08), 0 1px 2px oklch(0.24 0.030 250 / 0.05);
+  --maude-hud-shadow-lg:     0 8px 24px oklch(0.24 0.030 250 / 0.11), 0 2px 4px oklch(0.24 0.030 250 / 0.06);
   --maude-chrome-error:  oklch(0.52 0.190 22);
 }
 `;
