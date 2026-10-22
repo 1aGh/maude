@@ -125,6 +125,21 @@ export const DELETE_WRITES: ReadonlySet<string> = new Set([
   '/_api/ds/clear',
 ]);
 
+/**
+ * gate-b-c4i — the media uploads (http.ts `/_api/asset` + the chunked trio). They name no canvas:
+ * the bytes become a NEW content-addressed file (`assets/<sha8>.<ext>`, sniffed and capped in
+ * api.ts), so the write gate has no target to judge. A canvas FRAME (every canvas-listener request
+ * since gate-b-c4) is a canvas-only session, so without this an upload was refused from every
+ * frame — the owner's drop, the board's image, the bg-remove harness. `localGate` admits one from a
+ * frame that holds `edit` on at least one canvas of its grant; nothing else changes.
+ */
+export const FRAME_UPLOAD_WRITES: ReadonlySet<string> = new Set([
+  '/_api/asset',
+  '/_api/asset/chunk-start',
+  '/_api/asset/chunk',
+  '/_api/asset/chunk-finish',
+]);
+
 export interface SessionAllowlist {
   exact: ReadonlySet<string>;
   patterns: readonly RegExp[];
@@ -410,7 +425,20 @@ export async function localGate(req: Request, pathname: string, g: GateInput): P
   if (g.access.can(cap, null)) return { ok: true };
   if (g.access.grants.length === 0) return { ok: false, reason: 'capability', cap };
   const target = await gateTarget(req, g, pathname);
-  if (target === undefined) return { ok: false, reason: 'capability', cap };
+  if (target === undefined) {
+    // gate-b-c4i — an upload from a frame (`unnarrowed` is set on a frame's access only) that may
+    // edit a canvas of its grant. A read-only frame (c4h `readOnlyBecause`) holds `observer`, a
+    // Can view / Can comment frame never held `edit`: both still refused, and so is frame-less.
+    if (
+      cap === 'edit' &&
+      FRAME_UPLOAD_WRITES.has(pathname) &&
+      g.access.unnarrowed !== undefined &&
+      g.access.readOnlyBecause === undefined &&
+      g.access.grants.some((gr) => g.access.can('edit', gr.c))
+    )
+      return { ok: true };
+    return { ok: false, reason: 'capability', cap };
+  }
   if (target === null) return { ok: false, reason: 'not-in-scope' };
   if (g.access.canvasOnly && !seesTarget(g, target, req.method))
     return { ok: false, reason: 'not-in-scope' };

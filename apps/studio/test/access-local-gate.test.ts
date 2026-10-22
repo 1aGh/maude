@@ -19,6 +19,7 @@ import type { Subprocess } from 'bun';
 
 import { writeCapability } from '../access/request.ts';
 import type { AccessClaim } from '../access/scope.ts';
+import { asUser, frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 import { ROLE_REFUSALS } from './_role-refusals.ts';
 
@@ -224,29 +225,57 @@ describe('cell child — x-maude-access read per request', () => {
     expect(lanes.status).toBe(200);
   }, 60000);
 
+  // gate-b-c4i — every canvas-listener request is scoped to the frame it was opened for (C4,
+  // access/frame.ts), so this asks INSIDE canvas A's frame (decision
+  // v2-gate-b-c4b-tests-ask-inside-a-frame): the owner's frame holds A at `member`, so the keys
+  // canvas-lib never sends are still refused by the key allowlist (read-only), a drag still lands,
+  // and a viewer's frame still keeps its camera. The same requests with no frame capability are
+  // refused (not-in-scope) — a frame-less canvas request holds no canvas.
   test('canvas origin: only the keys canvas-lib sends; an editor drag still lands', async () => {
     const info = JSON.parse(readFileSync(join(cellDesign, '_server.json'), 'utf8'));
     const canvas = String(info.canvasOrigin);
     expect(canvas.startsWith('http')).toBe(true);
-    const h = asRole('owner');
+    const h = asUser(asRole('owner'), 'o@example.com');
+    const meta = withFc('/_api/canvas-meta', await frameCap({ base: cell }, h, 'ui/a.tsx'));
     for (const patch of [
       { overlays: {} },
       { locked: [] },
       { layout: { artboards: [] }, title: 'x' },
     ]) {
-      const got = await send(canvas, 'PATCH', '/_api/canvas-meta', h, { file: CANVAS_A, patch });
+      const got = await send(canvas, 'PATCH', meta, h, { file: CANVAS_A, patch });
       expect([JSON.stringify(patch), got.line]).toEqual([JSON.stringify(patch), REFUSED]);
     }
-    const drag = await send(canvas, 'PATCH', '/_api/canvas-meta', h, {
+    const drag = await send(canvas, 'PATCH', meta, h, {
       file: CANVAS_A,
       patch: { layout: { artboards: [{ id: 'a1', x: 10, y: 20 }] } },
     });
     expect(drag.status).toBe(200);
-    const camera = await send(canvas, 'PATCH', '/_api/canvas-meta', asRole('viewer'), {
+    const viewer = asUser(asRole('viewer'), 'v@example.com');
+    const camera = await send(
+      canvas,
+      'PATCH',
+      withFc('/_api/canvas-meta', await frameCap({ base: cell }, viewer, 'ui/a.tsx')),
+      viewer,
+      { file: CANVAS_A, patch: { viewport: { x: 0, y: 0, zoom: 1 } } }
+    );
+    expect(camera.status).toBe(200);
+  }, 60000);
+
+  test('canvas origin, no frame capability: the drag and the camera are refused', async () => {
+    const info = JSON.parse(readFileSync(join(cellDesign, '_server.json'), 'utf8'));
+    const canvas = String(info.canvasOrigin);
+    const owner = asUser(asRole('owner'), 'o@example.com');
+    const drag = await send(canvas, 'PATCH', '/_api/canvas-meta', owner, {
+      file: CANVAS_A,
+      patch: { layout: { artboards: [{ id: 'a1', x: 30, y: 40 }] } },
+    });
+    expect(drag.line).toBe('403 not-in-scope');
+    const viewer = asUser(asRole('viewer'), 'v@example.com');
+    const camera = await send(canvas, 'PATCH', '/_api/canvas-meta', viewer, {
       file: CANVAS_A,
       patch: { viewport: { x: 0, y: 0, zoom: 1 } },
     });
-    expect(camera.status).toBe(200);
+    expect(camera.line).toBe('403 not-in-scope');
   }, 60000);
 });
 
