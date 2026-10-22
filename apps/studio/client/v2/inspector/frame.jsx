@@ -13,7 +13,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { AssetAbsentBox } from '../assets/missing-frame.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
-import { UsesLink } from '../ds/uses-link.jsx';
+import { isConfiguredSystem, UsesLink } from '../ds/uses-link.jsx';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
 import { blocksFor, blocksVersion, subscribeBlocks } from './blocks.js';
@@ -212,7 +212,9 @@ export function InspectorFrame({
         </span>
       </div>
       {/* S10.13 — the line is a door to the system's canvas (ds.go-to) when the shell can run it */}
-      {ds ? <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} /> : null}
+      {ds && isConfiguredSystem(cfg, ds) ? (
+        <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} />
+      ) : null}
       {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
       <AssetAbsentBox el={el1} canvas={canvasFile} />
       <HoldLine line={hold.line} />

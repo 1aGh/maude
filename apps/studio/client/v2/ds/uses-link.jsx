@@ -14,6 +14,16 @@ export function systemLabel(cfg, name) {
 }
 
 /**
+ * Is `name` a design system this project actually has? A project with none still resolves a default NAME
+ * ("project"), and "Uses project ↗" then pointed at a system that does not exist (P8-B2).
+ */
+export function isConfiguredSystem(cfg, name) {
+  return (Array.isArray(cfg?.designSystems) ? cfg.designSystems : []).some(
+    (d) => d?.name && d.name === name
+  );
+}
+
+/**
  * @param {{ ds: string, cfg?: any, onShellAction?: (id: string, params: object) => void }} p
  */
 export function UsesLink({ ds, cfg, onShellAction }) {
