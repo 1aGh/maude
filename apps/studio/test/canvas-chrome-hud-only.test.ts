@@ -73,7 +73,8 @@ describe('in-canvas chrome labels are never mono', () => {
       const src = readFileSync(join(import.meta.dir, '..', f), 'utf8');
       src.split('\n').forEach((line, i) => {
         if (/^\s*(\/\/|\*)/.test(line)) return; // prose
-        if (/--maude-chrome-font-mono|ui-monospace|\bmonospace\b/.test(line)) hits.push(`${f}:${i + 1}`);
+        if (/--maude-chrome-font-mono|ui-monospace|\bmonospace\b/.test(line))
+          hits.push(`${f}:${i + 1}`);
       });
     }
     expect(hits).toEqual([]);
@@ -81,5 +82,38 @@ describe('in-canvas chrome labels are never mono', () => {
   test('canvas-lib chrome (snap pill, minimap, zoom controls) is the body face too', () => {
     const src = readFileSync(join(import.meta.dir, '../canvas-lib.tsx'), 'utf8');
     expect(src).not.toContain('--maude-chrome-font-mono');
+  });
+});
+
+// P8 C5 (14 R2, board .ed-sel / .ed-h): a selection is a 1.5 px accent outline (no halo, no ticks) with eight
+// 8 × 8 bg-2 squares inset 1.5 px accent, no radius — objects and artboards alike; no rim on an unselected artboard.
+describe('selection drawing is the board’s', () => {
+  const rule = (file: string, sel: string) => {
+    const src = readFileSync(join(import.meta.dir, '..', file), 'utf8');
+    const at = src.indexOf(`\n${sel} {`);
+    expect({ file, sel, found: at >= 0 }).toEqual({ file, sel, found: true });
+    return src.slice(at, src.indexOf('}', at));
+  };
+  test('outline 1.5 px, no halo ring, ticks drawn as nothing', () => {
+    const sel = rule('canvas-shell.tsx', '.dc-cv-halo--selected');
+    expect(sel).toContain('1.5px solid');
+    expect(sel).toContain('box-shadow: none');
+    expect(rule('canvas-shell.tsx', '.dc-cv-halo--selected .tick')).toContain('display: none');
+    expect(rule('canvas-shell.tsx', '.dc-canvas .dc-artboard[aria-current="true"]')).toContain(
+      'box-shadow: none'
+    );
+  });
+  test('handles: bg-2 square, inset 1.5 px accent, radius 0, 8 × 8 on every edge', () => {
+    for (const [file, sel] of [
+      ['use-element-resize.tsx', '.dc-el-resize-handle'],
+      ['editing/artboard-handles.tsx', '.ed-ab-handle'],
+    ] as const) {
+      const r = rule(file, sel);
+      expect(r).toContain('var(--maude-chrome-bg-2');
+      expect(r).toContain('inset 0 0 0 1.5px var(--maude-hud-accent');
+      expect(r).toContain('border-radius: 0');
+      const src = readFileSync(join(import.meta.dir, '..', file), 'utf8');
+      expect(src).not.toMatch(/width: 14px; height: 6px|width: 6px; height: 14px/);
+    }
   });
 });

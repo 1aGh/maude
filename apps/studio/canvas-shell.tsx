@@ -201,22 +201,18 @@ const HALO_CSS = `
 /* Hover — lighter 1.5px tinted line + white inner ring for contrast on dark
    elements. NO ring, NO ticks. Synchronous paint (no debounce). */
 .dc-cv-halo--hover {
-  border: 1.5px solid color-mix(in oklab, var(--maude-hud-accent, #0d99ff) 60%, transparent);
-  box-shadow: inset 0 0 0 1px var(--maude-chrome-bg-0, #ffffff);
+  border: 1px solid var(--maude-hud-accent, #0d99ff);
+  opacity: 0.7;
 }
-/* Selected (single) — 2px solid + 18% ring halo + 4 filled corner ticks.
-   Ticks are <i class="tick tick-*"> children at inset:-3px, 8x8, accent fill. */
+/* Selected (single) — P8 C5 (14 R2, board .ed-sel): a 1.5 px accent outline, no halo, no corner ticks; the
+   eight square handles (use-element-resize) are the only marks. The tick children stay in the DOM for the
+   callers that still place them, drawn as nothing. */
 .dc-cv-halo--selected {
-  border: 2px solid var(--maude-hud-accent, #0d99ff);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--maude-hud-accent, #0d99ff) 18%, transparent);
+  border: 1.5px solid var(--maude-hud-accent, #0d99ff);
+  box-shadow: none;
 }
 .dc-cv-halo--selected .tick {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: var(--maude-hud-accent, #0d99ff);
-  border-radius: 1px;
-  box-shadow: 0 0 0 1px var(--maude-chrome-bg-0, #ffffff);
+  display: none;
 }
 .dc-cv-halo--selected .tick-tl { top: -3px; left: -3px; }
 .dc-cv-halo--selected .tick-tr { top: -3px; right: -3px; }
@@ -272,7 +268,9 @@ const HALO_CSS = `
      (3 px ring + hard 6×6×0 offset) was readable but visually expensive once
      the frame itself lost its brutalist treatment. A 2 px ring on a 22 %
      tinted hairline reads unambiguous without claiming subject-ness. */
-  box-shadow: 0 0 0 2px var(--maude-hud-accent, #0d99ff);
+  /* P8 C5 (07 ve-none) — the boards draw no rim on an artboard nobody selected: the active one is a keyboard /
+     context anchor (aria-current), not a mark. A selected artboard wears its own frame + handles. */
+  box-shadow: none;
   transition: box-shadow 120ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 /* Respect prefers-reduced-motion across all chrome transitions. */
