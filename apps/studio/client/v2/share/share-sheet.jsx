@@ -137,7 +137,11 @@ export function ShareSheet({
   useEffect(() => {
     let live = true;
     (async () => {
-      const [p, m] = await Promise.all([api.posture(), api.me()]);
+      // `me` is the hub's answer about this person; a project that is not linked has no hub to ask — asking
+      // anyway made every Share sheet of a local project log a failed request (a 409) (P8 B1).
+      const p = await api.posture();
+      if (!live) return;
+      const m = p.ok && p.body?.linked === false ? { ok: false } : await api.me();
       if (!live) return;
       setPosture(p.ok ? p.body : { linked: true, reachable: false });
       setMe(m.ok ? m.body : null);

@@ -423,3 +423,16 @@ describe('model words', () => {
     ]);
   });
 });
+
+describe('P8 B1 — the hub is asked who you are only when there is a hub', () => {
+  test('a local (unlinked) project never calls me — it was a failed 409 on every open of Share', async () => {
+    const { calls } = await mount({ posture: { linked: false } });
+    expect(calls.map((c) => c[0])).toContain('posture');
+    expect(calls.map((c) => c[0])).not.toContain('me');
+  });
+
+  test('a linked project still asks', async () => {
+    const { calls } = await mount();
+    expect(calls.map((c) => c[0])).toContain('me');
+  });
+});
