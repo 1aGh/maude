@@ -61,6 +61,8 @@ export function useProjectData({
           systemHeads: data.systemHeads ?? {},
           dsConverted: data.dsConverted ?? {},
           dsRevGaps: data.dsRevGaps ?? {},
+          // gate-b-c4h — canvases that import another canvas open read-only (canvas-url.js).
+          canvasImportsCanvases: data.canvasImportsCanvases ?? {},
         }));
       },
       onError: (error) => {
