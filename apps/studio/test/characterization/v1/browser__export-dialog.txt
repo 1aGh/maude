@@ -153,32 +153,46 @@ div
     div .ex-scrim [role="presentation"]
       div .ex-sheet.island [data-testid="export-sheet"] [role="dialog"] [aria-modal="true"] [tabindex="-1"]
         div .ex-sheet-hd
-          h2 .ex-title [data-testid="export-title"] "Export “”"
-          p .ex-sheet-sub [data-testid="export-sub"] "nothing was selected"
+          h2 .ex-title [data-testid="export-title"] "Export the whole project — 4 artboards"
         div .ex-scope
           span .ex-scope-k "Scope"
           div .ex-scope-seg.ex-seg [data-testid="export-scope"] [role="radiogroup"]
             button .ex-seg-b [data-testid="export-scope-selection"] [role="radio"] [aria-checked="false"] [aria-disabled="true"] [title="Nothing is selected."] [type="button"] [disabled] [tabindex="-1"] "Selection"
-            button .ex-seg-b [data-testid="export-scope-canvas"] [role="radio"] [aria-checked="true"] [title="There is no canvas open."] [type="button"] [tabindex="0"] "This canvas"
+              small "—"
+            button .ex-seg-b [data-testid="export-scope-canvas"] [role="radio"] [aria-checked="false"] [aria-disabled="true"] [title="There is no canvas open."] [type="button"] [disabled] [tabindex="-1"] "This canvas"
+              small "—"
             button .ex-seg-b [data-testid="export-scope-folder"] [role="radio"] [aria-checked="false"] [aria-disabled="true"] [title="This canvas is not in a folder."] [type="button"] [disabled] [tabindex="-1"] "Folder"
-            button .ex-seg-b [data-testid="export-scope-project"] [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "Whole project"
+              small "—"
+            button .ex-seg-b [data-testid="export-scope-project"] [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "Whole project"
+              small "4"
           span .ex-scope-u "artboards"
         div .ex-rows [data-testid="export-rows"]
-          div .ex-row [data-testid="export-row-format"]
-            span .ex-row-k "Format"
+          div .ex-groups [data-testid="export-groups"] [role="group"] [aria-label="Formats by kind"]
+            div .ex-group [data-testid="export-group-digital"]
+              div .ex-group-t
+                strong [data-testid="export-group-digital-title"] "Fixed size · 4 artboards"
+                span .ex-group-s "On this Mac"
+              select .ex-select [data-testid="export-group-digital-format"] [aria-label="Fixed size"] {value="png-1"}
+                option [value="png-1"] "PNG · 1×"
+                option [value="png-2"] "PNG · 2×"
+                option [value="jpg-1"] "JPG · 1×"
+                option [value="jpg-2"] "JPG · 2×"
+                option [value="svg"] "SVG"
+                option [value="pdf"] "PDF"
+          div .ex-hint [data-testid="export-shared-parts"]
+            span .ex-hint-ic
+              svg [aria-hidden="true"]
+            span .ex-hint-t "Broken holds shared parts, not artboards — left out."
+          div .ex-hint [data-testid="export-project-zip"]
+            span .ex-hint-ic
+              svg [aria-hidden="true"]
+            span .ex-hint-t "Moving or backing up the project? A ZIP keeps the canvases, assets and the design system."
+            button .btn.btn--ghost.btn--sm.ex-hint-a [type="button"] "Project ZIP instead"
+          div .ex-row [data-testid="export-row-other"]
+            span .ex-row-k "Other format"
             div .ex-row-v
-              div .ex-seg [role="radiogroup"] [aria-label="Format"]
-                button .ex-seg-b [data-testid="export-format-png"] [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "PNG"
-                button .ex-seg-b [data-testid="export-format-jpg"] [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "JPG"
               span .ex-other
                 button .btn.btn--ghost.btn--sm [data-testid="export-other"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Other…"
-          div .ex-row.ex-row--note [data-testid="export-row-size"]
-            span .ex-row-k "Size"
-            div .ex-row-v
-              div .ex-seg [data-testid="export-size"] [role="radiogroup"] [aria-label="Size"]
-                button .ex-seg-b [data-testid="export-size-1x"] [role="radio"] [aria-checked="true"] [type="button"] [tabindex="0"] "1×"
-                button .ex-seg-b [data-testid="export-size-2x"] [role="radio"] [aria-checked="false"] [type="button"] [tabindex="-1"] "2×"
-              span .ex-row-n "Instagram resizes anything larger."
           div .ex-row [data-testid="export-row-annotations"]
             span .ex-row-k "Annotations"
             div .ex-row-v
@@ -191,12 +205,13 @@ div
           button .v2-fold-btn [data-testid="export-advanced-toggle"] [aria-expanded="false"] [type="button"] "Advanced"
             span .v2-fold-ch
               svg [aria-hidden="true"]
-            span .v2-fold-hint "File names, colour, scale"
+            span .v2-fold-hint "File names, colour, per-canvas choices"
+        p .ex-sum [data-testid="export-summary"] "4 files · about 1.4 MB · about 10 seconds on this Mac"
         div .ex-sheet-a
           span
           span .ex-btns
             button .btn [data-testid="export-cancel"] [type="button"] "Cancel"
             button .btn.btn--primary.ex-go [data-testid="export-submit"] [type="button"]
               svg [aria-hidden="true"]
-              span [data-testid="export-submit-label"] "Export"
+              span [data-testid="export-submit-label"] "Export 4 artboards"
               span .ex-ret [aria-hidden="true"] "↵"
