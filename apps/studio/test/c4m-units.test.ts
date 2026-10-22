@@ -13,7 +13,7 @@ import { describe, expect, test } from 'bun:test';
 import { canvasImportsReport, closureFor, type ProjectReader } from '../access/closure.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile as activityIsCanvasFile } from '../activity.ts';
-import { isCanvasFile, isDsSurfaceRel } from '../skip-dirs.ts';
+import { isCanvasFile, isCanvasSource, isDsSurfaceRel, moduleLinks } from '../skip-dirs.ts';
 
 const project = (files: Record<string, string>): ProjectReader => ({
   list: () => Object.keys(files),
@@ -180,7 +180,25 @@ describe('2 + 3 — .html canvases and specimens are canvases to the closure', (
   });
 });
 
-describe('defender M-A — a re-export cycle never caches a wrong "carries nothing"', () => {
+describe('defender L-A — a namespace name that is no identifier is unreadable, not a crash', () => {
+  test('moduleLinks / isCanvasSource do not throw, and a lib namespace errs to canvas', () => {
+    expect(() => moduleLinks("import * as X( from './h';\n")).not.toThrow();
+    expect(() => moduleLinks("import * as a[b from './h';\n")).not.toThrow();
+    expect(isCanvasSource("import * as X( from '@maude/canvas-lib';\nexport default 1;\n")).toBe(
+      true
+    );
+  });
+  test('a closure reaching such a module still computes', () => {
+    const files = {
+      ...BASE,
+      [A]: "import H from './h.tsx';\nexport default () => <H />;\n",
+      'ui/h.tsx': "import * as X( from './helper.ts';\nexport default () => <i />;\n",
+    };
+    expect(() => closureOf(files)).not.toThrow();
+  });
+});
+
+describe('defender M-A —a re-export cycle never caches a wrong "carries nothing"', () => {
   // a.ts re-exports DesignCanvas as Foo and everything of b.ts; b.ts re-exports Foo from a.ts. Walking
   // a.ts first used to cache b.ts as carrying nothing (a.ts was still in progress), so x.tsx — which
   // renders <Foo> from b.ts — was "not a canvas" for every later grant in the same closure.

@@ -290,7 +290,9 @@ export function moduleLinks(source: string): ModuleLinks {
     const ns = /\*\s*as\s+([^\s,{}]+)/.exec(clause)?.[1];
     if (ns !== undefined) {
       imp.all = true;
-      if (nameOf(ns) === ODD_NAME) imp.odd = true;
+      // gate-b-c4m (defender L-A) — a name that is no plain identifier (`* as X(`) is unreadable:
+      // it errs to "canvas" and never reaches `new RegExp` (it threw for every closure reaching it).
+      if (nameOf(ns) === ODD_NAME || !/^[A-Za-z_$][\w$]*$/.test(ns)) imp.odd = true;
       else {
         const esc = ns.replace(/\$/g, '\\$');
         const useRe = new RegExp(`(?<![\\w$.\\\\])${esc}(?![\\w$\\\\])`, 'g');
