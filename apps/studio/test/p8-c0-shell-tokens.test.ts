@@ -25,7 +25,7 @@ afterAll(() => GlobalRegistrator.unregister());
 type Rule = { selectors: string[]; decls: [string, string][]; layer: number; order: number };
 
 /** Style rules of a CSS text with their cascade layer rank (unlayered = highest); @media blocks are skipped. */
-function rules(css: string): Rule[] {
+function rules(css: string, props = /(--[\w-]+)\s*:\s*([^;]*?)\s*(?:;|$)/g): Rule[] {
   const layerNames: string[] = [];
   const stmt = /@layer\s+([\w\s,.-]+);/g;
   for (const m of css.matchAll(stmt))
@@ -61,8 +61,7 @@ function rules(css: string): Rule[] {
         // @media / @supports / @keyframes … — not part of the default cascade checked here
       } else {
         const decls: [string, string][] = [];
-        for (const m of body.matchAll(/(--[\w-]+)\s*:\s*([^;]*?)\s*(?:;|$)/g))
-          decls.push([m[1], m[2]]);
+        for (const m of body.matchAll(props)) decls.push([m[1], m[2]]);
         if (decls.length)
           out.push({
             selectors: lastStmt.split(',').map((s) => s.trim()),
@@ -172,5 +171,36 @@ describe('P8 C0 · the shell resolves the maude-v2 tokens', () => {
     for (const m of hud.matchAll(/--maude-hud-accent:\s*([^;]+);/g))
       expect(m[1]).toMatch(/ 238\)$/);
     expect(hud).not.toMatch(/JetBrains Mono|'Inter'/);
+  });
+});
+
+describe('P8 C0 · the cascade lets v2 rules win', () => {
+  test('nothing in the bundle is unlayered but keyframes and the reduced-motion cut', () => {
+    const css = shellCss().replace(/\/\*[\s\S]*?\*\//g, '');
+    const top: string[] = [];
+    let depth = 0;
+    let head = '';
+    for (const c of css) {
+      if (c === '{') {
+        if (depth === 0) top.push(head.split(/[;}]/).pop()?.trim() ?? '');
+        depth++;
+        head = '';
+      } else if (c === '}') {
+        depth--;
+        head = '';
+      } else if (depth === 0) head += c;
+    }
+    const stray = top.filter(
+      (h) => !/^@layer\b|^@keyframes\b|^@media \(prefers-reduced-motion: reduce\)/.test(h)
+    );
+    expect(stray).toEqual([]);
+  });
+
+  test("a panel's adjustment of the empty kit wins over the kit's base size (Canvases' folded empty line)", () => {
+    const all = rules(shellCss(), /([a-z-]+)\s*:\s*([^;]*?)\s*(?:;|$)/g);
+    document.body.innerHTML =
+      '<div class="maude" data-theme="light"><div class="cv-empty"><div class="es-e es-e--fold"><p class="es-sit">x</p><p class="es-next">y</p></div></div></div>';
+    expect(resolve(all, document.querySelector('.es-sit')!).get('font-size')).toBe('var(--type-sm)');
+    expect(resolve(all, document.querySelector('.es-next')!).get('font-size')).toBe('var(--type-xs)');
   });
 });

@@ -21,9 +21,11 @@ import { CommentComposer, placeWords } from '../comments-overlay.tsx';
 
 const STUDIO = join(import.meta.dir, '..');
 const css = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
-/** The declarations of the first rule whose selector is exactly `sel`. */
+/** The declarations of the LAST rule whose selector is exactly `sel`, at any indent — the one that wins at equal
+ *  specificity (P8 C0 moved the timeline's unlayered rules into @layer shell after an earlier same-selector rule). */
 const rule = (src: string, sel: string) => {
-  const at = src.indexOf(`\n${sel} {`);
+  const re = new RegExp(`\\n[ \\t]*${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{`, 'g');
+  const at = [...src.matchAll(re)].pop()?.index ?? -1;
   expect(at).toBeGreaterThan(-1);
   return src.slice(at, src.indexOf('}', at));
 };

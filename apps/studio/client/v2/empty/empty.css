@@ -4,9 +4,14 @@
  * rounded face, the next step in the body face. Motion: ONE spring, on the spot's notes (`--dur-spring` ·
  * `--ease-spring`, transform + opacity), and a quiet opacity pulse on "arriving" things. Reduced motion:
  * the tokens collapse every --dur-* to 1 ms, and both animations are dropped outright (a 1 ms infinite loop
- * would strobe) so the final frame shows at once. */
+ * would strobe) so the final frame shows at once.
+ *
+ * LAYER (P8 C0): the base block sits in @layer shell, not components. It is kit anatomy that panels embed and
+ * adjust from their own shell-layer files (canvases.css `.cv-empty .es-*`, comments.css); in components it beat
+ * every one of those by layer whatever their specificity (a panel's empty line rendered at the 17 px kit size).
+ * Same place as the kit file (3-kit-maude-v2.css): a context rule wins by specificity. */
 
-@layer components {
+@layer shell {
   /* ─── the spot art ─── */
   .es-spot {
     display: block;
@@ -350,7 +355,7 @@
     inset: 0;
     display: grid;
     place-items: center;
-    background: var(--u-bg-0);
+    background: var(--bg-0);
   }
 
   /* ─── S11.2: the empty canvas, the empty-artboard hint, Layers' empty line, the connect veil ─── */
