@@ -187,6 +187,18 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
         /<(?:Maude)?(Video|OffthreadVideo|Audio|Img)\b[^>]*src=["']([^"']+)["']/
       );
       const nameM = attrs.match(/name=["']([^"']+)["']/);
+      // P8 C3 (07 · ve-text) — a clip with no name of its own whose body is a literal text block (a "+ Title"
+      // overlay) goes by its words, never by the component that wraps them ("AbsoluteFill"). Display only: the
+      // label (the component name keyframes and ops are keyed by) is unchanged.
+      const litM = nameM ? null : after.match(/\{\s*("(?:[^"\\\n]|\\.){1,120}")\s*\}/);
+      let text = null;
+      if (litM) {
+        try {
+          text = String(JSON.parse(litM[1])).trim() || null;
+        } catch {
+          text = null;
+        }
+      }
       items.push({
         type: 'seq',
         // DDR-150 dogfood fix: a `from` on a SERIES clip is a lie — Remotion's
@@ -198,6 +210,7 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
         dur: resolveNum(dm?.[1], consts),
         from: kind === 'Sequence' && fm ? resolveNum(fm[1], consts) : null,
         compName: nameM ? nameM[1] : lm ? lm[1] : null,
+        text,
         mediaTag: mm ? mm[1] : null,
         mediaSrc: mm ? mm[2] : null,
       });
@@ -230,6 +243,7 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
     }
     sequences.push({
       label: it.compName ?? `Seq ${sequences.length + 1}`,
+      ...(it.text ? { text: it.text } : {}),
       series: !!it.series,
       mediaTag: it.mediaTag,
       mediaSrc: it.mediaSrc,

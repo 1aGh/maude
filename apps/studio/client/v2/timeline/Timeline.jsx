@@ -19,8 +19,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { ImagePlus, MessageSquarePlus, Plus, Scissors, Sparkles, Type } from 'lucide-react';
-
 import { isSilentVideo, timelineKindOf } from '../inspector/kinds/clip-model.js';
 import { foldStore } from '../fold/use-fold.js';
 import {
@@ -44,7 +42,8 @@ import { FitFillAsk, useFitFill } from './fit-fill.jsx';
 import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
 import { TransitionPicker } from './joins/transition-picker.jsx';
 import { MusicLaneOverlay, musicSelection, useMusicLane } from './lanes/music-lane.jsx';
-import { MusicHint } from './music-hint.jsx';
+import { MusicHint, MusicTool } from './music-hint.jsx';
+import { TGlyph } from './glyphs.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
 import { RulerMarks } from './marks.jsx';
 import { PeerHeads } from './peers.jsx';
@@ -103,6 +102,8 @@ function rowKind(seq) {
 }
 /** The name a clip goes by in words ("Oslava", never a content-hash file name): "Clip N" when it has none. */
 function displayNameOf(seq, i) {
+  // P8 C3 (07 · ve-text) — a title goes by its words (timeline-parse.js `text`), never by "AbsoluteFill"
+  if (seq.text) return seq.text;
   const raw =
     ['Video', 'OffthreadVideo', 'Audio', 'Img', 'MaudeVideo', 'MaudeAudio', 'MaudeImg'].includes(
       seq.label
@@ -111,91 +112,32 @@ function displayNameOf(seq, i) {
       : seq.label;
   return /^[a-f0-9]{6,16}\.\w+$/i.test(raw || '') ? `Clip ${i + 1}` : raw;
 }
-function rowKindGlyph(seq) {
-  const k = rowKind(seq);
-  if (k === 'placeholder') return '✨';
-  if (k === 'video') return '▶';
-  if (k === 'image') return '◫';
-  if (k === 'audio') return '♪';
-  return 'ƒ';
-}
-function rowKindTitle(seq) {
-  const k = rowKind(seq);
-  const src = seq.mediaSrc ? ` · ${String(seq.mediaSrc).split('/').pop()}` : '';
-  if (k === 'placeholder')
-    return `AI placeholder (${seq.placeholder?.kind || 'veo'}) · ${seq.placeholder?.prompt || ''}`;
-  if (k === 'video') return `Video clip${src}`;
-  if (k === 'image') return `Image${src}`;
-  if (k === 'audio') return `Audio${src}`;
-  return 'Animated JSX (code-driven)';
-}
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
-function TIcon({ name, size = 15 }) {
-  const paths = {
-    play: <path d="M4 3l9 5-9 5z" fill="currentColor" stroke="none" />,
-    pause: (
-      <>
-        <rect x="4" y="3.5" width="3" height="9" fill="currentColor" stroke="none" />
-        <rect x="9" y="3.5" width="3" height="9" fill="currentColor" stroke="none" />
-      </>
-    ),
-    loop: (
-      <>
-        <polyline points="4 4 4 7 7 7" />
-        <path d="M4 7a4.5 4.5 0 1 1 1.3 4.6" />
-      </>
-    ),
-    start: (
-      <>
-        <line x1="4.5" y1="3.5" x2="4.5" y2="12.5" />
-        <path d="M12 3.5l-6 4.5 6 4.5z" fill="currentColor" stroke="none" />
-      </>
-    ),
-    sound: (
-      <>
-        <path d="M3 6h2.2L8 3.3v9.4L5.2 10H3z" fill="currentColor" stroke="none" />
-        <path d="M10.5 5.5a3.2 3.2 0 0 1 0 5" />
-        <path d="M12.3 3.7a5.6 5.6 0 0 1 0 8.6" />
-      </>
-    ),
-    muted: (
-      <>
-        <path d="M3 6h2.2L8 3.3v9.4L5.2 10H3z" fill="currentColor" stroke="none" />
-        <line x1="10.7" y1="6" x2="13.7" y2="10" />
-        <line x1="13.7" y1="6" x2="10.7" y2="10" />
-      </>
-    ),
-  };
+/** A song's name in words: its file name without the extension ("Hype instrumental.mp3" → "Hype instrumental"). */
+const songName = (label) => String(label ?? '').replace(/\.[a-z0-9]{2,4}$/i, '') || 'Music';
+
+/** P8 C3 (07 · .ve-wave) — deterministic bars (the board's `wave()`), one per ~1.1 % of the clip, as the stand-in
+ *  until the real peaks are read. */
+function WaveBars({ width, seed = 1 }) {
+  const n = clamp(Math.round(width / 5), 4, 240);
+  const bars = [];
+  for (let k = 0; k < n; k++) {
+    const h = 0.25 + 0.75 * Math.abs(Math.sin(k * 0.61 * seed + 1.3) * Math.cos(k * 0.17 + seed));
+    bars.push(<i key={k} style={{ height: `${Math.round(h * 100)}%` }} />);
+  }
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {paths[name]}
-    </svg>
+    <span className="tl-wave-bars" aria-hidden="true">
+      {bars}
+    </span>
   );
 }
 
-// lucide wrapper — hairline stroke to match the shell's icon weight (the same
-// convention as inspector-controls' `Ic`).
-const LIc = ({ as: C, size = 14 }) => (
-  <C size={size} strokeWidth={1.75} style={{ display: 'block', flex: 'none' }} />
-);
-
-const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-
+/** A length in words, one decimal ("2.5 s"). */
+const secs = (frames, fps) => `${Math.round((frames / (fps || 30)) * 10) / 10} s`;
+/** A moment in words — m:ss, like the ruler (words.js header rule: never "10.10s"). */
 function fmtTime(frame, fps) {
-  const s = frame / (fps || 30);
-  const whole = Math.floor(s);
-  const cs = Math.round((s - whole) * 100);
-  return `${whole}.${String(cs).padStart(2, '0')}s`;
+  return mss(frame / (fps || 30));
 }
 
 /**
@@ -216,10 +158,12 @@ function useLiveState(initial) {
   return [state, set, live];
 }
 
-// The frame axis starts AFTER the fixed label gutter.
-const LABEL_GUTTER = 96;
-// Padding the .tl-scroll container puts around the tracks (see 3-shell-maude.css).
-const SCROLL_PAD_X = 24;
+// The frame axis starts AFTER the label gutter: P8 C3 (07 · .ve-tl-labs) — a 22 px column of track chips in compact,
+// 132 px of chip + name in full, then the lanes' 8 px gap.
+const COMPACT_GUTTER = 30;
+const FULL_GUTTER = 140;
+// Padding the .tl-scroll container puts around the tracks (timeline.css: 3 px a side, room for the selection ring).
+const SCROLL_PAD_X = 6;
 
 export default function TimelinePanel({
   comps = [],
@@ -305,6 +249,10 @@ export default function TimelinePanel({
   const rootRef = useRef(null);
   // S7.7 — the island around this body (null when it stands alone): the empty-comp block lives there.
   const island = useTimelineIsland();
+  // P8 C3 — the board's two sizes: compact (the narrow icon gutter, no zoom, no Advanced) and full. A body with
+  // no island around it is the full one.
+  const full = !island || island.size === 'full';
+  const gutter = full ? FULL_GUTTER : COMPACT_GUTTER;
   // S7.14 — an AI cut on this video: its edge, the shot that landed, the status chip (from the run's progress)
   const aiCut = useAiCut({
     activePath: island?.canvas ?? null,
@@ -315,6 +263,8 @@ export default function TimelinePanel({
   const playback = usePlayback();
   const band = compId ? playback.loopFor(compId) : null;
   const poster = Number.isFinite(island?.poster) ? island.poster : null;
+  // the default poster (poster.js: absent = 35 % of the length)
+  const posterAt = clamp(poster ?? Math.round(totalFrames * 0.35), 0, totalFrames - 1);
   // S7.18 — Advanced at the foot (frames, keyframes, the cut as code), the asked-for empty tracks, and how long
   // one export of this video may be (C22). The fold is the shared `timeline` Advanced fold.
   const advOpen = useAdvancedOpen();
@@ -380,7 +330,7 @@ export default function TimelinePanel({
       if (raf) cancelAnimationFrame(raf);
     };
   }, [scrollEl]);
-  const axisViewport = Math.max(40, viewW - LABEL_GUTTER - SCROLL_PAD_X);
+  const axisViewport = Math.max(40, viewW - gutter - SCROLL_PAD_X);
   const fitPxf = fitPxPerFrame(axisViewport, totalFrames);
   const pxf = zoomPxf == null ? fitPxf : clampPxPerFrame(zoomPxf, axisViewport, totalFrames);
   const axisPx = Math.ceil(totalFrames * pxf);
@@ -449,17 +399,13 @@ export default function TimelinePanel({
       const rect = trackRef.current?.getBoundingClientRect();
       const anchor =
         rect != null
-          ? clamp(
-              Math.round(pxToFrame(e.clientX - rect.left - LABEL_GUTTER, pxf)),
-              0,
-              totalFrames - 1
-            )
+          ? clamp(Math.round(pxToFrame(e.clientX - rect.left - gutter, pxf)), 0, totalFrames - 1)
           : clamped;
       zoomTo(pxf * Math.exp(-e.deltaY * 0.01), anchor);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [pxf, clamped, totalFrames, zoomTo, scrollEl]);
+  }, [pxf, clamped, totalFrames, zoomTo, scrollEl, gutter]);
 
   // Header slider — log scale from fit (0) to MAX_PX_PER_FRAME (100).
   const zoomSliderValue = (() => {
@@ -533,10 +479,10 @@ export default function TimelinePanel({
       const el = trackRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const f = pxToFrame(clientX - r.left - LABEL_GUTTER, pxf);
+      const f = pxToFrame(clientX - r.left - gutter, pxf);
       onSeek?.(clamp(Math.round(f), 0, totalFrames - 1));
     },
-    [onSeek, totalFrames, pxf]
+    [onSeek, totalFrames, pxf, gutter]
   );
 
   useEffect(() => {
@@ -564,11 +510,7 @@ export default function TimelinePanel({
       const el = trackRef.current;
       if (!el || !onAddComment) return;
       const r = el.getBoundingClientRect();
-      const f = clamp(
-        Math.round(pxToFrame(e.clientX - r.left - LABEL_GUTTER, pxf)),
-        0,
-        totalFrames - 1
-      );
+      const f = clamp(Math.round(pxToFrame(e.clientX - r.left - gutter, pxf)), 0, totalFrames - 1);
       const anchor =
         seq && seq.stableId
           ? {
@@ -586,7 +528,7 @@ export default function TimelinePanel({
       });
       setCommentMode(false);
     },
-    [pxf, totalFrames, onAddComment]
+    [pxf, totalFrames, onAddComment, gutter]
   );
 
   const onTrackDown = (e) => {
@@ -977,10 +919,52 @@ export default function TimelinePanel({
     );
   }, [comp, sequences, fps]);
   useEffect(() => () => bindClips(null), []);
-  const trackShell = (id, label, children, hint) => {
+  // P8 C3 (07 · .ve-tl-labs, .ve-lab) — a track is its chip in the gutter (a 20 px tinted icon; in full the name
+  // beside it) over the rows it groups. No caption strip above the rows, no code-made lane ids. An empty track still
+  // draws its lane (`.ve-row--empty`), with the hint when there is one; a folded one is one striped line.
+  const TRACK_ICON = {
+    text: 'type',
+    gfx: 'image',
+    video: 'video',
+    video2: 'video',
+    music: 'music',
+    music2: 'music',
+  };
+  const trackChip = (id, label, { foldable, folded, count }) => {
+    const chip = (
+      <span className="tl-lab-ic" aria-hidden="true">
+        <TGlyph name={folded ? 'submenu' : (TRACK_ICON[id] ?? 'video')} size={folded ? 10 : 12} />
+      </span>
+    );
+    return (
+      <div className="tl-track-cap" title={folded ? FOLD_WORDS.line(label, count) : label}>
+        {foldable ? (
+          <button
+            type="button"
+            className="tl-track-fold"
+            data-testid={`timeline-track-fold-${id}`}
+            aria-expanded={!folded}
+            aria-label={folded ? FOLD_WORDS.unfold(label) : FOLD_WORDS.fold(label)}
+            title={folded ? FOLD_WORDS.unfold(label) : FOLD_WORDS.fold(label)}
+            onClick={() => trackFold.toggle(foldKey, id)}
+          >
+            {chip}
+            <span className="tl-track-name">{folded ? FOLD_WORDS.line(label, count) : label}</span>
+          </button>
+        ) : (
+          <>
+            {chip}
+            <span className="tl-track-name">{label}</span>
+          </>
+        )}
+      </div>
+    );
+  };
+  const trackShell = (id, label, children, hint, after = null) => {
     const count = trackOfCount.get(id) ?? 0;
     const foldable = FOLDABLE.includes(id) && count > 1;
     const folded = foldable && trackFold.isFolded(foldKey, id);
+    const rows = (Array.isArray(children) ? children : [children]).filter(Boolean);
     return (
       <div
         className="tl-track"
@@ -989,26 +973,69 @@ export default function TimelinePanel({
         data-testid={`timeline-track-${id}`}
         key={id}
       >
-        <div className="tl-track-cap">
-          {foldable ? (
-            <button
-              type="button"
-              className="tl-track-name tl-track-fold"
-              data-testid={`timeline-track-fold-${id}`}
-              aria-expanded={!folded}
-              title={folded ? FOLD_WORDS.unfold(label) : FOLD_WORDS.fold(label)}
-              onClick={() => trackFold.toggle(foldKey, id)}
+        {trackChip(id, label, { foldable, folded, count })}
+        {folded ? (
+          <div className="tl-row tl-row--fold" aria-hidden="true">
+            <span className="tl-row-label" />
+            <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
+              <span className="tl-fold-bar" />
+            </div>
+          </div>
+        ) : rows.length ? (
+          rows
+        ) : (
+          <div className="tl-row tl-row--empty" data-testid={`timeline-track-empty-${id}`}>
+            <span className="tl-row-label" />
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: a drop target for dragged files, like every lane — not a control */}
+            <div
+              className="tl-row-track"
+              style={{ width: axisPx, flex: 'none' }}
+              onDragOver={onLaneDragOver(
+                id === 'music' || id === 'music2' ? 'audio' : 'overlay',
+                `e-${id}`
+              )}
+              onDrop={onLaneDrop({ lane: id === 'music' || id === 'music2' ? 'audio' : 'overlay' })}
             >
-              {folded ? FOLD_WORDS.line(label, count) : label}
-            </button>
-          ) : (
-            <span className="tl-track-name">{label}</span>
-          )}
-          {hint && !folded ? <span className="tl-track-hint">{hint}</span> : null}
-        </div>
-        {folded ? null : children}
+              {hint ? <span className="tl-track-hint tl-row-hint">{hint}</span> : null}
+              {laneCaret(id === 'music' || id === 'music2' ? 'audio' : 'overlay', `e-${id}`)}
+            </div>
+          </div>
+        )}
+        {folded ? null : after}
       </div>
     );
+  };
+
+  /** P8 C3 (07 · ve-select: titles side by side on one Text lane) — rows of one track that never overlap in time share
+   *  a lane. Greedy by start; every row keeps its own element and testid (the later one is drawn ONTO its lane's
+   *  first row, `data-lane-join`). A row whose layers are open keeps a lane to itself. */
+  const laneJoins = (entries) => {
+    const lanes = []; // { end, solo } per lane
+    const laneOf = new Map();
+    for (const { seq, i } of [...entries].sort((a, b) => a.seq.from - b.seq.from)) {
+      const solo = Array.isArray(seq.layers) && seq.layers.length >= 2 && !collapsed.has(i);
+      let k = solo ? -1 : lanes.findIndex((l) => !l.solo && l.end <= seq.from);
+      if (k < 0) {
+        k = lanes.length;
+        lanes.push({ end: 0, solo });
+      }
+      lanes[k].end = seq.from + seq.duration;
+      laneOf.set(i, k);
+    }
+    return laneOf;
+  };
+  /** Entries in drawing order: lane by lane, each lane left to right; `join` = drawn onto the row above it. */
+  const packed = (entries) => {
+    const laneOf = laneJoins(entries);
+    const seen = new Set();
+    return [...entries]
+      .sort((a, b) => laneOf.get(a.i) - laneOf.get(b.i) || a.seq.from - b.seq.from)
+      .map((e) => {
+        const lane = laneOf.get(e.i);
+        const join = seen.has(lane);
+        seen.add(lane);
+        return { ...e, join };
+      });
   };
 
   // -------------------------------------------------------------------------
@@ -1391,14 +1418,7 @@ export default function TimelinePanel({
     // Debate verdict (orientation): never surface a content-hash filename or a
     // bare tag name as the clip's identity — "Clip N" beats "bca08b1e.mov";
     // the real src stays in the tooltip.
-    const rawName =
-      ['Video', 'OffthreadVideo', 'Audio', 'Img', 'MaudeVideo', 'MaudeAudio', 'MaudeImg'].includes(
-        seq.label
-      ) && seq.mediaSrc
-        ? String(seq.mediaSrc).split('/').pop()
-        : seq.label;
-    const isHashName = /^[a-f0-9]{6,16}\.\w+$/i.test(rawName || '');
-    const displayLabel = isHashName ? `Clip ${i + 1}` : rawName;
+    const displayLabel = displayNameOf(seq, i);
     // Task 11 — in-point trim preview: left edge follows, width shrinks.
     const trimming = !!(trimInDrag && trimInDrag.index === i);
     const trimDelta = trimming ? trimInDrag.delta : 0;
@@ -1432,14 +1452,10 @@ export default function TimelinePanel({
           title={
             tip ??
             (seq.series
-              ? `${seq.label} · ${blockFrom}–${blockFrom + dur}f (${dur}f) · series beat — trim the right edge to retime`
-              : `${seq.label} · ${blockFrom}–${blockFrom + dur}f (${dur}f) · drag to move (Alt = no snap)`)
+              ? `${displayLabel} · ${secs(dur, fps)} — drag to move, trim the right edge`
+              : `${displayLabel} · ${secs(dur, fps)} — drag to move (⌥ = no snap)`)
           }
-          aria-label={
-            seq.series
-              ? `${seq.label}, series beat, frames ${blockFrom} to ${blockFrom + dur}. Click to select.`
-              : `${seq.label}, from frame ${blockFrom} to ${blockFrom + dur}, ${dur} frames. Click to select; drag to move.`
-          }
+          aria-label={`${displayLabel}, ${fmtTime(blockFrom, fps)} to ${fmtTime(blockFrom + dur, fps)}. Click to select; drag to move.`}
           style={{
             left,
             width,
@@ -1488,7 +1504,7 @@ export default function TimelinePanel({
               title="Muted"
               data-testid={`timeline-mute-chip-${i}`}
             >
-              🔇
+              <TGlyph name="mute" size={10} />
             </span>
           ) : null}
           {(() => {
@@ -1517,13 +1533,15 @@ export default function TimelinePanel({
               </span>
             );
           })()}
-          <span className="tl-kind" data-kind={rowKind(seq)} title={rowKindTitle(seq)}>
-            {rowKindGlyph(seq)}
-          </span>
-          <span className="tl-seq-name">
+          {/* P8 C3 (07 · .ve-clip-lab / .ve-item) — the clip's name on a chip; a title or a graphic leads with
+              its track's glyph. No kind glyph column, no frame counts (the trim / move tips say the length). */}
+          <span className="tl-seq-name tl-clip-lab">
+            {trackOfIdx.get(i) === 'text' ? (
+              <TGlyph name="type" size={11} />
+            ) : trackOfIdx.get(i) === 'gfx' ? (
+              <TGlyph name="image" size={11} />
+            ) : null}
             {clipNameWithState(displayLabel, footage)}
-            {isResizing ? ` · ${dur}f` : ''}
-            {moving ? ` · @${blockFrom}f` : ''}
           </span>
           {prepChip ? (
             <span className="tl-chip tl-chip-prep" data-testid={`timeline-prep-chip-${i}`}>
@@ -1679,7 +1697,8 @@ export default function TimelinePanel({
     );
   };
 
-  /** Task 17 — hover "+" on hard-cut boundaries (no transition yet). */
+  /** Task 17 — "+" on a hard cut (no transition yet). P8 C3 (07 · ve-select): never drawn at rest — it shows while the
+   *  pointer is over the video track or the button has keyboard focus (timeline.css). */
   const renderAddSeams = () => {
     if (!onClipVerb) return null;
     const withTrans = new Set((transitions || []).map((t) => t.afterIndex));
@@ -1687,14 +1706,16 @@ export default function TimelinePanel({
       if (withTrans.has(i)) return null;
       const next = storyline[k + 1];
       if (!next) return null;
+      const between = `${displayNameOf(seq, i)} and ${displayNameOf(next.seq, next.i)}`;
       return (
         <button
           key={`addseam${k}`}
           type="button"
           className="tl-seam tl-seam-add"
           data-testid={`timeline-seam-add-${k}`}
-          title="Add transition (fade · 15f — click the chip after to change)"
-          style={{ left: x(next.seq.from) - 9 }}
+          aria-label={`Add a transition between ${between}`}
+          title={`Add a transition between ${between} — a 0.5 s fade; click its dot to change it`}
+          style={{ left: x(next.seq.from) }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -1704,52 +1725,51 @@ export default function TimelinePanel({
             });
           }}
         >
-          <LIc as={Plus} size={13} />
+          <TGlyph name="plus" size={12} />
         </button>
       );
     });
   };
 
-  /** ⧓ seam chips between storyline beats — click opens the Transition tab. */
+  /** P8 C3 (07 · .ve-join) — the round dot on a join that has a transition; it opens the picker right there. The
+   *  picker is placed from the dot itself, so a keyboard Enter (clientX/Y = 0) lands it on the join too. */
   const renderSeams = () =>
     (transitions || []).map((t, k) => {
       const next = sequences[t.afterIndex + 1];
+      const prev = sequences[t.afterIndex];
       if (!next) return null;
       const center = x(next.from + (t.dur || 0) / 2);
+      const name = `${prev ? displayNameOf(prev, t.afterIndex) : 'Clip'} → ${displayNameOf(next, t.afterIndex + 1)}`;
       return (
         <button
           key={`seam${k}`}
           type="button"
-          className="tl-seam"
+          className="tl-seam tl-join"
           data-testid={`timeline-seam-${k}`}
-          title={`Transition · ${t.dur || 0}f — click to edit`}
-          style={{ left: center - 9 }}
+          data-sel={joinPicker?.seam === k ? 'true' : undefined}
+          aria-label={`Transition ${name}`}
+          aria-haspopup="dialog"
+          aria-expanded={joinPicker?.seam === k}
+          title={`${name} · ${secs(t.dur || 0, fps)} — click to change`}
+          style={{ left: center }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            setJoinPicker({ seam: k, x: e.clientX, y: e.clientY });
+            const r = e.currentTarget.getBoundingClientRect();
+            setJoinPicker({ seam: k, x: r.left + r.width / 2, y: r.top, from: e.currentTarget });
           }}
         >
-          ⧓
+          <TGlyph name="transition" size={11} />
         </button>
       );
     });
 
   const renderAudioRow = (a, i) => {
     const bedInfo = musicLane.forBed(i); // S7.12 — the media's entry of this loose song
+    const Bed = bedInfo ? 'button' : 'div'; // a song the studio knows is a control; one it doesn't is a picture
     return (
       <div className="tl-row" key={`a${i}`} data-testid={`timeline-audio-${i}`}>
-        <span className="tl-row-label" title={a.label}>
-          <span
-            className="tl-kind"
-            data-kind="audio"
-            title={`Audio · ${a.label}`}
-            aria-label={`Audio · ${a.label}`}
-          >
-            ♪
-          </span>
-          <span className="tl-row-label-text">{a.label}</span>
-        </span>
+        <span className="tl-row-label" title={a.label} />
         <div
           className="tl-row-track"
           style={{ width: axisPx, flex: 'none' }}
@@ -1757,36 +1777,44 @@ export default function TimelinePanel({
           onDrop={onLaneDrop({ lane: 'audio' })}
         >
           {laneCaret('audio', `a${i}`)}
-          <div
+          <Bed
+            {...(bedInfo ? { type: 'button' } : {})}
             className={`tl-audio-block${bedInfo && selectedClipId === bedInfo.stableId ? ' is-selected' : ''}`}
-            title={`${a.label} · ${a.from}–${a.from + a.duration}f`}
+            title={`${songName(a.label)} · ${secs(a.duration, fps)}`}
+            aria-label={bedInfo ? `${songName(a.label)} — select the music` : undefined}
             style={{
               left: x(a.from),
               width: Math.max(2, x(a.duration)),
               cursor: bedInfo ? 'pointer' : undefined,
             }}
             data-clip-id={bedInfo?.stableId || undefined}
-            role={bedInfo ? 'button' : undefined}
-            tabIndex={bedInfo ? 0 : undefined}
-            onClick={bedInfo ? () => onSelect?.(bedInfo.stableId) : undefined}
-            onKeyDown={
+            // 07 · ve-music — a press on the song selects it (its inspector opens); it never starts a scrub of the track
+            onPointerDown={bedInfo ? (e) => e.stopPropagation() : undefined}
+            onClick={
               bedInfo
                 ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') onSelect?.(bedInfo.stableId);
+                    e.stopPropagation();
+                    onSelect?.(bedInfo.stableId);
                   }
                 : undefined
             }
           >
-            <svg className="tl-wave" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden>
-              {a.src && visuals[`p|${a.src}`] ? (
-                // Task 7 — real peaks (WebAudio decode), filled mirrored wave.
+            {a.src && visuals[`p|${a.src}`] ? (
+              <svg className="tl-wave" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden>
+                {/* Task 7 — real peaks (WebAudio decode), filled mirrored wave. */}
                 <path className="tl-wave-real" d={peaksToPath(visuals[`p|${a.src}`])} />
-              ) : (
-                <path d="M0 6 Q2 1 4 6 T8 6 T12 6 T16 6 T20 6 T24 6 T28 6 T32 6 T36 6 T40 6 T44 6 T48 6 T52 6 T56 6 T60 6 T64 6 T68 6 T72 6 T76 6 T80 6 T84 6 T88 6 T92 6 T96 6 T100 6" />
-              )}
-            </svg>
-            <span className="tl-seq-name">{a.label}</span>
-          </div>
+              </svg>
+            ) : (
+              // P8 C3 (07 · .ve-wave) — until the peaks are read, the song draws as bars, never a sine line
+              <WaveBars width={Math.max(2, x(a.duration))} seed={i + 1} />
+            )}
+            {bedInfo ? null : (
+              <span className="tl-music-lab">
+                <TGlyph name="music" size={10} />
+                <span className="tl-music-n">{songName(a.label)}</span>
+              </span>
+            )}
+          </Bed>
           {onReplaceAudio ? (
             <button
               type="button"
@@ -1810,6 +1838,7 @@ export default function TimelinePanel({
             speech={musicLane.speech}
             fps={musicLane.fps}
             finding={musicLane.finding(a.src)}
+            name={songName(a.label)}
           />
         </div>
       </div>
@@ -1820,8 +1849,15 @@ export default function TimelinePanel({
     <aside
       ref={rootRef}
       tabIndex={-1}
+      data-size={full ? 'full' : 'compact'}
+      data-ruler={advOpen && adv.mode === 'frames' ? 'frames' : undefined}
       className={`tl-panel${resizing ? ' is-resizing' : ''}${dropActive ? ' is-drop' : ''}${commentMode ? ' is-commenting' : ''}`}
-      style={{ ...(height ? { height } : {}), outline: 'none' }}
+      // compact is as tall as its tracks (07 · .ve-tl--compact); only the full timeline takes the dragged height
+      style={{
+        ...(height && full ? { height } : {}),
+        outline: 'none',
+        '--tl-gutter': `${gutter}px`,
+      }}
       onPointerEnter={() => {
         // Keyboard shortcuts (C · Space · ⌘B · ⌘±) live on the SHELL window;
         // when the canvas iframe holds focus they never arrive. Hovering the
@@ -1859,77 +1895,30 @@ export default function TimelinePanel({
       <div className="tl-head">
         {comp ? (
           <>
+            {/* P8 C3 (07 · .ve-tl-hd) — play · loop · time / length · the video's name, then the status, four
+                tools and the size. Everything else the v1 header carried is one disclosure down (Advanced). */}
             <button
               type="button"
-              className="tl-btn tl-btn-primary"
+              className="icon-btn k-icon-sm tl-play"
               aria-label={playing ? 'Pause' : 'Play'}
               aria-pressed={playing}
               title={playing ? 'Pause — tap space' : 'Play — tap space'}
               data-testid="timeline-playpause"
               onClick={() => (playing ? onPause?.() : onPlay?.())}
             >
-              <TIcon name={playing ? 'pause' : 'play'} />
+              <TGlyph name={playing ? 'pause' : 'play'} />
             </button>
             <button
               type="button"
-              className="tl-btn"
-              aria-label="Jump to start"
-              onClick={() => onSeek?.(0)}
-            >
-              <TIcon name="start" />
-            </button>
-            <button
-              type="button"
-              className={`tl-btn${loop ? ' is-on' : ''}`}
+              className="icon-btn k-icon-sm"
               aria-label="Loop"
               aria-pressed={loop}
+              title="Loop"
               data-testid="timeline-loop"
               onClick={() => onToggleLoop?.()}
             >
-              <TIcon name="loop" />
+              <TGlyph name="loop" />
             </button>
-            {comp ? (
-              <button
-                type="button"
-                className={`tl-btn${muted ? '' : ' is-on'}`}
-                aria-label={muted ? 'Unmute' : 'Mute'}
-                aria-pressed={!muted}
-                data-testid="timeline-mute"
-                title={muted ? 'Unmute audio' : 'Mute audio'}
-                onClick={() => onToggleMute?.()}
-              >
-                <TIcon name={muted ? 'muted' : 'sound'} />
-              </button>
-            ) : null}
-            {comp ? (
-              <input
-                type="range"
-                className="tl-volume"
-                min="0"
-                max="100"
-                value={Math.round((muted ? 0 : volume) * 100)}
-                data-testid="timeline-volume"
-                aria-label="Volume"
-                title="Volume"
-                onChange={(e) => onVolume?.(Number(e.target.value) / 100)}
-              />
-            ) : null}
-            {/* issue #75 — on a multi-comp canvas the rows + transport belong to
-                ONE artboard, and nothing said which. Show it (label, id as the
-                fallback) so the panel and the canvas agree out loud. */}
-            {comps.length > 1 ? (
-              <span
-                className={`tl-artboard${scopedArtboard ? '' : ' is-unknown'}`}
-                data-testid="timeline-artboard"
-                title={
-                  scopedArtboard
-                    ? `Timeline is scoped to artboard "${scopedArtboard}" — pan to another artboard to switch`
-                    : "This canvas has several video comps and the Timeline couldn't tell which artboard this one sits in — the transport may be moving a comp you're not looking at"
-                }
-              >
-                {scopedArtboard ?? 'artboard ?'}
-              </span>
-            ) : null}
             <span
               className="tl-readout"
               data-testid="timeline-readout"
@@ -1937,137 +1926,168 @@ export default function TimelinePanel({
             >
               {advOpen ? (
                 <>
-                  <b>{timecode(clamped, fps)}</b>
-                  <span className="tl-sep">/</span>
-                  {timecode(totalFrames, fps)}
+                  <b>{timecode(clamped, fps)}</b>{' '}
+                  <span className="tl-readout-len">/ {timecode(totalFrames, fps)}</span>
                 </>
               ) : (
                 <>
-                  <b>{readoutLabel(clamped, fps, playback.stepping())}</b>
-                  <span className="tl-sep">/</span>
-                  {mss(totalFrames / fps)}
+                  <b>{readoutLabel(clamped, fps, playback.stepping())}</b>{' '}
+                  <span className="tl-readout-len">/ {mss(totalFrames / fps)}</span>
                 </>
               )}
             </span>
+            {/* issue #75 — the rows + transport belong to ONE artboard: the header names it. On a canvas with
+                several videos where the shell could not tell which, it says so instead of guessing. */}
+            {scopedArtboard || comps.length > 1 ? (
+              <span
+                className={`tl-name${scopedArtboard ? '' : ' is-unknown'}`}
+                data-testid="timeline-name"
+                title={
+                  scopedArtboard
+                    ? `The timeline of “${scopedArtboard}”`
+                    : 'This canvas has several videos and the timeline could not tell which one this is — Play may move a video you are not looking at.'
+                }
+              >
+                <TGlyph name="video" size={12} />
+                {scopedArtboard ?? 'This video'}
+              </span>
+            ) : null}
+            <AiCutStatus cut={aiCut} />
+            {cap.warn ? (
+              // C22 — past 3 600 frames the video warns, here as everywhere (the Export sheet, the server). The
+              // sentence is the same one; the badge opens Advanced, where Allow longer is.
+              <button
+                type="button"
+                className="tl-status tl-status--warn tl-long-badge"
+                data-testid="timeline-long-badge"
+                title={cap.line}
+                onClick={() => {
+                  // Advanced is at the foot of the full timeline: open it, and make the timeline full if it is not
+                  foldStore.set('timeline', true);
+                  if (!full) island?.onToggleSize?.();
+                }}
+              >
+                <TGlyph name="clock" size={12} />
+                {clock(totalFrames, fps)}
+              </button>
+            ) : null}
+            {preparing > 0 ? (
+              <span className="tl-status tl-prep-status" data-testid="timeline-prep-status">
+                <TGlyph name="sync" size={12} />
+                {FOOTAGE_WORDS.preparing(preparing)}
+              </span>
+            ) : null}
+            <SharedStatus canvas={island?.canvas} artboardId={comp?.artboardId} />
+            <KeptStatus />
+            {onToggleMute && (playing || muted) ? (
+              // 07 · ve-play — "Sound on" while it plays with sound; the same chip mutes (and says so while muted)
+              <button
+                type="button"
+                className="tl-status tl-sound"
+                data-testid="timeline-sound"
+                aria-pressed={!muted}
+                title={muted ? 'Sound off — click to turn it on' : 'Sound on — click to mute'}
+                onClick={() => onToggleMute()}
+              >
+                {muted ? (
+                  <TGlyph name="mute" size={12} />
+                ) : (
+                  <span className="tl-meter" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                )}
+                {muted ? 'Sound off' : 'Sound on'}
+              </button>
+            ) : null}
             <span className="tl-spacer" />
-            {onSplitAtPlayhead ? (
-              <button
-                type="button"
-                className="tl-btn"
-                aria-label="Split at playhead"
-                title="Split at playhead (⌘B)"
-                data-testid="timeline-split"
-                onClick={() => onSplitAtPlayhead()}
-              >
-                <LIc as={Scissors} />
-              </button>
-            ) : null}
-            {onAddTitle ? (
-              <button
-                type="button"
-                className="tl-btn"
-                aria-label="Add title overlay"
-                title="Add a title overlay at the playhead"
-                data-testid="timeline-add-title"
-                onClick={() => onAddTitle(clamped)}
-              >
-                <LIc as={Type} />
-              </button>
-            ) : null}
-            {island ? <CaptionsTool /> : null}
-            {onAddImage ? (
-              <button
-                type="button"
-                className="tl-btn"
-                aria-label="Add image overlay"
-                title="Add an image overlay at the playhead"
-                data-testid="timeline-add-image"
-                onClick={() => onAddImage(clamped)}
-              >
-                <LIc as={ImagePlus} />
-              </button>
-            ) : null}
-            {onAddAiClip ? (
-              <button
-                type="button"
-                className="tl-btn"
-                aria-label="Add AI placeholder clip"
-                title="Add an AI placeholder clip at the end of the storyline"
-                data-testid="timeline-placeholder-add"
-                onClick={() => onAddAiClip()}
-              >
-                <LIc as={Sparkles} />
-              </button>
-            ) : null}
-            {onAddComment ? (
-              <button
-                type="button"
-                className={`tl-btn${commentMode ? ' is-on' : ''}`}
-                aria-label="Comment tool"
-                aria-pressed={commentMode}
-                title="Comment tool — click anywhere on the timeline to pin a comment (C)"
-                data-testid="timeline-comment-tool"
-                onClick={() => setCommentMode((m) => !m)}
-              >
-                <LIc as={MessageSquarePlus} />
-              </button>
+            <span className="tl-tools">
+              {onSplitAtPlayhead ? (
+                <button
+                  type="button"
+                  className="icon-btn k-icon-sm"
+                  aria-label="Split at the playhead"
+                  title="Split at the playhead · S"
+                  data-testid="timeline-split"
+                  onClick={() => onSplitAtPlayhead()}
+                >
+                  <TGlyph name="scissors" />
+                </button>
+              ) : null}
+              {onAddTitle ? (
+                <button
+                  type="button"
+                  className="icon-btn k-icon-sm"
+                  aria-label="Add text"
+                  title="Add text"
+                  data-testid="timeline-add-title"
+                  onClick={() => onAddTitle(clamped)}
+                >
+                  <TGlyph name="type" />
+                </button>
+              ) : null}
+              {island ? <CaptionsTool /> : null}
+              {onDropMedia && canEditHere ? (
+                <MusicTool onAddFiles={(files) => onDropMedia(files, null)} />
+              ) : null}
+            </span>
+            <span className="tl-div" aria-hidden="true" />
+            {full ? (
+              <>
+                <span className="tl-zoomer">
+                  <button
+                    type="button"
+                    className="icon-btn k-icon-sm tl-zoom-step"
+                    aria-label="Zoom out"
+                    title="Zoom out · ⌘−"
+                    onClick={() => zoomTo(pxf / ZOOM_STEP)}
+                  >
+                    <TGlyph name="minus" size={12} />
+                  </button>
+                  <input
+                    type="range"
+                    className="tl-zoom"
+                    min="0"
+                    max="100"
+                    value={zoomSliderValue}
+                    data-testid="timeline-zoom"
+                    aria-label="Zoom the timeline"
+                    title="Zoom the timeline"
+                    onChange={(e) => zoomTo(zoomFromSlider(Number(e.target.value)))}
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn k-icon-sm tl-zoom-step"
+                    aria-label="Zoom in"
+                    title="Zoom in · ⌘+"
+                    onClick={() => zoomTo(pxf * ZOOM_STEP)}
+                  >
+                    <TGlyph name="plus" size={12} />
+                  </button>
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm tl-fit"
+                  data-testid="timeline-zoom-fit"
+                  title="Fit the whole video · 0"
+                  onClick={() => setZoomPxf(null)}
+                >
+                  Fit
+                </button>
+              </>
             ) : null}
           </>
         ) : (
           <span className="tl-title">Timeline</span>
         )}
-        <AiCutStatus cut={aiCut} />
-        <span className="tl-spacer" />
-        {comp && cap.warn ? (
-          // C22 — past 3 600 frames the video warns, here as everywhere (the Export sheet, the server). The
-          // sentence is the same one; the badge opens Advanced, where Allow longer is.
-          <button
-            type="button"
-            className="tl-long-badge"
-            data-testid="timeline-long-badge"
-            title={cap.line}
-            onClick={() => foldStore.set('timeline', true)}
-          >
-            ⚠ {clock(totalFrames, fps)}
-          </button>
-        ) : null}
-        {comp && preparing > 0 ? (
-          <span className="tl-prep-status" data-testid="timeline-prep-status">
-            <TIcon name="loop" size={12} />
-            {FOOTAGE_WORDS.preparing(preparing)}
-          </span>
-        ) : null}
-        {comp ? (
-          <span className="tl-meta">
-            {fps} fps · {totalFrames}f
-          </span>
-        ) : null}
-        {comp ? (
-          <input
-            type="range"
-            className="tl-zoom"
-            min="0"
-            max="100"
-            value={zoomSliderValue}
-            data-testid="timeline-zoom"
-            aria-label="Timeline zoom"
-            title="Zoom (⌘+/⌘−, 0 = fit)"
-            onChange={(e) => zoomTo(zoomFromSlider(Number(e.target.value)))}
-          />
-        ) : null}
-        <SharedStatus canvas={island?.canvas} artboardId={comp?.artboardId} />
-        <KeptStatus />
         <SizeButton />
-        <button type="button" className="tl-x" aria-label="Close timeline" onClick={onClose}>
-          ×
-        </button>
       </div>
 
       {!comp ? (
         <div className="tl-empty" data-testid="timeline-empty">
-          No video-comp on this canvas. <b>Drop video clips right here</b> to start a new cut, use{' '}
-          <b>⌘K → New video…</b> for an empty one, or make an artboard a
-          <code>&lt;VideoComp&gt;</code> yourself.
+          No video on this canvas yet. Drop clips here to start a cut, or make one with{' '}
+          <b>⌘K → New video</b>.
         </div>
       ) : island?.empty && sequences.length === 0 && audio.length === 0 ? (
         // S7.7 (05 · es-timeline) — a video artboard with no clips: the kit's line + one AI chip. The panel's
@@ -2079,7 +2099,7 @@ export default function TimelinePanel({
             className="tl-tracks"
             ref={trackRef}
             data-testid="timeline-track"
-            style={{ width: LABEL_GUTTER + axisPx }}
+            style={{ width: gutter + axisPx }}
             onPointerDown={onTrackDown}
             onDragOver={onLaneDragOver('overlay', 'tracks')}
             onDrop={onLaneDrop({ lane: 'overlay' })}
@@ -2113,7 +2133,7 @@ export default function TimelinePanel({
                       className={`tl-comment-pin${c.status === 'resolved' ? ' is-resolved' : ''}${detached ? ' is-detached' : ''}`}
                       data-testid={`timeline-comment-${c.id}`}
                       title={`${c.author || 'comment'}${detached ? ' (detached — clip removed)' : ''}: ${c.text}`}
-                      style={{ left: LABEL_GUTTER + x(clamp(frame, 0, totalFrames - 1)) - 8 }}
+                      style={{ left: gutter + x(clamp(frame, 0, totalFrames - 1)) - 8 }}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2135,7 +2155,7 @@ export default function TimelinePanel({
               <span
                 className="tl-loop-lane"
                 data-testid="timeline-loop-lane"
-                style={{ left: LABEL_GUTTER + x(band.in), width: x(band.out - band.in) }}
+                style={{ left: gutter + x(band.in), width: x(band.out - band.in) }}
               />
             ) : null}
             <div className="tl-ruler" style={{ width: axisPx }}>
@@ -2143,22 +2163,21 @@ export default function TimelinePanel({
                 <span
                   className="tl-loop"
                   data-testid="timeline-loop-band"
-                  title="Loop range"
+                  title={`Loop ${fmtTime(band.in, fps)}–${fmtTime(band.out, fps)} · I and O set it`}
                   style={{ left: x(band.in), width: x(band.out - band.in) }}
-                >
-                  <span className="tl-inout tl-inout--in">I</span>
-                  <span className="tl-inout tl-inout--out">O</span>
-                </span>
+                />
               ) : null}
-              {poster !== null ? (
-                <span
-                  className="tl-poster-flag"
-                  data-testid="timeline-poster-flag"
-                  style={{ left: x(clamp(poster, 0, totalFrames - 1)) }}
-                >
-                  Poster
-                </span>
-              ) : null}
+              {/* 07 · .ve-poster-flag — the picture the video rests on; with none stored it is the default, 35 % in */}
+              <span
+                className="tl-poster-flag"
+                data-testid="timeline-poster-flag"
+                data-frame={posterAt}
+                title={`Poster frame · ${fmtTime(posterAt, fps)}`}
+                style={{ left: x(posterAt) }}
+              >
+                <TGlyph name="image" size={10} />
+                Poster
+              </span>
               {markers.map((m) => (
                 <button
                   key={`mk${m.frame}`}
@@ -2191,7 +2210,7 @@ export default function TimelinePanel({
                 return (
                   <span
                     key={f}
-                    className={`tl-tick${major ? ' is-major' : ''}`}
+                    className={`tl-tick${major ? ' is-major' : ''}${f === 0 ? ' is-start' : ''}`}
                     style={{ left: x(f) }}
                   >
                     {showLabel ? (
@@ -2226,7 +2245,7 @@ export default function TimelinePanel({
                   const zLadder = overlay.filter(({ seq }) => !seq.loose);
                   const overlayOf = (id) => overlay.filter(({ i }) => trackOfIdx.get(i) === id);
                   const overlayRows = (list) =>
-                    [...list].reverse().map(({ seq, i }) => {
+                    packed(list).map(({ seq, i, join }) => {
                       const docIdx = seq.loose ? null : zLadder.findIndex((o) => o.i === i);
                       const vNum = docIdx == null ? null : docIdx + 2; // V1 = the storyline
                       const rowCls =
@@ -2243,26 +2262,20 @@ export default function TimelinePanel({
                           className={rowCls}
                           key={`o${i}`}
                           data-testid={`timeline-row-${i}`}
+                          data-lane-join={join ? '1' : undefined}
                           {...(docIdx != null ? { 'data-layer-doc': docIdx } : {})}
                         >
-                          <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
-                            {docIdx != null ? (
+                          <span className="tl-row-label">
+                            {/* P8 C3 — the layer grip has no code-made id ("V2"); it shows on hover in full */}
+                            {docIdx != null && full ? (
                               <span
-                                className="tl-lane-id tl-lane-id--grab"
+                                className="tl-row-grip"
                                 data-testid={`timeline-lane-chip-${i}`}
-                                title="Drag up/down to reorder layers"
+                                role="presentation"
+                                title="Drag up or down to change which layer covers which"
                                 onPointerDown={(e) => startLayerDrag(e, i, docIdx)}
-                              >
-                                V{vNum}
-                              </span>
-                            ) : (
-                              <span className="tl-lane-id" title="Loose media — no layer order">
-                                ◌
-                              </span>
-                            )}
-                            <span className="tl-kind" data-kind={rowKind(seq)}>
-                              {rowKindGlyph(seq)}
-                            </span>
+                              />
+                            ) : null}
                           </span>
                           <div
                             className="tl-row-track"
@@ -2280,9 +2293,13 @@ export default function TimelinePanel({
                       );
                     });
                   return [
-                    trackShell('text', 'Text', [
-                      ...overlayRows(overlayOf('text')),
-                      // S7.11 — the captions are the Text track's second lane (derived from the words)
+                    trackShell(
+                      'text',
+                      'Text',
+                      overlayRows(overlayOf('text')),
+                      null,
+                      // S7.11 — the captions are the Text track's second lane (derived from the words); it may
+                      // draw nothing, so it never stands in for the track's own (empty) lane
                       <CaptionLane
                         key="captions"
                         canvas={island?.canvas ?? null}
@@ -2292,8 +2309,8 @@ export default function TimelinePanel({
                         x={x}
                         axisPx={axisPx}
                         onSeek={onSeek}
-                      />,
-                    ]),
+                      />
+                    ),
                     trackShell('gfx', 'Graphics', overlayRows(overlayOf('gfx'))),
                     overlayOf('video2').length || extraTracks.includes('video2')
                       ? trackShell('video2', 'Video 2', overlayRows(overlayOf('video2')))
@@ -2302,14 +2319,13 @@ export default function TimelinePanel({
                 })()}
                 {/* THE storyline — series beats butted side-by-side. */}
                 <div className="tl-track" data-track="video" data-testid="timeline-track-video">
-                  <div className="tl-track-cap">
-                    <span className="tl-track-name">Video</span>
-                  </div>
+                  {trackChip('video', 'Video', {
+                    foldable: false,
+                    folded: false,
+                    count: storyline.length,
+                  })}
                   <div className="tl-row tl-row--storyline" data-testid="timeline-storyline">
-                    <span className="tl-row-label">
-                      <span className="tl-lane-id tl-lane-id--story">V1</span>
-                      <span className="tl-band-tag tl-band-tag--story">storyline</span>
-                    </span>
+                    <span className="tl-row-label" />
                     <div
                       className={`tl-row-track tl-storyline-track${reorderDrag ? ' is-reordering' : ''}${moveDrag?.overStory ? ' is-drop-target' : ''}`}
                       style={{ width: axisPx, flex: 'none' }}
@@ -2356,14 +2372,6 @@ export default function TimelinePanel({
                           ly.kind === 'video' || ly.kind === 'image' || ly.kind === 'audio'
                             ? ly.kind
                             : 'jsx';
-                        const lyGlyph =
-                          ly.kind === 'video'
-                            ? '▶'
-                            : ly.kind === 'image'
-                              ? '◫'
-                              : ly.kind === 'audio'
-                                ? '♪'
-                                : 'ƒ';
                         return (
                           <div
                             className="tl-row tl-row--layer"
@@ -2372,9 +2380,6 @@ export default function TimelinePanel({
                           >
                             <span className="tl-row-label" title={`${seq.label} · ${ly.label}`}>
                               <span className="tl-layer-indent" aria-hidden="true" />
-                              <span className="tl-kind" data-kind={lyKind}>
-                                {lyGlyph}
-                              </span>
                               <span className="tl-row-label-text">{ly.label}</span>
                             </span>
                             <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
@@ -2429,12 +2434,7 @@ export default function TimelinePanel({
                       key={`ac${i}`}
                       data-testid={`timeline-row-${i}`}
                     >
-                      <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
-                        <span className="tl-lane-id tl-lane-id--audio">A{k + 1}</span>
-                        <span className="tl-kind" data-kind="audio">
-                          ♪
-                        </span>
-                      </span>
+                      <span className="tl-row-label" />
                       <div
                         className="tl-row-track"
                         style={{ width: axisPx, flex: 'none' }}
@@ -2448,6 +2448,7 @@ export default function TimelinePanel({
                           speech={musicLane.speech}
                           fps={musicLane.fps}
                           finding={musicLane.finding(seq.mediaSrc)}
+                          name={songName(displayNameOf(seq, i))}
                         />
                         {laneCaret('audio', `ac${i}`)}
                       </div>
@@ -2492,7 +2493,7 @@ export default function TimelinePanel({
                   onDragOver={onLaneDragOver('overlay', 'newlayer')}
                   onDrop={onLaneDrop({ lane: 'overlay' })}
                 >
-                  <span style={{ marginLeft: LABEL_GUTTER }}>Drop clips here — new layer</span>
+                  <span style={{ marginLeft: gutter }}>Drop clips here — new layer</span>
                 </div>
               </>
             ) : (
@@ -2541,15 +2542,7 @@ export default function TimelinePanel({
                             ) : (
                               <span className="tl-expand tl-expand--spacer" aria-hidden="true" />
                             )}
-                            <span
-                              className="tl-kind"
-                              data-kind={rowKind(seq)}
-                              title={rowKindTitle(seq)}
-                              aria-label={rowKindTitle(seq)}
-                            >
-                              {rowKindGlyph(seq)}
-                            </span>
-                            <span className="tl-row-label-text">{seq.label}</span>
+                            <span className="tl-row-label-text">{displayNameOf(seq, i)}</span>
                           </span>
                           <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
                             {renderBlock(seq, i, { lane: 'row' })}
@@ -2565,14 +2558,6 @@ export default function TimelinePanel({
                                     : ly.kind === 'audio'
                                       ? 'audio'
                                       : 'jsx';
-                              const lyGlyph =
-                                ly.kind === 'video'
-                                  ? '▶'
-                                  : ly.kind === 'image'
-                                    ? '◫'
-                                    : ly.kind === 'audio'
-                                      ? '♪'
-                                      : 'ƒ';
                               const lyReplaceable = !!(ly.mediaCdId || ly.mediaArrayRef);
                               return (
                                 <div
@@ -2582,9 +2567,6 @@ export default function TimelinePanel({
                                 >
                                   <span className="tl-row-label" title={ly.label}>
                                     <span className="tl-layer-indent" aria-hidden="true" />
-                                    <span className="tl-kind" data-kind={lyKind}>
-                                      {lyGlyph}
-                                    </span>
                                     <span className="tl-row-label-text">{ly.label}</span>
                                   </span>
                                   <div
@@ -2651,31 +2633,26 @@ export default function TimelinePanel({
             )}
 
             {snapFlash ? (
-              <span className="tl-snapline" style={{ left: LABEL_GUTTER + x(snapFlash.frame) }} />
+              <span className="tl-snapline" style={{ left: gutter + x(snapFlash.frame) }} />
             ) : null}
             {/* S7.17 — teammates' playheads, and the tag over a caption word one of them is fixing */}
             <PeerHeads
               canvas={capFile}
               artboardId={capId}
               x={x}
-              gutter={LABEL_GUTTER}
+              gutter={gutter}
               total={totalFrames}
             />
             <span
               className="tl-playhead"
               data-testid="timeline-playhead"
-              style={{ left: LABEL_GUTTER + x(clamped) }}
-            >
-              <span className="tl-playhead-time">{fmtTime(clamped, fps)}</span>
-            </span>
-            <AiEdge
-              cut={aiCut}
-              left={aiCut?.edge != null ? LABEL_GUTTER + x(aiCut.edge) : Number.NaN}
+              style={{ left: gutter + x(clamped) }}
             />
+            <AiEdge cut={aiCut} left={aiCut?.edge != null ? gutter + x(aiCut.edge) : Number.NaN} />
           </div>
         </div>
       )}
-      {comp ? (
+      {comp && full ? (
         <AdvancedFoot
           canvas={capFile}
           artboardId={capId}
@@ -2694,6 +2671,83 @@ export default function TimelinePanel({
           }
           have={drawnTracks.map((t) => t.id)}
           onWriteEasing={(kf, bezier) => onClipVerb?.(null, 'video.easing.set', { ...kf, bezier })}
+          tools={
+            // 07 · note 26 — "Everything the old timeline had, one disclosure down": the v1 header's other tools
+            <div className="tla-tools" data-testid="timeline-more-tools">
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                aria-label="Jump to start"
+                onClick={() => onSeek?.(0)}
+              >
+                <TGlyph name="step-back" size={12} />
+                To the start
+              </button>
+              {onAddImage ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  title="Add an image at the playhead"
+                  data-testid="timeline-add-image"
+                  onClick={() => onAddImage(clamped)}
+                >
+                  <TGlyph name="image" size={12} />
+                  Add image
+                </button>
+              ) : null}
+              {onAddAiClip ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  title="Add a shot for AI to make, at the end"
+                  data-testid="timeline-placeholder-add"
+                  onClick={() => onAddAiClip()}
+                >
+                  <TGlyph name="spark" size={12} />
+                  Shot for AI
+                </button>
+              ) : null}
+              {onAddComment ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  aria-pressed={commentMode}
+                  title="Click anywhere on the timeline to pin a comment · C"
+                  data-testid="timeline-comment-tool"
+                  onClick={() => setCommentMode((m) => !m)}
+                >
+                  <TGlyph name="comment" size={12} />
+                  Comment
+                </button>
+              ) : null}
+              {onToggleMute ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  aria-pressed={!muted}
+                  data-testid="timeline-mute"
+                  onClick={() => onToggleMute()}
+                >
+                  <TGlyph name={muted ? 'mute' : 'volume'} size={12} />
+                  {muted ? 'Sound off' : 'Sound on'}
+                </button>
+              ) : null}
+              {onVolume ? (
+                <label className="tla-vol">
+                  Volume
+                  <input
+                    type="range"
+                    className="tl-volume"
+                    min="0"
+                    max="100"
+                    value={Math.round((muted ? 0 : volume) * 100)}
+                    data-testid="timeline-volume"
+                    onChange={(e) => onVolume(Number(e.target.value) / 100)}
+                  />
+                </label>
+              ) : null}
+            </div>
+          }
         />
       ) : null}
       {commentDraft
@@ -2704,7 +2758,7 @@ export default function TimelinePanel({
             >
               <div className="tlci-head" style={{ cursor: 'default' }}>
                 <span className="tlci-title">
-                  Comment @ {fmtTime(commentDraft.at, fps)}
+                  Comment at {fmtTime(commentDraft.at, fps)}
                   {commentDraft.anchor.lane ? ` · ${commentDraft.anchor.lane}` : ''}
                 </span>
                 <button
@@ -2839,7 +2893,12 @@ export default function TimelinePanel({
                 picker.remove();
                 setJoinPicker(null);
               }}
-              onClose={() => setJoinPicker(null)}
+              onClose={() => {
+                // a11y — esc / a click away hands focus back to the join it opened from
+                const from = joinPicker.from;
+                setJoinPicker(null);
+                if (from?.isConnected) from.focus?.();
+              }}
             />,
             document.body
           )
