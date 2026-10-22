@@ -224,6 +224,12 @@ export interface Closure {
   readonly assetStems: ReadonlySet<string>;
   /** Granted canvases with a computed (runtime) asset or module reference (G3). */
   readonly dynamic: ReadonlySet<string>;
+  /**
+   * gate-b-c4h — the canvases OUTSIDE the grants that the import walk admitted, because the reader
+   * (a frame's opener, `unnarrowed`) may read them. A frame whose closure holds any is read-only
+   * (access/frame.ts `frameAccess`): A's author chose the import, the opener's access admitted it.
+   */
+  readonly importedCanvases: ReadonlySet<string>;
 }
 
 /** Sidecars that ride with an asset (`assets/<base>.<ext>` → `assets/<base><suffix>`). */
@@ -528,6 +534,110 @@ export function closureFor(access: Access, project: ProjectReader, cache?: Closu
 const CANVAS_SIDECAR_RE =
   /\.(meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i;
 
+/**
+ * gate-b-c4h — what one canvas's import walk reaches: the files read (in walk order, each with
+ * its text) and the OTHER canvases it admitted. One walk, shared by the closure (`compute`) and
+ * the shell's per-canvas report (`importedCanvasReport`), so the frame and the notice agree.
+ */
+interface WalkEnv {
+  files: ReadonlySet<string>;
+  textOf: (rel: string) => string | null;
+  isCanvas: (rel: string) => boolean;
+  systems: DsSystem[];
+  project: ProjectReader;
+  readsCanvas: (canvas: string) => boolean;
+}
+
+function walkEnv(
+  project: ProjectReader,
+  files: ReadonlySet<string>,
+  readsCanvas: (canvas: string) => boolean
+): WalkEnv {
+  const textCache = new Map<string, string | null>();
+  const textOf = (rel: string) => {
+    if (!textCache.has(rel)) textCache.set(rel, files.has(rel) ? project.text(rel) : null);
+    return textCache.get(rel) ?? null;
+  };
+  // gate-b-c4g — "a canvas" is the index's own rule (skip-dirs.ts `isCanvasRelInGroups`: any
+  // `.tsx` in a canvas group), not "has a meta or a board": a meta-less canvas B imported by A was
+  // inlined for a member with no grant on B. A meta or a board still marks one anywhere.
+  const groups = canvasGroupsOf(project);
+  const isCanvas = (rel: string): boolean =>
+    /\.tsx$/i.test(rel) &&
+    ((files.has(rel) && groups.some((g) => isCanvasRelInGroups([g], rel))) ||
+      files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
+      files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
+      files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));
+  return { files, textOf, isCanvas, systems: systemsOf(project), project, readsCanvas };
+}
+
+function walkImports(
+  env: WalkEnv,
+  canvas: string,
+  granted: ReadonlySet<string>
+): { visited: Array<{ rel: string; text: string }>; canvases: Set<string> } {
+  // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
+  // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
+  // canvas's, not a module). Another CANVAS and its same-name stylesheet only when the reader may
+  // read that canvas; helpers, components and the design system stay reachable through imports.
+  // gate-b-c4h — every canvas admitted that way is recorded: it makes the frame read-only.
+  const canvases = new Set<string>();
+  const importable = (dep: string): boolean => {
+    if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
+    const asCanvas = /\.css$/i.test(dep) ? dep.replace(/\.css$/i, '.tsx') : dep;
+    if (granted.has(asCanvas) || !env.isCanvas(asCanvas)) return true;
+    if (!env.readsCanvas(asCanvas)) return false;
+    canvases.add(asCanvas);
+    return true;
+  };
+  // The transitive relative import graph, from the canvas (and the DS override it pulls in).
+  const queue: string[] = [canvas];
+  const sys = canvasSystem(env.project, canvas, env.systems);
+  const canvasText = env.textOf(canvas);
+  if (sys && canvasText !== null && importsDs(canvasText))
+    queue.push(`${sys.path}/preview/_ds.tsx`);
+  const seen = new Set<string>();
+  const visited: Array<{ rel: string; text: string }> = [];
+  while (queue.length) {
+    const rel = queue.shift() as string;
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    const text = env.textOf(rel);
+    if (text === null) continue;
+    visited.push({ rel, text });
+    if (!/\.(tsx|ts|jsx|js|css)$/i.test(rel)) continue;
+    for (const abs of relativeImportCandidates(text, `${VROOT}/${rel}`, VROOT)) {
+      const dep = abs
+        .slice(VROOT.length + 1)
+        .split(sep)
+        .join('/');
+      if (env.files.has(dep) && !seen.has(dep) && importable(dep)) queue.push(dep);
+    }
+  }
+  return { visited, canvases };
+}
+
+/**
+ * gate-b-c4h — per canvas, the other canvases a frame opened on it alone would admit for this
+ * reader (sorted; a canvas importing none is absent). What the shell reads to open such a canvas
+ * read-only and say why — the same walk as the frame's own closure, so the two agree.
+ */
+export function importedCanvasReport(
+  project: ProjectReader,
+  canvases: readonly string[],
+  readsCanvas: (canvas: string) => boolean
+): Map<string, string[]> {
+  const files = new Set<string>(project.list());
+  const env = walkEnv(project, files, readsCanvas);
+  const out = new Map<string, string[]>();
+  for (const canvas of canvases) {
+    if (!files.has(canvas)) continue;
+    const { canvases: hit } = walkImports(env, canvas, new Set([canvas]));
+    if (hit.size) out.set(canvas, [...hit].sort());
+  }
+  return out;
+}
+
 function compute(
   canvases: string[],
   project: ProjectReader,
@@ -540,9 +650,19 @@ function compute(
   const dynamic = new Set<string>();
   const assetUsers = new Map<string, Set<string>>();
   const assetStems = new Set<string>();
-  if (!canvases.length) {
-    return Object.freeze({ head, owned, ownedBy, read, assetUsers, assetStems, dynamic });
-  }
+  const importedCanvases = new Set<string>();
+  const frozen = () =>
+    Object.freeze({
+      head,
+      owned,
+      ownedBy,
+      read,
+      assetUsers,
+      assetStems,
+      dynamic,
+      importedCanvases,
+    });
+  if (!canvases.length) return frozen();
 
   const files = new Set<string>();
   for (const f of project.list()) files.add(f);
@@ -552,37 +672,12 @@ function compute(
     const dot = name.indexOf('.');
     assetStems.add(dot > 0 ? `assets/${name.slice(0, dot)}` : f);
   }
-  const systems = systemsOf(project);
+  const env = walkEnv(project, files, readsCanvas);
+  const { systems, textOf } = env;
   const twins = slugTwins(files, canvases);
-  const textCache = new Map<string, string | null>();
-  const textOf = (rel: string) => {
-    if (!textCache.has(rel)) textCache.set(rel, files.has(rel) ? project.text(rel) : null);
-    return textCache.get(rel) ?? null;
-  };
   const existingAssetRefs = (text: string) =>
     staticAssetRefs(text).filter((r) => files.has(r) && !isAssetSidecar(r, files));
-
-  // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
-  // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
-  // canvas's, not a module). Another CANVAS and its same-name stylesheet only when the reader may
-  // read that canvas; helpers, components and the design system stay reachable through imports.
-  // gate-b-c4g — "a canvas" is the index's own rule (skip-dirs.ts `isCanvasRelInGroups`: any
-  // `.tsx` in a canvas group), not "has a meta or a board": a meta-less canvas B imported by A was
-  // inlined for a member with no grant on B. A meta or a board still marks one anywhere.
   const granted = new Set(canvases);
-  const groups = canvasGroupsOf(project);
-  const isCanvas = (rel: string): boolean =>
-    /\.tsx$/i.test(rel) &&
-    ((files.has(rel) && groups.some((g) => isCanvasRelInGroups([g], rel))) ||
-      files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
-      files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
-      files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));
-  const importable = (dep: string): boolean => {
-    if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
-    const asCanvas = /\.css$/i.test(dep) ? dep.replace(/\.css$/i, '.tsx') : dep;
-    if (granted.has(asCanvas) || !isCanvas(asCanvas)) return true;
-    return readsCanvas(asCanvas);
-  };
 
   const closureAssets = new Set<string>();
   const perUse = new Set<string>();
@@ -595,31 +690,14 @@ function compute(
       const text = TEXT_SCAN_RE.test(rel) ? textOf(rel) : null;
       if (text !== null) for (const p of perUsePhotoRefs(text)) if (files.has(p)) perUse.add(p);
     }
-    // The transitive relative import graph, from the canvas (and the DS override it pulls in).
-    const queue: string[] = [canvas];
-    const sys = canvasSystem(project, canvas, systems);
-    const canvasText = textOf(canvas);
-    if (sys && canvasText !== null && importsDs(canvasText))
-      queue.push(`${sys.path}/preview/_ds.tsx`);
-    const visited = new Set<string>();
-    while (queue.length) {
-      const rel = queue.shift() as string;
-      if (visited.has(rel)) continue;
-      visited.add(rel);
-      const text = textOf(rel);
-      if (text === null) continue;
+    const walk = walkImports(env, canvas, granted);
+    for (const c of walk.canvases) importedCanvases.add(c);
+    for (const { rel, text } of walk.visited) {
       read.add(rel);
       if (DYNAMIC_RES.some((re) => re.test(text))) dynamic.add(canvas);
       for (const a of existingAssetRefs(text)) closureAssets.add(a);
-      if (!/\.(tsx|ts|jsx|js|css)$/i.test(rel)) continue;
-      for (const abs of relativeImportCandidates(text, `${VROOT}/${rel}`, VROOT)) {
-        const dep = abs
-          .slice(VROOT.length + 1)
-          .split(sep)
-          .join('/');
-        if (files.has(dep) && !visited.has(dep) && importable(dep)) queue.push(dep);
-      }
     }
+    const sys = canvasSystem(project, canvas, systems);
     // Static asset references in the canvas's own sidecars (meta, board).
     for (const rel of ownedOf(canvas, twins)) {
       if (rel === canvas || !TEXT_SCAN_RE.test(rel)) continue;
@@ -673,7 +751,7 @@ function compute(
     }
   }
 
-  return Object.freeze({ head, owned, ownedBy, read, assetUsers, assetStems, dynamic });
+  return frozen();
 }
 
 /**

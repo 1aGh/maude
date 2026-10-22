@@ -190,6 +190,15 @@ export function canvasFrameCfg(cfg) {
 }
 const HEAD_PLACEHOLDER = 'f'.repeat(64);
 
+/**
+ * gate-b-c4h — the other canvases `p` (repo-relative) imports, from the index's
+ * `canvasImportsCanvases` (designRoot-relative paths), or `[]`. Non-empty = the canvas opens read-only.
+ */
+export function canvasImportsOf(cfg, p) {
+  const list = cfg?.canvasImportsCanvases?.[p];
+  return Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x) : [];
+}
+
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
@@ -229,7 +238,12 @@ export function canvasUrl(p, cfg, opts) {
   if (cfg?.readOnly) params.set('ro', '1');
   // S9.22 — a Can comment session is read-only for the design but may still reply, resolve and reopen:
   // `/_config.canComment` (a role that holds `comment`) says so, and the thread offers those buttons.
-  if (cfg?.readOnly && cfg?.canComment) params.set('cm', '1');
+  // gate-b-c4h — a canvas that imports another canvas opens read-only whatever the role: its frame
+  // writes nothing (access/frame.ts `frameAccess`, the server's call), so the chrome offers nothing to
+  // write — no comment buttons either. The index names them (`canvasImportsCanvases`).
+  const importsCanvas = canvasImportsOf(cfg, p).length > 0;
+  if (importsCanvas) params.set('ro', '1');
+  if (cfg?.readOnly && cfg?.canComment && !importsCanvas) params.set('cm', '1');
   // S9.23 (S9-slices Q9) — presence `surface`: a canvas open in a browser tab says so in the room
   // ("in a browser"). Only a studio window outside the Mac app; previews / embeds / follows publish nothing.
   if (

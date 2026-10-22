@@ -13,9 +13,11 @@
 // A close (×) hides one callout until its event changes: the key carries the event (a new conflict, a
 // changed rejected count), so the next one comes back. Closing the update callout is "Later" (the next
 // focus / 4 h check re-stages it); closing the repo notice clears the flag, as the strip's Dismiss did.
+// gate-b-c4h — a canvas importing another canvas: one quiet line (no action), closed per canvas + imports.
 // No tour is offered here (02: "no wizard, no card, no tour"): the tours run from Menu › Help › Take the tour.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { canvasImportsOf } from '../../canvas-url.js';
 import { restartToUpdate } from '../../github.js';
 import { FormatGateBanner } from '../../shell/banners.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
@@ -37,8 +39,19 @@ function roleSeen(role) {
 
 export function ShellCallouts() {
   const {
-    shellCore: { cfg, gitLifecycle, setGitLifecycle, setUpdateReady, syncStatus, updateReady },
+    shellCore: {
+      activePath,
+      cfg,
+      gitLifecycle,
+      setGitLifecycle,
+      setUpdateReady,
+      syncStatus,
+      updateReady,
+    },
   } = useShellStore();
+  // gate-b-c4h — the open canvas imports another canvas: it opens read-only, and says why once.
+  const canvasImports = canvasImportsOf(cfg, activePath);
+  const importsKey = canvasImports.join('|');
   const [dismissed, setDismissed] = useState(() => new Set());
   const [busyKey, setBusyKey] = useState(null);
   // The "wait" callout counts down to the next try; nothing else on this stack needs a clock.
@@ -69,8 +82,12 @@ export function ShellCallouts() {
         native: doors.available,
         dismissed,
         now,
+        activeCanvas: activePath,
+        canvasImports: importsKey ? importsKey.split('|') : null,
       }),
     [
+      activePath,
+      importsKey,
       crashed,
       disk,
       doors.available,

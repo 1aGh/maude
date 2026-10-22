@@ -7616,6 +7616,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
         : null;
 
+    // gate-b-c4h — a canvas importing another canvas opens read-only (access/frame.ts
+    // `frameAccess`); the shell frames it `ro=1` and says why. Only canvases this reader sees,
+    // naming only canvases it sees (the walk admits no other), so the filter below needs no rule.
+    const prefix = `${paths.designRel}/`;
+    const canvasRels = Object.keys(canvasDesignSystems)
+      .filter((fp) => fp.startsWith(prefix))
+      .map((fp) => fp.slice(prefix.length))
+      .sort();
+    const imports = projectVisibility(ctx).importedCanvases(currentAccess(), canvasRels);
+    const canvasImportsCanvases: Record<string, string[]> = {};
+    for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
+
     // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
     return filterIndexData(
       {
@@ -7625,6 +7637,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         groups,
         canvasDesignSystems,
         canvasKinds,
+        ...(imports.size ? { canvasImportsCanvases } : {}),
         ...(dsRender
           ? {
               canvasDsRevs: Object.fromEntries(
