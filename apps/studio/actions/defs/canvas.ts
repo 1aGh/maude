@@ -71,6 +71,8 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     exec: 'shell',
     // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
     visible: { minRole: 'comment' },
+    // P8 B1: with no canvas open there is nothing to close (the row sat live in the File menu of an empty window).
+    enabled: { facts: ['canvasOpen'] },
     legacy: { menu: 'Close canvas' },
   },
   // V2-4.2 — the File menu's canvas rows (CONTRACT §1). Each wraps what the Files tree's row menu
