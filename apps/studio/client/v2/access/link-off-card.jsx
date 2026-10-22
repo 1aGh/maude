@@ -2,35 +2,36 @@
 // was turned off gets the same calm card as a removed person. It names only the canvas the link was FOR (the one
 // already on their screen) — never another canvas, never whether anything else exists.
 
+import { useModalFocus } from '../shell/modal-focus.js';
+import { Glyph } from '../share/glyphs.jsx';
 import { canvasName, WORDS } from './access-client.js';
 
+const noop = () => {};
+
 export function LinkOffCard({ canvas }) {
+  // a modal with nothing to press: focus rests on the card, Tab stays on it (no esc — there is no way back)
+  const ref = useModalFocus({ onClose: noop, esc: false });
   return (
     <div className="v2ac-scrim" data-testid="access-link-off">
-      <div className="v2ac-card" role="alertdialog" aria-labelledby="v2ac-linkoff-t">
+      <div
+        ref={ref}
+        className="v2ac-card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="v2ac-linkoff-t"
+        aria-describedby="v2ac-linkoff-b"
+        tabIndex={-1}
+      >
         <span className="v2ac-card-ic" aria-hidden="true">
-          <LinkGlyph />
+          <Glyph name="link" size={16} />
         </span>
         <p className="v2ac-card-t" id="v2ac-linkoff-t">
           {WORDS.linkOffTitle}
         </p>
-        <p className="v2ac-card-b">{WORDS.linkOffLine(canvasName(canvas))}</p>
+        <p className="v2ac-card-b" id="v2ac-linkoff-b">
+          {WORDS.linkOffLine(canvasName(canvas))}
+        </p>
       </div>
     </div>
-  );
-}
-
-function LinkGlyph() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-    >
-      <path d="M6.5 9.5l3-3M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1" />
-    </svg>
   );
 }

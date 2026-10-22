@@ -20,8 +20,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { RequestBlocks } from '../access/ask-to-edit.jsx';
-import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useModalFocus } from '../shell/modal-focus.js';
+import { Glyph } from './glyphs.jsx';
 import { InviteRow } from './invite-row.jsx';
 import { copyShareLink } from './link-dialog.js';
 import { LinkRow } from './link-row.jsx';
@@ -41,6 +41,7 @@ import {
   shareApi,
   sheetView,
   takeShareFocus,
+  teamRow,
   writeJoinAs,
 } from './share-model.js';
 
@@ -48,6 +49,8 @@ function RemoveDialog({ row, scopeName, onCancel, onConfirm }) {
   const cancelRef = useRef(null);
   const ref = useModalFocus({ onClose: onCancel, initialRef: cancelRef });
   const what = row.invited ? `the invitation for ${row.name}` : row.name;
+  // 10 co-access-ends (left frame): what removing does to THEM, in words — "stops seeing it right away" —
+  // and that what they made stays in the project. No gendered pronoun: a name is all the hub gives us.
   return (
     <div className="v2sh-veil" role="presentation">
       <div
@@ -64,7 +67,7 @@ function RemoveDialog({ row, scopeName, onCancel, onConfirm }) {
         <p className="v2sh-hint">
           {row.invited
             ? 'The link in the e-mail stops working.'
-            : `${row.name} can no longer open ${scopeName}. Their last changes are saved first.`}
+            : `${row.name} stops seeing ${scopeName} right away. Everything they made stays in the project.`}
         </p>
         <div className="v2sh-confirm-b">
           <button ref={cancelRef} type="button" className="btn btn--ghost" onClick={onCancel}>
@@ -102,6 +105,7 @@ export function ShareSheet({
   const [posture, setPosture] = useState(null);
   const [me, setMe] = useState(null);
   const [people, setPeople] = useState(null);
+  const [projectPeople, setProjectPeople] = useState(null);
   const [scope, setScope] = useState('canvas');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -215,6 +219,12 @@ export function ShareSheet({
     const r = await api.people(canvas);
     setPeople(r.ok && Array.isArray(r.body?.people) ? r.body.people : []);
     if (!r.ok) setError(errorWords(r.body));
+    // 10 co-share-sheet: on ONE canvas, the rest of the project is a single row ("Everyone in … · 9
+    // people") — the project's own list, minus whoever the canvas names. Asked only for a canvas.
+    if (canvas) {
+      const all = await api.people(null);
+      setProjectPeople(all.ok && Array.isArray(all.body?.people) ? all.body.people : null);
+    } else setProjectPeople(null);
   }, [api, canvas, view.linked, view.reachable]);
 
   useEffect(() => {
@@ -351,6 +361,10 @@ export function ShareSheet({
   const offerMove = posture && !view.linked && shell === 'native' && !moving && !pendingLink;
 
   const rows = peopleRows(people, { youEmail, now });
+  const team = canvas ? teamRow(people, projectPeople, project) : null;
+  // 10 co-local-cloud: the offer IS the title ("Move “Portfolio 2026” to the cloud?"), so no "Share …"
+  // heading above it, and no link rules / sync rows under it — there is no hub to hold them yet.
+  const offering = !!offerMove;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a pointer convenience (esc and the close button close the sheet for the keyboard)
     <div
@@ -365,24 +379,27 @@ export function ShareSheet({
         className="v2sh-sheet"
         role="dialog"
         aria-modal="true"
-        aria-label={view.title}
+        {...(offering ? { 'aria-labelledby': 'share-move-title' } : { 'aria-label': view.title })}
         tabIndex={-1}
         data-testid="share-dialog"
         data-scope={view.scope}
         data-linked={view.linked ? 'true' : 'false'}
       >
-        <div className="v2sh-hd">
-          <p className="v2sh-t">{view.title}</p>
-          <button
-            type="button"
-            className="v2sh-x"
-            aria-label="Close share dialog"
-            data-testid="share-close"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </div>
+        {!offering && (
+          <div className="v2sh-hd">
+            <p className="v2sh-t">{view.title}</p>
+            <button
+              type="button"
+              className="v2sh-x"
+              aria-label="Close share dialog"
+              data-testid="share-close"
+              onClick={onClose}
+            >
+              <Glyph name="close" size={14} />
+            </button>
+          </div>
+        )}
+        {!offering && view.sub && <p className="v2sh-sub-t">{view.sub}</p>}
 
         {offerMove && (
           <MoveToCloud project={project} api={api} onCancel={onClose} onMoving={setMoving} />
@@ -504,6 +521,8 @@ export function ShareSheet({
         {view.linked && view.reachable && people && (
           <PeopleList
             rows={rows}
+            team={team}
+            project={project}
             canChange={view.canInvite}
             roles={view.menuRoles}
             makeOwner={view.makeOwner}
@@ -524,25 +543,27 @@ export function ShareSheet({
           />
         )}
 
-        <ShareAdvanced
-          adv={adv}
-          links={links}
-          shell={shell}
-          rules={rules}
-          onRule={changeRule}
-          made={made}
-          onTurnOff={turnOff}
-          busy={busy}
-          api={api}
-          focus={focus}
-          joinAs={
-            adv.rules
-              ? { role: inviteDefault, roles: view.inviteRoles, onChange: pickJoinAs }
-              : null
-          }
-          lastSynced={lastSynced}
-          now={now}
-        />
+        {!offering && (
+          <ShareAdvanced
+            adv={adv}
+            links={links}
+            shell={shell}
+            rules={rules}
+            onRule={changeRule}
+            made={made}
+            onTurnOff={turnOff}
+            busy={busy}
+            api={api}
+            focus={focus}
+            joinAs={
+              adv.rules
+                ? { role: inviteDefault, roles: view.inviteRoles, onChange: pickJoinAs }
+                : null
+            }
+            lastSynced={lastSynced}
+            now={now}
+          />
+        )}
 
         {confirm && (
           <RemoveDialog

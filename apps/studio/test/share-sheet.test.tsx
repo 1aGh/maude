@@ -218,7 +218,11 @@ describe('Q13 — the sheet draws only what the hub reports', () => {
     expect(q('share-scope-canvas')?.getAttribute('aria-pressed')).toBe('true');
     expect(options()).toEqual(['Can edit', 'Can comment', 'Can view']);
     expect(q('share-link-row')?.textContent).toContain('Copy link');
-    expect(calls.filter((c) => c[0] === 'people')).toEqual([['people', 'ui/Combine-kampan.tsx']]);
+    // P8 C7: on ONE canvas the project's own list is asked too — "Everyone in … · N people" is its remainder
+    expect(calls.filter((c) => c[0] === 'people')).toEqual([
+      ['people', 'ui/Combine-kampan.tsx'],
+      ['people', null],
+    ]);
     await click(q('share-person-role-u_t'));
     expect(q('share-role-observer')?.textContent).toContain('Look only');
     expect(q('share-role-remove')?.textContent).toBe('Remove from Combine-kampan');

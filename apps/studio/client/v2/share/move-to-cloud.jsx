@@ -31,8 +31,8 @@ export function MoveToCloud({ project, api, onCancel, onMoving }) {
   };
   return (
     <div className="v2sh-move" data-testid="share-move">
-      <p className="v2sh-move-t">{`Move “${name}” to the cloud?`}</p>
-      <p className="v2sh-hint" data-testid="share-local-note">
+      <h2 id="share-move-title" className="v2sh-move-t">{`Move “${name}” to the cloud?`}</h2>
+      <p className="v2sh-move-b" data-testid="share-local-note">
         Sharing needs the cloud. People you invite can open it there, and so can your other Macs. It
         stays on this Mac too.
       </p>
@@ -42,7 +42,7 @@ export function MoveToCloud({ project, api, onCancel, onMoving }) {
         </p>
       )}
       <div className="v2sh-confirm-b">
-        <button type="button" className="btn btn--ghost" onClick={onCancel}>
+        <button type="button" className="btn" onClick={onCancel}>
           Cancel
         </button>
         <button

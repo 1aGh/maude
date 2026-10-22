@@ -12,6 +12,8 @@
 //   · the people list is the hub's answer, filtered there by the caller's role (V2-1.16 L17): a
 //     non-owner gets no e-mail and no pending invitation, so there is nothing to hide here.
 
+import { toneFor, YOU_TONE } from '../../../presence/tones.ts';
+
 /** V2-1.7 §5.1 — the UI words for the wire ids (ids are never shown), strongest first. */
 export const ROLE_WORDS = Object.freeze({
   owner: { word: 'Owner', line: 'Owners also invite people and clear out the trash' },
@@ -130,6 +132,11 @@ export function sheetView({ posture, me, target, project, scope } = {}) {
       current === 'canvas' ? shownName(target?.label) || canvasRel : project || 'this project',
     // CONTRACT §3: the canvas's name, never its file name ("Share Smoke", not "Share Smoke.tsx")
     title: `Share ${shownName(target?.label) || project || 'this project'}`,
+    // 10 co-share-advanced (self-hosted): the project the canvas belongs to, and where it syncs
+    sub:
+      linked && reachable && access.authority === 'hub' && canvasRel && project
+        ? `${project} · syncs to the studio’s own hub`
+        : '',
     inviteRoles: grantable,
     defaultInviteRole: grantable.includes('member') ? 'member' : (grantable[0] ?? 'member'),
     /** Role-menu rows for a person (never a pending row). */
@@ -165,8 +172,26 @@ const rank = (r) => {
 };
 
 /**
+ * "2 days ago" — how long ago an invitation went out (CONTRACT §4: relative first). Empty when the
+ * hub did not say when (`invitedAt`, an epoch or an ISO string), so the line drops the clause
+ * rather than guess one.
+ */
+export function invitedAgo(at, now = Date.now()) {
+  const t = typeof at === 'number' ? at : Date.parse(String(at ?? ''));
+  if (!Number.isFinite(t) || t <= 0) return '';
+  const gone = Math.max(0, now - t);
+  if (gone < 60_000) return 'just now';
+  if (gone < 3_600_000) return `${Math.floor(gone / 60_000)} min ago`;
+  if (gone < DAY) return `${Math.floor(gone / 3_600_000)} h ago`;
+  const days = Math.floor(gone / DAY);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+/**
  * The list the sheet draws: people first (strongest role first, then by name), invitations after.
  * Requests are S9.21's request block, not rows here. `youEmail` marks the signed-in person.
+ * Each row carries the person's tone (presence/tones.ts — the colour they wear in the cluster, so a
+ * face is the same colour wherever it is drawn) and the ONE letter their face shows.
  */
 export function peopleRows(people, { youEmail, now = Date.now() } = {}) {
   const you = typeof youEmail === 'string' ? youEmail.toLowerCase() : null;
@@ -176,19 +201,24 @@ export function peopleRows(people, { youEmail, now = Date.now() } = {}) {
       const invited = p.state === 'invited';
       const isYou =
         !invited && !!you && typeof p.email === 'string' && p.email.toLowerCase() === you;
+      const own = String(p.name || p.email || '');
+      const ago = invited ? invitedAgo(p.invitedAt ?? p.createdAt, now) : '';
       return {
         id: p.id,
-        name: isYou ? 'You' : String(p.name || p.email || ''),
+        name: isYou ? 'You' : own,
         role: p.role in ROLE_WORDS ? p.role : 'member',
         invited,
         you: isYou,
+        // CONTRACT §4: "You" has no sub-line; an invitation says when it went out and when it ends.
         sub: invited
-          ? ['Invited', expiresIn(p.expiresAt, now)].filter(Boolean).join(' · ')
-          : (p.email ?? ''),
-        initial: String(p.name || p.email || '?')
-          .trim()
-          .charAt(0)
-          .toUpperCase(),
+          ? [ago ? `Invited ${ago}` : 'Invited', expiresIn(p.expiresAt, now)]
+              .filter(Boolean)
+              .join(' · ')
+          : isYou
+            ? ''
+            : (p.email ?? ''),
+        initial: (own.trim().charAt(0) || '?').toUpperCase(),
+        tone: isYou ? YOU_TONE : toneFor(own),
       };
     });
   return rows.sort(
@@ -200,12 +230,46 @@ export function peopleRows(people, { youEmail, now = Date.now() } = {}) {
   );
 }
 
+/**
+ * 10 co-share-sheet — the rest of the project, as ONE row: "Everyone in Alligators brand · 9 people ·
+ * change it in Whole project · Can edit". It is what a canvas's list leaves out: the project people
+ * (`GET people` with no canvas) the canvas list does not name. null when nobody is left out, or when
+ * the project is what is being shared (then every person is already a row).
+ *
+ * @param {Array<object>} canvasPeople the canvas scope's answer
+ * @param {Array<object>} projectPeople the whole project's answer (null/undefined: not asked)
+ * @returns {{ name: string, sub: string, role: string, count: number } | null}
+ */
+export function teamRow(canvasPeople, projectPeople, project) {
+  if (!Array.isArray(projectPeople)) return null;
+  const named = new Set(
+    (Array.isArray(canvasPeople) ? canvasPeople : []).filter((p) => p?.id).map((p) => p.id)
+  );
+  const rest = projectPeople.filter(
+    (p) => p && typeof p.id === 'string' && !p.state && p.role in ROLE_WORDS && !named.has(p.id)
+  );
+  if (!rest.length) return null;
+  // The role everyone in the rest has AT LEAST (the weakest one): the row promises no more than that.
+  const weakest = [...rest].sort((a, b) => rank(b) - rank(a))[0].role;
+  return {
+    name: `Everyone in ${project || 'this project'}`,
+    sub: `${rest.length} ${rest.length === 1 ? 'person' : 'people'} · change it in Whole project`,
+    role: weakest,
+    count: rest.length,
+  };
+}
+
 /** "3 people · 1 invited" — a count that reads for 1 and many (CONTRACT §4). */
 export function countLine(rows) {
   const people = rows.filter((r) => !r.invited).length;
   const invited = rows.length - people;
   const p = `${people} ${people === 1 ? 'person' : 'people'}`;
   return invited ? `${p} · ${invited} invited` : p;
+}
+
+/** The other half of the head: "+ 9 in Alligators brand" (empty without a team row). */
+export function restLine(team, project) {
+  return team ? `+ ${team.count} in ${project || 'this project'}` : '';
 }
 
 /** The words of a refusal: the hub's own sentence, the local gate's message, or a plain fallback. */
@@ -254,10 +318,8 @@ export function linkRowWords({ who, role, project } = {}) {
       who === 'anyone'
         ? 'Anyone with the link'
         : `Anyone in ${project || 'this project'} with the link`,
-    sub:
-      who === 'anyone'
-        ? roleWord(LINK_ROLES.includes(role) ? role : 'observer')
-        : 'Opens it for people who already have access',
+    // 10 co-share-sheet: the sub-line is the link's role in words, for a team link too ("Can view").
+    sub: roleWord(LINK_ROLES.includes(role) ? role : 'observer'),
   };
 }
 
@@ -300,7 +362,7 @@ export function advancedView({ view, shell, hubUrl } = {}) {
           missing: ['viewer', 'observer'].filter((r) => !roles.includes(r)).map(roleWord),
         }
       : null,
-    hint: selfHosted ? 'Other ways in, sync, roles' : 'Link rules, other ways in, where it syncs',
+    hint: selfHosted ? 'Other ways in, sync, roles' : 'Links, link rules, sync',
   };
 }
 

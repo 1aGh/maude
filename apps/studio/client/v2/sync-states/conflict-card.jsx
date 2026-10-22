@@ -15,13 +15,14 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { syncPresentation } from '../../../sync/presentation.ts';
-import { initialsOf } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { Glyph } from '../share/glyphs.jsx';
+import { Person } from '../share/person.jsx';
 import { outboxPending, saveStatus } from '../shell/save-status.js';
 import { useBackOnline } from './back-online.jsx';
 import { useOfflineFoot } from './offline-foot.jsx';
-import { conflictCard, conflictsFor } from './sync-states-model.js';
+import { conflictCard, conflictsFor, whenWords } from './sync-states-model.js';
 
 /** The shell opens the card from anywhere (the toast's Show, the mark, ⌘K-less row actions). */
 export const OPEN_EVENT = 'maude:sync-conflicts-open';
@@ -63,8 +64,12 @@ export async function resolveConflict({ slug, id }, actionId, fetchImpl = fetch)
   }
 }
 
-/** "2 versions" beside the sticky's canvas: this Mac's version is shown, marked, until the pick. */
-export function ConflictMark({ count, me, onOpen }) {
+/**
+ * "2 versions" beside the sticky's canvas: this Mac's version is shown, marked, until the pick.
+ * 10 co-sync-back `.co-needs`: two faces in their tones (yours, then the other person's) and the
+ * words in the warn colour, ringed — a status the eye finds, not a grey chip.
+ */
+export function ConflictMark({ count, me, other = '', onOpen }) {
   if (!count) return null;
   return (
     <button
@@ -74,11 +79,26 @@ export function ConflictMark({ count, me, onOpen }) {
       data-occludes=""
       onClick={onOpen}
     >
-      <span className="sy-face" aria-hidden="true">
-        {initialsOf(me || 'you')}
+      <span className="sy-faces" aria-hidden="true">
+        <Person name={me || 'You'} you size="sm" />
+        {other ? <Person name={other} size="sm" /> : null}
       </span>
       {count === 1 ? '2 versions' : `${count} stickies · 2 versions each`}
     </button>
+  );
+}
+
+/** One of the two versions as a sticky: who it is, the yellow note, what keeps it. */
+function Version({ side, who, testid, children }) {
+  return (
+    <div className="sy-one" data-testid={testid}>
+      <span className="sy-who">
+        <Person name={side.name} you={who === 'mine'} size="sm" />
+        {side.who}
+      </span>
+      <p className="sy-sticky">{side.text}</p>
+      {children}
+    </div>
   );
 }
 
@@ -94,7 +114,7 @@ export function ConflictCard({
   const c = conflicts[0];
   if (!c) return null;
   const card = conflictCard(c, { me });
-  const btn = (actionId, label, testid, extra = '') =>
+  const btn = (actionId, label, testid, extra = '', glyph = null) =>
     label ? (
       <button
         type="button"
@@ -104,47 +124,91 @@ export function ConflictCard({
         disabled={busy || !canEdit}
         onClick={() => onPick?.(c, actionId)}
       >
+        {glyph ? <Glyph name={glyph} size={13} /> : null}
         {label}
       </button>
     ) : null;
+  const more = conflicts.length > 1 ? `${conflicts.length - 1} more after this one.` : '';
   return (
     <section
-      className="island sy-card"
+      className="sy-stage"
       data-testid="sync-conflict-card"
       data-conflict={card.key}
       data-occludes=""
       aria-label={card.title}
     >
-      <header className="sy-card-head">
-        <strong>{card.title}</strong>
-        <span>{card.sub}</span>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm sy-close"
-          aria-label="Close"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </header>
-      <div className="sy-pair">
-        <div className="sy-one" data-testid="sync-conflict-mine">
-          <span className="sy-who">{card.mine.who}</span>
-          <p className="sy-sticky">{card.mine.text}</p>
-          {btn('sync.conflict.keep-mine', card.keepMine, 'sync-conflict-keep-mine')}
+      <div className="sy-twin">
+        {/* 10 co-twin-card: the title and the one line under it; the two versions sit OUTSIDE the island,
+            as the stickies they are */}
+        <header className="island sy-card">
+          <strong>{card.title}</strong>
+          <span>{card.sub}</span>
+          <button
+            type="button"
+            className="icon-btn k-icon-sm sy-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <Glyph name="close" size={14} />
+          </button>
+        </header>
+        <div className="sy-pair">
+          <Version side={card.mine} who="mine" testid="sync-conflict-mine">
+            {btn('sync.conflict.keep-mine', card.keepMine, 'sync-conflict-keep-mine')}
+          </Version>
+          <span className="sy-vs">or</span>
+          <Version side={card.theirs} who="theirs" testid="sync-conflict-theirs">
+            {btn('sync.conflict.keep-theirs', card.keepTheirs, 'sync-conflict-keep-theirs')}
+          </Version>
         </div>
-        <span className="sy-vs">or</span>
-        <div className="sy-one" data-testid="sync-conflict-theirs">
-          <span className="sy-who">{card.theirs.who}</span>
-          <p className="sy-sticky">{card.theirs.text}</p>
-          {btn('sync.conflict.keep-theirs', card.keepTheirs, 'sync-conflict-keep-theirs')}
-        </div>
+        {btn(
+          'sync.conflict.keep-both',
+          card.keepBoth,
+          'sync-conflict-keep-both',
+          ' sy-both',
+          'duplicate'
+        )}
+        {more ? <p className="sy-more">{more}</p> : null}
       </div>
-      {btn('sync.conflict.keep-both', card.keepBoth, 'sync-conflict-keep-both', ' sy-both')}
-      <p className="sy-hint">
-        {card.hint}
-        {conflicts.length > 1 ? ` ${conflicts.length - 1} more after this one.` : ''}
-      </p>
+      {/* 10 co-vh: Version history beside the pair, showing what you did not keep (Keep and Restore are
+          the same pick here — the history is where the other version stays, whatever you choose) */}
+      <aside
+        className="island sy-vh"
+        data-testid="sync-conflict-history"
+        aria-label="Version history"
+      >
+        <p className="sy-vh-t">
+          <Glyph name="history" size={14} />
+          Version history<span>this sticky</span>
+        </p>
+        {[
+          ['theirs', card.theirs, card.keepTheirs, 'sync.conflict.keep-theirs'],
+          ['mine', card.mine, card.keepMine, 'sync.conflict.keep-mine'],
+        ].map(([who, side, , actionId]) => (
+          <span className="sy-vh-r" key={who} data-testid={`sync-conflict-history-${who}`}>
+            <Person name={side.name} you={who === 'mine'} size="sm" />
+            <span className="sy-vh-w">
+              <span>
+                <strong>{who === 'mine' ? 'You' : side.name || 'Other'}</strong>
+                {side.at ? ` · ${whenWords(side.at)}` : ''}
+              </span>
+              <em>“{side.text}”</em>
+            </span>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={busy || !canEdit}
+              onClick={() => onPick?.(c, actionId)}
+            >
+              Restore
+            </button>
+          </span>
+        ))}
+        <p className="sy-vh-f">
+          {card.hint}
+          <kbd className="kbd">{card.historyKeys}</kbd>
+        </p>
+      </aside>
     </section>
   );
 }
@@ -241,6 +305,11 @@ export function SyncStatesHost() {
       onClose={() => setOpen(false)}
     />
   ) : (
-    <ConflictMark count={here.length} me={gitUser} onOpen={() => setOpen(true)} />
+    <ConflictMark
+      count={here.length}
+      me={gitUser}
+      other={conflictCard(here[0], { me: gitUser }).theirs.name}
+      onOpen={() => setOpen(true)}
+    />
   );
 }

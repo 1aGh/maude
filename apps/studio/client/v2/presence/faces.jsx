@@ -20,10 +20,11 @@ import {
   whereOf,
 } from '../../../presence/model.ts';
 import { toneFor, toneVar, YOU_TONE } from '../../../presence/tones.ts';
+import { Glyph, SparkGlyph } from '../share/glyphs.jsx';
 
 const isPeer = (f) => !f.you && !f.agent && typeof f.clientID === 'number';
 
-function useDismiss(open, onClose, ref) {
+function useDismiss(open, onClose, ref, restore) {
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
@@ -33,6 +34,8 @@ function useDismiss(open, onClose, ref) {
       if (e.key === 'Escape') {
         e.stopPropagation();
         onClose();
+        // esc from inside the menu: focus goes back to the face that opened it
+        restore?.();
       }
     };
     document.addEventListener('mousedown', onDown);
@@ -41,7 +44,31 @@ function useDismiss(open, onClose, ref) {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey, true);
     };
-  }, [open, onClose, ref]);
+  }, [open, onClose, ref, restore]);
+}
+
+/**
+ * WAI-ARIA menu keys for the face menu and the people list: focus moves in when it opens (the first
+ * item), ↑ / ↓ / Home / End rove, and an esc hands focus back to the face that opened it (P8 C7 —
+ * the menu had `role="menu"` and no way to arrow through it).
+ */
+function useMenuKeys(ref, selector) {
+  useEffect(() => {
+    const items = ref.current?.querySelectorAll(selector);
+    items?.[0]?.focus({ preventScroll: true });
+  }, [ref, selector]);
+  return (e) => {
+    const items = [...(ref.current?.querySelectorAll(selector) ?? [])];
+    if (!items.length) return;
+    const at = items.indexOf(document.activeElement);
+    const go = (i) => items[(i + items.length) % items.length]?.focus();
+    if (e.key === 'ArrowDown') go(at + 1);
+    else if (e.key === 'ArrowUp') go(at < 0 ? -1 : at - 1);
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(items.length - 1);
+    else return;
+    e.preventDefault();
+  };
 }
 
 function toneStyle(name, you = false) {
@@ -81,7 +108,7 @@ function LegacyFaces({ faces, onFollow }) {
             title={f.name}
             aria-label={f.name}
           >
-            {f.initials}
+            {f.agent ? <SparkGlyph size={12} /> : f.initials}
           </li>
         );
       })}
@@ -97,12 +124,17 @@ function FaceMenu({ peer, presence, close, now }) {
     close();
     presence.run(id, params);
   };
+  const ref = useRef(null);
+  const onKeyDown = useMenuKeys(ref, '[role="menuitem"]');
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: the keys live on the menu (roving), not on the wrapper
     <div
+      ref={ref}
       className="st-pmenu island"
       role="menu"
       data-testid="presence-face-menu"
       aria-label={peer.name}
+      onKeyDown={onKeyDown}
     >
       <div className="st-pmenu-hd">
         <span className="st-pface st-pface--lg" style={toneStyle(peer.name)} aria-hidden="true">
@@ -121,6 +153,9 @@ function FaceMenu({ peer, presence, close, now }) {
         data-testid="presence-face-menu-follow"
         onClick={() => run('presence.follow', { clientID: peer.clientID })}
       >
+        <span className="st-pmenu-ic" aria-hidden="true">
+          <Glyph name="view" size={14} />
+        </span>
         {peer.following ? `Stop following ${first}` : `Follow ${first}`}
       </button>
       {board && (
@@ -131,6 +166,9 @@ function FaceMenu({ peer, presence, close, now }) {
           data-testid="presence-face-menu-go-to"
           onClick={() => run('presence.go-to', { clientID: peer.clientID })}
         >
+          <span className="st-pmenu-ic" aria-hidden="true">
+            <Glyph name="arrow" size={14} />
+          </span>
           Go to {board}
         </button>
       )}
@@ -144,6 +182,9 @@ function FaceMenu({ peer, presence, close, now }) {
             data-testid="presence-face-menu-bring"
             onClick={() => run('presence.bring-everyone')}
           >
+            <span className="st-pmenu-ic" aria-hidden="true">
+              <Glyph name="people" size={14} />
+            </span>
             Bring everyone here
           </button>
         </>
@@ -159,12 +200,17 @@ function PeopleList({ peers, presence, close, now, onPick }) {
     now,
     canvasLabel: presence.canvasLabel || 'this canvas',
   });
+  const ref = useRef(null);
+  const onKeyDown = useMenuKeys(ref, 'button');
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: the keys rove the buttons inside (↑ ↓ Home End)
     <div
+      ref={ref}
       className="st-pmenu st-plist island"
       role="group"
       data-testid="presence-people-list"
       aria-label="People here"
+      onKeyDown={onKeyDown}
     >
       <p className="st-plist-h">
         <span>{list.heading}</span>
@@ -214,8 +260,14 @@ function PeopleList({ peers, presence, close, now, onPick }) {
 export function PresenceFaces({ faces, onFollow, presence = null }) {
   const [open, setOpen] = useState(null); // { kind: 'face', clientID } | { kind: 'list' } | null
   const hostRef = useRef(null);
+  const openerRef = useRef(null);
   const close = () => setOpen(null);
-  useDismiss(!!open, () => setOpen(null), hostRef);
+  useDismiss(
+    !!open,
+    () => setOpen(null),
+    hostRef,
+    () => openerRef.current?.focus()
+  );
   if (!faces?.length) return null;
   if (!presence) return <LegacyFaces faces={faces} onFollow={onFollow} />;
 
@@ -236,7 +288,7 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
             title={f.name}
             aria-label={f.name}
           >
-            {f.initials}
+            {f.agent ? <SparkGlyph size={12} /> : f.initials}
           </li>
         ))}
         {shown.map((f) => {
@@ -255,13 +307,14 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
                   open?.kind === 'face' && open.clientID === f.clientID ? 'true' : 'false'
                 }
                 data-testid={`share-cluster-face-${f.clientID}`}
-                onClick={() =>
+                onClick={(e) => {
+                  openerRef.current = e.currentTarget;
                   setOpen((o) =>
                     o?.kind === 'face' && o.clientID === f.clientID
                       ? null
                       : { kind: 'face', clientID: f.clientID }
-                  )
-                }
+                  );
+                }}
               >
                 {f.initials}
               </button>
@@ -273,11 +326,15 @@ export function PresenceFaces({ faces, onFollow, presence = null }) {
             <button
               type="button"
               className="st-face st-face--more"
-              aria-label={`${more} more — see everyone`}
+              aria-label={`${more} more here`}
+              title={`${more} more here`}
               aria-haspopup="true"
               aria-expanded={open?.kind === 'list' ? 'true' : 'false'}
               data-testid="share-cluster-faces-more"
-              onClick={() => setOpen((o) => (o?.kind === 'list' ? null : { kind: 'list' }))}
+              onClick={(e) => {
+                openerRef.current = e.currentTarget;
+                setOpen((o) => (o?.kind === 'list' ? null : { kind: 'list' }));
+              }}
             >
               +{more}
             </button>

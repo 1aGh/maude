@@ -25,8 +25,8 @@ describe('syncFoot (pure)', () => {
   test('offline with changes kept: "14 changes since yesterday 18:20 — kept on this Mac"', async () => {
     const { syncFoot } = await model();
     expect(syncFoot({ kind: 'offline', pending: 14, since: YESTERDAY, now: NOW })).toEqual({
+      // P8 C7: no warn tone — the foot is fg-2 (`.k-cp-foot`); the warn colour is the cluster word's
       text: '14 changes since yesterday 18:20 — kept on this Mac',
-      tone: 'warn',
     });
     expect(syncFoot({ kind: 'offline', pending: 1, since: null, now: NOW })?.text).toBe(
       '1 change — kept on this Mac'
