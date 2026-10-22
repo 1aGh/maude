@@ -53,6 +53,7 @@
 
   /* Chips sit inside the prompt, on top. */
   .ai-ask-chips-wrap {
+    flex: none; /* P8-C6: it collapsed to a sliver inside the field's flex column */
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
@@ -65,6 +66,7 @@
   }
   .ai-ach {
     position: relative;
+    flex: none;
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
@@ -89,8 +91,10 @@
     opacity: 0.6;
   }
   .ai-ach-thumb {
+    flex: none;
     width: 40px;
     height: 40px;
+    min-height: 40px;
     border-radius: var(--radius-sm);
     object-fit: cover;
   }

@@ -36,6 +36,7 @@ export function ChatHeader({
         >
           <StIcon name="sparkle" size={10} />
           <b>{n}</b>
+          <StIcon name="chevron-down" size={12} />
         </button>
       ) : null}
       {connected ? (
@@ -59,7 +60,7 @@ export function ChatHeader({
         title="Hide the AI chat panel"
         onClick={onHide}
       >
-        <StIcon name="chevron-right" size={14} />
+        <StIcon name="chevron-down" size={14} />
       </button>
     </div>
   );

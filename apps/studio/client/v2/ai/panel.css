@@ -1,0 +1,66 @@
+/* @layer components — P8-C6: the AI chat island's geometry and material (03 AI Chat `.k-ai`, `.k-ai--chat`, `.ai-big`).
+   One surface: the island pads 12 px all round (kit `.island--pad`) and carries header · feed · field · Advanced as its
+   rows — no rule between them. It is 340 wide (420 when the chat is long or pinned) and HUGS its content: a short
+   chat is a short island, a long one grows up to the window and then scrolls its feed. Tokens only. */
+@layer components {
+  /* the slot's own width belongs to the panel above (Inspector, Version history); the AI island is its own width and
+     grows leftwards out of the slot's right edge */
+  .st-body--float .st-dockslot-ai {
+    flex: 0 1 auto;
+    align-self: flex-end;
+    width: 340px;
+    min-width: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+  .st-body--float .st-dockslot-ai:has(> .ai-island[data-full="true"]) {
+    flex: 1 1 100%;
+    width: 420px;
+  }
+  .st-body--float .st-dockslot-ai > .ai-island {
+    flex: 0 1 auto;
+    min-height: 0;
+    padding: var(--space-3);
+    box-sizing: border-box;
+  }
+  .st-body--float .st-dockslot-ai > .ai-island[data-full="true"] {
+    flex: 1 1 auto;
+  }
+  /* the chain from the island down to the feed hugs and shrinks (the v1 rows were `flex: 1`, basis 0 — which
+     collapses inside an auto-height parent) */
+  .ai-island .st-rp-body--chat,
+  .ai-island .chat-panel,
+  .ai-island .chat-thread {
+    flex: 0 1 auto;
+    min-height: 0;
+    padding: 0;
+  }
+  .ai-island[data-full="true"] .st-rp-body--chat,
+  .ai-island[data-full="true"] .chat-panel,
+  .ai-island[data-full="true"] .chat-thread {
+    flex: 1 1 auto;
+  }
+  .ai-island .chat-feed {
+    flex: 0 1 auto;
+    min-height: 0;
+    margin-bottom: var(--space-2);
+  }
+  .ai-island[data-full="true"] .chat-feed {
+    flex: 1 1 auto;
+  }
+  /* an empty feed takes no room (the hint is its only child on a fresh chat; nothing else leaves a gap) */
+  .ai-island .chat-feed:empty {
+    display: none;
+  }
+
+  /* The folded AI chat (03 `.k-iconbtn--ai`): the spark in the AI's vermilion, and its "working" dot is the agent
+     presence colour — not the azure of "your turn". */
+  .st-corner--ai .st-iconbtn,
+  .st-corner--ai-left .st-iconbtn {
+    color: var(--spark);
+  }
+  .st-corner--ai .st-corner-dot,
+  .st-corner--ai-left .st-corner-dot {
+    background: var(--presence-agent);
+  }
+}

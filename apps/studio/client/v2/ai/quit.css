@@ -1,8 +1,16 @@
 /* @layer components — S5.14: the quit dialog (03 `ai-quit`) and the "Stopped" divider + Keep going.
    Tokens only. The dialog rides the shared `.gi-modal` / `.gi-scrim` / `.gi-dialog` recipe. */
 @layer components {
+  /* 03 `.k-dialog`: padding 24, radius-xl, bg-2, the island's 0.5 px edge — `.gi-dialog` has no padding of its own */
   .ai-quit-dialog {
     width: min(380px, calc(100vw - 2 * var(--space-4)));
+    padding: var(--space-6, 24px);
+    border: 0;
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-default));
   }
   .ai-quit-title {
     margin: 0 0 var(--space-2);
@@ -12,6 +20,7 @@
   .ai-quit-body {
     margin: 0 0 var(--space-4);
     color: var(--fg-1);
+    font-size: var(--type-sm);
   }
   .ai-quit-actions {
     display: flex;

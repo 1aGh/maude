@@ -54,6 +54,13 @@ export function latestRun(state) {
 
 export const isWorking = (run) => !!run && WORKING_STATES.has(run.state);
 
+/**
+ * Does the panel draw the working line? Only for a run that IS working: a queued ask (`waiting`) has its own card and
+ * a question has its card too (03 `ai-same-artboard`: "only the Waiting card" — a working line beside it read as two runs).
+ */
+export const showsWorkingLine = (live, run) =>
+  !!live && run?.state !== 'needs-you' && run?.state !== 'waiting';
+
 // ── the working line ─────────────────────────────────────────────────────────────────────────────────
 
 const lowerFirst = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);

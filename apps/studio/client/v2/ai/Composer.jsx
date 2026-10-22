@@ -8,7 +8,7 @@ import {
   useComposerRuntime,
   useThread,
 } from '@assistant-ui/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   buildCommandModel,
   filterCommands,
@@ -283,9 +283,30 @@ function CommandPopover({ items, activeIndex, onPick, onHover }) {
 // but ONLY when that token is a command that exists (the badge gate). The mirror
 // MUST match the textarea's box model exactly (see .chat-input / .chat-input-mirror
 // in 6-acp-chat.css) or the pill drifts off the text.
-function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach }) {
+function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach, multi, onMulti }) {
   const text = useComposer((c) => c.text);
   const mirrorRef = useRef(null);
+  const wrapRef = useRef(null);
+  const flipAt = useRef(0);
+
+  // P8-C6 (03 `ai-ask--multi`): the field is one row until the words need a second line; then they wrap ABOVE
+  // the row (paperclip · chip · send). Measured on the textarea itself (it grows with its content). Going back to
+  // one row needs the text to be shorter than it was when it flipped, or it would flip every keystroke.
+  useLayoutEffect(() => {
+    const ta = wrapRef.current?.querySelector('textarea');
+    if (!ta) return;
+    const cs = getComputedStyle(ta);
+    const line = Number.parseFloat(cs.lineHeight) || 16;
+    const pad =
+      (Number.parseFloat(cs.paddingTop) || 0) + (Number.parseFloat(cs.paddingBottom) || 0);
+    const wrapped = text.length > 0 && (text.includes('\n') || ta.scrollHeight > line + pad + 3);
+    if (!multi && wrapped) {
+      flipAt.current = text.length;
+      onMulti?.(true);
+    } else if (multi && (text.length === 0 || (!wrapped && text.length < flipAt.current - 2))) {
+      onMulti?.(false);
+    }
+  }, [text, multi, onMulti]);
   const match = matchLeadingCommand(text);
   const token = match ? normalizeName(match.token) : '';
   const highlight = !!(match && token && existsSet.has(token));
@@ -362,7 +383,7 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach })
   );
 
   return (
-    <div className="chat-input-wrap">
+    <div className="chat-input-wrap" ref={wrapRef}>
       <div className="chat-input-mirror" aria-hidden="true" ref={mirrorRef}>
         {head}
         {chipNodes(body)}
@@ -435,6 +456,7 @@ export function Composer({
   }, [text, attachTick, attachmentsRef]);
   // S5.18 G8: the short list; "More…" (or just typing) reaches every command
   const [moreOpen, setMoreOpen] = useState(false);
+  const [multi, setMulti] = useState(false); // P8-C6: the words wrap above the row
   const items = useMemo(() => {
     if (!menuOpen) return [];
     const { items: rows, more } = trimmedCommands(all, match.token, { expanded: moreOpen });
@@ -519,55 +541,62 @@ export function Composer({
         {showRateLimitBanner ? (
           <RateLimitBanner rateLimit={usage.rateLimit} onDismiss={onDismissRateLimitBanner} />
         ) : null}
-        {/* S5.8 — the scope chip (03 `ai-scope`): what AI touches, and the v1 context chip with its
-            removable × (DDR-140 reveal: the chip text is the `[maude-scope …]` line the send carries). */}
+        {/* S5.8 — the suggestion strip (03 `ai-suggest`) sits above the field. */}
         {above}
-        {activeCanvas ? (
-          <ScopeChip
-            scope={scope}
-            artboards={artboards}
-            activeArtboardId={activeArtboardId}
-            stale={stale}
-            onChoose={onChooseScope}
-            onRemove={onCtxDismiss}
+      </ThreadPrimitive.If>
+      {/* S5.10 — a folder from disk asks once, above the prompt. */}
+      {attach?.consent ? (
+        <Consent consent={attach.consent} onAllow={attach.allowFolder} onNotNow={attach.notNow} />
+      ) : null}
+      {/* P8-C6 (03 `.ask.ai-ask`, rule R3): ONE field, and it stays while AI works — typing the next ask ahead
+          is fine; Send waits for the turn (the working line above carries Stop). The row is
+          📎 · ◆ scope chip · text · send, the chip INSIDE the field (kit `.k-selchip`), attachments on top.
+          The anchor is relative so the command popover can float above it. */}
+      <div className="chat-cmd-anchor" onKeyDownCapture={onKeyDownCapture}>
+        {menuOpen ? (
+          <CommandPopover
+            items={items}
+            activeIndex={activeIndex}
+            onPick={pick}
+            onHover={setActiveIndex}
           />
         ) : null}
-        {/* S5.10 — a folder from disk asks once, above the prompt. */}
-        {attach?.consent ? (
-          <Consent consent={attach.consent} onAllow={attach.allowFolder} onNotNow={attach.notNow} />
-        ) : null}
-        {/* One box: textarea on top, a bottom toolbar (model · effort · send).
-            The anchor is relative so the command popover can float above it. */}
-        <div className="chat-cmd-anchor" onKeyDownCapture={onKeyDownCapture}>
-          {menuOpen ? (
-            <CommandPopover
-              items={items}
-              activeIndex={activeIndex}
-              onPick={pick}
-              onHover={setActiveIndex}
+        <ComposerPrimitive.Root
+          className={`chat-box${multi ? ' chat-box--multi' : ''}`}
+          data-testid="chat-box"
+        >
+          {/* S5.10 — what you attach sits inside the prompt, on top. */}
+          <AttachChips attach={attach} />
+          {attach ? <AttachMenu attach={attach} /> : null}
+          {/* S5.8 — the scope chip (03 `ai-scope`): what AI touches, and the v1 context chip with its
+              removable × (DDR-140 reveal: the chip text is the `[maude-scope …]` line the send carries). */}
+          {activeCanvas ? (
+            <ScopeChip
+              scope={scope}
+              artboards={artboards}
+              activeArtboardId={activeArtboardId}
+              stale={stale}
+              onChoose={onChooseScope}
+              onRemove={onCtxDismiss}
             />
           ) : null}
-          <ComposerPrimitive.Root className="chat-box">
-            {/* S5.10 — what you attach sits inside the prompt, on top. */}
-            <AttachChips attach={attach} />
-            <HighlightedInput
-              existsSet={existsSet}
-              attachmentsRef={attachmentsRef}
-              onAttachChange={bumpAttach}
-              attach={attach}
-            />
-            <div className="chat-toolbar">
-              {/* S5.12 — the model / effort / mode pickers and the info button moved to the panel's
-                  Advanced fold (Advanced.jsx); the field keeps only what 03 draws: the text and send
-                  (+ S5.10's paperclip). */}
-              {attach ? <AttachMenu attach={attach} /> : null}
-              <span className="chat-toolbar-spacer" />
-              <ComposerPrimitive.Send className="chat-send" aria-label="Send message">
-                <Spark size={14} />
-              </ComposerPrimitive.Send>
-            </div>
-          </ComposerPrimitive.Root>
-        </div>
+          <HighlightedInput
+            existsSet={existsSet}
+            attachmentsRef={attachmentsRef}
+            onAttachChange={bumpAttach}
+            attach={attach}
+            multi={multi}
+            onMulti={setMulti}
+          />
+          {/* S5.12 — the model / effort / mode pickers and the info button moved to the panel's
+              Advanced fold (Advanced.jsx); the field keeps only what 03 draws: the text and send
+              (+ S5.10's paperclip). */}
+          <ComposerPrimitive.Send className="chat-send" aria-label="Send message">
+            <Spark size={12} />
+          </ComposerPrimitive.Send>
+        </ComposerPrimitive.Root>
+      </div>
+      <ThreadPrimitive.If running={false}>
         {chipList.length ? (
           <div className="chat-attach" role="list" aria-label="Attachments — expands on send">
             {chipList.map((c) => (

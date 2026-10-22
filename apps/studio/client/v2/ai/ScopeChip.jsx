@@ -8,6 +8,7 @@
 // Presentational: the scope state (choice vs. selection) lives in the caller; this reports `onChoose(scope)`.
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { StIcon } from '../../shell/icons.jsx';
 import { scopeLabel, scopeMenu, scopeNames, scopeTitle, toggleArtboard } from './scope.js';
 
 export function ScopeChip({
@@ -155,7 +156,7 @@ export function ScopeChip({
                     onClick={() => onChoose(toggleArtboard(scope, a.id))}
                   >
                     <span className="ai-scope-check" aria-hidden="true">
-                      {on ? '✓' : ''}
+                      {on ? <StIcon name="check" size={14} /> : null}
                     </span>
                     <span className="ai-scope-item-text">{a.label}</span>
                   </button>
@@ -188,7 +189,7 @@ export function ScopeChip({
                   onClick={() => setChoosing(true)}
                 >
                   <span className="ai-scope-check" aria-hidden="true">
-                    {it.checked ? '✓' : ''}
+                    {it.checked ? <StIcon name="check" size={14} /> : null}
                   </span>
                   <span className="ai-scope-item-text">{it.label}</span>
                 </button>
@@ -206,7 +207,7 @@ export function ScopeChip({
                   }}
                 >
                   <span className="ai-scope-check" aria-hidden="true">
-                    {it.checked ? '✓' : ''}
+                    {it.checked ? <StIcon name="check" size={14} /> : null}
                   </span>
                   <span className="ai-scope-item-text">{it.label}</span>
                 </button>
