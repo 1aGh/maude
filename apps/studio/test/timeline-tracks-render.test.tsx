@@ -165,7 +165,9 @@ describe('ruler', () => {
   test('the readout is the time over the length, with the frame in its title', () => {
     mount(SEQ.slice(0, 2), { frame: 212 });
     const r = q('[data-testid="timeline-readout"]');
-    expect(r?.textContent).toBe('0:07/0:14');
+    // 450 frames at 30 fps are 15 s (the scrubber on the artboard and the advanced timecode say 0:15): the length is
+    // frames / fps, not the time of the last frame index (P8-B2: a 7 s video read "0:06", a 1 s one "0:00")
+    expect(r?.textContent).toBe('0:07/0:15');
     expect(r?.getAttribute('title')).toBe('Frame 212 of 449');
   });
 

@@ -1945,7 +1945,7 @@ export default function TimelinePanel({
                 <>
                   <b>{readoutLabel(clamped, fps, playback.stepping())}</b>
                   <span className="tl-sep">/</span>
-                  {mss((totalFrames - 1) / fps)}
+                  {mss(totalFrames / fps)}
                 </>
               )}
             </span>
