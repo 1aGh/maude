@@ -6,7 +6,7 @@ description: Paper presets, bleed/trim/margin guides, DPI-parameterized raster e
 A canvas artboard can be a **print piece** — a flyer, poster, business card,
 or brochure — with real paper dimensions, bleed, and export options a print
 shop expects. It rides the same canvas-first loop as every other artboard:
-describe it to the Assistant, iterate, export.
+describe it to AI in the AI chat panel, iterate, export.
 
 ## What you get
 
@@ -16,10 +16,10 @@ describe it to the Assistant, iterate, export.
   so a full-bleed background painted to the artboard's own bounds correctly
   reaches the cut edge. Pick a paper size in the Inspector and the artboard
   resizes to match; changing paper, orientation, or bleed re-resolves it.
-- **On-canvas guides** — toggle **View → Show print guides** to see the bleed
+- **On-canvas guides** — turn on **Menu › View › Advanced › Print guides** (or the per-artboard switch in the print Inspector) to see the bleed
   zone (red tint), trim line (solid), and safe margin (magenta, dashed) while
   you iterate — the pro-tool color convention (Adobe/Affinity).
-- **300/600 DPI raster export** — the PNG export dialog's Resolution picker
+- **300/600 DPI raster export** — the PNG Export sheet's Resolution picker
   includes physical DPI presets (96/150/300/600) alongside the usual 1×/2×/3×
   multiplier.
 - **Print-ready PDF** — correct `MediaBox ⊇ BleedBox ⊇ TrimBox` nesting, with
@@ -33,7 +33,7 @@ describe it to the Assistant, iterate, export.
 
 ## Author one
 
-Ask the Assistant for a print piece — e.g. *"A5 flyer for a weekend market,
+Ask AI for a print piece — e.g. *"A5 flyer for a weekend market,
 warm palette, 3mm bleed"* — or scaffold it directly:
 
 ```
@@ -64,7 +64,7 @@ extend to the artboard's own edge, not just the trim-inset area.
 /design:export pdf --scope artboard --option dpi=300
 ```
 
-The same options are available from the `⌘E` export dialog — the PDF card
+The same options are available in the Export sheet (<kbd>⇧⌘E</kbd>) — the PDF card
 has an **Image quality** (DPI) picker, a **Text** picker (keep selectable /
 verify fonts embedded / convert to outlines), an **Include bleed** checkbox,
 and a **Marks** disclosure (crop / registration); a `canvas-as-separate` scope

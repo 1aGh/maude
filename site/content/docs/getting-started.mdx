@@ -1,124 +1,59 @@
 ---
 title: Getting Started
-description: Four steps and you're in. (Maybe five. Depends on your shell.)
+description: Download the Maude desktop app, open a project, make your first canvas. No terminal, no account to create first.
 ---
 
-Four steps and you're in. (Maybe five. Depends on your shell.) `npm install`, a marketplace, two plugins, two init commands. No accounts, no API keys, no telemetry.
+Three steps: install the app, open a project, make a canvas. Nothing here needs a terminal. If you want the command line, the plugins or a self-hosted hub, they are waiting under [Advanced / Explore Maude](#when-you-want-more) once you have a canvas to play with.
 
-<Callout type="info" title="On Maude Desktop? You can skip most of this">
-The [desktop app](/docs/desktop) auto-loads the `design` + `flow` plugins into its built-in chat panel, so with only **Claude Code installed** `/design:*` and `/flow:*` work out of the box — no marketplace, no `/plugin install`. The steps below are the **manual / power-user path**: for the `maude` CLI, the web `maude design serve` flow, or driving `/design:*` from your own terminal Claude Code.
+## 1. Install the desktop app
+
+<DownloadNative />
+
+1. **[Download](/desktop)** the installer for your platform — `.dmg` (macOS), `.msi` (Windows) or `.deb` (Linux).
+2. Open it. On macOS drag Maude to Applications; on Windows run the installer; on Linux `sudo apt install ./Maude_*.deb`.
+3. Start Maude. It opens on **Home**.
+
+Platform requirements, Linux media playback and the first-launch prompt on unsigned builds are on the [Desktop app](/docs/desktop) page. The app keeps itself up to date.
+
+## 2. Open or make a project
+
+Home asks one question: **What shall we make?** A project is the folder of canvases you work in. Pick one way in:
+
+- **Say what to make.** Describe it in a sentence. The chip under the prompt names the project the new canvas lands in. AI puts a first draft on a new canvas.
+- **Start with an empty canvas** (<kbd>⌘N</kbd>) — no AI needed.
+- **Open project…** (<kbd>⌘O</kbd>) — any folder works. Recent projects and recent canvases sit under the prompt.
+- **Sign in to cloud.maude.sh** to keep the project in the cloud: every Mac you use, and everyone you invite, sees the same canvases. A local project works right now and moves to the cloud any time (Share › Move to cloud…). The [cloud trial](/docs/cloud/pricing) is 14 days with no card.
+
+A local project is kept in your Maude folder on this Mac. The folder path is under **Advanced** when you ask for it — never in your way.
+
+<Callout type="info" title="AI uses your own Claude account">
+The first time you use **Ask AI**, one sheet asks you to **Connect** your Claude account (Pro or Max, or an API key). Your prompt waits and runs as soon as it is connected. Without a connection every other part of Maude still works.
 </Callout>
 
-<Callout type="info" title="Using Codex in your terminal?">
-Follow the [native Codex installation guide](/docs/codex). It covers the plugin
-marketplace, equivalent workflow invocations, kgai and controlling Design Studio.
-The instructions below use Claude Code's command syntax. Codex inside Studio's
-built-in ACP chat is a separate follow-up.
-</Callout>
+## 3. Make your first canvas
 
-## Install the CLI
+A new canvas opens with one line in the middle: *Your canvas is ready. Ask AI for a first draft, or start drawing.*
 
-`maude` is required, not optional. Several skills shell out to it.
+- **Ask AI.** Type what you want and press <kbd>↵</kbd>. The draft arrives piece by piece — artboards land with a small "Made by AI" mark. The AI chat panel keeps what was said.
+- **Or draw.** The **Edit** toolbar at the bottom has Select (<kbd>V</kbd>), Hand (<kbd>H</kbd>), Frame (<kbd>F</kbd>), Shape (<kbd>R</kbd>), Pen (<kbd>P</kbd>), Text (<kbd>T</kbd>), Image (<kbd>I</kbd>) and More. Press <kbd>F</kbd> and drag to make an artboard.
+- **Change it.** Select anything and the Inspector comes with the selection. With it selected, press <kbd>⌘/</kbd> to ask AI to change just that.
+- **Take it back.** <kbd>⌘Z</kbd> undoes AI's changes like any other — one AI run is one undo step. **Version history** (<kbd>⌥⌘H</kbd>) lists every saved version with Restore.
+- **Look around.** <kbd>⌘K</kbd> searches canvases, actions and AI; every result says where the thing lives. <kbd>?</kbd> lists all shortcuts.
 
-```bash
-npm i -g @1agh/maude
-# or with pnpm
-pnpm add -g @1agh/maude
-```
+That is the whole loop. [Around the window](/docs/desktop/window) names each piece you just used, with the exact words the app uses.
 
-This gives you the `maude` binary that scaffolds the `.ai/` workspace and boots the design dev server. See [CLI](/docs/cli) for the full surface.
+## Share it
 
-## Add the marketplace
+Press **Share…** (top right). **Invite** people by email, or **Copy link** in the link row. People you invite open the project in their own Maude, or in a browser if they only need to look. See [Share links](/docs/share-links) and [Maude Cloud](/docs/cloud/pricing).
 
-Inside Claude Code:
+## When you want more
 
-```text
-/plugin marketplace add 1aGh/maude
-```
-
-`/plugin marketplace update maude` pulls future releases.
-
-## Install the plugins
-
-```text
-/plugin install design@maude
-/plugin install flow@maude
-```
-
-Install both for the complete workflow set. Design uses flow's question, debate and decision-memory skills; installing Markdown does not install the external CLI/MCP dependencies.
-
-## Init the workspace
-
-Inside Claude Code, in your project root:
-
-```text
-/flow:init
-/design:init
-```
-
-`/flow:init` scaffolds the `.ai/` second-brain:
-
-<FileTree variant=".ai/" caption="The .ai/ skeleton — workflows.config.json is the one file you usually touch" />
-
-It auto-detects your stack, writes `workflows.config.json`, and asks the right questions (branching model, changelog provider, platforms).
-
-`/design:init` scaffolds `.design/` and writes a skeleton `.design/config.json`. Skip it if you don't want the canvas loop.
-
-For `CLAUDE.md`, use Claude Code's built-in `/init`. Codex uses `AGENTS.md`; see the [Codex guide](/docs/codex#project-instructions).
-
-## Run a slash command
-
-Design first, then ship.
-
-**Design loop** — start here if you're greenfielding a feature:
-
-| Command | What it does |
-| ------- | ------------ |
-| `/design:setup-ds <name> "<brief>"` | One-time per project. Bootstrap a design system (tokens, philosophy, specimens). |
-| `/design:new <Name> "<brief>"` | Scaffold a new multi-artboard canvas under `.design/ui/`. |
-| `/design:edit "<feedback>"` | Iterate on the open canvas. Cmd+Click an element first to scope the edit. |
-
-**Flow loop** — ship the feature:
-
-| Command | What it does |
-| ------- | ------------ |
-| `/flow:setup-prd` | One-time per project. Draft a PRD and auto-generate phase plans. |
-| `/flow:plan "<feature>"` | Per-feature. Draft a phase plan grounded in PRD + design system. |
-| `/flow:execute` | Walk the plan task-by-task with the Edit-Verify loop. |
-| `/flow:done` | Validate, commit, open a PR, archive the plan. |
-
-`/flow:status` works anywhere and tells you where you are.
-
-<CommandFlow variant="install" caption="Four steps and you're in — install, marketplace, plugins, init" />
-
-## Open the design browser
-
-Two ways to boot the local design dev server. Both start the same server (file tree of every canvas, tabbed iframe preview, inspector overlay). Pick whichever fits where your hands are.
-
-**From inside Claude Code:**
-
-```text
-/design:browse
-```
-
-Auto-finds a free port starting at 4321 and opens your default browser. `--port <n>` to force a specific port.
-
-**From your terminal:**
-
-```bash
-maude design serve --port 4399
-```
-
-Forwards to the same dev server. Useful when you're not in a Claude Code session, or you want to script it in `package.json`.
-
-Either way: **Cmd+Click any element** in a canvas to scope the next `/design:edit "<feedback>"` to that selection. `/design:new` also auto-starts the server if it isn't running, so you rarely need to boot it by hand.
-
-## Next
+Everything below is optional. The desktop app does not need any of it.
 
 <Cards>
-  <Card title="`maude` CLI reference" href="/docs/cli" />
-  <Card title="Design canvas loop" href="/docs/design" />
-  <Card title="Flow lifecycle" href="/docs/flow" />
-  <Card title="`workflows.config.json` reference" href="/docs/config" />
-  <Card title="Next.js recipe" href="/docs/recipes/nextjs" />
+  <Card title="The `maude` CLI" href="/docs/cli" description="Scaffold the .ai/ workspace, run diagnostics, boot the studio from a terminal." />
+  <Card title="Plugins for Claude Code and Codex" href="/docs/design" description="/design:* and /flow:* from your own terminal session, plus the native Codex install." />
+  <Card title="Self-host the hub" href="/docs/hub" description="Run your own sync hub — you keep the data, there is no SaaS tier." />
+  <Card title="Config reference" href="/docs/config" description="Every key in .ai/workflows.config.json." />
+  <Card title="Recipes" href="/docs/recipes/nextjs" description="Drop-in setups for Next.js, Expo and pnpm monorepos." />
 </Cards>

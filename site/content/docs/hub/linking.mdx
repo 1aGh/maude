@@ -6,7 +6,7 @@ description: maude design link / unlink / status / adopt — pair a local repo w
 Once a hub is deployed ([Deploy a hub](/docs/hub/deploy)), each collaborator pairs their local repo with it. After linking, the existing `maude design serve` does double duty: it serves your browser canvas AND mirrors your `.design/` canvases against the hub's Yjs state. Claude Code never sees Yjs — it reads and writes plain files exactly as in solo mode.
 
 <Callout title="Using the desktop app? No terminal needed.">
-  The [desktop app](/desktop) links to a hub from the onboarding wizard's **Advanced** door — paste the hub address and access token in the UI. There's no `maude design link` to run. The CLI flow below is for terminal-driven setups; the wizard writes the same per-machine credential and trust record under the hood.
+  The [desktop app](/desktop) links to a hub from **Settings › Connections** — paste the hub address and access token in the UI. There's no `maude design link` to run. The CLI flow below is for terminal-driven setups; the Connections tab writes the same per-machine credential and trust record under the hood.
 </Callout>
 
 ## Link
@@ -77,7 +77,7 @@ Boot order doesn't matter and never loses bytes ([DDR-102](https://github.com/1a
 /design:rollback <canvas>     # restore the snapshotted version
 ```
 
-Every divergence is surfaced loudly: a console warning at boot, a `cold-start-diverged` entry (with winner + snapshot timestamps) in `maude design status`, and a banner in the studio chrome. Comments never conflict at all — they union-merge by id, so nothing is lost in either direction.
+Every divergence is surfaced loudly: a console warning at boot, a `cold-start-diverged` entry (with winner + snapshot timestamps) in `maude design status`, and a callout in the studio. Comments never conflict at all — they union-merge by id, so nothing is lost in either direction.
 
 The same applies after a `git pull` changes canvases while you're linked: pulled changes that diverge from hub state take the snapshot + newest-wins path, not a silent overwrite.
 
@@ -123,10 +123,10 @@ Committed: `.design/config.json` (carries the `linkedHub` URL), your `.tsx` canv
 
 The sync agent tolerates the hub disappearing — your laptop on a plane, a Fly restart, a flaky network:
 
-- After the WS closes and 3 reconnect attempts fail over ~30s, the agent enters **offline mode**. A yellow banner appears across the canvas chrome: *"Working offline · N edits queued · will sync when hub reconnects."*
+- After the WS closes and 3 reconnect attempts fail over ~30s, the agent enters **offline mode**. The save word next to the faces in the Share cluster reads *Offline — kept on this Mac*, and the queued edits wait on this Mac.
 - Local edits keep working — the Y.Doc accepts updates and the agent buffers them in `.design/_state/<slug>.ydoc.bin`.
-- On reconnect, the agent runs Yjs sync v2, the banner flashes green *"Synced"* for 3s, then disappears. Queued edits land within ~2s.
-- If you stay offline for **> 24h**, the banner escalates to red: *"Long offline — your changes may conflict. Consider `git commit && git push` as backup."*
+- On reconnect, the agent runs Yjs sync v2, a quiet callout says *Back online. Your changes are going up*, and the save word returns to *Saved*. Queued edits land within ~2s.
+- If you stay offline for **> 24h**, your changes may conflict when you return. When both sides changed the same thing, a conflict card shows both versions — **Keep yours**, **Keep Tereza's** (their name) or **Keep both** — and Version history shows the other, with Restore. Committing and pushing the repository remains a fine backup.
 
 ## How fast a change crosses
 
@@ -177,11 +177,11 @@ Three things never travel, in either direction:
 
 **Executable modules** (`.ts`, `.mjs` outside a canvas body) are the one class with a gate on both ends. The hub refuses them from anyone but an owner, and your machine only accepts them from a hub you have explicitly said may deliver them — a local answer, recorded when you link, that no sign-in response can change.
 
-When two people change the same file between syncs, neither copy is merged and neither is thrown away: the loser is renamed to `<name>.maude-conflict-<when>-<who>.<ext>` beside the winner and travels too, so both people see it. If a whole batch of files differs at once — the usual case the first time an existing project is linked — sync pauses and the Sync panel says so, rather than filling the folder with conflict copies you did not ask for. Set `linkedHub.resolveFirstAnchor` to `"keep-local"` or `"keep-cloud"` to settle the whole batch in one go.
+When two people change the same file between syncs, neither copy is merged and neither is thrown away: the loser is renamed to `<name>.maude-conflict-<when>-<who>.<ext>` beside the winner and travels too, so both people see it. If a whole batch of files differs at once — the usual case the first time an existing project is linked — sync pauses and **Menu › Diagnostics › Sync** says so, rather than filling the folder with conflict copies you did not ask for. Set `linkedHub.resolveFirstAnchor` to `"keep-local"` or `"keep-cloud"` to settle the whole batch in one go.
 
 ## When sync pauses
 
-Three things make sync stop and wait rather than act, and all three report into the Sync panel with the files they are holding:
+Three things make sync stop and wait rather than act, and all three report into **Menu › Diagnostics › Sync** with the files they are holding:
 
 - **Too many deletions.** More than ten at once, more than a quarter of what the project tracks, or more than twenty-five in an hour. That last one is a budget rather than a per-check limit — it counts what has already gone and survives a restart, because a slow drain adds up the same as a fast one.
 - **A first link where both sides have content**, described above.

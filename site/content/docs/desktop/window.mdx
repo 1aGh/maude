@@ -1,0 +1,80 @@
+---
+title: Around the window
+description: Where everything is in Maude 2 — the project pill and its one menu, Search, the Share cluster, the panels, the toolbars, the Inspector, Diagnostics and Settings — in the words the app uses.
+---
+
+Maude's window has a handful of pieces and each one has a single job. This page uses the same words the app does, so what you read here is what you can search for with <kbd>⌘K</kbd>.
+
+## The project pill and its one menu
+
+The **project pill** (mark and project name, top left) opens the **Project menu**. It is the only menu inside the window. In this documentation a path through it is written **Menu › File › Export…**.
+
+| Entry | What it holds |
+| ----- | ------------- |
+| **Back to Home** | Leaves the project for Home. |
+| **File ›** | New canvas <kbd>⌘N</kbd>, New project… <kbd>⇧⌘N</kbd>, Open project… <kbd>⌘O</kbd>, Duplicate · Rename · Move to…, Import from Figma…, Import a brand…, Export… <kbd>⇧⌘E</kbd>, Handoff to production <kbd>⇧⌘H</kbd>, Close canvas, Sign in as another account…. |
+| **Edit ›** | Undo <kbd>⌘Z</kbd>, Redo <kbd>⇧⌘Z</kbd>, **Undo history…**, cut / copy / paste, Select all. |
+| **View ›** | Hide panels / Show panels <kbd>⌘\\</kbd>, Comments <kbd>⇧⌘M</kbd>, Assets, Exports, Annotations, Present, zoom. **Advanced** holds Layers as a panel, Inspector <kbd>⇧⌘I</kbd>, Keep timeline open, Minimap, Print guides, Hidden files. |
+| **Help ›** | Keyboard shortcuts <kbd>?</kbd>, Help and guides <kbd>F1</kbd>, What's new, Take the tour, Set up Maude…, How sharing works, Report a bug…. |
+| **Version history** | <kbd>⌥⌘H</kbd>. Top level, one click. |
+| **Share…** | Opens the Share sheet. |
+| **Export…** | <kbd>⇧⌘E</kbd>. |
+| **Diagnostics ›** | See [below](#diagnostics). |
+| **Settings…** | <kbd>⌘,</kbd>. See [below](#settings). |
+
+The Mac's own menu bar is still there, kept short: **Maude** (About · Check for Updates… · Quit), **File** (New canvas, New project…, Open project…, New Home tab), **Edit**, **Window** (the tab commands) and **Help › Report a Bug…**.
+
+## Project tabs
+
+Maude has its own tab strip. **Home** is a pinned, icon-only first tab (<kbd>⌘T</kbd> opens a new one); every project gets one tab, with its square, its name and one small state mark — AI working, done, or needs you. <kbd>⌘1</kbd>–<kbd>⌘8</kbd> jump to a tab, <kbd>⌘9</kbd> to the last. Right-click a tab for its menu.
+
+## Search
+
+<kbd>⌘K</kbd> is **Search**: canvases (by name and by the artboards inside them), pictures, actions, and every tool that is not on screen. Each action result names where it lives — *Menu › File › Export…* — so you learn the menu by using it. **Ask AI** is always the last row. Accents do not matter: `letak` finds *leták*.
+
+## The Share cluster
+
+Top right, one island:
+
+- **Faces** of the people on the project, and next to them **one word** for the save state: *Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*. A write that failed and is not queued shows *Not saved* with one action, **Retry**. It is a word, not a control.
+- The **Edit · Preview · Present** switch. People who can only look see *Viewing* instead of Edit.
+- **Share…** — the Share sheet. **Invite** is the primary button, **Copy link** sits in the link row, and a local project's **Move to cloud…** lives inside it. See [Share links](/docs/share-links).
+- An **Exports** icon with a progress ring appears once any export exists.
+
+## Panels
+
+Panels float over the canvas. <kbd>⌘\\</kbd> hides them all; *Panels hidden. Press ⌘\\ to bring them back.*
+
+- **Left panel** — three tabs: **Canvases · Layers · Assets**. Your project's **Design system** is pinned above the canvases, and **Trash** is the last row of Canvases. Things you remove are *moved to the trash*, not deleted; only a project owner clears it out.
+- **AI chat panel** (right) — a normal conversation. <kbd>⌘/</kbd> is **Ask AI** with your selection attached. AI's changes show live in Preview; one AI run is one undo step.
+- **Comments** (right, <kbd>⇧⌘M</kbd>) — filters Open · Mine · Resolved · All.
+- **Inspector** — comes with the selection. Closed, its **› Advanced** fold says "Code, tokens, CSS"; open, it adds the element, the tokens bound and the raw CSS rows. There is no separate "words" setting any more: the frame speaks designer, the fold is the code. Panels remember which of their **› Advanced** folds you opened.
+
+## Toolbars
+
+The bottom **toolbar** changes with the mode:
+
+- **Edit** — tools that make things inside artboards: Select <kbd>V</kbd> · Hand <kbd>H</kbd> · Frame <kbd>F</kbd> · Shape <kbd>R</kbd> · Pen <kbd>P</kbd> · Text <kbd>T</kbd> · Image <kbd>I</kbd> · Component <kbd>⇧I</kbd> · More.
+- **Preview** — annotation tools only: Hand · Sticky <kbd>N</kbd> · Comment <kbd>C</kbd> · Marker <kbd>M</kbd> · Arrow <kbd>A</kbd> · Shape · Text · Stickers <kbd>E</kbd> · Section <kbd>S</kbd>. The design is live, not editable. Pressing an annotation key in Edit switches to Preview with that tool; <kbd>esc</kbd> steps back.
+
+<kbd>?</kbd> opens the sheet with every shortcut once. If single keys get in the way of typing in another app, **Settings › General › Keyboard** turns them off.
+
+## Version history and undo
+
+**Version history** (<kbd>⌥⌘H</kbd>) lists saved versions of the project — who made each one and when — with a preview and **Restore**. <kbd>⌘Z</kbd> and <kbd>⇧⌘Z</kbd> undo and redo, AI's changes included; **Menu › Edit › Undo history…** lists your steps and AI's.
+
+## Diagnostics
+
+**Menu › Diagnostics** is a submenu for when something is actually wrong, never its own window. It shows a status word for **Sync**, **Server** and **AI setup**, and holds **Logs**, **Reload canvas** (<kbd>⌘R</kbd>) and **Check AI setup again**. Its **Advanced** part holds the address, the process, the project folder, **Resync now** and **Download all**. **Report a bug…** lives in Help.
+
+## Settings
+
+**Menu › Settings…** (<kbd>⌘,</kbd>) has three tabs:
+
+- **General** — your account (every account on this Mac; each project tab is bound to one), Theme (Light · Dark · Auto), canvas and view switches, Keyboard, search in pictures, panel layout.
+- **Connections** — Maude Cloud, a self-hosted [hub](/docs/hub), GitHub.
+- **Advanced** — the local server port (display only), Decision memory, **Check for updates**.
+
+## Callouts and toasts
+
+Maude does not stack bars across the window. A state that needs you — offline, a sign-in that expired, a canvas that cannot be drawn right now — shows as a **callout** or a toast with one action at most, and it says what happened, what is safe, and one verb. When your work is safe offline it says so: *Offline — kept on this Mac*.

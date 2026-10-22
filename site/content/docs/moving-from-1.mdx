@@ -1,0 +1,37 @@
+---
+title: Coming from Maude 1
+description: Where the status bar, the menubar, View → History, the Assistant and the rest of Maude 1's chrome went in Maude 2.
+---
+
+Maude 2 has one menu, one search, one Share cluster and one toolbar per mode. Nothing was taken away without a new home — this page lists where each Maude 1 control moved, so you can find it by the old name. The rest of the documentation uses only the new words.
+
+<Callout type="info" title="Files and versions">
+A project saved by Maude 2 carries `formatVersion: 2`; Maude 1.x opens it read-only with *Update Maude to edit*. `maude migrate v2` upgrades a Maude 1 project's files, with a dry run first and a way back.
+</Callout>
+
+## Where it went
+
+| In Maude 1 | In Maude 2 |
+| ---------- | ---------- |
+| **Status bar** — the changes chip, sync and server dots | The Share cluster shows **one word** for the save state (*Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*). Details live in **Menu › Diagnostics** (Sync · Server · AI setup). |
+| **Menubar** inside the window, with its IDLE · CANVAS · SYSTEM **mode stamp**, **path bar** and artboard count | The **project pill** (top left) opens **one menu**. The Server status word and the address are in **Menu › Diagnostics**; **Search** (<kbd>⌘K</kbd>) shows where every action lives (*Menu › File › Export…*). The Mac's own menu bar keeps Maude, File, Edit, Window and Help. |
+| **View → History**, the **History tab** and <kbd>⇧⌘G</kbd> | **Version history**, one click at the top level of the menu, or <kbd>⌥⌘H</kbd>. (<kbd>⇧⌘G</kbd> now removes a frame.) |
+| Save a version · Publish · Get latest | Maude saves for you and says *Saved*. Git is still there for people who want it, behind **› Advanced** folds. |
+| **Banners** across the top | **Callouts** and toasts with one action at most, and status words. |
+| **Dock** and the collapsed **rail** | The bottom **toolbar** (Edit and Preview each have their own) and the left panel's tabs **Canvases · Layers · Assets**. <kbd>⌘\\</kbd> hides the panels. |
+| **Sidebar**, **canvas browser**, **file tree** | The **Canvases** panel. |
+| Project switcher at the bottom of the sidebar | **Home** and the project tabs (<kbd>⌘T</kbd> opens Home; <kbd>⌘1</kbd>–<kbd>⌘9</kbd> pick a tab). |
+| **Topbar** Share link, **File → Share link…** | **Share…** in the Share cluster; **Copy link** is in the sheet's link row. |
+| **Command palette** (<kbd>⌘K</kbd>) | **Search** (<kbd>⌘K</kbd>) — canvases, actions, AI and every hidden tool. |
+| **Assistant** (<kbd>⇧⌘A</kbd>) | The **AI chat panel**; **Ask AI** is <kbd>⌘/</kbd>. (<kbd>⇧⌘A</kbd> selects all annotations.) |
+| **Browse tool** | **Preview** mode — Hand, then click to use the design. |
+| **Inspector words** — the Designer / Advanced switch in Settings | Gone. The Inspector always speaks designer; its **› Advanced** fold is the raw editor (Element · Used in · Tokens bound · CSS). |
+| Export dialog <kbd>⌘E</kbd> | One **Export sheet**, <kbd>⇧⌘E</kbd>. <kbd>⌘E</kbd> is unbound. |
+| <kbd>Cmd</kbd>+click to scope an edit | <kbd>V</kbd> (Select), then click. |
+| The icon menu | **Menu** — the project pill's menu. |
+
+## Keys that moved
+
+Pen <kbd>B</kbd> is now **Marker** <kbd>M</kbd> (<kbd>P</kbd> is Edit's Pen); Rect <kbd>R</kbd> is **Shape** <kbd>R</kbd>; Section <kbd>⇧S</kbd> is <kbd>S</kbd>; Actual size <kbd>⌘1</kbd> is <kbd>⇧0</kbd> (<kbd>⌘1</kbd>–<kbd>⌘9</kbd> pick a tab, as in every browser); Search canvases <kbd>⌘/</kbd> is <kbd>/</kbd>. Press <kbd>?</kbd> in Maude for the full sheet — each key appears once.
+
+New to Maude instead? Start at [Getting started](/docs/getting-started), then [Around the window](/docs/desktop/window).
