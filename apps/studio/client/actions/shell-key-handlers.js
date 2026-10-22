@@ -296,6 +296,10 @@ export const SHELL_KEY_HANDLERS = {
       if (s.selected != null) {
         e.preventDefault();
         s.removeClip?.({ stableId: s.selected });
+        // The press was the clip's. The video artboard the timeline hangs from is selected too, and falling
+        // through trashed it as well (or, on its only artboard, refused with "A canvas keeps at least one
+        // artboard" over the clip's own removal) — P8-B2.
+        return;
       }
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
