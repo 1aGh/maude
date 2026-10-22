@@ -52,7 +52,14 @@ export function zoomOf(el) {
 }
 
 export const isFromFigma = (el) => el?.attrs?.['data-source'] === 'figma';
-export const fileNameOf = (src) => String(src).split('/').pop() || '';
+/** The file's name — never the tail of an inlined picture (`data:image/png;base64,…2Q==` is not a name): "Photo". */
+export const fileNameOf = (src) =>
+  /^(?:data|blob):/i.test(String(src ?? ''))
+    ? 'Photo'
+    : String(src ?? '')
+        .split(/[?#]/)[0]
+        .split('/')
+        .pop() || 'Photo';
 
 const refOf = (el) => (Array.isArray(el?.refs) ? el.refs[0] : null);
 

@@ -137,8 +137,9 @@ describe('which artboards get the section', () => {
     expect(sel.value).toBe('');
   });
 
-  test('the foot says never exported and carries the date', async () => {
-    const host = await frame(STORY());
+  test('the foot (a chosen platform only) says never exported and carries the date; None has no foot', async () => {
+    expect(q(await frame(STORY()), 'insp-safe-zones-foot')).toBeNull();
+    const host = await frame(STORY({ 'data-dc-safe-zones': 'instagram-story' }));
     expect(q(host, 'insp-safe-zones-foot')?.textContent).toBe(
       'Shown on the canvas only — never exported. Zones as each platform publishes them, checked Oct 2026.'
     );

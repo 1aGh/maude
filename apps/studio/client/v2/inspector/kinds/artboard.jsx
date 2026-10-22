@@ -5,7 +5,7 @@
 //              (artboard-video.jsx), paper (artboard-print.jsx, S7.23) — S2.8's one body for all four is gone;
 //              every knob it had lives in one of those four or under Advanced
 //   Fill       Background (a token, from the system)
-//   Layout     Content (Page flow · Top to bottom · Left to right · Grid) · Padding · Gap
+//   Layout     Content (Top to bottom · Stacked · Left to right · Grid) · Padding · Gap
 //   Export     the default presets (S2.5's slot; S8 fills it)
 //   Advanced   Theme (DS default · Follow chrome · Light · Dark) — see `artboard-advanced.jsx`
 //
@@ -41,6 +41,7 @@ function ArtboardFillRow({ el, ctx }) {
         label="Artboard background"
         value={value}
         colors={fam.color}
+        vals={fam.vals}
         allowNone
         noneLabel="None"
         disabled={!f.id}
@@ -96,10 +97,42 @@ function ArtboardLayoutRows({ el, ctx }) {
 
 const ARTBOARD = ['artboard'];
 
+const kindOf = (selection) => {
+  const el = Array.isArray(selection) ? selection[0] : selection;
+  return el?.attrs?.['data-dc-kind'] || 'digital';
+};
+
+/**
+ * V2-8.5 C2 (08 ak-*; 07 ve-select) — rows by kind, not one body for every board. A background belongs to a web page
+ * and a fixed size; a print board's colour is the paper's and a video's is its footage. Layout (Content · Padding ·
+ * Gap) is a web page's: a fixed size places things anywhere, a print board has its guides, a video its
+ * timeline.
+ */
+export const hasBackground = (kind) => kind === 'web' || kind === 'digital';
+export const hasPageLayout = (kind) => kind === 'web';
+
 /** The artboard's slot entries, section by section (S2.8). Exported so a test can seat them in a clean registry. */
 export const ARTBOARD_SLOTS = Object.freeze([
-  ['fill', { id: 'fill.artboard', order: 10, kinds: ARTBOARD, Body: ArtboardFillRow }],
-  ['layout', { id: 'layout.artboard', order: 10, kinds: ARTBOARD, Body: ArtboardLayoutRows }],
+  [
+    'fill',
+    {
+      id: 'fill.artboard',
+      order: 10,
+      kinds: ARTBOARD,
+      when: ({ selection }) => hasBackground(kindOf(selection)),
+      Body: ArtboardFillRow,
+    },
+  ],
+  [
+    'layout',
+    {
+      id: 'layout.artboard',
+      order: 10,
+      kinds: ARTBOARD,
+      when: ({ selection }) => hasPageLayout(kindOf(selection)),
+      Body: ArtboardLayoutRows,
+    },
+  ],
 ]);
 
 /** @returns {() => void} take the artboard's sections back out of the registry */

@@ -16,7 +16,7 @@
 // agent's selectors keep finding them. Can view has no export at all: the section is not drawn for that role
 // (the server refuses the render anyway — hidden is not refused, the routes still check).
 
-import { Minus } from 'lucide-react';
+import { Download, Minus } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Select } from '../../inspector-controls.jsx';
 import { shellToast } from '../../shell/util.js';
@@ -294,6 +294,7 @@ export function ExportSectionBody({ el, selection, kind, ctx }) {
           disabled={busy}
           onClick={run}
         >
+          <Download size={14} strokeWidth={1.75} aria-hidden="true" />
           {exportWord(shown.length)}
         </button>
       ) : null}

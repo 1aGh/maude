@@ -3,11 +3,13 @@
  * no hex, weights stop at --w-semibold, mono only inside Advanced (CONTRACT §5). */
 
 @layer shell {
+  /* V2-8.5 C2 — the card (14 Editing `.k-insp`): 264 px, hugs its content, 2 px between rows. The panel's own
+     padding (`.st-rp-body`) is the island padding; the frame adds none. */
   .insp {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3) var(--space-1);
+    gap: 2px;
+    padding: 0;
     color: var(--fg-0);
     font-family: var(--font-body);
   }
@@ -15,9 +17,14 @@
   /* ── header: crumbs, name + kind chip, "Uses <system>" ── */
   .insp-crumbs {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 2px;
+    height: 24px;
+    margin: -2px 0 2px;
+    padding: 0 var(--space-1);
+    overflow: hidden;
+    white-space: nowrap;
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
@@ -28,16 +35,20 @@
   }
   .insp-crumb-ch {
     display: inline-grid;
-    color: var(--fg-2);
+    flex: none;
+    color: var(--fg-3);
   }
   .insp-crumb {
+    min-width: 0;
     max-width: 14ch;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .insp-crumb[data-last="true"] {
-    color: var(--fg-1);
+    flex: none;
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
   }
   /* S2.1 — a rung above the selection selects that level */
   .insp-crumb--btn {
@@ -66,8 +77,10 @@
     align-items: center;
     gap: var(--space-2);
     min-width: 0;
+    padding: 0 var(--space-1) var(--space-2);
   }
   .insp-title {
+    flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -76,36 +89,47 @@
     font-weight: var(--w-semibold);
     color: var(--fg-0);
   }
-  .insp-chip {
+  /* the kind pill sits on the right (kit `.chip`: 22 px, bg-3) */
+  .insp-kind {
     flex: none;
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-    background: var(--bg-3);
-    font-size: var(--type-xs);
-    color: var(--fg-1);
+    margin-left: auto;
   }
   .insp-uses {
-    margin: 0;
+    margin: 0 0 var(--space-1);
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
-  /* S10.13 — "Uses <design system>" is a door to that system's canvas (11 · pn-ds) */
+  /* S10.13 — "Uses <design system>" is a door to that system's canvas (11 · pn-ds); 14 `.ed-uses`: a pill,
+     the system's glyph in a round bg-2 well, the name, a chevron */
   .insp-uses-link {
     appearance: none;
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     width: 100%;
-    padding: var(--space-1) var(--space-2);
+    height: 28px;
+    padding: 0 var(--space-2) 0 3px;
     border: 0;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-pill);
     background: var(--accent-muted);
     color: var(--accent-text);
     font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
     text-align: left;
+    white-space: nowrap;
     cursor: pointer;
   }
-  .insp-uses-link > span {
+  .insp-uses-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+  }
+  .insp-uses-t {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -127,25 +151,36 @@
   .insp-sec {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    padding-top: var(--space-2);
+    gap: 2px;
+    padding: 2px 0;
     box-shadow: inset 0 0.5px 0 var(--border-default);
   }
   .insp-sec-t {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    height: 28px;
     margin: 0;
+    padding: 0 var(--space-1);
     font-size: var(--type-xs);
     font-weight: var(--w-semibold);
     color: var(--fg-2);
+  }
+  .insp-sec-t[hidden] {
+    display: none;
   }
   .insp-sec-name {
     cursor: default;
   }
   .insp-sec-a {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
     font-weight: var(--w-regular);
     color: var(--fg-2);
+  }
+  .insp-sec-a + .insp-add {
+    margin-left: 0;
   }
   .insp-add {
     appearance: none;
@@ -352,12 +387,60 @@
     justify-content: flex-end;
   }
 
-  /* the island's title (a lone Inspector has no tab strip to carry it) */
-  .st-rp-title {
-    font-size: var(--type-xs);
-    font-weight: var(--w-semibold);
-    color: var(--fg-2);
-    padding: 0 var(--space-2);
+  /* V2-8.5 C2 — the Inspector is a card per board (14 `.k-insp`): the island hugs its rows (the slot's frame
+     is full height; the card is not) and scrolls only past the window; the AI chat island under it does not
+     stretch it either. */
+  .st-body--float .st-dockslot-inner:has(> .st-rpanel--insp),
+  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:has(> .st-rpanel--insp) {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  .st-rpanel--insp > .st-rp-body {
+    flex: 0 1 auto;
+    min-height: 0;
+    gap: 0;
+    padding: var(--space-3);
+  }
+  /* V2-8.5 C2 (09 · ex-inspector) — the Export rows in the card: one row per size is `1fr 1fr auto` (scale, format, −),
+     and the one-click button is the card's width, centred, with the download glyph. */
+  .insp .insp-export-size {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: var(--space-1);
+    padding: 0 var(--space-1);
+  }
+  .insp .insp-export-size .st-cp-nsel {
+    width: 100%;
+  }
+  .insp .insp-export-go.btn {
+    align-self: stretch;
+    justify-content: center;
+    gap: var(--space-2);
+    width: calc(100% - var(--space-2));
+    margin: var(--space-1) var(--space-1) 0;
+  }
+  .insp .insp-export-line {
+    min-height: 28px;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .insp .insp-x {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* the one place a title strip survives: a photo is an Image AND a Photo card (a seg, no tabs) */
+  .st-rp-views {
+    flex: none;
+    display: flex;
+    padding: var(--space-3) var(--space-3) 0;
+  }
+  .st-rp-views .seg {
+    width: 100%;
+  }
+  .st-rp-views .k-seg-b {
+    flex: 1;
+    justify-content: center;
   }
 
   /* ── S2.18 view mode (ed-edge-tereza, ed-edge-ai): someone else holds the selection ── */

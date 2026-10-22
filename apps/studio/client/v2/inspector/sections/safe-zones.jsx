@@ -98,7 +98,8 @@ export function SafeZonesBody({ el, ctx }) {
       ) : null}
       {said ? <Quiet testid="insp-safe-zones-said">{said}</Quiet> : null}
       {value ? <Quiet testid="insp-safe-zones-note">{safeZonePreset(value)?.note}</Quiet> : null}
-      <Quiet testid="insp-safe-zones-foot">{SAFE_ZONES_FOOT}</Quiet>
+      {/* V2-8.5 C2 (copy · ak-social): the platforms' footnote belongs to a chosen platform, not to "None" */}
+      {value ? <Quiet testid="insp-safe-zones-foot">{SAFE_ZONES_FOOT}</Quiet> : null}
     </>
   );
 }

@@ -68,6 +68,7 @@ const click = async (el: Element | null, what = 'element') => {
   });
   await settle();
 };
+const openMenu = (btn: Element | null) => click(btn, 'menu button');
 const pick = async (el: Element | null, value: string) => {
   const e = must(el, 'select') as HTMLSelectElement;
   await act(async () => {
@@ -190,17 +191,23 @@ describe('Web page (ak-web-hug, ak-web-widths)', () => {
 
   test('Add a width offers Tablet and Mobile in one go, then each width', async () => {
     const host = await frame(WEB);
-    const sel = q(host, 'insp-ab-add-width') as HTMLSelectElement;
-    expect([...sel.options].map((o) => o.textContent)).toEqual([
-      'Add a width…',
-      'Tablet and Mobile',
-      'Laptop · 1280',
-      'Tablet · 834',
-      'Mobile · 390',
-    ]);
+    // V2-8.5 C2 — a small button that opens a menu (08 ak-web-widths), not a native select
+    const btn = q(host, 'insp-ab-add-width') as HTMLElement;
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.textContent).toBe('Add a width');
+    await openMenu(btn);
+    expect(
+      [...host.querySelectorAll('[data-testid="insp-ab-add-width-menu"] [role="menuitem"]')].map(
+        (o) => o.textContent
+      )
+    ).toEqual(['Tablet and Mobile', 'Laptop · 1280', 'Tablet · 834', 'Mobile · 390']);
     const mobile = await frame(board('mobile', 'web', 390, 2185));
-    const m = q(mobile, 'insp-ab-add-width') as HTMLSelectElement;
-    expect([...m.options].map((o) => o.textContent)).not.toContain('Tablet and Mobile');
+    await openMenu(q(mobile, 'insp-ab-add-width'));
+    expect(
+      [...mobile.querySelectorAll('[data-testid="insp-ab-add-width-menu"] [role="menuitem"]')].map(
+        (o) => o.textContent
+      )
+    ).not.toContain('Tablet and Mobile');
   });
 
   test('Add a width asks the open canvas (one request) and files the toast it will owe', async () => {
@@ -209,7 +216,8 @@ describe('Web page (ak-web-hug, ak-web-widths)', () => {
     );
     resetAddedWidths();
     const host = await frame(WEB);
-    await pick(q(host, 'insp-ab-add-width'), 'tablet+mobile');
+    await openMenu(q(host, 'insp-ab-add-width'));
+    await click(q(host, 'insp-ab-add-width-tablet+mobile'));
     expect(calls).toEqual([
       [
         'run',
@@ -245,7 +253,7 @@ describe('Fixed size (ak-social)', () => {
   test('chip, then Size (a catalogue preset) and the exact pixels; no Height mode, no Add a width', async () => {
     const host = await frame(STORY);
     expect(q(host, 'inspector-kind')?.textContent).toBe('Fixed size');
-    expect(rowsOf(host)).toEqual(['ab-preset = Size', 'ab-size = Size']);
+    expect(rowsOf(host)).toEqual(['ab-preset = Size', 'ab-size = ']);
     expect(shown(host)).toBe('Story 9:16 (still)');
     const value = (id: string) =>
       (must(q(host, id)?.querySelector('input') ?? null, id) as HTMLInputElement).value;

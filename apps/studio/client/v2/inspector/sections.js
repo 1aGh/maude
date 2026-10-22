@@ -118,6 +118,8 @@ export const SECTIONS = Object.freeze(
       n: 22,
       id: 'safe-zones',
       title: 'Safe zones',
+      // 08 ak-social: two plain rows ("Safe zones", "Show on canvas") under the size — no heading that repeats the row
+      headless: true,
       explain:
         'Where a platform’s own interface covers the artboard. Drawn on the canvas for you; never exported.',
     },
@@ -171,7 +173,25 @@ export const sectionById = (id) => BY_ID.get(id);
  * The sections in the order a kind draws them. An artboard puts Fill before Layout (14 Editing, ed-ab-select:
  * Artboard, Fill, Layout, Export); every other kind keeps the table's order.
  */
+/**
+ * V2-8.5 C2 (14 Editing R5) — what each kind draws, in the order its board draws it. The ten-section list is the
+ * Button's (`ed-inspector`); every other kind opens on its own thing: a text on its Type (style first), a picture on
+ * Image and Adjust, a shape on Shape · Corners · Fill · Border · Effects, an instance on Component · Content (blocks,
+ * no sections), several boards on the one list that fits them all. A kind not named here keeps the table.
+ * Position and Size stay last for a text and a picture: the board draws no geometry for them, but a number that sets
+ * where it sits must stay one click from the inspector (Advanced holds the CSS, not the numbers).
+ */
+export const KIND_SECTIONS = Object.freeze({
+  text: ['type', 'fill', 'position', 'size', 'interaction', 'export'],
+  shape: ['size', 'corners', 'fill', 'border', 'effects', 'position', 'interaction', 'export'],
+  image: ['image', 'adjust', 'position', 'size', 'interaction', 'export'],
+  instance: [],
+  'multi-artboard': ['size', 'fill', 'safe-zones', 'export'],
+});
+
 export function sectionsFor(kindId) {
+  const named = KIND_SECTIONS[kindId];
+  if (named) return named.map((id) => BY_ID.get(id));
   if (kindId !== 'artboard') return SECTIONS;
   const rest = SECTIONS.filter((s) => s.id !== 'fill');
   const at = rest.findIndex((s) => s.id === 'layout');

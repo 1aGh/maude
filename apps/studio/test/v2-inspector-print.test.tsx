@@ -240,7 +240,9 @@ describe('C25 — Print guides: the artboard’s switch wins, View is the defaul
     viewPrintGuides = true;
     const on = await frame(SHEET());
     expect(guides(on).checked).toBe(true);
-    expect(text(on, 'insp-pr-guides-note')).toBe('Follows View › Advanced › Print guides.');
+    expect(text(on, 'insp-pr-guides-note')).toBe(
+      'Follows Menu › View › Advanced › Print guides.'
+    );
     viewPrintGuides = false;
     const off = await frame(SHEET());
     expect(guides(off).checked).toBe(false);

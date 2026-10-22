@@ -53,7 +53,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
       data-n={def.n}
       aria-label={title}
     >
-      <p className="insp-sec-t">
+      <p className="insp-sec-t" hidden={def.headless || undefined}>
         <span className="insp-sec-name" title={def.explain}>
           {title}
         </span>
@@ -207,7 +207,7 @@ export function InspectorFrame({
         <strong className="insp-title" data-testid="inspector-title">
           {titleOf(selected, layersTree)}
         </strong>
-        <span className="insp-chip" data-testid="inspector-kind">
+        <span className="chip insp-kind" data-testid="inspector-kind">
           {chip}
         </span>
       </div>

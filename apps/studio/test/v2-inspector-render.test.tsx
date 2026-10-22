@@ -469,7 +469,7 @@ describe('inside the Inspector island', () => {
     return mount(<InspectorPanel {...(props as never)} />);
   }
 
-  test('one body: the frame. No Inspect / CSS tabs, no vocabulary switch; Close stays', async () => {
+  test('one body: the frame. No Inspect / CSS tabs, no vocabulary switch; no ✕', async () => {
     let closed = 0;
     const host = await panel({
       onClose: () => {
@@ -483,8 +483,20 @@ describe('inside the Inspector island', () => {
     expect(tabs).not.toContain('CSS');
     expect(tabs).not.toContain('Inspect');
     gone(host.querySelector('[data-tour="cp-mode"]'));
-    await click(host.querySelector('[aria-label="Close inspector"]'));
-    expect(closed).toBe(1);
+    // V2-8.5 C2 — the card has no ✕ and no title row (14 `.k-insp`): the corner icon is the way back
+    gone(host.querySelector('[aria-label="Close inspector"]'));
+    gone(host.querySelector('.st-rp-title'));
+    expect(closed).toBe(0);
+  });
+
+  test('the card: no tab strip when Layers is its own panel; the aside is marked as the inspector card', async () => {
+    const host = await panel({ hideLayersTab: true });
+    gone(host.querySelector('.st-rp-tabs'));
+    gone(host.querySelector('.st-rp-views'));
+    expect(host.querySelector('aside.st-rpanel--insp')).not.toBeNull();
+    // the standalone Layers panel is not the card
+    const layers = await panel({ layersOnly: true, tab: 'layers', testId: 'layers-panel' });
+    expect(layers.querySelector('aside.st-rpanel--insp')).toBeNull();
   });
 
   test('the old CSS tab id opens the same frame', async () => {
@@ -492,13 +504,57 @@ describe('inside the Inspector island', () => {
     expect(q(host, 'inspector-frame')).not.toBeNull();
   });
 
-  test('a photo selection adds a Photo tab beside the frame; nothing else changes', async () => {
+  test('a photo selection adds a Photo view beside the frame (a seg, not a tab strip)', async () => {
     const host = await panel({
+      hideLayersTab: true,
+      tab: 'css',
       selected: { ...BUTTON, tag: 'img', photoAsset: 'assets/0123abcd.png' },
     });
-    const tabs = [...host.querySelectorAll('.st-rp-tab')].map((b) => b.textContent?.trim());
-    expect(tabs).toContain('Photo');
-    expect(tabs).toContain('Inspector');
+    gone(host.querySelector('.st-rp-tabs'));
+    const views = [...host.querySelectorAll('.st-rp-views .k-seg-b')].map((b) =>
+      b.textContent?.trim()
+    );
+    expect(views).toEqual(['Image', 'Photo']);
+  });
+
+  test('a placed photo opens on its Photo card; picking Image holds for that selection', async () => {
+    const sel = { ...BUTTON, tag: 'img', photoAsset: 'assets/0123abcd.png', artboardId: 'desktop' };
+    const host = await panel({ hideLayersTab: true, tab: 'css', selected: sel });
+    const pressed = () =>
+      [...host.querySelectorAll('.st-rp-views .k-seg-b')]
+        .filter((b) => b.getAttribute('aria-pressed') === 'true')
+        .map((b) => b.textContent?.trim());
+    expect(pressed()).toEqual(['Photo']);
+    await click(q(host, 'inspector-view-css'));
+    expect(pressed()).toEqual(['Image']);
+  });
+
+  test('a whole artboard is never a photo, however many pictures it holds (08 · ak-web-hug)', async () => {
+    const host = await panel({
+      hideLayersTab: true,
+      tab: 'css',
+      selected: {
+        id: null,
+        tag: 'div',
+        selector: '[data-dc-screen="nabor"]',
+        artboardId: 'nabor',
+        attrs: { 'data-dc-kind': 'web' },
+        html: '<img src="assets/0123abcd.png">',
+      },
+    });
+    gone(host.querySelector('.st-rp-views'));
+  });
+
+  test('a photo does not make a wrapper open on Photo: only the picture itself does', async () => {
+    const host = await panel({
+      hideLayersTab: true,
+      tab: 'css',
+      selected: { ...BUTTON, tag: 'div', html: '<img src="assets/0123abcd.png">' },
+    });
+    const on = [...host.querySelectorAll('.st-rp-views .k-seg-b')]
+      .filter((b) => b.getAttribute('aria-pressed') === 'true')
+      .map((b) => b.textContent?.trim());
+    expect(on).toEqual(['Frame']);
   });
 
   test('the standalone Layers panel is untouched', async () => {

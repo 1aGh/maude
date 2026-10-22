@@ -2911,6 +2911,8 @@ function ShellTree() {
     designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
   });
   const floating = !pinned;
+  // V2-8.5 C2 — the Inspector is a 264 px card (14 `.k-insp`), not the user's panel width
+  const rpW = rightActive === 'inspector' ? 264 : rpSize.w;
   // Opening a panel while ⌘\ hides them brings them all back (the open panel must be seen). V2-4.4b — the AI
   // chat is its own island: its opening un-hides the panels like any other panel's does. P8 C5 — Preview's fold
   // is the mode's: an opening does not end it (`panelOpenDecision`); a right panel opened in it (Inspect on a
@@ -2936,7 +2938,7 @@ function ShellTree() {
     bodyRef,
     iframesRef,
     presenting: presentMode,
-    layoutKey: `${pinned}|${panelsHidden}|${rightHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpSize.w}`,
+    layoutKey: `${pinned}|${panelsHidden}|${rightHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpW}`,
   });
   // V2-4.5c — the canvas toolbar's panels (Stickers, Assets) are the shell's: `toolbar-rect` +
   // `tool-panel-open`, active canvas only.
@@ -3025,7 +3027,7 @@ function ShellTree() {
             'st-body' + (floating ? ' st-body--float' : '') + (dragSide ? ' is-resizing' : '')
           }
           ref={bodyRef}
-          style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpSize.w}px` }}
+          style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpW}px` }}
         >
           <ShellProjectPill />
           {/* V2-4.7b — Menu › Diagnostics: Logs · Server · AI setup · Sync (today's Sync panel, whole). */}
@@ -3120,7 +3122,7 @@ function ShellTree() {
           {(rightActive || rightHostsAssistant) && (
             <DockSlot
               side="right"
-              width={rpSize.w}
+              width={rpW}
               open={!!rightActive}
               ids={rightIds}
               activeId={rightActive}

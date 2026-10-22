@@ -29,7 +29,7 @@ const WEIGHTS = [
 ];
 const typeLabel = (token) => systemName(token, 'type');
 
-function ColourRow({ colour, colors, editable, set }) {
+function ColourRow({ colour, colors, vals, editable, set }) {
   return (
     <Row k="Colour" name="type-colour">
       <ColorControl
@@ -38,6 +38,7 @@ function ColourRow({ colour, colors, editable, set }) {
         value={colour.mixed ? null : colour.value}
         mixed={colour.mixed ? colour.values : null}
         colors={colors}
+        vals={vals}
         allowNone
         noneLabel="Inherited"
         disabled={!editable}
@@ -57,6 +58,7 @@ function TextColourBody({ el, ctx }) {
     <ColourRow
       colour={colour}
       colors={fam.color}
+      vals={fam.vals}
       editable={editable}
       set={(patch) => editable && write(typeToCss(patch))}
     />
@@ -119,7 +121,13 @@ export function TypeBody({ el, selection, kind, ctx }) {
         ) : null}
       </Row>
       {kind === 'text' ? null : (
-        <ColourRow colour={colour} colors={fam.color} editable={editable} set={set} />
+        <ColourRow
+          colour={colour}
+          colors={fam.color}
+          vals={fam.vals}
+          editable={editable}
+          set={set}
+        />
       )}
       {!editable ? (
         <Quiet testid="insp-type-locked">
