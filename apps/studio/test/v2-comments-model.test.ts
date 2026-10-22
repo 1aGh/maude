@@ -2,6 +2,7 @@
 // (mention-model.js) and the shell half of the overlay's messages (comment-bridge.js, comment-client.js).
 
 import { describe, expect, test } from 'bun:test';
+import { conversionOf, rememberConversion } from '../client/v2/annotations/annotation-asks.js';
 import { canvasRel, handleCommentBridgeMessage } from '../client/v2/comments/comment-bridge.js';
 import { fetchMentionPeople, postCommentOp } from '../client/v2/comments/comment-client.js';
 import {
@@ -325,6 +326,45 @@ describe('the shell half of the overlay messages', () => {
       { activePath: A, reply: () => {}, fetchImpl: okFetch(calls as never, {}) }
     );
     expect(calls).toEqual([]);
+  });
+
+  test("gate-b-c4c: convert-undo / convert-undoable name a thread too — never another canvas's", async () => {
+    // This session converted a sticky on B into c_on_b (and one on A into c1). Canvas A's code may
+    // neither undo B's conversion nor probe which ids this session converted.
+    rememberConversion('c_on_b', { actionId: 'act_b' });
+    rememberConversion('c1', { actionId: 'act_a' });
+    for (const op of [
+      { op: 'convert-undo', commentId: 'c_on_b' },
+      { op: 'convert-undoable', commentId: 'c_on_b' },
+      { op: 'convert-undo' }, // no id at all
+    ]) {
+      const calls: { url: string }[] = [];
+      const sent: { dgn: string; ok?: boolean }[] = [];
+      await handleCommentBridgeMessage(
+        { dgn: 'comment-op', reqId: 'q11', op },
+        {
+          activePath: A,
+          ownsComment: (id: string) => id === 'c1',
+          reply: (m: never) => sent.push(m),
+          fetchImpl: okFetch(calls as never, { ok: true }),
+        }
+      );
+      expect({ op, calls }).toEqual({ op, calls: [] });
+      expect(sent.find((m) => m.dgn === 'comment-op-result')?.ok).toBe(false);
+    }
+    expect(conversionOf('c_on_b')).toEqual({ actionId: 'act_b' });
+    // control: the active canvas's own conversion is still undoable
+    const sent: { dgn: string; ok?: boolean }[] = [];
+    await handleCommentBridgeMessage(
+      { dgn: 'comment-op', reqId: 'q12', op: { op: 'convert-undoable', commentId: 'c1' } },
+      {
+        activePath: A,
+        ownsComment: (id: string) => id === 'c1',
+        reply: (m: never) => sent.push(m),
+        fetchImpl: okFetch([], { ok: true }),
+      }
+    );
+    expect(sent.find((m) => m.dgn === 'comment-op-result')?.ok).toBe(true);
   });
 
   test('an add is pinned to the OPEN canvas whatever file the iframe names', async () => {
