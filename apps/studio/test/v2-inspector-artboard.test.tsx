@@ -250,7 +250,7 @@ describe('what an artboard shows', () => {
     expect(q(host, 'insp-row-ab-add-width')).toBeNull(); // paper is picked from the ladder, not by a px width
   });
 
-  // V2-8.5 C2 (08 ak-*, 07 ve-select) — rows by kind: "Page flow" is a web page's, a background is a web page's
+  // V2-8.5 C2 (08 ak-*, 07 ve-select) — rows by kind: the page's Layout is a web page's, a background is a web page's
   // or a fixed size's, never a print board's or a video's
   test('a web page has Fill and Layout; a fixed size has Fill and no Layout', async () => {
     const web = await frame();
@@ -259,7 +259,7 @@ describe('what an artboard shows', () => {
     const fixed = await frame({ attrs: { 'data-dc-kind': 'digital' } });
     expect(q(fixed, 'insp-sec-fill')).not.toBeNull();
     expect(q(fixed, 'insp-sec-layout')).toBeNull();
-    expect(fixed.textContent).not.toContain('Page flow');
+    expect(q(fixed, 'inspector-body-layout')).toBeNull();
   });
 
   test('a print board and a video have neither Fill nor Layout', async () => {
@@ -267,7 +267,7 @@ describe('what an artboard shows', () => {
       const host = await frame({ attrs: { 'data-dc-kind': kind } });
       expect(q(host, 'insp-sec-fill')).toBeNull();
       expect(q(host, 'insp-sec-layout')).toBeNull();
-      expect(host.textContent).not.toContain('Page flow');
+      expect(q(host, 'inspector-body-layout')).toBeNull();
     }
   });
 

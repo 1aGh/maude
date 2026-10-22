@@ -5,7 +5,7 @@
 //              (artboard-video.jsx), paper (artboard-print.jsx, S7.23) — S2.8's one body for all four is gone;
 //              every knob it had lives in one of those four or under Advanced
 //   Fill       Background (a token, from the system)
-//   Layout     Content (Page flow · Top to bottom · Left to right · Grid) · Padding · Gap
+//   Layout     Content (Top to bottom · Stacked · Left to right · Grid) · Padding · Gap
 //   Export     the default presets (S2.5's slot; S8 fills it)
 //   Advanced   Theme (DS default · Follow chrome · Light · Dark) — see `artboard-advanced.jsx`
 //
@@ -105,7 +105,7 @@ const kindOf = (selection) => {
 /**
  * V2-8.5 C2 (08 ak-*; 07 ve-select) — rows by kind, not one body for every board. A background belongs to a web page
  * and a fixed size; a print board's colour is the paper's and a video's is its footage. Layout (Content · Padding ·
- * Gap — "Page flow") is a web page's: a fixed size places things anywhere, a print board has its guides, a video its
+ * Gap) is a web page's: a fixed size places things anywhere, a print board has its guides, a video its
  * timeline.
  */
 export const hasBackground = (kind) => kind === 'web' || kind === 'digital';

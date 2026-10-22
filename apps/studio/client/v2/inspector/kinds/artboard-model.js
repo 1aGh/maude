@@ -24,8 +24,9 @@ export const KIND_OPTIONS = Object.freeze([
 
 /** Layout › Content: how the artboard lays out what is inside it. */
 export const LAYOUT_OPTIONS = Object.freeze([
-  { value: '', label: 'Page flow' },
-  { value: 'flex-col', label: 'Top to bottom' },
+  // V2-8.5 C2 (08 ak-web-hug · 14 ed-ab-select): the board's word is "Top to bottom" — what a page does by default
+  { value: '', label: 'Top to bottom' },
+  { value: 'flex-col', label: 'Stacked' },
   { value: 'flex-row', label: 'Left to right' },
   { value: 'grid', label: 'Grid' },
 ]);

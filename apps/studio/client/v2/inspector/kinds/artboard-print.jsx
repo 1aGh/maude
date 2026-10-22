@@ -30,6 +30,10 @@ import { registerSlot } from '../slots.js';
 import { artboardFacts, presetOptions } from './artboard-model.js';
 
 export const PRINT_COLOUR_WORDS = 'RGB — the print shop converts to CMYK.';
+
+// V2-8.5 C2 (08 ak-print-letak) — a length in millimetres reads "3 mm" (value, then unit), as the board draws it
+const mmWord = (n) => `${Number(n)} mm`;
+const mmParse = (raw) => Number.parseFloat(String(raw).replace(/mm/i, '').trim());
 const CUSTOM = '';
 
 const first = (selection) => (Array.isArray(selection) ? selection[0] : selection);
@@ -176,9 +180,10 @@ export function PrintRows({ el, ctx }) {
           min={0}
           step={0.5}
           ariaLabel="Bleed, millimeters"
-          lead="mm"
+          format={mmWord}
+          parse={mmParse}
           steppers={false}
-          className="insp-nf"
+          className="insp-nf insp-nf--one"
           onCommit={(n) => send({ bleedMm: n })}
         />
       </Row>
@@ -188,9 +193,10 @@ export function PrintRows({ el, ctx }) {
           min={0}
           step={0.5}
           ariaLabel="Safe margin, millimeters"
-          lead="mm"
+          format={mmWord}
+          parse={mmParse}
           steppers={false}
-          className="insp-nf"
+          className="insp-nf insp-nf--one"
           onCommit={(n) => send({ marginMm: n })}
         />
       </Row>
@@ -206,7 +212,7 @@ export function PrintRows({ el, ctx }) {
       </Row>
       <Quiet testid="insp-pr-guides-note">
         {own === null ? (
-          'Follows View › Advanced › Print guides.'
+          'Follows Menu › View › Advanced › Print guides.'
         ) : (
           <>
             Set for this artboard.{' '}
@@ -222,7 +228,7 @@ export function PrintRows({ el, ctx }) {
         )}
       </Quiet>
       <Row k="Colour" name="pr-colour">
-        <span className="insp-ro" data-testid="insp-pr-colour">
+        <span className="insp-ro insp-ro--note" data-testid="insp-pr-colour">
           {PRINT_COLOUR_WORDS}
         </span>
       </Row>

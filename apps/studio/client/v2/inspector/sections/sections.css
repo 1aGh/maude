@@ -686,6 +686,21 @@
   .insp .insp-pair {
     gap: var(--space-1);
   }
+  /* one field on its row is the wide kit field (`.k-num--one`, 140 px): Bleed "3 mm", Safe margin "5 mm" */
+  .insp .insp-nf--one {
+    width: 140px;
+  }
+  /* a note on the value side of a row (the kit's `InNote`: xs, fg-2, at most 170 px, right-aligned) */
+  .insp-ro--note,
+  .insp-quiet[data-testid="insp-ab-height-note"] {
+    max-width: 170px;
+    margin-left: auto;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    font-variant-numeric: normal;
+    color: var(--fg-2);
+    text-align: right;
+  }
   /* a token / colour chip (`.ed-tok`): accent-muted pill, 26 px; a plain value (not a token) is a bg-3 well */
   .insp-chip {
     min-height: 26px;
