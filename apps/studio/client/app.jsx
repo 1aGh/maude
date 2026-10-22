@@ -247,6 +247,7 @@ import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-
 import { ShellTakes } from './v2/assets/takes-overlay.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
+import { panelOpenDecision } from './v2/shell/panel-layout.js';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
@@ -2896,7 +2897,12 @@ function ShellTree() {
   } = useShellStore();
 
   // V2-4.1 — panel layout (⌘\ hide, View › Advanced pin) and the insets the islands cause.
-  const { hidden: panelsHidden, pinned } = usePanelLayout();
+  const {
+    hidden: panelsHidden,
+    pinned,
+    folded: panelsFolded,
+    userHidden: panelsUserHidden,
+  } = usePanelLayout();
   useHydratePanelLayout();
   // S8.9 — the Export sheet's "From 14:05" while AI is working: the open canvas's last landed change
   const exportLastFinishedAt = useLastFinishedAt({
@@ -2905,25 +2911,32 @@ function ShellTree() {
     designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
   });
   const floating = !pinned;
-  // Opening a panel while the panels are hidden brings them all back (the open panel must be seen).
-  // V2-4.4b — the AI chat is its own island: its opening un-hides the panels like any other panel's does.
+  // Opening a panel while ⌘\ hides them brings them all back (the open panel must be seen). V2-4.4b — the AI
+  // chat is its own island: its opening un-hides the panels like any other panel's does. P8 C5 — Preview's fold
+  // is the mode's: an opening does not end it (`panelOpenDecision`); a right panel opened in it (Inspect on a
+  // ⌘-click, Comments) shows by itself, the Canvases and AI chat panels stay folded.
   const shownRef = useRef({ l: leftActive, r: rightActive, ai: assistantOpen });
+  const [rightInFold, setRightInFold] = useState(false);
   useEffect(() => {
     const prev = shownRef.current;
-    shownRef.current = { l: leftActive, r: rightActive, ai: assistantOpen };
-    if (
-      panelsHidden &&
-      ((leftActive && leftActive !== prev.l) ||
-        (rightActive && rightActive !== prev.r) ||
-        (assistantOpen && !prev.ai))
-    )
-      panelLayout.show();
-  }, [leftActive, rightActive, assistantOpen, panelsHidden]);
+    const next = { l: leftActive, r: rightActive, ai: assistantOpen };
+    shownRef.current = next;
+    const d = panelOpenDecision({
+      prev,
+      next,
+      userHidden: panelsUserHidden,
+      folded: panelsFolded,
+      rightInFold,
+    });
+    if (d.rightInFold !== rightInFold) setRightInFold(d.rightInFold);
+    if (d.show) panelLayout.show();
+  }, [leftActive, rightActive, assistantOpen, panelsUserHidden, panelsFolded, rightInFold]);
+  const rightHidden = panelsHidden && !(rightInFold && !panelsUserHidden);
   useOccludedInsets({
     bodyRef,
     iframesRef,
     presenting: presentMode,
-    layoutKey: `${pinned}|${panelsHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpSize.w}`,
+    layoutKey: `${pinned}|${panelsHidden}|${rightHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpSize.w}`,
   });
   // V2-4.5c — the canvas toolbar's panels (Stickers, Assets) are the shell's: `toolbar-rect` +
   // `tool-panel-open`, active canvas only.
@@ -3088,7 +3101,7 @@ function ShellTree() {
           <div className="main">
             <ShellViewport />
           </div>
-          {(rightActive || (rightHostsAssistant && assistantOpen)) && !panelsHidden && (
+          {(rightActive || (rightHostsAssistant && assistantOpen)) && !rightHidden && (
             <PanelGrip
               label="Resize right panel"
               dir="rtl"
@@ -3115,8 +3128,8 @@ function ShellTree() {
               onFold={() => rightActive && togglePanel(rightActive)}
               labels={dockLabels}
               floating={floating}
-              hidden={panelsHidden}
-              aiShown={rightHostsAssistant && assistantOpen}
+              hidden={rightHidden}
+              aiShown={rightHostsAssistant && assistantOpen && !panelsFolded}
               ai={rightHostsAssistant ? renderAssistant() : null}
             >
               {rightActive && renderPanelBody(rightActive)}

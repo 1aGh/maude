@@ -1,10 +1,16 @@
 // V2-4.1 — the panel-layout store behind ⌘\ (Hide panels / Show panels) and View › Advanced › "Pin
 // panels to the side", plus the key handler that drives it and the registry rebind (T → ⌘\).
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ACTIONS } from '../actions/index.ts';
 import { chord } from '../actions/keys.ts';
 import { SHELL_KEY_HANDLERS } from '../client/actions/shell-key-handlers.js';
-import { createPanelLayout, PANELS_HIDDEN_HINT } from '../client/v2/shell/panel-layout.js';
+import {
+  createPanelLayout,
+  PANELS_HIDDEN_HINT,
+  panelOpenDecision,
+} from '../client/v2/shell/panel-layout.js';
 import { panelLayout } from '../client/v2/shell/use-panel-layout.js';
 
 function rig() {
@@ -95,5 +101,55 @@ describe('⌘\\ in the registry and the shell handler', () => {
     expect(prevented).toBe(1);
     expect(treeToggles).toBe(0);
     panelLayout.show();
+  });
+});
+
+// P8 C5 (04 R4) — Preview's fold holds whatever opens: only leaving Preview or a corner icon ends it.
+describe('panelOpenDecision — a panel opening while the panels are not showing', () => {
+  const none = { l: null, r: null, ai: false };
+  const dec = (a: Parameters<typeof panelOpenDecision>[0]) => panelOpenDecision(a);
+  test('⌘\\ hidden: any opening brings every panel back (unchanged)', () => {
+    expect(
+      dec({ prev: none, next: { ...none, l: 'canvases' }, userHidden: true, folded: false }).show
+    ).toBe(true);
+    expect(
+      dec({ prev: none, next: { ...none, ai: true }, userHidden: true, folded: true }).show
+    ).toBe(true);
+  });
+  test('Preview fold: a canvas open, the Comment tool, a ⌘-click or an AI prompt never unfolds', () => {
+    for (const next of [
+      { ...none, l: 'canvases' },
+      { ...none, r: 'comments' },
+      { ...none, r: 'inspector' },
+      { ...none, ai: true },
+    ])
+      expect(dec({ prev: none, next, userHidden: false, folded: true }).show).toBe(false);
+  });
+  test('Preview fold: a right panel opened DURING the fold shows by itself; one carried in from Edit does not', () => {
+    const inspect = { ...none, r: 'inspector' };
+    expect(dec({ prev: none, next: inspect, userHidden: false, folded: true }).rightInFold).toBe(
+      true
+    );
+    // the Inspector was open in Edit: entering Preview folds it (no change of id → not opened in the fold)
+    expect(dec({ prev: inspect, next: inspect, userHidden: false, folded: true }).rightInFold).toBe(
+      false
+    );
+    // kept while it stays open; closing it or leaving the fold ends it
+    expect(
+      dec({ prev: inspect, next: inspect, userHidden: false, folded: true, rightInFold: true })
+        .rightInFold
+    ).toBe(true);
+    expect(
+      dec({ prev: inspect, next: none, userHidden: false, folded: true, rightInFold: true })
+        .rightInFold
+    ).toBe(false);
+    expect(
+      dec({ prev: inspect, next: inspect, userHidden: false, folded: false, rightInFold: true })
+        .rightInFold
+    ).toBe(false);
+  });
+  test('the shell asks it (app.jsx) instead of unfolding on any opening', () => {
+    const app = readFileSync(join(import.meta.dir, '../client/app.jsx'), 'utf8');
+    expect(app).toContain('panelOpenDecision(');
   });
 });
