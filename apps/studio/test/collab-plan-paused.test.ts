@@ -22,7 +22,18 @@ import { lanesClosedFromProxy } from '../access/request.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { encodeSyncUpdate, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../collab/protocol.ts';
 import { createRoom, type RoomCallbacks, type RoomConn } from '../collab/room.ts';
-import { A_REL, type AclCell, bootAclCell, MEMBER, OWNER, until, VIEWER } from './_acl-cell.ts';
+import {
+  A_REL,
+  type AclCell,
+  asUser,
+  bootAclCell,
+  frameCap,
+  MEMBER,
+  OWNER,
+  until,
+  VIEWER,
+  withFc,
+} from './_acl-cell.ts';
 import { killProc } from './_helpers.ts';
 
 const callbacks: RoomCallbacks = { seed() {}, persistJson() {}, persistBinary() {} };
@@ -152,12 +163,31 @@ describe('booted cell — paused sockets', () => {
     if (cell) await killProc(cell.proc);
   });
 
+  // gate-b-c4 — a canvas-origin socket is opened by a canvas FRAME, so it carries that frame's
+  // capability (`?fc=`, minted under the session's own vouched member — the frame key's subject).
+  // Each identity below is its own member with its own capability for A; the main origin needs none.
+  const sessions = {
+    owner: asUser(OWNER, 'owner@example.com'),
+    paused: asUser(PAUSED_MEMBER, 'paused@example.com'),
+    viewer: asUser(VIEWER, 'viewer@example.com'),
+  };
+  async function openAs(origin: 'canvas' | 'main', who: keyof typeof sessions) {
+    const headers = sessions[who];
+    const base = origin === 'canvas' ? cell.canvasBase : cell.base;
+    const url = `${base.replace('http', 'ws')}/_ws/collab/${A_SLUG}`;
+    if (origin === 'main') return openSocket(url, headers);
+    return openSocket(withFc(url, await frameCap(cell, headers, A_REL)), headers);
+  }
+
+  test('canvas collab: a socket opened outside a frame (no `fc`) is refused', async () => {
+    const url = `${cell.canvasBase.replace('http', 'ws')}/_ws/collab/${A_SLUG}`;
+    expect(await openSocket(url, sessions.owner)).toBeNull();
+  });
+
   for (const origin of ['canvas', 'main'] as const) {
     test(`${origin} collab: a paused member’s comment never reaches a peer; its presence does`, async () => {
-      const base = origin === 'canvas' ? cell.canvasBase : cell.base;
-      const url = `${base.replace('http', 'ws')}/_ws/collab/${A_SLUG}`;
-      const owner = await openSocket(url, OWNER);
-      const paused = await openSocket(url, PAUSED_MEMBER);
+      const owner = await openAs(origin, 'owner');
+      const paused = await openAs(origin, 'paused');
       expect(owner).not.toBeNull();
       expect(paused).not.toBeNull();
       if (!owner || !paused) return;
@@ -170,7 +200,7 @@ describe('booted cell — paused sockets', () => {
       paused.ws.send(awarenessFrame({ user: { name: 'Pat' } }).frame);
       expect(await until(() => owner.frames.some(isAwareness), 3000)).toBe(true);
       // control: a Can comment viewer on an unpaused project still comments over collab
-      const viewer = await openSocket(url, VIEWER);
+      const viewer = await openAs(origin, 'viewer');
       expect(viewer).not.toBeNull();
       if (!viewer) return;
       await Bun.sleep(300);
