@@ -135,7 +135,7 @@ const CSS_TEXT = `
 .ed-draw-tag {
   position: fixed; pointer-events: none; z-index: 6; padding: 1px 6px; border-radius: 3px;
   background: var(--maude-hud-accent); color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 `;

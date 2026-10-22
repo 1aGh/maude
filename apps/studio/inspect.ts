@@ -544,7 +544,7 @@ const INSPECTOR_SCRIPT = `
 
   var styleEl = document.createElement('style');
   styleEl.textContent = [
-    '.dgn-pin { position: absolute; top: 0; left: 0; z-index: 2147483646; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 999px 999px 999px 4px; background: #facc15; color: #1c1917; font: 600 11px/22px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4); transition: filter 120ms; transform-origin: bottom left; will-change: transform; }',
+    '.dgn-pin { position: absolute; top: 0; left: 0; z-index: 2147483646; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 999px 999px 999px 4px; background: #facc15; color: #1c1917; font: 600 11px/22px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4); transition: filter 120ms; transform-origin: bottom left; will-change: transform; }',
     '.dgn-pin:hover { filter: brightness(1.1); outline: 2px solid rgba(0,0,0,0.3); }',
     '.dgn-pin.resolved { background: #22c55e; color: #052e16; }',
     '.dgn-pin.focused { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 0 2px #fff; outline: 2px solid #fff; }',
@@ -558,7 +558,7 @@ const INSPECTOR_SCRIPT = `
     'html .dc-activity-rim { position: absolute; pointer-events: none; box-sizing: border-box; border: 2.5px solid var(--mdcc-activity, hsl(210 90% 58%)); border-radius: 5px; z-index: 6; opacity: 1; transition: opacity 200ms ease-out; }',
     'html .dc-activity-rim[data-fading="true"] { opacity: 0; }',
     'html .dc-activity-rim::after { content: ""; position: absolute; inset: -1px; border-radius: 6px; box-shadow: 0 0 0 1px var(--mdcc-activity, hsl(210 90% 58%)), 0 0 16px 2px var(--mdcc-activity, hsl(210 90% 58%)); opacity: 0.55; pointer-events: none; will-change: opacity; animation: dc-activity-glow var(--mdcc-activity-scan-ms, 2200ms) ease-in-out infinite; }',
-    'html .dc-activity-badge { position: absolute; top: 4px; right: 4px; z-index: 2; padding: 2px 8px; border-radius: 4px; background: var(--mdcc-activity, hsl(210 90% 58%)); color: #fff; font: 600 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }',
+    'html .dc-activity-badge { position: absolute; top: 4px; right: 4px; z-index: 2; padding: 2px 8px; border-radius: 4px; background: var(--mdcc-activity, hsl(210 90% 58%)); color: #fff; font: 600 11px/1.5 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }',
     /* Phase 13.3 — the AGENT BORDER is the primary "editing" indicator: a clear
        2.5px border in the agent color with a softly pulsing glow (::after,
        opacity-only, compositor). Clipping lives on the wash (not the rim) so the
@@ -597,7 +597,7 @@ const INSPECTOR_SCRIPT = `
        agent edit produced a broken intermediate (build/render error) and the
        canvas is held instead of flashing white. Amber = warn, distinct from the
        blue activity rim. pointer-events:none so it never blocks the canvas. */
-    'html .dc-hmr-holding { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; max-width: 90vw; padding: 6px 12px; border-radius: 6px; background: hsl(38 92% 50% / 0.96); color: #1c1207; font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 10px rgba(0,0,0,0.45); }'
+    'html .dc-hmr-holding { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; max-width: 90vw; padding: 6px 12px; border-radius: 6px; background: hsl(38 92% 50% / 0.96); color: #1c1207; font: 600 12px/1.4 system-ui, -apple-system, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 10px rgba(0,0,0,0.45); }'
   ].join('\\n');
   document.documentElement.appendChild(styleEl);
 

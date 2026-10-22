@@ -14,6 +14,7 @@ import { TimelinePresence } from '../collab/timeline-presence.tsx';
 import { resolveSelectionEl } from '../dom-selection.ts';
 import { isEditableTarget } from '../input-router.tsx';
 import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
+import { useGovernedMode } from '../use-governed-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
@@ -30,6 +31,11 @@ import { CornerDots } from './corner-dots.tsx';
 import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
 import { DropChip } from './drop-chip.tsx';
+import {
+  EditChromeGate,
+  editChromeShown,
+  useDropSelectionOnLeaveEdit,
+} from './edit-chrome-gate.tsx';
 import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { FinderDrop } from './finder-drop.tsx';
 import { KeyboardLayer, useKeyboardModality } from './focus-model.tsx';
@@ -129,9 +135,13 @@ export function EditingLayer() {
   toolRef.current = tool;
   const selRef = useRef(selSet.selected);
   selRef.current = selSet.selected;
-  // the long-page helpers are Edit chrome: Preview, Present and an embedded view show the page, not its minimap
+  // P8 C5 — Edit's object chrome is Edit's only (the what-shows table's `object-tools` cell; an ungoverned canvas
+  // keeps the posture): Preview, Viewing, Present and an embedded view draw the design, not its handles.
   const toolMode = useToolModeOptional();
-  const editChrome = (!toolMode || toolMode.mode === 'edit') && !isEmbedCanvas();
+  const governed = useGovernedMode();
+  const editChrome = editChromeShown(governed, toolMode?.mode ?? null, isEmbedCanvas());
+  // …and leaving Edit drops the Edit pick (the handoff carried it into Preview's halo and Inspector)
+  useDropSelectionOnLeaveEdit(governed, () => selSet.clear());
   // S2.11 — the layout ops' toast + undo record (reorder-slot.tsx holds them for ReorderDrag too)
   const undo = useUndoStackOptional();
   const undoRef = useRef(undo);
@@ -255,47 +265,56 @@ export function EditingLayer() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
+  const ro = isReadOnlyCanvas();
   return (
     <>
-      {/* S2.1 — dashed parent outline + name tag; refs / crumbs / kind on select-set */}
-      <EditingSelection />
-      {/* S2.6 — a locked object says so; the arrows say where they put things */}
-      <LockBadge readOnly={isReadOnlyCanvas()} />
-      <NudgeReadout readOnly={isReadOnlyCanvas()} />
-      {/* S2.7 — the align bar over a multi-selection, the rotate handle at its corner */}
-      <AlignBar readOnly={isReadOnlyCanvas()} />
-      <RotateHandle readOnly={isReadOnlyCanvas()} />
-      {/* S2.11 — the gap / padding bands of an auto layout, the token ruler a gap drag shows, the
-          slot a reordered card opens, and the pin guides of a freely placed object */}
-      <GapBands readOnly={isReadOnlyCanvas()} />
-      <TokenRuler />
-      <ReorderSlot />
-      <PinGuides readOnly={isReadOnlyCanvas()} />
+      <EditChromeGate shown={editChrome}>
+        {/* S2.1 — dashed parent outline + name tag; refs / crumbs / kind on select-set */}
+        <EditingSelection />
+        {/* S2.6 — a locked object says so; the arrows say where they put things */}
+        <LockBadge readOnly={ro} />
+        <NudgeReadout readOnly={ro} />
+        {/* S2.7 — the align bar over a multi-selection, the rotate handle at its corner */}
+        <AlignBar readOnly={ro} />
+        <RotateHandle readOnly={ro} />
+        {/* S2.11 — the gap / padding bands of an auto layout, the token ruler a gap drag shows, the
+            slot a reordered card opens, and the pin guides of a freely placed object */}
+        <GapBands readOnly={ro} />
+        <TokenRuler />
+        <ReorderSlot />
+        <PinGuides readOnly={ro} />
+        {/* S7.20 — F over empty canvas opens the size picker (shell); its hover outline, its pick */}
+        <SizeGhost readOnly={ro} />
+        <CornerDots readOnly={ro} />
+        {editChrome ? <PasteBar readOnly={ro} /> : null}
+        {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}
+        <ArtboardGuides readOnly={ro} />
+        <TidyPreview />
+        {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
+        <ArtboardHandles />
+        {/* listener-free: not mounted at all outside Edit */}
+        {editChrome ? <StickyName /> : null}
+        {editChrome ? <MinimapContext /> : null}
+        {/* S2.21 — the order badges while the keyboard walks */}
+        <KeyboardBadges />
+      </EditChromeGate>
       {/* S2.12 — the edit-tone ring around the text being typed, the Czech ties under it */}
-      <TextInPlace readOnly={isReadOnlyCanvas()} />
-      {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
-      <DrawTools readOnly={isReadOnlyCanvas()} />
-      {/* S7.20 — F over empty canvas opens the size picker (shell); its hover outline, its pick */}
-      <SizeGhost readOnly={isReadOnlyCanvas()} />
-      <CornerDots readOnly={isReadOnlyCanvas()} />
+      <TextInPlace readOnly={ro} />
+      {/* S2.13 — the Frame / Shape / More tools' drag */}
+      <DrawTools readOnly={ro} />
       {/* S2.14 — the Pen (P), double-click a path to edit its points, Combine shapes */}
-      <PenLayer readOnly={isReadOnlyCanvas()} />
+      <PenLayer readOnly={ro} />
       {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
-      <PlaceGhost readOnly={isReadOnlyCanvas()} />
+      <PlaceGhost readOnly={ro} />
       {/* S2.15 — a tile dropped on a frame, crop mode (double-click a picture), and the bar under a Figma paste */}
-      <ImageDrop readOnly={isReadOnlyCanvas()} />
+      <ImageDrop readOnly={ro} />
       {/* S8.14 — photos dragged from Finder onto an artboard: the hint, the import, ONE image.place, selected at once */}
-      <FinderDrop readOnly={isReadOnlyCanvas()} />
-      <CropMode readOnly={isReadOnlyCanvas()} />
-      {editChrome ? <PasteBar readOnly={isReadOnlyCanvas()} /> : null}
+      <FinderDrop readOnly={ro} />
+      <CropMode readOnly={ro} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
-      {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}
-      <ArtboardGuides readOnly={isReadOnlyCanvas()} />
-      <TidyPreview />
       {/* S2.10 — ⌘D, ⌥-drag copy, Duplicate at another width, Custom width…, Rename, Reset position */}
-      <ArtboardCommands readOnly={isReadOnlyCanvas()} />
-      {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
+      <ArtboardCommands readOnly={ro} />
       {/* S11.2 — tells the shell what is empty: the artboard count and the selected empty artboard */}
       <EmptyArtboardReporter />
       {/* S7.7 — tells the shell which artboard is selected and where: the timeline island rises from a video */}
@@ -303,21 +322,17 @@ export function EditingLayer() {
       {/* S7.24b — the kind filter in Layers dims the artboards outside the kind (a look, never a lock) */}
       <KindDim />
       {/* S7.9 — footage in flight over the window: the followed video wears "Or drop here — adds at the end" */}
-      {isReadOnlyCanvas() ? null : <DropChip />}
-      <ArtboardHandles />
-      {editChrome ? <StickyName /> : null}
-      {editChrome ? <MinimapContext /> : null}
+      {ro ? null : <DropChip />}
       {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
       <HoldRings />
       {/* S7.17 — my playhead + the caption word I'm fixing on awareness; teammates' to the timeline island */}
       <TimelinePresence />
       {/* S2.19 — ⌘/ on a selection: the canvas says what and where; one AI outline follows the ask */}
-      <AskBubble readOnly={isReadOnlyCanvas()} />
+      <AskBubble readOnly={ro} />
       <AiScopeOutline />
-      {/* S2.21 — tab / ⇧tab in reading order, F6 out to the panels, R·T·F then ↵; the focus ring, the order
-          badges while the keyboard walks, and what VoiceOver hears */}
-      <KeyboardLayer readOnly={isReadOnlyCanvas()} />
-      <KeyboardBadges />
+      {/* S2.21 — tab / ⇧tab in reading order, F6 out to the panels, R·T·F then ↵; the focus ring and what
+          VoiceOver hears */}
+      <KeyboardLayer readOnly={ro} />
       <AriaLive />
     </>
   );

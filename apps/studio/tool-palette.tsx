@@ -18,6 +18,7 @@
  */
 
 import {
+  type JSX,
   type ReactNode,
   useCallback,
   useEffect,
@@ -52,13 +53,8 @@ import {
   type ToolSlot,
   visibleSlots,
 } from './bridge/canvas-modes.ts';
-import {
-  IconChevronDown,
-  IconLineThick,
-  IconLineThin,
-  SHAPE_KIND_ICONS,
-  TOOL_ICONS,
-} from './canvas-icons.tsx';
+import { DsIcon } from './canvas-ds-icons.tsx';
+import { IconLineThick, IconLineThin, SHAPE_KIND_ICONS, TOOL_ICONS } from './canvas-icons.tsx';
 import { TOOLBAR_INSERT_EVENT, type Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { isMarkerTip, lastMarkerTip } from './toolbars/marker-tip.ts';
@@ -94,7 +90,8 @@ const TIP_LABELS: Readonly<Record<string, string>> = {
 /** The island's morph, in ms: `--dur-panel` (220) plus a frame of slack before the ghost is dropped. */
 const MORPH_MS = 260;
 
-/** Resting-tool slots (the navigate group); a separator follows the first run of them. */
+/** Resting-tool slots (the navigate group); in Preview a separator follows the first run of them (the board's
+ *  AnnotateDock draws a divider after Hand; the Edit dock's only divider stands before More). */
 const NAV_SLOT_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['move', 'hand', 'browse', 'inspect']);
 
 /** Which glyph a tool/slot wears (the v1 icons keep their meaning). */
@@ -104,6 +101,45 @@ const SLOT_GLYPH: Readonly<Record<string, string>> = {
   'el-text': 'text',
   'el-shape': 'rect',
 };
+
+/** P8 C5 — every slot wears the maude-v2 family glyph the board's dock draws (`Icon name=…`, canvas-ds-icons.tsx). */
+const DS_SLOT_GLYPH: Readonly<Record<string, string>> = {
+  move: 'select',
+  hand: 'hand',
+  browse: 'hand',
+  inspect: 'hand',
+  frame: 'frame',
+  'el-shape': 'shape',
+  shape: 'shape',
+  'el-pen': 'pen',
+  'el-text': 'text',
+  text: 'text',
+  image: 'image',
+  components: 'component',
+  more: 'more',
+  sticky: 'sticky',
+  comment: 'comment',
+  pen: 'marker',
+  highlighter: 'highlighter',
+  eraser: 'eraser',
+  arrow: 'arrow',
+  stickers: 'stamp',
+  section: 'section',
+  line: 'line',
+  ellipse: 'ellipse',
+  polygon: 'polygon',
+  crop: 'crop',
+  slice: 'slice',
+};
+const dsGlyphCache = new Map<string, () => JSX.Element | null>();
+function dsGlyph(name: string): () => JSX.Element | null {
+  let c = dsGlyphCache.get(name);
+  if (!c) {
+    c = () => <DsIcon name={name} />;
+    dsGlyphCache.set(name, c);
+  }
+  return c;
+}
 
 /**
  * Stage I3 tail — resolve the insert anchor for the "+ Element" affordance's "or appends to the
@@ -190,6 +226,8 @@ function useGoverned(): { mode: CanvasModeV2; caps: Readonly<ModeCaps> } | null 
 }
 
 const glyphFor = (id: string | null, fallback?: string) => {
+  const ds = id ? DS_SLOT_GLYPH[id] : undefined;
+  if (ds) return dsGlyph(ds);
   const key = id ? (SLOT_GLYPH[id] ?? id) : '';
   return TOOL_ICONS[key] ?? SLOT_ICONS[key] ?? (fallback ? TOOL_ICONS[fallback] : undefined);
 };
@@ -290,7 +328,7 @@ function MarkerOptions(props: {
     >
       <fieldset className="dc-tp-seg-row" aria-label="Marker tip">
         {props.tips.map((t) => {
-          const TipIcon = TOOL_ICONS[t];
+          const TipIcon = glyphFor(t);
           return (
             <button
               key={t}
@@ -394,6 +432,7 @@ export function ToolPalette() {
   } = useToolMode();
   const chrome = useChromeVisibility();
   const theme = useCanvasChromeTheme();
+  const prefs = useToolState();
   const governed = useGoverned();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState<Popover>(null);
@@ -528,6 +567,7 @@ export function ToolPalette() {
         <span key="more" className="dc-tp-slot">
           <button
             type="button"
+            className="dc-tp-b"
             data-testid="toolbar-slot-more"
             aria-label={s.label}
             aria-pressed={lit}
@@ -580,6 +620,7 @@ export function ToolPalette() {
         <button
           key={id}
           type="button"
+          className="dc-tp-b"
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
           title={`${s.label}${keyHint} · adds one to the active artboard`}
@@ -598,6 +639,7 @@ export function ToolPalette() {
         <button
           key={id}
           type="button"
+          className="dc-tp-b"
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
           title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : s.panel === 'assets' ? 'the pictures in this project' : 'searchable sticker picker'}`}
@@ -627,9 +669,7 @@ export function ToolPalette() {
         : isColours
           ? 'sticky-colours'
           : null;
-    const Icon = isShape
-      ? (SHAPE_KIND_ICONS[shapeKind] ?? TOOL_ICONS.shape)
-      : glyphFor(isTips ? current : id);
+    const Icon = glyphFor(isTips ? current : id);
     const stickyHint = lockable ? ' · double-click to lock' : '';
     const label = isShape
       ? `${s.label}${keyHint} — ${shapeKind}, click again for shape types`
@@ -642,6 +682,7 @@ export function ToolPalette() {
       <span key={id} className="dc-tp-slot">
         <button
           type="button"
+          className="dc-tp-b"
           data-testid={`toolbar-slot-${id}`}
           data-tip={isTips ? current : undefined}
           aria-label={label}
@@ -666,11 +707,29 @@ export function ToolPalette() {
             if (lockable) toggleSticky(current as Tool);
           }}
         >
-          {Icon ? <Icon /> : null}
-          {popover ? (
-            <span className="dc-tp-caret" aria-hidden="true">
-              <IconChevronDown size={9} />
+          {id === 'sticky' ? (
+            // the board's AnnotateIcon: Sticky is a note in the paper it will place
+            <span
+              className="dc-tp-note"
+              aria-hidden="true"
+              style={{ background: prefs.stickyColor }}
+            />
+          ) : isTips && current !== 'eraser' ? (
+            // …and the Marker shows its ink under the pen
+            <span className="dc-tp-mk" aria-hidden="true">
+              {Icon ? <Icon /> : null}
+              <i
+                className="dc-tp-ink"
+                style={{
+                  background:
+                    current === 'highlighter'
+                      ? prefs.highlighterColor
+                      : resolveInk(prefs.ink, resolveDefaultInk(theme)),
+                }}
+              />
             </span>
+          ) : Icon ? (
+            <Icon />
           ) : null}
           {isSticky ? <span className="dc-tp-sticky-badge" aria-hidden="true" /> : null}
         </button>
@@ -719,13 +778,15 @@ export function ToolPalette() {
     );
   };
 
-  // A separator follows the first run of resting-tool slots (Select / Hand).
+  // One divider, where the board's dock draws it: Edit — before More; Preview / Viewing — after the resting
+  // Hand (04 Modes AnnotateDock, _kit.tsx Toolbar).
   const body: ReactNode[] = [];
-  let navRun = true;
+  let navRun = barMode !== 'edit';
   slots.forEach((s, i) => {
     const isNav = s.tool !== null && NAV_SLOT_TOOLS.has(s.tool);
     if (navRun && !isNav && i > 0) body.push(<div key="sep" className="dc-tp-sep" />);
     if (!isNav) navRun = false;
+    if (barMode === 'edit' && s.more && i > 0) body.push(<div key="sep" className="dc-tp-sep" />);
     body.push(renderSlot(s));
   });
 

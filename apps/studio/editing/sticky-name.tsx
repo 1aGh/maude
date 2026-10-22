@@ -54,7 +54,7 @@ const CSS_TEXT = `
   background: var(--maude-chrome-bg-2);
   color: var(--maude-chrome-fg-0);
   border: 1px solid var(--maude-chrome-border);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
 }
 .ed-sticky-name > span {

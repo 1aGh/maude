@@ -76,7 +76,7 @@ const CSS_TEXT = `
   background: var(--maude-chrome-bg-0, #fff);
   border: 1px solid var(--maude-chrome-border, rgba(0,0,0,0.12)); border-radius: 8px;
   box-shadow: 0 6px 24px var(--maude-chrome-shadow, rgba(0,0,0,0.12));
-  font: 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   color: var(--maude-chrome-fg-0, #1a1a1a);
 }
 .ed-abw input {

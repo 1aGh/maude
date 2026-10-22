@@ -54,7 +54,7 @@ const CSS_TEXT = `
   color: var(--maude-chrome-fg-0);
   border: 1px solid var(--maude-chrome-border);
   box-shadow: 0 4px 16px var(--maude-chrome-shadow);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
 .ed-mini-t { margin: 0 0 8px; font-weight: 600; color: var(--maude-chrome-fg-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-mini-b { display: flex; gap: 12px; }

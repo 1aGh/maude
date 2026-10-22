@@ -162,7 +162,7 @@ const CSS_TEXT = `
   background: var(--maude-hud-bg, #1b1b1f);
   color: var(--maude-hud-fg, #f2f2f4);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-  font: 500 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
   animation: ed-ruler-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }

@@ -54,7 +54,7 @@ export const RULER_CSS = `
   z-index: 6;
   height: 24px;
   border-bottom: 1px solid color-mix(in oklab, var(--maude-chrome-fg-1) 40%, transparent);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
   color: var(--maude-chrome-fg-1);
 }
@@ -100,7 +100,7 @@ export const RULER_CSS = `
   border-radius: 4px;
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 600 11px/16px var(--maude-chrome-font-mono);
+  font: 600 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -113,7 +113,7 @@ export const RULER_CSS = `
   background: var(--maude-chrome-bg-1);
   color: var(--maude-chrome-fg-1);
   border: 1px solid var(--maude-chrome-border);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
 }
 .ed-ab-hint kbd {

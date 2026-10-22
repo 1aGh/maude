@@ -2,11 +2,13 @@
 //
 // Material (V2-1.8 M1/M4): the toolbar is an island — solid, hairline edge, soft shadow, NO
 // backdrop-filter (`none` literally; the one blur lives behind `--island-backdrop` in the shell's CSS,
-// and the iframe document has no use for it). The island tokens are the shell's; the iframe document
-// does not define them, so each falls back to the `--maude-chrome-*` family this document does.
+// and the iframe document has no use for it). Every colour / radius / shadow is the HUD family the
+// generated block (`canvas-hud-tokens.gen.ts`, maude-v2) defines — never the canvas's own `--island-*`,
+// which a canvas on the maude-v2 system would carry.
 //
-// Geometry is v1's on purpose: bottom 16 px, 32 px buttons in 4 px padding. The colours, inks and
-// thicknesses are popovers of their slot (S4.8; the dark swatch tray above the toolbar is retired).
+// Geometry is the kit's dock (P8 C5, boards 04 / 10 / 07): bottom 16 px, padding 8, gap 4, radius-xl;
+// Edit's buttons 40 px with 18 px glyphs, Preview's "a size bigger" — 48 px, 22 px glyphs, radius-lg.
+// The colours, inks and thicknesses are popovers of their slot (S4.8).
 //
 // Motion (ToolbarMorph, M6): Edit ↔ Preview swaps the slot group inside a fixed-position island, so the
 // only animated properties are `opacity` and `transform` (compositor-only), over `--dur-panel` (220 ms).
@@ -20,14 +22,14 @@ export const TOOLBAR_CSS = `
   transform: translateX(-50%);
   display: flex;
   align-items: stretch;
-  background: var(--island-bg, var(--maude-chrome-bg-0, #ffffff));
-  border: 1px solid var(--island-edge, var(--maude-chrome-border, rgba(0,0,0,0.08)));
-  border-radius: 14px;
-  box-shadow: var(--island-shadow, 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)));
+  background: var(--maude-chrome-bg-1, #ffffff);
+  border: 0;
+  border-radius: var(--maude-hud-radius-xl, 20px);
+  box-shadow: var(--maude-hud-island-shadow, 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent))), inset 0 0 0 0.5px var(--maude-hud-island-edge, var(--maude-chrome-border, rgba(0,0,0,0.08)));
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 12px;
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
+  font-size: var(--maude-hud-type-sm, 12px);
   color: var(--maude-chrome-fg-0, #1a1a1a);
   z-index: 6;
   user-select: none;
@@ -36,57 +38,84 @@ export const TOOLBAR_CSS = `
 }
 .dc-tool-palette .dc-tb-body {
   display: flex;
-  align-items: stretch;
-  gap: 2px;
-  padding: 4px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
 }
 .dc-tool-palette .dc-tp-sep {
+  align-self: center;
   width: 1px;
-  background: var(--maude-chrome-border, rgba(0,0,0,0.08));
-  margin: 6px 2px;
+  height: 24px;
+  background: var(--maude-chrome-border-default, rgba(0,0,0,0.12));
+  margin: 0 4px;
 }
 .dc-tool-palette button {
   appearance: none;
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: calc(var(--maude-hud-radius-xl, 20px) - 8px);
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--maude-chrome-fg-1, rgba(40,30,20,0.75));
+  color: var(--maude-chrome-fg-0, #1a1a1a);
   cursor: pointer;
   position: relative;
-  transition: background-color 80ms linear, color 80ms linear;
+  font: inherit;
+  transition: background-color var(--maude-hud-dur-flip, 120ms) var(--maude-hud-ease-out, ease-out), color var(--maude-hud-dur-flip, 120ms) var(--maude-hud-ease-out, ease-out);
+}
+.dc-tool-palette button svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+/* Preview's toolbar — annotation tools only, "a size bigger" than Edit's (board .dock .icon-btn.k-ad-b). */
+.dc-tool-palette[data-testid="toolbar-preview"] .dc-tp-b {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--maude-hud-radius-lg, 14px);
+}
+.dc-tool-palette[data-testid="toolbar-preview"] .dc-tp-b svg {
+  width: 22px;
+  height: 22px;
 }
 .dc-tool-palette button:hover {
-  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 8%, transparent);
-  color: var(--maude-chrome-fg-0, #1a1a1a);
+  background: var(--maude-chrome-bg-3, rgba(0,0,0,0.04));
 }
 .dc-tool-palette button:focus-visible {
-  outline: 2px solid var(--maude-hud-accent, #d63b1f);
-  outline-offset: -2px;
+  outline: 2px solid var(--maude-hud-focus-ring, var(--maude-hud-accent, #2a6fd6));
+  outline-offset: 1px;
 }
-/* DDR-046 — Active tool: tinted background + accent underbar + accent text. */
+/* The active tool is accent-muted with accent text (kit .icon-btn[aria-pressed]); Share stays the one solid azure. */
 .dc-tool-palette button[aria-pressed="true"] {
-  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 14%, transparent);
-  color: var(--maude-hud-accent, #d63b1f);
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-hud-accent, #2a6fd6) 14%, transparent));
+  color: var(--maude-hud-accent-text, var(--maude-hud-accent, #2a6fd6));
 }
-.dc-tool-palette button[aria-pressed="true"]::after {
-  content: "";
+/* Sticky is a note in the paper it places; the Marker wears its ink; Stickers a filled disc (board AnnotateIcon). */
+.dc-tool-palette .dc-tp-note {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--maude-hud-radius-xs, 4px) var(--maude-hud-radius-xs, 4px) var(--maude-hud-radius-md, 10px) var(--maude-hud-radius-xs, 4px);
+  rotate: -6deg;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--maude-hud-object-ink, #1c1917) 14%, transparent);
+}
+.dc-tool-palette[data-testid="toolbar-preview"] .dc-tp-note { width: 22px; height: 22px; }
+.dc-tool-palette .dc-tp-mk { position: relative; display: grid; place-items: center; }
+.dc-tool-palette .dc-tp-ink {
   position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 2px;
-  height: 2px;
-  background: var(--maude-hud-accent, #d63b1f);
-  border-radius: 1px;
+  left: 1px;
+  right: 1px;
+  bottom: -5px;
+  height: 4px;
+  border-radius: 999px;
 }
+.dc-tool-palette .dc-tp-stamp-disc { fill: var(--maude-hud-object-yellow, #f2d36b); }
 /* T19 — sticky-tool lock: a hairline ring + a corner badge on the armed slot. */
 .dc-tool-palette button[data-sticky="true"] {
-  box-shadow: inset 0 0 0 1px var(--maude-hud-accent, #d63b1f);
+  box-shadow: inset 0 0 0 1px var(--maude-hud-accent, #2a6fd6);
 }
 .dc-tool-palette button .dc-tp-sticky-badge {
   position: absolute;
@@ -94,24 +123,16 @@ export const TOOLBAR_CSS = `
   right: 3px;
   width: 6px;
   height: 6px;
-  background: var(--maude-hud-accent, #d63b1f);
-  border-radius: 1px;
-  box-shadow: 0 0 0 1px var(--maude-chrome-bg-0, #ffffff);
+  background: var(--maude-hud-accent, #2a6fd6);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px var(--maude-chrome-bg-1, #ffffff);
   opacity: 0;
   transition: opacity 50ms linear 50ms;
   pointer-events: none;
 }
 .dc-tool-palette button[data-sticky="true"] .dc-tp-sticky-badge { opacity: 1; }
-/* A slot that opens a popover (Shape kinds, Marker tips) carries a small caret. */
+/* A slot that opens a popover (Shape kinds, Marker tips, Sticky papers) — no caret: the board draws none. */
 .dc-tool-palette .dc-tp-slot { position: relative; display: inline-flex; }
-.dc-tool-palette .dc-tp-caret {
-  position: absolute;
-  right: 2px;
-  bottom: 1px;
-  display: inline-flex;
-  opacity: 0.5;
-  pointer-events: none;
-}
 .dc-tp-shape-popover,
 .dc-tp-list-popover,
 .dc-tp-opts-popover {
@@ -120,37 +141,40 @@ export const TOOLBAR_CSS = `
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 2px;
+  gap: 4px;
   padding: 4px;
-  background: var(--island-bg, var(--maude-chrome-bg-0, #ffffff));
-  border: 1px solid var(--island-edge, var(--maude-chrome-border, rgba(0,0,0,0.08)));
-  border-radius: 12px;
-  box-shadow: var(--island-shadow, 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)));
+  background: var(--maude-chrome-bg-1, #ffffff);
+  border: 0;
+  border-radius: var(--maude-hud-radius-lg, 14px);
+  box-shadow: var(--maude-hud-island-shadow, 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent))), inset 0 0 0 0.5px var(--maude-hud-island-edge, var(--maude-chrome-border, rgba(0,0,0,0.08)));
+  color: var(--maude-chrome-fg-0, #1a1a1a);
+  font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   z-index: 8;
 }
 .dc-tp-shape-popover button[aria-checked="true"],
 .dc-tp-list-popover button[aria-checked="true"] {
-  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 14%, transparent);
-  color: var(--maude-hud-accent, #d63b1f);
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-hud-accent, #2a6fd6) 14%, transparent));
+  color: var(--maude-hud-accent-text, var(--maude-hud-accent, #2a6fd6));
 }
 /* S4.8 — the colour popovers: Sticky's papers, the Marker's tip + inks + thicknesses, the Highlighter's hues + nibs. */
 .dc-tp-opts-popover fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-.dc-tp-opts-popover { flex-direction: column; gap: 6px; padding: 8px; white-space: nowrap; }
+/* the board's colour row (.k-ad-pop): an island pill, swatches 20 px, the current one ringed in accent */
+.dc-tp-opts-popover { flex-direction: column; gap: 8px; padding: 8px 12px; border-radius: var(--maude-hud-radius-lg, 14px); white-space: nowrap; }
 .dc-tp-opts-popover .dc-tp-row,
 .dc-tp-opts-popover .dc-tp-seg-row,
 .dc-tp-opts-popover .dc-tp-swatches { display: flex; align-items: center; gap: 4px; }
 .dc-tp-opts-popover .dc-tp-row { gap: 8px; }
 .dc-tp-opts-popover button.dc-tp-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid var(--maude-chrome-border, rgba(0,0,0,0.16));
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--maude-hud-object-ink, #1c1917) 14%, transparent);
 }
-.dc-tp-opts-popover button[aria-pressed="true"]::after { content: none; }
 .dc-tp-opts-popover button.dc-tp-swatch[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px var(--maude-chrome-bg-0, #ffffff), 0 0 0 4px var(--maude-hud-accent, #d63b1f);
+  box-shadow: 0 0 0 2px var(--maude-chrome-bg-1, #ffffff), 0 0 0 4px var(--maude-hud-accent, #2a6fd6);
 }
 .dc-tp-opts-popover button.dc-tp-more,
 .dc-tp-opts-popover button.dc-tp-seg {
@@ -159,13 +183,13 @@ export const TOOLBAR_CSS = `
   min-width: 28px;
   padding: 0 8px;
   gap: 6px;
-  border-radius: 8px;
+  border-radius: var(--maude-hud-radius-sm, 6px);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--maude-hud-type-sm, 12px);
 }
 .dc-tp-opts-popover button.dc-tp-seg[aria-pressed="true"] {
-  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 14%, transparent);
-  color: var(--maude-hud-accent, #d63b1f);
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-hud-accent, #2a6fd6) 14%, transparent));
+  color: var(--maude-hud-accent-text, var(--maude-hud-accent, #2a6fd6));
 }
 .dc-tp-opts-popover .dc-tp-nib { border-radius: 50%; background: currentColor; display: inline-block; }
 /* Marker tips / More: a vertical labeled list (the glyphs alone do not name a tip). */
@@ -176,13 +200,14 @@ export const TOOLBAR_CSS = `
   justify-content: flex-start;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--maude-hud-radius-sm, 6px);
 }
-.dc-tp-list-popover button span.dc-tp-label { font-size: 12px; }
+.dc-tp-list-popover button svg { width: 14px; height: 14px; }
+.dc-tp-list-popover button span.dc-tp-label { font-size: var(--maude-hud-type-sm, 12px); }
 /* ToolbarMorph — Edit ↔ Preview. The island stays put; its slot group fades in and the old one
    (a picture, not controls) fades out, both over --dur-panel. opacity + transform only. */
 .dc-tool-palette[data-morph] .dc-tb-body {
-  animation: dc-tb-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
+  animation: dc-tb-in var(--maude-hud-dur-panel, 220ms) var(--maude-hud-ease-out, cubic-bezier(0.25, 0.8, 0.25, 1)) both;
 }
 .dc-tool-palette .dc-tb-ghost {
   position: absolute;
@@ -190,15 +215,15 @@ export const TOOLBAR_CSS = `
   top: 0;
   display: flex;
   align-items: stretch;
-  gap: 2px;
-  padding: 4px;
+  gap: 4px;
+  padding: 8px;
   pointer-events: none;
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.75));
-  animation: dc-tb-out var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
+  animation: dc-tb-out var(--maude-hud-dur-panel, 220ms) var(--maude-hud-ease-out, cubic-bezier(0.25, 0.8, 0.25, 1)) both;
 }
 .dc-tool-palette .dc-tb-ghost .dc-tb-ghost-slot {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

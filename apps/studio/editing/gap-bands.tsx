@@ -143,7 +143,7 @@ const CSS_TEXT = `
   border-radius: 3px;
   background: var(--guide, var(--guide-magenta, #ff24bd));
   color: #fff;
-  font: 500 10px/14px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 10px/14px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

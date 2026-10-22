@@ -63,7 +63,7 @@ const CSS_TEXT = `
   border-radius: 3px;
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
   transform: translateY(calc(-100% - 4px));
 }
@@ -76,7 +76,7 @@ const CSS_TEXT = `
   background: var(--maude-chrome-bg-0);
   color: var(--maude-chrome-fg-0);
   border: 1px solid var(--maude-chrome-border);
-  font: 400 11px/16px var(--maude-chrome-font-mono);
+  font: 400 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
 }
 `;

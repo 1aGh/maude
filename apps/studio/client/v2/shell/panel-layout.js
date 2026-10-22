@@ -22,6 +22,25 @@ export const PANELS_HINT_ID = 'panels-hidden';
 //           shows (⌘\ OR the fold), so every consumer folds through the one mechanism; `userHidden` is
 //           the ⌘\ half alone.
 
+/**
+ * P8 C5 (04 R4: md-preview-follow, md-comment, md-draw, md-inspect, md-edge-ai) — a panel opening while the panels
+ * are not showing. Under ⌘\ (the person's hide) any opening brings every panel back, as before. Under Preview's
+ * fold alone it does NOT: the fold is the mode's, and only leaving Preview or a corner icon (its own `onShow`)
+ * ends it — a link follow, a canvas open, the Comment tool, a ⌘-click or an AI prompt left the Canvases panel
+ * back over the design. Preview folds the Canvases and AI chat panels only, so a RIGHT panel opened during the
+ * fold (Inspect on ⌘-click, Comments) shows by itself (`rightInFold`), without the others.
+ *
+ * `prev` / `next`: `{ l, r, ai }` = left panel id, right panel id, AI chat open.
+ */
+export function panelOpenDecision({ prev, next, userHidden, folded, rightInFold = false }) {
+  const opened =
+    (!!next.l && next.l !== prev.l) || (!!next.r && next.r !== prev.r) || (!!next.ai && !prev.ai);
+  if (userHidden) return { show: opened, rightInFold: false };
+  if (!folded) return { show: false, rightInFold: false };
+  if (!next.r) return { show: false, rightInFold: false };
+  return { show: false, rightInFold: rightInFold || next.r !== prev.r };
+}
+
 export function createPanelLayout({ persist = () => {}, say = () => {}, unsay = () => {} } = {}) {
   let user = { hidden: false, pinned: false, folded: false };
   const view = () =>

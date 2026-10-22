@@ -64,7 +64,7 @@ const CSS_TEXT = `
   position: fixed; z-index: 7; display: none; pointer-events: none; white-space: nowrap;
   padding: 2px 6px; border-radius: 4px;
   background: var(--maude-chrome-fg-0, #1a1a1a); color: var(--maude-chrome-bg-0, #fff);
-  font: 500 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
 }
 .ed-rot-hint kbd {

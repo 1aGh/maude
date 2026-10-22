@@ -272,7 +272,7 @@ const CSS_TEXT = `
   border-radius: 999px;
   background: var(--maude-hud-accent, #7c5cff);
   color: var(--maude-hud-accent-fg, #fff);
-  font: 600 12px/20px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 600 12px/20px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   text-align: center;
 }
 .ed-slot-tag {
@@ -284,7 +284,7 @@ const CSS_TEXT = `
   border-radius: 4px;
   background: var(--maude-hud-accent, #7c5cff);
   color: var(--maude-hud-accent-fg, #fff);
-  font: 500 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   white-space: nowrap;
 }
 @keyframes ed-slot-fade { from { opacity: 0; } to { opacity: 1; } }

@@ -21,7 +21,7 @@ export const PEN_CSS = `
 .ed-pen-chip {
   position: fixed; pointer-events: none; z-index: 6; padding: 1px 6px; border-radius: 3px; white-space: nowrap;
   background: var(--maude-hud-accent); color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
 .ed-pen-chip[data-tone="quiet"] { background: var(--maude-hud-bg, #222); color: var(--maude-hud-fg, #eee); }
 .ed-pen-hints {

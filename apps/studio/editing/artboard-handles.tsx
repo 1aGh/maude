@@ -159,19 +159,19 @@ const CSS_TEXT = `
   width: 8px;
   height: 8px;
   margin: -4px 0 0 -4px;
-  background: var(--maude-hud-accent);
-  border: 1px solid var(--maude-hud-accent-fg);
-  border-radius: 3px;
+  /* P8 C5 (14 R2, board .ed-h): eight 8 x 8 bg-2 squares, 1.5 px inset accent, no radius */
+  background: var(--maude-chrome-bg-2, #ffffff);
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px var(--maude-hud-accent);
+  border-radius: 0;
   touch-action: none;
 }
-.ed-ab-handle[data-h="n"], .ed-ab-handle[data-h="s"] { width: 14px; height: 6px; margin: -3px 0 0 -7px; }
-.ed-ab-handle[data-h="e"], .ed-ab-handle[data-h="w"] { width: 6px; height: 14px; margin: -7px 0 0 -3px; }
 .ed-ab-frame {
   position: fixed;
   z-index: 4;
   pointer-events: none;
   box-sizing: border-box;
-  border: 1px solid var(--maude-hud-accent);
+  border: 1.5px solid var(--maude-hud-accent);
 }
 .dc-canvas .dc-artboard[data-ed-selected] > .dc-artboard-label,
 .dc-canvas .dc-artboard[data-ed-selected] > .dc-artboard-label * {

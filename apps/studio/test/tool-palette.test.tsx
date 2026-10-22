@@ -366,7 +366,7 @@ describe('TOOLBAR_CSS / material and the morph', () => {
       const props = [...(body as string).matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
       for (const p of props) expect(['opacity', 'transform']).toContain(p);
     }
-    expect(TOOLBAR_CSS).toMatch(/animation:[^;]*var\(--dur-panel,\s*220ms\)/);
+    expect(TOOLBAR_CSS).toMatch(/animation:[^;]*var\(--maude-hud-dur-panel,\s*220ms\)/);
     const rm = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/.exec(
       TOOLBAR_CSS
     )?.[1];
@@ -898,6 +898,70 @@ describe('toolbar-rect from the island', () => {
     } finally {
       HTMLElement.prototype.getBoundingClientRect = real;
     }
+  });
+});
+
+// P8 C5 (04 md-model / md-annotate, 10 co-presence, 07 ve-none): the two toolbars are the kit's dock —
+// Edit = `.dock .icon-btn` 40 px with 18 px glyphs, Preview "a size bigger" = `.k-ad-b` 48 px with 22 px glyphs,
+// the active tool accent-muted with accent text (no underbar), the dock in the body face, the separator where
+// the board draws it (Edit: before More · Preview: after Hand), and Preview's colour tools drawn in colour.
+describe('P8 C5 — the toolbars are the kit dock', () => {
+  beforeAll(asIframe);
+  afterAll(restoreParent);
+  const rule = (sel: string) => {
+    const css = `\n${TOOLBAR_CSS}`;
+    const at = css.indexOf(`\n${sel} {`);
+    expect(at).toBeGreaterThanOrEqual(0);
+    return css.slice(at, css.indexOf('}', at));
+  };
+
+  test('CSS: Edit 40 / 18, Preview 48 / 22 on radius-lg, dock padding 8 · gap 4 · radius-xl, body face', () => {
+    expect(rule('.dc-tool-palette button')).toMatch(/width:\s*40px;[\s\S]*height:\s*40px;/);
+    expect(rule('.dc-tool-palette button svg')).toMatch(/width:\s*18px;[\s\S]*height:\s*18px;/);
+    const big = rule('.dc-tool-palette[data-testid="toolbar-preview"] .dc-tp-b');
+    expect(big).toMatch(/width:\s*48px;[\s\S]*height:\s*48px;/);
+    expect(big).toContain('var(--maude-hud-radius-lg');
+    expect(rule('.dc-tool-palette[data-testid="toolbar-preview"] .dc-tp-b svg')).toMatch(
+      /width:\s*22px;[\s\S]*height:\s*22px;/
+    );
+    expect(rule('.dc-tool-palette .dc-tb-body')).toMatch(/gap:\s*4px;[\s\S]*padding:\s*8px;/);
+    const island = rule('.dc-tool-palette');
+    expect(island).toContain('var(--maude-hud-radius-xl');
+    expect(island).toContain('var(--maude-chrome-font-body');
+    expect(island).not.toContain('font-mono');
+  });
+
+  test('CSS: the active tool is accent-muted with accent text, and no underbar', () => {
+    const on = rule('.dc-tool-palette button[aria-pressed="true"]');
+    expect(on).toContain('var(--maude-hud-accent-muted');
+    expect(on).toContain('var(--maude-hud-accent-text');
+    expect(TOOLBAR_CSS).not.toContain('button[aria-pressed="true"]::after');
+  });
+
+  test('Edit: one separator, before More; no caret on any slot', () => {
+    mountBar();
+    const kids = [...(document.querySelector('.dc-tb-body') as HTMLElement).children];
+    const seps = kids.filter((k) => k.classList.contains('dc-tp-sep'));
+    expect(seps.length).toBe(1);
+    const at = kids.indexOf(seps[0] as Element);
+    expect(kids[at + 1]?.querySelector('[data-testid="toolbar-slot-more"]')).not.toBeNull();
+    expect(document.querySelector('.dc-tp-caret')).toBeNull();
+  });
+
+  test('Preview: the separator follows Hand; Sticky is a note in its paper, Marker shows its ink, Stickers a filled disc', () => {
+    mountBar();
+    act(() => ctx?.setMode('preview'));
+    const kids = [...(document.querySelector('.dc-tb-body') as HTMLElement).children];
+    expect(kids[1]?.classList.contains('dc-tp-sep')).toBe(true);
+    expect(kids.filter((k) => k.classList.contains('dc-tp-sep')).length).toBe(1);
+    const note = q('toolbar-slot-sticky')?.querySelector<HTMLElement>('.dc-tp-note');
+    expect(note).not.toBeNull();
+    expect(note?.getAttribute('style') ?? '').toContain('background');
+    const ink = q('toolbar-slot-pen')?.querySelector<HTMLElement>('.dc-tp-ink');
+    expect(ink).not.toBeNull();
+    expect(ink?.getAttribute('style') ?? '').toContain('background');
+    expect(q('toolbar-slot-stickers')?.querySelector('.dc-tp-stamp-disc')).not.toBeNull();
+    expect(document.querySelector('.dc-tp-caret')).toBeNull();
   });
 });
 
