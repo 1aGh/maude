@@ -297,6 +297,13 @@ const HUD_TEMPLATE = `
   --maude-hud-type-xs:     {guide:type-xs};
   --maude-hud-type-sm:     {guide:type-sm};
   --maude-hud-font-rounded: {guide:font-rounded};
+  --maude-hud-dur-flip:    {guide:dur-flip};
+  --maude-hud-dur-soft:    {guide:dur-soft};
+  --maude-hud-dur-panel:   {guide:dur-panel};
+  --maude-hud-ease-out:    {guide:ease-out};
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --maude-hud-dur-flip: 1ms; --maude-hud-dur-soft: 1ms; --maude-hud-dur-panel: 1ms; }
 }
 :root[data-maude-theme="light"] {
   --maude-hud-accent:        {light:accent};

@@ -64,7 +64,7 @@ export const TOOLBAR_CSS = `
   cursor: pointer;
   position: relative;
   font: inherit;
-  transition: background-color var(--dur-flip, 120ms) var(--ease-out, ease-out), color var(--dur-flip, 120ms) var(--ease-out, ease-out);
+  transition: background-color var(--maude-hud-dur-flip, 120ms) var(--maude-hud-ease-out, ease-out), color var(--maude-hud-dur-flip, 120ms) var(--maude-hud-ease-out, ease-out);
 }
 .dc-tool-palette button svg {
   width: 18px;
@@ -207,7 +207,7 @@ export const TOOLBAR_CSS = `
 /* ToolbarMorph — Edit ↔ Preview. The island stays put; its slot group fades in and the old one
    (a picture, not controls) fades out, both over --dur-panel. opacity + transform only. */
 .dc-tool-palette[data-morph] .dc-tb-body {
-  animation: dc-tb-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
+  animation: dc-tb-in var(--maude-hud-dur-panel, 220ms) var(--maude-hud-ease-out, cubic-bezier(0.25, 0.8, 0.25, 1)) both;
 }
 .dc-tool-palette .dc-tb-ghost {
   position: absolute;
@@ -219,7 +219,7 @@ export const TOOLBAR_CSS = `
   padding: 8px;
   pointer-events: none;
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.75));
-  animation: dc-tb-out var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
+  animation: dc-tb-out var(--maude-hud-dur-panel, 220ms) var(--maude-hud-ease-out, cubic-bezier(0.25, 0.8, 0.25, 1)) both;
 }
 .dc-tool-palette .dc-tb-ghost .dc-tb-ghost-slot {
   width: 40px;

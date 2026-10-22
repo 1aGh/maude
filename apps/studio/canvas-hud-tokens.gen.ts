@@ -65,6 +65,13 @@ export const HUD_TOKENS_CSS = `
   --maude-hud-type-xs:     11px;
   --maude-hud-type-sm:     12px;
   --maude-hud-font-rounded: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+  --maude-hud-dur-flip:    120ms;
+  --maude-hud-dur-soft:    160ms;
+  --maude-hud-dur-panel:   220ms;
+  --maude-hud-ease-out:    cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --maude-hud-dur-flip: 1ms; --maude-hud-dur-soft: 1ms; --maude-hud-dur-panel: 1ms; }
 }
 :root[data-maude-theme="light"] {
   --maude-hud-accent:        oklch(0.53 0.175 238);

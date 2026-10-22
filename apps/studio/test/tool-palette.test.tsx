@@ -366,7 +366,7 @@ describe('TOOLBAR_CSS / material and the morph', () => {
       const props = [...(body as string).matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
       for (const p of props) expect(['opacity', 'transform']).toContain(p);
     }
-    expect(TOOLBAR_CSS).toMatch(/animation:[^;]*var\(--dur-panel,\s*220ms\)/);
+    expect(TOOLBAR_CSS).toMatch(/animation:[^;]*var\(--maude-hud-dur-panel,\s*220ms\)/);
     const rm = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/.exec(
       TOOLBAR_CSS
     )?.[1];
