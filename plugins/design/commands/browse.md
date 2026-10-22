@@ -1,7 +1,7 @@
 ---
 name: browse
 category: daily
-description: "Open the local Maude canvas browser."
+description: "Start the Maude studio for this project and open it."
 argument-hint: "[--port <n>]"
 ---
 

@@ -609,7 +609,7 @@
         "whatsNew": {
           "type": "object",
           "additionalProperties": false,
-          "description": "In-product \"What's New\" feed. When enabled, /flow:done offers to append a user-facing entry for the closed-out feature to `feed`, delegating to the named project skill if set. Generic + opt-in: absent or `enabled:false` → /flow:done skips it silently. Maude wires this to apps/studio/whats-new.json, surfaced in the canvas browser.",
+          "description": "In-product \"What's New\" feed. When enabled, /flow:done offers to append a user-facing entry for the closed-out feature to `feed`, delegating to the named project skill if set. Generic + opt-in: absent or `enabled:false` → /flow:done skips it silently. Maude wires this to apps/studio/whats-new.json, surfaced in the Maude app (Home after an update, and Help › What's new).",
           "properties": {
             "enabled": { "type": "boolean", "default": false },
             "feed": {
