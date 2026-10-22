@@ -14,6 +14,7 @@ import { parsePathD, pointCount } from './edit-ops/path-model.ts';
 import type { TextInfo } from './edit-ops/text-style.ts';
 import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 import type { Selection } from './use-selection-set.tsx';
 
 /**
@@ -22,19 +23,7 @@ import type { Selection } from './use-selection-set.tsx';
  * mocks it's the served file path itself.
  */
 export function deriveFile(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return canvas ? `${designRel}/${canvas}` : undefined;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return undefined;
-  }
+  return currentCanvasFile() ?? undefined;
 }
 
 export function realClasses(el: Element | null): string {

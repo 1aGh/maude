@@ -302,6 +302,7 @@ import { clickToType } from './editing/click-to-type.ts';
 import { runEditOp } from './editing/edit-op.ts';
 import { crossedDragThreshold, postModeRequest, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 import {
   AnnotationResizeOverlay,
   bboxResize,
@@ -455,19 +456,7 @@ function prefersReducedMotion(): boolean {
 }
 
 function deriveFile(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return `${designRel}/${canvas}`;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return undefined;
-  }
+  return currentCanvasFile() ?? undefined;
 }
 
 /**
@@ -1409,7 +1398,8 @@ export function AnnotationsLayer() {
     void fetch(`/_api/annotations?file=${encodeURIComponent(file)}`, {
       headers: { Accept: 'application/json' },
     })
-      .then((r) => (r.ok ? r.text() : ''))
+      // A refused read is still read to its end (an unread body keeps the request open — gate-b-c4f).
+      .then((r) => r.text().then((text) => (r.ok ? text : '')))
       .then((text) => {
         if (cancelled || annotationsChangedRef.current) return;
         board.setAll(parseBoard(text).elements);
