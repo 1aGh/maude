@@ -13,21 +13,10 @@
 
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 
 function deriveFile(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return canvas ? `${designRel}/${canvas}` : null;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return null;
-  }
+  return currentCanvasFile();
 }
 
 const BANNER_CSS = `

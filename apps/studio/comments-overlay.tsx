@@ -71,6 +71,7 @@ import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
 import { canCommentCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import { currentCanvasFile } from './shell-canvas-file.ts';
 import { useCollab } from './use-collab.tsx';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 
@@ -418,19 +419,7 @@ function ensureOverlayStyles(): void {
 // from canvas-shell (which would create a cycle).
 
 function deriveFile(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const p = window.location.pathname;
-    if (p === '/_canvas-shell.html' || p === '/_canvas-shell') {
-      const qs = new URLSearchParams(window.location.search);
-      const canvas = qs.get('canvas') ?? '';
-      const designRel = (qs.get('designRel') ?? '.design').replace(/^\/+|\/+$/g, '');
-      return canvas ? `${designRel}/${canvas}` : null;
-    }
-    return decodeURIComponent(p).replace(/^\//, '');
-  } catch {
-    return null;
-  }
+  return currentCanvasFile();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -763,7 +752,12 @@ export function CommentsOverlay(): React.ReactNode {
     (async () => {
       try {
         const r = await fetch(`/_comments?file=${encodeURIComponent(file)}`);
-        if (!r.ok) return;
+        if (!r.ok) {
+          // A refused read still ends: an unread body keeps the request open (a headless
+          // capture waiting for network idle never gets it — gate-b-c4f).
+          await r.body?.cancel().catch(() => {});
+          return;
+        }
         const data = (await r.json()) as { comments?: OverlayComment[] };
         if (cancelled) return;
         if (Array.isArray(data.comments)) {
