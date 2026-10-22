@@ -560,7 +560,17 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     return linksCache.get(rel) ?? null;
   };
   const NONE: ReadonlySet<string> = new Set();
-  const carriedCache = new Map<string, ReadonlySet<string>>();
+  // gate-b-c4m (defender M-A) — `carriedBy` is a least fixed point over the re-export graph. It used
+  // to cache NONE for a module still being computed and then keep whatever its cycle partners had
+  // derived from that NONE: walking `a.ts` (`export { DesignCanvas as Foo } …` + `export * from
+  // './b.ts'`) first left `b.ts` (`export { Foo } from './a.ts'`) carrying nothing for the rest of the
+  // closure, so a `<Foo>` user reached through b.ts was "no canvas" for every later grant. Now a
+  // top-level call iterates passes over its reachable modules until no value grows (the rule is
+  // monotone — more carried names in a dep never means fewer out), and only then caches them.
+  const carriedFinal = new Map<string, ReadonlySet<string>>();
+  let approx: Map<string, ReadonlySet<string>> | null = null;
+  let passSeen = new Set<string>();
+  let grew = false;
   /** The names `spec` (written in `from`) exports that may be DesignCanvas. */
   const carriedBySpec = (from: string, spec: string): ReadonlySet<string> => {
     if (spec === CANVAS_LIB_SPEC) return LIB_CARRIED;
@@ -575,11 +585,13 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     }
     return out;
   };
-  /** The names module `rel` exports that may be DesignCanvas (`CARRIES_ALL`: any of them). */
-  const carriedBy = (rel: string): ReadonlySet<string> => {
-    const hit = carriedCache.get(rel);
-    if (hit) return hit;
-    carriedCache.set(rel, NONE); // a cycle reads nothing new through itself
+  /** One pass's value for `rel`: its approximation when the pass already reached it (a cycle). */
+  const carriedPass = (rel: string): ReadonlySet<string> => {
+    const fin = carriedFinal.get(rel);
+    if (fin) return fin;
+    const map = approx as Map<string, ReadonlySet<string>>;
+    if (passSeen.has(rel)) return map.get(rel) ?? NONE;
+    passSeen.add(rel);
     const links = linksOf(rel);
     const out = new Set<string>();
     if (links) {
@@ -592,10 +604,9 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
         out.add(CARRIES_ALL);
       for (const re of links.reexports) {
         const via = carriedBySpec(rel, re.spec);
-        if (via.size === 0) {
-          for (const [from, to] of re.items) if (from === 'DesignCanvas') out.add(to);
-          continue;
-        }
+        // A re-export of the literal name is a proxy whatever its source carries (monotone).
+        for (const [from, to] of re.items) if (from === 'DesignCanvas') out.add(to);
+        if (via.size === 0) continue;
         if (re.star) for (const n of via) if (n !== 'default') out.add(n);
         if (re.nsName !== null) out.add(re.nsName);
         for (const [from, to] of re.items)
@@ -603,8 +614,27 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
       }
       if (out.has(ODD_NAME)) out.add(CARRIES_ALL);
     }
-    carriedCache.set(rel, out);
+    if (out.size !== (map.get(rel)?.size ?? 0)) grew = true;
+    map.set(rel, out);
     return out;
+  };
+  /** The names module `rel` exports that may be DesignCanvas (`CARRIES_ALL`: any of them). */
+  const carriedBy = (rel: string): ReadonlySet<string> => {
+    const fin = carriedFinal.get(rel);
+    if (fin) return fin;
+    if (approx) return carriedPass(rel); // inside a pass
+    approx = new Map();
+    try {
+      do {
+        grew = false;
+        passSeen = new Set();
+        carriedPass(rel);
+      } while (grew);
+      for (const [k, v] of approx) carriedFinal.set(k, v);
+    } finally {
+      approx = null;
+    }
+    return carriedFinal.get(rel) ?? NONE;
   };
   const isCanvas = (rel: string): boolean => {
     // gate-b-c4m — an `.html` canvas carries no marker: the index's own path predicate decides, and

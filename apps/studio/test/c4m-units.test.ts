@@ -179,3 +179,32 @@ describe('2 + 3 — .html canvases and specimens are canvases to the closure', (
     expect(c.read.has('system/x/board.html')).toBe(true);
   });
 });
+
+describe('defender M-A — a re-export cycle never caches a wrong "carries nothing"', () => {
+  // a.ts re-exports DesignCanvas as Foo and everything of b.ts; b.ts re-exports Foo from a.ts. Walking
+  // a.ts first used to cache b.ts as carrying nothing (a.ts was still in progress), so x.tsx — which
+  // renders <Foo> from b.ts — was "not a canvas" for every later grant in the same closure.
+  const files: Record<string, string> = {
+    'ui/kit/a.ts':
+      "export { DesignCanvas as Foo } from '@maude/canvas-lib';\nexport * from './b.ts';\n",
+    'ui/kit/b.ts': "export { Foo } from './a.ts';\n",
+    'ui/y.tsx': "import { Foo } from './kit/a.ts';\nexport default () => <Foo />;\n",
+    'ui/x.tsx':
+      "import { Foo } from './kit/b.ts';\nexport default () => <Foo><p>X-SECRET</p></Foo>;\n",
+    'ui/g1.tsx': "import Y from './y.tsx';\nexport default () => <Y />;\n",
+    'ui/g1.meta.json': '{}',
+    'ui/g2.tsx': "import X from './x.tsx';\nexport default () => <X />;\n",
+    'ui/g2.meta.json': '{}',
+  };
+  for (const order of [
+    ['ui/g1.tsx', 'ui/g2.tsx'],
+    ['ui/g2.tsx', 'ui/g1.tsx'],
+  ])
+    test(`grants ${order.join(' + ')}: both proxies are canvases, x.tsx is not read`, () => {
+      const c = closureOf(files, ...order);
+      expect(c.blocked.has('ui/g1.tsx')).toBe(true);
+      expect(c.blocked.has('ui/g2.tsx')).toBe(true);
+      expect(c.read.has('ui/x.tsx')).toBe(false);
+      expect(c.read.has('ui/y.tsx')).toBe(false);
+    });
+});
