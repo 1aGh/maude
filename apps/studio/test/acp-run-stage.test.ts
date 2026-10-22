@@ -119,7 +119,12 @@ describe('acp / the agent reports REAL paths; the project may sit behind a symli
     editTurn(t, 'export default () => <p>z</p>;\n'); // FILE is the real path (no link)
     t.endTurn('failed');
     expect(calls.map((c) => c[0])).toEqual(['begin', 'claim']);
-    expect(calls[0]).toEqual(['begin', 'acp:c3', 'make it greener', { runId: 'r_link', chatId: 'c3' }]);
+    expect(calls[0]).toEqual([
+      'begin',
+      'acp:c3',
+      'make it greener',
+      { runId: 'r_link', chatId: 'c3' },
+    ]);
     expect(calls[1][2]).toBe('.design/ui/k.tsx');
   });
 });
