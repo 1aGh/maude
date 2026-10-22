@@ -10,7 +10,8 @@
 /** The card's two lines. `imports`: designRoot-relative names the viewer may see (may be empty). */
 export function canvasImportsText(imports, componentDir) {
   const names = Array.isArray(imports) ? imports.filter((x) => typeof x === 'string' && x) : [];
-  const dir = String(componentDir || 'components').replace(/^\.?\/+|\/+$/g, '') || 'components';
+  const dir =
+    String(componentDir || 'ui/components').replace(/^\.?\/+|\/+$/g, '') || 'ui/components';
   return {
     title: names.length
       ? `This canvas imports another canvas (${names.join(', ')}).`
