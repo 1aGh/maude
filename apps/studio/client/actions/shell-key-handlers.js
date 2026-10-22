@@ -364,6 +364,13 @@ for (const a of ACTIONS) {
   if (!a.id.startsWith('tool.') || a.id in SHELL_KEY_HANDLERS) continue;
   SHELL_KEY_HANDLERS[a.id] = (d, { event: e }) => {
     e.preventDefault();
+    // A tool key is the person driving the canvas: hand it the focus first. The shell admits a panel
+    // request (F's size picker, E's stickers, I's component picker) only from the iframe that holds
+    // the focus (use-tool-panels.js, EH-P4-2) — with the focus left on the tree row that opened the
+    // canvas, the canvas armed the tool and the panel was refused in silence.
+    try {
+      d.iframesRef?.current?.get(d.activePath)?.focus?.();
+    } catch {}
     d.postToActiveCanvas(runActionMessage('tool.key', { key: chordFromEvent(e) }));
   };
 }
