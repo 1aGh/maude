@@ -16,11 +16,11 @@ Starts the Maude Studio server through the installed `maude` CLI. It scans the p
 - **Selecting** — in Edit, click an object to select it; Esc or a click on empty canvas clears it. The selection is mirrored to `<designRoot>/_active.json`, so `/design:edit` can scope its change to it.
 - **Search** (⌘K) and **Version history** (⌥⌘H). **Hide panels** (⌘\) leaves only the canvas.
 
-The server reads `<repo>/.design/config.json` at boot. Auto-finds a free port from **4321** and opens the default browser. Idempotent: if already running, it just prints the URL. `Ctrl+C` in the terminal stops it.
+The server reads `<repo>/.design/config.json` at boot. Binds **4399**, or the next free port up to 4408, and opens the default browser (`NO_OPEN=1` skips that). Idempotent: if already running, it just prints the URL. `Ctrl+C` in the terminal stops it.
 
 **Input `$ARGUMENTS`:** `[--port <n>]`
 
-- `--port <n>` — force a specific port (default = first free port from 4321).
+- `--port <n>` — force a specific port (also `$PORT`). Default: 4399, walking up to 4408 when it is busy. An explicit port is never walked: a collision is an error.
 
 ## Procedure
 
@@ -78,7 +78,7 @@ The orchestrator (`/design:edit`, `/design:new`, etc.) auto-starts the server it
 
 ## Failure modes
 
-- **Ports 4321–4420 all taken** → the server throws `no free port`. Choose a free port with `--port <n>`.
+- **Ports 4399–4408 all taken** → the server stops with a message naming the range. Stop another dev server or pass `--port <n>`.
 - **Missing runtime** → install the `maude` CLI and its platform runtime. Source development uses Bun; there is no supported Node-only Studio server.
 - **Spaces in filenames** — the server URL-decodes, link generation encodes. It works.
 - **`.design/config.json` missing or invalid** — the server warns in the log and uses defaults.
