@@ -28,6 +28,7 @@ import {
   decodeJsString,
   importReaches,
   importScanText,
+  isCanvasFile,
   isCanvasSource,
   isDsSurfaceRel,
   LIB_CARRIED,
@@ -46,6 +47,16 @@ const SPEC_RES = [
 ];
 
 const CODE_EXT_RE = /\.(css|tsx|ts|jsx|js)$/i;
+/** A JS/TS module the walk reads for imports and the lib-proxy rule reads for re-exports. */
+const MODULE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs)$/i;
+/**
+ * gate-b-c4m — what an import may pull into a closure: a module, a stylesheet, JSON data. Nothing
+ * else a canvas imports today (images, fonts and SVG are `assets/…` path strings — `staticAssetRefs`
+ * — and Bun's file loader would leave an unserved hashed path anyway). ANY other extension — `.html`
+ * (a canvas), `.md`, `.txt`, unknown — taken with `with { type: 'text' }` is just bytes into the
+ * frame, so it blocks the grant like an imported canvas.
+ */
+const IMPORTABLE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs|css|json)$/i;
 /** A specifier with an extension of its own (`./data.json`, `./logo.svg`): the exact file. */
 const ANY_EXT_RE = /\/[^/]*[^/.]\.[A-Za-z0-9]+$/;
 
@@ -264,7 +275,7 @@ const DYNAMIC_RES = [
   /\bimport\(\s*(?!["']\s*[^"']*["']\s*\))[^)\s]/,
 ];
 
-const TEXT_SCAN_RE = /\.(tsx|ts|jsx|js|css|json|svg)$/i;
+const TEXT_SCAN_RE = /\.(tsx|ts|jsx|js|mjs|cjs|css|json|svg)$/i;
 const ASSET_TERMINATORS = new Set([
   '"',
   "'",
@@ -391,7 +402,7 @@ function isSystemFileInClosure(sysPath: string, rel: string): boolean {
   if (!rel.startsWith(`${sysPath}/`)) return false;
   const sub = rel.slice(sysPath.length + 1);
   if (sub.startsWith('ui_kits/')) return false;
-  if (sub.startsWith('preview/') && /\.(tsx|jsx)$/i.test(sub)) {
+  if (sub.startsWith('preview/') && /\.(tsx|jsx|html)$/i.test(sub)) {
     // `preview/_ds.tsx` (the `@maude/ds` override) and other `_`-prefixed helpers are modules,
     // not specimens; the import walk adds any specimen a canvas actually imports.
     return path.posix.basename(sub).startsWith('_');
@@ -543,7 +554,7 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
   const linksCache = new Map<string, ModuleLinks | null>();
   const linksOf = (rel: string): ModuleLinks | null => {
     if (!linksCache.has(rel)) {
-      const text = /\.(tsx|ts|jsx|js)$/i.test(rel) ? textOf(rel) : null;
+      const text = MODULE_EXT_RE.test(rel) ? textOf(rel) : null;
       linksCache.set(rel, text === null ? null : moduleLinks(text));
     }
     return linksCache.get(rel) ?? null;
@@ -596,6 +607,9 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
     return out;
   };
   const isCanvas = (rel: string): boolean => {
+    // gate-b-c4m — an `.html` canvas carries no marker: the index's own path predicate decides, and
+    // every DS surface errs to canvas (an `.html` specimen is one). Only a file that exists.
+    if (/\.html$/i.test(rel)) return files.has(rel) && (isCanvasFile(rel) || isDsSurfaceRel(rel));
     if (!/\.tsx$/i.test(rel)) return false;
     if (files.has(rel)) {
       if (isDsSurfaceRel(rel) || isCanvasSource(textOf(rel))) return true;
@@ -611,12 +625,27 @@ function walkEnv(project: ProjectReader, files: ReadonlySet<string>, cfg: Closur
   return { files, textOf, isCanvas, cfg, project };
 }
 
-/** The canvas a source, same-name stylesheet or path-keyed sidecar belongs to (`x.tsx`). */
-const canvasOfFile = (rel: string): string =>
-  rel.replace(
-    /\.(css|meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i,
-    '.tsx'
-  );
+const SAME_NAME_RE =
+  /\.(css|meta\.json|registry\.json|annotations\.json|annotations\.svg|edl\.json)$/i;
+
+/**
+ * The canvases a source, same-name stylesheet or path-keyed sidecar may belong to (`x.tsx` and,
+ * gate-b-c4m, `x.html`); a source is its own.
+ */
+const canvasesOfFile = (rel: string): string[] => {
+  if (!SAME_NAME_RE.test(rel)) return [rel];
+  const stem = rel.replace(SAME_NAME_RE, '');
+  return [`${stem}.tsx`, `${stem}.html`];
+};
+
+/**
+ * gate-b-c4m (defender M-B) — a DS surface's stylesheet (`system/<ds>/preview/x.css`,
+ * `system/<ds>/ui_kits/…/x.css`) is the system's styling: real canvases lift it, so IMPORTING it is
+ * never importing the specimen beside it (which stays a canvas, `.tsx` / `.html`). The DS folder
+ * itself still hands it only to the specimen (c4l) — a DS user reads it when it imports it.
+ */
+const isDsSurfaceStyle = (rel: string): boolean =>
+  /\.css$/i.test(rel) && isDsSurfaceRel(rel.replace(/\.css$/i, '.tsx'));
 
 function walkImports(
   env: WalkEnv,
@@ -635,10 +664,14 @@ function walkImports(
   let blocked = false;
   const importable = (dep: string): boolean => {
     if (dep.startsWith('_') || CANVAS_SIDECAR_RE.test(dep)) return false;
-    const asCanvas = /\.css$/i.test(dep) ? canvasOfFile(dep) : dep;
-    if (granted.has(asCanvas) || !env.isCanvas(asCanvas)) return true;
-    refused.add(asCanvas);
-    return false;
+    const owners = isDsSurfaceStyle(dep) ? [] : /\.css$/i.test(dep) ? canvasesOfFile(dep) : [dep];
+    for (const owner of owners)
+      if (!granted.has(owner) && env.isCanvas(owner)) {
+        refused.add(owner);
+        return false;
+      }
+    // gate-b-c4m — a module, a stylesheet or JSON; anything else blocks (`IMPORTABLE_EXT_RE`).
+    return IMPORTABLE_EXT_RE.test(dep);
   };
   // The transitive relative import graph, from the canvas (and the DS override it pulls in).
   const queue: string[] = [canvas];
@@ -655,7 +688,7 @@ function walkImports(
     const text = env.textOf(rel);
     if (text === null) continue;
     visited.push({ rel, text });
-    if (!/\.(tsx|ts|jsx|js|css)$/i.test(rel)) continue;
+    if (!MODULE_EXT_RE.test(rel) && !/\.css$/i.test(rel)) continue;
     for (const group of relativeImportGroups(text, `${VROOT}/${rel}`, VROOT)) {
       let resolved = false;
       for (const abs of group) {
@@ -770,8 +803,7 @@ function compute(
     if (sys)
       for (const f of files) {
         if (!isSystemFileInClosure(sys.path, f)) continue;
-        const owner = canvasOfFile(f);
-        if (!granted.has(owner) && env.isCanvas(owner)) continue;
+        if (canvasesOfFile(f).some((o) => !granted.has(o) && env.isCanvas(o))) continue;
         read.add(f);
       }
   }
