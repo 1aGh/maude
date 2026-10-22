@@ -35,6 +35,36 @@ for (const [name, codec] of CODECS) {
         assert.equal(await r.head(A), style('w1'));
       });
 
+      test('undo → redo → undo of the newer edit, then the older one beside it', async () => {
+        const r = rig(codec, { drop });
+        await r.create('you', A, 'ui/a.tsx', style('w1'));
+        const e1 = (await r.edit('you', A, style('w1', 'o5'))).actionId;
+        const e2 = (await r.edit('you', A, style('w1', 'o5', 'r12'))).actionId;
+        const u = await r.ok(r.propose('you', undo(e2), { label: 'Undo' }));
+        await r.ok(r.propose('you', redo(u.actionId), { label: 'Redo' }));
+        await r.ok(r.propose('you', undo(e2), { label: 'Undo' }));
+        assert.equal(await r.head(A), style('w1', 'o5'));
+        const c = await r.propose('you', undo(e1), { label: 'Undo' });
+        assert.equal(c.status, 200, JSON.stringify(c.body));
+        assert.equal(await r.head(A), style('w1'));
+      });
+
+      test('⇧⌘Z past a neighbour that was undone and redone in between', async () => {
+        const r = rig(codec, { drop });
+        await r.create('you', A, 'ui/a.tsx', style('w1'));
+        const e1 = (await r.edit('you', A, style('w1', 'o5'))).actionId;
+        const e2 = (await r.edit('you', A, style('w1', 'o5', 'r12'))).actionId;
+        const u2 = await r.ok(r.propose('you', undo(e2), { label: 'Undo' }));
+        const u1 = await r.ok(r.propose('you', undo(e1), { label: 'Undo' }));
+        assert.equal(await r.head(A), style('w1'));
+        await r.ok(r.propose('you', redo(u1.actionId), { label: 'Redo' }));
+        assert.equal(await r.head(A), style('w1', 'o5'));
+        // the corners redo reverts its undo through the opacity's undo + redo, a round trip that came to nothing
+        const c = await r.propose('you', redo(u2.actionId), { label: 'Redo' });
+        assert.equal(c.status, 200, JSON.stringify(c.body));
+        assert.equal(await r.head(A), style('w1', 'o5', 'r12'));
+      });
+
       test('after a redo the edit is live again: undoing the one before it conflicts only if it must', async () => {
         const r = rig(codec, { drop });
         await r.create('you', A, 'ui/a.tsx', style('w1'));

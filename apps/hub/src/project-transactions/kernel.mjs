@@ -769,25 +769,64 @@ export function createKernel({
       return new Set(ids.filter((id) => family.has(id)));
     };
     /**
-     * P8-B2 — `steps` (later lane effects, oldest first) without the actor's finished round trips: an edit of
-     * the same actor and the undo / redo of theirs that reverted it cancel to "no change", so neither is
-     * later work a revert must rebase through. Without this, ⌘Z ⌘Z over two edits that touch side by side in
-     * one string (an element's `style`: opacity, then corners) rebased the older edit's revert through the
-     * newer edit AND its own undo; diff3 calls touching hunks a conflict, and the actor was told someone else
-     * had changed it. An undo whose targets are not ALL still live in `steps` stays (it is real work);
-     * a redo cancels the undo it re-applies, leaving the original edit live again.
+     * P8-B2 — `steps` (later lane effects, oldest first) without the actor's round trips that came out to
+     * nothing: an edit of the same actor whose undo / redo history leaves it where it began is not later work a
+     * revert must rebase through. Without this, ⌘Z ⌘Z over two edits that touch side by side in one string (an
+     * element's `style`: opacity, then corners) rebased the older edit's revert through the newer edit AND its
+     * own undo; diff3 calls touching hunks a conflict, and the actor was told someone else had changed it.
+     * Each edit and the undos / redos that name it (a redo names the undo it re-applies) form one family whose
+     * on / off state is read in order, from how its first step found it (an undo found it on, a redo or the
+     * edit itself found it off); if it ends where it started the whole family drops out. Anything whose
+     * targets cannot be resolved to the actor's own edits is kept — nothing is dropped on a guess.
      */
     history.withoutRoundTrips = async (steps) => {
-      await history(steps.map((x) => x.actionId));
-      let live = steps;
+      // the undo / redo targets may lie outside `steps`; load them (and theirs) so a family can be followed
+      for (let want = steps.map((x) => x.actionId), depth = 0; want.length && depth < 8; depth++) {
+        await history(want);
+        want = [];
+        for (const id of rows.keys()) {
+          const a = rows.get(id);
+          if (!a || a.actor !== actor || (a.kind !== 'undo' && a.kind !== 'redo')) continue;
+          for (const t of (Array.isArray(a.undoes) ? a.undoes : [a.undoes]).filter(Boolean))
+            if (!rows.has(t)) want.push(t);
+        }
+      }
+      const rootsOf = (id, seen = new Set()) => {
+        if (seen.has(id)) return null;
+        seen.add(id);
+        const a = rows.get(id);
+        if (!a || a.actor !== actor) return null;
+        if (a.kind !== 'undo' && a.kind !== 'redo') return [id];
+        const roots = new Set();
+        for (const t of (Array.isArray(a.undoes) ? a.undoes : [a.undoes]).filter(Boolean)) {
+          const r = rootsOf(t, seen);
+          if (!r) return null;
+          for (const x of r) roots.add(x);
+        }
+        return roots.size ? [...roots] : null;
+      };
+      const start = new Map(); // edit action id → in force before the first step touching it?
+      const now = new Map();
+      const rootsOfStep = new Map();
       for (const step of steps) {
         const a = rows.get(step.actionId);
-        if (!a || a.actor !== actor || (a.kind !== 'undo' && a.kind !== 'redo')) continue;
-        const of = (Array.isArray(a.undoes) ? a.undoes : [a.undoes]).filter(Boolean);
-        if (of.length === 0 || !of.every((id) => live.some((x) => x.actionId === id))) continue;
-        live = live.filter((x) => x.actionId !== step.actionId && !of.includes(x.actionId));
+        const roots = rootsOf(step.actionId);
+        if (!a || !roots) continue;
+        rootsOfStep.set(step.actionId, roots);
+        const isMove = a.kind === 'undo' || a.kind === 'redo';
+        for (const r of roots) {
+          // the first step says how the family began: an undo found it on, a redo found it off, the edit itself
+          // (inside `steps`) found it not yet made
+          if (!start.has(r)) start.set(r, a.kind === 'undo');
+          now.set(r, isMove ? a.kind === 'redo' : true);
+        }
       }
-      return live;
+      const settled = new Set([...now].filter(([r, on]) => on === start.get(r)).map(([r]) => r));
+      if (settled.size === 0) return steps;
+      return steps.filter((step) => {
+        const roots = rootsOfStep.get(step.actionId);
+        return !(roots && roots.every((r) => settled.has(r)));
+      });
     };
     return history;
   }
