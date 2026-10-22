@@ -44,11 +44,7 @@ export const RULES = [
     /⌘⇧G|⇧⌘G|cmd\+shift\+g|<kbd>\s*Cmd\s*<\/kbd>\s*\+\s*<kbd>\s*Shift\s*<\/kbd>\s*\+\s*<kbd>\s*G\s*<\/kbd>/i,
     'Version history is ⌥⌘H; ⇧⌘G removes a frame',
   ],
-  [
-    'export-shortcut',
-    /(?<![⇧⌥])⌘E\b|\bcmd\+e\b/i,
-    '⇧⌘E Export… (⌘E is unbound in Maude 2)',
-  ],
+  ['export-shortcut', /(?<![⇧⌥])⌘E\b|\bcmd\+e\b/i, '⇧⌘E Export… (⌘E is unbound in Maude 2)'],
   [
     'inspector-vocabulary',
     /inspector words|vocabulary (?:toggle|switch)|designer\s*\/\s*advanced/i,
@@ -57,18 +53,30 @@ export const RULES = [
   ['dock', /\bDock\b(?!er)/, 'toolbar (the bottom tool island)'],
   ['rail', /\brail\b/i, 'panel'],
   ['mode-stamp', /mode stamp/i, 'the Edit · Preview · Present switch in the Share cluster'],
-  ['path-bar', /path ?bar|breadcrumb bar/i, 'Search ⌘K shows where a thing lives (Menu › File › …)'],
+  [
+    'path-bar',
+    /path ?bar|breadcrumb bar/i,
+    'Search ⌘K shows where a thing lives (Menu › File › …)',
+  ],
   ['banner', /\bbanners?\b/i, 'a callout (one action at most) or a toast'],
   ['topbar', /\btop ?bar\b/i, 'the Share cluster / the project pill'],
   ['sidebar', /\bsidebar\b/i, 'panel (the left panel: Canvases · Layers · Assets)'],
   ['command-palette', /command palette|⌘K menu/i, 'Search (⌘K)'],
   ['assistant', /\bAssistant\b/, 'AI chat panel (first mention), then AI'],
-  ['canvas-browser', /canvas browser|\bBrowse tool\b|file tree|tabbed iframe/i, 'the Canvases panel; Preview mode'],
+  [
+    'canvas-browser',
+    /canvas browser|\bBrowse tool\b|file tree|tabbed iframe/i,
+    'the Canvases panel; Preview mode',
+  ],
   ['cmd-click', /cmd\+click|⌘-?click to (?:edit|select)/i, 'select with V, then click'],
   ['sync-panel', /\bSync panel\b/, 'Menu › Diagnostics › Sync'],
   ['export-dialog', /export dialog/i, 'the Export sheet (⇧⌘E)'],
   ['icon-menu', /\bicon menu\b/i, 'Menu (under the project pill)'],
-  ['file-share-link', /file\s*(?:→|->|›)\s*share link/i, 'Share… (opens the Share sheet; Copy link is inside it)'],
+  [
+    'file-share-link',
+    /file\s*(?:→|->|›)\s*share link/i,
+    'Share… (opens the Share sheet; Copy link is inside it)',
+  ],
 ];
 
 /**
@@ -88,7 +96,7 @@ export const ALLOW = {
     rules: ['canvas-browser'],
   },
   'config-schema.mdx': {
-    why: 'generated from plugins/flow/.claude-plugin/config.schema.json; the one hit is the in-product What\'s New feed description',
+    why: "generated from plugins/flow/.claude-plugin/config.schema.json; the one hit is the in-product What's New feed description",
     rules: ['canvas-browser'],
   },
 };
