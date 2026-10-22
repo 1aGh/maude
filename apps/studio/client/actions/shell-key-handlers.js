@@ -27,7 +27,7 @@ import { playToggle, stepPlayhead, TIMELINE_KEY_HANDLERS } from '../v2/timeline/
 import { runCopyPng } from '../v2/export/copy-png.js';
 import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
-import { cycleRegion } from '../v2/shell/f6-cycle.js';
+import { cycleRegion, landOn } from '../v2/shell/f6-cycle.js';
 import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { timelineStore } from '../v2/timeline/timeline-store.js';
@@ -364,6 +364,11 @@ for (const a of ACTIONS) {
   if (!a.id.startsWith('tool.') || a.id in SHELL_KEY_HANDLERS) continue;
   SHELL_KEY_HANDLERS[a.id] = (d, { event: e }) => {
     e.preventDefault();
+    // The tool's panels (F's size picker, E's stickers, ⇧I's components) open only for a canvas the
+    // shell sees focused (EH-P4-2, use-tool-panels.js) — a key pressed in the Canvases panel would arm
+    // the tool and then be refused its picker. The person asked for the tool, so the canvas takes the keyboard.
+    const frame = d.activePath ? d.iframesRef?.current?.get?.(d.activePath) : null;
+    if (frame) landOn(frame);
     d.postToActiveCanvas(runActionMessage('tool.key', { key: chordFromEvent(e) }));
   };
 }
