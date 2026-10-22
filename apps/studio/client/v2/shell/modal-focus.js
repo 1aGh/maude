@@ -87,6 +87,9 @@ export function restoreFocus(opener, fallback, doc = document) {
   if (usable(to, doc)) to.focus({ preventScroll: true });
 }
 
+/** How long after opening an overlay keeps taking its focus back from a canvas that grabbed it (ms). */
+const REGAIN_MS = 500;
+
 /** The open overlays, topmost last (module state: one shell document). */
 const STACK = [];
 
@@ -125,6 +128,20 @@ export function useModalFocus({
     const first = initialRef?.current;
     if (first && !first.disabled) first.focus({ preventScroll: true });
     else if (root && !root.contains(doc.activeElement)) root.focus?.({ preventScroll: true });
+    // P8 B1 — opened from the Menu with the pointer resting where its row was: closing the menu uncovers
+    // the canvas iframe, which sees a pointerenter and pulls the keyboard into itself (canvas-lib
+    // "auto-focus on pointer enter") a few ms after this overlay took it — so esc and Tab went to the canvas
+    // and the sheet could not be closed from the keyboard. For the first moments, take it back; nobody
+    // clicks the canvas that fast on purpose.
+    const openedAt = Date.now();
+    const onFocusOut = () => {
+      if (Date.now() - openedAt > REGAIN_MS) return;
+      setTimeout(() => {
+        const a = doc.activeElement;
+        if (a?.tagName === 'IFRAME' && root?.isConnected) root.focus?.({ preventScroll: true });
+      }, 0);
+    };
+    root?.addEventListener('focusout', onFocusOut);
     const onKey = (e) => {
       if (STACK[STACK.length - 1] !== entry) return;
       if (esc && e.key === 'Escape' && !e.defaultPrevented) {
@@ -140,6 +157,7 @@ export function useModalFocus({
     win.addEventListener('keydown', onKey, true);
     return () => {
       win.removeEventListener('keydown', onKey, true);
+      root?.removeEventListener('focusout', onFocusOut);
       const at = STACK.indexOf(entry);
       if (at >= 0) STACK.splice(at, 1);
       const { fallback: fb } = live.current;
