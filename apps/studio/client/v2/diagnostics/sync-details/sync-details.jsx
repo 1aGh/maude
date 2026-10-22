@@ -93,10 +93,10 @@ function Compare({ slug, fetchImpl }) {
   );
 }
 
-function ConflictCard({ slug, fetchImpl, onResolved }) {
+function ConflictCard({ slug, canvasName, fetchImpl, onResolved }) {
   const [busy, setBusy] = useState('');
   const [said, setSaid] = useState('');
-  const name = cleanName(slug, 'This canvas');
+  const name = cleanName(canvasName || slug, 'This canvas');
   async function pick(actionId) {
     setBusy(actionId);
     setSaid('');
@@ -186,6 +186,7 @@ export default function SyncDetails({
   project,
   cloud,
   native = false,
+  names = null,
   onSignInAgain,
   fetchImpl = fetch,
 }) {
@@ -208,7 +209,12 @@ export default function SyncDetails({
           <p className="sd-sub">Needs you · {m.needs.length}</p>
           {m.needs.map((need) =>
             need.kind === 'conflict' ? (
-              <ConflictCard key={need.slug} slug={need.slug} fetchImpl={fetchImpl} />
+              <ConflictCard
+                key={need.slug}
+                slug={need.slug}
+                canvasName={names?.get?.(need.slug)}
+                fetchImpl={fetchImpl}
+              />
             ) : (
               <AiCard key="ai" need={need} fetchImpl={fetchImpl} />
             )

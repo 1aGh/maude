@@ -23,6 +23,32 @@ export function cleanName(raw, fallback = '') {
   return s.length > 120 ? `${s.slice(0, 120)}…` : s;
 }
 
+/**
+ * Canvas slug → the name a person knows it by. The sync runtime names a canvas by its slug (`ui/Smoke.tsx` →
+ * `ui-smoke`: path separators to `-`, spaces to `_`, lower-case — sync/index.ts `slugFor`); the Needs-you card
+ * read "ui-smoke changed here and in the cloud." (P8 B1). `groups` is the tree's: canvas groups list repo-relative
+ * `paths`, the design root is the first segment of `fullPath`.
+ */
+export function canvasNamesBySlug(groups) {
+  const out = new Map();
+  for (const g of Array.isArray(groups) ? groups : []) {
+    if (!g || g.kind !== 'canvas' || !Array.isArray(g.paths)) continue;
+    const designRel = typeof g.fullPath === 'string' ? g.fullPath.split('/')[0] : '';
+    for (const p of g.paths) {
+      if (typeof p !== 'string' || !/\.(tsx|html)$/i.test(p)) continue;
+      const rel = designRel && p.startsWith(`${designRel}/`) ? p.slice(designRel.length + 1) : p;
+      const slug = rel
+        .replace(/\//g, '-')
+        .replace(/\s+/g, '_')
+        .replace(/\.(tsx|html)$/i, '')
+        .replace(/^\.+/, '')
+        .toLowerCase();
+      out.set(slug, rel.slice(rel.lastIndexOf('/') + 1).replace(/\.(tsx|html)$/i, ''));
+    }
+  }
+  return out;
+}
+
 /** The canvases with a held source conflict (the runtime's `source-conflict-<slug>` notices). */
 export function conflictSlugs(status) {
   const out = [];

@@ -23,6 +23,7 @@ import SyncDetails, {
   CONFLICT_PICK,
 } from '../client/v2/diagnostics/sync-details/sync-details.jsx';
 import {
+  canvasNamesBySlug,
   conflictSlugs,
   resolvedWords,
   syncDetailsModel,
@@ -301,6 +302,42 @@ describe('Sync details — the model and the registry', () => {
     expect(resolvedWords('theirs', { ok: true })).toBe('The cloud’s version is the canvas now.');
     expect(resolvedWords('keep-both', { ok: false, code: 'no-local-version' })).toBe(
       'This Mac’s version is gone — nothing to keep.'
+    );
+  });
+});
+
+describe('P8 B1 — the conflict card names the canvas, not its slug', () => {
+  const groups = [
+    { kind: 'project', label: 'Project', fullPath: '.design' },
+    {
+      kind: 'canvas',
+      label: 'UI kit',
+      fullPath: '.design/ui',
+      paths: [
+        '.design/ui/Smoke.tsx',
+        '.design/ui/Smoke.meta.json',
+        '.design/ui/Club rebrand.tsx',
+        '.design/ui/old/Pricing.html',
+      ],
+    },
+  ];
+
+  test('canvasNamesBySlug maps the sync slug (sync/index.ts slugFor) to the canvas name', () => {
+    const m = canvasNamesBySlug(groups);
+    expect(m.get('ui-smoke')).toBe('Smoke');
+    expect(m.get('ui-club_rebrand')).toBe('Club rebrand'); // spaces → "_" in the slug
+    expect(m.get('ui-old-pricing')).toBe('Pricing'); // a legacy .html canvas in a folder
+    expect(m.size).toBe(3); // a sidecar is not a canvas
+    expect(canvasNamesBySlug(null).size).toBe(0);
+  });
+
+  test('"ui-smoke changed here and in the cloud." reads "Smoke changed …" once the names are known', async () => {
+    await mount({
+      status: base({ notices: [conflict('ui-smoke')] }),
+      names: canvasNamesBySlug(groups),
+    });
+    expect(q('diag-sync-conflict-ui-smoke')?.textContent).toContain(
+      'Smoke changed here and in the cloud.'
     );
   });
 });

@@ -421,6 +421,7 @@ function SyncView({ sync }) {
         project={sync.project}
         cloud={sync.cloud}
         native={sync.native ?? isNativeApp()}
+        names={sync.names}
         onSignInAgain={(url) => setSignInAt(url)}
       />
       {signInAt !== null ? (

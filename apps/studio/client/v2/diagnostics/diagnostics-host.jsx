@@ -11,6 +11,7 @@ import { menuRunner } from '../shell/menu-runner.js';
 import { diagnosticsInfo, logsText, menuStatuses } from './diagnostics-model.js';
 import DiagnosticsSheet from './diagnostics-sheet.jsx';
 import { readResyncView } from './resync-run.js';
+import { canvasNamesBySlug } from './sync-details/sync-details-model.js';
 
 const REVEAL_LOGS = 'diag.logs-show-in-finder';
 const RESYNC_POLL_MS = 1500;
@@ -171,6 +172,7 @@ export default function DiagnosticsHost({ toast }) {
         project: projectName,
         cloud: cfg?.cloud ?? null,
         groupPaths: (groups || []).map((g) => g.path).filter(Boolean),
+        names: canvasNamesBySlug(groups),
         behind: gitStatus?.behind || 0,
         onGetLatest: gitGetLatest,
         resync,
