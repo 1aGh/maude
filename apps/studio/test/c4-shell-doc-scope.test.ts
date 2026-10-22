@@ -23,7 +23,16 @@ const TOKENS = 'system/beta/colors_and_type.css';
 
 function git(cwd: string, ...args: string[]) {
   const r = Bun.spawnSync(
-    ['git', '-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...args],
+    [
+      'git',
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      ...args,
+    ],
     { cwd, env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }
   );
   if (r.exitCode !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString()}`);

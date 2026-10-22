@@ -2,10 +2,7 @@
 // (mention-model.js) and the shell half of the overlay's messages (comment-bridge.js, comment-client.js).
 
 import { describe, expect, test } from 'bun:test';
-import {
-  conversionOf,
-  rememberConversion,
-} from '../client/v2/annotations/annotation-asks.js';
+import { conversionOf, rememberConversion } from '../client/v2/annotations/annotation-asks.js';
 import { canvasRel, handleCommentBridgeMessage } from '../client/v2/comments/comment-bridge.js';
 import { fetchMentionPeople, postCommentOp } from '../client/v2/comments/comment-client.js';
 import {

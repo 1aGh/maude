@@ -7307,7 +7307,8 @@ export function createHttp(
       const rel = d && clean.startsWith(`${d}/`) ? clean.slice(d.length + 1) : clean;
       const abs = resolve(ctx.paths.designRoot, rel);
       if (!abs.startsWith(ctx.paths.designRoot + sep)) continue; // neither reader reads it
-      if (!access.seesCanvas(relative(ctx.paths.designRoot, abs).split(sep).join('/'))) return false;
+      if (!access.seesCanvas(relative(ctx.paths.designRoot, abs).split(sep).join('/')))
+        return false;
     }
     return true;
   }
