@@ -86,6 +86,25 @@ describe('POST /_api/export-estimate — numbers from the index', () => {
     expect(body.skipped).toEqual([]);
   });
 
+  // P8-C4 (09 ex-social / ex-canvas / ex-huge) — what the sheet NAMES: the artboards it reaches (size, label, kind
+  // — the preview caption, the size chips' pixels, a group's names line) and how many canvases / folders sit
+  // behind a folder or whole-project scope (their title and sub). Numbers and names only, additive.
+  test('the artboards it reaches, and the canvases behind Folder and Whole project', async () => {
+    const one = await estimate(OWNER, {
+      v: 2,
+      scope: 'selection',
+      format: 'png',
+      canvas: 'ui/a.tsx',
+      selection: { artboards: ['hero'] },
+    });
+    expect(one.body.boards).toEqual([
+      { canvas: 'ui/a.tsx', id: 'hero', label: 'hero', kind: 'digital', w: 1080, h: 1350 },
+    ]);
+    const all = await estimate(OWNER, { v: 2, scope: 'project', format: 'png' });
+    expect(all.body.canvasCounts).toEqual({ folder: 3, project: 4, folders: 2, loose: 0 });
+    expect((all.body.boards as unknown[]).length).toBe(7);
+  });
+
   test('a bigger scale is more bytes; JPG is fewer than PNG (numbers, never copy)', async () => {
     const png1 = (
       await estimate(OWNER, {

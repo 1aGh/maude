@@ -34,6 +34,24 @@ export interface EstimateResult {
   skipped: Array<{ name: string; reason: SkipReason }>;
   /** S8.6 — one row per video artboard reached: its length against the cap that export would be held to */
   video: VideoInfo[];
+  /**
+   * P8-C4 — the artboards this export reaches (the first `BOARDS_CAP`, in output order): what the sheet NAMES —
+   * the preview's caption and the size chips' pixels, a kind group's names line. Names and numbers only.
+   */
+  boards: Array<{
+    canvas: string;
+    id: string;
+    label: string | null;
+    kind: string | null;
+    w: number | null;
+    h: number | null;
+  }>;
+  /**
+   * P8-C4 — how many canvases sit behind Folder and Whole project (their title and sub line: "31 canvases",
+   * "93 canvases in 5 folders, plus 4 at the top level"). `folders` = distinct top-level folders; `loose` =
+   * canvases at the top level. null where the scope is not this session's to count.
+   */
+  canvasCounts: { folder: number | null; project: number | null; folders: number; loose: number };
   basis: { bytes: 'history' | 'table'; seconds: 'history' | 'table' };
   /**
    * S8.5 — the cloud-or-this-Mac question (09 ex-offline). Additive: `cloud` = the cloud is on offer
@@ -109,6 +127,23 @@ const artboardsOf = (cs: readonly SpecCanvas[]) => cs.reduce((n, c) => n + c.art
 function folderOf(rel: string): string {
   const i = rel.lastIndexOf('/');
   return i < 0 ? '' : rel.slice(0, i);
+}
+
+const BOARDS_CAP = 60;
+/** The artboards the units reach, once each, in output order (the sheet names a few; it never lists hundreds). */
+function reachedBoards(units: readonly SpecUnit[]): EstimateResult['boards'] {
+  const out: EstimateResult['boards'] = [];
+  const seen = new Set<string>();
+  for (const u of units) {
+    for (const b of u.artboards) {
+      const key = `${u.canvas ?? ''}\u0000${b.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ canvas: u.canvas ?? '', id: b.id, label: b.label, kind: b.kind, w: b.w, h: b.h });
+      if (out.length >= BOARDS_CAP) return out;
+    }
+  }
+  return out;
 }
 
 function deviceScale(unit: SpecUnit): number {
@@ -250,6 +285,14 @@ export function estimateSpec(
     byKind,
     skipped: [...resolved.skipped],
     video: videoInfo(resolved.units, facts.video ?? null),
+    boards: reachedBoards(resolved.units),
+    canvasCounts: {
+      folder: facts.canvasOnly || folder === null ? null : nonEmpty(inFolder.length),
+      project: facts.canvasOnly ? null : nonEmpty(facts.canvases.length),
+      folders: new Set(facts.canvases.filter((c) => c.rel.includes('/')).map((c) => c.rel.split('/')[0]))
+        .size,
+      loose: facts.canvases.filter((c) => !c.rel.includes('/')).length,
+    },
     basis: { bytes: 'table', seconds: secondsBasis },
     render,
   };

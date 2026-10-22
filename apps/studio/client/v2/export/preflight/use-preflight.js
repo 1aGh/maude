@@ -23,11 +23,20 @@ export function preflightSpec(spec) {
   };
 }
 
-export async function fetchPreflight(spec, signal, fetchImpl = globalThis.fetch) {
+/**
+ * `measure: false` asks for the paper, the back and the fonts WITHOUT the safe-margin render (a headless render of
+ * the canvas, seconds long): the preview draws at once, and `usePreflight` asks again with it.
+ */
+export async function fetchPreflight(
+  spec,
+  signal,
+  fetchImpl = globalThis.fetch,
+  { measure = true } = {}
+) {
   const r = await fetchImpl('/_api/export-preflight', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ spec: preflightSpec(spec) }),
+    body: JSON.stringify({ spec: preflightSpec(spec), ...(measure ? {} : { measure: false }) }),
     signal,
   });
   if (!r.ok) return null;
@@ -44,6 +53,12 @@ export function usePreflight(spec, { enabled = true } = {}) {
     if (!enabled) return undefined;
     const ctl = new AbortController();
     const t = setTimeout(() => {
+      // the quick answer: what the page IS. A slow measurement must not keep the preview on "Drawing the page…"
+      fetchPreflight(spec, ctl.signal, globalThis.fetch, { measure: false })
+        .then((r) => {
+          if (!ctl.signal.aborted && r) setReply((prev) => prev ?? r);
+        })
+        .catch(() => {});
       fetchPreflight(spec, ctl.signal)
         .then((r) => {
           if (!ctl.signal.aborted) setReply(r);
