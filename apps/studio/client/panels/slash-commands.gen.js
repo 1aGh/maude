@@ -18,7 +18,7 @@ export const STATIC_COMMANDS = [
   },
   {
     name: 'design:browse',
-    description: 'Open the local Maude canvas browser.',
+    description: 'Start the Maude studio for this project and open it.',
     argHint: '[--port <n>]',
   },
   {

@@ -73,7 +73,7 @@ grep -qiE 'letak|plakat|vizitka|brozura|leták|plakát|brožura|flyer|poster|bus
 
 - Never move/resize a `kind="print"` artboard's `width`/`height` by hand — a paper/orientation/bleed change goes through the Inspector's print picker (T2: `/_api/set-artboard-print` + `/_api/resize-artboard` together) or `resolvePrintArtboard()`, so the resolved px size never drifts from the `print` prop.
 - Any new full-bleed background/photo/fill must still cover the WHOLE artboard box (0 to `width`/`height`) — the bleed edge, not just the trim-inset area (same rule as `/design:new`'s print cue).
-- Any new critical content (headline, logo, CTA) must land inside the safe margin — toggle "Show print guides" (View menu, T3) before/after the edit to visually confirm nothing landed in the bleed/trim band.
+- Any new critical content (headline, logo, CTA) must land inside the safe margin — toggle Print guides (project menu › View › Advanced, or ⌘K "print guides") before/after the edit to visually confirm nothing landed in the bleed/trim band.
 - Don't touch the `print` prop's `paper`/`bleedMm`/`marginsMm` fields unless the user explicitly asked for a paper/bleed/margin change — a copy/layout edit on a print artboard should leave its print geometry alone.
 
 #### 0.8 Web-artboard awareness (feature-3-web-artboards)

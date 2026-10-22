@@ -88,17 +88,6 @@ export const ALLOW = {
     why: 'the "where did it go" page names every v1 control so a Maude 1 user can find its new home',
     rules: '*',
   },
-  // GENERATED pages (site/scripts/build-command-reference.mjs, build-schema-reference.mjs): their
-  // text is the plugin command / config-schema source, which V2-7.4 owns. Reword the source, regen,
-  // and delete these two rows.
-  'commands-design/browse.mdx': {
-    why: 'generated from plugins/design/commands/browse.md ("Open the local Maude canvas browser"); V2-7.4 rewords the source',
-    rules: ['canvas-browser'],
-  },
-  'config-schema.mdx': {
-    why: "generated from plugins/flow/.claude-plugin/config.schema.json; the one hit is the in-product What's New feed description",
-    rules: ['canvas-browser'],
-  },
 };
 
 function walk(dir) {
