@@ -22,6 +22,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
 import { whenWords } from '../sync-states/sync-states-model.js';
+import { Glyph } from './glyphs.jsx';
 import { copyShareLink } from './link-dialog.js';
 import {
   errorWords,
@@ -43,25 +44,31 @@ function CopyRow({ id, label, value, testid, copyTestid, children }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // 10 co-share-advanced `ARow mono copy`: the key left, the value inline in mono, a 22 px copy glyph.
+  // The value stays a read-only field (select-all, the stable testid) drawn as plain text; the glyph
+  // turns into a check for a moment once the address is on the clipboard.
   return (
-    <div className="v2sh-arow">
+    <div className="v2sh-arow v2sh-arow--row v2sh-arow--wrap">
       <label className="v2sh-arow-k" htmlFor={id}>
         {label}
       </label>
       <div className="v2sh-arow-v">
         <input
           id={id}
-          className="input v2sh-mono"
+          className="v2sh-val"
           data-testid={testid}
           readOnly
           value={value}
+          title={value}
           onFocus={(e) => e.target.select()}
         />
         <button
           type="button"
-          className="btn btn--ghost btn--sm"
+          className="v2sh-copy"
+          title={copied ? 'Copied' : 'Copy'}
           aria-label={`Copy ${label}`}
           data-testid={copyTestid}
+          data-done={copied ? 'true' : undefined}
           onClick={async () => {
             if (await copyShareLink(value)) {
               setCopied(true);
@@ -70,7 +77,7 @@ function CopyRow({ id, label, value, testid, copyTestid, children }) {
             }
           }}
         >
-          {copied ? 'Copied' : 'Copy'}
+          <Glyph name={copied ? 'check' : 'duplicate'} size={12} />
         </button>
       </div>
       {children}
@@ -80,13 +87,13 @@ function CopyRow({ id, label, value, testid, copyTestid, children }) {
 
 function Pick({ id, label, value, options, onChange, disabled }) {
   return (
-    <div className="v2sh-arow v2sh-arow--pick">
+    <div className="v2sh-arow v2sh-arow--row v2sh-arow--pick">
       <label className="v2sh-arow-k" htmlFor={id}>
         {label}
       </label>
       <select
         id={id}
-        className="input v2sh-pick"
+        className="select v2sh-pick"
         data-testid={id}
         value={value}
         disabled={disabled}
@@ -186,8 +193,9 @@ function RoleMatrix({ roles }) {
             <tr key={what}>
               <th scope="row">{what}</th>
               {roles.map((r) => (
-                <td key={r} className={may.includes(r) ? '' : 'v2sh-mx-no'}>
-                  {may.includes(r) ? '✓' : '—'}
+                <td key={r} className={may.includes(r) ? 'v2sh-mx-yes' : 'v2sh-mx-no'}>
+                  {may.includes(r) ? <Glyph name="check" size={14} /> : '—'}
+                  <span className="v2sh-sr">{may.includes(r) ? 'Yes' : 'No'}</span>
                 </td>
               ))}
             </tr>
@@ -196,7 +204,8 @@ function RoleMatrix({ roles }) {
       </table>
       <p className="v2sh-hint">
         AI runs on each person’s own Claude account. A link can give Can view or Can comment, never
-        more. The trash keeps things until an owner clears it out.
+        more. Can view is look only — downloads start at Can comment. The trash keeps things until
+        an owner clears it out.
       </p>
     </div>
   );
@@ -297,7 +306,7 @@ export function ShareAdvanced({
           )}
           {kind === 'app' && shell !== 'native' && (
             <a className="v2sh-hint" href={links.app} data-testid="share-open-app">
-              Open in app
+              Open in the Mac app
             </a>
           )}
         </CopyRow>
@@ -315,9 +324,9 @@ export function ShareAdvanced({
             copyTestid="share-copy-hub"
           />
           {Number.isFinite(lastSynced) && lastSynced > 0 && (
-            <div className="v2sh-arow">
+            <div className="v2sh-arow v2sh-arow--row">
               <span className="v2sh-arow-k">Last synced</span>
-              <span className="v2sh-arow-v" data-testid="share-syncs-last">
+              <span className="v2sh-arow-v v2sh-val-text" data-testid="share-syncs-last">
                 {whenWords(lastSynced, now ?? Date.now())}
               </span>
             </div>
@@ -333,7 +342,7 @@ export function ShareAdvanced({
           {adv.hubRoles.available.length > 0 && (
             <p className="v2sh-rm">
               <span className="v2sh-rm-ic" aria-hidden="true">
-                ✓
+                <Glyph name="check" size={14} />
               </span>
               <span className="v2sh-rm-t">
                 {adv.hubRoles.available.join(' · ')}

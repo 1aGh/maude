@@ -14,7 +14,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const count = (n) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
 
 const pad = (n) => String(n).padStart(2, '0');
-/** "18:20" today, "yesterday 18:20", else "3 Oct 18:20" (local time, 24-hour — the CONTRACT's clock). */
+/** "18:20" today, "yesterday 18:20", else "3 Oct, 18:20" (local time, 24-hour — the CONTRACT §4 clock). */
 export function whenWords(ms, now = Date.now()) {
   const d = new Date(ms);
   const t = `${d.getHours()}:${pad(d.getMinutes())}`;
@@ -24,7 +24,7 @@ export function whenWords(ms, now = Date.now()) {
   if (diff === 0) return t;
   if (diff === 1) return `yesterday ${t}`;
   const month = d.toLocaleString('en-GB', { month: 'short' });
-  return `${d.getDate()} ${month} ${t}`;
+  return `${d.getDate()} ${month}, ${t}`;
 }
 
 /**
@@ -38,11 +38,12 @@ export function syncFoot({ kind, pending, since = null, peak = 0, now = Date.now
   const waiting = count(pending);
   if (kind === 'offline' && waiting > 0) {
     const what = plural(waiting, 'change', 'changes');
+    // 10 co-sync-offline: the panel foot is `.k-cp-foot` (fg-2) — the warn colour belongs to the status
+    // word in the cluster ("Offline — kept on this Mac"), so the same sentence is not shouted twice.
     return {
       text: since
         ? `${what} since ${whenWords(since, now)} — kept on this Mac`
         : `${what} — kept on this Mac`,
-      tone: 'warn',
     };
   }
   if (kind === 'syncing' && waiting > 0) {
@@ -91,29 +92,60 @@ const kindWord = (type) =>
  * @param {object} c  a `GET /_api/sync/conflicts` row
  * @param {{ me?: string }} o
  */
-export function conflictCard(c, { me = '' } = {}) {
+/** When a version was made, if the element says (`at`, ISO or epoch) — else null, and the line drops it. */
+const atOf = (el) => {
+  const raw = el && typeof el === 'object' ? el.at : null;
+  const t = typeof raw === 'number' ? raw : Date.parse(String(raw ?? ''));
+  return Number.isFinite(t) && t > 0 ? t : null;
+};
+
+/** "Yours · yesterday 21:40 · this Mac" — who, when (if known), and whose Mac (10 co-conflict). */
+export function versionLine(who, at, where, now = Date.now()) {
+  return [who, at ? whenWords(at, now) : '', where].filter(Boolean).join(' · ');
+}
+
+export function conflictCard(c, { me = '', now = Date.now() } = {}) {
   const what = kindWord(c?.type);
   const other = firstName(authorOf(c?.theirs));
   const isMe = other && firstName(me) && other.toLowerCase() === firstName(me).toLowerCase();
   const who = other && !isMe ? other : '';
   const deletedMine = !c?.mine;
   const deletedTheirs = !c?.theirs;
+  const mineAt = atOf(c?.mine);
+  const theirsAt = atOf(c?.theirs);
   return {
     key: `${c?.slug}#${c?.id}`,
     title: who
       ? `You and ${who} both changed this ${what} while offline.`
       : `This ${what} was changed on two Macs while you were offline.`,
     sub: 'Both versions are here. Keep one, or keep both side by side.',
-    mine: { who: 'Yours · this Mac', text: deletedMine ? 'You deleted it.' : textOf(c?.mine) },
+    // CONTRACT §7: an object is *removed*, never "deleted"; a person is never "deleted" either
+    mine: {
+      who: versionLine('Yours', mineAt, 'this Mac', now),
+      name: firstName(me) || 'You',
+      at: mineAt,
+      text: deletedMine ? 'You removed it.' : textOf(c?.mine),
+    },
     theirs: {
-      who: who ? `${who}'s` : 'The other version',
-      text: deletedTheirs ? `${who || 'It'} was deleted.` : textOf(c?.theirs),
+      who: who
+        ? versionLine(who, theirsAt, 'their Mac', now)
+        : versionLine('The other version', theirsAt, '', now),
+      name: who,
+      at: theirsAt,
+      text: deletedTheirs
+        ? who
+          ? `${who} removed it.`
+          : 'It was removed on the other Mac.'
+        : textOf(c?.theirs),
     },
     keepMine: 'Keep yours',
     keepTheirs: who ? `Keep ${who}'s` : 'Keep theirs',
     // keeping both of a deleted side is keeping the one that is left
     keepBoth: deletedMine || deletedTheirs ? null : 'Keep both',
-    hint: 'Whichever you keep, Version history shows the other, with Restore.',
+    // The line under the two versions — Version history's foot (10 co-conflict `.co-vh-f`): the key
+    // hint is drawn beside it, so the words stop where the shortcut starts.
+    hint: 'Both stay here whatever you keep.',
+    historyKeys: '⌥⌘H',
   };
 }
 

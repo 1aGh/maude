@@ -31,6 +31,11 @@ export function useBackOnline({ kind, conflicts, onShow, now = Date.now }) {
         id: BACK_ONLINE_ID,
         title: t.title,
         kind: 'info',
+        // 10 co-sync-back `<Toast at="top" icon="sync" action="Show">`: a reconnect is a state of the
+        // project, so the one-line pill sits at the top, with the sync glyph. The host (notifications.tsx,
+        // C1-kit's pill) reads `placement` / `icon`; a host that does not yet ignores both.
+        placement: 'top',
+        icon: 'sync',
         timerKey: `back-online-${st.at}-${n > 0 ? 'look' : 'quiet'}`,
         ...(t.action
           ? {

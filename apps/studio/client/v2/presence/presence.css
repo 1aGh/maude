@@ -10,15 +10,17 @@
     display: inline-flex;
     flex: none;
   }
-  .st-faces .st-face[style*="--face-tone"] {
-    box-shadow:
-      0 0 0 2px var(--island-bg, var(--bg-1)),
-      0 0 0 3.5px var(--face-tone);
-  }
+  /* 10 co-presence: a face is a tone FILL with the object ink and ONE letter (kit `.k-av--<tone>`), with
+     the cluster's 2 px ring around it — not an accent wash with the tone as a ring. The AI wears the
+     spark on the agent fill. The tone ring is reserved for Follow (below), where it means something. */
+  .st-faces .st-face[style*="--face-tone"],
   .st-faces .st-face.is-you {
-    box-shadow:
-      0 0 0 2px var(--island-bg, var(--bg-1)),
-      0 0 0 3.5px var(--face-tone);
+    background: var(--face-tone);
+    color: var(--object-ink);
+  }
+  .st-faces .st-face.is-agent {
+    background: var(--presence-agent, var(--spark));
+    color: var(--spark-fg);
   }
   .st-faces .st-face.is-idle {
     opacity: 0.55;
@@ -29,16 +31,19 @@
       0 0 0 2px var(--island-bg, var(--bg-1)),
       0 0 0 4px var(--face-tone, var(--accent));
   }
-  .st-face--more {
+  /* "+4" — a grey face (kit: a Who with the grey tone), tabular so 9 → 10 does not shift the row */
+  .st-faces .st-face.st-face--more {
     width: auto;
     min-width: 24px;
     padding: 0 6px;
     border: 0;
     font: inherit;
+    font-family: var(--font-rounded, var(--font-body));
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
-    color: var(--fg-1);
-    background: var(--bg-3);
+    font-variant-numeric: tabular-nums;
+    color: var(--object-ink);
+    background: var(--object-grey);
     cursor: pointer;
   }
 
@@ -80,9 +85,9 @@
     border-radius: var(--radius-pill, 999px);
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
-    color: var(--fg-0);
-    background: color-mix(in oklab, var(--face-tone, var(--accent)) 30%, var(--bg-3));
-    box-shadow: 0 0 0 2px var(--face-tone, transparent);
+    font-family: var(--font-rounded, var(--font-body));
+    color: var(--object-ink);
+    background: var(--face-tone, var(--object-grey));
   }
   .st-pface--lg {
     width: 32px;
@@ -112,6 +117,18 @@
   .st-pmenu-row:hover,
   .st-pmenu-row:focus-visible {
     background: var(--bg-3);
+  }
+  .st-pmenu-row:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+  /* `.k-mi-ic` — the 16 px glyph column of a menu row */
+  .st-pmenu-ic {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    color: var(--fg-2);
   }
 
   .st-plist {

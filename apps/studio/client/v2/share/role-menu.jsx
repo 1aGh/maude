@@ -9,20 +9,52 @@
 //
 // A WAI-ARIA menu: ↑/↓ (Home/End) rove, Enter/Space picks, esc closes and gives focus back to the
 // role button. Picking only ASKS — the sheet sends it and the hub decides.
+//
+// P8 C7: the sheet scrolls (`overflow: auto`), so a menu positioned inside it was cut off below Can
+// view (Make owner / Remove hidden). It hangs from the role button with `position: fixed`, measured
+// once it is drawn, so no scroll parent clips it; it flips above the button when there is no room
+// below.
 
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 
 import { useModalFocus } from '../shell/modal-focus.js';
+import { Glyph } from './glyphs.jsx';
 import { ROLE_WORDS } from './share-model.js';
 
-export function RoleMenu({ row, roles, makeOwner, scopeName, onPick, onClose }) {
+/** Where a menu of `size` hangs from `anchor`: right-aligned, below, or above when it would not fit. */
+export function menuPlace(anchorRect, size, view, gap = 4) {
+  const below = view.height - anchorRect.bottom - gap;
+  const flip = size.height > below && anchorRect.top - gap > below;
+  const top = flip ? Math.max(gap, anchorRect.top - gap - size.height) : anchorRect.bottom + gap;
+  const left = Math.max(
+    gap,
+    Math.min(anchorRect.right - size.width, view.width - size.width - gap)
+  );
+  return { top, left, flip };
+}
+
+export function RoleMenu({ row, roles, makeOwner, scopeName, anchor, onPick, onClose }) {
   // Topmost overlay while open: esc closes the MENU (not the sheet) and focus goes back to the role
   // button that opened it. Not modal — Tab leaves the menu, which closes it.
   const ref = useModalFocus({ onClose, modal: false });
+  const [place, setPlace] = useState(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !anchor?.getBoundingClientRect) return;
+    const r = anchor.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    setPlace(
+      menuPlace(
+        r,
+        { width: box.width || 296, height: box.height || 280 },
+        { width: window.innerWidth, height: window.innerHeight }
+      )
+    );
+  }, [anchor, ref]);
   useEffect(() => {
     const items = [...(ref.current?.querySelectorAll('[role^="menuitem"]') ?? [])];
     const checked = items.find((n) => n.getAttribute('aria-checked') === 'true');
-    (checked ?? items[0])?.focus();
+    (checked ?? items[0])?.focus({ preventScroll: true });
     const onDown = (e) => {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     };
@@ -54,6 +86,10 @@ export function RoleMenu({ row, roles, makeOwner, scopeName, onPick, onClose }) 
       role="menu"
       aria-label={`${row.name}’s role`}
       data-testid="share-role-menu"
+      data-placed={place ? (place.flip ? 'above' : 'below') : 'pending'}
+      style={
+        place ? { top: place.top, left: place.left } : { top: 0, left: 0, visibility: 'hidden' }
+      }
       onKeyDown={onKeyDown}
     >
       {roleRows.map((r) => (
@@ -68,7 +104,7 @@ export function RoleMenu({ row, roles, makeOwner, scopeName, onPick, onClose }) 
           onClick={pick({ kind: 'role', role: r })}
         >
           <span className="v2sh-mi-ic" aria-hidden="true">
-            {row.role === r ? '✓' : ''}
+            {row.role === r ? <Glyph name="check" size={14} /> : null}
           </span>
           <span className="v2sh-mi-t">
             {ROLE_WORDS[r].word}

@@ -25,7 +25,14 @@
 // share-cluster-host.jsx passes `{ kind: 'disk-full' }` while `GET /_api/diagnostics/disk` reports held
 // writes (recovery-store.js), and the word goes back to Saved once they land.
 
-import { initialsOf } from '../../shell/icons.jsx';
+/**
+ * ONE letter, the face's initial (10 co-presence: "M", "T" — never "YO" or "MD"). A face is 24 px and
+ * wears a tone; two letters of a git username ("1aGh" → "1A") read as noise.
+ */
+export function faceLetter(name) {
+  const t = typeof name === 'string' ? name.trim() : '';
+  return t ? [...t][0].toUpperCase() : '?';
+}
 
 /** The five words, CONTRACT §6 — exact. */
 export const WORDS = Object.freeze({
@@ -138,12 +145,14 @@ const MAX_FACES = 4;
  *  so initials are all that is drawn). */
 export function facesOf({ you, agentActive = false, peers = [], max = MAX_FACES } = {}) {
   const out = [
-    { initials: initialsOf(you || 'you'), name: you ? `${you} (you)` : 'You', you: true },
+    { initials: faceLetter(you || 'You'), name: you ? `${you} (you)` : 'You', you: true },
   ];
-  if (agentActive) out.push({ initials: 'C', name: 'AI · editing', agent: true });
+  // The AI wears the spark, never a letter (CONTRACT §3: not "Claude"; board 10: "only AI wears the
+  // spark"): `initials` is empty and the face draws the glyph.
+  if (agentActive) out.push({ initials: '', name: 'AI · editing', agent: true });
   for (const p of peers)
     out.push({
-      initials: initialsOf(p?.name),
+      initials: faceLetter(p?.name),
       name: String(p?.name ?? ''),
       clientID: p?.clientID,
       following: p?.following === true,

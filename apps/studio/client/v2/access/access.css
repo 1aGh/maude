@@ -80,37 +80,67 @@
       inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
     animation: st-pop var(--dur-route) var(--ease-out);
   }
+  /* `.co-card-ic` — a 36 px round chip, not a 28 px square */
   .v2ac-card-ic {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  /* `.co-card-t` / `.co-card-b`: the title is type-md / lh-md semibold, the line under it type-sm / lh-sm */
+  .v2ac-card-t {
+    margin: 0;
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+  }
+  .v2ac-card-b {
+    margin: 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .v2ac-card .btn {
+    margin-top: var(--space-2);
+    gap: var(--space-1);
+  }
+  .v2ac-card:focus {
+    outline: none;
+  }
+  /* `.co-card--low` — the card sits low so the dimmed work still shows above it (the scrim is a grid) */
+  .v2ac-card--low {
+    align-self: end;
+    margin-bottom: var(--space-4);
+  }
+
+  /* `.co-banner` — top centre at space-4, type-sm; it owns that band while it is up, so Preview's own
+     "Previewing …" line (which would sit in the same place) steps aside. */
+  .v2ac-banner {
+    position: absolute;
+    top: var(--space-4);
+    left: 50%;
+    translate: -50% 0;
+    z-index: 31;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    max-width: calc(100vw - 2 * var(--space-4));
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+  }
+  /* `.co-banner-ic` — a 28 px round chip on bg-3 */
+  .v2ac-banner-ic {
     display: grid;
     place-items: center;
     width: 28px;
     height: 28px;
-    border-radius: var(--radius-md);
+    flex: none;
+    border-radius: var(--radius-pill);
     background: var(--bg-3);
-    color: var(--fg-1);
-  }
-  .v2ac-card-t {
-    margin: 0;
-    font-weight: 600;
-  }
-  .v2ac-card-b {
-    margin: 0;
-    color: var(--fg-1);
-  }
-
-  .v2ac-banner {
-    position: absolute;
-    top: 56px;
-    left: 50%;
-    translate: -50% 0;
-    z-index: 30;
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    max-width: calc(100vw - 2 * var(--space-4));
-  }
-  .v2ac-banner-ic {
     color: var(--fg-1);
   }
   .v2ac-banner-t {
@@ -121,5 +151,9 @@
   .v2ac-banner-t > span {
     color: var(--fg-2);
     font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  body:has(.v2ac-banner) .st-pbar.island {
+    display: none;
   }
 }

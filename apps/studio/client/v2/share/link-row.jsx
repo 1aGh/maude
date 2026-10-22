@@ -8,6 +8,7 @@
 // refuses everyone else) and copies the address the hub answers; a second Copy copies the same
 // link. Anyone else copies the location (`links.web`), which grants nothing — `team` is a place.
 
+import { Glyph } from './glyphs.jsx';
 import { linkRowWords } from './share-model.js';
 
 export function LinkRow({ project, rules, owner, made, busy, onCopy }) {
@@ -16,6 +17,9 @@ export function LinkRow({ project, rules, owner, made, busy, onCopy }) {
     : linkRowWords({ who: 'team', project });
   return (
     <div className="v2sh-link" data-testid="share-link-row" data-who={owner ? rules.who : 'team'}>
+      <span className="v2sh-link-ic" aria-hidden="true">
+        <Glyph name="link" size={14} />
+      </span>
       <span className="v2sh-link-t">
         {words.title}
         <span>{words.sub}</span>

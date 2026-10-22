@@ -143,7 +143,8 @@ describe('outboxPending', () => {
 describe('facesOf', () => {
   test('you first, the agent while it works, then peers, capped', () => {
     const f = facesOf({ you: 'Michal Dovrtěl', agentActive: true, peers: [{ name: 'Tereza K' }] });
-    expect(f.map((x: { initials: string }) => x.initials)).toEqual(['MD', 'C', 'TK']);
+    // one letter each; the AI face carries none (it draws the spark — 10 co-presence)
+    expect(f.map((x: { initials: string }) => x.initials)).toEqual(['M', '', 'T']);
     expect(f[0].you).toBe(true);
     const many = facesOf({
       you: 'a',
