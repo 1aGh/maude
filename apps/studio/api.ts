@@ -1704,14 +1704,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     for (const e of entries) {
       if (!e.isFile() || !e.name.endsWith('.json')) continue;
-      // gate-b-c4g — a comments file shared by two canvases (one slug) is no canvas-only
-      // session's: the map below keys it by its first row's canvas, which may be the other one.
-      if (slugSidecarRefused(path.join(paths.commentsDir, e.name))) continue;
       try {
         const raw = await readFile(path.join(paths.commentsDir, e.name), 'utf8');
         const arr = JSON.parse(raw);
         if (!Array.isArray(arr) || arr.length === 0) continue;
         const file = arr[0]?.file as string | undefined;
+        // gate-b-c4g — a canvas's own (slug-named) comments file that its canvas-only session's
+        // closure does not own is a file two canvases share (one slug): the map below keys it by
+        // its first row's canvas, which may be the other one. Not this session's.
+        if (
+          file &&
+          `${fileSlug(file)}.json` === e.name &&
+          slugSidecarRefused(path.join(paths.commentsDir, e.name))
+        )
+          continue;
         // Backfill legacy rows so callers see the v2 shape uniformly.
         if (file) out[file] = arr.map(backfillComment);
       } catch {
