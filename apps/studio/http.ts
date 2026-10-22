@@ -43,13 +43,13 @@ import {
   currentFrame,
   FRAME_PARAM,
   type FrameScope,
-  frameAccess,
   frameKeyFor,
   frameSubjectOf,
   frameTokenOf,
   inputsRefusal,
   loadFrameSecret,
   mintFrameCap,
+  narrowToFrame,
   verifyFrameCap,
 } from './access/frame.ts';
 import {
@@ -2488,6 +2488,7 @@ export function createHttp(
       groups: ctx.cfg.canvasGroups,
       defaultDs: ctx.cfg.defaultDesignSystem || ctx.cfg.designSystems?.[0]?.name || null,
       designSystems: ctx.cfg.designSystems ?? [],
+      componentDir: ctx.cfg.newComponentDir,
     }),
     project: () => ({
       name: ctx.cfg.name ?? ctx.projectLabel,
@@ -7558,8 +7559,7 @@ export function createHttp(
       : accessForDesktop(ctx.cfg.linkedHub?.url, accessFor);
     // gate-b-c4 — on the canvas / capture listeners, the opener narrowed to the frame's canvas.
     const frame = currentFrame();
-    // gate-b-c4h — read-only when the frame's closure admits another canvas (access/frame.ts).
-    return frame ? frameAccess(base, frame.canvases, closureOf) : base;
+    return frame ? narrowToFrame(base, frame.canvases) : base;
   }
 
   // gate-b-c4 — the per-frame capability's key material (access/frame.ts). The secret lives in

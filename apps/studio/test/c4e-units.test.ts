@@ -3,8 +3,8 @@
 //   1b  the canvas build refuses any import of the design root's runtime state (`_*`), and it
 //       reports every file it inlined (`inputs`, held to the frame's closure on serve);
 //   1c  `inputsRefusal` refuses a module with any inlined design-root file the session does not see;
-//   2   the closure: comments and plain strings are not imports; an imported canvas counts only
-//       for a reader who may read it; a canvas's board is never a module;
+//   2   the closure: comments and plain strings are not imports; an imported canvas never counts in a
+//       frame (gate-b-c4j: not even for an opener who may read it); a canvas's board is never a module;
 //   3   a bridged export's Selection is pinned to the active canvas, `resolveScope` ignores a
 //       selection naming another canvas, and the inspector drops a select naming one.
 
@@ -147,11 +147,11 @@ describe('2 — the closure', () => {
     expect(c.read.has('ui/c.tsx')).toBe(false);
   });
 
-  test('the owner’s frame on A (narrowed): B counts — the opener reads it; C still does not', () => {
+  test('the owner’s frame on A (narrowed): B does not count either (gate-b-c4j), nor C', () => {
     const frame = narrowToFrame(resolveAccess({ v: 1, role: 'owner' }), ['ui/a.tsx']);
     expect(frame.canvasOnly).toBe(true);
     const c = closureFor(frame, project(FILES));
-    expect(c.read.has('ui/b.tsx')).toBe(true);
+    expect(c.read.has('ui/b.tsx')).toBe(false);
     expect(c.read.has('ui/c.tsx')).toBe(false);
   });
 

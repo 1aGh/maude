@@ -254,28 +254,6 @@ export function roleCallout(cloud, seen = () => false) {
   };
 }
 
-/**
- * gate-b-c4h — the open canvas imports another canvas, so its frame is read-only (access/frame.ts
- * `frameAccess`: A's author chose the import, the viewer's access admitted it — nothing that frame
- * writes may land where that author reads). `imports` is the index's `canvasImportsCanvases` entry for
- * the active canvas (designRoot-relative paths). Quiet: info, no action; closing it hides it until the
- * imports change.
- */
-export function canvasImportsCallout(active, imports) {
-  if (!active || !Array.isArray(imports) || imports.length === 0) return null;
-  const first = String(imports[0]);
-  const named =
-    imports.length === 1 ? first : `${first} and ${plural(imports.length - 1, 'other', 'others')}`;
-  return {
-    key: `canvas-imports:${active}:${imports.join('|')}`,
-    kind: 'canvas-imports',
-    tone: 'info',
-    icon: 'lock',
-    title: `This canvas imports another canvas (${named}), so it opens read-only.`,
-    detail: 'Move the shared part into a component file to edit here.',
-  };
-}
-
 // V2-4.9 drew the first-run tour offers here as callouts; 02 ("no wizard, no card, no tour") removes them
 // (gate-b-polish2). The tours run from Menu › Help › Take the tour (`help.tour`); the team tour from Help too.
 
@@ -364,11 +342,8 @@ export function calloutStack({
   native = true,
   dismissed = new Set(),
   now = Date.now(),
-  activeCanvas = null,
-  canvasImports = null,
 } = {}) {
   return [
-    canvasImportsCallout(activeCanvas, canvasImports),
     diskFullCallout(disk, { native }),
     crashed ? crashedCallout(crashed.notice, crashed.lastWorkAt, crashed.now) : null,
     syncCallout(syncStatus, now),

@@ -7616,15 +7616,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
         : null;
 
-    // gate-b-c4h — a canvas importing another canvas opens read-only (access/frame.ts
-    // `frameAccess`); the shell frames it `ro=1` and says why. Only canvases this reader sees,
-    // naming only canvases it sees (the walk admits no other), so the filter below needs no rule.
+    // gate-b-c4j — a canvas importing another canvas does not render in its frame (access/closure.ts
+    // `walkImports`: the module is refused); the shell says why on it. The same for every reader;
+    // filterIndexData below holds both sides to what this reader sees.
     const prefix = `${paths.designRel}/`;
     const canvasRels = Object.keys(canvasDesignSystems)
       .filter((fp) => fp.startsWith(prefix))
       .map((fp) => fp.slice(prefix.length))
       .sort();
-    const imports = projectVisibility(ctx).importedCanvases(currentAccess(), canvasRels);
+    const imports = projectVisibility(ctx).canvasImports(canvasRels);
     const canvasImportsCanvases: Record<string, string[]> = {};
     for (const [rel, list] of imports) canvasImportsCanvases[`${prefix}${rel}`] = list;
 

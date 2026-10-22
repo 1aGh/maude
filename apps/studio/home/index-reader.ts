@@ -129,6 +129,7 @@ function indexContext(root: string, designRoot: string): IndexContext {
     groups: cfg.canvasGroups,
     defaultDs: cfg.defaultDesignSystem || cfg.designSystems?.[0]?.name || null,
     designSystems: cfg.designSystems ?? [],
+    componentDir: cfg.newComponentDir,
   };
 }
 

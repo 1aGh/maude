@@ -8,8 +8,9 @@
 //      of DDR-115 runtime state (`_*` first segment), and a built module is served to a frame only
 //      when every input it inlined is in the frame's closure (another canvas's board, too).
 //   2. The closure followed A's whole import graph — a comment naming `./B.tsx` was enough — so
-//      B's source became readable from A's frame. An imported canvas now counts only when the
-//      opener's own (unnarrowed) access can read it, and comments / plain strings are not imports.
+//      B's source became readable from A's frame. An imported canvas never counts (gate-b-c4j: a
+//      frame inlines no canvas outside its own grant, whoever opens it), and comments / plain
+//      strings are not imports.
 //   4. Two canvases whose paths fold to one slug (`ui/a-b.tsx`, `ui/a/b.tsx`) share a collab room:
 //      a socket joins only the room whose real canvas it can see.
 
@@ -184,10 +185,10 @@ describe('a cell (sandboxed build)', () => {
     expect(canary(r.text)).toBe(false);
   });
 
-  test('2 — the owner (who reads B) still renders A importing B', async () => {
+  test('2 — gate-b-c4j: the owner (who reads B) is refused A importing B too', async () => {
     const r = await moduleVia(cell, OWNER_O, 'ui/imp-b.tsx');
-    expect(r.status).toBe(200);
-    expect(r.text).toContain('CANARY-B-SOURCE');
+    expect(r.status).toBe(403);
+    expect(canary(r.text)).toBe(false);
   });
 
   test('2 — a canvas that only MENTIONS B (comment, string) does not open B to its frame', async () => {
@@ -271,9 +272,9 @@ describe('a desktop (in-process build)', () => {
     expect(canary(r.text)).toBe(false);
   });
 
-  test('2 — the desktop owner still renders A importing B; helpers and tokens render', async () => {
+  test('2 — gate-b-c4j: the desktop owner is refused A importing B; helpers and tokens render', async () => {
     const r = await moduleVia(desk, {}, 'ui/imp-b.tsx');
-    expect(r.status).toBe(200);
+    expect(r.status).toBe(403);
     const h = await moduleVia(desk, {}, 'ui/uses-helper.tsx');
     expect(h.status).toBe(200);
     expect(h.text).toContain('HELPER-OK');

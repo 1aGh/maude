@@ -63,17 +63,11 @@ export interface Access {
   readonly minted: { declaredAccess: 1 | 2 };
   /**
    * gate-b-c4e — set on a FRAME's access only (access/frame.ts `narrowToFrame`): the opener's own
-   * access before narrowing. Grants nothing by itself; the closure asks it whether a canvas the
-   * frame's canvas imports may be read (access/closure.ts).
+   * access before narrowing. Grants nothing by itself — and (gate-b-c4j) the closure no longer asks
+   * it: a frame never inlines a canvas outside its own grant, whoever opened it. Its presence is
+   * what marks a frame (access/request.ts `localGate`'s upload rule, gate-b-c4i).
    */
   readonly unnarrowed?: Access;
-  /**
-   * gate-b-c4h — set on a FRAME's access only, when its closure admits another canvas through the
-   * opener's access (`imports`, sorted): the frame then holds its canvases at `observer` (read and
-   * keep your own place; no write of any kind). A's author chose the import; the opener's access
-   * is what admitted it, so nothing that frame writes may land where that author reads.
-   */
-  readonly readOnlyBecause?: { readonly imports: readonly string[] };
 }
 
 const isGrantRole = (r: unknown): r is GrantRole =>

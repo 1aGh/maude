@@ -1,7 +1,7 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { canvasFrameCfg, canvasUrl } from '../canvas-url.js';
+import { canvasFrameCfg, canvasImportsOf, canvasUrl } from '../canvas-url.js';
 import { CompareHost } from '../v2/history/compare-view.jsx';
 import { useDsPreviewTarget, withDsPreview } from '../v2/ds/preview-mode.js';
 import { useViewing } from '../v2/history/history-host.jsx';
@@ -14,6 +14,7 @@ import { exportSelectionFor } from '../selection-scope.js';
 import { ShellStoreContext } from '../stores/shell-store.jsx';
 import { subscribeViewCode } from '../v2/code/code-bus.js';
 import { CanvasLoadFailure } from '../v2/code/canvas-error-card.jsx';
+import { CanvasImportsCard } from '../v2/code/canvas-imports-card.jsx';
 import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
 import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
 import { nativeDoors } from '../v2/shell/native-doors.js';
@@ -277,6 +278,14 @@ export function Viewport({
                 Reload canvas
               </button>
             </div>
+          ) : canvasImportsOf(cfg, canvasError.path) ? (
+            // gate-b-c4j — it imports another canvas, so its frame refused the module: say that, not "can't
+            // be drawn" (v2/code/canvas-imports-card.jsx).
+            <CanvasImportsCard
+              key={`${canvasError.path}#imports`}
+              imports={canvasImportsOf(cfg, canvasError.path)}
+              componentDir={cfg?.newComponentDir}
+            />
           ) : (
             // S11.7 — "<Canvas> can't be drawn right now." + Ask AI to fix it. The error, the line and the
             // way back sit under Show details; `canvas-load-retry` lives there as "Reload canvas".

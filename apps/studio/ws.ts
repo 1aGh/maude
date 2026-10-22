@@ -478,18 +478,14 @@ export function createWs(
   ): RoomConn {
     const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
     const follow = ws.data.kind === 'collab' && ws.data.follow === true;
-    // gate-b-c4h — a frame read-only because its canvas imports another canvas (access/frame.ts
-    // `frameAccess`) writes no lane at all, comments included: presence only.
-    // gate-b-c4i — so does a socket whose access cannot COMMENT on this canvas: Can view
+    // gate-b-c4i — a socket whose access cannot COMMENT on this canvas writes no lane: Can view
     // (`observer`, access/roles.ts) holds read, session and request only, and a read-only conn
     // alone keeps the comments lane writable (collab/room.ts — the Can comment path). Both
     // listeners stamp `access`; a hand-built test socket without one keeps the old rule.
     const mayComment =
       access === undefined ||
       access.can('comment', canvasOfSlug(access, slug, ctx.paths.designRel));
-    const lanesClosed =
-      ws.data.kind === 'collab' &&
-      (ws.data.lanesClosed === true || access?.readOnlyBecause !== undefined || !mayComment);
+    const lanesClosed = ws.data.kind === 'collab' && (ws.data.lanesClosed === true || !mayComment);
     const conn: RoomConn = {
       id: ws.data.id,
       realm,

@@ -55,9 +55,10 @@ import type { ProjectIndexSnapshot, SearchResult } from '../index/types.ts';
 import {
   type Closure,
   type ClosureCache,
+  canvasImportsReport,
+  closureConfigOf,
   closureFor,
   createClosureCache,
-  importedCanvasReport,
 } from './closure.ts';
 import { currentAccess, diskProjectReader, toDesignRel } from './request.ts';
 import { type Access, sees } from './scope.ts';
@@ -568,11 +569,12 @@ export interface ProjectVisibility {
   /** This request's visibility (`currentAccess()`, AsyncLocalStorage set by server.ts). */
   current(): Visibility;
   /**
-   * gate-b-c4h — of `canvases` (designRoot-relative), the ones whose frame would open read-only
-   * for this reader → the other canvases each imports (closure.ts `importedCanvasReport`).
-   * Memoized per (tree generation, reader).
+   * gate-b-c4j — of `canvases` (designRoot-relative), the ones that import another canvas → the
+   * canvases each imports (closure.ts `canvasImportsReport`): a frame on one renders none of them,
+   * so its module is refused and the shell says why. The same for every reader — the caller holds
+   * the names to what its reader sees (`filterIndexData`). Memoized per tree generation.
    */
-  importedCanvases(access: Access, canvases: readonly string[]): ReadonlyMap<string, string[]>;
+  canvasImports(canvases: readonly string[]): ReadonlyMap<string, string[]>;
 }
 
 const sources = new WeakMap<object, ProjectVisibility>();
@@ -581,8 +583,13 @@ const sources = new WeakMap<object, ProjectVisibility>();
  * The closure source of one project: its disk reader, a closure cache keyed by (grants,
  * tree generation) and the generation bump on every file change. ONE per Context, so the
  * write gate (http.ts) and the read filters (api.ts) compute the same closure once.
+ *
+ * gate-b-c4j — judged with the studio's EFFECTIVE config (`ctx.cfg`, read per call: a config
+ * reload swaps it), not `<designRoot>/config.json`, which a custom designRoot does not have.
  */
-export function projectVisibility(ctx: Pick<Context, 'paths' | 'bus'>): ProjectVisibility {
+export function projectVisibility(
+  ctx: Pick<Context, 'paths' | 'bus'> & { cfg?: Context['cfg'] }
+): ProjectVisibility {
   const hit = sources.get(ctx);
   if (hit) return hit;
   let generation = 0;
@@ -591,16 +598,17 @@ export function projectVisibility(ctx: Pick<Context, 'paths' | 'bus'>): ProjectV
   });
   const cache: ClosureCache = createClosureCache();
   const reader = diskProjectReader(ctx.paths.designRoot, () => String(generation));
+  const config = () => (ctx.cfg ? closureConfigOf(ctx.cfg) : undefined);
   const closureOf = (access: Access): Closure | null =>
-    access.grants.length > 0 ? closureFor(access, reader, cache) : null;
+    access.grants.length > 0 ? closureFor(access, reader, cache, config()) : null;
   const visibilityFor = (access: Access) => visibilityOf(access, () => closureOf(access));
   const reports = new Map<string, ReadonlyMap<string, string[]>>();
-  const importedCanvases = (access: Access, canvases: readonly string[]) => {
-    const readerKey = access.role !== null ? '*' : access.grants.map((g) => g.c).join('\u0001');
-    const key = `${generation}\u0002${readerKey}\u0003${canvases.join('\u0001')}`;
+  const canvasImports = (canvases: readonly string[]) => {
+    const cfg = config();
+    const key = `${generation}\u0002${JSON.stringify(cfg ?? null)}\u0003${canvases.join('\u0001')}`;
     const hit = reports.get(key);
     if (hit) return hit;
-    const report = importedCanvasReport(reader, canvases, (c) => access.seesCanvas(c));
+    const report = canvasImportsReport(reader, canvases, cfg);
     reports.set(key, report);
     while (reports.size > 16) reports.delete(reports.keys().next().value as string);
     return report;
@@ -609,7 +617,7 @@ export function projectVisibility(ctx: Pick<Context, 'paths' | 'bus'>): ProjectV
     closureOf,
     visibilityFor,
     current: () => visibilityFor(currentAccess()),
-    importedCanvases,
+    canvasImports,
   });
   sources.set(ctx, src);
   return src;
@@ -637,7 +645,7 @@ interface IndexDataShape {
   systemHeads?: Record<string, string | null>;
   dsConverted?: Record<string, boolean>;
   dsRevGaps?: Record<string, string | null>;
-  // gate-b-c4h — a canvas → the other canvases it imports (api.ts buildIndexData)
+  // gate-b-c4j — a canvas → the other canvases it imports (its frame is refused; api.ts buildIndexData)
   canvasImportsCanvases?: Record<string, string[]>;
 }
 
@@ -691,13 +699,13 @@ export function filterIndexData<T extends IndexDataShape>(
     canvasDesignSystems: pick(data.canvasDesignSystems),
     canvasKinds: pick(data.canvasKinds),
   };
-  // gate-b-c4h — computed for this reader already; held to what it sees all the same.
+  // gate-b-c4j — a canvas this reader sees that imports another canvas, naming only the canvases it
+  // sees: its frame is refused whatever the names, so an entry stays even when every name goes.
   if (data.canvasImportsCanvases) {
     out.canvasImportsCanvases = Object.fromEntries(
       Object.entries(data.canvasImportsCanvases)
         .filter(([k]) => seen(k))
         .map(([k, v]) => [k, v.filter((c) => vis.sees(c))])
-        .filter(([, v]) => v.length > 0)
     );
   }
   // S10.4 — the revision fields name systems and revisions: a session sees the ones it renders with.

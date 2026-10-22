@@ -45,7 +45,6 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
 import { DEV_SERVER_ROOT } from '../paths.ts';
-import type { Closure } from './closure.ts';
 import type { ProjectRole } from './roles.ts';
 import { type Access, type GrantRole, resolveAccess } from './scope.ts';
 
@@ -213,45 +212,9 @@ export function narrowToFrame(base: Access, canvases: readonly string[] | null):
     { v: 1, role: null, grants },
     { declaredAccess: base.minted.declaredAccess }
   );
-  // gate-b-c4e — the opener's own access rides along, for the closure only: whether an imported
-  // canvas may be read is the opener's question, not the frame's (access/closure.ts).
+  // gate-b-c4e — the opener's own access rides along. Grants nothing: gate-b-c4j's closure never
+  // asks it (a frame inlines no canvas outside its own grant); it marks the access as a frame's.
   return Object.freeze({ ...narrowed, unnarrowed: base.unnarrowed ?? base });
-}
-
-/**
- * gate-b-c4h (defender round 3, M3) — the frame's access: `narrowToFrame`, then READ-ONLY when the
- * frame's closure admits a canvas outside its own grant (`Closure.importedCanvases` — admitted only
- * because the opener may read it).
- *
- * THE ATTACK. Mallory edits A but cannot see B. She adds `import B from './b.tsx'`. V, who reads
- * B, opens A: A's frame builds B into the module, and A's code writes B's content into A's Y-doc,
- * meta, comments or board — where Mallory reads it. The desktop owner is V too (Mallory a teammate
- * syncing A). So such a frame holds its canvases at `observer`: `read` and `session` (the camera —
- * per-user runtime state, never synced, never the author's to read), nothing else. Every write door
- * that asks `can` / `writes` refuses it; the collab socket closes every lane (ws.ts). A frame whose
- * imports are helpers, components or the design system is untouched.
- *
- * `closureOf` is the project's (cached) closure source. Computed once per request, here, so no
- * route decides it ad hoc.
- */
-export function frameAccess(
-  base: Access,
-  canvases: readonly string[] | null,
-  closureOf: (access: Access) => Closure | null
-): Access {
-  const narrowed = narrowToFrame(base, canvases);
-  if (narrowed.grants.length === 0) return narrowed;
-  const imported = closureOf(narrowed)?.importedCanvases;
-  if (!imported || imported.size === 0) return narrowed;
-  const observer = resolveAccess(
-    { v: 1, role: null, grants: narrowed.grants.map((g) => ({ c: g.c, r: 'observer' as const })) },
-    { declaredAccess: base.minted.declaredAccess }
-  );
-  return Object.freeze({
-    ...observer,
-    unnarrowed: narrowed.unnarrowed,
-    readOnlyBecause: Object.freeze({ imports: Object.freeze([...imported].sort()) }),
-  });
 }
 
 // ---------------------------------------------------------------------------
