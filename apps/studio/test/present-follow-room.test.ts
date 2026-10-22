@@ -23,7 +23,16 @@ import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { encodeSyncUpdate, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../collab/protocol.ts';
 import { createRoom, type RoomCallbacks, type RoomConn } from '../collab/room.ts';
 import { stripToWatching } from '../present/relay-strip.ts';
-import { A_REL, type AclCell, bootAclCell, OWNER, until } from './_acl-cell.ts';
+import {
+  A_REL,
+  type AclCell,
+  asUser,
+  bootAclCell,
+  frameCap,
+  OWNER,
+  until,
+  withFc,
+} from './_acl-cell.ts';
 import { killProc } from './_helpers.ts';
 
 const PRESENT = {
@@ -193,11 +202,13 @@ describe('stripToWatching (unit)', () => {
 // The canvas listener stamps the conn from the proxy's injected header.
 
 const A_SLUG = canvasSlugFromRel(A_REL, '.design');
-const A_OBSERVER: Record<string, string> = {
+// A Can comment member of A (`viewer`). Since gate-b-c4i a Can view (`observer`) socket writes no
+// comment at all, so only a Can comment socket shows what the follow mark suppresses.
+const A_COMMENTER: Record<string, string> = {
   'x-maude-access': Buffer.from(
-    JSON.stringify({ v: 1, role: null, grants: [{ c: A_REL, r: 'observer' }] })
+    JSON.stringify({ v: 1, role: null, grants: [{ c: A_REL, r: 'viewer' }] })
   ).toString('base64url'),
-  'x-maude-role': 'observer',
+  'x-maude-role': 'viewer',
   'x-maude-readonly': '1',
 };
 
@@ -238,9 +249,18 @@ describe('booted cell — canvas listener', () => {
   });
 
   test('a follow-marked socket’s comment write never reaches a peer; an unmarked one’s does', async () => {
-    const url = `${cell.canvasBase.replace('http', 'ws')}/_ws/collab/${A_SLUG}`;
-    const owner = await openBin(url, OWNER);
-    const follower = await openBin(url, { ...A_OBSERVER, 'x-maude-collab-follow': '1' });
+    const base = `${cell.canvasBase.replace('http', 'ws')}/_ws/collab/${A_SLUG}`;
+    // gate-b-c4: a canvas-listener socket answers as a frame narrowed to its canvas, so each one
+    // carries the capability the shell appends (`?fc=`); frameless it is refused before the room.
+    const open = async (headers: Record<string, string>, user: string) => {
+      const as = asUser(headers, user); // the frame key's subject is the proxy-vouched user
+      return openBin(withFc(base, await frameCap(cell, as, A_REL)), as);
+    };
+    const owner = await open(OWNER, 'owner@example.com');
+    const follower = await open(
+      { ...A_COMMENTER, 'x-maude-collab-follow': '1' },
+      'commenter@example.com'
+    );
     expect(owner).not.toBeNull();
     expect(follower).not.toBeNull();
     if (!owner || !follower) return;
@@ -250,7 +270,7 @@ describe('booted cell — canvas listener', () => {
     await Bun.sleep(600);
     expect(owner.frames.filter(isSync).length).toBe(0);
     // control: the same claim WITHOUT the follow mark is today's read-only conn — comments pass
-    const viewer = await openBin(url, A_OBSERVER);
+    const viewer = await open(A_COMMENTER, 'commenter@example.com');
     expect(viewer).not.toBeNull();
     if (!viewer) return;
     await Bun.sleep(300);
