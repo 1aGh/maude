@@ -365,8 +365,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-1, 4px);
-    width: 340px;
-    max-height: 340px;
+    width: 380px;
+    max-height: min(440px, calc(100vh - 160px));
     overflow: auto;
     padding: var(--space-2, 8px);
     border-radius: var(--radius-md, 10px);
@@ -392,15 +392,15 @@
   .ex-other-gh {
     margin: var(--space-2, 8px) var(--space-2, 8px) 2px;
     font-size: var(--type-xs, 11px);
+    font-weight: var(--w-semibold);
     color: var(--fg-2);
   }
   .ex-other-row {
     display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0 var(--space-2, 8px);
+    align-items: center;
+    gap: var(--space-2, 8px);
     width: 100%;
-    padding: var(--space-1, 4px) var(--space-2, 8px);
+    padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) 28px;
     border: 0;
     border-radius: var(--radius-sm, 6px);
     background: transparent;
@@ -415,8 +415,14 @@
     background: var(--bg-3);
     outline: none;
   }
-  .ex-other-row[aria-checked="true"] .ex-other-l::after {
-    content: " ✓";
+  /* the tick leads the row, in its own column */
+  .ex-other-row {
+    position: relative;
+  }
+  .ex-other-row[aria-checked="true"]::before {
+    content: "✓";
+    position: absolute;
+    left: var(--space-2, 8px);
     color: var(--accent-text);
   }
   .ex-other-row[aria-disabled] {
@@ -426,10 +432,12 @@
   .ex-other-row[aria-disabled]:hover {
     background: transparent;
   }
+  /* one line: the label, then its reason at the right (board `k-mi-note`) */
   .ex-other-n {
-    flex-basis: 100%;
+    margin-left: auto;
     font-size: var(--type-xs, 11px);
     color: var(--fg-2);
+    white-space: nowrap;
   }
   .ex-other-row[aria-disabled] .ex-other-n {
     color: var(--fg-3);
