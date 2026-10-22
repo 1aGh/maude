@@ -25,9 +25,8 @@ export default function AboutPage() {
           <p>Hi I&apos;m Michal and I build things.</p>
 
           <p>
-            Maude is a small set of vibe-design and vibe-code workflows for Claude Code. Two
-            plugins, one CLI, some opinions about HTML mocks. I built it, mostly at night, because I
-            kept needing it.
+            Maude is a Mac app for designing with AI, built on two Claude Code plugins and a CLI
+            that you can use on their own. I built it, mostly at night, because I kept needing it.
           </p>
 
           <p>I don&apos;t fully understand why it works, but it works.</p>

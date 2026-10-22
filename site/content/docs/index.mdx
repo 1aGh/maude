@@ -1,30 +1,15 @@
 ---
 title: Maude, how it works mostly
-description: The design tool built around Claude Code, not bolted onto one. Two plugins (design + flow), one CLI, an optional self-hosted hub. No telemetry, no signup.
+description: The design tool built around Claude, not bolted onto one. Download the desktop app and make a canvas; plugins, the CLI and a self-hosted hub are there when you want more. No telemetry.
 ---
 
-<Callout type="info" title="Claude Code and terminal Codex">
-The same canvas and workflow procedures are available through
-[native Codex plugins](/docs/codex). Codex can drive Studio through the Maude CLI,
-project files and browser tools. This does not switch Studio's built-in ACP chat.
-</Callout>
+Most design tools bolt AI onto a human workflow. Claude's own canvas is a chat box that forgets everything by morning. Maude is built around Claude from day one, so canvases are real files, and the same repo-native model runs `flow`'s plan-to-ship loop too. That's the whole pitch.
 
-
-Most design tools bolt AI onto a human workflow. Claude's own canvas is a chat box that forgets everything by morning. Maude is built around Claude Code from day one, so canvases are real files, and the same repo-native model runs `flow`'s plan-to-ship loop too. That's the whole pitch.
-
-Two plugins, one CLI, and the `.ai/` workspace they both pretend not to need. You're probably here for `design` or `flow`. `maude` is the plumbing. Cmd-K skips ahead.
-
-- **`design`**. Canvas-first iteration on `.tsx` canvases under `.design/`. A Bun dev server tracks the active tab + your selection over WebSocket, so Cmd+Click any element and Claude knows which element the feedback is about. An optional self-hostable hub mirrors `.design/` across collaborators.
-- **`flow`**. The agentic loop that ships things eventually. Second-brain `.ai/` workspace, project-agnostic via per-repo `workflows.config.json`. Same plugin runs in Next.js, Expo, Go, anything.
-- **`maude`** (legacy alias: `mdcc`). Small CLI. Scaffolds the `.ai/` workspace, reads and writes config, boots the design dev server, runs health diagnostics (`doctor`), manages the sidecar cache, and hosts the optional sync hub.
-
-Open-source. MIT. No telemetry, no signup, no _book a demo_ button. If it crashes, `git pull` and try again. That's the entire support contract.
-
-Prefer not to touch a terminal? Grab the native desktop app — canvas browser, git-without-git, GitHub sign-in, and live collaboration, no CLI required.
+**Start with the desktop app.** Download it, open a project, say what to make. No terminal, no signup to try it, no telemetry. <kbd>⌘K</kbd> searches everything.
 
 <DownloadNative />
 
-<ArchitectureMap caption="maude at a glance — Claude Code, the two plugins, the CLI, and the .ai/ + .design/ workspaces" />
+Open-source. MIT. If it crashes, `git pull` and try again. That's the entire support contract.
 
 ## Pick a direction
 
@@ -32,8 +17,42 @@ Prefer not to touch a terminal? Grab the native desktop app — canvas browser, 
   <Card
     title="Getting Started"
     href="/docs/getting-started"
-    description="Four steps and you're in. (Maybe five. Depends on your shell.)"
+    description="Download the app, open a project, make your first canvas. Three steps, no terminal."
   />
+  <Card
+    title="Around the window"
+    href="/docs/desktop/window"
+    description="The project pill and its one menu, Search, the Share cluster, panels, toolbars, Settings."
+  />
+  <Card
+    title="Share and collaborate"
+    href="/docs/share-links"
+    description="Invite people, copy a link, work together live on Maude Cloud or your own hub."
+  />
+  <Card
+    title="Coming from Maude 1"
+    href="/docs/moving-from-1"
+    description="Where Maude 1's controls went, and the keys that moved."
+  />
+</Cards>
+
+## Advanced / Explore Maude
+
+Everything the desktop app does is also available from a terminal, a plugin or a server you run yourself. None of it is needed to get started.
+
+- **`design`**. Canvas-first iteration on `.tsx` canvases under `.design/`, driven by `/design:*` slash commands in Claude Code or Codex. Select an element and the next `/design:edit` knows which one you mean.
+- **`flow`**. The agentic loop that ships things eventually. Second-brain `.ai/` workspace, project-agnostic via per-repo `workflows.config.json`. Same plugin runs in Next.js, Expo, Go, anything.
+- **`maude`** (legacy alias: `mdcc`). Small CLI. Scaffolds the `.ai/` workspace, reads and writes config, boots the design dev server, runs health diagnostics (`doctor`), manages the sidecar cache, and hosts the optional sync hub.
+
+<Callout type="info" title="Claude Code and terminal Codex">
+The same canvas and workflow procedures are available through
+[native Codex plugins](/docs/codex). Codex can drive Studio through the Maude CLI,
+project files and browser tools. This does not switch Studio's built-in ACP chat.
+</Callout>
+
+<ArchitectureMap caption="maude at a glance — Claude Code, the two plugins, the CLI, and the .ai/ + .design/ workspaces" />
+
+<Cards>
   <Card
     title="`maude` CLI"
     href="/docs/cli"
