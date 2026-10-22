@@ -31,6 +31,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEAD_SHELL, failedSteps, PROBE } from './boot-gate/interaction-probe.mjs';
+import { stubClaudeEnv } from './lib/stub-claude.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
@@ -110,6 +111,8 @@ server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', projectRoot], {
     // ~/.config/maude/machine.json (and the person's prefs/config with it).
     XDG_CONFIG_HOME: join(work, 'config'),
     MAUDE_MACHINE_FILE: join(work, 'config', 'maude', 'machine.json'),
+    // the person's real `claude` + keychain stay out of the probe: scripts/lib/stub-claude.mjs
+    ...stubClaudeEnv(work),
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });

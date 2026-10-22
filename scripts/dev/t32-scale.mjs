@@ -71,6 +71,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { crc32, deflateSync } from 'node:zlib';
+import { stubClaudeEnv } from '../lib/stub-claude.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FIXTURE = join(ROOT, 'apps/hub/test/fixtures/serve-hub.mjs');
@@ -406,6 +407,8 @@ function isolatedHome(name) {
     XDG_CACHE_HOME: join(home, '.cache'),
     CLAUDE_CONFIG_DIR: join(home, '.claude'),
     MAUDE_CLOUD_CONFIG: join(home, 'cloud.json'),
+    // never the machine's real `claude` (keychain dialog in a throwaway HOME): scripts/lib/stub-claude.mjs
+    ...stubClaudeEnv(home),
   };
 }
 function spawnLogged(name, cmd, args, env, cwd = ROOT) {

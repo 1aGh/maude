@@ -33,7 +33,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-
+import { stubClaudeEnv } from '../../../scripts/lib/stub-claude.mjs';
 import { closureFingerprint } from '../../studio/exporters/door-fingerprint.ts';
 import { createHubRenderDoor } from '../../studio/exporters/hub-render-door.ts';
 import { verifyRenderToken } from '../src/render-token.mjs';
@@ -316,6 +316,8 @@ before(async () => {
     NO_OPEN: '1',
     MAUDE_NO_AUTOBUILD: '1',
     MAUDE_MACHINE_FILE: join(root, 'machine.json'),
+    // the studio child inherits PATH: keep the machine's real `claude` (keychain) out of it
+    ...stubClaudeEnv(root),
   };
   hub = spawn(process.execPath, [join(HUB_DIR, 'src', 'server.mjs')], {
     cwd: HUB_DIR,
