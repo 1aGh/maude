@@ -477,7 +477,11 @@ export function createWs(
   ): RoomConn {
     const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
     const follow = ws.data.kind === 'collab' && ws.data.follow === true;
-    const lanesClosed = ws.data.kind === 'collab' && ws.data.lanesClosed === true;
+    // gate-b-c4h — a frame read-only because its canvas imports another canvas (access/frame.ts
+    // `frameAccess`) writes no lane at all, comments included: presence only.
+    const lanesClosed =
+      ws.data.kind === 'collab' &&
+      (ws.data.lanesClosed === true || access?.readOnlyBecause !== undefined);
     const conn: RoomConn = {
       id: ws.data.id,
       realm,

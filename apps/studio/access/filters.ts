@@ -52,7 +52,13 @@ import type { ServerWebSocket } from 'bun';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Context } from '../context.ts';
 import type { ProjectIndexSnapshot, SearchResult } from '../index/types.ts';
-import { type Closure, type ClosureCache, closureFor, createClosureCache } from './closure.ts';
+import {
+  type Closure,
+  type ClosureCache,
+  closureFor,
+  createClosureCache,
+  importedCanvasReport,
+} from './closure.ts';
 import { currentAccess, diskProjectReader, toDesignRel } from './request.ts';
 import { type Access, sees } from './scope.ts';
 
@@ -561,6 +567,12 @@ export interface ProjectVisibility {
   visibilityFor(access: Access): Visibility;
   /** This request's visibility (`currentAccess()`, AsyncLocalStorage set by server.ts). */
   current(): Visibility;
+  /**
+   * gate-b-c4h — of `canvases` (designRoot-relative), the ones whose frame would open read-only
+   * for this reader → the other canvases each imports (closure.ts `importedCanvasReport`).
+   * Memoized per (tree generation, reader).
+   */
+  importedCanvases(access: Access, canvases: readonly string[]): ReadonlyMap<string, string[]>;
 }
 
 const sources = new WeakMap<object, ProjectVisibility>();
@@ -582,10 +594,22 @@ export function projectVisibility(ctx: Pick<Context, 'paths' | 'bus'>): ProjectV
   const closureOf = (access: Access): Closure | null =>
     access.grants.length > 0 ? closureFor(access, reader, cache) : null;
   const visibilityFor = (access: Access) => visibilityOf(access, () => closureOf(access));
+  const reports = new Map<string, ReadonlyMap<string, string[]>>();
+  const importedCanvases = (access: Access, canvases: readonly string[]) => {
+    const readerKey = access.role !== null ? '*' : access.grants.map((g) => g.c).join('\u0001');
+    const key = `${generation}\u0002${readerKey}\u0003${canvases.join('\u0001')}`;
+    const hit = reports.get(key);
+    if (hit) return hit;
+    const report = importedCanvasReport(reader, canvases, (c) => access.seesCanvas(c));
+    reports.set(key, report);
+    while (reports.size > 16) reports.delete(reports.keys().next().value as string);
+    return report;
+  };
   const src: ProjectVisibility = Object.freeze({
     closureOf,
     visibilityFor,
     current: () => visibilityFor(currentAccess()),
+    importedCanvases,
   });
   sources.set(ctx, src);
   return src;
@@ -613,6 +637,8 @@ interface IndexDataShape {
   systemHeads?: Record<string, string | null>;
   dsConverted?: Record<string, boolean>;
   dsRevGaps?: Record<string, string | null>;
+  // gate-b-c4h — a canvas → the other canvases it imports (api.ts buildIndexData)
+  canvasImportsCanvases?: Record<string, string[]>;
 }
 
 /** Repo-relative `.design/ui/x/y.tsx` → every ancestor dir (`.design/ui`, `.design/ui/x`). */
@@ -665,6 +691,15 @@ export function filterIndexData<T extends IndexDataShape>(
     canvasDesignSystems: pick(data.canvasDesignSystems),
     canvasKinds: pick(data.canvasKinds),
   };
+  // gate-b-c4h — computed for this reader already; held to what it sees all the same.
+  if (data.canvasImportsCanvases) {
+    out.canvasImportsCanvases = Object.fromEntries(
+      Object.entries(data.canvasImportsCanvases)
+        .filter(([k]) => seen(k))
+        .map(([k, v]) => [k, v.filter((c) => vis.sees(c))])
+        .filter(([, v]) => v.length > 0)
+    );
+  }
   // S10.4 — the revision fields name systems and revisions: a session sees the ones it renders with.
   if (data.dsConverted) {
     const byName = <V>(m: Record<string, V> | undefined) =>
