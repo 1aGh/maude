@@ -95,7 +95,7 @@ export function ArtboardGrowthTag({
         border: `1px solid ${TAG_EDGE}`,
         background: TAG_BG,
         color: TAG_FG,
-        font: '600 12px/16px ui-monospace, SFMono-Regular, Menlo, monospace',
+        font: '600 12px/16px system-ui, -apple-system, sans-serif',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
       }}

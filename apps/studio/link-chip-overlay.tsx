@@ -63,7 +63,7 @@ const CSS_TEXT = `
   border-radius: 3px;
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
 `;
 

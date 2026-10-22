@@ -37,7 +37,7 @@ const WebOverlayContent: KindOverlayRenderFn = ({ rect }) => {
         borderRadius: 3,
         background: 'var(--bg-2, #e8e3d8)',
         color: 'var(--fg-1, #4a3f30)',
-        fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
+        fontFamily: 'var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif)',
         fontSize: 9,
         letterSpacing: '0.04em',
         whiteSpace: 'nowrap',

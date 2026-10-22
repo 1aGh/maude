@@ -176,7 +176,7 @@ const CSS_TEXT = `
 .ed-cdot-chip {
   position: fixed; z-index: 8; pointer-events: none; padding: 1px 6px; border-radius: 3px;
   background: var(--maude-hud-accent); color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums; white-space: nowrap; transform: translate(-100%, 8px);
 }
 `;

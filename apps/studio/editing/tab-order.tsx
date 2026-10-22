@@ -160,7 +160,7 @@ const CSS_TEXT = `
   background: var(--maude-chrome-bg-1);
   color: var(--maude-chrome-fg-1);
   box-shadow: inset 0 0 0 1px var(--maude-chrome-border), 0 1px 2px var(--maude-chrome-shadow);
-  font: 600 11px/1 var(--maude-chrome-font-mono);
+  font: 600 11px/1 var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
 }
 .ed-order[data-on] {

@@ -64,7 +64,7 @@ const CURSOR_CSS = `
   top: 14px;
   left: 10px;
   padding: 1px 8px;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-weight: 500;
   font-size: 10px;
   line-height: 1.4;

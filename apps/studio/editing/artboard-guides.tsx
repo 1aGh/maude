@@ -155,12 +155,12 @@ export const GUIDES_CSS = `
 .ed-gap[data-axis="y"] .ed-gap-line { top: 0; bottom: 0; left: 50%; width: 1px; }
 .ed-gap-chip {
   position: relative; padding: 0 5px; border-radius: 3px; background: ${GUIDE}; color: ${GUIDE_FG};
-  font: 600 10px/14px var(--maude-chrome-font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums;
+  font: 600 10px/14px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); font-variant-numeric: tabular-nums;
 }
 .ed-ab-bubble-pos {
   position: fixed; z-index: 7; pointer-events: none; padding: 2px 7px; border-radius: 4px; white-space: nowrap;
   background: ${GUIDE}; color: ${GUIDE_FG};
-  font: 600 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums;
+  font: 600 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); font-variant-numeric: tabular-nums;
 }
 `.trim();
 

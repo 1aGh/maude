@@ -53,7 +53,7 @@ const MEASURE_CSS = `
 .dc-cv-measure-pill {
   position: absolute;
   transform: translate(-50%, -50%);
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 10px;
   padding: 2px 5px;
   background: #FF3B30;

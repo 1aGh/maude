@@ -57,7 +57,7 @@ const CSS_TEXT = `
   background: var(--maude-chrome-bg-0, #fff);
   border: 1px solid var(--maude-chrome-border, rgba(0,0,0,0.12)); border-radius: 10px;
   box-shadow: 0 6px 24px var(--maude-chrome-shadow, rgba(0,0,0,0.12));
-  font: 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   color: var(--maude-chrome-fg-0, #1a1a1a); user-select: none; white-space: nowrap;
   opacity: 0; transition: opacity var(--dur-fast, 100ms) var(--ease-out, ease-out);
 }
@@ -82,7 +82,7 @@ const CSS_TEXT = `
 .ed-guide-chip {
   position: fixed; z-index: 6; pointer-events: none; padding: 0 5px; border-radius: 3px;
   background: ${GUIDE}; color: var(--maude-hud-accent-fg, #fff);
-  font: 500 10px/14px var(--maude-chrome-font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums;
+  font: 500 10px/14px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) { .ed-align-bar { transition-duration: 1ms; } }
 `;

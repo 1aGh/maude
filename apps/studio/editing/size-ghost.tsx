@@ -163,7 +163,7 @@ const CSS_TEXT = `
   position: absolute; left: -2px; bottom: calc(100% + 4px);
   padding: 2px 8px; border-radius: 3px; white-space: nowrap;
   background: var(--maude-hud-accent); color: var(--maude-hud-accent-fg);
-  font: 600 11px/16px var(--maude-chrome-font-mono, ui-monospace, monospace);
+  font: 600 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
 .ed-size-ghost-size { font-weight: 400; font-variant-numeric: tabular-nums; opacity: 0.86; margin-left: 6px; }
 `;

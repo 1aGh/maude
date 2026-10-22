@@ -397,7 +397,7 @@ const ENGINE_CSS = `
   position: fixed;
   pointer-events: none;
   z-index: 7;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
@@ -514,7 +514,7 @@ ${presentHidesCss()}
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-1, #4a3f30);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
 /* T3 — per-kind chrome. Subtle tint on the header + a small glyph before the
    label text, for any non-digital kind. digital (the default, and every
@@ -4164,7 +4164,7 @@ const OVERLAY_CSS = `
   background: var(--maude-chrome-bg-0, #ffffff);
   border: 1px solid var(--maude-chrome-fg-0, #1c1917);
   border-radius: ${FLOATING_RADIUS};
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 10px;
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.7));
   z-index: 6;
@@ -4217,7 +4217,7 @@ const OVERLAY_CSS = `
   border: 1px solid var(--maude-chrome-fg-0, #1c1917);
   border-radius: ${FLOATING_RADIUS};
   overflow: hidden;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
   color: var(--maude-chrome-fg-1, rgba(40,30,20,0.85));
   z-index: 6;

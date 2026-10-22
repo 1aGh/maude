@@ -5,6 +5,8 @@
 // pair that block owns; every fallback is a literal. A name a project DS can define is a red test here.
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { HUD_TOKENS_CSS } from '../canvas-hud-tokens.gen.ts';
 import { TOOLBAR_CSS } from '../toolbars/toolbar-css.ts';
 
@@ -46,5 +48,38 @@ describe('in-canvas chrome reads only the HUD family', () => {
       '--fg-1',
     ])
       expect(TOOLBAR_CSS).not.toContain(`var(${name}`);
+  });
+});
+
+// P8 C5 (14 R1, 04 R2): every label Maude draws over a canvas speaks the DS body face — mono is "Advanced + code
+// only" (maude-v2 README). The size pill, rulers, hints, gap chips, align bar, reorder tag, tab badges, snap pill,
+// minimap, link chip, cursors' names, the growth tag, the activity badge.
+const MONO_FREE = [
+  ...new Bun.Glob('editing/**/*.{ts,tsx}').scanSync({ cwd: join(import.meta.dir, '..') }),
+  'measure-overlay.tsx',
+  'link-chip-overlay.tsx',
+  'equal-spacing-handles.tsx',
+  'use-element-resize.tsx',
+  'cursors-overlay.tsx',
+  'artboard-growth-tag.tsx',
+  'inspect.ts',
+  'web-overlay-content.tsx',
+  'toolbars/toolbar-css.ts',
+];
+describe('in-canvas chrome labels are never mono', () => {
+  test('no chrome file names a mono face (the HUD mono token or a monospace stack)', () => {
+    const hits: string[] = [];
+    for (const f of MONO_FREE) {
+      const src = readFileSync(join(import.meta.dir, '..', f), 'utf8');
+      src.split('\n').forEach((line, i) => {
+        if (/^\s*(\/\/|\*)/.test(line)) return; // prose
+        if (/--maude-chrome-font-mono|ui-monospace|\bmonospace\b/.test(line)) hits.push(`${f}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
+  test('canvas-lib chrome (snap pill, minimap, zoom controls) is the body face too', () => {
+    const src = readFileSync(join(import.meta.dir, '../canvas-lib.tsx'), 'utf8');
+    expect(src).not.toContain('--maude-chrome-font-mono');
   });
 });

@@ -55,7 +55,7 @@ const CSS_TEXT = `
   border-radius: 3px;
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-mono);
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   transition: opacity var(--dur-fast, 120ms) var(--ease-out, ease-out);
@@ -74,7 +74,7 @@ const CSS_TEXT = `
   border-radius: 3px;
   background: var(--maude-hud-guide, var(--maude-hud-accent));
   color: var(--maude-hud-accent-fg);
-  font: 500 10px/14px var(--maude-chrome-font-mono);
+  font: 500 10px/14px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {

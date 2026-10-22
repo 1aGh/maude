@@ -73,7 +73,7 @@ const EL_RESIZE_CSS = `
 .dc-el-resize-readout {
   position: fixed;
   transform: translate(-50%, 12px);
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
   padding: 3px 7px;
   background: var(--maude-hud-accent, oklch(0.680 0.180 268));
