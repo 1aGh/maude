@@ -136,6 +136,28 @@ function ConflictCard({ slug, canvasName, fetchImpl, onResolved }) {
   );
 }
 
+function AssetsFailedCard({ need }) {
+  const n = need.count;
+  return (
+    <div className="sd-card" data-testid="sync-assets-failed">
+      <strong className="sd-ct">
+        {n} media upload{n === 1 ? '' : 's'} failed.
+      </strong>
+      <span className="sd-cd">They try again the next time Maude starts. Nothing is lost.</span>
+      {need.failures.length ? (
+        <ul className="sd-failed" data-testid="sync-assets-failed-list">
+          {need.failures.map((f) => (
+            <li key={f.name}>
+              <span className="dg-mono">{f.name}</span> {f.reason}
+            </li>
+          ))}
+          {n > need.failures.length ? <li>+{n - need.failures.length} more</li> : null}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function AiCard({ need, fetchImpl }) {
   const [busy, setBusy] = useState('');
   const [said, setSaid] = useState('');
@@ -215,6 +237,8 @@ export default function SyncDetails({
                 canvasName={names?.get?.(need.slug)}
                 fetchImpl={fetchImpl}
               />
+            ) : need.kind === 'assets-failed' ? (
+              <AssetsFailedCard key="assets-failed" need={need} />
             ) : (
               <AiCard key="ai" need={need} fetchImpl={fetchImpl} />
             )

@@ -341,3 +341,42 @@ describe('P8 B1 — the conflict card names the canvas, not its slug', () => {
     );
   });
 });
+
+describe('P8 B1 — failed media uploads are in Needs you (the menu already said "Needs you")', () => {
+  const failed = {
+    total: 3,
+    done: 3,
+    pushed: 0,
+    skipped: 0,
+    failedCount: 3,
+    finished: true,
+    failures: [
+      { key: 'assets/pic.png', reason: 'HTTP 405 — this hub does not accept file writes' },
+      { key: 'assets/song.beats.json', reason: 'HTTP 405 — this hub does not accept file writes' },
+    ],
+  };
+
+  test('a card says what happened, what is safe and the reasons it has', async () => {
+    await mount({ status: base({ assets: failed }) });
+    expect(q('diag-sync-need-word')?.textContent).toBe('1 need you');
+    const card = q('sync-assets-failed');
+    expect(card?.textContent).toContain('3 media uploads failed.');
+    expect(card?.textContent).toContain('They try again the next time Maude starts.');
+    expect(q('sync-assets-failed-list')?.textContent).toContain('assets/pic.png');
+    expect(q('sync-assets-failed-list')?.textContent).toContain('+1 more'); // 3 failed, 2 listed
+  });
+
+  test('one failure reads in the singular; none shows no card', async () => {
+    await mount({
+      status: base({
+        assets: { ...failed, failedCount: 1, failures: failed.failures.slice(0, 1) },
+      }),
+    });
+    expect(q('sync-assets-failed')?.textContent).toContain('1 media upload failed.');
+    act(() => root?.unmount());
+    host?.remove();
+    await mount({ status: base({ assets: { ...failed, failedCount: 0, failures: [] } }) });
+    expect(q('sync-assets-failed')).toBeNull();
+    expect(q('diag-sync-need-word')).toBeNull();
+  });
+});

@@ -105,6 +105,20 @@ export function syncDetailsModel(
   }
 
   const assets = readAssets(status?.assets);
+  // P8 B1 — failed media uploads ("3 media uploads failed", the menu's own word for them) sat under Needs you
+  // in the menu but not in this tab: the card list had no row for them, so "Needs you" opened onto nothing.
+  // The v1 Sync panel listed them with their reasons and "retry on the next launch"; so does this.
+  if (assets && assets.failedCount > 0) {
+    const failures = Array.isArray(assets.failures) ? assets.failures : [];
+    needs.push({
+      kind: 'assets-failed',
+      count: assets.failedCount,
+      failures: failures.slice(0, 5).map((f) => ({
+        name: cleanName(f?.key, '(unnamed)'),
+        reason: cleanName(f?.reason, 'failed'),
+      })),
+    });
+  }
   const moving =
     assets && !assets.finished && assets.total > 0
       ? {
