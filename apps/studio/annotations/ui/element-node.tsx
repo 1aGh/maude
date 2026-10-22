@@ -20,7 +20,7 @@
  *             events only while the layer is interactive.
  */
 
-import { Component, type CSSProperties, memo, type ReactNode } from 'react';
+import { Component, type CSSProperties, memo, type ReactNode, useEffect, useState } from 'react';
 import {
   clampLinkTitle,
   LINK_CARD_FILL,
@@ -705,7 +705,36 @@ function PenView({ el, interactive }: ElementNodeProps) {
   );
 }
 
+/**
+ * p8-sticker-image-retry — a placed picture renders before its board write lands, and a canvas frame
+ * reads an asset only once its closure holds it (learned from the board on disk, C4), so the first
+ * request can be `403 not-in-scope`. An SVG <image> never asks again: re-ask after each delay, under
+ * a new URL (`?r=<n>`), until it loads or the delays run out (a picture that is really gone).
+ */
+export const IMAGE_RETRY_DELAYS_MS: readonly number[] = [400, 1200, 3000, 6000];
+
+function useRetryingHref(url: string): { href: string; onError: () => void } {
+  const [state, setState] = useState({ url, attempt: 0, waiting: false });
+  const cur = state.url === url ? state : { url, attempt: 0, waiting: false };
+  useEffect(() => {
+    if (!cur.waiting) return;
+    const t = setTimeout(
+      () => setState((s) => (s.url === url ? { url, attempt: s.attempt + 1, waiting: false } : s)),
+      IMAGE_RETRY_DELAYS_MS[cur.attempt] ?? 0
+    );
+    return () => clearTimeout(t);
+  }, [cur.waiting, cur.attempt, url]);
+  const onError = () => {
+    if (!url || /^(?:blob|data):/i.test(url) || cur.waiting) return;
+    if (cur.attempt >= IMAGE_RETRY_DELAYS_MS.length) return;
+    setState({ url, attempt: cur.attempt, waiting: true });
+  };
+  const href = cur.attempt > 0 ? `${url}${url.includes('?') ? '&' : '?'}r=${cur.attempt}` : url;
+  return { href, onError };
+}
+
 function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
+  const picture = useRetryingHref(resolveAsset(str(el.href)));
   const flipped = (el.sticker as { flip?: unknown } | undefined)?.flip === true;
   const x = num(el.x);
   const y = num(el.y);
@@ -722,7 +751,8 @@ function ImageView({ el, interactive, resolveAsset }: ElementNodeProps) {
           // S4.13 - Flip mirrors the picture about its own centre; the box and the handles stay put.
           transform={flipped ? `translate(${2 * x + w} 0) scale(-1 1)` : undefined}
           data-flipped={flipped ? '1' : undefined}
-          href={resolveAsset(str(el.href))}
+          href={picture.href}
+          onError={picture.onError}
           preserveAspectRatio="xMidYMid meet"
           aria-label={str(el.alt) || undefined}
           pointerEvents={hit(interactive)}
