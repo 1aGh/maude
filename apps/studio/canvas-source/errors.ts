@@ -24,6 +24,8 @@ import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
 
+import { hasMacroImport, macroImportRefusal } from '../macro-guard.ts';
+
 export type CanvasErrorKind = 'syntax' | 'resolve' | 'build';
 
 export interface CanvasError {
@@ -209,6 +211,11 @@ export function checkCanvasSyntax(
   ctx: Omit<ErrorContext, 'source'>
 ): CanvasError | null {
   const full: ErrorContext = { ...ctx, source };
+  // gate-b-c4n — `transformSync` RUNS a Bun macro import; the listing calls this for every canvas
+  // on every change, so a synced canvas would run its macro without anyone opening it.
+  if (hasMacroImport(source)) {
+    return errorAt(ctx, macroImportRefusal(displayFile(ctx.canvasAbs, ctx.designRoot)));
+  }
   transpiler ??= new Bun.Transpiler({ loader: 'tsx' });
   try {
     transpiler.transformSync(source);

@@ -36,6 +36,7 @@ import { parseSync } from 'oxc-parser';
 import { buildLibMap, inlineDsImport } from './canvas-lib-inline.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { hoverCssForSource } from './edit-ops/hover-rules.ts';
+import { assertNoMacroImports } from './macro-guard.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc AST nodes are heterogeneous.
 type AnyNode = any;
@@ -219,6 +220,9 @@ export function classifyImports(canvasAbsPath: string, source: string): Classifi
   const deps = new Set<string>();
   const regDeps = new Set<string>();
 
+  // gate-b-c4n — `scanImports` does not run a macro import today (Bun 1.4; `scan` and `transform`
+  // do), so this is the guard every Bun.Transpiler call on canvas text carries, not a fix.
+  assertNoMacroImports(source, path.basename(canvasAbsPath));
   // Bun.Transpiler.scanImports() is the documented fast path; pulls every
   // ImportDeclaration / dynamic import / require call.
   const scanner = new Bun.Transpiler({ loader: 'tsx' });
