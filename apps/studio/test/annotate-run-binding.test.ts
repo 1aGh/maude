@@ -21,6 +21,7 @@ import { defaultActionId, postOps, runIdForChat } from '../bin/_annotate-post.mj
 import { createActionStage, type StageProposal } from '../sync/action-stage.ts';
 import { laneValueFromFile } from '../sync/codec.ts';
 import type { LaneProposal } from '../sync/projection.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 import { board, elements, sticky } from './fixtures/annotations-v2/boards.ts';
 
@@ -129,8 +130,14 @@ describe('a run tag is main-origin only, and only while the run is open', () => 
   });
 
   const main = () => `http://localhost:${port}`;
-  const ops = (base: string, actionId: unknown, id: string, headers: Record<string, string> = {}) =>
-    fetch(`${base}/_api/annotations/ops`, {
+  const ops = (
+    base: string,
+    actionId: unknown,
+    id: string,
+    headers: Record<string, string> = {},
+    fc: string | null = null
+  ) =>
+    fetch(fc ? withFc(`${base}/_api/annotations/ops`, fc) : `${base}/_api/annotations/ops`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify({
@@ -158,8 +165,13 @@ describe('a run tag is main-origin only, and only while the run is open', () => 
     const runId = begun.run as string;
     expect(runId).toMatch(/^r_/);
 
+    // gate-b-c4: every canvas-listener request answers as a frame narrowed to its canvas, so the canvas
+    // posts below carry the frame capability the shell would append (`?fc=`). Without one the listener
+    // answers 403 before the run-tag gate is reached (access/frame.ts frameRefusal).
+    const fc = await frameCap({ base: main() }, {}, 'ui/RunTag.tsx');
+    const canvasOps = (actionId: unknown, id: string) => ops(canvasOrigin, actionId, id, {}, fc);
     // The canvas listener: an OPEN run's tag is still refused, nothing written.
-    const fromCanvas = await ops(canvasOrigin, `run:${runId}`, 'c1');
+    const fromCanvas = await canvasOps(`run:${runId}`, 'c1');
     expect(fromCanvas.status).toBe(400);
     expect((await fromCanvas.json()).error).toBe('run-tag-main-origin-only');
     // A planted canvas posting straight to the main port carries its own Origin.
@@ -168,7 +180,7 @@ describe('a run tag is main-origin only, and only while the run is open', () => 
     expect((await crossOrigin.json()).error).toBe('run-tag-main-origin-only');
     expect(boardText()).toBeNull();
     // An untagged batch from the canvas origin still works (today's canvas write path).
-    expect((await ops(canvasOrigin, 'canvas-1', 'u1')).status).toBe(200);
+    expect((await canvasOps('canvas-1', 'u1')).status).toBe(200);
     const afterCanvas = boardText();
     expect(afterCanvas).toContain('"u1"');
 

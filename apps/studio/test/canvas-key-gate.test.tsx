@@ -159,15 +159,17 @@ describe('the `key` lane runs only fromCanvas actions (V2-1.3 §5.7)', () => {
     expect(reloads.length).toBe(1);
   });
 
-  test('a chord whose action is not fromCanvas does nothing (⌘, Settings, ⇧⌘R refresh)', async () => {
+  test('a chord whose action is not fromCanvas does nothing (⇧⌘R refresh); ⌘, Settings is fromCanvas since P8-B2', async () => {
     const opened: unknown[] = [];
     await mount(ACTIVE, {
       setSettingsOpen: (v: unknown) => opened.push(v),
       refreshTree: () => opened.push('refresh'),
     });
-    post(activeWin, key('⌘,'));
     post(activeWin, key('⇧⌘R'));
     expect(opened).toEqual([]);
+    // c1196ddd8 (p8-bugs-b2, approved delta): settings.open / help.shortcuts answer with the canvas focused.
+    post(activeWin, key('⌘,'));
+    expect(opened).toEqual([true]);
   });
 
   test('a malformed message is ignored (no v, a non-string chord)', async () => {

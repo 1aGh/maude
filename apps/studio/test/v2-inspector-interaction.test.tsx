@@ -372,7 +372,7 @@ describe('On click (the row says what the link does; "None" clears it through /_
   test('the line under the rows is the canvas’s', async () => {
     const host = await one();
     expect(q(host, 'insp-interaction-note')?.textContent).toBe(
-      'Preview plays it; the link shows on the canvas while this is selected — as in 04 Modes.'
+      'Preview plays it; Edit shows the link while this is selected.' // gate-b-polish1 (RC-F): no design-reference words in the UI
     );
   });
 });

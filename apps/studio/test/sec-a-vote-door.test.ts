@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type { Subprocess } from 'bun';
 import { ballotId } from '../annotations/elements/ballot.model.ts';
 import { canonical, parseBoard, serializeBoard } from '../annotations/schema.ts';
+import { frameCap, withFc } from './_acl-cell.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 describe('sec-a M1 — votes and ballots change only through the vote door', () => {
@@ -19,6 +20,7 @@ describe('sec-a M1 — votes and ballots change only through the vote door', () 
   const file = '.design/ui/VoteDoor.tsx';
   let voteId: string;
   let me: string;
+  let fc: string | null;
 
   beforeAll(async () => {
     const sb = makeSandbox();
@@ -45,6 +47,7 @@ describe('sec-a M1 — votes and ballots change only through the vote door', () 
     const cast = await post('/_api/votes/ballot', { file, id: voteId, picks: { 'ab:a': 2 } });
     expect(cast.status).toBe(200);
     me = (await (await fetch(`${main}/_api/votes?file=${encodeURIComponent(file)}`)).json()).me;
+    fc = await frameCap({ base: main }, {}, 'ui/VoteDoor.tsx');
   });
   afterAll(async () => {
     await killProc(proc);
@@ -53,14 +56,19 @@ describe('sec-a M1 — votes and ballots change only through the vote door', () 
   const main = () => `http://localhost:${port}`;
   const boardText = () => readFileSync(written, 'utf8');
   const els = () => parseBoard(boardText()).elements;
+  // gate-b-c4: a canvas-listener request answers as a frame narrowed to its canvas — frameless it is a
+  // blanket 403 before the vote door is reached, which would make every "403" below prove nothing. The
+  // canvas origin's calls carry the capability the shell appends (`?fc=`).
+  const at = (base: string, path: string) =>
+    base === canvasOrigin ? withFc(`${base}${path}`, fc) : `${base}${path}`;
   const ops = (base: string, list: unknown[]) =>
-    fetch(`${base}/_api/annotations/ops`, {
+    fetch(at(base, '/_api/annotations/ops'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file, actionId: 'canvas-1', ops: list }),
     });
   const put = (base: string, board: string, extra: Record<string, unknown> = {}) =>
-    fetch(`${base}/_api/annotations`, {
+    fetch(at(base, '/_api/annotations'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file, board, ...extra }),
@@ -87,6 +95,8 @@ describe('sec-a M1 — votes and ballots change only through the vote door', () 
       ]) {
         const r = await ops(base, list);
         expect(r.status).toBe(403);
+        // the vote door's refusal, not the frame gate's blanket one
+        expect((await r.json()).error).not.toBe('not-in-scope');
       }
     }
     expect(boardText()).toBe(before);
