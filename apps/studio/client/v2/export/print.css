@@ -165,7 +165,7 @@
     outline-offset: 2px;
   }
   .ex-prev-cap {
-    min-height: var(--lh-xs, 16px);
+    min-height: calc(var(--type-xs) * var(--lh-xs)); /* --lh-* is a ratio on the v2 ladder */
     font-size: var(--type-xs, 11px);
     line-height: var(--lh-xs, 1.4);
     color: var(--fg-2);

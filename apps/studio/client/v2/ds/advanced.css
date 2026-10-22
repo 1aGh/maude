@@ -254,7 +254,7 @@
   .dsa-chk-ic {
     display: grid;
     place-items: center;
-    height: var(--lh-sm);
+    height: calc(var(--type-sm) * var(--lh-sm)); /* --lh-* is a ratio on the v2 ladder */
   }
   .dsa-chk-ic--ok {
     color: var(--status-success-text);

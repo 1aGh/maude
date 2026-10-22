@@ -200,7 +200,7 @@
   .dg-btn--primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--on-accent, var(--bg-0));
+    color: var(--accent-fg, var(--bg-0));
   }
   .dg-btn--primary:hover:not(:disabled) {
     background: var(--accent);

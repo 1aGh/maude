@@ -19,7 +19,7 @@
     padding: var(--space-1, 4px) var(--space-3, 12px) var(--space-1, 4px) var(--space-1, 4px);
     border-radius: 999px;
     font: inherit;
-    font-size: var(--text-sm, 13px);
+    font-size: var(--type-sm, 13px);
     color: var(--fg-1);
     cursor: pointer;
   }
@@ -56,7 +56,7 @@
   .sy-card-head > span {
     grid-column: 1;
     color: var(--fg-2);
-    font-size: var(--text-sm, 13px);
+    font-size: var(--type-sm, 13px);
   }
   .sy-close {
     grid-column: 2;
@@ -73,7 +73,7 @@
   .sy-vs {
     align-self: center;
     color: var(--fg-2);
-    font-size: var(--text-sm, 13px);
+    font-size: var(--type-sm, 13px);
   }
   .sy-one {
     display: flex;
@@ -84,7 +84,7 @@
   }
   .sy-who {
     color: var(--fg-2);
-    font-size: var(--text-xs, 12px);
+    font-size: var(--type-xs, 12px);
   }
   .sy-sticky {
     margin: 0;
@@ -92,7 +92,7 @@
     min-height: 72px;
     padding: var(--space-3, 12px);
     border-radius: var(--radius-sm, 6px);
-    background: var(--sticky-yellow, var(--bg-2));
+    background: var(--object-yellow, var(--bg-2));
     color: var(--fg-0);
     overflow-wrap: anywhere;
   }
@@ -102,7 +102,7 @@
   .sy-hint {
     margin: 0;
     color: var(--fg-2);
-    font-size: var(--text-xs, 12px);
+    font-size: var(--type-xs, 12px);
     text-align: center;
   }
 

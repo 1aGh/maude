@@ -1,7 +1,7 @@
 /* client/v2/settings/settings.css — V2-4.7a: the Settings sheet. A rail (General · Connections · Advanced)
  * beside the section's groups (06 ad-settings). Every class is namespaced `v2s-`, and `cb-settings-*`
  * for the rows CloudBar / IdentityBar draw inside Connections — nothing here reuses a bare v1 name
- * (V2-4.3 hit a collision on `.st-share-btn`). Tokens are the shell's (v1 ladder), as floating-panels.css.
+ * (V2-4.3 hit a collision on `.st-share-btn`). Tokens are the shell's (maude-v2 since P8 C0).
  * The inner cards (provider keys, engines, theme radios) keep their own `st-*` look from 3-shell-maude.css. */
 
 @layer shell {

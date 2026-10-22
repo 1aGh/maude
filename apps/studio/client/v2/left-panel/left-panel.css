@@ -1,7 +1,7 @@
 /* client/v2/left-panel/left-panel.css — V2-4.4a: the left panel's v2 look. Canvases · Layers · Assets is a
  * segmented strip (kit `.seg` / `.k-seg-b`); the pinned Design system row, the Trash row, Advanced and the
  * Assets tab are `.lp-*`. Every class is namespaced `lp-` (V2-4.3 hit a v1 class collision — `.st-share-btn`
- * — so nothing here reuses a bare v1 name). Tokens are the shell's (v1 ladder), exactly as floating-panels.css. */
+ * — so nothing here reuses a bare v1 name). Tokens are the shell's (maude-v2 since P8 C0). */
 
 @layer shell {
   /* ── the panel's own header: Canvases · Layers · Assets, then Hide (V2-4.4b — was the dock's tab strip) ── */
@@ -962,7 +962,7 @@
   }
   @media (prefers-reduced-motion: no-preference) {
     .lp-dt-adv-ch {
-      transition: transform var(--dur-fast, 120ms) var(--ease-out, ease-out);
+      transition: transform var(--dur-flip, 120ms) var(--ease-out, ease-out);
     }
   }
   .lp-foot {

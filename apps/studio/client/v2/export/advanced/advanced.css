@@ -106,7 +106,7 @@
     border-radius: 50%;
     background: var(--bg-1);
     box-shadow: var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.2));
-    transition: transform var(--dur-fast, 120ms) var(--ease-out, ease);
+    transition: transform var(--dur-flip, 120ms) var(--ease-out, ease);
   }
   .ex-switch[data-on] .ex-switch-k {
     transform: translateX(14px);
@@ -164,7 +164,7 @@
     color: var(--fg-1);
   }
   .ex-state--ok {
-    color: var(--success, var(--fg-0));
+    color: var(--status-success-text, var(--fg-0));
   }
   .ex-tokens,
   .ex-files {

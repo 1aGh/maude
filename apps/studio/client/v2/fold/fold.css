@@ -41,7 +41,7 @@
   }
   @media (prefers-reduced-motion: no-preference) {
     .v2-fold-ch {
-      transition: transform var(--dur-fast, 120ms) var(--ease-out, ease-out);
+      transition: transform var(--dur-flip, 120ms) var(--ease-out, ease-out);
     }
   }
   .v2-fold-hint {

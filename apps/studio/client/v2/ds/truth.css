@@ -92,7 +92,7 @@
     margin: 0;
     font-size: var(--type-xs);
     line-height: var(--lh-xs);
-    color: var(--status-danger-text, var(--fg-1));
+    color: var(--status-error-text, var(--fg-1));
   }
   .dst-acts {
     display: flex;

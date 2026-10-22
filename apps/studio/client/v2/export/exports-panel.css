@@ -140,7 +140,7 @@
     display: flex;
     flex: none;
     opacity: 0;
-    transition: opacity var(--dur-fast, 120ms) var(--ease-out, ease-out);
+    transition: opacity var(--dur-flip, 120ms) var(--ease-out, ease-out);
   }
   .ex-job:hover .ex-job-acts,
   .ex-job:focus-within .ex-job-acts,

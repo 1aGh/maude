@@ -183,7 +183,7 @@ export default function RepoBranchSwitcher({ project }) {
                 );
               })
             ) : (
-              <div className="rb-pop-sub" style={{ padding: 'var(--space-2) var(--space-3)' }}>
+              <div className="rb-pop-sub" style={{ padding: 'var(--space-1) var(--space-2)' }}>
                 No other recent projects.
               </div>
             )}

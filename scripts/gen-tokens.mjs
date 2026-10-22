@@ -5,14 +5,13 @@
 //   node scripts/gen-tokens.mjs           write every output
 //   node scripts/gen-tokens.mjs --check   exit 1 on drift (part of the `tokens` quality gate)
 //
-// 1. apps/studio/client/styles/1-tokens-maude-v2.css — the maude-v2 ladder for the studio client,
-//    scoped to `.maude-v2[data-theme]` ONLY: every `:root` is dropped from the source's selector
-//    lists, so the v1 shell (which never carries `.maude-v2`) is untouched until Phase 4 mounts the
-//    v2 chrome under that wrapper.
+// 1. apps/studio/client/styles/1-tokens-maude-v2.css — the maude-v2 ladder scoped to `.maude-v2[data-theme]`
+//    (every `:root` dropped): Home's root and the panels that take v2Scope() carry that wrapper.
+// 1b. apps/studio/client/styles/1-tokens-shell.css — THE shell ladder (P8 C0): the same maude-v2 tokens on
+//    `<html data-theme>` and `.maude[data-theme]`, plus the v1-only names as aliases onto v2 names.
 // 2. apps/studio/canvas-hud-tokens.gen.ts — the canvas iframe's HUD/chrome block
 //    (`--maude-hud-*`, `--maude-chrome-*`) that canvas-shell.tsx injects. Filled from HUD_SOURCE_DS
-//    through HUD_TEMPLATE below; `maude` today (byte-identical to the block it replaces), switched
-//    to `maude-v2` by the Phase 4 shell work — change the constant and the name map, regenerate.
+//    (maude-v2 since P8 C0, so in-canvas chrome matches the shell) through HUD_TEMPLATE below.
 // (The site's copy, site/app/mdcc-tokens.css, has its own generator: site/scripts/sync-mdcc-tokens.mjs.)
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -66,84 +65,174 @@ ${body
 `;
 }
 
-// ── 1b · maude-v2 → the shell scope, ADDITIVE ONLY ───────────────────────────────────────────
-// Gate-B polish (decision:maude/v2-gate-b-polish1-v2-tokens-additive-in-shell): a v2 sheet or panel that
-// mounts under `.maude` but outside `.maude-v2` (the Export / Share / Handoff sheets, the Exports panel,
-// ⌘K's empty block, every v2 component inside `.st-shell`) asked for --scrim, --island-*, --w-*,
-// --font-rounded … and got nothing. This block declares, on `.maude[data-theme]`, exactly the maude-v2
-// names the shell ladder (1-tokens.css + 1-tokens-maude.css) does NOT declare — it never overrides a
-// shell value, so the v1 ladder (spacing 4px steps, radii, Inter) and every v1 surface stay as they are.
-// A name later added to the shell by hand drops out of this file on the next run (the --check gate).
-const V2_SHELL_OUT = 'apps/studio/client/styles/1-tokens-maude-v2-shell.css';
-const SHELL_TOKEN_SOURCES = [
-  'apps/studio/client/styles/1-tokens.css',
-  'apps/studio/client/styles/1-tokens-maude.css',
-];
-// Names the shell resolves its own way instead of the v2 literal:
-//   · the island material is SOLID in the shell (V2-1.8 M1–M3, floating-panels.css) — the panel surface, never the
-//     v2 translucent glass;
-//   · the shell's accent is still the v1 indigo (1-tokens-maude.css), so a v2 literal of the azure would be a second
-//     accent hue; these follow the shell's --accent in the relation the v2 file states (`--accent-muted:
-//     var(--accent-soft)`, focus = accent, selection = accent at 22 % / 30 %).
-const SHELL_DERIVED = {
-  '--x-island-bg': 'var(--bg-1)',
-  '--x-island-bg-strong': 'var(--bg-1)',
-  '--accent-soft': 'var(--accent-muted)',
-  '--focus-ring': 'var(--accent)',
-  '--selection': {
-    light: 'color-mix(in oklch, var(--accent) 22%, transparent)',
-    dark: 'color-mix(in oklch, var(--accent) 30%, transparent)',
-  },
-};
-function shellAdditiveV2() {
-  const shellNames = new Set();
-  for (const rel of SHELL_TOKEN_SOURCES)
-    for (const m of readFileSync(join(ROOT, rel), 'utf8').matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm))
-      shellNames.add(m[1]);
-  const src = scopedV2()
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .map((l) => l.replace(/\s+$/, ''));
-  const out = [];
-  let kept = 0;
-  let theme = null;
-  for (const l of src) {
-    const decl = /^(\s*)(--[a-z0-9-]+)\s*:/.exec(l);
-    if (decl) {
-      if (shellNames.has(decl[2])) continue;
-      const derived = SHELL_DERIVED[decl[2]];
-      const v = typeof derived === 'object' ? derived[theme] : derived;
-      out.push(v ? `${decl[1]}${decl[2]}: ${v};` : l);
-      kept++;
-      continue;
-    }
-    if (/^\s*[a-z-]+\s*:[^{]*;\s*$/.test(l)) continue; // a plain property (color-scheme): the shell owns it
-    if (!l.trim()) continue;
-    if (/data-theme="(light|dark)"\]\s*\{/.test(l))
-      theme = l.includes('"light"') ? 'light' : 'dark';
-    out.push(l.replace(/\.maude-v2\[data-theme=/g, '.maude[data-theme='));
-  }
-  // drop selector blocks the filter emptied (a selector list followed directly by its closing brace)
-  const text = out.join('\n').replace(/\n(?:[ \t]*[^\n{};]+,\n)*[ \t]*[^\n{};]+\{\n[ \t]*\}/g, '');
-  if (!kept) throw new Error('maude-v2: no v2-only token left for the shell scope');
+// ── 1b · maude-v2 → THE shell ladder (P8 C0) ────────────────────────────────────────────────
+// decision:maude/v2-p8-c0-one-shell-ladder. The studio client has ONE token ladder and it is maude-v2: every
+// maude-v2 declaration, emitted onto the shell roots — `<html data-theme>` (so a popover or sheet portalled to
+// <body> resolves it too) and `.maude[data-theme]` (the shell root, the follow view, the token popover). It
+// replaces the two hand-written v1 ladders (1-tokens.css' amber `:root` palette, 1-tokens-maude.css' indigo
+// `.maude` palette) and the additive v2 file that only filled their gaps. Names the v1 chrome still says and
+// maude-v2 does not (`--u-*`, `--rule-*`, `--shadow-focus`, `--tracking-sku`, the chrome dims) are aliases onto
+// v2 names below — never a second value.
+const SHELL_OUT = 'apps/studio/client/styles/1-tokens-shell.css';
+// The one name whose shell value is not the DS literal: the island material is SOLID in the shell (V2-1.8 M1–M3,
+// floating-panels.css) — the panel surface, never the v2 translucent glass.
+const SHELL_SOLID = { '--x-island-bg': 'var(--bg-1)', '--x-island-bg-strong': 'var(--bg-1)' };
+// v1-only names → their v2 equivalent (theme-independent; each re-resolves per element).
+const V1_ALIASES = `
+    /* v1-only names, aliased onto the v2 ladder (the old chrome still says them; V2-8.0 retires them) */
+    --rule-thin: 1px solid var(--border-default);
+    --rule-strong: 1px solid var(--border-strong);
+    --rule-accent: 1px solid var(--accent);
+    --shadow-focus: 0 0 0 var(--focus-ring-width) var(--focus-ring);
+    --tracking-sku: 0.12em;
+    --tracking-eyebrow: 0.18em;
+    --u-bg-0: var(--bg-0);
+    --u-bg-1: var(--bg-1);
+    --u-bg-2: var(--bg-2);
+    --u-bg-3: var(--bg-3);
+    --u-bg-4: var(--bg-4);
+    --u-bg-hover: var(--bg-3);
+    --u-bg-active: var(--bg-4);
+    --u-bg-selected: var(--accent-tint);
+    --u-fg-0: var(--fg-0);
+    --u-fg-1: var(--fg-1);
+    --u-fg-2: var(--fg-2);
+    --u-fg-3: var(--fg-2); /* v1 --fg-3 was text-safe (a11y B2); the v2 --fg-3 is the disabled grade */
+    --u-border: var(--border-default);
+    --u-border-subtle: var(--border-subtle);
+    --u-border-strong: var(--border-strong);
+    --u-accent: var(--accent);
+    --u-accent-bg: var(--accent-tint);
+    --u-accent-line: var(--accent-hover);
+    --u-accent-strong: var(--accent-active);
+    --u-accent-fg: var(--accent-fg);
+    --u-status-success: var(--status-success);
+    --u-status-warn: var(--status-warn);
+    --u-status-error: var(--status-error);
+    --u-status-info: var(--status-info);
+    --u-status-live: var(--presence-online);
+    --u-r-xs: var(--radius-xs);
+    --u-r-sm: var(--radius-sm);
+    --u-r-md: var(--radius-md);
+    --u-r-lg: var(--radius-lg);
+    --u-r-pill: var(--radius-pill);
+    /* the v1 5-step spacing (4 · 8 · 12 · 16 · 24 px) is the v2 ladder's first five steps */
+    --u-s-1: var(--space-1);
+    --u-s-2: var(--space-2);
+    --u-s-3: var(--space-3);
+    --u-s-4: var(--space-4);
+    --u-s-5: var(--space-5);
+    --u-font-display: var(--font-display);
+    --u-font-body: var(--font-body);
+    --u-font-sans: var(--font-body);
+    --u-font-mono: var(--font-mono);
+    --u-sidebar-w: 320px;
+    --u-rsidebar-w: 360px;
+    --u-header-h: 44px;
+    --u-status-h: 28px;`;
+
+/** The maude-v2 source split into its four declaration blocks. */
+function v2Blocks() {
+  const src = ds('maude-v2').replace(/\/\*[\s\S]*?\*\//g, '');
+  const blocks = [...src.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    head: m[1].trim(),
+    at: m.index,
+    body: m[2]
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean),
+  }));
+  const pick = (test, what) => {
+    const b = blocks.filter((x) => test(x.head));
+    if (b.length !== 1) throw new Error(`maude-v2: expected one ${what} block, found ${b.length}`);
+    return b[0].body;
+  };
+  const light = (h) => /data-theme="light"/.test(h) && !/data-theme="dark"/.test(h);
+  const dark = (h) => /data-theme="dark"/.test(h) && !/data-theme="light"/.test(h);
+  const both = (h) => /data-theme="light"/.test(h) && /data-theme="dark"/.test(h);
+  // the reduced-motion block is the only one nested in an at-rule (its inner block has the same selector list as
+  // the theme-independent one), so tell the two apart by position against the at-rule.
+  const rmAt = src.indexOf('@media (prefers-reduced-motion: reduce)');
+  if (rmAt < 0) throw new Error('maude-v2: no prefers-reduced-motion block');
+  const rm = blocks.filter((b) => both(b.head) && b.at > rmAt);
+  const inv = blocks.filter((b) => both(b.head) && b.at < rmAt);
+  if (rm.length !== 1 || inv.length !== 1)
+    throw new Error('maude-v2: theme-independent / reduced-motion blocks');
+  return {
+    light: pick(light, 'light'),
+    dark: pick(dark, 'dark'),
+    invariant: inv[0].body,
+    reducedMotion: rm[0].body,
+  };
+}
+
+function shellLadder() {
+  const b = v2Blocks();
+  const decls = (lines) =>
+    lines
+      // one declaration per line (the source pairs `--type-xs: 11px;  --lh-xs: 1.36;`)
+      .flatMap((l) => l.split(/;\s+(?=--)/).map((d, i, all) => (i < all.length - 1 ? `${d};` : d)))
+      .map((l) => {
+        const d = /^(--[a-z0-9-]+)\s*:/.exec(l);
+        if (d && SHELL_SOLID[d[1]]) return `${d[1]}: ${SHELL_SOLID[d[1]]};`;
+        return l.replace(/\s+/g, ' ');
+      })
+      .map((l) => `    ${l}`)
+      .join('\n');
   return `/* GENERATED by scripts/gen-tokens.mjs from .design/system/maude-v2/colors_and_type.css
  * — DO NOT EDIT BY HAND. Run: node scripts/gen-tokens.mjs
- * ADDITIVE: only the maude-v2 tokens the shell ladder (1-tokens.css, 1-tokens-maude.css) leaves undefined,
- * declared on .maude[data-theme], so a v2 surface mounted in the shell resolves them. Never overrides a
- * shell token. */
-${text}
+ * THE shell token ladder (P8 C0, decision maude/v2-p8-c0-one-shell-ladder): every maude-v2 token on the shell
+ * roots — <html data-theme> (portals to <body> resolve it) and .maude[data-theme] (the shell root). The island
+ * material is solid here (V2-1.8). v1-only names are aliases onto v2 names, never a second value. */
+
+@layer tokens {
+  :root,
+  :root[data-theme="light"],
+  .maude[data-theme="light"] {
+${decls(b.light)}
+  }
+
+  :root[data-theme="dark"],
+  .maude[data-theme="dark"] {
+${decls(b.dark)}
+  }
+
+  /* no data-theme yet (before the shell's first render) and the OS is dark: the dark ladder */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+${decls(b.dark).replace(/^ {4}/gm, '      ')}
+    }
+  }
+
+  :root,
+  .maude {
+${decls(b.invariant)}
+${V1_ALIASES}
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root,
+    .maude {
+${decls(b.reducedMotion).replace(/^ {4}/gm, '      ')}
+    }
+  }
+}
 `;
 }
 
 // ── 2 · HUD block for the canvas iframe ──────────────────────────────────────────────────────
 const HUD_OUT = 'apps/studio/canvas-hud-tokens.gen.ts';
-const HUD_SOURCE_DS = 'maude';
+const HUD_SOURCE_DS = 'maude-v2';
 // Theme blocks of the source DS: the selector line that opens each block.
-const HUD_BLOCKS = { dark: '.maude[data-theme="dark"] {', light: '.maude[data-theme="light"] {' };
+const HUD_BLOCKS = {
+  dark: '.maude-v2[data-theme="dark"] {',
+  light: '.maude-v2[data-theme="light"] {',
+};
 // {dark:name} / {light:name} = that DS token's value in that theme's block.
 // S2.8 (DDR-046 rename): the guide colour — smart guides, spacing chips, the preset ruler's edge line — is ONE fixed
 // magenta in both themes, owned by maude-v2 (`--x-guide` / `--x-guide-fg`). It is not a theme token, so it is read from
-// that system whatever HUD_SOURCE_DS is, and declared once on `:root` (the light block inherits it).
+// that system whatever HUD_SOURCE_DS is, and declared once on `:root` (the light block inherits it). The chrome faces
+// (--font-body / --font-mono, theme-independent) are read the same way.
 const HUD_GUIDE_DS = 'maude-v2';
 const HUD_TEMPLATE = `
 :root,
@@ -167,9 +256,9 @@ const HUD_TEMPLATE = `
   --maude-chrome-border:    {dark:border-subtle};
   --maude-chrome-dot:       {dark:canvas-dot};
   --maude-chrome-shadow:    rgba(0, 0, 0, 0.46);
-  --maude-chrome-font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --maude-chrome-font-mono: {guide:font-mono};
   /* gate-a-polish: the menu / label chrome speaks the body face (mono only in Advanced + code, README) */
-  --maude-chrome-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --maude-chrome-font-body: {guide:font-body};
   --maude-chrome-error:     {dark:status-error-text};
 }
 :root[data-maude-theme="light"] {
@@ -232,10 +321,63 @@ export const HUD_TOKENS_CSS = \`${hudCss()}\`;
 `;
 }
 
+// ── 3 · the native tab strip (apps/desktop/src/strip.html) ──────────────────────────────────────
+// The strip is an app-local page (no studio CSS); it follows the OS appearance. Its accent, AI spark, status dot and
+// project squares are the maude-v2 values, written between the page's gen-tokens markers. Its neutral greys stay the
+// strip's own (native title-bar chrome, not a DS surface).
+const STRIP_OUT = 'apps/desktop/src/strip.html';
+const STRIP_NAMES = [
+  '--accent',
+  '--accent-soft',
+  '--focus-ring',
+  '--x-spark',
+  '--spark',
+  '--status-success',
+  '--palette-1',
+  '--object-yellow',
+  '--palette-2',
+  '--object-green',
+  '--palette-3',
+  '--object-lilac',
+  '--palette-4',
+  '--object-coral',
+  '--palette-5',
+  '--object-sky',
+  '--palette-6',
+  '--object-grey',
+  '--palette-ink',
+  '--object-ink',
+];
+function stripPage() {
+  const b = v2Blocks();
+  const pick = (lines, pad) =>
+    STRIP_NAMES.map((n) => {
+      const l = lines.find((x) => x.startsWith(`${n}:`));
+      if (!l) throw new Error(`maude-v2: no ${n}`);
+      return `${pad}${l.replace(/\s+/g, ' ')}`;
+    }).join('\n');
+  const block = `/* gen-tokens:begin — GENERATED by scripts/gen-tokens.mjs from maude-v2 (P8 C0); DO NOT EDIT BY HAND */
+      :root {
+${pick(b.light, '        ')}
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+${pick(b.dark, '          ')}
+        }
+      }
+      /* gen-tokens:end */`;
+  const cur = readFileSync(join(ROOT, STRIP_OUT), 'utf8');
+  const a = cur.indexOf('/* gen-tokens:begin');
+  const z = cur.indexOf('/* gen-tokens:end */');
+  if (a < 0 || z < a) throw new Error(`${STRIP_OUT}: gen-tokens markers missing`);
+  return cur.slice(0, a) + block + cur.slice(z + '/* gen-tokens:end */'.length);
+}
+
 // ── write / check ────────────────────────────────────────────────────────────────────────────
 const outputs = [
+  [STRIP_OUT, stripPage()],
   [V2_OUT, scopedV2()],
-  [V2_SHELL_OUT, shellAdditiveV2()],
+  [SHELL_OUT, shellLadder()],
   [HUD_OUT, hudModule()],
 ];
 let drift = 0;

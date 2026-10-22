@@ -861,7 +861,7 @@ export function CssKnobs({
     return (
       <div
         className="st-cp-num"
-        style={{ border: 0, background: 'transparent', gap: 'var(--space-2)' }}
+        style={{ border: 0, background: 'transparent', gap: 'var(--space-1)' }}
       >
         <AngleDial value={deg} onChange={setDeg} />
         <NumberField

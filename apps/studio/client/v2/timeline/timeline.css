@@ -203,7 +203,7 @@
     align-items: flex-start;
     top: -34px;
     padding: var(--space-1) var(--space-2);
-    font-family: var(--font-ui, inherit);
+    font-family: var(--font-body, inherit);
     font-size: var(--type-xs);
     line-height: 14px;
   }
@@ -274,7 +274,7 @@
   .tl-music-bpm,
   .tl-music-finding {
     position: absolute;
-    font-family: var(--font-ui, inherit);
+    font-family: var(--font-body, inherit);
     font-size: var(--type-xs);
     line-height: 14px;
     color: var(--fg-1);

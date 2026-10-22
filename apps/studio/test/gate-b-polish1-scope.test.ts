@@ -203,11 +203,8 @@ describe('RC-A · v2 surfaces resolve the body face and the v2 tokens in the she
   });
 
   test('every var(--x) without a fallback in client/v2 CSS is declared in the shell scope', () => {
-    const SHELL_TOKEN_FILES = [
-      'styles/1-tokens.css',
-      'styles/1-tokens-maude.css',
-      'styles/1-tokens-maude-v2-shell.css',
-    ];
+    // P8 C0: one generated shell ladder (maude-v2 on <html> + .maude) replaced the three token files
+    const SHELL_TOKEN_FILES = ['styles/1-tokens-shell.css'];
     const declared = new Set<string>();
     for (const rel of SHELL_TOKEN_FILES)
       for (const m of read(join(CLIENT, rel)).matchAll(/^\s*(--[\w-]+)\s*:/gm)) declared.add(m[1]);
@@ -226,23 +223,19 @@ describe('RC-A · v2 surfaces resolve the body face and the v2 tokens in the she
     expect([...missing].sort()).toEqual([]);
   });
 
-  test('the additive v2 block never re-declares a shell token', () => {
-    const shell = new Set<string>();
-    for (const rel of ['styles/1-tokens.css', 'styles/1-tokens-maude.css'])
-      for (const m of read(join(CLIENT, rel)).matchAll(/^\s*(--[\w-]+)\s*:/gm)) shell.add(m[1]);
-    const add = [
-      ...read(join(CLIENT, 'styles/1-tokens-maude-v2-shell.css')).matchAll(/^\s*(--[\w-]+)\s*:/gm),
+  test('the shell ladder carries the v2 names the gap-filler used to add (P8 C0: one ladder, no additive block)', () => {
+    const shell = [
+      ...read(join(CLIENT, 'styles/1-tokens-shell.css')).matchAll(/^\s*(--[\w-]+)\s*:/gm),
     ].map((m) => m[1]);
-    expect(add.length).toBeGreaterThan(20);
-    expect(add.filter((n) => shell.has(n))).toEqual([]);
     for (const n of ['--scrim', '--island-bg', '--w-semibold', '--font-rounded'])
-      expect(add).toContain(n);
+      expect(shell).toContain(n);
   });
 
-  test('the kit and additive token files load in the bundle, in order', () => {
+  test('the kit and the shell token files load in the bundle, in order', () => {
     const idx = read(join(CLIENT, 'styles/_index.css'));
     const pos = (f: string) => idx.indexOf(`@import url("./${f}")`);
-    expect(pos('1-tokens-maude-v2-shell.css')).toBeGreaterThan(pos('1-tokens-maude.css'));
+    expect(pos('1-tokens-shell.css')).toBeGreaterThan(-1);
+    expect(pos('1-tokens-shell.css')).toBeLessThan(pos('3-kit-maude-v2.css'));
     expect(pos('3-kit-maude-v2.css')).toBeGreaterThan(-1);
     expect(pos('3-kit-maude-v2.css')).toBeLessThan(pos('3-shell-maude.css'));
   });

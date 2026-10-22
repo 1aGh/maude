@@ -1,10 +1,8 @@
 // client/v2/annotations/v2-scope.js - S4.V4: the maude-v2 token scope for a shell-side panel.
 //
-// The shell root is still `.maude` (the v1 ladder); `.maude-v2[data-theme]` is where --object-*, --w-semibold,
-// --font-body and the --island-* material live (styles/1-tokens-maude-v2.css). A panel that renders outside
-// the Home page therefore had them undefined: blank object-coloured thumbnails, semibold runs at 400, the
-// mono shell face. Each panel takes the scope ON ITS OWN ROOT with the shell's current theme - the shell
-// root is never wrapped (a wide visual change).
+// P8 C0: the shell root `.maude` and <html> now resolve the maude-v2 ladder themselves (styles/1-tokens-shell.css),
+// so this wrapper only re-states what the panel already inherits (same values; the island material is the one
+// difference — translucent under `.maude-v2`, solid in the shell). Kept until the V2-8.0 cleanup drops its callers.
 
 /** The shell's theme, 'light' | 'dark' (light, the v2 default, when nothing says otherwise). */
 export function shellTheme() {

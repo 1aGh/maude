@@ -65,7 +65,7 @@ function prune(edit) {
 // for both `:root`/`[data-theme="light"]` and `[data-theme="dark"]`.
 const S = {
   body: { fontSize: 12, color: 'var(--fg-0)', overflowY: 'auto' },
-  sec: { marginBottom: 'var(--space-4)' },
+  sec: { marginBottom: 'var(--space-3)' },
   secHead: {
     display: 'flex',
     alignItems: 'center',
@@ -76,7 +76,7 @@ const S = {
     color: 'var(--fg-2)',
     margin: '4px 0 8px',
   },
-  row: { display: 'flex', alignItems: 'center', gap: 8, margin: 'var(--space-2) 0' },
+  row: { display: 'flex', alignItems: 'center', gap: 8, margin: 'var(--space-1) 0' },
   label: { flex: '0 0 72px', fontSize: 11, color: 'var(--fg-1)' },
   tip: {
     flex: 1,
@@ -90,7 +90,7 @@ const S = {
   tipBelow: {
     marginLeft: 80,
     marginTop: 2,
-    marginBottom: 'var(--space-2)',
+    marginBottom: 'var(--space-1)',
     fontSize: 10,
     color: 'var(--fg-2)',
     lineHeight: 1.4,
@@ -166,7 +166,7 @@ function PhotoColorField({ value, fallback, label, ColorPicker, onApply }) {
               className="st-cp-pop"
               role="dialog"
               aria-label={label}
-              style={{ padding: 'var(--space-2)' }}
+              style={{ padding: 'var(--space-1)' }}
             >
               {ColorPicker ? (
                 <ColorPicker seed={hex} label={label} onApply={onApply} />

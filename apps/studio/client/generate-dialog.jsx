@@ -291,7 +291,7 @@ export default function GenerateDialog({ onClose, onInsert }) {
             </label>
           )}
           {notConfigured && (
-            <div className="st-provider-status" style={{ color: 'var(--fg-3)' }}>
+            <div className="st-provider-status" style={{ color: 'var(--fg-2)' }}>
               No key for {current.label} — add one in Settings (⌘,).
             </div>
           )}

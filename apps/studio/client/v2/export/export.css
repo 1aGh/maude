@@ -93,7 +93,7 @@
     font: inherit;
     font-size: var(--type-sm, 13px);
     cursor: pointer;
-    transition: background var(--dur-fast, 120ms) var(--ease-out, ease);
+    transition: background var(--dur-flip, 120ms) var(--ease-out, ease);
   }
   .ex-seg-b:hover:not(:disabled) {
     color: var(--fg-0);
