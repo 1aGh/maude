@@ -700,12 +700,15 @@ export function filterIndexData<T extends IndexDataShape>(
     canvasKinds: pick(data.canvasKinds),
   };
   // gate-b-c4j — a canvas this reader sees that imports another canvas, naming only the canvases it
-  // sees: its frame is refused whatever the names, so an entry stays even when every name goes.
+  // sees. gate-b-c4k — an entry whose every name is hidden is dropped: it would tell the reader that
+  // A imports SOME canvas it cannot see (a probe oracle: plant an import, watch the card). Its frame
+  // is still refused; the shell shows the generic card there.
   if (data.canvasImportsCanvases) {
     out.canvasImportsCanvases = Object.fromEntries(
       Object.entries(data.canvasImportsCanvases)
         .filter(([k]) => seen(k))
-        .map(([k, v]) => [k, v.filter((c) => vis.sees(c))])
+        .map(([k, v]) => [k, v.filter((c) => vis.sees(c))] as const)
+        .filter(([, v]) => v.length > 0)
     );
   }
   // S10.4 — the revision fields name systems and revisions: a session sees the ones it renders with.

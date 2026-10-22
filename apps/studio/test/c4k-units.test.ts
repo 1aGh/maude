@@ -10,7 +10,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { canvasImportsReport, closureFor, type ProjectReader } from '../access/closure.ts';
+import {
+  type Closure,
+  canvasImportsReport,
+  closureFor,
+  type ProjectReader,
+} from '../access/closure.ts';
+import { filterIndexData, visibilityOf } from '../access/filters.ts';
 import { narrowToFrame } from '../access/frame.ts';
 import { resolveAccess } from '../access/scope.ts';
 import { isCanvasRel, listCanvases } from '../index/extract.ts';
@@ -163,5 +169,47 @@ describe('the index lists what groups hold, and never hides a canvas by content 
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('the imports card names nothing a reader cannot see (LOW — probe oracle)', () => {
+  const closure = {
+    head: '0',
+    owned: new Set(['ui/a.tsx', 'ui/c.tsx']),
+    ownedBy: new Map([
+      ['ui/a.tsx', 'ui/a.tsx'],
+      ['ui/c.tsx', 'ui/c.tsx'],
+    ]),
+    read: new Set(['ui/a.tsx', 'ui/c.tsx', 'ui/b.tsx']),
+    assetUsers: new Map(),
+    assetStems: new Set(),
+    dynamic: new Set(),
+  } as unknown as Closure;
+  const vis = visibilityOf(
+    resolveAccess({
+      v: 1,
+      role: null,
+      grants: [
+        { c: 'ui/a.tsx', r: 'member' },
+        { c: 'ui/c.tsx', r: 'member' },
+      ],
+    }),
+    () => closure
+  );
+  test('an entry whose every name is hidden is dropped; a visible name keeps its entry', () => {
+    const out = filterIndexData(
+      {
+        groups: [],
+        canvasDesignSystems: {},
+        canvasKinds: {},
+        canvasImportsCanvases: {
+          '.design/ui/a.tsx': ['ui/secret.tsx'],
+          '.design/ui/c.tsx': ['ui/b.tsx', 'ui/secret.tsx'],
+        },
+      },
+      vis,
+      '.design'
+    );
+    expect(out.canvasImportsCanvases).toEqual({ '.design/ui/c.tsx': ['ui/b.tsx'] });
   });
 });
