@@ -1323,7 +1323,8 @@ export interface Http {
   serveCanvasShell(
     applyCsp: boolean,
     capture?: boolean,
-    query?: URLSearchParams
+    query?: URLSearchParams,
+    req?: Request
   ): Promise<Response>;
   /**
    * T2 (9.1-A) — allowlist gate for the segregated canvas origin. Returns true
@@ -6945,7 +6946,7 @@ export function createHttp(
         // render (?hide-chrome=1) that still lands here ALWAYS gets the
         // network-locked capture CSP so it can't SSRF/exfil (attacker F1).
         const capture = url.searchParams.get('hide-chrome') === '1';
-        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture, url.searchParams);
+        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture, url.searchParams, req);
       }
 
       // DDR-150 dogfood — canvas-relative assets alias. A comp's
@@ -7288,10 +7289,34 @@ export function createHttp(
     return laneAtRef(versionReaders(ctx), repoRel, ref, 'meta');
   }
 
+  /**
+   * gate-b-c4c — may this request's access (on the canvas / capture listeners: narrowed to its
+   * frame) read the canvas a shell query names? The shell document itself is frame-less, so what
+   * it inlines about that canvas (a past version's meta, its `dsPairing` aliases) needs this. Both
+   * normalisations the two readers use are asked — this server's design root (`versionMetaFor`)
+   * and the query's own `designRel` (`pairingCssFor`) — so neither reads a canvas the other did
+   * not check. A query naming no canvas inlines nothing about one.
+   */
+  function shellCanvasVisible(req: Request | undefined, query?: URLSearchParams): boolean {
+    const raw = query?.get('canvas');
+    if (!raw) return true;
+    const access = accessOf(req);
+    const clean = raw.replace(/^\/+/, '');
+    for (const root of [ctx.paths.designRel, query?.get('designRel') || '.design']) {
+      const d = root.replace(/^\/+|\/+$/g, '');
+      const rel = d && clean.startsWith(`${d}/`) ? clean.slice(d.length + 1) : clean;
+      const abs = resolve(ctx.paths.designRoot, rel);
+      if (!abs.startsWith(ctx.paths.designRoot + sep)) continue; // neither reader reads it
+      if (!access.seesCanvas(relative(ctx.paths.designRoot, abs).split(sep).join('/'))) return false;
+    }
+    return true;
+  }
+
   async function serveCanvasShell(
     applyCsp: boolean,
     capture = false,
-    query?: URLSearchParams
+    query?: URLSearchParams,
+    req?: Request
   ): Promise<Response> {
     // `comment-mount.js` is versioned for the same reason as the studio page's
     // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
@@ -7311,17 +7336,24 @@ export function createHttp(
     // S1.11 — a past version (`?sha=`) carries its own meta lane (V2-1.9 §5.6): injected here,
     // BEFORE the CSP hashes the inline scripts, escaped for a script tag (past meta is peer-authored).
     // S10.4b — the past meta also carries that version's `dsPairing` aliases into the fallback slot.
-    const pastMeta = await versionMetaFor(query);
-    const injected = injectVersionMeta(
-      injectFallbacks(
-        inspect().injectInspector(shellHtml),
-        ctx.paths.designRoot,
-        ctx.cfg as unknown as Record<string, unknown>,
-        query,
+    // gate-b-c4c — only for a request that sees the named canvas: canvas A's code could otherwise
+    // fetch this document for B and read B's meta. Anyone else gets the bare shell (the canvas's
+    // module is refused to that frame anyway).
+    const withInspector = inspect().injectInspector(shellHtml);
+    let injected = withInspector;
+    if (shellCanvasVisible(req, query)) {
+      const pastMeta = await versionMetaFor(query);
+      injected = injectVersionMeta(
+        injectFallbacks(
+          withInspector,
+          ctx.paths.designRoot,
+          ctx.cfg as unknown as Record<string, unknown>,
+          query,
+          pastMeta
+        ),
         pastMeta
-      ),
-      pastMeta
-    );
+      );
+    }
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
