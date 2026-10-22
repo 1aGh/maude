@@ -1,0 +1,2 @@
+/Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec-only full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/impl/10-share-and-collaboration/)

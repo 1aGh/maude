@@ -1,0 +1,2 @@
+/Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/pairs/12-import-and-assets
+(full-size PNG pairs: <id>-<theme>.png; spec-only full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/spec/12-import-and-assets/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/impl/12-import-and-assets/)
