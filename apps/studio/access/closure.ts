@@ -22,6 +22,7 @@ import { canvasArtifacts } from '../canvas-artifacts.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
+import { isCanvasRelInGroups } from '../skip-dirs.ts';
 import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
 
 /** Relative import specifiers (side-effect, `from`, literal dynamic `import()`), in source order. */
@@ -334,6 +335,29 @@ interface DsSystem {
   path: string;
 }
 
+/** The defaults `context.ts` serves when a config names no groups. */
+const DEFAULT_CANVAS_GROUPS = ['system', 'ui'];
+
+/**
+ * gate-b-c4g — the canvas groups the closure judges "is this a canvas" by: the config's own
+ * (sanitized: contained relative paths) PLUS the defaults. A wider set only ever makes more
+ * imports count as canvases (each then needs the reader's access) — fail closed when the config
+ * is unreadable or the studio's effective groups differ from the committed file.
+ */
+function canvasGroupsOf(project: ProjectReader): string[] {
+  const list = readJsonObject(project, 'config.json')?.canvasGroups;
+  const out = new Set(DEFAULT_CANVAS_GROUPS);
+  if (Array.isArray(list)) {
+    for (const g of list as Array<Record<string, unknown>>) {
+      if (!g || typeof g.path !== 'string') continue;
+      const p = g.path.replace(/^\.?\/+/, '').replace(/\/+$/, '');
+      if (!p || p.split('/').includes('..')) continue;
+      out.add(p);
+    }
+  }
+  return [...out];
+}
+
 function readJsonObject(project: ProjectReader, rel: string): Record<string, unknown> | null {
   const t = project.text(rel);
   if (t === null) return null;
@@ -392,8 +416,46 @@ function isSystemFileInClosure(sysPath: string, rel: string): boolean {
   return true;
 }
 
-/** The versioned sidecars + comments of a canvas, from the one artifact inventory. */
-function ownedOf(canvas: string): string[] {
+/** Slugs already warned about (one line per slug per process, not per closure). */
+const warnedSlugTwins = new Set<string>();
+
+/**
+ * gate-b-c4g — every canvas-shaped file (`.tsx` / `.html` outside the runtime dirs) by its slug.
+ * `canvasSlugFromRel` is not injective (`ui/a-b.tsx`, `ui/a/b.tsx`, `UI/A-B.tsx`, `ui/a b.tsx` vs
+ * `ui/a_b.tsx` all fold to one), and every slug-keyed sidecar — comments, board, EDL — is shared by
+ * all of them on disk.
+ */
+function slugTwins(files: Iterable<string>, extra: readonly string[]): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const add = (rel: string) => {
+    if (!/\.(tsx|html)$/i.test(rel) || rel.startsWith('_')) return;
+    const slug = canvasSlugFromRel(rel, '');
+    const set = out.get(slug) ?? new Set<string>();
+    set.add(rel);
+    out.set(slug, set);
+  };
+  for (const f of files) add(f);
+  for (const f of extra) add(f);
+  return out;
+}
+
+/**
+ * The versioned sidecars + comments of a canvas, from the one artifact inventory.
+ *
+ * gate-b-c4g — a SLUG-keyed sidecar belongs to `canvas` only when no other canvas folds to the
+ * same slug. With a twin there is no deterministic owner (the studio's slug → file resolver
+ * answers whichever it walks first), so neither canvas's closure gets them — fail closed: a frame
+ * on A never reads or writes B's threads or board. Path-keyed siblings (meta, css) are A's alone.
+ */
+function ownedOf(canvas: string, twins?: Map<string, Set<string>>): string[] {
+  const slug = canvasSlugFromRel(canvas, '');
+  const shared = (twins?.get(slug)?.size ?? 0) > 1;
+  if (shared && !warnedSlugTwins.has(slug)) {
+    warnedSlugTwins.add(slug);
+    console.warn(
+      `[access] ${[...(twins?.get(slug) ?? [])].sort().join(', ')} share the slug "${slug}"; their comments, board and EDL are not reachable from a canvas-only session until one is renamed`
+    );
+  }
   const ROOT = '/__maude_closure__/.design';
   const paths = {
     designRoot: ROOT,
@@ -404,6 +466,7 @@ function ownedOf(canvas: string): string[] {
   } as unknown as Paths;
   const out: string[] = [];
   for (const a of canvasArtifacts({ rel: canvas, paths })) {
+    if (shared && a.kind === 'slug-keyed') continue;
     const rel = path.posix.relative(ROOT, a.abs.split(sep).join('/'));
     if (a.versioned || rel.startsWith('_comments/')) out.push(rel);
   }
@@ -490,6 +553,7 @@ function compute(
     assetStems.add(dot > 0 ? `assets/${name.slice(0, dot)}` : f);
   }
   const systems = systemsOf(project);
+  const twins = slugTwins(files, canvases);
   const textCache = new Map<string, string | null>();
   const textOf = (rel: string) => {
     if (!textCache.has(rel)) textCache.set(rel, files.has(rel) ? project.text(rel) : null);
@@ -500,13 +564,17 @@ function compute(
 
   // gate-b-c4e — what an import may pull into the closure. A file of the design root's runtime
   // state never (the build refuses it too); a canvas's board / meta / EDL never (they are that
-  // canvas's, not a module). Another CANVAS — a `.tsx` with its own meta or board — and its
-  // same-name stylesheet only when the reader may read that canvas; helpers, components and the
-  // design system stay reachable through imports.
+  // canvas's, not a module). Another CANVAS and its same-name stylesheet only when the reader may
+  // read that canvas; helpers, components and the design system stay reachable through imports.
+  // gate-b-c4g — "a canvas" is the index's own rule (skip-dirs.ts `isCanvasRelInGroups`: any
+  // `.tsx` in a canvas group), not "has a meta or a board": a meta-less canvas B imported by A was
+  // inlined for a member with no grant on B. A meta or a board still marks one anywhere.
   const granted = new Set(canvases);
+  const groups = canvasGroupsOf(project);
   const isCanvas = (rel: string): boolean =>
     /\.tsx$/i.test(rel) &&
-    (files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
+    ((files.has(rel) && groups.some((g) => isCanvasRelInGroups([g], rel))) ||
+      files.has(rel.replace(/\.tsx$/i, '.meta.json')) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.json`) ||
       files.has(`${canvasSlugFromRel(rel, '')}.annotations.svg`));
   const importable = (dep: string): boolean => {
@@ -519,7 +587,7 @@ function compute(
   const closureAssets = new Set<string>();
   const perUse = new Set<string>();
   for (const canvas of canvases) {
-    for (const rel of ownedOf(canvas)) {
+    for (const rel of ownedOf(canvas, twins)) {
       owned.add(rel);
       if (!ownedBy.has(rel)) ownedBy.set(rel, canvas);
       read.add(rel);
@@ -553,7 +621,7 @@ function compute(
       }
     }
     // Static asset references in the canvas's own sidecars (meta, board).
-    for (const rel of ownedOf(canvas)) {
+    for (const rel of ownedOf(canvas, twins)) {
       if (rel === canvas || !TEXT_SCAN_RE.test(rel)) continue;
       const text = textOf(rel);
       if (text === null) continue;

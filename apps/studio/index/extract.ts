@@ -14,7 +14,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
 
-import { SKIP_DIRS } from '../skip-dirs.ts';
+import { HIDDEN_OK, isCanvasRelInGroups, SKIP_DIRS } from '../skip-dirs.ts';
 import type { ArtboardKind, ArtboardRow, CanvasKind, CanvasRow, Stamp } from './types.ts';
 
 const ARTBOARD_KINDS = new Set<ArtboardKind>(['digital', 'print', 'web', 'video']);
@@ -25,7 +25,6 @@ const CANVAS_KINDS = new Set<CanvasKind>([
   'imported-figma',
   'reconstructed-experimental',
 ]);
-const HIDDEN_OK = new Set(['.ai', '.claude', '.design']);
 const MAX_DEP_BYTES = 2 * 1024 * 1024;
 const isInside = (root: string, p: string) => {
   const rel = path.relative(root, p);
@@ -71,14 +70,14 @@ export function listCanvases(ctx: IndexContext): string[] {
 
 /** Is `rel` a canvas by the same rules as listCanvases()? One stat, no walk (per-event updates). */
 export function isCanvasRel(ctx: IndexContext, rel: string): boolean {
-  if (!rel.endsWith('.tsx')) return false;
-  const group = ctx.groups.find((g) => rel.startsWith(`${g.path.replace(/\/+$/, '')}/`));
-  if (!group) return false;
-  const segs = rel.slice(group.path.replace(/\/+$/, '').length + 1).split('/');
-  for (const seg of segs) {
-    if (seg.startsWith('.') && !HIDDEN_OK.has(seg)) return false;
-    if (seg.startsWith('_') || SKIP_DIRS.has(seg)) return false;
-  }
+  // gate-b-c4g — the one path predicate (skip-dirs.ts), shared with the access closure.
+  if (
+    !isCanvasRelInGroups(
+      ctx.groups.map((g) => g.path),
+      rel
+    )
+  )
+    return false;
   try {
     return lstatSync(path.join(ctx.designRoot, rel)).isFile();
   } catch {

@@ -42,8 +42,9 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, posix, relative, sep } from 'node:path';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
+import { DEV_SERVER_ROOT } from '../paths.ts';
 import type { ProjectRole } from './roles.ts';
 import { type Access, type GrantRole, resolveAccess } from './scope.ts';
 
@@ -78,7 +79,25 @@ export function newFrameSecret(): Buffer {
  * canvas author. `legacy` — the old in-tree file — is deleted, never migrated: it may already
  * have been read. Unreadable or unwritable: a fresh one for this process.
  */
-export function loadFrameSecret(file: string, legacy?: string): Buffer {
+export function loadFrameSecret(
+  file: string,
+  legacy?: string,
+  forbiddenRoots: readonly string[] = []
+): Buffer {
+  // gate-b-c4g (L2) — asserted, not assumed: a key file that resolves (logically or through a
+  // symlinked ancestor) inside the design root or the repo is a key the canvas build can reach or
+  // a commit can carry. Then this process keeps an in-memory key (frames already open re-mint
+  // after a restart) and says why.
+  const fileForms = bothForms(file);
+  const inside = forbiddenRoots.find((r) =>
+    bothForms(r).some((root) => fileForms.some((f) => isUnderOrEqualPath(f, root)))
+  );
+  if (inside !== undefined) {
+    console.warn(
+      `[frame] the frame-capability key path ${file} is inside ${inside}; using an in-memory key for this session`
+    );
+    return newFrameSecret();
+  }
   if (legacy) {
     try {
       rmSync(legacy, { force: true });
@@ -238,30 +257,86 @@ export function framelessAllowed(rawPathname: string): boolean {
   return false;
 }
 
+/** `p` and, when it differs, its real path (the nearest existing ancestor resolved). */
+export function bothForms(p: string): string[] {
+  const abs = resolve(p);
+  let dir = abs;
+  let rest = '';
+  for (;;) {
+    try {
+      const real = realpathSync(dir);
+      const full = rest ? join(real, rest) : real;
+      return full === abs ? [abs] : [abs, full];
+    } catch {
+      const parent = dirname(dir);
+      if (parent === dir) return [abs];
+      rest = rest ? join(basename(dir), rest) : basename(dir);
+      dir = parent;
+    }
+  }
+}
+
+/** `p` is `root` or below it — `..` read as a path SEGMENT, never as a name prefix (`..notes/`). */
+export function isUnderOrEqualPath(p: string, root: string): boolean {
+  const rel = relative(root, p);
+  return rel === '' || !(rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+/**
+ * gate-b-c4g — Maude's own module roots: the studio tree (canvas-lib, the runtime bundles under
+ * `dist/runtime`) and the dependencies it ships (`node_modules` beside it, or hoisted one level
+ * up in the npm layout), in their logical and real spellings. The only files a built canvas may
+ * inline from outside its design root.
+ */
+export const MAUDE_MODULE_ROOTS: readonly string[] = [
+  ...bothForms(DEV_SERVER_ROOT),
+  ...bothForms(join(DEV_SERVER_ROOT, 'node_modules')),
+  ...bothForms(join(DEV_SERVER_ROOT, '..', '..', 'node_modules')),
+];
+
+function notInScope(): Response {
+  return Response.json(
+    { error: 'not-in-scope', reason: 'not-in-scope' },
+    { status: 403, headers: { 'Cache-Control': 'no-store' } }
+  );
+}
+
 /**
  * gate-b-c4e — defence in depth behind the build's import allowlist: a built canvas module goes
  * to a canvas-only session (every frame is one) only when EVERY design-root file the build
  * inlined is one the session sees. `inputs` are absolute (the bundler reports real paths, so
- * `roots` carries the design root's logical and real spellings); a file outside the design root
- * is the allowlist's business (only our own modules get there). Anything not seen → the
+ * `roots` carries the design root's logical and real spellings). Anything not seen → the
  * missing-file answer (U1), fail closed: the module is never cut down to what is visible.
+ *
+ * gate-b-c4g — every OTHER input must be one of Maude's own modules (`ours`, default
+ * `MAUDE_MODULE_ROOTS`): a `package.json` `main` / `browser` field inside the design root sent a
+ * directory import to any file on disk, and this gate used to wave every out-of-root input
+ * through. With `entry`, the list must also name the entry canvas (logical or real): an empty or
+ * partial metafile is no evidence that the module inlined nothing.
  */
 export function inputsRefusal(
   inputs: readonly string[],
   roots: readonly string[],
-  sees: (rel: string) => boolean
+  sees: (rel: string) => boolean,
+  opts: { entry?: string; ours?: readonly string[] } = {}
 ): Response | null {
+  const ours = opts.ours ?? MAUDE_MODULE_ROOTS;
+  if (opts.entry !== undefined) {
+    const entryForms = bothForms(opts.entry);
+    if (!inputs.some((abs) => isAbsolute(abs) && entryForms.includes(resolve(abs))))
+      return notInScope();
+  }
   for (const abs of inputs) {
+    if (!isAbsolute(abs)) return notInScope();
+    let inDesign = false;
     for (const root of roots) {
+      if (!isUnderOrEqualPath(abs, root)) continue;
+      inDesign = true;
       const rel = relative(root, abs);
-      if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) continue;
-      if (!sees(rel.split(sep).join('/')))
-        return Response.json(
-          { error: 'not-in-scope', reason: 'not-in-scope' },
-          { status: 403, headers: { 'Cache-Control': 'no-store' } }
-        );
+      if (rel === '' || !sees(rel.split(sep).join('/'))) return notInScope();
       break;
     }
+    if (!inDesign && !ours.some((r) => isUnderOrEqualPath(abs, r))) return notInScope();
   }
   return null;
 }

@@ -354,6 +354,9 @@ export async function buildCanvasModule(
   // needed; RUNTIME_PACKAGES already lists every specifier the importmap covers.
   const externalSpecifiers = new Set<string>(RUNTIME_PACKAGES);
   const denials: Array<{ specifier: string; reason: string }> = [];
+  const allowlist = options.restrictImportsTo
+    ? importAllowlist(options.restrictImportsTo, denials, canvasAbsPath)
+    : null;
   // Every stylesheet the canvas pulls in by relative import — they are inlined
   // (below), so the open canvas has no <link> to swap when one changes; the
   // injector records them for the iframe's HMR client (see buildCssInjector).
@@ -443,7 +446,7 @@ export async function buildCanvasModule(
       // runtime packages are external and `@maude/canvas-lib` is resolved, so
       // what is left is exactly "everything else" — which, from a tenant's
       // own file, must stay inside the design root.
-      ...(options.restrictImportsTo ? [importAllowlist(options.restrictImportsTo, denials)] : []),
+      ...(allowlist ? [allowlist.plugin] : []),
       // After the allowlist: only an override whose file is gone today, already judged above.
       ...(overrides ? [overrides.resolveMissing] : []),
     ],
@@ -524,8 +527,29 @@ export async function buildCanvasModule(
     }
   }
 
+  const inputs = metafileInputs(built.metafile);
+  // gate-b-c4g — the bundle is held to the allowlist by what it ACTUALLY inlined, after Bun's own
+  // resolution: a `package.json` `main` / `browser` field (or a symlink it names) can carry a
+  // directory import the onResolve hook judged as "inside" to any file. And no metafile entry for
+  // the canvas itself means the list cannot be trusted to be complete (M2) — fail closed.
+  if (allowlist) {
+    const refusal = allowlist.vetInputs(inputs);
+    if (refusal) {
+      const errorCtx = {
+        designRoot: options.restrictImportsTo as string,
+        canvasAbs: canvasAbsPath,
+        source,
+      };
+      throw new CanvasBuildError(
+        refusal,
+        [{ ...errorAt(errorCtx), message: scrubPaths(refusal, errorCtx.designRoot) }],
+        1
+      );
+    }
+  }
+
   const etag = Bun.hash(js).toString(16);
-  return { js, locator: pass1.locator, etag, inputs: metafileInputs(built.metafile) };
+  return { js, locator: pass1.locator, etag, inputs };
 }
 
 /**
@@ -567,11 +591,16 @@ type AllowlistArgs = { path: string; importer: string; kind?: string };
  */
 function importAllowlist(
   designRoot: string,
-  denials: Array<{ specifier: string; reason: string }>
+  denials: Array<{ specifier: string; reason: string }>,
+  entryAbs: string
+): {
   // Bun's own plugin type, not a hand-rolled structural twin: the local shape
   // described a narrower `setup` than Bun.build's `plugins` accepts, so the
   // value was not assignable at the one place it is used.
-): import('bun').BunPlugin {
+  plugin: import('bun').BunPlugin;
+  /** gate-b-c4g — the build's real inputs judged by the same rule; a reason, or null. */
+  vetInputs: (inputs: readonly string[]) => string | null;
+} {
   const root = path.resolve(designRoot);
   // Both spellings of every root: the bundler reports importers (and so every
   // relative target) by REAL path, while callers pass the logical one. Comparing
@@ -595,6 +624,7 @@ function importAllowlist(
   // refused, never presumed safe.
   const ours = [
     ...bothForms(DEV_SERVER_ROOT),
+    ...bothForms(path.join(DEV_SERVER_ROOT, 'node_modules')),
     ...bothForms(path.join(DEV_SERVER_ROOT, '..', '..', 'node_modules')),
   ];
   const inRoot = (p: string) => roots.some((r) => isUnderOrEqual(p, r));
@@ -624,9 +654,50 @@ function importAllowlist(
     denials.push({ specifier, reason });
     throw new Error(reason);
   };
-  return {
+  const entryForms = new Set([path.resolve(entryAbs), realTarget(path.resolve(entryAbs))]);
+  /**
+   * gate-b-c4g — the rule for a file the bundle READS (after Bun's resolver finished, so
+   * `package.json` `main` / `browser` / `exports` and symlinks are already followed): the entry
+   * canvas; a design-root file that is not runtime state (logical AND real path); or one of our
+   * own modules (logical AND real path). Anything else → a reason that names no outside path.
+   */
+  const judgeLoaded = (p: string): string | null => {
+    const abs = path.resolve(p);
+    const real = realTarget(abs);
+    if (entryForms.has(abs) || entryForms.has(real)) return null;
+    if (inRoot(abs) || inRoot(real)) {
+      if (!inRoot(abs) || !inRoot(real))
+        return 'This canvas imports a file that leads outside the project. A canvas may only import files inside its own design.';
+      if (isRuntimeTarget(abs) || isRuntimeTarget(real))
+        return `This canvas imports "${path.relative(root, abs)}", which is Maude's own runtime state, not part of the design. A canvas may import its design's files, but not the folders whose names start with "_".`;
+      return null;
+    }
+    if (isOurs(abs) && isOurs(real)) return null;
+    return 'This canvas imports a file outside the project (a package.json in the design points there). A canvas may only import files inside its own design.';
+  };
+  const vetInputs = (inputs: readonly string[]): string | null => {
+    if (!inputs.some((p) => entryForms.has(path.resolve(p)))) {
+      return 'The canvas build did not report what it read, so the canvas is not served.';
+    }
+    for (const p of inputs) {
+      const reason = judgeLoaded(p);
+      if (reason) return reason;
+    }
+    return null;
+  };
+  const plugin: import('bun').BunPlugin = {
     name: 'maude-import-allowlist',
     setup(builder) {
+      // gate-b-c4g — the file Bun is about to READ, after its own resolution. The onResolve hook
+      // below judges the specifier the canvas wrote; a directory import there is "inside" — and
+      // Bun then follows that directory's `package.json` wherever it points. Returning nothing
+      // lets the next loader read it; a refusal throws (and is reported like any denial).
+      builder.onLoad({ filter: /.*/ }, (args: { path: string; namespace?: string }) => {
+        if (args.namespace && args.namespace !== 'file') return undefined;
+        const reason = judgeLoaded(args.path);
+        if (reason) deny(args.path, reason);
+        return undefined;
+      });
       builder.onResolve({ filter: /.*/ }, (args: AllowlistArgs) => {
         // `data:` / `blob:` are SELF-CONTAINED — no request leaves the page, so
         // the sandbox has nothing to say about them. They reach this hook
@@ -688,10 +759,11 @@ function importAllowlist(
               `A canvas may import its design's files, but not the folders whose names start with "_".`
           );
         }
-        return null; // inside the root — let Bun's resolver finish the job
+        return null; // inside the root — let Bun's resolver finish the job (onLoad re-checks)
       });
     },
   };
+  return { plugin, vetInputs };
 }
 
 function filterForExactPath(absPath: string): RegExp {

@@ -65,14 +65,23 @@ const FILES: Record<string, string> = {
     "// import B from './canary-b-zx.tsx'\n/* import './canary-b-zx.tsx'; */\nconst s = \"import './canary-b-zx.tsx'\";\nexport default () => <p>{s.length}</p>;\n",
   // normal canvases: a helper component, a system token file, a JSON data file
   'ui/uses-helper.tsx':
-    "import Btn from './parts/button.tsx';\nimport '../system/ds/tokens.css';\nimport d from './data.json';\nexport default () => <Btn label={d.label} />;\n",
-  'ui/parts/button.tsx':
+    "import Btn from '../components/button.tsx';\nimport '../system/ds/tokens.css';\nimport d from './data.json';\nexport default () => <Btn label={d.label} />;\n",
+  'components/button.tsx':
     'export default function Btn({ label }: { label: string }) { return <button>{label}</button>; }\n',
   'ui/data.json': '{"label":"HELPER-OK"}\n',
   'system/ds/tokens.css': ':root { --token-ok: 1px }\n',
   // 4 — two canvases whose paths fold to the slug `ui-a-b`
   'ui/a-b.tsx': 'export default () => <p>dash</p>;\n',
   'ui/a/b.tsx': 'export default () => <p>nested</p>;\n',
+  // gate-b-c4g — the shared slug's comments and board, written for ui/a/b.tsx
+  '_comments/ui-a-b.json':
+    '[{"id":"c_abababababab","file":".design/ui/a/b.tsx","selector":"[data-dc-screen]","text":"CANARY-B-THREAD","status":"open","created":"2026-10-01T00:00:00.000Z","author":"B","thread":[]}]\n',
+  'ui-a-b.annotations.json': '{"v":2,"note":"CANARY-B-SLUG-BOARD"}\n',
+  // gate-b-c4g — a directory import a package.json sends out of the design root
+  '../outside-c4g.txt': 'CANARY-B-OUTSIDE\n',
+  'ui/pkg/package.json': '{"main":"../../../outside-c4g.txt"}\n',
+  'ui/leak-pkg.tsx':
+    "import x from './pkg' with { type: 'text' };\nexport default () => <p>{x}</p>;\n",
 };
 
 interface Booted {
@@ -163,6 +172,12 @@ describe('a cell (sandboxed build)', () => {
     expect(canary(r.text)).toBe(false);
   });
 
+  test('c4g 1 — a package.json redirect out of the design root is not inlined (sandbox)', async () => {
+    const r = await moduleVia(cell, OWNER_O, 'ui/leak-pkg.tsx');
+    expect(r.status === 200).toBe(false);
+    expect(canary(r.text)).toBe(false);
+  });
+
   test('2 — a member of A only: A importing canvas B is refused, B never inlined', async () => {
     const r = await moduleVia(cell, only('ui/imp-b.tsx'), 'ui/imp-b.tsx');
     expect(r.status).toBe(403);
@@ -202,6 +217,17 @@ describe('a cell (sandboxed build)', () => {
     // 400 = reached srv.upgrade (a plain GET is no handshake); 403 = not in scope
     expect(statuses.sort()).toEqual([400, 403]);
   });
+
+  test('c4g 3 — a member of ui/a-b.tsx reads none of ui/a/b.tsx’s threads or board (one slug)', async () => {
+    const who = only('ui/a-b.tsx');
+    const one = await get(`${cell.base}/_comments?file=.design/ui/a-b.tsx`, who);
+    const all = await get(`${cell.base}/_comments-all`, who);
+    const board = await get(`${cell.base}/.design/ui-a-b.annotations.json`, who);
+    expect(canary(one.text + all.text + board.text)).toBe(false);
+    // the owner still sees the shared thread (a project session is not narrowed)
+    const owner = await get(`${cell.base}/_comments-all`, OWNER_O);
+    expect(canary(owner.text)).toBe(true);
+  });
 });
 
 describe('a desktop (in-process build)', () => {
@@ -228,6 +254,20 @@ describe('a desktop (in-process build)', () => {
   test("1c — another canvas's board inlined: refused", async () => {
     const r = await moduleVia(desk, {}, 'ui/leak-board.tsx');
     expect(r.status).toBe(403);
+    expect(canary(r.text)).toBe(false);
+  });
+
+  test('c4g 4 — the refused request wrote no locator for that canvas', async () => {
+    const r = await moduleVia(desk, {}, 'ui/leak-board.tsx');
+    expect(r.status).toBe(403);
+    const loc = join(desk.designRoot, '_locator.json');
+    const text = existsSync(loc) ? await Bun.file(loc).text() : '';
+    expect(text).not.toContain('leak-board');
+  });
+
+  test('c4g 1 — a package.json redirect out of the design root is not inlined', async () => {
+    const r = await moduleVia(desk, {}, 'ui/leak-pkg.tsx');
+    expect(r.status === 200).toBe(false);
     expect(canary(r.text)).toBe(false);
   });
 
