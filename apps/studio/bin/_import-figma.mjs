@@ -34,14 +34,16 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
+import { join, posix, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
@@ -90,6 +92,7 @@ import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-stro
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
 import { FigmaCapError, normalizeDocument, walkNodes } from '../figma/types.ts';
 import { FigmaUrlError, parseFigmaTarget } from '../figma/url.ts';
+import { findCloseName, tooCloseText } from '../sync-name-key.ts';
 import { PostOpsError, postOps } from './_annotate-post.mjs';
 import { fetchAsset } from './_fetch-asset.mjs';
 import {
@@ -105,6 +108,61 @@ export class ImportFigmaError extends Error {
     super(message);
     this.code = code;
   }
+}
+
+/** Every canvas-shaped file under the design root (design-root-relative); runtime / hidden dirs skipped. */
+function designCanvasRels(designRoot) {
+  const out = [];
+  const walk = (abs, rel) => {
+    let entries;
+    try {
+      entries = readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules') continue;
+      const childRel = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(abs, e.name), childRel);
+      else if (/\.(tsx|html)$/i.test(e.name)) out.push(childRel);
+    }
+  };
+  walk(designRoot, '');
+  return out;
+}
+
+const fileIdOf = (abs) => {
+  try {
+    const st = statSync(abs);
+    return `${st.dev}:${st.ino}`;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * gate-b-c4h (S1.23b) — the existing DIFFERENT canvas whose sync key `rel` (design-root-relative)
+ * would share, or null. The studio's create / move / rename guard (sync-name-key.ts), here for the
+ * importer: two canvases on one key share one sync document (one overwrites the other on every peer)
+ * and every slug-keyed sidecar (comments, board, EDL). The same file (a re-import, or a case-only
+ * spelling of it on a case-insensitive volume) is not a twin.
+ */
+export function slugTwinOf(designRoot, rel) {
+  const self = fileIdOf(join(designRoot, rel));
+  return findCloseName(
+    rel,
+    designCanvasRels(designRoot),
+    (other) => self !== null && fileIdOf(join(designRoot, other)) === self
+  );
+}
+
+/** Refuse to write a NEW canvas at `rel` whose sync key an existing different canvas already has. */
+export function assertNoSlugTwin(designRoot, rel) {
+  const other = slugTwinOf(designRoot, rel);
+  if (!other) return;
+  const dir = posix.dirname(rel);
+  const name = posix.basename(rel).replace(/\.(tsx|html)$/i, '');
+  throw new ImportFigmaError(6, tooCloseText(name, other, dir === '.' ? '' : dir));
 }
 
 /**
@@ -681,6 +739,8 @@ export async function importBoard({
       designRootRel,
       join(root, designRootRel, `ui/${title}.meta.json`)
     );
+    // gate-b-c4h — never a canvas whose sync key another canvas already has.
+    assertNoSlugTwin(join(root, designRootRel), canvasRel);
     mkdirSync(join(root, designRootRel, 'ui'), { recursive: true });
     // Promote by rename — atomic, and nothing lands in the versioned tree
     // until the whole translation has succeeded.
@@ -1202,6 +1262,13 @@ export async function importPages({
   const folderSlug = folder ?? `figma-${target.fileKey.slice(0, 8).toLowerCase()}`;
   if (!SLUG_RE.test(folderSlug)) throw new ImportFigmaError(2, 'invalid --folder');
 
+  // gate-b-c4h — every page's canvas is checked BEFORE any lands: a twin is the request's own fault
+  // (fatal below, like every ImportFigmaError), and a partial folder must not look complete.
+  for (const page of pages) {
+    const title = attrValue(page.name) || `Page ${page.id.replace(/[^0-9]+/g, '-')}`;
+    assertNoSlugTwin(join(root, designRootRel), `ui/${folderSlug}/${title}.tsx`);
+  }
+
   const tokens = readDsTokens(root, designRootRel);
   const budget = makeAssetBudget();
   const written = [];
@@ -1338,6 +1405,8 @@ export async function importPages({
         const stagedMeta = join(staging, 'page.meta.json');
         writeFileSync(stagedTsx, tsx, 'utf8');
         writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+        // gate-b-c4h — never a canvas whose sync key another canvas already has (checked up front too).
+        assertNoSlugTwin(join(root, designRootRel), `${relDir}/${title}.tsx`);
         const outDir = join(root, designRootRel, relDir);
         mkdirSync(outDir, { recursive: true });
         const finalTsx = assertContained(root, designRootRel, join(outDir, `${title}.tsx`));
@@ -1612,6 +1681,8 @@ export async function importFrames({
       writeFileSync(stagedTsx, tsx, 'utf8');
       writeFileSync(stagedMeta, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
 
+      // gate-b-c4h — never a canvas whose sync key another canvas already has.
+      assertNoSlugTwin(join(root, designRootRel), `ui/${base}.tsx`);
       const uiDir = join(root, designRootRel, 'ui');
       mkdirSync(uiDir, { recursive: true });
       const finalTsx = assertContained(root, designRootRel, join(uiDir, `${base}.tsx`));
@@ -1739,10 +1810,12 @@ export async function listFigmaFrames({ url }) {
 /** `<folder>/<name>.tsx`, or `<name> (Figma)` / `(Figma 2)` … when that canvas is already there. */
 export function freeCanvasRel(designRoot, folder, name) {
   const at = (n) => (folder ? `${folder}/${n}.tsx` : `${n}.tsx`);
-  if (!existsSync(join(designRoot, at(name)))) return at(name);
+  // gate-b-c4h — "taken" includes a different canvas on the same sync key (S1.23b).
+  const free = (rel) => !existsSync(join(designRoot, rel)) && slugTwinOf(designRoot, rel) === null;
+  if (free(at(name))) return at(name);
   for (let i = 1; i < 100; i += 1) {
     const n = i === 1 ? `${name} (Figma)` : `${name} (Figma ${i})`;
-    if (!existsSync(join(designRoot, at(n)))) return at(n);
+    if (free(at(n))) return at(n);
   }
   throw new ImportFigmaError(6, 'no free canvas name');
 }
