@@ -13,7 +13,7 @@ import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // the route table without rewriting this module. The `fetch` export is the
 // top-level fall-through for paths Bun's `routes` field doesn't cover.
 
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:fs';
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
@@ -6931,10 +6931,10 @@ export function createHttp(
         // read-only capture origin, Maude's own local harnesses included (see
         // captureRedirect) — so what follows serves a shell only when the
         // split is OFF.
-        // gate-b-c4 — the photo-bg-remove harness (exactly `?canvas=_photo/<slug>.bgremove.tsx`)
-        // renders on the INTERACTIVE canvas origin (it needs that origin's asset + photo-edit
-        // writes); the main origin sends it there with the frame's capability, which a local
-        // helper cannot mint itself.
+        // gate-b-c4 — the photo-bg-remove harness (exactly `?canvas=_photo/<slug>.bgremove.tsx
+        // &nonce=<the helper's one-time nonce>`, gate-b-c4c) renders on the INTERACTIVE canvas
+        // origin (it needs that origin's asset + photo-edit writes); the main origin sends it
+        // there with the frame's capability, which a local helper cannot mint itself.
         const toHarness = bgRemoveRedirect(url, req);
         if (toHarness) return toHarness;
         const toCapture = captureRedirect(url, req);
@@ -7198,28 +7198,45 @@ export function createHttp(
   const LOCAL_HARNESS =
     /^_(?:draw\/[a-z0-9_][a-z0-9._-]*\.proof|photo\/[a-z0-9_][a-z0-9._-]*\.bgremove)\.tsx$/;
   const BG_REMOVE_HARNESS = /^_photo\/[a-z0-9_][a-z0-9._-]*\.bgremove\.tsx$/;
+  const HARNESS_NONCE = /^[0-9a-f]{32}$/;
+  const HARNESS_NONCE_LINE = /^\/\/ maude-harness-nonce: ([0-9a-f]{32})$/m;
   function bgRemoveRedirect(url: URL, req: Request): Response | null {
     if (!ctx.canvasOrigin || isWorkspaceMode()) return null;
-    const keys = [...url.searchParams.keys()];
+    // gate-b-c4c — exactly {canvas, nonce}: the helper's one-time nonce, which it also wrote into
+    // the harness it generated. The harness name is the photo's hash (guessable), so without the
+    // nonce any canvas could frame this URL, land on its OWN origin with the capability in the
+    // URL and read it from `iframe.contentWindow.location`. Canvas code cannot read the nonce:
+    // the harness module is served only inside the harness's own frame.
+    const keys = [...url.searchParams.keys()].sort();
+    if (keys.length !== 2 || keys[0] !== 'canvas' || keys[1] !== 'nonce') return null;
     const rel = url.searchParams.get('canvas') ?? '';
-    if (keys.length !== 1 || keys[0] !== 'canvas' || !BG_REMOVE_HARNESS.test(rel)) return null;
+    const nonce = url.searchParams.get('nonce') ?? '';
+    if (!BG_REMOVE_HARNESS.test(rel) || !HARNESS_NONCE.test(nonce)) return null;
+    // Belt over the nonce: only a navigation the user agent started itself (agent-browser's
+    // `open` — `none`; no header from a non-browser client). A canvas's iframe is `same-site`.
+    const site = req.headers.get('sec-fetch-site');
+    if (site !== null && site !== 'none' && site !== 'same-origin') return null;
     // gate-b-c4b (lead: Option A) — the frame spans the harness AND every canvas that uses the
     // photo it processes (`source=` in the generated harness): it must read that photo and write
     // its every-use edit, which only a frame that may edit every user of the photo may. The
     // harness is local runtime state (`_photo/`, never synced); no other exception.
-    let source: string | null = null;
+    let text: string;
     try {
-      const text = readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
-      source =
-        /\bsource=["'](assets\/[0-9a-f]{8,64}\.[A-Za-z0-9]{1,8})["']/.exec(text)?.[1] ?? null;
+      text = readFileSync(join(ctx.paths.designRoot, rel), 'utf8');
     } catch {
       return null;
     }
+    const want = HARNESS_NONCE_LINE.exec(text)?.[1];
+    if (!want || !timingSafeEqual(Buffer.from(want), Buffer.from(nonce))) return null;
+    const source =
+      /\bsource=["'](assets\/[0-9a-f]{8,64}\.[A-Za-z0-9]{1,8})["']/.exec(text)?.[1] ?? null;
+    // gate-b-c4c — `.tsx` canvases only: `assetReferrers` is a text match, so it also names a
+    // stylesheet or a note that mentions the photo (it already skips `_` first segments).
     const users = source
       ? assetReferrers(
           diskProjectReader(ctx.paths.designRoot, () => String(Date.now())),
           source
-        )
+        ).filter((u) => u.endsWith('.tsx'))
       : [];
     const fc = frameCapFor(req, [rel, ...users]);
     if (!fc) return null;
@@ -7239,6 +7256,8 @@ export function createHttp(
     // capability; a URL naming no canvas, or a bad path, goes frame-less and reads nothing).
     const search = new URLSearchParams(url.search);
     search.delete(FRAME_PARAM);
+    // gate-b-c4c — a bg-remove nonce that did not mint the harness frame is not forwarded.
+    search.delete('nonce');
     // `frame` names the canvas of a shell that imports its module itself (a thumbnail tile).
     const named = search.get('canvas') ?? search.get('frame');
     const rel = named ? toDesignRel(named, designRel) : null;

@@ -231,13 +231,14 @@ describe('/_api/photo-edit — dual-allowlist (canvas origin reachable, DDR-088)
         mkdirSync(join(designRoot, '_photo'), { recursive: true });
         // …and one that does not (the harness frame must not reach it)
         writeFileSync(join(designRoot, 'ui', 'other.tsx'), 'export default () => <main/>;\n');
-        // the shape photo-bg-remove.sh generates
+        // the shape photo-bg-remove.sh generates (gate-b-c4c: with its one-time nonce line)
+        const nonce = '0123456789abcdef0123456789abcdef';
         writeFileSync(
           join(designRoot, '_photo', 'deadbeef.bgremove.tsx'),
-          `import { PhotoBgRemoveHarness } from '@maude/canvas-lib';\nexport default function H() {\n  return <PhotoBgRemoveHarness source="${VALID_ASSET}" />;\n}\n`
+          `import { PhotoBgRemoveHarness } from '@maude/canvas-lib';\n// maude-harness-nonce: ${nonce}\nexport default function H() {\n  return <PhotoBgRemoveHarness source="${VALID_ASSET}" />;\n}\n`
         );
         const r = await fetch(
-          `http://localhost:${port}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx`,
+          `http://localhost:${port}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx&nonce=${nonce}`,
           { redirect: 'manual' }
         );
         expect(r.status).toBe(307);

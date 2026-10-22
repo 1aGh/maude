@@ -396,7 +396,13 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
     mkdirSync(join(designRoot, '_draw'), { recursive: true });
     mkdirSync(join(designRoot, '_photo'), { recursive: true });
     writeFileSync(join(designRoot, '_draw', 'planted.proof.tsx'), PROBE_TSX);
-    writeFileSync(join(designRoot, '_photo', 'deadbeef.bgremove.tsx'), PROBE_TSX);
+    // gate-b-c4c — with the one-time nonce line the helper writes (and passes on the URL), so this
+    // planted harness takes the real path: the main origin's 307 to the canvas origin.
+    const nonce = 'fedcba9876543210fedcba9876543210';
+    writeFileSync(
+      join(designRoot, '_photo', 'deadbeef.bgremove.tsx'),
+      `// maude-harness-nonce: ${nonce}\n${PROBE_TSX}`
+    );
     const prefs = join(root, 'prefs.json');
     writeFileSync(prefs, `${JSON.stringify({ theme: 'light' })}\n`);
     const port = nextPort();
@@ -415,7 +421,7 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
         `${main}/_canvas-shell.html?canvas=_draw/planted.proof.tsx`,
         // where `maude design photo-bg-remove` opens it (gate-b-c4: the main origin 307s it to the
         // canvas origin with the frame's capability)
-        `${main}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx`,
+        `${main}/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx&nonce=${nonce}`,
       ]) {
         // biome-ignore lint/suspicious/noExplicitAny: playwright page surface
         const page: any = await (await browser.newContext()).newPage();

@@ -41,6 +41,9 @@ describe('canvasTopLevelRefusal (pure)', () => {
     expect(canvasTopLevelRefusal(req(ok, DOC))).toBeNull();
     for (const bad of [
       `${ok}&designRel=ui`, // an extra parameter could re-point the module
+      // gate-b-c4c — the helper's one-time nonce is spent on the MAIN origin; the 307 to this
+      // origin carries only `canvas` + `fc`, so a nonce here is not the harness shape.
+      `${ok}&nonce=${'a'.repeat(32)}`,
       '/_canvas-shell.html?canvas=_photo/../ui/evil.bgremove.tsx',
       '/_canvas-shell.html?canvas=_draw/x.proof.tsx', // proofs render on the capture origin
       '/_canvas-shell.html?canvas=ui/x.bgremove.tsx',
