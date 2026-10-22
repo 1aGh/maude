@@ -317,7 +317,7 @@ export function readChatLinesAfter(
  *  (the 2026-07-03 dogfood finding). */
 function deriveTitle(lines: Array<Record<string, unknown>>): string {
   const firstUser = lines.find((l) => l.role === 'user' && typeof l.text === 'string');
-  const text = stripContextBlock((firstUser?.text as string) ?? '');
+  const text = stripAttachmentBlock(stripContextBlock((firstUser?.text as string) ?? ''));
   const trimmed = text.replace(/\s+/g, ' ').trim();
   return trimmed ? trimmed.slice(0, 60) : 'New chat';
 }
@@ -537,6 +537,27 @@ export function deleteChat(designRoot: string, chatId: string): boolean {
  * one release window). `role:'bootstrap'` brief entries are skipped by this
  * reader by construction (only user/stop/agent roles are consumed below).
  */
+/**
+ * The attachments block the composer appends (`[maude-attachments note=…]` + one `- <kind> “<name>”: <path>` line
+ * per chip, client/v2/ai/attach.js) is context for the agent, not what the person typed: a chat with an
+ * attachment titled itself "Make it greener hang [maude-…" (P8-B2). Cut from the header to the end of its bullets.
+ */
+export function stripAttachmentBlock(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let inBlock = false;
+  for (const l of lines) {
+    if (/^\s*\[maude-attachments[\s\]]/.test(l)) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock && /^\s*-\s/.test(l)) continue;
+    inBlock = false;
+    out.push(l);
+  }
+  return out.join('\n').replace(/\s+$/, '');
+}
+
 export function stripContextBlock(text: string): string {
   let out = text;
   if (out.startsWith('<maude-context')) {

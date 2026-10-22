@@ -29,9 +29,18 @@ import {
  * others: dropping them keeps canvas copy and selectors out of what a teammate sees.
  */
 export function promptLabel(text: string): string {
+  let inAttachments = false;
   return text
     .split('\n')
-    .filter((l) => !/^\s*\[(maude-[a-z-]+|selected:)/.test(l))
+    .filter((l) => {
+      if (/^\s*\[maude-attachments[\s\]]/.test(l)) {
+        inAttachments = true;
+        return false;
+      }
+      if (inAttachments && /^\s*-\s/.test(l)) return false; // the block's `- file “name”: path` lines
+      inAttachments = false;
+      return !/^\s*\[(maude-[a-z-]+|selected:)/.test(l);
+    })
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim()
