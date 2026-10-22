@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { shellToast } from '../../../shell/util.js';
 import { CLIP_VERB_LABELS } from '../clip-verb.js';
+import { TGlyph } from '../glyphs.jsx';
 import {
   findBeats,
   isFinding,
@@ -42,14 +43,14 @@ for (const [verb, words] of Object.entries({
 }
 
 const H = 30; // the overlay's own drawing height (it stretches to the row)
-const TICK = 6;
-const BAR = 13;
+const TICK = 5;
+const BAR = 10;
 
 /**
  * The ticks, the tempo and the dip over one Music clip's block. `x` is the Timeline's frame → px.
  * Pointer-transparent: the block under it keeps every click and drag.
  */
-export function MusicLaneOverlay({ info, x, speech, fps, finding }) {
+export function MusicLaneOverlay({ info, x, speech, fps, finding, name }) {
   const left = info ? x(info.from) : 0;
   const w = info ? Math.max(2, x(info.durationInFrames)) : 0;
   const drawn = useMemo(() => {
@@ -60,7 +61,8 @@ export function MusicLaneOverlay({ info, x, speech, fps, finding }) {
     const tall = [];
     for (const t of ticks) {
       const p = Math.round(px(t.frame) * 10) / 10;
-      (t.bar ? tall : small).push(`M${p} ${H - (t.bar ? BAR : TICK)}V${H}`);
+      // P8 C3 (07 · .ve-beat) — the marks hang from the top edge of the song, a tall one every bar
+      (t.bar ? tall : small).push(`M${p} 0V${t.bar ? BAR : TICK}`);
     }
     const dip = duckPoints({
       speech,
@@ -126,11 +128,16 @@ export function MusicLaneOverlay({ info, x, speech, fps, finding }) {
           {MUSIC_WORDS.duck}
         </span>
       ) : null}
-      {clear ? (
-        <span className="tl-music-bpm" data-testid="timeline-music-bpm">
-          {Math.round(info.grid.bpm)} BPM
-        </span>
-      ) : null}
+      {/* P8 C3 (07 · .ve-music-lab) — one chip at the song's foot: its name and, when the beat is clear, its tempo */}
+      <span className="tl-music-lab">
+        <TGlyph name="music" size={10} />
+        {name ? <span className="tl-music-n">{name}</span> : null}
+        {clear ? (
+          <span className="tl-music-bpm" data-testid="timeline-music-bpm">
+            {Math.round(info.grid.bpm)} BPM
+          </span>
+        ) : null}
+      </span>
       {finding ? (
         <span className="tl-music-finding" data-testid="timeline-music-finding">
           {MUSIC_WORDS.finding}

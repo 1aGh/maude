@@ -81,6 +81,9 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
     // exists only in band mode, which this media-free fixture deliberately does
     // not trigger; asserting it here is what made this scenario permanently red.
     await expect($('[data-testid="timeline-track"]')).toExist();
+    // P8 C3 (07 · ve-long) — the zoom − bar + and Fit are the FULL timeline's; the compact one has none
+    await expect($('[data-testid="timeline-zoom"]')).not.toExist();
+    await $('[data-testid="timeline-size"]').click();
     await expect($('[data-testid="timeline-zoom"]')).toExist();
     await capture('timeline-3-beats');
   });

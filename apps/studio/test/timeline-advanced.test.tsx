@@ -96,7 +96,9 @@ async function mount({ total = 450, frame = 105, sequences = SEQ as unknown[] } 
   root = createRoot(host);
   await act(async () => {
     root?.render(
-      <TimelineIslandContext.Provider value={{ canvas: '.design/ui/Reel.tsx', canEdit: true }}>
+      <TimelineIslandContext.Provider
+        value={{ canvas: '.design/ui/Reel.tsx', canEdit: true, size: 'full' }}
+      >
         <TimelinePanel
           comps={[
             {
@@ -159,8 +161,9 @@ describe('closed: what everyone sees', () => {
   test('one quiet row with its hint; no readout, no markers', async () => {
     await mount();
     expect(q('[data-testid="timeline-advanced-fold"]')).not.toBeNull();
+    // P8 C3 (07 · .ve-tl-foot-hint) — Advanced lives at the foot of the FULL timeline
     expect(q('[data-testid="timeline-advanced-toggle"]')?.textContent).toContain(
-      'Frames, keyframes, the cut as code'
+      'Frame numbers, codec, keyframes, the cut as code'
     );
     expect(q('[data-testid="timeline-frame-readout"]')).toBeNull();
     expect(q('[data-testid="timeline-kf-1-0"]')).toBeNull();
@@ -269,7 +272,9 @@ describe('a keyframe’s curve', () => {
     root = createRoot(host);
     await act(async () => {
       root?.render(
-        <TimelineIslandContext.Provider value={{ canvas: '.design/ui/Reel.tsx', canEdit: false }}>
+        <TimelineIslandContext.Provider
+          value={{ canvas: '.design/ui/Reel.tsx', canEdit: false, size: 'full' }}
+        >
           <TimelinePanel
             comps={[{ id: 'c1', artboardId: 'reels', fps: 30, durationInFrames: 450 }]}
             compId="c1"

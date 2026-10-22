@@ -52,6 +52,7 @@ export function AdvancedFoot({
   have,
   onWriteEasing,
   fetchImpl,
+  tools = null,
 }) {
   const [open] = useFold('timeline');
   const adv = useAdvanced();
@@ -70,6 +71,7 @@ export function AdvancedFoot({
         testid="timeline-advanced-fold"
         buttonTestid="timeline-advanced-toggle"
       >
+        {tools}
         <div className="tla-body">
           <RenderSettings
             fps={fps}

@@ -484,7 +484,7 @@ export function usePhotoAndTimeline({
         // Phase 2 — authoritative parametric props for the clip inspector.
         mediaProps: cm.mediaProps ?? null,
         // S7.10 — what the clip inspector reads back: the title's text and entrance, the picture's fit
-        text: cm.text ?? null,
+        text: cm.text ?? s.text ?? null,
         titleMotion: cm.titleMotion ?? null,
         titleStyle: cm.titleStyle ?? null,
         fit: cm.fit ?? null,

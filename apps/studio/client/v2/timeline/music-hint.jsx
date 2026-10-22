@@ -8,6 +8,7 @@
 import { useRef } from 'react';
 import { isNativeApp } from '../../github.js';
 import { getPaletteEnv } from '../search/search-env.js';
+import { TGlyph } from './glyphs.jsx';
 
 /** The prompt the AI link pre-fills (the person presses send). */
 export const musicPrompt = (artboard) => `Find a music track for ${artboard || 'this video'}.`;
@@ -58,5 +59,40 @@ export function MusicHint({ artboard, canAsk = isNativeApp(), canEdit = true, on
         </>
       ) : null}
     </span>
+  );
+}
+
+/**
+ * P8 C3 (07 · .ve-tl-tools) — the header's "Add music" tool: the same file picker as the silent video's line, so a
+ * song lands in the Music track like a dropped one. Drawn only where the person can edit.
+ * @param {{ onAddFiles: (files: File[]) => void }} props
+ */
+export function MusicTool({ onAddFiles }) {
+  const pick = useRef(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="icon-btn k-icon-sm"
+        aria-label="Add music"
+        title="Add music"
+        data-testid="timeline-music-tool"
+        onClick={() => pick.current?.click()}
+      >
+        <TGlyph name="music" />
+      </button>
+      <input
+        ref={pick}
+        type="file"
+        accept="audio/*"
+        hidden
+        data-testid="timeline-music-tool-file"
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = '';
+          if (files.length) onAddFiles(files);
+        }}
+      />
+    </>
   );
 }

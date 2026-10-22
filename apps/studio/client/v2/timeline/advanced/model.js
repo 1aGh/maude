@@ -6,7 +6,7 @@ import { clock } from '../../export/sections/video-copy.js';
 export const ADV_WORDS = Object.freeze({
   advanced: 'Advanced',
   /** the closed fold's hint (06 ad-timeline "Closed — what everyone sees") */
-  hint: 'Frames, keyframes, the cut as code',
+  hint: 'Frame numbers, codec, keyframes, the cut as code',
   timecode: 'Timecode',
   frames: 'Frames',
   thisVideo: 'This video',

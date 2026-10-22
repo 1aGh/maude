@@ -9,8 +9,8 @@
 //
 // `CaptionsTool` is the island's "Captions from speech" button (video.captions.add).
 
-import { Captions } from 'lucide-react';
 import { useEffect } from 'react';
+import { TGlyph } from '../glyphs.jsx';
 import {
   addCaptionsFromSpeech,
   transcriptUi,
@@ -68,9 +68,8 @@ export function CaptionLane({ canvas, artboardId, fps, frame, x, axisPx, onSeek 
   if (!media?.captions) return null;
   return (
     <div className="tl-row tl-row--captions" data-testid="timeline-captions-lane">
-      <span className="tl-row-label" title="Captions">
-        <span className="tl-lane-id">CC</span>
-      </span>
+      {/* P8 C3 — the Text track's chip names the track; the captions lane carries no code-made id ("CC") */}
+      <span className="tl-row-label" title="Captions" />
       <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
         {words.map((w) => {
           const key = wordKey(w);
@@ -121,14 +120,14 @@ export function CaptionsTool() {
   return (
     <button
       type="button"
-      className="tl-btn tl-cap-tool"
+      className="icon-btn k-icon-sm tl-cap-tool"
       aria-label="Captions from speech"
       title="Captions from speech"
       data-testid="timeline-captions-tool"
       data-busy={ui.working ? 'true' : undefined}
       onClick={() => void addCaptionsFromSpeech()}
     >
-      <Captions size={14} strokeWidth={1.75} style={{ display: 'block', flex: 'none' }} />
+      <TGlyph name="captions" />
     </button>
   );
 }

@@ -167,7 +167,7 @@ describe('ruler', () => {
     const r = q('[data-testid="timeline-readout"]');
     // 450 frames at 30 fps are 15 s (the scrubber on the artboard and the advanced timecode say 0:15): the length is
     // frames / fps, not the time of the last frame index (P8-B2: a 7 s video read "0:06", a 1 s one "0:00")
-    expect(r?.textContent).toBe('0:07/0:15');
+    expect(r?.textContent).toBe('0:07 / 0:15');
     expect(r?.getAttribute('title')).toBe('Frame 212 of 449');
   });
 
@@ -189,15 +189,17 @@ describe('loop band and poster', () => {
     mount(SEQ.slice(0, 2));
     expect(q('[data-testid="timeline-loop-band"]')).not.toBeNull();
     expect(q('[data-testid="timeline-loop-lane"]')).not.toBeNull();
-    expect(all('.tl-inout').map((e) => e.textContent)).toEqual(['I', 'O']);
+    // P8 C3 (07 · .ve-loop) — the band's accent edges are the in and out; no letters on it
+    expect(q('[data-testid="timeline-loop-band"]')?.textContent).toBe('');
   });
 
-  test('the poster frame flags the ruler', () => {
+  test('the poster frame flags the ruler — at the default (35 %) until one is stored', () => {
     mount(SEQ.slice(0, 2));
-    expect(q('[data-testid="timeline-poster-flag"]')).toBeNull();
+    expect(q('[data-testid="timeline-poster-flag"]')?.getAttribute('data-frame')).toBe('158');
     act(() => root?.unmount());
     host?.remove();
     mount(SEQ.slice(0, 2), { island: { poster: 105 } });
     expect(q('[data-testid="timeline-poster-flag"]')?.textContent).toBe('Poster');
+    expect(q('[data-testid="timeline-poster-flag"]')?.getAttribute('data-frame')).toBe('105');
   });
 });

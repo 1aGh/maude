@@ -113,88 +113,1154 @@
     padding: var(--space-4);
   }
 
-  /* S7.8 — the four tracks (Text · Graphics · Video · Music, + Video 2 / Music 2 when used): a caption strip
-     over the rows each one groups. Rows keep their own labels, drags and testids. */
-  .tl-track {
-    position: relative;
-  }
-  .tl-track-cap {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    min-height: 14px;
-    padding-left: var(--space-2);
-    color: var(--fg-2);
+  /* ═══ P8 C3 — the board's body (07 Video Editing · `_video.css` .ve-tl*, lifted) ═══════════════════════════════
+     The v1 TimelinePanel rules live in @layer shell (3-shell-maude.css); these are @layer components, so they win
+     whatever the specificity. Every property the v1 rule set is set again here, so no v1 paint leaks through. */
+
+  .tl-panel {
+    /* track tints — the object palette over the surface (designer-tool colour coding, never hue alone) */
+    --tl-text-bg: color-mix(in oklab, var(--object-lilac) 42%, var(--bg-2));
+    --tl-text-edge: color-mix(in oklab, var(--object-lilac) 80%, var(--fg-2));
+    --tl-gfx-bg: color-mix(in oklab, var(--object-yellow) 40%, var(--bg-2));
+    --tl-gfx-edge: color-mix(in oklab, var(--object-yellow) 80%, var(--fg-2));
+    --tl-music-bg: color-mix(in oklab, var(--object-green) 30%, var(--bg-2));
+    --tl-music-wave: color-mix(in oklab, var(--object-green) 55%, var(--fg-2));
+    --tl-row-gap: 4px;
     font-size: var(--type-xs);
-    line-height: 14px;
-    pointer-events: none;
   }
-  .tl-track-name {
-    font-weight: 600;
-    letter-spacing: 0.02em;
+  .tl-island .tl-panel {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
   }
-  .tl-track-hint {
-    color: var(--fg-3, var(--fg-2));
-  }
-  .tl-track[data-track="video2"] .tl-track-name,
-  .tl-track[data-track="music2"] .tl-track-name {
-    color: var(--fg-1);
+  .tl-island .tl-panel[data-size="full"] {
+    padding-top: var(--space-3);
   }
 
-  /* S7.8 — the loop range (I / O): a band on the ruler, a tint down the lanes */
+  /* the grip on the top edge of a full timeline makes it taller; compact has none */
+  .tl-resize-handle {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    z-index: 3;
+    width: 52px;
+    height: 12px;
+    translate: -50% 0;
+    background: none;
+    cursor: ns-resize;
+  }
+  .tl-resize-handle::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 4px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--border-strong);
+    opacity: 1;
+  }
+  .tl-panel[data-size="compact"] .tl-resize-handle {
+    display: none;
+  }
+
+  /* ─── header (.ve-tl-hd) ─── */
+  .tl-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: auto;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+  }
+  .tl-head .icon-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .tl-readout {
+    padding: 0;
+    background: none;
+    font-family: inherit;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-0);
+    white-space: nowrap;
+  }
+  .tl-readout b {
+    font-weight: var(--w-semibold);
+  }
+  .tl-readout-len {
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .tl-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    margin-left: var(--space-1);
+    overflow: hidden;
+    color: var(--fg-2);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .tl-name .tl-ic {
+    flex: none;
+  }
+  .tl-name.is-unknown {
+    color: var(--status-warn-text);
+  }
+  .tl-status,
+  .tl-kept,
+  .tl-shared {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    margin: 0;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  button.tl-status {
+    cursor: pointer;
+  }
+  button.tl-status:hover {
+    background: var(--bg-3);
+  }
+  button.tl-status:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-status--warn {
+    color: var(--status-warn-text);
+  }
+  .tl-meter {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+  }
+  .tl-meter i {
+    width: 3px;
+    background: var(--status-success);
+  }
+  .tl-meter i:nth-child(1) {
+    height: 6px;
+  }
+  .tl-meter i:nth-child(2) {
+    height: 11px;
+  }
+  .tl-meter i:nth-child(3) {
+    height: 8px;
+  }
+  .tl-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .tl-div {
+    flex: none;
+    width: 1px;
+    height: 18px;
+    margin: 0 var(--space-1);
+    background: var(--border-default);
+  }
+  /* full: zoom − bar +, Fit (.ve-zoom) */
+  .tl-zoomer {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--fg-2);
+  }
+  .tl-zoomer .icon-btn.tl-zoom-step {
+    width: 20px;
+    height: 20px;
+    color: var(--fg-2);
+  }
+  .tl-zoomer .icon-btn.tl-zoom-step svg {
+    width: 12px;
+    height: 12px;
+  }
+  .tl-zoom,
+  .tl-volume {
+    appearance: none;
+    width: 84px;
+    height: 12px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .tl-zoom::-webkit-slider-runnable-track,
+  .tl-volume::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  .tl-zoom::-moz-range-track,
+  .tl-volume::-moz-range-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  .tl-zoom::-webkit-slider-thumb,
+  .tl-volume::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .tl-zoom::-moz-range-thumb,
+  .tl-volume::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+  .tl-zoom:focus-visible,
+  .tl-volume:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+  }
+
+  /* ─── the grid: a gutter of track chips + the lanes (.ve-tl-body) ─── */
+  .tl-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto hidden;
+    padding: 0 3px 3px;
+  }
+  .tl-panel[data-size="full"] .tl-scroll {
+    overflow: auto;
+  }
+  .tl-tracks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-row-gap);
+    min-height: 0;
+    padding-top: calc(16px + var(--tl-row-gap));
+    cursor: default;
+  }
+  .tl-track {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-row-gap);
+    --tl-row-h: 24px;
+  }
+  .tl-track[data-track="video"],
+  .tl-track[data-track="video2"] {
+    --tl-row-h: 46px;
+  }
+  .tl-panel[data-size="full"] .tl-track[data-track="video"],
+  .tl-panel[data-size="full"] .tl-track[data-track="video2"] {
+    --tl-row-h: 52px;
+  }
+  .tl-track[data-track="music"],
+  .tl-track[data-track="music2"] {
+    --tl-row-h: 30px;
+  }
+  .tl-track[data-folded="1"] {
+    --tl-row-h: 10px;
+  }
+  .tl-row,
+  .tl-row--storyline,
+  .tl-row--overlay,
+  .tl-row--audio,
+  .tl-row--layer,
+  .tl-row--captions {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+    height: var(--tl-row-h);
+    margin: 0;
+  }
+  /* titles side by side share a lane: a joined row is drawn onto the one above; only its blocks take the pointer */
+  .tl-row[data-lane-join="1"] {
+    margin-top: calc(-1 * (var(--tl-row-h) + var(--tl-row-gap)));
+  }
+  .tl-row[data-lane-join="1"] .tl-row-track {
+    background: none;
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .tl-row[data-lane-join="1"] .tl-row-track > * {
+    pointer-events: auto;
+  }
+  /* the gutter stays put while the lanes scroll under it (sticky, v1's), painted the island's own material */
+  .tl-row-label {
+    flex: none;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    padding: 0;
+    background: var(--island-bg-strong, var(--bg-1));
+    width: calc(var(--tl-gutter) - var(--space-2));
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-1);
+    overflow: hidden;
+    font-family: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-align: left;
+    pointer-events: none;
+  }
+  .tl-row-label > * {
+    pointer-events: auto;
+  }
+  .tl-row-label-text {
+    display: none;
+  }
+  .tl-panel[data-size="full"] .tl-row--layer .tl-row-label-text,
+  .tl-panel[data-size="full"] .tl-row .tl-row-label-text {
+    display: block;
+    margin-left: 26px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tl-layer-indent {
+    display: none;
+  }
+  .tl-panel[data-size="compact"] .tl-expand {
+    display: none;
+  }
+  .tl-row-track {
+    position: relative;
+    flex: none;
+    height: 100%;
+    border-radius: var(--radius-sm);
+    background: none;
+    box-shadow: none;
+  }
+  .tl-storyline-track,
+  .tl-row--overlay .tl-row-track,
+  .tl-row--audio .tl-row-track {
+    background: none;
+    box-shadow: none;
+  }
+  .tl-storyline-track.is-drop-target {
+    background: var(--accent-soft);
+  }
+  /* the layer grip of a stacked row (full only): no code-made id, it shows on the row's hover */
+  .tl-row-grip {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    width: 8px;
+    height: 14px;
+    translate: 0 -50%;
+    border-radius: var(--radius-xs);
+    background: radial-gradient(circle, var(--fg-2) 1px, transparent 1.5px) 0 0 / 4px 4px;
+    opacity: 0;
+    cursor: grab;
+  }
+  .tl-row:hover .tl-row-grip {
+    opacity: 1;
+  }
+
+  /* the track chip (.ve-lab) — drawn once per track, at its first lane, in the gutter */
+  .tl-track-cap {
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 4;
+    flex: none;
+    /* it takes no room of its own: drawn over its track's first lane */
+    margin-bottom: calc(-1 * (var(--tl-row-h) + var(--tl-row-gap)));
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: calc(var(--tl-gutter) - var(--space-2));
+    height: var(--tl-row-h);
+    min-height: 0;
+    padding: 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .tl-track-cap > * {
+    pointer-events: auto;
+  }
+  .tl-lab-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .tl-track[data-track="text"] .tl-lab-ic {
+    background: var(--tl-text-bg);
+  }
+  .tl-track[data-track="gfx"] .tl-lab-ic {
+    background: var(--tl-gfx-bg);
+  }
+  .tl-track[data-track="music"] .tl-lab-ic,
+  .tl-track[data-track="music2"] .tl-lab-ic {
+    background: var(--tl-music-bg);
+  }
+  .tl-track[data-folded="1"] .tl-lab-ic {
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--fg-2);
+  }
+  .tl-track-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--fg-1);
+    font-weight: var(--w-medium);
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+  }
+  /* compact: the chip alone — the name stays for a screen reader */
+  .tl-panel[data-size="compact"] .tl-track-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tl-track-fold {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tl-track-fold:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  /* a track with nothing on it still draws its lane (.ve-row--empty) */
+  .tl-row--empty .tl-row-track {
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+  }
+  .tl-row-hint {
+    position: absolute;
+    left: var(--space-2);
+    top: 50%;
+    translate: 0 -50%;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .tl-music-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .tl-music-hint .tl-link {
+    appearance: none;
+    margin: 0 0 0 var(--space-1);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  .tl-music-hint .tl-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  .tl-music-or {
+    color: var(--fg-2);
+  }
+  /* a folded track: one striped line (.ve-fold-bar) */
+  .tl-fold-bar {
+    position: absolute;
+    inset: 2px 0;
+    border-radius: var(--radius-pill);
+    background: repeating-linear-gradient(90deg, var(--bg-4) 0 14px, transparent 14px 18px);
+  }
+
+  /* ─── the ruler: body-face labels, no tick lines (.ve-tick) ─── */
+  .tl-ruler {
+    position: absolute;
+    top: 0;
+    left: var(--tl-gutter);
+    height: 16px;
+    border: 0;
+  }
+  .tl-tick,
+  .tl-tick.is-major {
+    position: absolute;
+    top: 0;
+    bottom: auto;
+    width: 0;
+    height: 16px;
+    border: 0;
+    background: none;
+  }
+  .tl-tick-label,
+  .tl-tick.is-major .tl-tick-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    translate: -50% 0;
+    font-family: inherit;
+    font-size: var(--type-xs);
+    line-height: 16px;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .tl-tick.is-start .tl-tick-label {
+    translate: 0 0;
+  }
+  .tl-panel[data-ruler="frames"] .tl-tick-label {
+    font-family: var(--font-mono);
+  }
+  .tl-poster-flag,
+  .tl-marker-flag {
+    position: absolute;
+    top: 0;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 120px;
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    line-height: 14px;
+    white-space: nowrap;
+    translate: 6px 0;
+  }
+  .tl-poster-flag {
+    pointer-events: none;
+  }
+  .tl-marker-flag {
+    translate: -3px 0;
+    box-shadow:
+      inset 2px 0 0 var(--fg-1),
+      inset 0 0 0 1px var(--border-strong);
+    cursor: pointer;
+  }
+  .tl-marker-flag:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-marker-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the loop range (I / O): a band on the ruler with accent edges, a tint down the lanes (.ve-loop) */
   .tl-loop {
     position: absolute;
     top: 0;
-    bottom: 0;
+    bottom: auto;
     z-index: 1;
-    background: color-mix(in oklab, var(--accent) 22%, transparent);
-    border-inline: 1px solid var(--accent);
+    height: 16px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--accent-tint);
+    box-shadow:
+      inset 2px 0 0 var(--accent),
+      inset -2px 0 0 var(--accent);
     pointer-events: none;
   }
   .tl-loop-lane {
     position: absolute;
-    top: 20px;
+    top: calc(16px + var(--tl-row-gap));
     bottom: 0;
     z-index: 0;
-    background: color-mix(in oklab, var(--accent) 8%, transparent);
+    background: color-mix(in oklab, var(--accent) 7%, transparent);
     pointer-events: none;
-  }
-  .tl-inout {
-    position: absolute;
-    top: -1px;
-    display: grid;
-    place-items: center;
-    min-width: 14px;
-    height: 14px;
-    border-radius: var(--radius-xs);
-    background: var(--accent);
-    color: var(--bg-0);
-    /* gate-B polish (RC-E): on the type ladder (11 px) and weights stop at semibold */
-    font-size: var(--type-xs);
-    font-weight: var(--w-semibold);
-    line-height: 1;
-  }
-  .tl-inout--in {
-    left: -1px;
-  }
-  .tl-inout--out {
-    right: -1px;
   }
 
-  /* S7.8 — the poster frame's flag on the ruler */
-  .tl-poster-flag {
+  /* ─── clips: the footage as a filmstrip with its name on a chip (.ve-clip) ─── */
+  .tl-seq-block {
     position: absolute;
     top: 0;
+    bottom: 0;
+    min-width: 6px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-4);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    transition: none;
+  }
+  .tl-seq-block:hover {
+    background: var(--bg-4);
+  }
+  .tl-seq-block.tl-beat {
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--object-ink);
+    box-shadow: inset 0 0 0 0.5px var(--border-strong);
+  }
+  .tl-track[data-track="video"] .tl-seq-block,
+  .tl-track[data-track="video2"] .tl-seq-block {
+    background: var(--object-ink);
+  }
+  .tl-storyline-track .tl-seq-block.tl-beat:first-child {
+    border-radius: var(--radius-sm);
+  }
+  .tl-strip {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow: hidden;
+    opacity: 1;
+    box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--object-ink) 40%, transparent);
+  }
+  .tl-strip img {
+    flex: 1 0 auto;
+    height: 100%;
+    min-width: 0;
+    object-fit: cover;
+  }
+  .tl-strip--img img {
+    width: 100%;
+  }
+  .tl-seq-block .tl-seq-name.tl-clip-lab,
+  .tl-seq-block .tl-clip-lab {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    bottom: auto;
     z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: calc(100% - 6px);
     padding: 0 var(--space-1);
+    overflow: hidden;
+    transform: none;
     border-radius: var(--radius-xs);
-    background: var(--bg-3);
-    color: var(--fg-1);
+    background: color-mix(in oklab, var(--object-ink) 78%, transparent);
+    color: var(--object-grey);
+    font-family: inherit;
     font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    line-height: 16px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  /* titles and graphics are tinted chips with their track's glyph (.ve-item) */
+  .tl-track[data-track="text"] .tl-seq-block,
+  .tl-track[data-track="gfx"] .tl-seq-block {
+    border-radius: var(--radius-xs);
+    background: var(--tl-text-bg);
+    box-shadow: inset 0 0 0 1px var(--tl-text-edge);
+  }
+  .tl-track[data-track="gfx"] .tl-seq-block {
+    background: var(--tl-gfx-bg);
+    box-shadow: inset 0 0 0 1px var(--tl-gfx-edge);
+  }
+  .tl-track[data-track="text"] .tl-seq-block .tl-clip-lab,
+  .tl-track[data-track="gfx"] .tl-seq-block .tl-clip-lab {
+    inset: 0;
+    max-width: none;
+    padding: 0 var(--space-1);
+    background: none;
+    color: var(--fg-0);
+    line-height: 1;
+  }
+  .tl-track[data-track="text"] .tl-seq-block .tl-clip-lab {
+    font-weight: var(--w-semibold);
+  }
+  .tl-track[data-track="gfx"] .tl-seq-block .tl-clip-lab {
+    font-weight: var(--w-regular);
+  }
+  .tl-clip-lab .tl-ic {
+    flex: none;
+    color: var(--fg-1);
+  }
+  .tl-seq-block.is-selected,
+  .tl-track[data-track] .tl-seq-block.is-selected {
+    z-index: 2;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .tl-seq-block:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-seq-block.is-hidden {
+    opacity: 0.42;
+  }
+  /* the clip being moved lifts and tilts (.ve-clip--lift); its neighbours make room */
+  .tl-seq-block.is-dragging,
+  .tl-seq-block.is-moving {
+    z-index: 4;
+    translate: 0 -10px;
+    rotate: -1.5deg;
+    box-shadow:
+      var(--shadow-lg),
+      0 0 0 2px var(--accent);
+    cursor: grabbing;
+  }
+  /* a shot AI is placing lands with a spark ring (.ve-clip--land) */
+  .tl-seq-block.is-landing {
+    z-index: 3;
+    translate: 0 -6px;
+    box-shadow:
+      0 0 0 2px var(--spark),
+      0 0 0 6px var(--spark-muted),
+      var(--shadow-md);
+  }
+  /* footage not here yet: quiet grey hatch (CONTRACT §7 — never an error colour); missing: the hatch + a warn edge */
+  .tl-seq-block[data-footage="waiting"],
+  .tl-seq-block[data-footage="missing"] {
+    opacity: 1;
+    background-color: var(--bg-3);
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--fg-2) 16%, transparent) 0 2px,
+      transparent 2px 7px
+    );
+    box-shadow: inset 0 0 0 1.5px var(--border-strong);
+    color: var(--fg-1);
+  }
+  .tl-seq-block[data-footage="missing"] {
+    box-shadow: inset 0 0 0 1.5px var(--status-warn);
+  }
+  .tl-seq-block[data-footage="waiting"] .tl-clip-lab,
+  .tl-seq-block[data-footage="missing"] .tl-clip-lab,
+  .tl-seq-block[data-footage="preparing"] .tl-clip-lab {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .tl-seq-block[data-footage="preparing"] {
+    background-color: var(--bg-3);
+    background-image: repeating-linear-gradient(135deg, var(--bg-4) 0 6px, transparent 6px 12px);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .tl-seq-block[data-names="off"] .tl-seq-name {
+    display: none;
+  }
+  .tl-chip,
+  .tl-chip-mute,
+  .tl-chip-speed {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    top: auto;
+    left: auto;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    min-width: 18px;
+    height: 14px;
+    padding: 0 3px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--object-ink) 78%, transparent);
+    color: var(--object-grey);
+    font-family: inherit;
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
     line-height: 14px;
-    translate: -50% 0;
+  }
+  .tl-chip-speed + .tl-chip-mute {
+    right: 26px;
+  }
+  .tl-chip-prep {
+    position: absolute;
+    left: auto;
+    margin: 0;
+  }
+  /* trim handles (.ve-trim): 8 px accent with a grip, on the clip you point at or picked */
+  .tl-seq-resize,
+  .tl-seq-trim-in {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 3;
+    width: 8px;
+    border: 0;
+    background: var(--accent);
+    opacity: 0;
+    cursor: ew-resize;
+  }
+  .tl-seq-resize {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    translate: -3px 0;
+  }
+  .tl-seq-trim-in {
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    translate: 1px 0;
+  }
+  .tl-seq-resize::after,
+  .tl-seq-trim-in::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 30%;
+    bottom: 30%;
+    width: 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent-fg);
+    opacity: 1;
+  }
+  .tl-seq-block:is(:hover, .is-selected, .is-resizing) + .tl-seq-resize,
+  .tl-seq-block:is(:hover, .is-selected) + .tl-seq-resize + .tl-seq-trim-in,
+  .tl-seq-resize:hover,
+  .tl-seq-trim-in:hover {
+    opacity: 1;
+  }
+  .tl-seq-replace {
+    appearance: none;
+    position: absolute;
+    top: 3px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-sm);
+    color: var(--fg-1);
+    opacity: 0;
+    cursor: pointer;
+  }
+  .tl-row:hover .tl-seq-replace,
+  .tl-seq-replace:focus-visible {
+    opacity: 1;
+  }
+  .tl-seq-replace:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  /* ─── joins: a round dot where a transition is; "+" only on hover or keyboard focus (.ve-join) ─── */
+  .tl-seam,
+  .tl-seam.tl-join,
+  .tl-seam-add {
+    appearance: none;
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    translate: -50% -50%;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+    font: inherit;
+    cursor: pointer;
+    opacity: 1;
+  }
+  .tl-seam.tl-join[data-sel] {
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 3px var(--accent-tint);
+  }
+  .tl-seam:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .tl-seam-add {
+    opacity: 0;
+    color: var(--fg-2);
+  }
+  .tl-seam-add:focus-visible,
+  .tl-storyline-track:hover .tl-seam-add {
+    opacity: 1;
+  }
+  .tl-seam-add:hover {
+    color: var(--accent-text);
+  }
+
+  /* ─── music: the song as a bar waveform, its beats, the volume line (.ve-music) ─── */
+  .tl-audio-block {
+    appearance: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--tl-music-bg);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-1);
+    font: inherit;
+    text-align: left;
+  }
+  .tl-audio-block.is-selected {
+    z-index: 2;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .tl-audio-block:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  .tl-row--audio .tl-seq-block,
+  .tl-track[data-track="music"] .tl-seq-block,
+  .tl-track[data-track="music2"] .tl-seq-block {
+    background: var(--tl-music-bg);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .tl-wave-bars {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 0 var(--space-1);
+  }
+  .tl-wave-bars i {
+    flex: 1;
+    min-width: 1px;
+    background: var(--tl-music-wave);
+  }
+  .tl-wave {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 100%;
+    height: calc(100% - 10px);
+  }
+  .tl-wave path,
+  .tl-wave-real {
+    fill: var(--tl-music-wave);
+    stroke: none;
+  }
+  .tl-music-lab {
+    position: absolute;
+    left: var(--space-1);
+    bottom: 3px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: calc(100% - var(--space-2));
+    padding: 0 var(--space-1);
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-weight: var(--w-medium);
+    line-height: 14px;
+    white-space: nowrap;
+  }
+  .tl-music-lab .tl-ic {
+    flex: none;
+  }
+  .tl-music-n {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tl-music-ov {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: visible;
+    border-radius: var(--radius-sm);
     pointer-events: none;
   }
+  .tl-music-svg {
+    display: block;
+    overflow: visible;
+  }
+  .tl-beat-tick {
+    fill: none;
+    stroke: var(--fg-2);
+    stroke-width: 1;
+    opacity: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl-beat-tick--bar {
+    stroke: var(--fg-0);
+    stroke-width: 2;
+    opacity: 1;
+  }
+  .tl-duck-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl-music-bpm,
+  .tl-music-lab .tl-music-bpm {
+    position: static;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-music-n + .tl-music-bpm::before {
+    content: "·";
+    margin-right: 3px;
+  }
+  .tl-duck-label,
+  .tl-music-finding {
+    position: absolute;
+    z-index: 2;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--accent-text);
+    font-family: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    line-height: 14px;
+    white-space: nowrap;
+  }
+  .tl-duck-label {
+    top: auto;
+    bottom: 3px;
+  }
+  .tl-music-finding {
+    top: 50%;
+    left: var(--space-2);
+    translate: 0 -50%;
+    transform: none;
+    color: var(--fg-1);
+  }
+
+  /* ─── captions on the Text track: one chip per word (.ve-item--word) ─── */
+  .tl-row--captions .tl-cap {
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-1);
+    font-family: inherit;
+    font-size: var(--type-xs);
+  }
+  .tl-row--captions .tl-cap[data-hl="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font-weight: var(--w-semibold);
+  }
+  .tl-row--captions .tl-cap[data-sel="true"] {
+    z-index: 2;
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 0 0 5px var(--accent-tint);
+  }
+
+  /* ─── the playhead: a line with a rounded knob, no time tag (.ve-head) ─── */
+  .tl-playhead {
+    position: absolute;
+    top: 0;
+    bottom: -4px;
+    z-index: 6;
+    width: 2px;
+    translate: -50% 0;
+    background: var(--accent);
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .tl-playhead::before {
+    content: "";
+    position: absolute;
+    left: -4px;
+    top: 0;
+    width: 10px;
+    height: 11px;
+    border: 0;
+    border-radius: var(--radius-xs) var(--radius-xs) var(--radius-pill) var(--radius-pill);
+    background: var(--accent);
+    clip-path: none;
+  }
+  .tl-snapline {
+    position: absolute;
+    top: calc(16px + var(--tl-row-gap));
+    bottom: 0;
+    z-index: 5;
+    width: 0;
+    border-left: 1.5px dashed var(--accent);
+    background: none;
+    pointer-events: none;
+  }
+  /* the empty space under the lanes takes a drop as a new layer; it says so only while something is dragged */
+  .tl-newlayer-zone {
+    display: none;
+  }
+  .tl-panel.is-drop .tl-newlayer-zone {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .tl-panel.is-drop {
+    outline: 0;
+    background: transparent;
+  }
+
   /* S7.9 — what a gesture says before the pointer lets go: a tip (title over a dimmer line), the insert line where
      a dragged beat lands, and the catcher that takes a drop over the artboard (the canvas draws the chip). */
   .tl-tip {
@@ -208,171 +1274,87 @@
     line-height: 14px;
   }
   .tl-tip-title {
-    color: var(--fg-0);
-    font-weight: 600;
+    color: inherit;
+    font-weight: var(--w-semibold);
   }
   .tl-tip-dim {
-    color: var(--fg-2);
+    color: inherit;
+    opacity: 0.72;
     font-variant-numeric: tabular-nums;
   }
-  .tl-tip.is-clamped .tl-tip-title,
-  .tl-tip.is-clamped .tl-tip-dim {
-    color: inherit;
-  }
-  .tl-insert-line {
+  .tl-insert-line,
+  .tl-drop-caret {
     position: absolute;
-    top: -2px;
-    bottom: -2px;
-    width: 2px;
-    border-radius: 1px;
-    background: var(--accent);
+    top: -4px;
+    bottom: -4px;
     z-index: 5;
+    width: 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
     pointer-events: none;
   }
-  .tl-seq-block.is-dragging {
-    box-shadow: var(--shadow-lift, 0 6px 16px color-mix(in oklab, var(--bg-0) 60%, transparent));
+  .tl-insert-line::before,
+  .tl-insert-line::after,
+  .tl-drop-caret::before,
+  .tl-drop-caret::after {
+    content: "";
+    position: absolute;
+    left: -3px;
+    width: 8px;
+    height: 2px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .tl-insert-line::before,
+  .tl-drop-caret::before {
+    top: 0;
+  }
+  .tl-insert-line::after,
+  .tl-drop-caret::after {
+    top: auto;
+    bottom: 0;
   }
   .tl-artboard-drop {
     position: fixed;
     z-index: 13;
-    border-radius: var(--radius-sm, 4px);
+    border-radius: var(--radius-sm);
   }
 
-  /* S7.12 — the Music track (07 · ve-music): a tick on every beat (a tall one every bar), the tempo, the volume
-   * line dipping under speech. Drawn over the song's block; it never takes a click from it. */
-  .tl-music-ov {
-    position: absolute;
-    top: 3px;
-    bottom: 3px;
-    pointer-events: none;
-    overflow: hidden;
-    border-radius: var(--radius-xs);
-  }
-  .tl-music-svg {
-    display: block;
-    overflow: visible;
-  }
-  .tl-beat-tick {
-    fill: none;
-    stroke: var(--fg-2);
-    stroke-width: 1;
-    opacity: 0.55;
-    vector-effect: non-scaling-stroke;
-  }
-  .tl-beat-tick--bar {
-    stroke: var(--fg-0);
-    opacity: 0.85;
-  }
-  .tl-duck-line {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
-  }
-  .tl-duck-label,
-  .tl-music-bpm,
-  .tl-music-finding {
-    position: absolute;
-    font-family: var(--font-body, inherit);
-    font-size: var(--type-xs);
-    line-height: 14px;
-    color: var(--fg-1);
-    background: color-mix(in oklab, var(--bg-1) 78%, transparent);
-    padding: 0 var(--space-1);
-    border-radius: var(--radius-xs);
-    white-space: nowrap;
-  }
-  .tl-duck-label {
-    top: 2px;
-  }
-  .tl-music-bpm {
-    top: 2px;
-    right: var(--space-1);
+  /* S7.16 — the long-video badge and "N clips still preparing" sit in the header's status slot */
+  .tl-long-badge {
     font-variant-numeric: tabular-nums;
-  }
-  .tl-music-finding {
-    top: 50%;
-    left: var(--space-2);
-    transform: translateY(-50%);
-  }
-  .tl-audio-block.is-selected {
-    box-shadow: 0 0 0 1px var(--accent);
   }
 
-  /* S7.16 (07 · ve-footage, ve-long) — footage not here yet, footage still preparing, long videos */
-  .tl-seq-block[data-footage="waiting"],
-  .tl-seq-block[data-footage="missing"] {
-    border-style: dashed;
-    color: var(--fg-2);
-  }
-  /* quiet: waiting is not an error, so it keeps the clip's colour and only goes dashed and dim; missing is the one that warns */
-  .tl-seq-block[data-footage="waiting"] {
-    opacity: 0.78;
-  }
-  .tl-seq-block[data-footage="missing"] {
-    border-color: var(--status-warn);
-  }
-  .tl-chip-prep {
-    position: relative;
-    z-index: 1;
-    margin-left: var(--space-1);
-    font-variant-numeric: tabular-nums;
-  }
-  .tl-prep-status {
-    display: inline-flex;
+  /* the Advanced foot's first row: the v1 header's other tools, one disclosure down (07 · note 26) */
+  .tla-tools {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-1);
+    padding: var(--space-1) 0 var(--space-2);
+  }
+  .tla-tools .btn {
+    gap: var(--space-1);
+  }
+  .tla-tools .btn[aria-pressed="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .tla-vol {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: var(--space-2);
     color: var(--fg-2);
-    font-size: var(--type-xs);
-  }
-  /* a block too narrow to read: no name; the hover line is its title */
-  .tl-seq-block[data-names="off"] .tl-seq-name {
-    display: none;
-  }
-  /* the track name is a button where a track can fold ("Text · 18"); the caption strip itself stays click-through */
-  .tl-track-fold {
-    pointer-events: auto;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-  }
-  .tl-track-fold:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .tl-track[data-folded="1"] .tl-track-cap {
-    min-height: 20px;
   }
 
-  /* S7.16 — ruler markers ("Výkop", "TD 1"): a flag at the moment, clicking it puts the playhead there */
-  .tl-marker-flag {
-    position: absolute;
-    top: 0;
-    z-index: 2;
-    max-width: 96px;
-    padding: 0 var(--space-1);
-    border: 0;
-    border-left: 2px solid var(--accent);
-    border-radius: var(--radius-xs);
-    background: var(--bg-3);
-    color: var(--fg-1);
-    font: inherit;
-    font-size: var(--type-xs);
-    line-height: 14px;
-    cursor: pointer;
-  }
-  .tl-marker-name {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tl-marker-flag:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+  @media (prefers-reduced-motion: reduce) {
+    .tl-seq-block.is-dragging,
+    .tl-seq-block.is-moving,
+    .tl-seq-block.is-landing {
+      rotate: 0deg;
+    }
   }
 }
