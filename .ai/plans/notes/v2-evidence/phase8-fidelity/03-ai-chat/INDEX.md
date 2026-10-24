@@ -175,3 +175,46 @@ Re-shot light + dark with `_d2-harness-g2/s03c.mjs` (clean chats, one at a time)
 | `ai-choice-fail` | file named, detail line, verb "Pick another clip", no Advanced fold, no ghost line | `03-ai-chat/ai-choice-fail-{dark,light}.jpg` |
 | `ai-advanced` | full "Ask before" value, Model select, Effort segmented, Fast mode switch, no "default" line | `03-ai-chat/ai-advanced-{dark,light}.jpg` |
 | `ai-long-pinned` | 420 column inside the window with a 12 px gutter, canvas fitted to the room left of it, nothing selected | `03-ai-chat/ai-long-pinned-{dark,light}.jpg` |
+
+
+## FINAL (D3, 63592219a)
+
+Re-shoot of the IMPL side on the merged tip 63592219a (stage C rounds 1-5 + bugs3 merged), both themes, **every reachable id**; this section supersedes every earlier "after" / FINAL section above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/03 *` since 2026-10-19, before the stage-A shot). No match / mismatch is judged here.
+
+- Harness: `_d3-harness-g2/` = the D2 harness (`_d2-harness-g2/`, round-5 `s03c`, fake agent with the board's words) plus: **`s03e`** (the old `s03b` sequence with every artboard picked by its label chip in the canvas frame, because the camera fits to the room left of a pinned chat and the panels fold, so fixed coordinates picked "Whole canvas" and the chats queued behind the poster run), **`s03d`** (ai-needs-hidden from a clean chat: the permission ask open, then the panel hidden), **`s03n`** (the stage-A signed-out claude stub: ai-not-ready). `s03a` (open / working / two artboards / copy / list) and `s03c` (scope, attach menu, advanced, permission, failure, pinned) are unchanged apart from the repointed paths.
+- Product state this run draws: the Canvases list ends in "+ New canvas", Trash only with trash, "Search ⌘K"; the fake agent finishes with the board's words; the AI scope menu is `position:fixed` over the field (ai-scope / ai-attach-menu crops 390x620 from y 280 show the whole menu); ⌘Z is not used (the finish frames wait for `[data-fresh]` only).
+- **Finish moment (ai-hero, ai-done, ai-copy, ai-history)** is captured inside the 1.8 s `data-fresh` window (`h.fresh()`; ai-done then ai-hero are two frames of the same window; ai-history presses ⌥⌘H inside the window of a second finish; ai-copy waits for the copy run's finish). No "NO FRESH WINDOW" in the final runs (one miss in a first `s03a` light pass was re-run).
+- **ai-question** is the board's state (a question answered in the chat, canvas stays put); the elicitation card ("Which green?") is frame `ai-choice-q` (committed as `extra-impl-ai-choice-q-<theme>.jpg`). **ai-choice-fail** is the failure card with the missing file named.
+- Not reachable in the browser lane, unchanged: ai-queue-rule (a drawn rule), ai-other-tab / ai-needs-tab (second desktop tab), ai-needs-away (OS notification), ai-tereza (second person on a hub).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (same) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (same) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
