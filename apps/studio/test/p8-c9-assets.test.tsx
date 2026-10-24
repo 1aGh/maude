@@ -15,6 +15,7 @@ import {
 } from '../client/v2/assets/library-foot.js';
 
 import { FRAME_MIN, frameBox } from '../asset-placeholder.tsx';
+import { dropHint } from '../edit-ops/place-plan.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
@@ -170,5 +171,23 @@ describe('the Missing frame fills the picture frame (12 · ia-missing-gone)', ()
     const tiny = frameBox(el(box(40, 14), el(box(40, 14), null, 'BODY')));
     expect(tiny?.width).toBeGreaterThanOrEqual(FRAME_MIN);
     expect(tiny?.height).toBeGreaterThanOrEqual(FRAME_MIN);
+  });
+});
+
+describe('the drop chip names the target (12 · ia-drop-photos)', () => {
+  test('"Drop to place 6 photos in Fotky ze zápasu"; with no name the old words stay', () => {
+    expect(dropHint('artboard', 6, 0, 'Fotky ze zápasu')).toBe(
+      'Drop to place 6 photos in Fotky ze zápasu'
+    );
+    expect(dropHint('artboard', 6, 0)).toBe('Drop to place 6 photos in a tidy grid');
+    expect(dropHint('picture', 1, 0, 'Fotky')).toBe('Drop to replace the photo');
+    expect(dropHint('artboard', 6, 6, 'Fotky')).toBe('Drop to fill 6 empty frames in order');
+  });
+  test('the chip sits above the ring in a solid accent ring, no fill', () => {
+    const src = read('editing/finder-drop.tsx');
+    const css = src.slice(src.indexOf('const CSS_TEXT'), src.indexOf('function ensureStyles'));
+    expect(css).toContain('bottom: calc(100% + 8px)');
+    expect(css).not.toContain('border-style: dashed');
+    expect(css).not.toContain('12%, transparent');
   });
 });

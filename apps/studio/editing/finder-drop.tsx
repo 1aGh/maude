@@ -180,23 +180,27 @@ const CSS_TEXT = `
   z-index: 6;
   pointer-events: none;
   box-sizing: border-box;
-  border: 2px solid var(--maude-hud-accent, #4a7bff);
-  background: color-mix(in oklab, var(--maude-hud-accent, #4a7bff) 12%, transparent);
-  border-radius: 2px;
-  animation: ed-fdrop-in var(--dur-fast, 120ms) ease-out;
+  /* 12 · .ia-dropt: a solid 2 px accent ring with a 6 px tint halo, no fill — the artboard under the pointer lights up */
+  border: 2px solid var(--maude-hud-accent, #0077c2);
+  box-shadow: 0 0 0 6px var(--maude-hud-accent-tint, color-mix(in oklab, #0077c2 16%, transparent));
+  border-radius: var(--maude-hud-radius-xs, 3px);
+  animation: ed-fdrop-in var(--maude-dur-fast, 120ms) ease-out;
 }
-.ed-fdrop-ring[data-kind="artboard"] { border-style: dashed; }
+/* the chip names the target: ABOVE the artboard, a small accent pill (`.ia-dropt-pill`: bottom 100% + space-2) */
 .ed-fdrop-pill {
   position: absolute;
-  transform: translate(-50%, -50%);
-  max-width: calc(100% - 16px);
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--maude-hud-accent, #4a7bff);
+  left: 0;
+  bottom: calc(100% + 8px);
+  max-width: min(100%, 360px);
+  padding: 2px 8px;
+  border-radius: var(--maude-hud-radius-sm, 6px);
+  background: var(--maude-hud-accent, #0077c2);
   color: var(--maude-hud-accent-fg, #fff);
-  font: 600 12px/1.3 var(--maude-chrome-font-ui, system-ui, sans-serif);
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font: 600 12px/1.4 var(--maude-chrome-font-ui, system-ui, sans-serif);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: var(--maude-hud-shadow-md, 0 3px 10px oklch(0.24 0.03 250 / 0.08));
 }
 .ed-fdrop-ring[data-busy="true"] .ed-fdrop-pill { background: var(--maude-chrome-bg-1, #1b1e24); color: var(--maude-chrome-fg-0, #e7eaf0); }
 @keyframes ed-fdrop-in { from { opacity: 0; } to { opacity: 1; } }
@@ -281,7 +285,7 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
         top: r.top,
         w: r.width,
         h: r.height,
-        text: dropHint(landing.kind, n, landing.empty),
+        text: dropHint(landing.kind, n, landing.empty, artboardLabelOf(t.el)),
         busy: false,
         ...pillAt(r),
       });
@@ -350,7 +354,11 @@ export function FinderDrop({ readOnly }: { readOnly?: boolean }) {
       role="status"
       style={{ left: hint.left, top: hint.top, width: hint.w, height: hint.h }}
     >
-      <span className="ed-fdrop-pill" style={{ left: hint.px, top: hint.py }}>
+      <span
+        className="ed-fdrop-pill"
+        data-testid="edit-drop-pill"
+        style={hint.top < 36 ? { bottom: 'auto', top: 'calc(100% + 8px)' } : undefined}
+      >
         {hint.text}
       </span>
     </i>

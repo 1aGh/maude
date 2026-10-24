@@ -37,14 +37,22 @@ const photos = (n: number): string => (n === 1 ? 'photo' : 'photos');
 const frames = (n: number): string => (n === 1 ? 'empty frame' : 'empty frames');
 
 /** The pill over the artboard while the drag is over it. Names what will happen, in plain words (CONTRACT §3). */
-export function dropHint(kind: PlaceTargetKind, n: number, empty: number): string {
+export function dropHint(
+  kind: PlaceTargetKind,
+  n: number,
+  empty: number,
+  /** the artboard under the pointer: the chip names where the photos will go (12 · ia-drop-photos) */
+  label?: string | null
+): string {
   const plan = planPlacement(kind, n, empty);
   if (kind === 'picture') return 'Drop to replace the photo';
   if (plan.mode === 'fill-in-order') {
     const head = `Drop to fill ${plan.fills === 1 ? 'the' : plan.fills} ${frames(plan.fills)}${plan.fills === 1 ? '' : ' in order'}`;
     return plan.rest > 0 ? `${head}, then place ${plan.rest} more` : head;
   }
-  if (plan.mode === 'grid') return `Drop to place ${n} photos in a tidy grid`;
+  if (plan.mode === 'grid')
+    return label ? `Drop to place ${n} photos in ${label}` : `Drop to place ${n} photos in a tidy grid`;
   if (plan.mode === 'fill') return 'Drop to fill the frame';
+  if (label) return `Drop to place ${n === 1 ? 'the photo' : `${n} ${photos(n)}`} in ${label}`;
   return n > 1 ? `Drop to place ${n} ${photos(n)} here` : 'Drop to place the photo here';
 }
