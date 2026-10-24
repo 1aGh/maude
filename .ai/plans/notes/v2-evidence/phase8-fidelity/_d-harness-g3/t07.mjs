@@ -36,13 +36,16 @@ export async function run(h) {
   }, { reach: 'partial', note: '24 beats not 40; no fold-tracks / marker jump in the app' });
   await h.step(`${D}/ve-advanced`, 'Advanced — frames, curves, the cut as code', 'Expanded timeline, open Advanced', async () => {
     await tid('timeline-advanced-toggle').click().catch(() => {});
-    await sleep(900);
+    await sleep(2200);
   });
   await tid('timeline-advanced-toggle').click().catch(() => {});
   await tid('timeline-size').click().catch(() => {});
   await h.esc(2); await sel();
   await h.step(`${D}/ve-fullscreen`, 'Full-screen preview', 'Present mode via the share cluster', async () => {
     await h.click('palette-mode-present');
+    await sleep(5000);
+    // the cut opens on black (a fade up from nothing): hold the stage on the poster moment so the shot shows the picture
+    { const s = page.locator('[data-testid="video-present-scrub"]').first(); const b = await s.boundingBox().catch(() => null); if (b) await page.mouse.click(b.x + b.width * 0.37, b.y + b.height / 2); await sleep(800); await page.locator('[data-testid="video-present-toggle"]').first().click({ timeout: 3000 }).catch(() => {}); await sleep(2500); }
     await sleep(7000);
   });
   await h.esc(2);
@@ -82,6 +85,8 @@ export async function run(h) {
   await h.step(`${D}/ve-play`, 'Play in place, loop a range, step frames', 'timeline play', async () => {
     await tid('timeline-playpause').click().catch(() => {});
     await sleep(1500);
+    await tid('timeline-playpause').hover().catch(() => {}); // the key tip is drawn on hover (07: "Pause — tap space")
+    await sleep(500);
   });
   await tid('timeline-playpause').click().catch(() => {});
   await h.step(`${D}/ve-export`, 'Export — every format at once', '⇧⌘E on the video artboard', async () => {
@@ -102,7 +107,7 @@ export async function run(h) {
   await h.step(`${D}/ve-drop`, 'Drop footage — on the artboard or the timeline', 'synthetic dragenter/dragover with a file over the timeline', async () => {
     await h.esc(2); await page.keyboard.press('Meta+0'); await sleep(900); await h.board(640, 380); await sleep(800);
     await page.evaluate(() => {
-      const el = document.querySelector('[data-testid="timeline-storyline"]') || document.querySelector('[data-testid="timeline-island"]');
+      const el = document.querySelector('[data-testid="timeline-storyline"]') || document.querySelector('[data-testid="timeline-row-0"] .tl-row-track') || document.querySelector('[data-testid="timeline-island"]');
       const dt = new DataTransfer();
       dt.items.add(new File(['x'], 'caaftv-mixzone-8s.mp4', { type: 'video/mp4' }));
       const r = el.getBoundingClientRect();
@@ -111,7 +116,7 @@ export async function run(h) {
     });
     await sleep(700);
   }, { reach: 'partial', note: 'synthetic drag events; a real Finder drag was not driven' });
-  await page.evaluate(() => { document.querySelector('[data-testid="timeline-storyline"]')?.dispatchEvent(new DragEvent('dragleave', { bubbles: true })); });
+  await page.evaluate(() => { (document.querySelector('[data-testid="timeline-storyline"]') || document.querySelector('[data-testid="timeline-row-0"] .tl-row-track'))?.dispatchEvent(new DragEvent('dragleave', { bubbles: true })); });
 
   // --- fixture canvases for the specific inspectors
   await openC('ui-videotranscript', 3000);
@@ -138,7 +143,9 @@ export async function run(h) {
   await h.step(`${D}/ve-reframe`, 'Re-frame a clip — fit, fill, follow', 'clip block', async () => {
     await h.click('timeline-seq-0').catch(() => {});
     await sleep(900);
-  }, { reach: 'partial', note: 'clip inspector with a Framing row; no re-frame window / follow-the-player preview' });
+    await h.click('insp-clip-reframe').catch(() => {}); // Re-frame… opens the window (reframe-island)
+    await sleep(1500);
+  }, { reach: 'partial', note: 'footage in the fixture is missing, so the window frames a hatch, not a picture' });
 
   for (const [id, why] of [
     ['ve-ai-cut', 'AI cut: needs a signed-in Claude run on 12 clips; claude is stubbed signed-out'],

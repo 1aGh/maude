@@ -100,3 +100,12 @@ Re-shot on the stage C round 2 tip (feat/maude-v2 6d19daa9a), release-built clie
 | ve-render, ve-together, ve-fit-fill | unreachable — running or finished render jobs / a second peer on a linked hub / dropping a vertical clip from Finder; spec only |
 
 Harness notes: the What's New panel (pending `next` entries) opens over a fresh project and is now closed by `run.mjs` before shooting; the footage in the Matchday / Trailer fixtures is absent, so video frames are the "Missing — no device has it" tile, as in stage A. ve-fullscreen is still black in this lane (the Remotion preview does not paint). Stage A and earlier "after" tables above are history.
+
+## After (stage C round 4 / stage D) — p8-c4-video
+
+Re-shot light + dark with the stage-D g3 harness on this branch's release client (`t07.mjs`). Lane change: Google Chrome instead of the bundled Chromium (`SHOT_CHANNEL=chrome` in `lib.mjs`), so H.264 footage decodes and the pictures are real. The ve-fullscreen black is NOT a product bug: the Trailer cut opens on a black frame (a fade up); the stage paints the moment the cut plays — the step now seeks to 37 % first. Overwrites the `<id>-<theme>.jpg` pairs; the critic judges. Changed this round: the inspector video card (one flat list: Size · Length · Poster picture + ghost Change · Sound · Export MP4; no Formats / Safe zones / Export sections on a lone video), the island under its video (canvas re-fit on summon / Full / Advanced), a digital comp's beats on one Video lane, lift + "Drop before …", the drop caret on the Video lane, the transition picker foot, Advanced = floating cards + frame ruler, the play / step key tips, "+ Title" keeps its selection (the Title inspector opens), the full-screen bar, the music inspector, a quiet video badge. Done / open: `fix-c4-video.md`.
+
+| artboard id | after (round 4) |
+|---|---|
+| ve-none, ve-select, ve-deselect, ve-long, ve-advanced, ve-fullscreen, ve-drop, ve-move-transition, ve-trim-split, ve-transition, ve-text, ve-play, ve-export, ve-music, ve-formats, ve-captions, ve-footage, ve-reframe | re-shot, light + dark |
+| ve-ai-*, ve-render, ve-together, ve-fit-fill | unreachable (as before; the `*-spec-only.jpg` stand) |
