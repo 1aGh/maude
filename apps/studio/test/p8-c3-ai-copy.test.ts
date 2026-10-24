@@ -66,6 +66,10 @@ describe('P8 c3: a failure names its cause (03 ai-choice-fail)', () => {
     ['401 Unauthorized', 'Claude needs you to sign in again'],
     ['ENOENT: no such file', 'a file it needed is missing'],
     ['EACCES: permission denied', 'it could not write to the project'],
+    [
+      "Couldn't finish — the footage file is missing. Nothing changed.",
+      'the footage file is missing',
+    ],
     ['socket closed', 'the connection to Claude was interrupted'],
     ['', 'the connection to Claude was interrupted'],
   ])('%s', (raw, cause) => {

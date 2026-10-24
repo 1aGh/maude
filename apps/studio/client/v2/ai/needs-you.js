@@ -304,6 +304,12 @@ export function failureModel(error, { changed } = {}) {
  */
 export function failureCause(raw) {
   const t = String(raw ?? '');
+  // an error that already speaks plainly ("Couldn't finish — the footage file is missing. Nothing changed.") is
+  // quoted, not re-guessed from keywords; the safe half is said once, by the caller, from what the run touched
+  const own = /^Couldn['’]t finish\s*[—–-]\s*([^.\n]{3,140}?)\.?(?:\s+(?:Nothing changed|Undo this chat[^.]*)\.?)?\s*$/i.exec(
+    t.trim()
+  );
+  if (own) return own[1].trim();
   if (/rate.?limit|usage limit|too many requests|\b429\b|quota|overloaded|\b529\b/i.test(t))
     return 'Claude is too busy to answer right now';
   if (/offline|enotfound|econnrefused|econnreset|network|fetch failed|getaddrinfo/i.test(t))
