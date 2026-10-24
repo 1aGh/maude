@@ -13,6 +13,7 @@ import {
   annotationSelectionVersion,
   subscribeAnnotationSelection,
 } from '../annotations/annotation-asks.js';
+import { useBoardLabels } from './RunList.jsx';
 import {
   annotationsScope,
   autoScope,
@@ -39,6 +40,29 @@ export function artboardsFromMeta(meta) {
   const seen = new Set();
   const out = [];
   for (const a of boards) {
+    if (!a || typeof a.id !== 'string' || !a.id || seen.has(a.id)) continue;
+    seen.add(a.id);
+    out.push({ id: a.id, label: typeof a.label === 'string' && a.label.trim() ? a.label : a.id });
+  }
+  return out;
+}
+
+/**
+ * P8 C3 (03 ai-scope): the names a person knows. The `.meta.json` sidecar is the first source, but a canvas the AI
+ * just drafted has none (or labels equal to the ids), so the project index's artboard list fills the gaps - the chip
+ * reads "Post 1:1", the menu offers "Choose artboards…", never a bare id. Pure.
+ */
+export function mergeArtboardNames(fromMeta, fromIndex) {
+  const index = new Map((Array.isArray(fromIndex) ? fromIndex : []).map((a) => [a?.id, a]));
+  const out = [];
+  const seen = new Set();
+  for (const a of fromMeta || []) {
+    seen.add(a.id);
+    const named = a.label && a.label !== a.id;
+    const idx = index.get(a.id)?.label;
+    out.push(named || typeof idx !== 'string' || !idx.trim() ? a : { id: a.id, label: idx });
+  }
+  for (const a of index.values()) {
     if (!a || typeof a.id !== 'string' || !a.id || seen.has(a.id)) continue;
     seen.add(a.id);
     out.push({ id: a.id, label: typeof a.label === 'string' && a.label.trim() ? a.label : a.id });
@@ -90,13 +114,21 @@ export function useCanvasArtboards(canvas, wantedIds = []) {
  * @param {boolean} i.panelHidden — the AI chat panel is folded; showing it again re-attaches the selection
  * @param {string|null} [i.viewArtboardId] — the artboard in view (the menu's second row)
  */
-export function useAiScope({ activeCanvas, selected, panelHidden = false, viewArtboardId = null }) {
+export function useAiScope({
+  activeCanvas,
+  selected,
+  panelHidden = false,
+  viewArtboardId = null,
+  designRel = '',
+}) {
   const [choice, setChoice] = useState(null);
   const selectedIds = useMemo(
     () => selectedArtboardIds(selected, activeCanvas),
     [selected, activeCanvas]
   );
-  const artboards = useCanvasArtboards(activeCanvas, selectedIds);
+  const fromMeta = useCanvasArtboards(activeCanvas, selectedIds);
+  const indexBoards = useBoardLabels(designRel, 0).get(activeCanvas);
+  const artboards = useMemo(() => mergeArtboardNames(fromMeta, indexBoards), [fromMeta, indexBoards]);
   // S4.15 — stickies / arrows selected in Preview (`annotation-selection`): the chip follows them while they
   // are selected. Annotation and element selections are exclusive (Preview vs Edit), so whichever is non-empty.
   const annVersion = useSyncExternalStore(

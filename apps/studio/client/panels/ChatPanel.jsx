@@ -44,6 +44,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
+import { cleanChatTitle } from '../v2/ai/chat-list-model.js';
 import { fetchChatRuns, undoNote, undoRun } from '../v2/ai/run-api.js';
 import { RunsCount } from '../v2/ai/RunList.jsx';
 import NeedsYouSlot from '../v2/ai/NeedsYouSlot.jsx';
@@ -274,7 +275,7 @@ function ChatThread({
   // buildChatContext result drives BOTH the composer chip and the frozen block the adapter prepends at
   // send (`contextRef` is what it reads — freeze = read-once). The chip follows the selection until the
   // person narrows it; removing it (DDR-140) sends the ask without the canvas.
-  const aiScope = useAiScope({ activeCanvas, selected, panelHidden, viewArtboardId });
+  const aiScope = useAiScope({ activeCanvas, selected, panelHidden, viewArtboardId, designRel });
   const { contextRef } = aiScope;
   const adapter = useMemo(
     () =>
@@ -671,8 +672,9 @@ export default function ChatPanel({
       // fresh chat shows the client's "New chat" heuristic until the first
       // turn completes; expected). Read live by chatOptions below.
       conn.onSessionInfo((info) => {
-        if (info.title && !renamedChatIdsRef.current.has(chatId)) {
-          setSessionTitles((prev) => ({ ...prev, [chatId]: info.title }));
+        const title = cleanChatTitle(info.title);
+        if (title && !renamedChatIdsRef.current.has(chatId)) {
+          setSessionTitles((prev) => ({ ...prev, [chatId]: title }));
         }
       });
       // Background work (subagents) can outlive the main turn — the ACP adapter

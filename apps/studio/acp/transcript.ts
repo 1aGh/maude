@@ -312,12 +312,21 @@ export function readChatLinesAfter(
   return out.reverse();
 }
 
+/** A title is what the person typed: a `[maude-…` / `[selected:` marker that reached it inline (an agent title, a
+ *  single-line prompt) ends it. P8 C3 (03 ai-chat-list). */
+export function cutInlineContext(text: string): string {
+  const i = text.search(/\s*\[(?:maude-[a-z-]+|selected:)/);
+  return i === -1 ? text : text.slice(0, i);
+}
+
 /** First user line, truncated — the chat's display title. Context-attachment
  *  lines are stripped first, so a chat never titles itself `[maude-context …`
  *  (the 2026-07-03 dogfood finding). */
 function deriveTitle(lines: Array<Record<string, unknown>>): string {
   const firstUser = lines.find((l) => l.role === 'user' && typeof l.text === 'string');
-  const text = stripAttachmentBlock(stripContextBlock((firstUser?.text as string) ?? ''));
+  const text = cutInlineContext(
+    stripAttachmentBlock(stripContextBlock((firstUser?.text as string) ?? ''))
+  );
   const trimmed = text.replace(/\s+/g, ' ').trim();
   return trimmed ? trimmed.slice(0, 60) : 'New chat';
 }

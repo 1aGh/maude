@@ -15,6 +15,17 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_MS = 24 * 3600 * 1000;
 
+/**
+ * P8 C3 (03 ai-chat-list): a chat title is what the person typed. A `[maude-…` / `[selected:` marker that reached it
+ * inline (the agent's own auto-title is made from the whole sent text) ends it; nothing left = no title (the caller
+ * keeps "New chat"). Mirrors acp/transcript.ts `cutInlineContext`.
+ */
+export function cleanChatTitle(title) {
+  const t = String(title ?? '');
+  const i = t.search(/\s*\[(?:maude-[a-z-]+|selected:)/);
+  return (i === -1 ? t : t.slice(0, i)).replace(/\s+/g, ' ').trim();
+}
+
 const startOfDay = (t) => {
   const d = new Date(t);
   d.setHours(0, 0, 0, 0);
