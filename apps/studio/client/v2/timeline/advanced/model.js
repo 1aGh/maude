@@ -9,7 +9,7 @@ export const ADV_WORDS = Object.freeze({
   hint: 'Frame numbers, codec, keyframes, the cut as code',
   timecode: 'Timecode',
   frames: 'Frames',
-  thisVideo: 'This video',
+  thisVideo: 'Render settings',
   easing: (name) => `Easing · ${name}`,
   noKeyframe: 'Pick a keyframe on a clip to see its curve.',
   straight: 'Straight line',

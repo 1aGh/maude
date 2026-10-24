@@ -17,6 +17,7 @@
 import { useSyncExternalStore } from 'react';
 
 let current = null;
+let shieldUntil = 0;
 let version = 0;
 const subs = new Set();
 const notify = () => {
@@ -60,9 +61,18 @@ export const timelineSelection = {
     current = next;
     notify();
   },
+  /**
+   * V2-8.5 c4-video: for the next `ms`, a canvas selection does not release the clip. A clip the shell picks itself
+   * ("+ Title" selects the title it inserted) is followed by the canvas reloading the rewritten file and posting its
+   * own `select`; that echo is not the person choosing something else.
+   */
+  shield(ms = 1500) {
+    shieldUntil = Date.now() + ms;
+  },
   /** A canvas selection took over: clear the Timeline's highlight too, so one thing is selected at a time. */
   release() {
     if (!current) return;
+    if (Date.now() < shieldUntil) return;
     const d = current.deselect;
     current = null;
     notify();

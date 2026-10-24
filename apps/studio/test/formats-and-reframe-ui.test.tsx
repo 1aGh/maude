@@ -234,6 +234,26 @@ describe('the Formats rows (ve-formats)', () => {
     expect(formatsUi.requestAdd()).toBe(NO_VIDEO_WORDS);
   });
 
+  test('07 ve-select (V2-8.5 c4-video): a video with no other format has no Formats rows; Cmd-K Add a format draws them with the list open', async () => {
+    media.formats = {
+      ...media.formats,
+      formats: [row('reels', 'Reels 9:16', 1080, 1920, '9:16', { current: true })],
+      copies: [],
+      canUnlink: false,
+    };
+    const { formatsUi } = await import('../client/v2/inspector/formats-ui.js');
+    const host = await frame();
+    // the card is Size · Length · Poster · Sound · Export — the section never appears
+    expect(q(host, 'insp-sec-formats')).toBeNull();
+    expect(q(host, 'insp-formats')).toBeNull();
+    await act(async () => {
+      expect(formatsUi.requestAdd()).toBeNull(); // a video is selected: the door is open
+    });
+    await settle();
+    expect(q(host, 'insp-sec-formats')).not.toBeNull();
+    expect(q(host, 'insp-format-add-1080x1350')).not.toBeNull();
+  });
+
   test('a refusal is a sentence under the rows, and nothing is recorded', async () => {
     editStatus = 403;
     editBody = { ok: false, code: 'forbidden' };

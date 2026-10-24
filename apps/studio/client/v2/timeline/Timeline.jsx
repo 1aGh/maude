@@ -784,6 +784,9 @@ export default function TimelinePanel({
 
   const startMove = (e, index, startFrom) => {
     if (sequences[index]?.loose) return; // loose media row — read-only
+    // V2-8.5 c4-video (07 · ve-move-transition): a clip you pick up IS the selected one (its ring and its inspector
+    // come with the lift), not only after a click
+    onSelect?.(sequences[index]?.stableId ?? null);
     // A TransitionSeries/Series clip computes its own position — Remotion
     // IGNORES a `from` prop on it; its body-drag is the magnetic REORDER.
     if (sequences[index]?.series) {
@@ -1084,7 +1087,6 @@ export default function TimelinePanel({
       a: shot(A, ai, 'last'),
       b: shot(B, ai + 1, 'first'),
       set: (params) => onClipVerb?.(ref, 'video.transition.set', params),
-      remove: () => onClipVerb?.(ref, 'remove-transition', {}),
     };
   })();
 
@@ -1136,7 +1138,7 @@ export default function TimelinePanel({
       timelineSelection.set(
         musicSelection({
           info: selBed.info,
-          label: audio[selBed.index]?.label ?? 'Music',
+          label: songName(audio[selBed.index]?.label),
           canvas: island?.canvas ?? null,
           artboardId: comp?.artboardId ?? null,
           fps,
@@ -1292,7 +1294,9 @@ export default function TimelinePanel({
     const rows = sequences.map((s, i) => ({ s, i })).filter(({ s }) => s.series);
     const l = landingOf({ story: rows.map(({ s }) => s), reorderDrag });
     const at = rows[reorderDrag.slot];
-    return l && at ? { ...l, frame: previewFroms?.get(at.i) ?? at.s.from } : null;
+    return l && at
+      ? { ...l, frame: previewFroms?.get(at.i) ?? at.s.from, firstRow: rows[0].i }
+      : null;
   })();
 
   // DDR-150 P4 / Task 6 — file drops. Lanes set an insertion caret and hand a
@@ -1404,7 +1408,8 @@ export default function TimelinePanel({
     // its siblings take their preview slots.
     let dragOffset = 0;
     let dragging = false;
-    if (lane === 'storyline' && reorderDrag) {
+    // V2-8.5 c4-video: a digital comp's beats (lane 'row') lift and shuffle like the media cut's storyline
+    if ((lane === 'storyline' || (lane === 'row' && seq.series)) && reorderDrag) {
       if (reorderDrag.index === i) {
         dragging = true;
         dragOffset = reorderDrag.dx;
@@ -1856,7 +1861,7 @@ export default function TimelinePanel({
       style={{
         // 07 ve-advanced: with Advanced open the island grows past the dragged height (its cards must stay inside the
         // island and the tracks must stay on screen); CSS caps it at the window
-        ...(height && full ? (advOpen ? { minHeight: height } : { height }) : {}),
+        ...(height && full ? { height } : {}),
         outline: 'none',
         '--tl-gutter': `${gutter}px`,
       }}
@@ -1899,17 +1904,36 @@ export default function TimelinePanel({
           <>
             {/* P8 C3 (07 · .ve-tl-hd) — play · loop · time / length · the video's name, then the status, four
                 tools and the size. Everything else the v1 header carried is one disclosure down (Advanced). */}
-            <button
-              type="button"
-              className="icon-btn k-icon-sm tl-play"
-              aria-label={playing ? 'Pause' : 'Play'}
-              aria-pressed={playing}
-              title={playing ? 'Pause — tap space' : 'Play — tap space'}
-              data-testid="timeline-playpause"
-              onClick={() => (playing ? onPause?.() : onPlay?.())}
-            >
-              <TGlyph name={playing ? 'pause' : 'play'} />
-            </button>
+            {/* 07 ve-play: the keys are drawn tips over the play button — "Pause — tap space" (hold space and drag to
+                pan) on hover / focus, and "Step ← → one frame · ⇧ one second" while the playhead is being stepped */}
+            <span className="tl-play-wrap">
+              <button
+                type="button"
+                className="icon-btn k-icon-sm tl-play"
+                aria-label={playing ? 'Pause' : 'Play'}
+                aria-pressed={playing}
+                aria-describedby="timeline-play-tip"
+                data-testid="timeline-playpause"
+                onClick={() => (playing ? onPause?.() : onPlay?.())}
+              >
+                <TGlyph name={playing ? 'pause' : 'play'} />
+              </button>
+              <span
+                className="tl-keytip tl-keytip--play"
+                id="timeline-play-tip"
+                role="tooltip"
+                data-testid="timeline-play-tip"
+              >
+                {playing ? 'Pause' : 'Play'} — tap <kbd className="kbd">space</kbd>
+                <span className="tl-keytip-dim">hold space and drag to pan</span>
+              </span>
+              {playback.stepping() ? (
+                <span className="tl-keytip tl-keytip--step" data-testid="timeline-step-tip">
+                  Step <kbd className="kbd">←</kbd>
+                  <kbd className="kbd">→</kbd> one frame · <kbd className="kbd">⇧</kbd> one second
+                </span>
+              ) : null}
+            </span>
             <button
               type="button"
               className="icon-btn k-icon-sm"
@@ -2505,7 +2529,7 @@ export default function TimelinePanel({
                   // expand under a row, dogfood 2026-07-30), but the rows sit in the SAME four tracks as a media
                   // cut: Text · Graphics · Video · Music, top covers bottom. A track groups rows; every row's
                   // testid, drag and expand are unchanged (S7.8: tracks are caption strips around the rows).
-                  const stackRow = (seq, i) => {
+                  const stackRow = (seq, i, join = false) => {
                     const layers = Array.isArray(seq.layers) ? seq.layers : [];
                     const decomposable = layers.length >= 2;
                     const isExpanded = decomposable && !collapsed.has(i);
@@ -2513,7 +2537,11 @@ export default function TimelinePanel({
                       retimeDrag && retimeDrag.index === i ? retimeDrag.curDur : seq.duration;
                     return (
                       <Fragment key={i}>
-                        <div className="tl-row" data-testid={`timeline-row-${i}`}>
+                        <div
+                          className="tl-row"
+                          data-testid={`timeline-row-${i}`}
+                          data-lane-join={join ? '1' : undefined}
+                        >
                           <span className="tl-row-label" title={seq.label}>
                             {decomposable ? (
                               <button
@@ -2546,8 +2574,40 @@ export default function TimelinePanel({
                             )}
                             <span className="tl-row-label-text">{displayNameOf(seq, i)}</span>
                           </span>
-                          <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
+                          {/* V2-8.5 c4-video (07 · ve-drop): files over the Video lane land between its beats, with the
+                              caret and "Drop N clips at …" — the same lane the media cut's storyline is */}
+                          <div
+                            className="tl-row-track"
+                            style={{ width: axisPx, flex: 'none' }}
+                            {...(seq.series
+                              ? {
+                                  onDragOver: onStoryDragOver,
+                                  onDrop: onLaneDrop({ lane: 'storyline' }),
+                                }
+                              : {})}
+                          >
                             {renderBlock(seq, i, { lane: 'row' })}
+                            {dropCaret?.lane === 'storyline' &&
+                            seq.series &&
+                            i === sequences.findIndex((s) => s.series) ? (
+                              <>
+                                <span
+                                  className="tl-drop-caret"
+                                  data-testid="timeline-drop-caret"
+                                  style={{ left: dropCaret.x - 1 }}
+                                />
+                                <DropLanding
+                                  x={dropCaret.x}
+                                  count={dropCaret.count}
+                                  atFrame={dropCaret.frame}
+                                  fps={fps}
+                                />
+                              </>
+                            ) : null}
+                            {/* the lifted beat's landing line + "Drop before …" tip, on the Video lane's first row */}
+                            {landing && seq.series && i === landing.firstRow ? (
+                              <MoveLanding x={x(landing.frame ?? 0)} text={landing.text} />
+                            ) : null}
                           </div>
                         </div>
                         {isExpanded
@@ -2619,10 +2679,14 @@ export default function TimelinePanel({
                       </Fragment>
                     );
                   };
+                  // V2-8.5 c4-video (07 · ve-select): beats that never overlap share ONE lane — the board's Video
+                  // track is a strip of clips, not a staircase. A beat open into its layers keeps a lane to itself.
                   const rowsOn = (id) =>
-                    sequences
-                      .map((seq, i) => (trackOfIdx.get(i) === id ? stackRow(seq, i) : null))
-                      .filter(Boolean);
+                    packed(
+                      sequences
+                        .map((seq, i) => ({ seq, i }))
+                        .filter(({ i }) => trackOfIdx.get(i) === id)
+                    ).map(({ seq, i, join }) => stackRow(seq, i, join));
                   const bedsOn = (id) =>
                     audio
                       .map((a, i) => (trackOfBed.get(i) === id ? renderAudioRow(a, i) : null))
@@ -2891,10 +2955,6 @@ export default function TimelinePanel({
               canEdit={island ? island.canEdit !== false : true}
               onPick={(key) => picker.set({ presentation: key })}
               onLength={(frames) => picker.set({ durationInFrames: frames })}
-              onRemove={() => {
-                picker.remove();
-                setJoinPicker(null);
-              }}
               onClose={() => {
                 // a11y — esc / a click away hands focus back to the join it opened from
                 const from = joinPicker.from;

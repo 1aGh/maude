@@ -36,7 +36,7 @@ const browser = {
 };
 
 function restore(text) {
-  const out = { mode: 'timecode', tracks: {} };
+  const out = { mode: 'frames', tracks: {} };
   if (!text) return out;
   try {
     const j = JSON.parse(text);

@@ -3,11 +3,11 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
-const R = '/Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8';
+const R = '/Users/iagh/git/personal/maude/.claude/worktrees/agent-a7fcbce36c4413062';
 const FONT = '/System/Library/Fonts/Supplemental/Arial.ttf';
 const CANV = { '07': '07-video-editing', '08': '08-artboard-kinds', '09': '09-export' };
 const made = [];
-for (const nn of ['07', '08', '09']) {
+for (const nn of ['07']) {
   const full = join(R, '.scr/pairs', nn);
   const out = join(R, '.ai/plans/notes/v2-evidence/phase8-fidelity', CANV[nn]);
   mkdirSync(full, { recursive: true });

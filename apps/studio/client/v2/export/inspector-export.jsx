@@ -22,7 +22,11 @@ import { Select } from '../../inspector-controls.jsx';
 import { shellToast } from '../../shell/util.js';
 import { advancedAccess } from '../inspector/advanced.jsx';
 import { isArtboardSelection } from '../inspector/kinds/index.js';
-import { exportPresets, offExportSlot } from '../inspector/sections/export-slot.jsx';
+import {
+  exportPresets,
+  isVideoArtboard,
+  offExportSlot,
+} from '../inspector/sections/export-slot.jsx';
 import { Quiet, Row } from '../inspector/sections/row.jsx';
 import { registerSlot } from '../inspector/slots.js';
 import { copyAsPng } from './copy-png.js';
@@ -324,7 +328,8 @@ export const offInspectorExport = registerSlot('export', {
   order: 100,
   Body: ExportSectionBody,
   // Can view sees none of it: the frame passes its ctx to `when`, so the section is not drawn at all
-  when: ({ ctx }) => canExport(ctx),
+  // 07 VideoInspector: a video artboard's card has Export as one MP4 row (kinds/artboard-video.jsx), no section
+  when: ({ ctx, selection }) => !isVideoArtboard(selection) && canExport(ctx),
   canAdd,
   add: ({ el, ctx }) => add({ el, selection: el, ctx }),
 });

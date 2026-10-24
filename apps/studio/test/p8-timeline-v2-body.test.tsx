@@ -278,3 +278,125 @@ describe('the styles hold the board’s rules (cheap pins)', () => {
     expect(css).toMatch(/\.tl-seq-block\.tl-beat\s*\{[^}]*background:\s*var\(--object-ink\)/);
   });
 });
+
+describe('a purely digital comp keeps its rows, but its beats share one Video lane (07 · ve-select) — V2-8.5 c4-video', () => {
+  const scene = (id: string, from: number, duration: number, layers = 0) => ({
+    stableId: id,
+    label: id,
+    series: true,
+    mediaTag: null,
+    from,
+    duration,
+    keyframes: [],
+    ...(layers
+      ? { layers: Array.from({ length: layers }, (_, n) => ({ label: `layer ${n}`, kind: 'jsx' })) }
+      : {}),
+  });
+  const joins = () =>
+    all('[data-track="video"] .tl-row[data-testid^="timeline-row-"]').map((r) => [
+      r.getAttribute('data-testid'),
+      r.getAttribute('data-lane-join'),
+    ]);
+  test('three beats that never overlap are ONE lane: the 2nd and 3rd rows are drawn onto the first', () => {
+    mount({
+      sequences: [
+        scene('beat-one', 0, 150),
+        scene('beat-two', 150, 150),
+        scene('beat-three', 300, 150),
+      ],
+    });
+    expect(joins()).toEqual([
+      ['timeline-row-0', null],
+      ['timeline-row-1', '1'],
+      ['timeline-row-2', '1'],
+    ]);
+  });
+  test('a lifted beat lifts, and the lane shows the landing line with "Drop before …" (07 · ve-move-transition)', () => {
+    mount({
+      sequences: [scene('Oslava', 0, 150), scene('Touchdown', 150, 150), scene('Logo', 300, 150)],
+      extra: { onReorderMove: () => {} },
+    });
+    const block = q('[data-testid="timeline-seq-0"]') as HTMLElement;
+    expect(q('[data-testid="timeline-landing-tip"]')).toBeNull();
+    act(() => {
+      block.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100 })
+      );
+    });
+    act(() => {
+      // drag right past Touchdown's centre: it would land before Logo
+      window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 100 + 520 }));
+    });
+    expect((q('[data-testid="timeline-seq-0"]') as HTMLElement).className).toContain('is-dragging');
+    expect(q('[data-testid="timeline-landing-line"]')).not.toBeNull();
+    expect(q('[data-testid="timeline-landing-tip"]')?.textContent).toMatch(/^Drop before /);
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 620 }));
+    });
+    expect(q('[data-testid="timeline-landing-line"]')).toBeNull();
+  });
+  test('files dragged over the Video lane show the drop caret and "Drop 2 clips at …" (07 · ve-drop)', () => {
+    const dropped: unknown[] = [];
+    mount({
+      sequences: [scene('Oslava', 0, 150), scene('Touchdown', 150, 150), scene('Logo', 300, 150)],
+      extra: { onDropMedia: (f: unknown, pos: unknown) => dropped.push([f, pos]) },
+    });
+    const track = q('[data-testid="timeline-row-0"] .tl-row-track') as HTMLElement;
+    expect(q('[data-testid="timeline-drop-caret"]')).toBeNull();
+    const dt = {
+      types: ['Files'],
+      items: [{ kind: 'file' }, { kind: 'file' }],
+      files: [{ name: 'a.mp4' }, { name: 'b.mp4' }],
+      dropEffect: '',
+    };
+    act(() => {
+      const ev = new Event('dragover', { bubbles: true, cancelable: true }) as Event & {
+        dataTransfer: unknown;
+        clientX: number;
+      };
+      ev.dataTransfer = dt;
+      ev.clientX = 100;
+      track.dispatchEvent(ev);
+    });
+    expect(q('[data-testid="timeline-drop-caret"]')).not.toBeNull();
+    expect(q('[data-testid="timeline-drop-tip"]')?.textContent).toMatch(/^Drop 2 clips at/);
+    act(() => {
+      const ev = new Event('drop', { bubbles: true, cancelable: true }) as Event & {
+        dataTransfer: unknown;
+      };
+      ev.dataTransfer = dt;
+      track.dispatchEvent(ev);
+    });
+    expect(dropped).toHaveLength(1);
+    expect((dropped[0] as [unknown, { lane: string }])[1].lane).toBe('storyline');
+  });
+  test('pressing a clip selects it at once — the lifted clip wears the selection while it is dragged (07 · ve-move-transition)', () => {
+    const picked: unknown[] = [];
+    mount({
+      sequences: [scene('Oslava', 0, 150), scene('Touchdown', 150, 150)],
+      extra: { onReorderMove: () => {}, onSelect: (id: unknown) => picked.push(id) },
+    });
+    act(() => {
+      (q('[data-testid="timeline-seq-1"]') as HTMLElement).dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 300 })
+      );
+    });
+    expect(picked).toEqual(['Touchdown']);
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 300 }));
+    });
+  });
+  test('a beat that opens into layers keeps a lane to itself (the layer view stays)', () => {
+    mount({
+      sequences: [
+        scene('beat-one', 0, 150),
+        scene('beat-two', 150, 150, 3),
+        scene('beat-three', 300, 150),
+      ],
+    });
+    const byId = Object.fromEntries(joins());
+    expect(byId['timeline-row-1']).toBeNull(); // the layered beat is its own lane
+    expect(byId['timeline-row-0']).toBeNull();
+    expect(byId['timeline-row-2']).toBe('1'); // the plain beats still share
+  });
+});

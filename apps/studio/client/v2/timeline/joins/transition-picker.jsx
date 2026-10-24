@@ -7,8 +7,8 @@
 // Picking a tile is one `video.transition.set`; the slider writes the join's length when it is let go. Esc closes.
 //
 // Where the old dialog's Transition tab went (D15): the six tiles are its presentation grid
-// (`timeline-transition-<name>`), the slider is its Frames field, and "Remove transition (hard cut)" is the foot
-// link here and under the clip inspector's Advanced › Transition frames.
+// (`timeline-transition-<name>`), the slider is its Frames field, and "Remove transition (hard cut)" is under the clip
+// inspector's Advanced › Transition frames (07 draws no remove link in the picker: V2-8.5 c4-video).
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -60,7 +60,6 @@ function ShotFrame({ shot, b = false }) {
  *   canEdit?: boolean,
  *   onPick: (key: string) => void,
  *   onLength: (frames: number) => void,
- *   onRemove?: () => void,
  *   onClose: () => void,
  * }} props
  */
@@ -76,7 +75,6 @@ export function TransitionPicker({
   canEdit = true,
   onPick,
   onLength,
-  onRemove,
   onClose,
 }) {
   const anims = useRef([]);
@@ -232,19 +230,7 @@ export function TransitionPicker({
           {joinSecondsWords(secs)}
         </output>
       </label>
-      <p className="tj-foot">
-        Hover a tile to play it.
-        {onRemove && canEdit ? (
-          <button
-            type="button"
-            className="tj-remove"
-            data-testid="timeline-transition-remove"
-            onClick={onRemove}
-          >
-            Remove transition (hard cut)
-          </button>
-        ) : null}
-      </p>
+      <p className="tj-foot">Hover a tile to play it.</p>
     </div>
   );
 }

@@ -321,6 +321,12 @@ describe('one click exports, no sheet', () => {
     await click(q(print, 'insp-export-more'));
     expect(opened.at(-1)).toMatchObject({ mode: 'export', scope: 'selection', format: 'pdf' });
   });
+
+  test('a video artboard has no Export section — its card carries the one MP4 row (07 VideoInspector, V2-8.5 c4-video)', async () => {
+    const video = await frame({ ...ARTBOARD, attrs: { 'data-dc-kind': 'video' } });
+    expect(q(video, 'insp-sec-export')).toBeNull();
+    expect(q(video, 'insp-export-more')).toBeNull();
+  });
 });
 
 describe('Can view sees none of it', () => {

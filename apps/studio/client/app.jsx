@@ -75,6 +75,7 @@ import { FilePreview, prefetchPreviewImage, sanitizeDisplayText } from './panels
 import SetupChecklistDialog, { useSetupReadiness } from './panels/SetupChecklist.jsx';
 import TimelinePanel from './v2/timeline/Timeline.jsx';
 import TimelineHost from './v2/timeline/TimelineHost.jsx';
+import { timelineSelection } from './v2/timeline/selection.js';
 import { useTimelineKept } from './v2/timeline/timeline-store.js';
 import TranscriptHost from './v2/transcript/TranscriptHost.jsx';
 import { parseCompTimeline } from './panels/timeline-parse.js';
@@ -2486,8 +2487,11 @@ function ShellTimelinePanel() {
                 shellToast('Title added.', true);
                 if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
                 // 07: the new title is selected, so the Title inspector (words, font, motion) is what opens next
-                if (typeof j.stableId === 'string' && j.stableId)
+                if (typeof j.stableId === 'string' && j.stableId) {
+                  // the canvas reloads the rewritten file and echoes a `select`: that must not release this pick
+                  timelineSelection.shield(2500);
                   setTimelineSelectedClip(j.stableId);
+                }
               }
             })
             .catch(() => shellToast('Title failed: network error'));

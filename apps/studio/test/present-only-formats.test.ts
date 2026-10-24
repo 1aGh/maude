@@ -2,6 +2,8 @@
 // its cut, and nothing else: the Present spec gains `only: 'formats'`, the stage's run is limited to the deck, the shell
 // draws a format switch + the transport, and switching a format keeps the loop. The stage runs on a manual clock.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
@@ -354,6 +356,20 @@ describe('<VideoPresent>', () => {
       ['op', 'pause'],
       'leave',
     ]);
+  });
+
+  test('07 ve-fullscreen (V2-8.5 c4-video): the sound icon sits alone at rest — the volume slider is its sibling, opened on hover / focus by CSS', () => {
+    const el = mount({ formats: FORMATS, media: MEDIA });
+    const snd = el.querySelector('.vp-snd') as HTMLElement;
+    expect(snd).not.toBeNull();
+    expect(snd.querySelector('[data-testid="video-present-sound"]')).not.toBeNull();
+    expect(snd.querySelector('[data-testid="video-present-volume"]')).not.toBeNull();
+    const css = readFileSync(
+      join(import.meta.dir, '../client/v2/present/video-present.css'),
+      'utf8'
+    );
+    expect(css).toMatch(/\.vp-volume\s*\{[^}]*width:\s*0/);
+    expect(css).toMatch(/\.vp-snd:focus-within \.vp-volume/);
   });
 
   test('a deck of one has no switch; before the clip reports there is no bar', () => {

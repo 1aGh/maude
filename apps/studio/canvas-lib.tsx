@@ -642,7 +642,12 @@ input.dc-artboard-rename {
   margin-bottom: 4px;
   transform: scale(calc(1 / var(--dc-zoom, 1)));
   transform-origin: 100% 100%;
+  /* V2-8.5 c4-video (07): the board's label row is the kind glyph, the name and the length — no camera chip at its
+     right end. The badge stays (a door to the timeline for a keyboard or a hover) but is quiet until one arrives. */
+  opacity: 0;
 }
+.dc-canvas .dc-artboard.dc-positioned:hover > .dc-artboard-video-badge,
+.dc-canvas .dc-artboard.dc-positioned > .dc-artboard-video-badge:focus-visible { opacity: 1; }
 .dc-canvas .dc-artboard-video-badge:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 12%, var(--maude-chrome-bg-3, #e8e3d8)); }
 .dc-canvas .dc-artboard-video-badge:focus-visible { outline: 2px solid var(--maude-hud-accent, #d63b1f); outline-offset: 1px; }
 /* Active-artboard ring is in canvas-shell HALO_CSS (subtle 1 px tint). */
