@@ -290,6 +290,8 @@ const NOTICE_CSS = `
   border-radius: var(--radius-sm, 6px); background: transparent; color: var(--fg-2, #aaa); cursor: pointer;
   font-size: 16px; line-height: 1; padding: 0; }
 .maude-notice-close:hover { background: var(--bg-3, #333); color: var(--fg-0, #fff); }
+/* P8 c6: the boards' toasts (kit .k-toast) draw no ×. It stays one hover / keyboard focus away (the toast pauses on both). */
+.maude-notice:not(:hover):not(:focus-within) .maude-notice-close { display: none; }
 .maude-notice-action { flex: none; border: 0; border-radius: var(--radius-sm, 6px); background: transparent;
   color: var(--accent-text, var(--accent, #d63b1f)); font: inherit; font-weight: 600; text-decoration: none;
   cursor: pointer; padding: 4px var(--space-2, 8px); min-height: 26px; }
