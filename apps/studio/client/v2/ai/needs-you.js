@@ -296,11 +296,47 @@ export function failureModel(error, { changed } = {}) {
   let safe = '';
   if (changed === true) safe = ' Undo this chat takes back what it did.';
   else if (changed === false) safe = ' Nothing changed.';
+  const cause = failureCause(raw);
+  // P8 c5 (03 `ai-choice-fail`, right): a missing FILE is named and the verb is the one that fixes it — "Pick
+  // another clip" (opens Assets) — not "Try again" over a file that is still gone; the card is title · detail · verb.
+  const file = missingFile(raw);
+  const own = ownWords(raw);
   return {
-    title: `Couldn't finish — ${failureCause(raw)}.${safe}`,
-    verb: 'Try again',
-    raw: raw || null,
+    title: `Couldn't finish — ${file ? file.cause : cause}.${safe}`,
+    detail: file
+      ? `${file.name} was moved or renamed. Put it back in Assets to try again, or pick another ${file.noun}.`
+      : null,
+    verb: file ? `Pick another ${file.noun}` : 'Try again',
+    pick: !!file,
+    // the raw line sits under › Advanced only when it says something the card does not (an error that already
+    // spoke plainly, or one whose file we named, would only repeat the headline)
+    raw: own || file ? null : raw || null,
   };
+}
+
+const MEDIA = {
+  clip: /\.(mov|mp4|m4v|webm|mkv|avi|mxf)$/i,
+  track: /\.(wav|mp3|m4a|aac|flac|aiff?)$/i,
+  picture: /\.(png|jpe?g|gif|webp|heic|avif|svg)$/i,
+};
+
+/** The file a "no such file" error names: `{ name, noun, cause }`, or null (no file name, or not a missing file). */
+export function missingFile(raw) {
+  const t = String(raw ?? '');
+  if (!/enoent|no such file|not found|missing|moved or renamed/i.test(t)) return null;
+  const names = t.match(/[\w@+%-][\w.@+%-]*\.[A-Za-z0-9]{2,5}(?![\w])/g);
+  const name = names?.[names.length - 1];
+  if (!name) return null;
+  const kind = Object.keys(MEDIA).find((k) => MEDIA[k].test(name));
+  if (kind === 'clip') return { name, noun: 'clip', cause: 'the footage file is missing' };
+  if (kind === 'track') return { name, noun: 'track', cause: 'the audio file is missing' };
+  if (kind === 'picture') return { name, noun: 'picture', cause: 'a picture it needed is missing' };
+  return { name, noun: 'file', cause: 'a file it needed is missing' };
+}
+
+/** An error that already speaks plainly ("Couldn't finish — …") needs no raw line under it. */
+function ownWords(raw) {
+  return /^Couldn['’]t finish\s*[—–-]/i.test(String(raw ?? '').trim());
 }
 
 /**

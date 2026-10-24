@@ -107,6 +107,15 @@ describe('the chip menu', () => {
     expect(document.activeElement).toBe(t.q('[data-testid="ai-scope-chip"]'));
   });
 
+  test("P8 c5: the menu is FIXED from the field's rect, so the chat card (overflow boxes) cannot clip it to its last two rows", async () => {
+    const t = await mount({ kind: 'whole' });
+    await t.act(async () => t.q('[data-testid="ai-scope-chip"]').click());
+    const menu = t.q('[data-testid="ai-scope-menu"]');
+    expect(menu.style.position).toBe('fixed');
+    expect(menu.style.bottom).not.toBe('');
+    expect(menu.style.left).not.toBe('');
+  });
+
   test('picking a row reports the scope and closes', async () => {
     const t = await mount({ kind: 'whole' });
     await t.act(async () => t.q('[data-testid="ai-scope-chip"]').click());
