@@ -208,12 +208,34 @@ describe('a join (ve-transition)', () => {
     expect(q('timeline-inspector')).toBeNull(); // no v1 dialog
   });
 
-  test('the preview holds the two real shots: the outgoing last frame, the incoming first', () => {
+  test('07: there is no preview slab — every tile’s picture holds the two real shots', () => {
     open();
-    const a = q('timeline-transition-shot-a')?.querySelector('video');
-    const b = q('timeline-transition-shot-b')?.querySelector('video');
-    expect(a?.getAttribute('src')).toBe('/.design/assets/Oslava.mp4#t=2.9');
-    expect(b?.getAttribute('src')).toBe('/.design/assets/Logo.mp4#t=0.1');
+    expect(q('timeline-transition-preview')).toBeNull();
+    for (const key of ['cut', 'fade', 'slide', 'wipe', 'flip', 'clock']) {
+      const vids = q(`timeline-transition-${key}`)?.querySelectorAll('.tj-pic video');
+      expect(
+        [...(vids ?? [])].map((v) => v.getAttribute('src')),
+        key
+      ).toEqual(['/.design/assets/Oslava.mp4#t=2.9', '/.design/assets/Logo.mp4#t=0.1']);
+    }
+  });
+
+  test('07: the six tiles are a radiogroup — one tab stop on the lit tile, ← → ↑ ↓ move between them', () => {
+    open();
+    const tiles = [...(q('timeline-transition-grid')?.querySelectorAll('button') ?? [])];
+    expect(tiles.map((t) => t.tabIndex)).toEqual([-1, 0, -1, -1, -1, -1]); // Fade is lit
+    const fade = q('timeline-transition-fade') as HTMLElement;
+    fade.focus();
+    act(() => {
+      fade.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    });
+    expect(document.activeElement).toBe(q('timeline-transition-slide'));
+    act(() => {
+      (document.activeElement as HTMLElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(fade);
   });
 
   test('a tile is one video.transition.set on the TRANSITION; the length is written when let go', () => {
@@ -244,22 +266,19 @@ describe('a join (ve-transition)', () => {
     ]);
   });
 
-  test('hovering a tile plays it on the incoming shot (Web Animations), leaving cancels', () => {
+  test('hovering a tile plays it inside the tile’s own two shots (Web Animations), leaving cancels', () => {
     open();
-    const b = q('timeline-transition-shot-b') as HTMLElement & { animate?: unknown };
+    const tile = q('timeline-transition-fade') as HTMLElement;
+    const [ia, ib] = [...tile.querySelectorAll('.tj-pic > i')] as (HTMLElement & {
+      animate?: unknown;
+    })[];
     const played: unknown[][] = [];
     let cancelled = 0;
-    b.animate = (keyframes: unknown[]) => {
+    ib.animate = (keyframes: unknown[]) => {
       played.push(keyframes);
       return { cancel: () => cancelled++ };
     };
-    const a = q('timeline-transition-shot-a') as HTMLElement & { animate?: unknown };
-    a.animate = () => ({ cancel: () => cancelled++ });
-    const tile = q('timeline-transition-fade');
-    act(() => {
-      tile?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-      tile?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
-    });
+    ia.animate = () => ({ cancel: () => cancelled++ });
     // happy-dom does not fire React's mouseenter from a plain event: use the focus path the keyboard takes
     act(() => {
       tile?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));

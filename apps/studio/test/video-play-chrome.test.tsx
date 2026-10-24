@@ -88,6 +88,12 @@ describe('paused, never started', () => {
     expect(q('video-scrub-bar')).toBeNull();
   });
 
+  test('07 ve-play: parked on the poster frame (frame > 0) is still "never started": no scrub bar', () => {
+    mount(fakePlayer(106));
+    expect(q('video-play-button')).not.toBeNull();
+    expect(q('video-scrub-bar')).toBeNull();
+  });
+
   test('the button unmutes, then plays — in place, with sound', () => {
     const pl = fakePlayer();
     mount(pl);

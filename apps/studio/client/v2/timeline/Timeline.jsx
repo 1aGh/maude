@@ -1854,7 +1854,9 @@ export default function TimelinePanel({
       className={`tl-panel${resizing ? ' is-resizing' : ''}${dropActive ? ' is-drop' : ''}${commentMode ? ' is-commenting' : ''}`}
       // compact is as tall as its tracks (07 · .ve-tl--compact); only the full timeline takes the dragged height
       style={{
-        ...(height && full ? { height } : {}),
+        // 07 ve-advanced: with Advanced open the island grows past the dragged height (its cards must stay inside the
+        // island and the tracks must stay on screen); CSS caps it at the window
+        ...(height && full ? (advOpen ? { minHeight: height } : { height }) : {}),
         outline: 'none',
         '--tl-gutter': `${gutter}px`,
       }}

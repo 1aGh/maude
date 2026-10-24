@@ -31,7 +31,7 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-4);
-    max-height: 260px;
+    max-height: min(260px, 34vh);
     padding: var(--space-2) var(--space-1) var(--space-3);
     overflow: auto;
   }
@@ -123,6 +123,11 @@
     flex-wrap: wrap;
   }
   .tla-btn {
+    appearance: none;
+    border: 0;
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
     height: 24px;

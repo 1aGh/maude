@@ -350,6 +350,12 @@
   }
   .tl-panel[data-size="full"] .tl-scroll {
     overflow: auto;
+    /* the tracks never vanish under an open Advanced (07 ve-advanced: the ruler switches to frames, tracks stay) */
+    min-height: 112px;
+  }
+  /* an open Advanced grows the island, never past the window: the cards scroll inside it */
+  .tl-island .tl-panel[data-size="full"] {
+    max-height: calc(100vh - 80px - 72px);
   }
   .tl-tracks {
     display: flex;
