@@ -119,6 +119,10 @@ export function applyShellNavigate(payload, deps) {
  * `listen(event, handler)` resolves to an unlisten fn; `invoke` rejects for an unknown command.
  * Returns a stop fn.
  */
+/** These three are states of the app (a tab was reopened, a link opened one), not outcomes of something the person
+ *  just did: the one-line pill at the top, no success/error colouring (06 ad-open-all, kit `.k-toast--top`). */
+const TOP_PILL = Object.freeze({ kind: 'info', placement: 'top' });
+
 export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   let alive = true;
   let restoredShown = false;
@@ -127,7 +131,7 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
     const count = cleanCount(p?.count);
     if (!alive || restoredShown || !count) return;
     restoredShown = true;
-    toast(tabsRestoredWords(count));
+    toast(tabsRestoredWords(count), true, undefined, TOP_PILL);
   };
   const navigate = (p) => {
     if (alive && p) onNavigate(p);
@@ -142,7 +146,7 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
       .catch(() => {});
   sub('shell://opened-existing', (p) => {
     const name = cleanName(p?.name);
-    if (alive && name) toast(openedExistingWords(name));
+    if (alive && name) toast(openedExistingWords(name), true, undefined, TOP_PILL);
   });
   sub('shell://tabs-restored', restored);
   sub('shell://navigate', navigate);
@@ -156,7 +160,7 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   // V2-3.6 L1: a link opened this project as a NEW tab (parked, like the restore count).
   ask('take_link_opened', (p) => {
     const name = cleanName(p?.name);
-    if (alive && name) toast(linkOpenedWords(name));
+    if (alive && name) toast(linkOpenedWords(name), true, undefined, TOP_PILL);
   });
   return () => {
     alive = false;

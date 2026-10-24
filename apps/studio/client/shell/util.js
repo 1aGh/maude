@@ -152,8 +152,10 @@ export function basename(p) {
 }
 
 // Keep call sites (including Undo actions) on the shared notification stack.
-export function shellToast(message, ok = false, action) {
-  notify({ title: message, kind: ok ? 'success' : 'error', action });
+// `extra` carries the pill's placement / icon / kind for events that are states of the app, not outcomes
+// (06 ad-open-all, 10 co-sync-back: the one-line pill at the top).
+export function shellToast(message, ok = false, action, extra) {
+  notify({ title: message, kind: ok ? 'success' : 'error', action, ...extra });
 }
 
 export function browseFirstRunHint(readOnly = false) {
