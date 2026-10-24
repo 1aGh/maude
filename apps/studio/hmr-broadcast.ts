@@ -180,10 +180,26 @@ export function createHmrBroadcaster(
     pending = setTimeout(flush, DEBOUNCE_MS);
   }
 
+  // the Design system board draws the system's working files through a model built INTO its module
+  // (ds/ds-resolver.ts boardDeps): a swapped stylesheet link or a head.json write changes nothing on it
+  // until the board itself remounts — an AI making the system while it is open would watch outlines.
+  function queueBoard(normalized: string) {
+    const board = boardCanvasOf(normalized);
+    if (board && ctx.paths?.designRoot && existsSync(path.join(ctx.paths.designRoot, board)))
+      enqueue({
+        type: 'canvas-hmr',
+        mode: 'module',
+        file: board,
+        version: Date.now(),
+        scope: 'canvas',
+      });
+  }
+
   const offAny = ctx.bus.on('fs:any', (rel: string) => {
+    const normalized = rel.replace(/\\/g, '/');
+    queueBoard(normalized);
     const msg = classify(rel);
     if (!msg) return;
-    const normalized = rel.replace(/\\/g, '/');
     if (isRemote(normalized) || isRemote(msg.file)) msg.remote = true;
     if (msg.remote && (msg.mode === 'module' || msg.mode === 'css') && ctx.paths.designRoot) {
       try {
@@ -221,6 +237,15 @@ export function createHmrBroadcaster(
 // Helpers — exported for tests.
 
 export const HMR_DEBOUNCE_MS = DEBOUNCE_MS;
+
+const BOARD_DEP_RE =
+  /^(system\/[^/]+)\/(?:colors_and_type\.css|tokens\.json|components\.json|preview\/_components\.css|revisions\/head\.json)$/;
+
+/** The Design system canvas whose model a working-file change under `system/<ds>/` changes (null = none). */
+export function boardCanvasOf(rel: string): string | null {
+  const m = BOARD_DEP_RE.exec(rel.replace(/\\/g, '/'));
+  return m ? `${m[1]}/design-system.tsx` : null;
+}
 
 /**
  * Classify a changed design-root-relative path into an HMR message. Pure +
