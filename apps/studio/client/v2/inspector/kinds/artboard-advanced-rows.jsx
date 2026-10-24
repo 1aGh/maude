@@ -18,6 +18,7 @@ import { KIND_OPTIONS } from './artboard-model.js';
 import { SizePairRow, handlersOf, useArtboardWrites } from './artboard-rows.jsx';
 import { useCompMedia } from '../../transcript/comp-media-store.js';
 import { useVideoFacts } from './video-facts.js';
+import { ArtboardSpacingRows } from './artboard.jsx';
 
 /** Kinds whose rows live in artboard-{web,fixed,video,print}.jsx. Paper's exact numbers are its own Advanced rows
  *  (client/v2/kinds/advanced-rows.js, S7.23); here it keeps Clip content and Kind. */
@@ -56,6 +57,7 @@ export function ArtboardAdvancedRows({ el, ctx }) {
       {f.kind !== 'digital' && f.kind !== 'print' ? (
         <SizePairRow f={f} can={can} resize={resize} commitHeight={commitHeight} />
       ) : null}
+      {f.kind === 'web' ? <ArtboardSpacingRows el={el} ctx={ctx} /> : null}
       <Row k="Clip content" name="ab-clip">
         <span data-testid="insp-ctl-ab-clip">
           {/* An artboard always clips to its edge (DCArtboard); there is no prop to turn it off, so the switch shows

@@ -51,7 +51,17 @@ export function AdvancedToggle({ open, onToggle, hint }) {
  * @param kinds   the artboard kinds the estimate says the spec reaches
  * @param facts   { project, canvas (designRoot-relative), label } — what the file-name preview needs
  */
-export function AdvancedSection({ open, state, set, spec, kinds, exportLane, facts, sheetScale }) {
+export function AdvancedSection({
+  open,
+  state,
+  set,
+  spec,
+  kinds,
+  exportLane,
+  facts,
+  sheetScale,
+  extra = null,
+}) {
   const adv = state.adv ?? {};
   const setAdv = useCallback(
     (patch) => set({ adv: { ...(state.adv ?? {}), ...patch } }),
@@ -100,6 +110,7 @@ export function AdvancedSection({ open, state, set, spec, kinds, exportLane, fac
           ) : null}
         </div>
         <div className="ex-adv-foot">
+          {extra}
           <NamesPart
             template={template}
             samples={samples}

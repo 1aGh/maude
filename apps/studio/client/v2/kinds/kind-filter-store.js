@@ -11,22 +11,30 @@ import { useSyncExternalStore } from 'react';
 import { isFilterKind } from './kind-filter-model.js';
 
 let kind = 'all';
+// V2-8.5 C4 (08 ak-mixed-filter): the filter is ONE value, but only a pick made in Layers DIMS the open canvas — the
+// Canvases chips narrow the list and leave the canvas as it is. `source` = where the value last came from.
+let source = 'layers';
 const listeners = new Set();
 
 /** The kind being filtered to — 'all' when no filter is on. */
 export const getKindFilter = () => kind;
 
-/** Set the filter. Anything that is not a kind means "all". @returns the filter now on. */
-export function setKindFilter(next) {
+/** The kind the open canvas dims to: the Layers pick's, never the Canvases chip's. */
+export const getDimKind = () => (source === 'layers' ? kind : 'all');
+
+/** Set the filter. Anything that is not a kind means "all". `from` = the panel that asked ('layers' | 'canvases'). */
+export function setKindFilter(next, from = 'layers') {
   const k = isFilterKind(next) ? next : 'all';
   if (k === kind) return kind;
   kind = k;
+  source = from === 'canvases' ? 'canvases' : 'layers';
   for (const l of [...listeners]) l();
   return kind;
 }
 
 /** A click on a chip: the chip already on goes back to All (the es-filter chip carries a ×), another one moves. */
-export const pickKind = (next) => setKindFilter(next === kind ? 'all' : next);
+export const pickKind = (next, from = 'layers') =>
+  setKindFilter(next === kind ? 'all' : next, from);
 
 export const clearKindFilter = () => setKindFilter('all');
 

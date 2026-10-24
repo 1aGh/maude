@@ -152,7 +152,11 @@ export function picksForOther(row, kinds, picks = {}) {
 
 // ── words ────────────────────────────────────────────────────────────────────────────────────────
 /** "Fixed size · 100 artboards" */
-export const groupTitle = (kind, artboards) => `${kindLabel(kind)} · ${artboardsWord(artboards)}`;
+export const groupTitle = (kind, artboards) =>
+  // 09 ex-huge: a print group counts PAGES ("Print · 46 pages") — a sheet of paper is a page of the PDF
+  kind === 'print'
+    ? `${kindLabel(kind)} · ${artboards} ${artboards === 1 ? 'page' : 'pages'}`
+    : `${kindLabel(kind)} · ${artboardsWord(artboards)}`;
 
 const list = (names) => {
   if (names.length <= 1) return names[0] ?? '';

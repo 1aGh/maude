@@ -767,4 +767,67 @@
   .insp-quiet {
     padding: 0 var(--space-1);
   }
+
+  /* V2-8.5 C4 (08 ak-safe-zones) — the floating checked platform list (kit `.k-menu` + `.k-mgroup` + `.k-mi`): a head,
+     rows with a 16 px check column, a rule and the footnote. The trigger is the card's select. */
+  .insp-zones {
+    position: relative;
+    display: inline-flex;
+    max-width: 100%;
+  }
+  .insp-zones-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    width: 140px;
+    max-width: 100%;
+    text-align: left;
+  }
+  .insp-zmenu {
+    right: 0;
+    left: auto;
+    width: 252px;
+    padding: var(--space-1);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
+    font-size: var(--type-sm);
+  }
+  .insp-zmenu-h {
+    padding: var(--space-1) var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .insp-zmenu-i {
+    justify-content: flex-start;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+  }
+  .insp-zmenu-i[aria-checked="true"] {
+    color: var(--fg-0);
+  }
+  .insp-zmenu-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 16px;
+    color: var(--fg-2);
+  }
+  .insp-zmenu-lab {
+    flex: 1;
+  }
+  .insp-zmenu-sep {
+    display: block;
+    flex: none;
+    height: 1px;
+    margin: var(--space-1) var(--space-2);
+    background: var(--border-subtle);
+  }
+  .insp-zmenu-foot {
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs, 1.4);
+    white-space: normal;
+  }
 }

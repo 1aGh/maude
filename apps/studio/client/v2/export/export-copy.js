@@ -57,10 +57,23 @@ export function folderLabel(folder) {
  * the whole project is "Export everything in Alligators brand" (09 ex-huge). `canvases` = the estimate's
  * `canvasCounts` ({ folder, project }); `project` = the project's name.
  */
-export function sheetTitle({ scope, label, canvas, folder, count, canvases, project }) {
+export function sheetTitle({
+  scope,
+  label,
+  canvas,
+  folder,
+  count,
+  canvases,
+  project,
+  withBack = false,
+}) {
   const n = typeof count === 'number' && count > 0 ? count : null;
   if (scope === 'selection') {
-    if (n === 1 || n === null) return label ? `${VERB} ${quoted(label)}` : `${VERB} 1 artboard`;
+    // 09 ex-print: a print PDF that carries the back says so in the title — `Export "A · přední (FLAG)" + its back`
+    if (n === 1 || n === null)
+      return label
+        ? `${VERB} ${quoted(label)}${withBack ? ' + its back' : ''}`
+        : `${VERB} 1 artboard`;
     return `${VERB} ${artboardsWord(n)}`;
   }
   if (scope === 'canvas')
@@ -128,18 +141,21 @@ function secondsWords(seconds) {
 }
 
 /** "21 files · about 140 MB · about 20 seconds on this Mac". */
-export function estimateWords({ files, bytes, seconds, lane }) {
+export function estimateWords({ files, bytes, seconds, lane }, { pdfPages = null } = {}) {
   const where = lane === 'cloud' ? 'in the cloud' : 'on this Mac';
   return [
-    `${files} ${files === 1 ? 'file' : 'files'}`,
+    // 09 ex-print: one print PDF says its pages — "1 PDF · 2 pages", not "1 file"
+    pdfPages && files === 1
+      ? `1 PDF · ${pdfPages} ${pdfPages === 1 ? 'page' : 'pages'}`
+      : `${files} ${files === 1 ? 'file' : 'files'}`,
     `about ${bytesWords(bytes)}`,
     `${secondsWords(seconds)} ${where}`,
   ].join(' · ');
 }
 
 /** The summary line under the rows; null until the server has answered with something to say. */
-export const summaryWords = (est) =>
-  est && typeof est.files === 'number' && est.files > 0 ? estimateWords(est) : null;
+export const summaryWords = (est, opts) =>
+  est && typeof est.files === 'number' && est.files > 0 ? estimateWords(est, opts) : null;
 
 // ── image section (09 ex-social) ──────────────────────────────────────────────────────────────────
 export const IMAGE_FORMATS = [

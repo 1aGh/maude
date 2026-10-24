@@ -9,7 +9,7 @@
 // that has just loaded does not listen yet, so it is told again on `loaded` / `canvas-rendered`; an unchanged
 // answer is not re-sent, and a frame never told anything with nothing to say stays quiet (the ring relay's rule).
 
-import { getKindFilter, subscribeKindFilter } from './kind-filter-store.js';
+import { getDimKind, subscribeKindFilter } from './kind-filter-store.js';
 import { dimIds } from './layers-kind-model.js';
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
@@ -52,7 +52,7 @@ export function createKindDimLane({
     const origin = canvasTargetOrigin(frame, canvasOrigin);
     if (!origin) return;
     const file = frame.getAttribute('data-path') || frame.dataset?.path || '';
-    const ids = dimIds(boardsOf(file), getKindFilter());
+    const ids = dimIds(boardsOf(file), getDimKind());
     const json = JSON.stringify(ids);
     const before = spoken.get(target);
     if (!force && before === json) return;

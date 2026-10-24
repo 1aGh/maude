@@ -412,11 +412,22 @@ describe('the sheet: a print artboard', () => {
     await mountSheet();
     expect($('[data-testid="export-row-print"]')?.textContent).toContain('Add “B · zadní (FLAG)”');
     expect($('[data-testid="export-print-page-2"]') !== null).toBe(true);
+    // V2-8.5 C4 (09 ex-print): the title says the back is in the file, the summary counts pages, and the strip is
+    // 34 × 47 page thumbnails between ‹ and › (no numbered chips)
+    expect(text('[data-testid="export-title"]')).toContain('+ its back');
+    expect(text('[data-testid="export-summary"]')).toMatch(/^1 PDF · 2 pages · about /);
+    expect($('[data-testid="export-print-page-1"]')?.textContent).toBe('');
+    expect(($('[data-testid="export-print-page-prev"]') as HTMLButtonElement).disabled).toBe(true);
+    await click('[data-testid="export-print-page-next"]');
+    expect(text('[data-testid="export-print-caption"]')).toBe('Page 2 of 2 · A6 · 105 × 148 mm');
+    await click('[data-testid="export-print-page-prev"]');
     await click('[data-testid="export-print-page-2"]');
     expect(text('[data-testid="export-print-caption"]')).toBe('Page 2 of 2 · A6 · 105 × 148 mm');
     await click('[data-testid="export-print-back"]');
     expect($('[data-testid="export-print-page-2"]')).toBeNull();
     expect(text('[data-testid="export-print-caption"]')).toBe('Page 1 of 1 · A6 · 105 × 148 mm');
+    expect(text('[data-testid="export-title"]')).not.toContain('+ its back');
+    expect(text('[data-testid="export-summary"]')).toMatch(/^1 PDF · 1 page · /);
     await click('[data-testid="export-submit"]');
     expect(jobs()[0]?.body?.spec?.options?.print).toMatchObject({ back: false });
   });

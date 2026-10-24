@@ -90,7 +90,11 @@ export function PrintRows({ el, ctx }) {
     [can, canvas, id]
   );
 
-  const paperOptions = presetOptions('print');
+  // 08 ak-print-letak: the Paper row reads "A6" — the millimetres are the next row's
+  const paperOptions = presetOptions('print').map((o) => ({
+    ...o,
+    label: o.label.split(' · ')[0],
+  }));
   const paper = custom ? CUSTOM : `paper:${print?.paper ?? 'a4'}`;
   const pickPaper = (v) => {
     const o = paperOptions.find((x) => x.value === v);
@@ -183,6 +187,7 @@ export function PrintRows({ el, ctx }) {
           format={mmWord}
           parse={mmParse}
           steppers={false}
+          scrub={false}
           className="insp-nf insp-nf--one"
           onCommit={(n) => send({ bleedMm: n })}
         />
@@ -196,6 +201,7 @@ export function PrintRows({ el, ctx }) {
           format={mmWord}
           parse={mmParse}
           steppers={false}
+          scrub={false}
           className="insp-nf insp-nf--one"
           onCommit={(n) => send({ marginMm: n })}
         />

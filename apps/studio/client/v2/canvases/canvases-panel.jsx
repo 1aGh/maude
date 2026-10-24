@@ -578,7 +578,7 @@ export function CanvasesPanel({
       {/* P8 C3 (01 cf-blank, 02, 05, 11): a filter with one kind to pick is noise — the chips come once the project
           mixes kinds (08 draws them for that), and stay while one is on so it can be turned off. */}
       {tree.total > 0 && (kind !== 'all' || kindsMixed(kindCounts)) ? (
-        <KindChips counts={kindCounts} on={kind} onPick={pickKindChip} />
+        <KindChips counts={kindCounts} on={kind} onPick={(k) => pickKindChip(k, 'canvases')} />
       ) : null}
       <div className="cv-listwrap">
         {sortLane}

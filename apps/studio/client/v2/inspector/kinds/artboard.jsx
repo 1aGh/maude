@@ -35,15 +35,16 @@ function ArtboardFillRow({ el, ctx }) {
   const fam = useDsFamilies(ctx);
   const value = f.bg ? colourFromCss(f.bg) : null;
   return (
-    <Row k="Background" name="ab-background" dim={!value}>
+    <Row k="Fill" name="ab-background" dim={!value}>
       <ColorControl
         name="ab-background"
-        label="Artboard background"
+        label="Artboard fill"
         value={value}
         colors={fam.color}
         vals={fam.vals}
         allowNone
         noneLabel="None"
+        showOpacity
         disabled={!f.id}
         onChange={(c) =>
           f.id && h.onSetArtboardStyle?.(f.id, { background: c ? colourToCss(c) : null })
@@ -53,22 +54,35 @@ function ArtboardFillRow({ el, ctx }) {
   );
 }
 
+/**
+ * V2-8.5 C4 (08 ak-web-hug) — the web page's Layout is ONE row, "Layout: Top to bottom" (the board's card). Its Padding and
+ * Gap are exact numbers: they sit under Advanced with the other facts (`artboard-advanced-rows.jsx`), same writes.
+ */
 function ArtboardLayoutRows({ el, ctx }) {
+  const f = artboardFacts(el);
+  const h = handlersOf(ctx);
+  const set = (patch) => f.id && h.onSetArtboardStyle?.(f.id, patch);
+  return (
+    <Row k="Layout" name="ab-content">
+      <Select
+        value={f.layout}
+        ariaLabel="Artboard body layout"
+        testId="inspector-body-layout"
+        options={LAYOUT_OPTIONS}
+        onChange={(v) => set({ layout: v || null })}
+      />
+    </Row>
+  );
+}
+
+/** Padding and Gap of a web page's body — under Advanced (the board's card draws neither). */
+export function ArtboardSpacingRows({ el, ctx }) {
   const f = artboardFacts(el);
   const h = handlersOf(ctx);
   const tokens = useSpaceTokens(ctx);
   const set = (patch) => f.id && h.onSetArtboardStyle?.(f.id, patch);
   return (
     <>
-      <Row k="Content" name="ab-content">
-        <Select
-          value={f.layout}
-          ariaLabel="Artboard body layout"
-          testId="inspector-body-layout"
-          options={LAYOUT_OPTIONS}
-          onChange={(v) => set({ layout: v || null })}
-        />
-      </Row>
       <Row k="Padding" name="ab-padding">
         <LengthControl
           name="ab-padding"
@@ -120,6 +134,8 @@ export const ARTBOARD_SLOTS = Object.freeze([
       order: 10,
       kinds: ARTBOARD,
       when: ({ selection }) => hasBackground(kindOf(selection)),
+      // 08 board: "Fill" is a row of the one Artboard card, not a section of its own
+      headless: true,
       Body: ArtboardFillRow,
     },
   ],
@@ -130,6 +146,7 @@ export const ARTBOARD_SLOTS = Object.freeze([
       order: 10,
       kinds: ARTBOARD,
       when: ({ selection }) => hasPageLayout(kindOf(selection)),
+      headless: true,
       Body: ArtboardLayoutRows,
     },
   ],

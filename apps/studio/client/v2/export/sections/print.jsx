@@ -9,6 +9,7 @@
 // The three choices that shape the file (Bleed, Crop marks, Add the back) live in `state.adv` — the same fields
 // Advanced › Print PDF writes — so ticking one here and flipping the switch there are one setting.
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ANNOTATIONS_LABEL, ANNOTATIONS_SUB, OTHER_GROUPS } from '../export-copy.js';
 import { Check, Hint, Row, Seg } from '../parts.jsx';
@@ -117,7 +118,19 @@ export function PrintSection({
               />
             </span>
             {pages > 1 ? (
+              // 09 ex-print: a strip of page thumbnails (34 × 47) with ‹ › — page 1 is the artboard's own picture, the
+              // back a blank sheet until its picture is asked for
               <span className="ex-pages" data-testid="export-print-pages">
+                <button
+                  type="button"
+                  className="ex-pg-nav"
+                  data-testid="export-print-page-prev"
+                  aria-label="Previous page"
+                  disabled={at === 0}
+                  onClick={() => setPage(at - 1)}
+                >
+                  <ChevronLeft size={12} strokeWidth={1.75} aria-hidden="true" />
+                </button>
                 {Array.from({ length: pages }, (_, i) => (
                   <button
                     // biome-ignore lint/suspicious/noArrayIndexKey: pages are positions
@@ -128,11 +141,22 @@ export function PrintSection({
                     data-testid={`export-print-page-${i + 1}`}
                     aria-label={`Page ${i + 1}`}
                     aria-pressed={i === at}
+                    style={
+                      i === 0 && picture ? { backgroundImage: `url("${picture}")` } : undefined
+                    }
                     onClick={() => setPage(i)}
-                  >
-                    {i + 1}
-                  </button>
+                  />
                 ))}
+                <button
+                  type="button"
+                  className="ex-pg-nav"
+                  data-testid="export-print-page-next"
+                  aria-label="Next page"
+                  disabled={at === pages - 1}
+                  onClick={() => setPage(at + 1)}
+                >
+                  <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" />
+                </button>
               </span>
             ) : null}
             <span className="ex-prev-cap" data-testid="export-print-caption">

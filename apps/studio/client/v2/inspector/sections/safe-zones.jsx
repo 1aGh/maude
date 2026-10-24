@@ -6,20 +6,22 @@
 // route). Show on canvas is the person's own view state — shown unless they turned it off, per canvas — so it is not an
 // edit and not an undo step. The bands are drawn by the canvas (safe-zones-overlay.tsx) and never exported.
 
-import { useEffect, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   SAFE_ZONE_OPTIONS,
   SAFE_ZONES_FOOT,
   safeZonePreset,
 } from '../../../../kinds/safe-zones.ts';
-import { Select, Toggle } from '../../../inspector-controls.jsx';
+import { Toggle } from '../../../inspector-controls.jsx';
 import {
   readSafeZonesVisible,
   writeSafeZones,
   writeSafeZonesVisible,
 } from '../safe-zones-write.js';
 import { registerSlot } from '../slots.js';
+import { useDismiss } from '../token-chip.jsx';
 import { Quiet, Row } from './row.jsx';
 
 /** Safe zones are for what is made for a screen of someone else's app: a fixed size or a video. */
@@ -36,6 +38,69 @@ export function artboardKindOf(el) {
 export function safeZonesOf(el) {
   const v = el?.attrs?.['data-dc-safe-zones'];
   return safeZonePreset(v) ? v : '';
+}
+
+/**
+ * V2-8.5 C4 (08 ak-safe-zones) — the platform is a select-shaped trigger that opens the board's FLOATING menu: a "Safe zones"
+ * head, one row per platform with a check column, a rule, and the footnote ("Shown on the canvas only — never exported…").
+ * The platform's own note is the row's tooltip; it no longer sits in the card.
+ */
+function ZonesMenu({ value, onPick }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useDismiss(open, () => setOpen(false), ref);
+  const current = SAFE_ZONE_OPTIONS.find((o) => o.value === value) ?? SAFE_ZONE_OPTIONS[0];
+  return (
+    <span className="insp-zones" ref={ref}>
+      <button
+        type="button"
+        className="st-cp-nsel insp-zones-trigger"
+        data-testid="insp-safe-zones"
+        data-value={value}
+        aria-label="Safe zones"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span>{current.label}</span>
+        <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div
+          className="insp-menu insp-zmenu"
+          role="menu"
+          aria-label="Safe zones"
+          data-testid="insp-safe-zones-menu"
+        >
+          <span className="insp-zmenu-h">Safe zones</span>
+          {SAFE_ZONE_OPTIONS.map((o) => (
+            <button
+              key={o.value || 'none'}
+              type="button"
+              role="menuitemradio"
+              aria-checked={o.value === value}
+              className="insp-menu-i insp-zmenu-i"
+              data-testid={`insp-safe-zones-${o.value || 'none'}`}
+              title={safeZonePreset(o.value)?.note}
+              onClick={() => {
+                setOpen(false);
+                onPick(o.value);
+              }}
+            >
+              <span className="insp-zmenu-ic" aria-hidden="true">
+                {o.value === value ? <Check size={14} strokeWidth={1.75} /> : null}
+              </span>
+              <span className="insp-zmenu-lab">{o.label}</span>
+            </button>
+          ))}
+          <span className="insp-zmenu-sep" aria-hidden="true" />
+          <span className="insp-zmenu-foot" data-testid="insp-safe-zones-foot">
+            {SAFE_ZONES_FOOT}
+          </span>
+        </div>
+      ) : null}
+    </span>
+  );
 }
 
 export function SafeZonesBody({ el, ctx }) {
@@ -81,13 +146,7 @@ export function SafeZonesBody({ el, ctx }) {
   return (
     <>
       <Row k="Safe zones" name="safe-zones">
-        <Select
-          value={value}
-          options={SAFE_ZONE_OPTIONS}
-          ariaLabel="Safe zones"
-          testId="insp-safe-zones"
-          onChange={pick}
-        />
+        <ZonesMenu value={value} onPick={pick} />
       </Row>
       {value ? (
         <Row k="Show on canvas" name="safe-zones-show">
@@ -97,9 +156,6 @@ export function SafeZonesBody({ el, ctx }) {
         </Row>
       ) : null}
       {said ? <Quiet testid="insp-safe-zones-said">{said}</Quiet> : null}
-      {value ? <Quiet testid="insp-safe-zones-note">{safeZonePreset(value)?.note}</Quiet> : null}
-      {/* V2-8.5 C2 (copy · ak-social): the platforms' footnote belongs to a chosen platform, not to "None" */}
-      {value ? <Quiet testid="insp-safe-zones-foot">{SAFE_ZONES_FOOT}</Quiet> : null}
     </>
   );
 }

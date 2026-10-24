@@ -41,10 +41,27 @@ export const PrintIcon = ({ size }) => (
   </Svg>
 );
 
+// V2-8.5 C4 (08 ak-picker): a video is the kit's picture frame with a play mark — not a camera
 export const VideoIcon = ({ size }) => (
   <Svg size={size}>
-    <rect x="2" y="4" width="8" height="8" rx="1.2" />
-    <path d="M10 7.2l4-2v5.6l-4-2z" />
+    <rect x="2" y="3.5" width="12" height="9" rx="2.5" />
+    <path d="M6.75 6.1v3.8L9.9 8z" />
+  </Svg>
+);
+
+// the size picker's App (laptop) and Social (picture) group heads — the kit's own glyphs
+export const LaptopIcon = ({ size }) => (
+  <Svg size={size}>
+    <rect x="3.5" y="3.5" width="9" height="6.5" rx="1.25" />
+    <path d="M1.75 12.5h12.5" />
+  </Svg>
+);
+
+export const ImageIcon = ({ size }) => (
+  <Svg size={size}>
+    <rect x="2.5" y="3" width="11" height="10" rx="2" />
+    <circle cx="6" cy="6.5" r="1.25" />
+    <path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" />
   </Svg>
 );
 

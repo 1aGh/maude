@@ -164,6 +164,27 @@ async function frame(el: Record<string, unknown> = {}) {
   );
 }
 
+describe('Change kind — after it', () => {
+  test('the toast says a copy was made (copy glyph, the source called a post) with one Undo', async () => {
+    const { NotificationHost } = await import('../notifications.tsx');
+    const { notifyConverted } = await import('../client/v2/kinds/ConvertDialog.jsx');
+    const host = await mount(<NotificationHost />);
+    await act(async () => {
+      notifyConverted({
+        plan: { paperName: 'A6' },
+        copy: true,
+        sourceWord: 'post',
+        onUndo: () => {},
+      });
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    const card = host.ownerDocument.querySelector('[data-testid="notice-convert-kind"]');
+    expect(card?.textContent).toContain('The A6 copy is beside the post. The post is unchanged.');
+    expect(card?.querySelector('.maude-notice-ic svg')).toBeTruthy();
+    expect(card?.querySelector('.maude-notice-ic--duplicate')).toBeTruthy();
+  });
+});
+
 describe('Change kind — the dialog', () => {
   test('the Size select of a fixed size lists the papers; picking A6 asks first and resizes nothing', async () => {
     const host = await frame();
@@ -234,6 +255,8 @@ describe('Change kind — the dialog', () => {
       madeFrom: { 'ig-a6': { artboard: 'ig', label: 'Oznámení' } },
     });
     expect(q('convert-dialog')).toBeNull();
+    // V2-8.5 C4 (08 ak-convert-after): the new A6 copy is what gets selected; the toast wears the copy glyph
+    expect(ran).toContainEqual({ dgn: 'select-by-id', artboardId: 'ig-a6' });
 
     sent.length = 0;
     await pick(q('insp-ab-preset', host), 'paper:a5');

@@ -128,6 +128,7 @@ export function applyShellNavigate(payload, deps) {
 /** These three are states of the app (a tab was reopened, a link opened one), not outcomes of something the person
  *  just did: the one-line pill at the top, no success/error colouring (06 ad-open-all, kit `.k-toast--top`). */
 const TOP_PILL = Object.freeze({ kind: 'info', placement: 'top' });
+const LINK_PILL = Object.freeze({ ...TOP_PILL, icon: 'link' });
 
 export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   let alive = true;
@@ -166,7 +167,7 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   // V2-3.6 L1: a link opened this project as a NEW tab (parked, like the restore count).
   ask('take_link_opened', (p) => {
     const name = cleanName(p?.name);
-    if (alive && name) toast(linkOpenedWords(name), true, undefined, TOP_PILL);
+    if (alive && name) toast(linkOpenedWords(name), true, undefined, LINK_PILL);
   });
   return () => {
     alive = false;

@@ -127,7 +127,8 @@ export function useTabs({
     frameFor: (f) => iframesRef.current.get(f),
     setPresent: () => {},
     // S6.11b — a thread landing says where it came from, in S1.18's words (open-link.js)
-    toast: (title) => shellToast(title, true),
+    toast: (title) =>
+      shellToast(title, true, undefined, { kind: 'info', placement: 'top', icon: 'link' }),
     threadAuthor,
   };
   useEffect(() => {
@@ -135,7 +136,7 @@ export function useTabs({
     return startShellEvents({
       invoke,
       listen: listenHere,
-      toast: (title) => notify({ title, kind: 'info' }),
+      toast: (title, _ok, _action, opts) => notify({ title, kind: 'info', ...opts }),
       onNavigate: (p) => applyShellNavigate(p, shellNavRef.current),
     });
   }, [treeLoaded, cfg.cloud]);

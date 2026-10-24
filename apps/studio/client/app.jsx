@@ -2482,7 +2482,8 @@ function ShellTimelinePanel() {
                 shellToast('Title added.', true);
                 if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
                 // 07: the new title is selected, so the Title inspector (words, font, motion) is what opens next
-                if (typeof j.stableId === 'string' && j.stableId) setTimelineSelectedClip(j.stableId);
+                if (typeof j.stableId === 'string' && j.stableId)
+                  setTimelineSelectedClip(j.stableId);
               }
             })
             .catch(() => shellToast('Title failed: network error'));
@@ -3245,7 +3246,7 @@ function ShellTree() {
           initialScope={exportDialog.scope}
           request={exportDialog}
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
-          projectName={cfg?.name || ''}
+          projectName={cfg?.cloud?.projectName || cfg?.name || project || ''}
           // S8.9 — Can comment gets the sheet with one line on top; the server is the lock
           access={{ canEdit: !viewerMode, role: cfg?.cloud?.role }}
           lastFinishedAt={exportLastFinishedAt}

@@ -72,3 +72,19 @@ Re-shot on the stage C round 2 tip (feat/maude-v2 6d19daa9a), release-built clie
 Extra frame: `ak-picker-custom` (the picker with a custom-size state) is shot into the impl folder only; it has no board artboard of that id, so no pair was made.
 
 Harness notes: the What's New panel opens over a fresh project and is now closed by `run.mjs` before shooting. Scenario `t08.mjs` unchanged from stage A.
+
+## After (round 4, p8-c4-kindsexport) — size picker, inspector slots, convert, kind-dim, warn outlines
+
+Re-shot light + dark with the committed stage-D harness (`_d-harness-g3`, t08 now waits for the convert dialog's "Check after" list to resolve — it takes ~3 s, the stage-D shot at 1.8 s caught "Checking…"; not a product bug). Pairs overwritten in this folder.
+
+| artboard id | after (round 4) |
+|---|---|
+| ak-picker, ak-picker-full | App head = laptop, Social head = picture, Video head + tile = frame with a play mark (not the phone / camera); "Grows as you add" and "Fewer" chevrons point down; search rests on bg-3 (30 px, accent ring only once something is typed); Custom size… keeps the picker open with the Custom tile lit and the mm island BESIDE it |
+| ak-picker-custom | re-shot (extra frame) — the island beside the open picker |
+| ak-web-hug, ak-web-widths | Fill is a row ("Fill  None") and Layout one row ("Layout  Top to bottom") in the one Artboard card — no section heads; Padding / Gap moved under Advanced. Add-a-width menu / sibling boards still not driven |
+| ak-social, ak-safe-zones | the safe-zone platform list is the floating checked menu (head, check column, rule, footnote); the platform notes left the card (row tooltip); Fill row |
+| ak-print-letak, ak-warnings | Paper reads "A6" (not "A6 · 105 × 148 mm"), no drag grip on Bleed / Safe margin |
+| ak-convert, ak-convert-after | the dialog is shot once its list resolved; after "Make A6 print" the new A6 copy is SELECTED (Print inspector: Paper A6, Made from, warnings) and the toast is one line with the copy glyph |
+| ak-mixed-filter | the Canvases chip no longer dims the open canvas (only a Layers pick does) |
+| ak-warnings | the layer a cut warning names carries a dashed warn outline + "Crosses the cut" tag (canvas, edit chrome only; the fixture's flyer has no layer across the cut, so the shot shows the label marks only) |
+| ak-real-print, ak-real-web | unchanged (matched in stage D) |

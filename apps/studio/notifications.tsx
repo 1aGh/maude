@@ -123,6 +123,14 @@ export function summarizeNoticeText(text: unknown): string {
   return compact.length > 280 ? `${compact.slice(0, 279)}…` : compact;
 }
 
+/** ONE rule (v2-p8-c4-toast-dock-or-top): the pill sits in the dock — bottom-centre above the canvas toolbar —
+ *  unless the caller says it is a state of the app (`placement: 'top'`) or the video timeline occupies the dock
+ *  (07: Split / Captions added), where a bottom pill would cover it. */
+function noticePlacement(entry: Notice): 'top' | 'bottom' {
+  if (entry.placement) return entry.placement;
+  return typeof document !== 'undefined' && document.querySelector('.tl-track') ? 'top' : 'bottom';
+}
+
 /** The kit glyph a kind carries (06 `.k-toast-ic`): done, problem; plain info has none. */
 const KIND_ICON: Partial<Record<NoticeKind, string>> = {
   success: 'done',
@@ -217,7 +225,7 @@ function MountedNotice({
       toast.custom(() => <NoticeCard entry={entry} />, {
         id: token,
         duration: Infinity,
-        position: entry.placement === 'top' ? 'top-center' : 'bottom-center',
+        position: noticePlacement(entry) === 'top' ? 'top-center' : 'bottom-center',
         onDismiss: () => {
           if (presentationId.current === token) acknowledge(entry.id);
         },
@@ -240,8 +248,9 @@ function MountedNotice({
 }
 
 const NOTICE_CSS = `
-.maude-notifications [data-sonner-toaster] { --width: min(360px, calc(100vw - 32px)); z-index: 8000; }
-.maude-notifications [data-sonner-toast] { width: var(--width); }
+.maude-notifications [data-sonner-toaster] { --width: min(640px, calc(100vw - 32px)); z-index: 8000; }
+/* the kit pill hugs its sentence (one line, up to the list's width); it does not stretch to a fixed card */
+.maude-notifications [data-sonner-toast] { width: fit-content; max-width: var(--width); margin-inline: auto; }
 .maude-notifications [data-sonner-toast][data-expanded=false][data-front=false] {
   overflow: hidden; border-radius: var(--radius-md, 8px);
 }
@@ -331,7 +340,7 @@ export function NotificationHost({
         mobileOffset={{ left: 16, right: 16, bottom: 84, top: 16 }}
         visibleToasts={3}
         expand={focused}
-        style={{ '--width': 'min(360px, calc(100vw - 32px))' } as CSSProperties}
+        style={{ '--width': 'min(640px, calc(100vw - 32px))' } as CSSProperties}
         containerAriaLabel="Notifications"
       />
       {notices.map((entry) => (
