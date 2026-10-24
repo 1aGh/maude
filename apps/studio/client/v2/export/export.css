@@ -581,6 +581,15 @@
     padding-top: var(--space-3, 12px);
     box-shadow: inset 0 0.5px 0 var(--border-default);
   }
+  /* the batch sheet's rarer rows (Other format, Annotations) at the top of Advanced: rows in a column, a
+     hairline under them before the fold's own fields */
+  .ex-adv-extra {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding-bottom: var(--space-2, 8px);
+    border-bottom: 0.5px solid var(--border-default);
+  }
   .ex-adv-btn.v2-fold-btn {
     flex: 1;
     width: auto;
