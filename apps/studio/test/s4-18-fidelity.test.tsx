@@ -25,7 +25,9 @@ import { createAnnotationPrefsStore } from '../client/v2/shell/annotation-prefs-
 test('an-sticky: sticky words use --font-rounded; standalone text keeps its face', () => {
   expect(String(slotTextStyle('sticky', { fontSize: 14 }).fontFamily)).toContain('--font-rounded');
   expect(String(slotTextStyle('sticky', { fontSize: 14 }).fontFamily)).not.toContain('monospace');
-  expect(String(slotTextStyle('text', { fontSize: 14 }).fontFamily)).toContain('monospace');
+  // P8 C5 (15 .an-tx): the layer's standalone words are in the rounded face too - mono is Advanced + code only
+  expect(String(slotTextStyle('text', { fontSize: 14 }).fontFamily)).toContain('font-rounded');
+  expect(String(slotTextStyle('text', { fontSize: 14 }).fontFamily)).not.toContain('monospace');
 });
 
 test('an-stk-gallery: the Stamps row says how stamps work', async () => {

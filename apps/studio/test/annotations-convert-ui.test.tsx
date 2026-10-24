@@ -106,9 +106,13 @@ const click = async (el: Element | null) => {
 describe('the small toolbar over a sticky', () => {
   test('Resolve and Turn into a comment run the registry actions', async () => {
     const { host, ran } = await mountToolbar([sticky()], ['st']);
+    // P8-C2 (15 an-sticky): the words live behind the sticky's "..." instead of crowding the bar
+    expect(byId(host, 'annot-ctx-resolve')).toBeNull();
+    await click(byId(host, 'annot-ctx-more'));
     expect(byId(host, 'annot-ctx-resolve')?.textContent).toBe('Resolve');
     expect(byId(host, 'annot-ctx-to-comment')?.textContent).toBe('Turn into a comment');
     await click(byId(host, 'annot-ctx-resolve'));
+    await click(byId(host, 'annot-ctx-more'));
     await click(byId(host, 'annot-ctx-to-comment'));
     expect(ran).toEqual(['annotation.resolve', 'annotation.to-comment']);
   });
@@ -117,6 +121,7 @@ describe('the small toolbar over a sticky', () => {
       [sticky({ resolved: { by: 'Jonas', at: '2026-10-19T10:00:00Z' } })],
       ['st']
     );
+    await click(byId(host, 'annot-ctx-more'));
     const b = byId(host, 'annot-ctx-resolve');
     expect(b?.textContent).toBe('Reopen');
     expect(b?.getAttribute('aria-pressed')).toBe('true');
