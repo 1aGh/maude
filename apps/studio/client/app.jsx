@@ -1699,7 +1699,7 @@ function ShellProjectPill() {
     // S9.21 — Ask to edit names the open canvas designRoot-relative (the hub keys a grant that way)
     designRel: cfg?.designRel,
     canvasName: displayName(basename(activePath || '')),
-    toast: (m, ok, action) => shellToast(m, ok, action),
+    toast: (m, ok, action, extra) => shellToast(m, ok, action, extra),
     postToActiveCanvas,
     openPanelExclusive,
     toggleRightPanel,
