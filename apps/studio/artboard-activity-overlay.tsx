@@ -246,7 +246,7 @@ export function ArtboardRingsLayer() {
       if (e.source !== window.parent) return;
       if ((e.data as { dgn?: string } | null)?.dgn !== 'ai-runs') return;
       const m = acceptFromShell(e, window);
-      if (!m || m.dgn !== 'ai-runs') return;
+      if (m?.dgn !== 'ai-runs') return;
       const next = m.artboards as AiRings;
       const now = Date.now();
       const justDone: string[] = [];
@@ -267,12 +267,16 @@ export function ArtboardRingsLayer() {
       }
       // a ring that went away without a "done" (stopped, failed) forgets its run
       for (const id of [...ranAt.current.keys()])
-        if (!next[id] && now - (ranAt.current.get(id) ?? 0) > FRESH_WINDOW_MS) ranAt.current.delete(id);
+        if (!next[id] && now - (ranAt.current.get(id) ?? 0) > FRESH_WINDOW_MS)
+          ranAt.current.delete(id);
       setDrawing((d) => {
         // it is drawing only while the ring runs; any other state (or no ring) lets the word go
         const keep = Object.entries(d).filter(([id]) => next[id]?.state === 'running');
         if (!taken.length && keep.length === Object.keys(d).length) return d;
-        return { ...Object.fromEntries(keep), ...Object.fromEntries(taken.map((id) => [id, null])) };
+        return {
+          ...Object.fromEntries(keep),
+          ...Object.fromEntries(taken.map((id) => [id, null])),
+        };
       });
       if (justDone.length) {
         setFresh((f) => new Set([...f, ...justDone]));
@@ -350,7 +354,11 @@ export function ArtboardRingsLayer() {
             data-at="below"
             data-fresh={r.state === 'done' && fresh.has(id) ? 'true' : undefined}
             data-drawing={
-              r.state === 'running' && id in drawing ? (drawing[id] ? 'true' : 'pending') : undefined
+              r.state === 'running' && id in drawing
+                ? drawing[id]
+                  ? 'true'
+                  : 'pending'
+                : undefined
             }
           >
             <span className="dc-ai-sweep">

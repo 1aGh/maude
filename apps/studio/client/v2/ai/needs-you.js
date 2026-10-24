@@ -54,7 +54,8 @@ const nameOf = (b) => shortArtboardName(b?.label ?? b?.id ?? '');
  */
 function workWords(work, kind, toolVerb, target) {
   if (!work || kind !== 'edit') return null;
-  const canvas = canvasName(work.canvas) ?? (target && CANVAS_FILE.test(target) ? canvasName(target) : null);
+  const canvas =
+    canvasName(work.canvas) ?? (target && CANVAS_FILE.test(target) ? canvasName(target) : null);
   const base = work.canvas ? String(work.canvas).split('/').pop() : null;
   if (!canvas || !(CANVAS_FILE.test(target ?? '') || (base && target === base))) return null;
   const verb = toolVerb === 'Write' ? 'Add' : 'Change';
@@ -64,7 +65,11 @@ function workWords(work, kind, toolVerb, target) {
   const what = n === 0 ? canvas : n <= 2 ? names.join(' and ') : `${n} artboards`;
   const button = n === 0 ? verb : n === 1 ? `${verb} ${names[0]}` : `${verb} ${n} artboards`;
   const line = `${verb.toLowerCase()} ${what}`;
-  return { verb: button, title: n === 0 ? `${verb} ${canvas}?` : `${verb} ${what} in ${canvas}?`, line };
+  return {
+    verb: button,
+    title: n === 0 ? `${verb} ${canvas}?` : `${verb} ${what} in ${canvas}?`,
+    line,
+  };
 }
 
 function canvasName(path) {
@@ -306,9 +311,10 @@ export function failureCause(raw) {
   const t = String(raw ?? '');
   // an error that already speaks plainly ("Couldn't finish — the footage file is missing. Nothing changed.") is
   // quoted, not re-guessed from keywords; the safe half is said once, by the caller, from what the run touched
-  const own = /^Couldn['’]t finish\s*[—–-]\s*([^.\n]{3,140}?)\.?(?:\s+(?:Nothing changed|Undo this chat[^.]*)\.?)?\s*$/i.exec(
-    t.trim()
-  );
+  const own =
+    /^Couldn['’]t finish\s*[—–-]\s*([^.\n]{3,140}?)\.?(?:\s+(?:Nothing changed|Undo this chat[^.]*)\.?)?\s*$/i.exec(
+      t.trim()
+    );
   if (own) return own[1].trim();
   if (/rate.?limit|usage limit|too many requests|\b429\b|quota|overloaded|\b529\b/i.test(t))
     return 'Claude is too busy to answer right now';

@@ -1,12 +1,12 @@
 // P8 stage C round 3 (03 AI chat): the ask / failure / done copy comes from the WORK, not the tool call.
 import { describe, expect, test } from 'bun:test';
-import { doneNotice, needsYouNotice } from '../client/v2/ai/needs-you-toast.js';
 import {
   failureCause,
   failureModel,
   needsYouLine,
   permissionModel,
 } from '../client/v2/ai/needs-you.js';
+import { doneNotice, needsYouNotice } from '../client/v2/ai/needs-you-toast.js';
 
 const edit = (path: string, title = `Edit ${path}`) => ({
   id: 'p1',
@@ -36,10 +36,16 @@ describe('P8 c3: the permission question is about the work (03 ai-permission)', 
     expect(needsYouLine(m)).toBe('change 4 artboards');
   });
   test('one or two artboards are named; none known falls back to the canvas', () => {
-    const one = permissionModel(edit('Combine-kampan.tsx'), { ...four, boards: four.boards.slice(0, 1) });
+    const one = permissionModel(edit('Combine-kampan.tsx'), {
+      ...four,
+      boards: four.boards.slice(0, 1),
+    });
     expect(one.title).toBe('Change Post 1:1 in Combine-kampan?');
     expect(one.verb).toBe('Change Post 1:1');
-    const two = permissionModel(edit('Combine-kampan.tsx'), { ...four, boards: four.boards.slice(0, 2) });
+    const two = permissionModel(edit('Combine-kampan.tsx'), {
+      ...four,
+      boards: four.boards.slice(0, 2),
+    });
     expect(two.title).toBe('Change Post 1:1 and Story 9:16 in Combine-kampan?');
     expect(two.verb).toBe('Change 2 artboards');
     const none = permissionModel(edit('Combine-kampan.tsx'), { ...four, boards: [] });
@@ -47,10 +53,10 @@ describe('P8 c3: the permission question is about the work (03 ai-permission)', 
     expect(none.verb).toBe('Change');
   });
   test('a new canvas file reads Add; no work context or a non-canvas file keeps the tool words', () => {
-    const w = permissionModel(
-      edit('New.tsx', 'Write /proj/.design/ui/New.tsx'),
-      { ...four, canvas: 'ui/New.tsx' }
-    );
+    const w = permissionModel(edit('New.tsx', 'Write /proj/.design/ui/New.tsx'), {
+      ...four,
+      canvas: 'ui/New.tsx',
+    });
     expect(w.verb).toBe('Add 4 artboards');
     expect(permissionModel(edit('Combine-kampan.tsx')).title).toBe('Edit Combine-kampan.tsx?');
     const css = permissionModel(edit('theme.css'), four);
@@ -105,8 +111,14 @@ describe('P8 c3: the done toast says what was done and offers Undo (01 cf-ai-don
   });
   test('a reply that opens with Done is quoted; an answer-only run offers Show', () => {
     expect(
-      doneNotice({ id: 'd', text: 'Done — Post 1:1 is greener.', run, artboards: boards, onShow() {}, onUndo() {} })
-        ?.title
+      doneNotice({
+        id: 'd',
+        text: 'Done — Post 1:1 is greener.',
+        run,
+        artboards: boards,
+        onShow() {},
+        onUndo() {},
+      })?.title
     ).toBe('Done — Post 1:1 is greener.');
     const answered = doneNotice({
       id: 'd',
@@ -117,8 +129,9 @@ describe('P8 c3: the done toast says what was done and offers Undo (01 cf-ai-don
       onUndo() {},
     });
     expect(answered?.action.label).toBe('Show');
-    expect(needsYouNotice({ id: 'n', canvas: 'x/Combine.tsx', line: 'change 4 artboards', onOpen() {} }).title).toBe(
-      'AI needs you on Combine — change 4 artboards?'
-    );
+    expect(
+      needsYouNotice({ id: 'n', canvas: 'x/Combine.tsx', line: 'change 4 artboards', onOpen() {} })
+        .title
+    ).toBe('AI needs you on Combine — change 4 artboards?');
   });
 });

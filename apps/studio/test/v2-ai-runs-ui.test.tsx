@@ -408,7 +408,16 @@ describe('the rings on the canvas', () => {
     board.setAttribute('data-dc-screen', 'tablet');
     board.setAttribute('data-dc-label', 'Tablet');
     board.getBoundingClientRect = () =>
-      ({ left: 10, top: 10, width: 234, height: 334, right: 244, bottom: 344, x: 10, y: 10 }) as DOMRect;
+      ({
+        left: 10,
+        top: 10,
+        width: 234,
+        height: 334,
+        right: 244,
+        bottom: 344,
+        x: 10,
+        y: 10,
+      }) as DOMRect;
     document.body.append(board);
     await act(async () => {
       await new Promise((r) => requestAnimationFrame(() => r(null)));

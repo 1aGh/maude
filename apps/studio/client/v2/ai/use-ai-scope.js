@@ -128,7 +128,10 @@ export function useAiScope({
   );
   const fromMeta = useCanvasArtboards(activeCanvas, selectedIds);
   const indexBoards = useBoardLabels(designRel, 0).get(activeCanvas);
-  const artboards = useMemo(() => mergeArtboardNames(fromMeta, indexBoards), [fromMeta, indexBoards]);
+  const artboards = useMemo(
+    () => mergeArtboardNames(fromMeta, indexBoards),
+    [fromMeta, indexBoards]
+  );
   // S4.15 — stickies / arrows selected in Preview (`annotation-selection`): the chip follows them while they
   // are selected. Annotation and element selections are exclusive (Preview vs Edit), so whichever is non-empty.
   const annVersion = useSyncExternalStore(
