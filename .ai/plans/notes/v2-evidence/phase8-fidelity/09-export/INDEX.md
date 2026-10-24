@@ -92,3 +92,35 @@ Re-shot light + dark with the committed stage-D harness (`_d-harness-g3`, t09). 
 | ex-inspector | the "Copied … as a PNG" pill is one line (fit-content), still bottom-docked |
 | ex-video, ex-offline | unchanged: the filmstrip's clip stills / names / music bed and the cloud / this-Mac render cards are open (see fix-c4-kindsexport.md) |
 | ex-advanced, ex-formats, ex-history, ex-share-vs | unchanged this round (open) |
+
+## FINAL (stage D2, d3881fe41) — p8-d2-g3
+
+Every reachable id re-shot on the merged tip (release-built client, Google Chrome channel for H.264, light + dark), IMPL side only; spec frames reused from stage D (the board .tsx files and .design are byte-identical to the stage-D copy: `git diff 6d19daa9a HEAD -- .design` is empty). No match/mismatch judged here. Pairs: full-size-path.txt (last line).
+
+| artboard id | light | dark |
+|---|---|---|
+| ex-social | re-shot | re-shot |
+| ex-print | re-shot | re-shot |
+| ex-web | re-shot | re-shot |
+| ex-video | re-shot | re-shot |
+| ex-inspector | re-shot | re-shot |
+| ex-formats | re-shot | re-shot |
+| ex-canvas | re-shot | re-shot |
+| ex-batch-pick | re-shot (all artboards of a 6-artboard mixed canvas) | re-shot (all artboards of a 6-artboard mixed canvas) |
+| ex-batch | re-shot (folder scope if the chip exists) | re-shot (folder scope if the chip exists) |
+| ex-progress | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) |
+| ex-states | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) |
+| ex-history | re-shot (empty (no jobs run in the browser lane)) | re-shot (empty (no jobs run in the browser lane)) |
+| ex-share-vs | re-shot (the Share panel only; the Export-points-at-Share hint needs a project with people in it) | re-shot (the Share panel only; the Export-points-at-Share hint needs a project with people in it) |
+| ex-handoff | re-shot | re-shot |
+| ex-handoff-ready | unreachable — the Ready result with a copy command needs a finished AI handoff run (claude is stubbed signed-out) | unreachable — the Ready result with a copy command needs a finished AI handoff run (claude is stubbed signed-out) |
+| ex-handoff-edges | re-shot (the signed-out path; offline and blockers not driven) | re-shot (the signed-out path; offline and blockers not driven) |
+| ex-offline | re-shot (browser-level offline only; the app’s own offline detection may not trip) | re-shot (browser-level offline only; the app’s own offline detection may not trip) |
+| ex-huge | re-shot (13 canvases, not 93 / 524 artboards) | re-shot (13 canvases, not 93 / 524 artboards) |
+| ex-print-warn | re-shot (same sheet as ex-print; what the preflight says depends on the fixture (a 1 px bleed overflow, no font warning)) | re-shot (same sheet as ex-print; what the preflight says depends on the fixture (a 1 px bleed overflow, no font warning)) |
+| ex-edges | unreachable — viewer-role export and "AI is changing this artboard" need a viewer session / a live AI edit | unreachable — viewer-role export and "AI is changing this artboard" need a viewer session / a live AI edit |
+| ex-advanced | re-shot | re-shot |
+
+Totals: 38 id×theme re-shot, 4 unreachable (spec-only frames kept from stage A/D).
+
+Harness notes (D2): ex-formats is cropped to the sheet plus the formats list (the list hangs off the sheet edge and was clipped before). ex-progress / ex-states are the real Exports panel with a seeded job list (route intercept on GET /_api/export-jobs). ex-handoff-ready and ex-edges stay unreachable (need a finished AI handoff run / a viewer session).
