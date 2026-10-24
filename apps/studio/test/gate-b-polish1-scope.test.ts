@@ -120,6 +120,7 @@ const HOOKS = new Set([
   // layout wrappers on this lane's sheets, reviewed in gate-B polish 1: the children carry the look
   'bi-hd', // Import a brand / from Figma: the header around .bi-title
   'ex-other-grp', // Other…: role=group around .ex-other-gh + rows
+  'ex-other-l', // Other… row label: a flex child of .ex-other-row, which carries the look (the tick moved to the row's ::before, P8-C4)
   'ex-panel-day', // Exports panel: the section around .ex-panel-t + job rows
   'fi-dest-k', // Figma › Put in: the label word inside .fi-dest
   'fi-pick', // Figma frame picker: wrapper around .fi-pick-hd + .fi-frames
@@ -141,7 +142,6 @@ const DEBT = new Set([
   'dsr-group',
   'dst-stack',
   'insp-adv-kind',
-  'insp-kind',
   'insp-kinds',
   'lp-browse-run',
   'lp-trash-group',

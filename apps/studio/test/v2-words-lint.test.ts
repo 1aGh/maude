@@ -41,6 +41,12 @@ const ALLOW: readonly { file: string; rule: string; text: RegExp; why: string }[
     why: 'S10.15b: the bring-up brief the person hands the AI chat, in their voice; a prompt for the agent, never chrome',
   },
   {
+    file: 'timeline/Timeline.jsx',
+    rule: 'i',
+    text: /· I and O set it/,
+    why: 'P8-C3: the loop band names its keys, I and O (in/out points) — key names, not the pronoun',
+  },
+  {
     file: 'present/',
     rule: 'screen',
     text: /audience screen/i,

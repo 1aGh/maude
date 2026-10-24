@@ -96,8 +96,9 @@ describe('the model: every banner message has an item', () => {
     );
   });
 
-  test('the reconnect flash is a quiet success; solo, unlinked and not-syncable say nothing', () => {
-    expect(syncCallout(linked({ flash: 'synced' }))?.tone).toBe('ok');
+  test('the reconnect flash is no callout (said once, by the back-online toast); solo, unlinked and not-syncable say nothing', () => {
+    // P8 C7: a second "Back online" line landed beside sync-states/back-online.jsx's own toast, so the flash left the banner
+    expect(syncCallout(linked({ flash: 'synced' }))).toBeNull();
     expect(syncCallout(null)).toBeNull();
     expect(syncCallout({ linked: false })).toBeNull();
     expect(syncCallout(linked({ notSyncable: true, conflicts: [diverged()] }))).toBeNull();
