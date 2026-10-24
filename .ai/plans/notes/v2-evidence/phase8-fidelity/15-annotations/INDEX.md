@@ -80,3 +80,76 @@ Reading the impl side: most artboards are a 1440×900 window plus an 80 px note 
 | `an-viewer` | dark | Can comment — Hand and Comment only; "Stickies need Can edit · Ask to edit" | — | no — needs a share-grant session as a viewer | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
 | `an-figjam` | light | A FigJam board arrives as annotations — section "From FigJam", toast with Undo | ⌘K › Import from Figma… | partially — import sheet reached; import needs a Figma connection | Impl sheet: Figma link field, "Figma isn't connected yet. Connect…", "A board from FigJam works too — it comes in as annotations", Cancel / Import. No imported board. |
 | `an-figjam` | dark | A FigJam board arrives as annotations — section "From FigJam", toast with Undo | ⌘K › Import from Figma… | partially — import sheet reached; import needs a Figma connection | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+
+## After (stage D, 6d19daa9a) — IMPL re-shot on the stage-C-round-2 tip
+
+Re-shot 60 of 62 pairs; 2 unreachable. SPEC side: `.design/ui/v2/15 Annotations.*` is unchanged since the stage-A shot, so the stage-A spec PNGs are reused. The committed JPEG pairs in this folder are overwritten with the stage-D pairs (same format and size as stage A); the stage-A IMPL frames are in the first section of this file (their pairs are in git history, commit 902d112ac).
+
+- Shot with the stage-A harness (scenarios s15 groups a-f on the Studio site fixture, group f on the print fixture), same fixtures and driving as stage A, on the stage-C-round-2 tip. Harness fix only: the What’s-new toast dismiss (its first button is now "See all (3)" and opened the panel) — no product code changed.
+- `an-figjam` is now shot in both themes (stage A had light only): ⌘K › Import from Figma… opens the import dialog, which says Figma is not connected — the connected state needs Figma sign-in and stays unreachable.
+- `an-viewer` stays unreachable: the viewer role needs a share-grant session, none in a local lane.
+
+| id | theme | after (stage D) | spec |
+| --- | --- | --- | --- |
+| `an-ai-apply` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-apply` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-read` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-read` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-stickers` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-stickers` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-write` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-ai-write` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-arrow-bind` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-arrow-bind` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-arrow-kinds` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-arrow-kinds` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-convert` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-convert` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-crowd` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-crowd` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-dangling` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-dangling` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-enter` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-enter` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-figjam` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-figjam` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-follow` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-follow` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-layers` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-layers` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-marker` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-marker` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-place` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-place` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-plan` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-plan` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-print` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-print` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-rebind` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-rebind` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-section` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-section` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-stamps` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-stamps` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-sticky` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-sticky` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-stk-drop` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-stk-drop` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-stk-gallery` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-stk-gallery` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-stk-search` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-stk-search` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-templates` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-templates` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-today` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-today` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-video` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-video` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-viewer` | dark | unreachable — Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer. | spec reused (board unchanged since stage A) |
+| `an-viewer` | light | unreachable — Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer. | spec reused (board unchanged since stage A) |
+| `an-visibility` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-visibility` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-vote` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-vote` | light | re-shot | spec reused (board unchanged since stage A) |
+| `an-vs` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `an-vs` | light | re-shot | spec reused (board unchanged since stage A) |

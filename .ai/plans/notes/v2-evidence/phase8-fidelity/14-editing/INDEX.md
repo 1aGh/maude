@@ -70,3 +70,65 @@ Reading the impl side: most artboards are a 1440×900 window plus an 80 px note 
 | `ed-edge-paste` | dark | Pasted from Figma — bar "Pasted from Figma as an image of Hero / v3 · Make editable" | synthetic Figma clipboard paste on the artboard | no — the synthetic paste produced no bar (the picture is fetched through the Figma connection) | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
 | `ed-edge-keys` | light | Keyboard only: Tab walks objects, ↵ goes inside, esc out; focus ring | select artboard, ↵, Tab ×4 | partially — numbered focus pills show; no VoiceOver caption | Impl shows numbered markers (1.1, 1.2, 1.3, 1.4) on the artboard's children and an inspector; spec draws numbered rings and an adjoining shortcut table plus the VoiceOver sentence (documentation specimen). Focus ring thickness/halo not verifiable at this scale. |
 | `ed-edge-keys` | dark | Keyboard only: Tab walks objects, ↵ goes inside, esc out; focus ring | select artboard, ↵, Tab ×4 | partially — numbered focus pills show; no VoiceOver caption | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+
+## After (stage D, 6d19daa9a) — IMPL re-shot on the stage-C-round-2 tip
+
+Re-shot 50 of 52 pairs; 2 unreachable. SPEC side: `.design/ui/v2/14 Editing.*` is unchanged since the stage-A shot, so the stage-A spec PNGs are reused. The committed JPEG pairs in this folder are overwritten with the stage-D pairs (same format and size as stage A); the stage-A IMPL frames are in the first section of this file (their pairs are in git history, commit 902d112ac).
+
+- Shot with the stage-A harness (scenarios s14a/b/c on the Studio site and Alligators fixtures), same fixtures and driving as stage A, on the stage-C-round-2 tip. Harness fix only: the What’s-new toast dismiss (the toast’s first button is now "See all (3)" and opened the panel) — no product code changed.
+- `ed-edge-tereza` stays unreachable: another person’s presence needs a second synced collaborator, none in a local lane.
+
+| id | theme | after (stage D) | spec |
+| --- | --- | --- | --- |
+| `ed-ab-arrange` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-arrange` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-menu` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-menu` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-resize` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-resize` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-select` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-select` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-tidy` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-ab-tidy` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-comp-instance` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-comp-instance` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-comp-pick` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-comp-pick` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-ai` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-ai` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-ask` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-ask` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-huge` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-huge` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-keys` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-keys` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-paste` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-paste` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-tereza` | dark | unreachable — Another person's presence (sky ring + name on an object, fields read-only) needs a second synced collaborator; none locally. | spec reused (board unchanged since stage A) |
+| `ed-edge-tereza` | light | unreachable — Another person's presence (sky ring + name on an object, fields read-only) needs a second synced collaborator; none locally. | spec reused (board unchanged since stage A) |
+| `ed-edge-undo` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-edge-undo` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-img` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-img` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-lay-auto` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-lay-auto` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-lay-free` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-lay-free` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-lay-reorder` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-obj-enter` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-obj-enter` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-obj-multi` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-obj-multi` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-obj-order` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-obj-order` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-pen` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-pen` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-shape` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-shape` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-text-edit` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-text-edit` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ed-text-style` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ed-text-style` | light | re-shot | spec reused (board unchanged since stage A) |
