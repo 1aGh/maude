@@ -8,19 +8,29 @@
     z-index: 60;
     display: grid;
     place-items: center;
-    background: var(--scrim, rgb(0 0 0 / 0.32));
+    /* the kit dialog's veil: the light canvas ground at 0.72, never a dark scrim (_kit.css .k-scrim) */
+    background: color-mix(in oklab, var(--canvas-bg, var(--bg-0)) 72%, transparent);
   }
+  /* the kit dialog (_kit.css .k-dialog): bg-2, radius-xl, 24 px, shadow-lg + the 0.5 px island edge, title type-md */
   .dsr-dialog {
     width: min(640px, calc(100vw - 32px));
     max-height: calc(100vh - 64px);
+  }
+  .island.dsr-dialog {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    padding: var(--space-4);
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
   }
   .dsr-title {
     margin: 0;
-    font-size: var(--type-base);
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
     font-weight: var(--w-semibold);
     color: var(--fg-0);
   }
@@ -125,10 +135,12 @@
   .dsr-row[data-locked] {
     opacity: 0.7;
   }
+  /* the canvas's own render, 116 x 72 (the compact list is 76 x 48), ringed (13 · ds-edit-review) */
   .dsr-thumb {
     flex: none;
-    width: 44px;
-    height: 28px;
+    width: 116px;
+    height: 72px;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
     border-radius: var(--radius-xs);
     background: var(--bg-4);
     overflow: hidden;

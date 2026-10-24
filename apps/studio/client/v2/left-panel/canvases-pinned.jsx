@@ -77,7 +77,7 @@ export function DsPinnedRows({
               }
             >
               <span className="lp-ds-ic">
-                <StIcon name="sliders" size={14} />
+                <StIcon name="system" size={14} />
               </span>
               {r.sub ? (
                 <span className="lp-ds-two">

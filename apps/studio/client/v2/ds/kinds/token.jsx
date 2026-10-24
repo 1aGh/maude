@@ -241,14 +241,14 @@ export function TokenPanel({
       data-locked={locked ? 'true' : undefined}
       aria-label={token.label}
     >
-      <p className="insp-sec-t">
-        <span className="insp-sec-name">{token.label}</span>
-        {locked ? (
+      {/* the inspector head already names the token ("Accent · Colour"): a second title here is the lock badge only */}
+      {locked ? (
+        <p className="insp-sec-t">
           <span className="insp-sec-a" data-testid="ds-token-locked">
             <StIcon name="lock" size={12} /> Locked
           </span>
-        ) : null}
-      </p>
+        </p>
+      ) : null}
       {hasDark ? (
         <Row k="Editing" name="ds-editing">
           <Segmented
@@ -268,14 +268,14 @@ export function TokenPanel({
       <Row k="Light" name="ds-light">
         {isColour ? <Chip model={model} theme={themes.light} value={lightV} /> : null}
         <span className="ds-tk-name" data-testid="ds-token-light">
-          {valueName(themes.light) || lightV}
+          {valueName(themes.light) || (isColour ? token.label : lightV)}
         </span>
       </Row>
       {hasDark ? (
         <Row k="Dark" name="ds-dark">
           {isColour ? <Chip model={model} theme={themes.dark} value={darkV} /> : null}
           <span className="ds-tk-name" data-testid="ds-token-dark">
-            {follows && isColour ? 'Follows Light' : valueName(themes.dark) || darkV}
+            {follows && isColour ? 'Follows Light' : valueName(themes.dark) || (isColour ? token.label : darkV)}
           </span>
         </Row>
       ) : null}
@@ -297,6 +297,7 @@ export function TokenPanel({
               onChange={(e) => drag(e.target.value)}
             />
           ) : null}
+          {isColour ? null : (
           <input
             type="text"
             className="ds-tk-text"
@@ -311,6 +312,7 @@ export function TokenPanel({
               if (e.key === 'Escape') setTyped(null);
             }}
           />
+          )}
         </Row>
       )}
       {!locked && isColour ? (
@@ -394,6 +396,24 @@ export function TokenPanel({
         <summary>
           Advanced <span>{isColour ? 'OKLCH' : 'CSS'}</span>
         </summary>
+        {isColour && !locked ? (
+          <Row k={hasDark ? (theme === themes.dark ? 'Dark value' : 'Light value') : 'Value'} name="ds-value">
+          <input
+            type="text"
+            className="ds-tk-text"
+            data-testid="ds-token-value"
+            aria-label={`${token.label} — value`}
+            spellCheck={false}
+            value={shown}
+            onChange={(e) => setTyped(e.target.value)}
+            onBlur={submitText}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') setTyped(null);
+            }}
+          />
+          </Row>
+        ) : null}
         <Row k="Light" name="ds-adv-light">
           <code>{token.values?.[themes.light] ?? '—'}</code>
         </Row>

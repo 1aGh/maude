@@ -46,12 +46,12 @@ export function UsesLink({ ds, cfg, onShellAction }) {
         onClick={() => onShellAction('ds.go-to', { ds })}
       >
         <span className="insp-uses-ic" aria-hidden="true">
-          <StIcon name="layers" size={12} />
+          <StIcon name="system" size={12} />
         </span>
         <span className="insp-uses-t">
           Uses <strong>{label}</strong>
         </span>
-        <StIcon name="chevron-right" size={12} />
+        <StIcon name="submenu" size={12} />
       </button>
     </p>
   );

@@ -96,8 +96,13 @@ export const PREVIEW_WORDS = Object.freeze({
   shown: (n) =>
     n > 0 ? `${n} canvas${n === 1 ? '' : 'es'} shown in it · esc to stop` : 'esc to stop',
   action: 'Switch…',
-  stop: 'Stop previewing',
   menuHead: 'Design systems',
+  // the menu's foot (13 · ds-many-switch): the way out to the Design system, and to making / linking another
+  doors: Object.freeze([
+    Object.freeze({ id: 'open', label: 'Open the Design system', key: '↵' }),
+    Object.freeze({ id: 'make', label: 'Make a design system…', key: '' }),
+    Object.freeze({ id: 'link', label: 'Link a team library…', key: '' }),
+  ]),
   hint: '↑↓ to look · ↵ to switch · esc to stop',
   none: 'There is no other design system to preview.',
 });

@@ -192,8 +192,11 @@ export function browseFirstRunHint(readOnly = false) {
 // Strip canvas extensions for display. `Canvas Viewport.tsx` → `Canvas Viewport`.
 // Sidecars (`.meta.json`, `.css`, `.registry.json`) keep their extensions so
 // the file type stays unambiguous.
+// A system's own canvas file is `design-system.tsx`; people see "Design system" (CONTRACT §7), never the slug.
+const DS_CANVAS_SLUG = 'design-system';
 export function displayName(name) {
-  return name.replace(CANVAS_EXT_RE, '');
+  const base = name.replace(CANVAS_EXT_RE, '');
+  return base === DS_CANVAS_SLUG ? 'Design system' : base;
 }
 
 // Primary base = name with the canvas extension stripped. `Canvas Viewport.tsx`

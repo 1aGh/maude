@@ -532,11 +532,21 @@ describe('the preview bar', () => {
     expect(getDsPreview()).toBeNull();
   });
 
-  test('the Stop button and a click on a system also work', async () => {
+  test('a click on a system also works; the banner carries ONE action (CONTRACT §4) — esc is the way out', async () => {
     const { host } = await mountBar(() => undefined);
     await click(all(host, 'ds-preview-option')[2]);
     expect(getDsPreview()?.target).toBe('gator');
-    await click(q(host, 'ds-preview-stop'));
+    expect(q(host, 'ds-preview-stop')).toBeNull();
+    expect(q(host, 'ds-preview-banner')?.querySelectorAll('button').length).toBe(1);
+    // the menu's foot: the way out to the Design system, to making one and to linking a team library
+    expect(all(host, 'ds-preview-door').map((d) => d.getAttribute('data-door'))).toEqual([
+      'open',
+      'make',
+      'link',
+    ]);
+    await act(async () => {
+      window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
     expect(getDsPreview()).toBeNull();
   });
 });

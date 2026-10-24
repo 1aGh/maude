@@ -443,3 +443,25 @@ describe('what is frozen, what clashes', () => {
     expect(q(host, 'ds-token-light')?.textContent).toBe('Deeper azure');
   });
 });
+
+// P8-C2 dsedit — 13 · ds-edit-colour: the token inspector is the board's editor, not a form.
+describe('the colour block reads as the board draws it', () => {
+  test('a token is named once — the frame head names it, the block carries no second title', async () => {
+    const host = await frame(ACCENT);
+    expect(host.querySelector('.insp-sec-name')).toBeNull();
+    expect(q(host, 'insp-sec-ds-token')).not.toBeNull();
+  });
+
+  test('a colour with no name of its own is named by its token, never by a raw colour value', async () => {
+    const host = await frame(swatch('--fg-0', 'Ink'));
+    expect(q(host, 'ds-token-light')?.textContent).toBe('Ink');
+    expect(q(host, 'ds-token-dark')?.textContent).toBe('Follows Light');
+  });
+
+  test('the typed value of a colour lives under Advanced (OKLCH); the face keeps picker and name', async () => {
+    const host = await frame(ACCENT);
+    expect(q(host, 'ds-token-value')?.closest('details')).not.toBeNull();
+    expect(q(host, 'ds-token-picker')?.closest('details')).toBeNull();
+    expect(q(host, 'ds-token-name')?.closest('details')).toBeNull();
+  });
+});
