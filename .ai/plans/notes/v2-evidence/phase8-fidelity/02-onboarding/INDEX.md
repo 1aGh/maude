@@ -53,9 +53,9 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 | `ob-first-launch` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-signin-browser` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-home-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
-| `ob-ai-connect` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
-| `ob-first-draw` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
-| `ob-sig-draw` | re-shot (state not reached) | re-shot (state not reached) | the motion study has no app counterpart; the pair still shows the fake-agent drafts re-shot (same frames as cf-ai-drafting / cf-ai-done) |
+| `ob-ai-connect` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
+| `ob-first-draw` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
+| `ob-sig-draw` | re-shot (state not reached) | re-shot (state not reached) | the motion study has no app counterpart; the pair still shows the fake-agent drafts re-shot (same frames as cf-ai-drafting / cf-ai-done) **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
 | `ob-invite-page` | unreachable | unreachable | a web page on cloud.maude.sh, not part of the app — no frame |
 | `ob-invite-landed` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-home-team` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
@@ -70,5 +70,5 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 | `ob-edge-timeout` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-edge-other-mac` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-edge-accounts` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
-| `ob-edge-ai-missing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-ai-missing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
 | `ob-edge-whats-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |

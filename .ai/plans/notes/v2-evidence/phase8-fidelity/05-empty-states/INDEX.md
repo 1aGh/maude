@@ -53,7 +53,7 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 | `es-project-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `es-canvas-ai` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `es-landing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
-| `es-canvas-three` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-canvas-three` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
 | `es-artboard-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `es-panels-canvas` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `es-panels-make` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
