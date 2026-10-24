@@ -27,13 +27,34 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* V2-8.5 c4-video (07 ve-advanced): the cards are floating islands ABOVE the timeline — Render settings, the
+     easing curve, the cut as code — not a strip inside it. The timeline keeps its own height; the foot row is all
+     that stays in it. `--tla-lift` (set by foot.jsx) is the distance from the foot up to the island's top edge. */
   .tla-body {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    position: absolute;
+    left: calc(-1 * var(--space-2));
+    right: calc(-1 * var(--space-2));
+    bottom: calc(100% + var(--tla-lift, 0px) + var(--space-4));
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
     gap: var(--space-4);
-    max-height: min(260px, 34vh);
-    padding: var(--space-2) var(--space-1) var(--space-3);
+    padding: 0;
+    pointer-events: none;
+  }
+  .tla-body > .tla-sec {
+    flex: 1 1 0;
+    max-width: 380px;
+    max-height: min(320px, 38vh);
+    padding: var(--space-3);
     overflow: auto;
+    border-radius: var(--island-radius, var(--radius-xl));
+    background: var(--island-bg-strong, var(--bg-1));
+    box-shadow:
+      var(--island-shadow, var(--shadow-lg)),
+      inset 0 0 0 0.5px var(--island-edge);
+    color: var(--fg-0);
+    pointer-events: auto;
   }
   .tla-sec {
     display: flex;
@@ -49,6 +70,10 @@
     font-size: var(--type-xs);
     font-weight: var(--w-semibold);
     color: var(--fg-2);
+  }
+  .tla-body .tla-h {
+    font-size: var(--type-sm);
+    color: var(--fg-0);
   }
   .tla-chip {
     margin-left: auto;

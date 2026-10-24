@@ -22,6 +22,7 @@ import { AiLandingIsland, useAiCut } from './ai-edge.jsx';
 import { measureShellInsets } from '../shell/occlusion-insets.js';
 import { anchorCentre, artboardUnderIsland, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
+import { useAdvancedOpen } from './advanced/foot.jsx';
 import { useFileDrag } from './edit/drop.jsx';
 import { playToggle } from './keys.js';
 import { loopJump } from './transport.js';
@@ -181,10 +182,14 @@ export default function TimelineHost({ children }) {
   const rectNow = useRef(null);
   rectNow.current = view.target?.rect ?? null;
   const sizeNow = view.size;
+  const advNow = useAdvancedOpen();
   useEffect(() => {
     if (!mounted || !targetId || typeof document === 'undefined') return undefined;
     const t = setTimeout(() => {
-      const isl = document.querySelector('[data-testid="timeline-island"]')?.getBoundingClientRect();
+      const isl0 = document.querySelector('[data-testid="timeline-island"]')?.getBoundingClientRect();
+      // Advanced's floating cards sit above the island: they are part of what must stay off the video
+      const cards = document.querySelector('.tla-body')?.getBoundingClientRect();
+      const isl = isl0 && cards ? { ...isl0, top: Math.min(isl0.top, cards.top) } : isl0;
       const fr = live.current.iframesRef?.current?.get(live.current.activePath)?.getBoundingClientRect?.();
       const r = rectNow.current;
       if (!isl || !fr || !r) return;
@@ -205,7 +210,7 @@ export default function TimelineHost({ children }) {
     }, REFIT_MS);
     return () => clearTimeout(t);
     // `sizeNow` re-runs it when the island grows to Full (its footprint changes)
-  }, [mounted, targetId, sizeNow, postToActiveCanvas]);
+  }, [mounted, targetId, sizeNow, advNow, postToActiveCanvas]);
 
   // ── the poster frame: read for the ruler's flag, and the playhead `video.poster.set` writes it at ──
   usePosterVersion();

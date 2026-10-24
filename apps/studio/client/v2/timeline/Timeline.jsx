@@ -1858,7 +1858,7 @@ export default function TimelinePanel({
       style={{
         // 07 ve-advanced: with Advanced open the island grows past the dragged height (its cards must stay inside the
         // island and the tracks must stay on screen); CSS caps it at the window
-        ...(height && full ? (advOpen ? { minHeight: height } : { height }) : {}),
+        ...(height && full ? { height } : {}),
         outline: 'none',
         '--tl-gutter': `${gutter}px`,
       }}

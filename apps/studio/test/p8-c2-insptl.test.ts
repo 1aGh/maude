@@ -24,17 +24,31 @@ describe('07 · Advanced stays inside the island (ve-advanced)', () => {
     expect(r).toMatch(/font:\s*inherit/);
   });
 
-  test('the cards scroll inside the island and the tracks keep a floor', () => {
-    expect(rule(adv, '.tla-body')).toMatch(/max-height:\s*min\(260px,\s*34vh\)/);
+  // V2-8.5 c4-video (07 ve-advanced) supersedes "the island grows": the cards are floating islands above the timeline,
+  // which keeps its own height (decision v2-p8-c4-video-advanced-floats)
+  test('the cards float above the island (absolute, lifted by --tla-lift), each an island of its own; the tracks keep a floor', () => {
+    const body = rule(adv, '.tla-body');
+    expect(body).toMatch(/position:\s*absolute/);
+    expect(body).toMatch(/bottom:\s*calc\(100% \+ var\(--tla-lift/);
+    expect(rule(adv, '.tla-body > .tla-sec')).toMatch(/box-shadow:/);
     expect(tl).toMatch(/\.tl-panel\[data-size="full"\] \.tl-scroll\s*\{[^}]*min-height:\s*112px/);
     expect(tl).toMatch(
       /\.tl-island \.tl-panel\[data-size="full"\]\s*\{[^}]*max-height:\s*calc\(100vh/
     );
   });
 
-  test('an open Advanced turns the dragged height into a floor (the island grows, it does not spill)', () => {
+  test('an open Advanced no longer grows the island; its cards tell the canvas what they cover', () => {
     const src = client('v2/timeline/Timeline.jsx');
-    expect(src).toMatch(/advOpen \? \{ minHeight: height \} : \{ height \}/);
+    expect(src).not.toMatch(/minHeight: height/);
+    expect(client('v2/timeline/advanced/foot.jsx')).toMatch(
+      /className="tla-body" data-occludes="bottom"/
+    );
+  });
+
+  test('the ruler opens in frames (the board: Advanced turns the ruler to frame numbers)', () => {
+    expect(client('v2/timeline/advanced/advanced-store.js')).toMatch(
+      /const out = \{ mode: 'frames'/
+    );
   });
 });
 

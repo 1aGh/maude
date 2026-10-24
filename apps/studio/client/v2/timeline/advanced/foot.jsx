@@ -6,7 +6,7 @@
 // code. Mono and raw words live only in here. The fold is the shared Advanced fold `timeline` (remembered per
 // Mac, covered by ⌘K "Open all Advanced sections").
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { AdvancedFold } from '../../fold/advanced-fold.jsx';
 import { useFold } from '../../fold/use-fold.js';
 import { advancedStore, trackKey, useAdvanced } from './advanced-store.js';
@@ -57,13 +57,35 @@ export function AdvancedFoot({
   const [open] = useFold('timeline');
   const adv = useAdvanced();
   const [copied, setCopied] = useState(false);
+  // V2-8.5 c4-video (07 ve-advanced): the cards float above the island; `--tla-lift` is how far up its top edge is
+  const footRef = useRef(null);
+  useLayoutEffect(() => {
+    const foot = footRef.current;
+    const island = foot?.closest?.('.tl-island');
+    if (!open || !foot || !island) return undefined;
+    const lift = () =>
+      foot.style.setProperty(
+        '--tla-lift',
+        `${Math.max(0, Math.round(foot.getBoundingClientRect().top - island.getBoundingClientRect().top))}px`
+      );
+    lift();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(lift);
+    ro.observe(island);
+    return () => ro.disconnect();
+  }, [open]);
   const key = trackKey(canvas, artboardId);
   const picked = selectedKeyframe(sequences, adv.kf);
   const clip =
     sequences.find((s) => s.stableId && s.stableId === selectedClipId) ?? picked?.seq ?? null;
 
   return (
-    <div className="tla" data-testid="timeline-advanced" data-open={open ? 'true' : undefined}>
+    <div
+      className="tla"
+      ref={footRef}
+      data-testid="timeline-advanced"
+      data-open={open ? "true" : undefined}
+    >
       <AdvancedFold
         panel="timeline"
         label={ADV_WORDS.advanced}
@@ -72,7 +94,7 @@ export function AdvancedFoot({
         buttonTestid="timeline-advanced-toggle"
       >
         {tools}
-        <div className="tla-body">
+        <div className="tla-body" data-occludes="bottom">
           <RenderSettings
             fps={fps}
             total={total}
