@@ -4,3 +4,4 @@ stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d2573
 round 3 (p8-c3-modes): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/pairs/14-editing/
 (pairs re-shot: ed-ab-menu; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/impl-out/14-editing/; harness: _d-harness-g2 plus s-menus.mjs / s04c.mjs kept in the worktree .scr/impl/)
 round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a39e34b6d43db61ce/.scr/pairs/14-editing (14 Editing re-shot on the c3-inspect tip; ed-edge-tereza kept from stage D)
+round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdefb8ca3c77c0e1/.scr/pairs/14-editing (14 Editing re-shot on the c4-annot tip with the g5 harness; ed-ab-menu pair kept from round 3 c3-modes, ed-edge-tereza kept from stage D)
