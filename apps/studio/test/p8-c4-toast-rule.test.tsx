@@ -87,6 +87,15 @@ describe('the toast rule: dock by default, top for app states and over the timel
   });
 });
 
+describe('the pill hugs its sentence', () => {
+  test('one line: the toast is fit-content up to 640 px, not a 360 px card', () => {
+    const src = readFileSync(join(import.meta.dir, '..', 'notifications.tsx'), 'utf8');
+    expect(src).toContain('width: fit-content; max-width: var(--width)');
+    expect(src).toContain('min(640px, calc(100vw - 32px))');
+    expect(src).not.toContain('min(360px');
+  });
+});
+
 describe('shell events keep their placement through the tabs hook', () => {
   test('use-tabs forwards the pill options (placement top) to notify', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'client/hooks/use-tabs.jsx'), 'utf8');

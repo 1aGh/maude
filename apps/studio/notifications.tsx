@@ -248,8 +248,9 @@ function MountedNotice({
 }
 
 const NOTICE_CSS = `
-.maude-notifications [data-sonner-toaster] { --width: min(360px, calc(100vw - 32px)); z-index: 8000; }
-.maude-notifications [data-sonner-toast] { width: var(--width); }
+.maude-notifications [data-sonner-toaster] { --width: min(640px, calc(100vw - 32px)); z-index: 8000; }
+/* the kit pill hugs its sentence (one line, up to the list's width); it does not stretch to a fixed card */
+.maude-notifications [data-sonner-toast] { width: fit-content; max-width: var(--width); margin-inline: auto; }
 .maude-notifications [data-sonner-toast][data-expanded=false][data-front=false] {
   overflow: hidden; border-radius: var(--radius-md, 8px);
 }
@@ -339,7 +340,7 @@ export function NotificationHost({
         mobileOffset={{ left: 16, right: 16, bottom: 84, top: 16 }}
         visibleToasts={3}
         expand={focused}
-        style={{ '--width': 'min(360px, calc(100vw - 32px))' } as CSSProperties}
+        style={{ '--width': 'min(640px, calc(100vw - 32px))' } as CSSProperties}
         containerAriaLabel="Notifications"
       />
       {notices.map((entry) => (
