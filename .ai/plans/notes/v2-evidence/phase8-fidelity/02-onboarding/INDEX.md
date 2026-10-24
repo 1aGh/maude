@@ -39,3 +39,36 @@ Evidence only — no product code changed. Pair = SPEC left, IMPL right, same he
 | `ob-edge-accounts` | 20 · A work invite in a personal app | project-less Home server (`server.ts --home`) + Tauri stub; Home's own APIs route-intercepted per scene (`/_home/cloud`, `/_home/index`, `/_home/thumb`, `/_home/whats-new`, sign-in start/poll, invite peek) and `shell_state` stubbed; invite peek for you@work-studio.cz while signed in as you@studio.cz | yes | • sheet matches closely: "Open the invite as you@work-studio.cz?", two account rows with the arrow, "Open" primary<br>• spec account rows say "You · personal — This window, now" → "you@work-studio.cz — Work · a new tab" (labels "personal" / "Work" missing in impl); spec Home behind it has a Studio site tab and avatar M | [light](ob-edge-accounts-light.jpg) · [dark](ob-edge-accounts-dark.jpg) |
 | `ob-edge-ai-missing` | 21 · No AI connected yet — on a team project | fixture project, signed-out stub; AI panel › first send (the ⌘/ route in the browser lane toggled Preview + Stickers instead of opening Ask AI — unverified whether a Playwright key quirk) | partial: the same Connect sheet as ob-ai-connect, on a solo project, not a team project | • same squeezed-in-panel sheet as ob-ai-connect; spec dims the whole canvas behind a centred sheet | [light](ob-edge-ai-missing-light.jpg) · [dark](ob-edge-ai-missing-dark.jpg) |
 | `ob-edge-whats-new` | 22 · After an update — findable, never in the way | project-less Home server (`server.ts --home`) + Tauri stub; Home's own APIs route-intercepted per scene (`/_home/cloud`, `/_home/index`, `/_home/thumb`, `/_home/whats-new`, sign-in start/poll, invite peek) and `shell_state` stubbed; the What's new feed intercepted with one unseen entry; second frame: click "Home" then hover Help | partial: the one-line notice is reached; "Menu › Help › What's new ●" is not — Home's pill opens no menu | • spec line "What's new in 2.0 — one menu, calmer panels, cloud first. See what's new" sits under the starters; impl line ✓ ("A new look: the canvas fills the window") with an ×<br>• no Menu › Help flyout on Home (the "Home" pill has no chevron/menu), spec flyout lists Keyboard shortcuts, Help and guides, What's new ●, Take the tour, Watch the intro, How sharing works, Report a bug… | [light](ob-edge-whats-new-light.jpg) · [dark](ob-edge-whats-new-dark.jpg) |
+
+
+## After (stage D, 2739edc35)
+Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merged), no product code changed. 20 artboards with pairs (light + dark), 2 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Same stage-A harness (`_harness-g1/`, copied and repointed; kept as `_d-harness-g1/`), fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 × 1000. Harness adaptations (the product moved; no product code touched): the What’s new notice’s dismiss is now `.maude-notice-close` (its first button became "See all" and opened the panel over every shot); Esc no longer closes Version history, so 05 closes it by its own button (`vh-close`); the right-hand panels, Settings and the sheets moved, so the impl crops of es-panels-canvas (history), es-panels-make (AI), es-canvas-three, ob-adv-sheets and ob-settings were re-fitted to the new geometry; the dark es-landing filmstrip now finds its first frame by the blue Ask AI button (stage A picked loading skeletons).
+- **SPEC.** re-rendered (board 02 .tsx changed in 3840271a0, chip words) from a scratch copy of .design; light = host dark-token rule removed, dark = host injection, as in stage A.
+- **Full-size pairs.** `full-size-path.txt` (stage D line); committed `<id>-<theme>.jpg` overwritten (JPEG q55 ≤ 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `ob-first-launch` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-signin-browser` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-home-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-ai-connect` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-first-draw` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-sig-draw` | re-shot (state not reached) | re-shot (state not reached) | the motion study has no app counterpart; the pair still shows the fake-agent drafts re-shot (same frames as cf-ai-drafting / cf-ai-done) |
+| `ob-invite-page` | unreachable | unreachable | a web page on cloud.maude.sh, not part of the app — no frame |
+| `ob-invite-landed` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-home-team` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-local-name` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-local-first` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-local-share` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-local-moved` | unreachable | unreachable | needs a local project actually moved to a hub — no local route; stage C did not add one |
+| `ob-adv-open` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-adv-sheets` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-settings` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-offline` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-timeout` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-other-mac` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-accounts` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-ai-missing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+| `ob-edge-whats-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |

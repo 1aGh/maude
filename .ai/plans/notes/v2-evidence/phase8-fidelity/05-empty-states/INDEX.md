@@ -36,3 +36,34 @@ Evidence only — no product code changed. Pair = SPEC left, IMPL right, same he
 | `es-offline-uncached` | 18 · Offline, and this canvas was never downloaded | g1 fixture; availability intercepted → phase offline, open canvas "not-local" | yes | • near pixel match: icon, "Smoke isn't on this Mac yet.", the two sentences, "Show canvases on this Mac" ✓; ghost rows dimmed with a cloud ✓<br>• spec top-right word "Offline — kept on this Mac" (hub-linked); impl "Local project" | [light](es-offline-uncached-light.jpg) · [dark](es-offline-uncached-dark.jpg) |
 | `es-all-trashed` | 19 · Every artboard moved to the trash | g1 fixture: trash Desktop in the UI (one frame), then the canvas file is rewritten with no artboard | no: the card did not appear — with the canvas empty the generic "Your canvas is ready." shows and the trashed artboard is not offered back; the UI refuses to trash the last artboard ("A canvas keeps at least one artboard.") so the state only arises from another person / a sync | • no dashed outlines where artboards stood, no "Restore 4 artboards" card, no "Jonas moved all four to the trash 10 min ago" | [light](es-all-trashed-light.jpg) · [dark](es-all-trashed-dark.jpg) |
 | `es-edge-panels` | 20 · Chat search with no hits · a team of one | signed-in AI through a FAKE ACP agent (`MAUDE_ACP_ADAPTER_ENTRY` = the e2e fake agent, slowed in steps, + the e2e `claude` stub that answers "signed in") — never a provider: one chat exists, chat list, search "invoice" | partial: chat search with no hits ✓; the "team of one" Share sheet needs a cloud project | • "No chat mentions “invoice”. Searched 1 chats in e2e-fixture — titles and every message. + Start a chat about it" ✓ same words<br>• spec Share sheet: empty people list as the reason to Invite — not reached | [light](es-edge-panels-light.jpg) · [dark](es-edge-panels-dark.jpg) |
+
+
+## After (stage D, 2739edc35)
+Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merged), no product code changed. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Same stage-A harness (`_harness-g1/`, copied and repointed; kept as `_d-harness-g1/`), fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 × 1000. Harness adaptations (the product moved; no product code touched): the What’s new notice’s dismiss is now `.maude-notice-close` (its first button became "See all" and opened the panel over every shot); Esc no longer closes Version history, so 05 closes it by its own button (`vh-close`); the right-hand panels, Settings and the sheets moved, so the impl crops of es-panels-canvas (history), es-panels-make (AI), es-canvas-three, ob-adv-sheets and ob-settings were re-fitted to the new geometry; the dark es-landing filmstrip now finds its first frame by the blue Ask AI button (stage A picked loading skeletons).
+- **SPEC.** reused (board 05 .tsx/.css unchanged since stage A — git log 04c20ad74..tip empty); light = host dark-token rule removed, dark = host injection, as in stage A.
+- **Full-size pairs.** `full-size-path.txt` (stage D line); committed `<id>-<theme>.jpg` overwritten (JPEG q55 ≤ 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-home-local` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-home-shared` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-project-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-canvas-ai` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-landing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-canvas-three` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-artboard-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-panels-canvas` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-panels-make` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-timeline` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-search-k` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-search-more` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-search-panel` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-filter` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-viewer` | unreachable | unreachable | a view-only / comment-only member session needs a hub / workspace cell vouching a role — not attempted in the browser lane |
+| `es-arriving` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-offline-uncached` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `es-all-trashed` | re-shot (state not reached) | re-shot (state not reached) | the all-trashed card still never mounts (fix-navcreate.md: "AllTrashed never mounted"); the pair shows the one-left and empty states re-shot |
+| `es-edge-panels` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
