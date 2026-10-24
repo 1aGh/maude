@@ -60,6 +60,7 @@ import {
   canvasCount,
   cloudRoleWord,
   ownerWord,
+  capProjectGroups,
   defaultTarget,
   indexQuery,
   invitedRows,
@@ -317,6 +318,8 @@ function useOnline() {
 // "Shared with you" rows already opened on this Mac (they stop counting as "new this week"). A per-Mac
 // convenience, so Home's own storage is enough; it renders correctly without it.
 const SEEN_KEY = 'maude-home-shared-seen';
+// 11 pn-home: the Projects list draws this many rows, then "N more" (the board: five of twenty)
+const PROJECTS_SHOWN = 6;
 function readSeen() {
   try {
     const v = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
@@ -342,6 +345,7 @@ export function HomeApp() {
   const [recentAll, setRecentAll] = useState(false);
   const [projFind, setProjFind] = useState('');
   const [projSort, setProjSort] = useState('recent');
+  const [projAll, setProjAll] = useState(false);
   const [notice, setNotice] = useState(null);
   const [link, setLink] = useDeepLink(data.native);
   const [linkBusy, setLinkBusy] = useState(false);
@@ -787,16 +791,20 @@ export function HomeApp() {
 
   const hasProjects = model.groups.some((g) => g.rows.length);
   // Find a project + the sort (pn-home Projects): by name as typed, Recent keeps the model's order
-  const projGroups = useMemo(() => {
+  const { projGroups, projMore } = useMemo(() => {
     const q = projFind.trim().toLowerCase();
     const byName = (a, b) => String(a.name).localeCompare(String(b.name));
-    return model.groups
+    const all = model.groups
       .map((g) => {
         const rows = g.rows.filter((r) => !q || String(r.name).toLowerCase().includes(q));
         return { ...g, rows: projSort === 'name' ? [...rows].sort(byName) : rows };
       })
       .filter((g) => g.rows.length || !q);
-  }, [model.groups, projFind, projSort]);
+    // 11 pn-home: the list shows its first rows and a "N more" foot; finding a project searches all of them
+    if (q || projAll) return { projGroups: all, projMore: 0 };
+    const cut = capProjectGroups(all, PROJECTS_SHOWN);
+    return { projGroups: cut.groups, projMore: cut.more };
+  }, [model.groups, projFind, projSort, projAll]);
   const showShared = signedIn && (hasProjects || shared.length > 0 || invited.length > 0);
   return (
     <div className="maude-v2 home-root" data-theme={theme} data-testid="home-root">
@@ -1110,17 +1118,18 @@ export function HomeApp() {
                   />
                 ))}
                 <div className="home-projmore">
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm home-projopen"
-                    data-testid="home-new-project"
-                    onClick={askNewProject}
-                    disabled={!data.native}
-                  >
-                    <HIcon name="plus" size={14} />
-                    New project…
-                    <kbd className="kbd">⇧⌘N</kbd>
-                  </button>
+                  {projMore ? (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm home-projmore-n"
+                      data-testid="home-projects-more"
+                      onClick={() => setProjAll(true)}
+                    >
+                      {projMore} more
+                    </button>
+                  ) : (
+                    <span />
+                  )}
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm home-projopen"

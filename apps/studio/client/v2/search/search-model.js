@@ -396,7 +396,8 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   let total = 0;
   // 11 pn-k-across / pn-k-close: next to canvases and artboards the hidden tools are "Tools and settings · not on
   // screen" (what they are), not 06's "Actions · N hidden tools" (that is the search with only tools in it).
-  const withProjectRows = (byGroup.get('canvases')?.length ?? 0) + (byGroup.get('artboards')?.length ?? 0) > 0;
+  const withProjectRows =
+    (byGroup.get('canvases')?.length ?? 0) + (byGroup.get('artboards')?.length ?? 0) > 0;
   for (const g of GROUPS) {
     const all = byGroup.get(g.id) ?? [];
     if (all.length === 0) continue;
@@ -502,7 +503,11 @@ function closeTypedFor(q, rows) {
   return (
     typed.find((w) => {
       const fw = fold(w);
-      return !/\d/.test(fw) && !hay.includes(fw) && (withinOneEdit(fw, f) || withinOneEdit(fw, f.slice(0, fw.length)));
+      return (
+        !/\d/.test(fw) &&
+        !hay.includes(fw) &&
+        (withinOneEdit(fw, f) || withinOneEdit(fw, f.slice(0, fw.length)))
+      );
     }) ?? null
   );
 }

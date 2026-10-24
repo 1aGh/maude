@@ -23,6 +23,9 @@ function useCondensed(ref) {
       ([e]) => setCondensed(!e.isIntersecting && e.boundingClientRect.top < 0),
       {
         threshold: 0,
+        // The sticky header (a 40 px pill + its 16 px padding, home.css `.home-top`) covers the top of the
+        // viewport: the question is "gone" once it is fully above that edge, not above the window's.
+        rootMargin: '-72px 0px 0px 0px',
       }
     );
     io.observe(el);

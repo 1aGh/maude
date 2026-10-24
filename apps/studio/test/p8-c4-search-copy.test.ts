@@ -1,7 +1,11 @@
 // P8 C4 (11 critic-d): ⌘K words — the hidden tools next to canvases are "Tools and settings · not on screen"
 // (pn-k-across, pn-k-close); a tools-only search keeps 06's "Actions · N hidden tools".
 import { describe, expect, test } from 'bun:test';
-import { actionSearchRows, assemble, settingsSearchRows } from '../client/v2/search/search-model.js';
+import {
+  actionSearchRows,
+  assemble,
+  settingsSearchRows,
+} from '../client/v2/search/search-model.js';
 import { assembleAcross } from '../client/v2/search/search-projects.js';
 import { menuCtx } from '../client/v2/shell/project-menu-model.js';
 
@@ -39,7 +43,16 @@ describe('the hidden tools beside canvases', () => {
       pid: 'p-2',
       name: 'Studio site',
       place: 'tab',
-      rows: [{ group: 'canvases', id: 'canvas:other', name: 'Print guides 2', meta: 'x', icon: 'page', pid: 'p-2' }],
+      rows: [
+        {
+          group: 'canvases',
+          id: 'canvas:other',
+          name: 'Print guides 2',
+          meta: 'x',
+          icon: 'page',
+          pid: 'p-2',
+        },
+      ],
     };
     const res = assembleAcross({
       query: 'print guides',
