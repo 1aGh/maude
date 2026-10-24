@@ -3,17 +3,18 @@
 //
 //   Position › Place freely     an object that sits in an auto layout can take its X and Y for itself
 //                               (`object.place-freely`); inside a row or column ← → move it earlier / later
-//   Layout › Advanced           "Convert children to absolute position" (`layout.convert-to-absolute`):
-//                               every child keeps where it is now and the frame stops arranging them
+//   Advanced › Convert layout to absolute   (`layout.convert-to-absolute`; V2-8.5 c3 — 14 draws it in the folded
+//                               Advanced at the inspector's foot, above the CSS the frame writes, never inline under
+//                               Layout): every child keeps where it is now and the frame stops arranging them
 //
 // Both buttons run the registry action — the same function ⌘K and the canvas run — through the menu runner, so
 // the inspector owns no write of its own here. The bodies register themselves (append-only, sections/index.js).
 
 import { ArrowLeftRight, Move } from 'lucide-react';
 import { menuRunner } from '../../shell/menu-runner.js';
+import { registerAdvancedRow } from '../advanced-rows.js';
 import { registerSlot } from '../slots.js';
 import { Quiet, Row, effectiveCss } from '../sections/row.jsx';
-import { LAYOUT_KINDS } from '../sections/layout.jsx';
 
 const PLACED = new Set(['absolute', 'fixed']);
 const FLEXY = /^(inline-)?(flex|grid)$/;
@@ -59,17 +60,16 @@ function ConvertBody({ el, ctx }) {
   if (!isArranging(el, read)) return null;
   return (
     <>
-      <p className="insp-sub" data-testid="insp-layout-advanced">
-        Advanced
-      </p>
       <button
         type="button"
         className="btn btn--sm"
         data-testid="insp-layout-convert"
-        disabled={ctx?.editable === false}
-        onClick={() => menuRunner.run('layout.convert-to-absolute')}
+        disabled={ctx?.editable === false || ctx?.canEdit === false}
+        onClick={() =>
+          (ctx?.runAction ?? ((id) => menuRunner.run(id)))('layout.convert-to-absolute')
+        }
       >
-        <Move size={12} /> Convert children to absolute position
+        <Move size={12} /> Convert layout to absolute
       </button>
       <Quiet testid="insp-layout-convert-note">
         Each card keeps where it is now; the frame stops arranging them. ⌘Z brings the layout back.
@@ -90,10 +90,11 @@ export function registerFrameSlots() {
       kinds: ['frame', 'button', 'text', 'image', 'instance'],
       Body: PlaceFreelyBody,
     }),
-    registerSlot('layout', {
-      id: 'layout.advanced-convert',
-      order: 90,
-      kinds: LAYOUT_KINDS,
+    registerAdvancedRow('css', {
+      id: 'css.convert-to-absolute',
+      order: 5,
+      kinds: ['element'],
+      when: ({ ctx }) => ctx?.canEdit !== false,
       Body: ConvertBody,
     }),
   ];
