@@ -170,7 +170,10 @@ describe('what dims the open canvas', () => {
     pickKind('print', 'layers');
     expect(getDimKind()).toBe('all');
     // the Layers chips and the relay use the one dim value (never the list's)
-    const relay = readFileSync(join(import.meta.dir, '..', 'client/v2/kinds/kind-dim-relay.js'), 'utf8');
+    const relay = readFileSync(
+      join(import.meta.dir, '..', 'client/v2/kinds/kind-dim-relay.js'),
+      'utf8'
+    );
     expect(relay).toContain('getDimKind()');
     expect(relay).not.toContain('getKindFilter()');
   });

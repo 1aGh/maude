@@ -66,7 +66,12 @@ function ZonesMenu({ value, onPick }) {
         <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="insp-menu insp-zmenu" role="menu" aria-label="Safe zones" data-testid="insp-safe-zones-menu">
+        <div
+          className="insp-menu insp-zmenu"
+          role="menu"
+          aria-label="Safe zones"
+          data-testid="insp-safe-zones-menu"
+        >
           <span className="insp-zmenu-h">Safe zones</span>
           {SAFE_ZONE_OPTIONS.map((o) => (
             <button

@@ -57,12 +57,23 @@ export function folderLabel(folder) {
  * the whole project is "Export everything in Alligators brand" (09 ex-huge). `canvases` = the estimate's
  * `canvasCounts` ({ folder, project }); `project` = the project's name.
  */
-export function sheetTitle({ scope, label, canvas, folder, count, canvases, project, withBack = false }) {
+export function sheetTitle({
+  scope,
+  label,
+  canvas,
+  folder,
+  count,
+  canvases,
+  project,
+  withBack = false,
+}) {
   const n = typeof count === 'number' && count > 0 ? count : null;
   if (scope === 'selection') {
     // 09 ex-print: a print PDF that carries the back says so in the title — `Export "A · přední (FLAG)" + its back`
     if (n === 1 || n === null)
-      return label ? `${VERB} ${quoted(label)}${withBack ? ' + its back' : ''}` : `${VERB} 1 artboard`;
+      return label
+        ? `${VERB} ${quoted(label)}${withBack ? ' + its back' : ''}`
+        : `${VERB} 1 artboard`;
     return `${VERB} ${artboardsWord(n)}`;
   }
   if (scope === 'canvas')

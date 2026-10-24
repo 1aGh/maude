@@ -113,9 +113,15 @@ const openMenu = async (host: HTMLElement) => {
   if (!q(host, 'insp-safe-zones-menu')) await clickEl(must(q(host, 'insp-safe-zones'), 'trigger'));
 };
 const pick = async (trigger: Element | null, value: string) => {
-  const host = must(trigger, 'trigger').closest('[data-testid^="insp-sec-"]')?.parentElement as HTMLElement;
+  const host = must(trigger, 'trigger').closest('[data-testid^="insp-sec-"]')
+    ?.parentElement as HTMLElement;
   await openMenu(host ?? document.body);
-  await clickEl(must(document.querySelector(`[data-testid="insp-safe-zones-${value || 'none'}"]`), `row ${value}`));
+  await clickEl(
+    must(
+      document.querySelector(`[data-testid="insp-safe-zones-${value || 'none'}"]`),
+      `row ${value}`
+    )
+  );
 };
 const shown = (host: HTMLElement) => q(host, 'insp-safe-zones')?.getAttribute('data-value');
 
@@ -146,8 +152,12 @@ describe('which artboards get the section', () => {
       'YouTube Shorts',
       'Facebook event cover',
     ]);
-    expect(rows.filter((r) => r.getAttribute('aria-checked') === 'true').map((r) => r.textContent)).toEqual(['TikTok']);
-    expect(rows.find((r) => r.getAttribute('aria-checked') === 'true')?.querySelector('svg')).toBeTruthy();
+    expect(
+      rows.filter((r) => r.getAttribute('aria-checked') === 'true').map((r) => r.textContent)
+    ).toEqual(['TikTok']);
+    expect(
+      rows.find((r) => r.getAttribute('aria-checked') === 'true')?.querySelector('svg')
+    ).toBeTruthy();
   });
 
   test('the footnote lives in the menu (never in the card), says never exported and carries the date', async () => {
@@ -168,7 +178,9 @@ describe('the artboard already has a zone', () => {
     expect(q(host, 'insp-safe-zones')?.textContent).toBe('Instagram Reels');
     expect(q(host, 'insp-row-safe-zones-show')).not.toBeNull();
     await openMenu(host);
-    expect(q(host, 'insp-safe-zones-instagram-reels')?.getAttribute('title')).toContain('Caption and audio');
+    expect(q(host, 'insp-safe-zones-instagram-reels')?.getAttribute('title')).toContain(
+      'Caption and audio'
+    );
   });
 
   test('no zone, no "Show on canvas" row; an id this build does not know reads as None', async () => {

@@ -357,7 +357,7 @@ describe('the panel', () => {
     await m.unmount();
   });
 
-  test('the search rests on bg-3 until something is typed (the accent ring is the kit\'s find--on)', async () => {
+  test("the search rests on bg-3 until something is typed (the accent ring is the kit's find--on)", async () => {
     const m = await mount();
     const find = () => m.q('size-picker-search')?.closest('.sz-find');
     expect(find()?.getAttribute('data-on')).toBeNull();

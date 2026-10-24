@@ -170,7 +170,12 @@ describe('Change kind — after it', () => {
     const { notifyConverted } = await import('../client/v2/kinds/ConvertDialog.jsx');
     const host = await mount(<NotificationHost />);
     await act(async () => {
-      notifyConverted({ plan: { paperName: 'A6' }, copy: true, sourceWord: 'post', onUndo: () => {} });
+      notifyConverted({
+        plan: { paperName: 'A6' },
+        copy: true,
+        sourceWord: 'post',
+        onUndo: () => {},
+      });
     });
     await new Promise((r) => setTimeout(r, 80));
     const card = host.ownerDocument.querySelector('[data-testid="notice-convert-kind"]');

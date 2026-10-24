@@ -33,7 +33,8 @@ export function setKindFilter(next, from = 'layers') {
 }
 
 /** A click on a chip: the chip already on goes back to All (the es-filter chip carries a ×), another one moves. */
-export const pickKind = (next, from = 'layers') => setKindFilter(next === kind ? 'all' : next, from);
+export const pickKind = (next, from = 'layers') =>
+  setKindFilter(next === kind ? 'all' : next, from);
 
 export const clearKindFilter = () => setKindFilter('all');
 

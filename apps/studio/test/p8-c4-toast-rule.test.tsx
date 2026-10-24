@@ -91,6 +91,8 @@ describe('shell events keep their placement through the tabs hook', () => {
   test('use-tabs forwards the pill options (placement top) to notify', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'client/hooks/use-tabs.jsx'), 'utf8');
     const i = src.indexOf('startShellEvents({');
-    expect(src.slice(i, i + 400)).toMatch(/toast:\s*\([^)]*opts[^)]*\)\s*=>\s*notify\(\{[^}]*\.\.\.opts/);
+    expect(src.slice(i, i + 400)).toMatch(
+      /toast:\s*\([^)]*opts[^)]*\)\s*=>\s*notify\(\{[^}]*\.\.\.opts/
+    );
   });
 });

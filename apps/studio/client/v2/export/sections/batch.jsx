@@ -101,13 +101,7 @@ function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stil
  * @param est      the server's estimate (`byKind`, `skipped`, `counts`, numbers)
  * @param setFormat  the sheet's format setter (Project ZIP instead)
  */
-export function BatchSection({
-  state,
-  set,
-  est,
-  setFormat,
-  pictures,
-}) {
+export function BatchSection({ state, set, est, setFormat, pictures }) {
   const byKind = est?.byKind ?? {};
   const boards = est?.boards ?? [];
   const kinds = orderKinds(Object.keys(byKind));

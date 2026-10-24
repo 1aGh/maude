@@ -296,7 +296,8 @@ export function ExportSheet({
   const folder = folderRel(ctx);
   const canvasCounts = est?.canvasCounts ?? null;
   // 09 ex-print: the print file's own choices (the back page, the PDF) name themselves in the title and the summary
-  const printChoice = section === 'print' ? printChoices(state, preflight) : { printPdf: false, withBack: false };
+  const printChoice =
+    section === 'print' ? printChoices(state, preflight) : { printPdf: false, withBack: false };
   const title =
     mode === 'handoff'
       ? HANDOFF_TITLE

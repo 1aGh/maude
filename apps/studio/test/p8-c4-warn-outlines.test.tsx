@@ -37,7 +37,8 @@ const SOFT = {
 } as never;
 
 function box(el: HTMLElement, x: number, y: number, w: number, h: number) {
-  el.getBoundingClientRect = () => ({ left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, x, y }) as DOMRect;
+  el.getBoundingClientRect = () =>
+    ({ left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, x, y }) as DOMRect;
 }
 
 async function mount(warnings: unknown[], show = true) {
@@ -54,7 +55,12 @@ async function mount(warnings: unknown[], show = true) {
   root = createRoot(host);
   await act(async () => {
     root?.render(
-      <Outlines warnings={warnings as never} bodyRef={ref} rect={{ x: 10, y: 20, w: 200, h: 300 }} show={show} />
+      <Outlines
+        warnings={warnings as never}
+        bodyRef={ref}
+        rect={{ x: 10, y: 20, w: 200, h: 300 }}
+        show={show}
+      />
     );
   });
   await act(async () => {
@@ -67,7 +73,9 @@ describe('the outline on a layer that crosses the cut', () => {
   test('only the cut warnings name a layer to outline', () => {
     expect(outlineTargets([CUT, SOFT])).toEqual([{ cdId: 'qr', word: 'Crosses the cut' }]);
     expect(
-      outlineTargets([{ code: 'layers-at-cut', fix: { kind: 'show', elements: ['a', 'b'] } } as never])
+      outlineTargets([
+        { code: 'layers-at-cut', fix: { kind: 'show', elements: ['a', 'b'] } } as never,
+      ])
     ).toHaveLength(2);
   });
 
@@ -76,7 +84,12 @@ describe('the outline on a layer that crosses the cut', () => {
     const outs = host.querySelectorAll('[data-testid="artboard-warn-outline"]');
     expect(outs).toHaveLength(1);
     const o = outs[0] as HTMLElement;
-    expect([o.style.left, o.style.top, o.style.width, o.style.height]).toEqual(['70px', '240px', '70px', '72px']);
+    expect([o.style.left, o.style.top, o.style.width, o.style.height]).toEqual([
+      '70px',
+      '240px',
+      '70px',
+      '72px',
+    ]);
     expect(o.style.border).toContain('dashed');
     expect(o.textContent).toBe('Crosses the cut');
     // a guides-class aid: hidden from exports, never a pointer target
@@ -86,8 +99,12 @@ describe('the outline on a layer that crosses the cut', () => {
   });
 
   test('nothing is drawn outside edit chrome, or with no cut warning', async () => {
-    expect((await mount([CUT], false)).querySelector('[data-testid="artboard-warn-outlines"]')).toBeNull();
+    expect(
+      (await mount([CUT], false)).querySelector('[data-testid="artboard-warn-outlines"]')
+    ).toBeNull();
     await act(async () => root?.unmount());
-    expect((await mount([SOFT])).querySelector('[data-testid="artboard-warn-outlines"]')).toBeNull();
+    expect(
+      (await mount([SOFT])).querySelector('[data-testid="artboard-warn-outlines"]')
+    ).toBeNull();
   });
 });

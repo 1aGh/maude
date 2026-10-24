@@ -141,7 +141,9 @@ export function PrintSection({
                     data-testid={`export-print-page-${i + 1}`}
                     aria-label={`Page ${i + 1}`}
                     aria-pressed={i === at}
-                    style={i === 0 && picture ? { backgroundImage: `url("${picture}")` } : undefined}
+                    style={
+                      i === 0 && picture ? { backgroundImage: `url("${picture}")` } : undefined
+                    }
                     onClick={() => setPage(i)}
                   />
                 ))}

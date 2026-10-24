@@ -544,7 +544,9 @@ describe('the sheet: many at once', () => {
     // 09: the kind's icon tile is always first; the still stack (when there is one) sits after the names, before the value
     const row = $('[data-testid="export-group-digital"]') as HTMLElement;
     expect(row.firstElementChild?.className).toBe('ex-grp-ic');
-    expect(row.querySelector('.ex-grp-v [data-testid="export-group-digital-format"]')).not.toBeNull();
+    expect(
+      row.querySelector('.ex-grp-v [data-testid="export-group-digital-format"]')
+    ).not.toBeNull();
     expect($('[data-testid="export-row-folders"] [data-testid="export-folders"]')).not.toBeNull();
     await click('[data-testid="export-submit"]');
     expect(posted()).toMatchObject({
