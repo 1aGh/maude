@@ -347,7 +347,6 @@ describe('the desktop sheet renders every Settings row', () => {
     await goto('advanced');
     for (const id of [
       'settings-app-version',
-      'settings-update-restart',
       'settings-server-build',
       'settings-keys-store',
       'settings-claude-autosetup',
@@ -368,6 +367,28 @@ describe('the desktop sheet renders every Settings row', () => {
       'settings-reset-folds',
     ])
       expect(q(id), id).toBeTruthy();
+    // 06 ad-settings: "Restart now" exists only when a build is staged ("2.0.1 is ready · Restart now")
+    expect(q('settings-update-restart')).toBeNull();
+  });
+
+  // Phase 8 C10 (06 ad-settings): Advanced is THREE columns — This Mac · Engines · This project — in a 1300 x 700
+  // sheet, each rail tab carries its glyph, and the veil is the kit's (the canvas still reads through it).
+  test('Advanced is three columns; the rail tabs carry glyphs', async () => {
+    installTauri();
+    await mount();
+    await goto('advanced');
+    const cols = [
+      ...document.querySelectorAll('[data-testid="settings-advanced-cols"] > .v2s-col'),
+    ];
+    expect(cols.length).toBe(3);
+    const titles = cols.map((c) =>
+      [...c.querySelectorAll('.v2s-group-t')].map((t) => t.textContent)
+    );
+    expect(titles[0]).toEqual(['This Mac', 'Claude Code', 'Decision memory']);
+    expect(titles[1]?.[0]).toBe('Engines — Auto picks for you');
+    expect(titles[2]?.[0]).toBe('This project');
+    for (const tab of document.querySelectorAll('.v2s-tab'))
+      expect(tab.querySelector('svg')).toBeTruthy();
   });
 
   test('V2-4.10 / S11.13: Close all Advanced sections folds every remembered fold again', async () => {
@@ -399,13 +420,14 @@ describe('the desktop sheet renders every Settings row', () => {
   test('V2-4.7c: a browser tab on the desktop server has no Check for updates (no updater there)', async () => {
     await mount();
     await goto('advanced');
-    expect(q('settings-update-restart')).toBeTruthy();
+    expect(q('settings-update')).toBeTruthy();
     expect(q('settings-check-updates')).toBeNull();
   });
 
   test('every model row’s testid is on screen in its section (pattern ids by prefix)', async () => {
     installTauri();
-    await mount();
+    // a staged build, so the Update row's Restart now is there (06: it exists only while one is staged)
+    await mount({ update: { version: '2.0.1' } });
     for (const sec of ['general', 'connections', 'advanced']) {
       await goto(sec);
       const panel = q(`settings-panel-${sec}`) as HTMLElement;
@@ -437,11 +459,12 @@ describe('the desktop sheet renders every Settings row', () => {
     expect(later).toBe(1);
   });
 
-  test('no update staged: Restart now is there but idle', async () => {
+  test('no update staged: no Restart now at all (06 ad-settings: it comes with "2.0.1 is ready")', async () => {
     installTauri();
     await mount({ update: null });
     await goto('advanced');
-    expect((q('settings-update-restart') as HTMLButtonElement).disabled).toBe(true);
+    expect(q('settings-update-restart')).toBeNull();
+    expect(q('settings-update')?.textContent).toContain('Up to date');
     expect(q('settings-update-later')).toBeNull();
   });
 

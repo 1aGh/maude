@@ -14,6 +14,7 @@
 // precedent); colors are theme tokens only (no hardcoded hex).
 
 import { useCallback, useEffect, useState } from 'react';
+import { StIcon } from '../shell/icons.jsx';
 
 function Icon({ name, size = 16 }) {
   const p = {
@@ -576,7 +577,7 @@ export function KeyframeEngineCard() {
 
 // A copy/paste terminal command with a Copy button (same look as the ACP
 // readiness rows — the rdy-* classes are global in the bundled stylesheet).
-export function CopyCommand({ command, label }) {
+export function CopyCommand({ command, label, ghost = false, text }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard?.writeText(command).then(
@@ -587,6 +588,22 @@ export function CopyCommand({ command, label }) {
       () => {}
     );
   };
+  // 06 ad-settings `CopyBtn`: a ghost button with the duplicate glyph and a plain-words label; the command itself
+  // is on the tooltip (it is a thing to paste, not to read).
+  if (ghost)
+    return (
+      <button
+        type="button"
+        className="btn btn--ghost btn--sm"
+        onClick={copy}
+        // WCAG 2.5.3: the name starts with the visible words; the rest says which command
+        aria-label={`${text ?? 'Copy command'}, ${String(label || '').replace(/^Copy (the )?/, '')}`}
+        title={command}
+      >
+        <StIcon name="duplicate" size={14} />
+        {copied ? 'Copied' : (text ?? 'Copy command')}
+      </button>
+    );
   return (
     <span className="rdy-cmd">
       <code className="rdy-cmd-tx">{command}</code>
