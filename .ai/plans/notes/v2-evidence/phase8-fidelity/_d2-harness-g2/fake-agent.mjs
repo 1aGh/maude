@@ -66,7 +66,11 @@ agent
   .onRequest('session/new', () => ({
     sessionId: `g2-${++n}`,
     modes: { currentModeId: 'default', availableModes: [{ id: 'default', name: 'Ask before' }, { id: 'acceptEdits', name: 'Accept edits' }, { id: 'plan', name: 'Plan' }] },
-    configOptions: [],
+    configOptions: [
+      { id: 'model', name: 'Model', type: 'select', currentValue: 'opus', options: [{ value: 'opus', name: 'Opus' }, { value: 'sonnet', name: 'Sonnet' }] },
+      { id: 'effort', name: 'Effort', type: 'select', currentValue: 'medium', options: [{ value: 'low', name: 'Low' }, { value: 'medium', name: 'Medium' }, { value: 'high', name: 'High' }] },
+      { id: 'fast', name: 'Fast mode', type: 'select', currentValue: 'off', options: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }] },
+    ],
   }))
   .onRequest('session/load', () => ({}))
   .onNotification('session/cancel', (ctx) => cancels.get(ctx.params.sessionId)?.())
@@ -87,7 +91,7 @@ agent
     if (t.includes('permission')) {
       const out = await ctx.client.request(acp.methods.client.session.requestPermission, {
         sessionId: ctx.params.sessionId,
-        toolCall: { toolCallId: 'p1', title: 'Replace 4 team photos in Uniformy-2027?', kind: 'edit', rawInput: { path } },
+        toolCall: { toolCallId: 'p1', title: 'Replace 4 team photos in Uniformy-2027', kind: 'other', rawInput: { assets: 4 } },
         options: [
           { optionId: 'allow-once', name: 'Allow', kind: 'allow_once' },
           { optionId: 'allow-always', name: 'Always allow', kind: 'allow_always' },
@@ -113,8 +117,7 @@ agent
       return { stopReason: 'end_turn' };
     }
     if (t.includes('fail')) {
-      await say(ctx, 'Trying — ');
-      throw new Error("Couldn't finish — the footage file is missing. Nothing changed.");
+      throw new acp.RequestError(-32603, "ENOENT: no such file or directory, open '/Assets/Footage/trenink-0412.mov'");
     }
     await toolStart(ctx, 'e1', path, nm?.title);
     await sleep(1200);

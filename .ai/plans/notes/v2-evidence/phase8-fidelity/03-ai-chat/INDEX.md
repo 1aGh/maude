@@ -162,3 +162,16 @@ Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all me
 | `ai-advanced` | re-shot | re-shot |
 | `ai-adv-edges` | re-shot | re-shot |
 | `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
+
+## Round 5 (p8-c5-aichat) — after
+
+Re-shot light + dark with `_d2-harness-g2/s03c.mjs` (clean chats, one at a time). Not judged here; see `fix-c5-aichat.md`.
+
+| id | what the frame shows now | pair |
+|---|---|---|
+| `ai-scope` | the scope menu escapes the chat card: all four rows (Whole canvas, Post 1:1, Choose artboards, No canvas) | `03-ai-chat/ai-scope-{dark,light}.jpg` |
+| `ai-attach-menu` | the paperclip menu flush to the field, 8 px over its top | `03-ai-chat/ai-attach-menu-{dark,light}.jpg` |
+| `ai-permission` | non-file ask with "Always for this canvas" (the fake agent offers allow_always), headline not repeated as detail | `03-ai-chat/ai-permission-{dark,light}.jpg` |
+| `ai-choice-fail` | file named, detail line, verb "Pick another clip", no Advanced fold, no ghost line | `03-ai-chat/ai-choice-fail-{dark,light}.jpg` |
+| `ai-advanced` | full "Ask before" value, Model select, Effort segmented, Fast mode switch, no "default" line | `03-ai-chat/ai-advanced-{dark,light}.jpg` |
+| `ai-long-pinned` | 420 column inside the window with a 12 px gutter, canvas fitted to the room left of it, nothing selected | `03-ai-chat/ai-long-pinned-{dark,light}.jpg` |
