@@ -684,7 +684,11 @@ export function isPageHit(
 ): boolean {
   if (!target || typeof (target as Element).closest !== 'function') return false;
   const el = target as Element;
-  if (!el.closest('.dc-artboard-body') || typeof clientX !== 'number' || typeof clientY !== 'number')
+  if (
+    !el.closest('.dc-artboard-body') ||
+    typeof clientX !== 'number' ||
+    typeof clientY !== 'number'
+  )
     return false;
   const hit = resolveHoverTarget(el.ownerDocument, clientX, clientY, { deep: false });
   return !!hit && hit.cdId === null && hit.el.hasAttribute('data-dc-screen');

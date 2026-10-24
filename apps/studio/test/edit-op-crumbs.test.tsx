@@ -176,4 +176,29 @@ describe('inspector crumbs', () => {
     await act(async () => q('inspector-crumb-0').click());
     expect(picked).toEqual([{ artboard: 'desktop', element: 'services' }, null]);
   });
+  // V2-8.5 c3 (14 R4) — a deep path is folded, not crushed: "Desktop › … › Frame › Brand systems", every shown rung whole
+  test('a path of more than four rungs keeps the artboard and the last two, with … for the rest', async () => {
+    const { InspectorCrumbs } = await import('../client/v2/inspector/crumbs.jsx');
+    const picked: unknown[] = [];
+    const crumbs = buildCrumbs('desktop', [
+      { id: null, tag: 'article', artboardLabel: 'Desktop' },
+      { id: 'a', tag: 'div', name: 'page' },
+      { id: 'b', tag: 'section', name: 'services' },
+      { id: 'c', tag: 'div', name: 'cards' },
+      { id: 'd', tag: 'article', name: 'brand-systems' },
+    ]);
+    const host = await mount(
+      <InspectorCrumbs crumbs={crumbs} onPick={(r: unknown) => picked.push(r)} />
+    );
+    const q = (id: string) => host.querySelector(`[data-testid="${id}"]`) as HTMLElement | null;
+    expect(q('inspector-crumb-0')?.textContent).toBe('Desktop');
+    expect(q('inspector-crumb-1')).toBeNull();
+    expect(q('inspector-crumb-2')).toBeNull();
+    expect(q('inspector-crumb-gap')?.textContent).toBe('…');
+    expect(q('inspector-crumb-gap')?.getAttribute('title')).toBe('Page › Services');
+    expect(q('inspector-crumb-3')?.textContent).toBe('Cards');
+    expect(q('inspector-crumb-4')?.getAttribute('aria-current')).toBe('location');
+    await act(async () => q('inspector-crumb-3')?.click());
+    expect(picked).toEqual([{ artboard: 'desktop', element: 'c' }]);
+  });
 });

@@ -33,7 +33,16 @@ function board(html: string, body: Box, boxes: Record<string, Box> = {}) {
   document.body.appendChild(host);
   const rectOf = (el: Element, b: Box) =>
     Object.assign(el, {
-      getBoundingClientRect: () => ({ x: 0, y: 0, left: 0, top: 0, width: b.w, height: b.h, right: b.w, bottom: b.h }),
+      getBoundingClientRect: () => ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        width: b.w,
+        height: b.h,
+        right: b.w,
+        bottom: b.h,
+      }),
     });
   const bodyEl = host.querySelector('.dc-artboard-body') as HTMLElement;
   rectOf(bodyEl, body);
@@ -65,11 +74,10 @@ describe('the page root is the artboard', () => {
   });
 
   test('pageRootOf: two stamped siblings at the top have no page root', () => {
-    const b = board(
-      '<div data-cd-id="a"></div><div data-cd-id="b"></div>',
-      FULL,
-      { a: FULL, b: FULL }
-    );
+    const b = board('<div data-cd-id="a"></div><div data-cd-id="b"></div>', FULL, {
+      a: FULL,
+      b: FULL,
+    });
     expect(pageRootOf(b.bodyEl)).toBeNull();
   });
 
@@ -128,6 +136,8 @@ describe('the page root is the artboard', () => {
       b.at('[data-cd-id="title"]');
     expect(yieldsToArtboardDrag(action, b.at('[data-cd-id="title"]'), mods)).toBe(false);
     // ⌘ is deep-select's, always
-    expect(yieldsToArtboardDrag(action, b.at('[data-cd-id="page"]'), { ...mods, metaKey: true })).toBe(false);
+    expect(
+      yieldsToArtboardDrag(action, b.at('[data-cd-id="page"]'), { ...mods, metaKey: true })
+    ).toBe(false);
   });
 });
