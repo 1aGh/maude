@@ -60,29 +60,37 @@ const SPACING_CSS = `
   transition: opacity 120ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .dc-spacing-handle--padding {
-  width: 10px;
-  height: 10px;
+  /* P8 R3 (14 Editing) — at rest the board draws the BANDS and their chips, not grips: the handle is a grabbable
+     hit zone that wears its square only under the pointer (or while it is dragged). */
+  width: 14px;
+  height: 14px;
   border-radius: 2px;
-  background: var(--maude-hud-accent, oklch(0.680 0.180 268));
-  border: 1px solid var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
-  opacity: 0.55;
+  background: transparent;
+  border: 1px solid transparent;
+  opacity: 1;
 }
 .dc-spacing-handle--padding:hover,
-.dc-spacing-handle--padding[data-dragging="true"] { opacity: 1; }
+.dc-spacing-handle--padding[data-dragging="true"] {
+  background: var(--maude-hud-accent, oklch(0.680 0.180 268));
+  border-color: var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
+}
 .dc-spacing-handle--padding[data-side="top"],
 .dc-spacing-handle--padding[data-side="bottom"] { cursor: ns-resize; }
 .dc-spacing-handle--padding[data-side="left"],
 .dc-spacing-handle--padding[data-side="right"] { cursor: ew-resize; }
 .dc-spacing-handle--gap {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #FF24BD;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  opacity: 0.7;
+  /* the gap's chip ("24") IS the grip at rest: an invisible hit zone the size of the chip, a magenta ring on hover */
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+  opacity: 1;
 }
 .dc-spacing-handle--gap:hover,
-.dc-spacing-handle--gap[data-dragging="true"] { opacity: 1; }
+.dc-spacing-handle--gap[data-dragging="true"] {
+  box-shadow: 0 0 0 1.5px #FF24BD;
+}
 .dc-spacing-handle--gap[data-axis="x"] { cursor: ew-resize; }
 .dc-spacing-handle--gap[data-axis="y"] { cursor: ns-resize; }
 @media (prefers-reduced-motion: reduce) {
