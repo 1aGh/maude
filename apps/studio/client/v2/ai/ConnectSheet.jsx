@@ -8,7 +8,9 @@
 // `inline` draws it in flow (inside the panel); otherwise it is a window sheet (the caller puts a Veil under
 // it). Words are CONTRACT §7: "Connect your Claude account to let AI draft this." → Connect · Cancel.
 
-import { useId } from 'react';
+import { useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useModalFocus } from '../shell/modal-focus.js';
 import { Spark } from './icons.jsx';
 
 const CONNECT_LABEL = {
@@ -24,6 +26,7 @@ export function ConnectSheet({
   error = null,
   onConnect,
   onCancel,
+  connectRef,
   // S6.9 (02 ob-adv-sheets): Home's "Connect AI" reads "Connect AI" and carries no "your prompt waits"
   // line (there is no prompt yet). The defaults are CONTRACT §7's words, unchanged for every other caller.
   title = 'Connect your Claude account?',
@@ -78,6 +81,7 @@ export function ConnectSheet({
         <button
           type="button"
           className="btn btn--sm btn--primary"
+          ref={connectRef}
           disabled={busy}
           data-testid="ai-connect-go"
           onClick={onConnect}
@@ -86,6 +90,25 @@ export function ConnectSheet({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * P8 C3 (02 ob-ai-connect, 05 es-canvas-three): the sheet as drawn - a CENTRED card over a strong veil, never a
+ * strip inside the panel (the stage-C "inline sheet" was clipped and unreadable). A modal: focus lands on Connect,
+ * Tab stays inside, Esc is Cancel (which drops the kept prompt, so a stray click on the veil is NOT Cancel).
+ * Rendered into the document body so no transformed panel ancestor can pin or clip it.
+ * @param {object} props — the ConnectSheet props, plus `testid` for the veil
+ */
+export function ConnectModal({ testid = 'ai-connect-modal', onCancel, ...sheet }) {
+  const connectRef = useRef(null);
+  const root = useModalFocus({ onClose: onCancel, initialRef: connectRef });
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="ai-conn-veil" ref={root} tabIndex={-1} data-testid={testid}>
+      <ConnectSheet {...sheet} connectRef={connectRef} onCancel={onCancel} />
+    </div>,
+    document.body
   );
 }
 

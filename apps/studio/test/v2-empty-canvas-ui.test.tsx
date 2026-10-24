@@ -139,19 +139,21 @@ describe('EmptyCanvas', () => {
 describe('the connect sheet', () => {
   test("S5 ConnectSheet: Connect runs the flow, Cancel closes; both are the sheet's own words", async () => {
     const calls: string[] = [];
-    const { host, act } = await mount(({ React, canvas }) =>
+    const { act } = await mount(({ React, canvas }) =>
       React.createElement(canvas.EmptyConnect, {
         onConnect: () => calls.push('connect'),
         onCancel: () => calls.push('cancel'),
         phase: 'idle',
       })
     );
-    expect(text(host)).toContain('Connect your Claude account to let AI draft this.');
+    // P8 c3: the sheet is a modal in the document body (a centred card over a strong veil), not inside the host
+    expect(text(document.body)).toContain('Connect your Claude account to let AI draft this.');
+    expect(document.querySelector('[data-testid="empty-connect"]')?.className).toBe('ai-conn-veil');
     await act(async () =>
-      (host.querySelector('[data-testid="ai-connect-go"]') as HTMLElement).click()
+      (document.querySelector('[data-testid="ai-connect-go"]') as HTMLElement).click()
     );
     await act(async () =>
-      (host.querySelector('[data-testid="ai-connect-cancel"]') as HTMLElement).click()
+      (document.querySelector('[data-testid="ai-connect-cancel"]') as HTMLElement).click()
     );
     expect(calls).toEqual(['connect', 'cancel']);
   });

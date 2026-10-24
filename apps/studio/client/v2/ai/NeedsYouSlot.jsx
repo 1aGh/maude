@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dismissNotice, notify } from '../../../notifications.tsx';
 import ElicitationPrompt from '../../panels/ElicitationPrompt.jsx';
 import ChoiceCard from './ChoiceCard.jsx';
-import ConnectSheet from './ConnectSheet.jsx';
+import { ConnectModal } from './ConnectSheet.jsx';
 import { connectClaude } from './connect-flow.js';
 import { ErrorCard } from './Feed.jsx';
 import { queuedForChat } from './gate-lines.js';
@@ -237,8 +237,7 @@ export default function NeedsYouSlot({
       )}
       {queued.length > 0 ? (
         <QueuedState queued={queued[0]} count={queued.length}>
-          <ConnectSheet
-            inline
+          <ConnectModal
             phase={phase}
             error={connectError}
             onConnect={connect}

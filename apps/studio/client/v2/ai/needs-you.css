@@ -455,6 +455,20 @@
     right: var(--space-2);
     top: 76px;
   }
+  /* P8 C3 (02 ob-ai-connect, 05 es-canvas-three): the Connect sheet is a CENTRED card over a strong veil
+     (kit `.k-veil--strong`: the canvas ground at 72 %), in the window - not a strip inside the panel. */
+  .ai-conn-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: var(--space-5);
+    background: color-mix(in srgb, var(--canvas-bg) 72%, transparent);
+  }
+  .ai-conn-veil:focus {
+    outline: none;
+  }
   /* The sheet's paragraphs carry no browser margin: their gaps are the flex gap's alone (a bare <p> added
      ~78 px and pushed Connect / Cancel out of the AI island). */
   .ai-conn-t,
