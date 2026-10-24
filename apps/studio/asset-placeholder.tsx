@@ -89,6 +89,43 @@ function failed(el: Media): boolean {
   return el.error !== null || el.networkState === 3; // NETWORK_NO_SOURCE
 }
 
+/** A frame smaller than this in either direction has no room for the card (12 · ia-missing-gone: a collapsed broken `<img>`). */
+export const FRAME_MIN = 96;
+
+interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The rectangle a failed picture's frame covers. A broken `<img>` with no authored height collapses to a few pixels, so
+ * following ITS rectangle draws a hatched strip and clips the card away. The board hatches the whole picture frame, so a
+ * collapsed element takes the nearest ancestor that is big enough to hold the card (never past the body).
+ */
+export function frameBox(el: {
+  getBoundingClientRect(): Box;
+  parentElement: unknown;
+}): Box | null {
+  const own = el.getBoundingClientRect();
+  if (own.width >= FRAME_MIN && own.height >= FRAME_MIN) return own;
+  let up = el.parentElement as (typeof el & { tagName?: string }) | null;
+  for (let i = 0; up && up.tagName !== 'BODY' && up.tagName !== 'HTML' && i < 6; i++) {
+    const r = up.getBoundingClientRect();
+    if (r.width >= FRAME_MIN && r.height >= FRAME_MIN) return r;
+    up = up.parentElement as typeof up;
+  }
+  // nothing around it is big enough: hold the card in a box of its own, anchored where the picture is
+  if (own.width < 2 && own.height < 2) return null;
+  return {
+    left: own.left,
+    top: own.top,
+    width: Math.max(own.width, FRAME_MIN * 1.6),
+    height: Math.max(own.height, FRAME_MIN),
+  };
+}
+
 const CSS = `
 .dc-absent-layer {
   --dc-absent-bg: oklch(0.96 0.004 250);
@@ -102,7 +139,7 @@ const CSS = `
   --dc-absent-accent: oklch(0.53 0.175 238);
   --dc-absent-accent-fg: oklch(0.99 0.004 238);
   position: fixed; inset: 0; z-index: 6; pointer-events: none;
-  font: 12px/1.35 system-ui, -apple-system, sans-serif;
+  font: 12px/1.35 var(--font-body, system-ui, -apple-system, sans-serif);
 }
 :root[data-maude-theme="dark"] .dc-absent-layer {
   --dc-absent-bg: oklch(0.25 0.006 250);
@@ -125,6 +162,8 @@ const CSS = `
 .dc-absent-in { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: calc(100% - 16px);
   padding: 8px 12px; border-radius: 8px; background: var(--dc-absent-card); text-align: center;
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.12); }
+.dc-absent-ic { display: none; color: var(--dc-absent-error); }
+.dc-absent[data-state="missing"] .dc-absent-ic { display: block; }
 .dc-absent-n { font-weight: 600; color: var(--dc-absent-ink); overflow-wrap: anywhere; }
 .dc-absent-d { color: var(--dc-absent-muted); }
 .dc-absent[data-state="missing"] .dc-absent-d { color: var(--dc-absent-error); }
@@ -235,7 +274,7 @@ export function AssetPlaceholderLayer() {
       for (const f of frames) {
         const div = nodes.current.get(f.key);
         if (!div) continue;
-        const r = f.el.isConnected ? f.el.getBoundingClientRect() : null;
+        const r = f.el.isConnected ? frameBox(f.el) : null;
         if (!r || r.width < 2 || r.height < 2) {
           div.style.display = 'none';
           continue;
@@ -280,6 +319,22 @@ export function AssetPlaceholderLayer() {
               aria-label={`${baseName(f.rel)} · ${f.words.line}`}
             >
               <span className="dc-absent-in">
+                <svg
+                  className="dc-absent-ic"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 2.2 14.2 13H1.8z" />
+                  <path d="M8 6.4v3.2" />
+                  <circle cx="8" cy="11.3" r="0.4" fill="currentColor" />
+                </svg>
                 <span className="dc-absent-n">{baseName(f.rel)}</span>
                 <span className="dc-absent-d">{f.words.line}</span>
                 {f.words.relink ? (

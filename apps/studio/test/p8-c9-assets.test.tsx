@@ -14,6 +14,8 @@ import {
   libraryFootWords,
 } from '../client/v2/assets/library-foot.js';
 
+import { FRAME_MIN, frameBox } from '../asset-placeholder.tsx';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
 
@@ -146,5 +148,27 @@ describe('the CSS the board draws (pins)', () => {
   test('the left panel stops above the bottom row; its island is 248 wide', () => {
     expect(read('client/v2/shell/floating-panels.css')).toContain('padding-bottom: 72px');
     expect(read('client/hooks/use-shell-core.jsx')).toContain("def: 264 }");
+  });
+});
+
+describe('the Missing frame fills the picture frame (12 · ia-missing-gone)', () => {
+  const box = (w: number, h: number) => ({ left: 10, top: 20, width: w, height: h });
+  const el = (b: ReturnType<typeof box>, parent: unknown = null, tagName = 'DIV') => ({
+    getBoundingClientRect: () => b,
+    parentElement: parent,
+    tagName,
+  });
+
+  test('a collapsed broken <img> takes the nearest ancestor big enough for the card', () => {
+    const board = el(box(480, 360));
+    const img = el(box(480, 14), el(box(480, 14), board));
+    expect(frameBox(img)).toEqual(box(480, 360));
+  });
+
+  test('a picture with room keeps its own rectangle; nothing around it still gets a card-sized box', () => {
+    expect(frameBox(el(box(300, 200)))).toEqual(box(300, 200));
+    const tiny = frameBox(el(box(40, 14), el(box(40, 14), null, 'BODY')));
+    expect(tiny?.width).toBeGreaterThanOrEqual(FRAME_MIN);
+    expect(tiny?.height).toBeGreaterThanOrEqual(FRAME_MIN);
   });
 });

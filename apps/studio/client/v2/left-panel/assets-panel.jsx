@@ -699,6 +699,14 @@ export function AssetsPanel({
           canPlace={!readOnly}
           onPlace={(p) => void place(p)}
           onBack={() => setDetails(null)}
+          onMore={
+            readOnly
+              ? undefined
+              : (e, asset) => {
+            const r = e.currentTarget.getBoundingClientRect();
+                  setMenu({ anchor: { left: r.left, top: r.top, bottom: r.bottom }, asset });
+                }
+          }
           onOpenBoard={(canvas, boardId) => onOpenCanvas?.(`${designRel}/${canvas}`, boardId)}
           fetchImpl={fetchImpl}
         />

@@ -833,10 +833,66 @@
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
+  .lp-dt-use {
+    min-height: 34px;
+    justify-content: flex-start;
+  }
+  .lp-dt-use > :last-child {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  /* the canvas's cover (`UsedRow` Thumb): a small rounded picture, an empty well while it loads */
+  .lp-dt-use-th {
+    flex: none;
+    width: 28px;
+    height: 22px;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--k-chrome-edge, var(--border-default));
+  }
+  .lp-dt-use-th img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   .lp-dt-use-t {
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-width: 0;
+  }
+  .lp-dt-use-t > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-dt-more {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-more:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-dt-more:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  /* a photo: a 150 px cover crop (`.ia-dt-pic--short`), not a contained thumbnail */
+  .lp-dt[data-kind="photo"] img.lp-dt-pic,
+  .lp-dt[data-kind="made"] img.lp-dt-pic {
+    height: 150px;
+    max-height: none;
+    object-fit: cover;
   }
   .lp-dt-use-b {
     color: var(--fg-2);
