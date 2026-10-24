@@ -52,7 +52,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
+import { canvasInsets } from './bridge/canvas-mode-store.ts';
+import { type Insets, visibleRect } from './bridge/occlusion.ts';
 import {
   annotationElement,
   isAnnotationId,
@@ -497,25 +498,37 @@ function screenRectFor(target: TargetRef): {
 // the pattern context-menu.tsx already uses for the same problem, but flips
 // axes instead of only clamping, per the explicit ask: always open toward
 // whichever side has room, not just "shifted back into view".
+//
+// P8 C5: "the viewport" is the canvas the shell leaves free — the iframe minus the shell's occluded insets
+// (the floating islands over it). The Comments panel is docked on the right (CONTRACT §6); a card that
+// opened toward it sat under the island with its Resolve out of reach.
 export function placeNearPoint(
   point: { x: number; y: number },
-  size: { w: number; h: number }
+  size: { w: number; h: number },
+  insets: Insets = canvasInsets()
 ): { x: number; y: number } {
   const margin = 8;
   const vw = typeof window !== 'undefined' ? window.innerWidth : point.x + size.w;
   const vh = typeof window !== 'undefined' ? window.innerHeight : point.y + size.h;
+  const free = visibleRect(vw, vh, insets);
+  const left = free.x + margin;
+  const top = free.y + margin;
+  const right = free.x + free.w;
+  const bottom = free.y + free.h;
 
   let x = point.x;
-  if (x + size.w + margin > vw) {
+  if (x + size.w + margin > right) {
     const flipped = point.x - size.w;
-    x = flipped >= margin ? flipped : Math.max(margin, vw - size.w - margin);
+    x = flipped >= left ? flipped : Math.max(left, right - size.w - margin);
   }
+  if (x < left) x = left;
 
   let y = point.y;
-  if (y + size.h + margin > vh) {
+  if (y + size.h + margin > bottom) {
     const flipped = point.y - size.h;
-    y = flipped >= margin ? flipped : Math.max(margin, vh - size.h - margin);
+    y = flipped >= top ? flipped : Math.max(top, bottom - size.h - margin);
   }
+  if (y < top) y = top;
 
   return { x, y };
 }
@@ -1075,6 +1088,17 @@ function detectMentionToken(text: string, caret: number): MentionToken | null {
   return null;
 }
 
+/** The field is one line until the words need more (the board's `.md-th-in`, wrapping at `--wrap`), to a cap. */
+function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: string): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the value is the trigger; the node is read from the ref
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [ref, value]);
+}
+
 function MentionAwareTextarea({
   className,
   value,
@@ -1243,6 +1267,7 @@ function MentionAwareTextarea({
                   insertMention(c);
                 }}
               >
+                <Avatar name={c.name} />
                 <span className="cm-mention-popup__name">@{firstNameSlug(c.name)}</span>
                 {c.role ? <span className="cm-mention-popup__role">{c.role}</span> : null}
               </li>
@@ -1402,6 +1427,7 @@ export function CommentComposer({
 }) {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useAutoGrow(textareaRef, text);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -1454,7 +1480,7 @@ export function CommentComposer({
   // gate-b-polish3 (10 · co-comment-thread) — the header says WHERE, in words: the artboard's label, else the
   // element's name, else the canvas. Never a raw id (the v1 head showed "cd:566b4b33").
   const where = useMemo(
-    () => placeWords({ artboard: state.anchors?.artboard, selector: state.selection.selector }),
+    () => placeHeading({ artboard: state.anchors?.artboard, selector: state.selection.selector }),
     [state.anchors, state.selection]
   );
 
@@ -1505,7 +1531,7 @@ export function CommentComposer({
           placeholder="Add a comment — @ mentions someone"
           onChange={setText}
           onKeyDown={onKeyDown}
-          rows={2}
+          rows={1}
           ariaLabel="Comment body"
         />
         <button
@@ -1519,7 +1545,7 @@ export function CommentComposer({
         >
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
             <path
-              d="M8 13V3.5M3.8 7.6 8 3.4l4.2 4.2"
+              d="M6 3.5 10.5 8 6 12.5"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.6"
@@ -1550,6 +1576,30 @@ export function placeWords(o: { artboard?: string | null; selector?: string | nu
   const named = el?.getAttribute?.('data-dc-element');
   if (named) return named.replace(/[-_]+/g, ' ');
   return 'On the canvas';
+}
+
+/** The canvas' own name in words ("Pricing", "Combine kampan"): its file's name, no folders, no extension. */
+export function canvasTitle(file: string | null = deriveFile()): string {
+  const base = (file ?? '').split('/').pop() ?? '';
+  if (!/\.[a-z0-9]+$/i.test(base)) return ''; // not a canvas file (a bare page path): no name to give
+  return base
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+}
+
+/**
+ * The card's heading, the way the board writes it (04 md-comment, 10 co-comment-thread): "Pricing · Desktop" —
+ * the canvas, then where on it. A canvas whose name is not known leaves just the place.
+ */
+export function placeHeading(
+  o: { artboard?: string | null; selector?: string | null },
+  file: string | null = deriveFile()
+): string {
+  const place = placeWords(o);
+  const canvas = canvasTitle(file);
+  if (!canvas) return place;
+  return place === 'On the canvas' ? canvas : `${canvas} · ${place}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1607,6 +1657,7 @@ export function CommentThread({
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [reply, setReply] = useState('');
+  useAutoGrow(replyRef, reply);
   const [sending, setSending] = useState(false);
   // Editing your own comment: the text in place, saved as a patch (the same
   // channel resolve/reopen use). null = not editing.
@@ -1702,7 +1753,7 @@ export function CommentThread({
     comment,
     comment.artboard ? trimOfPrint(printPropOf(comment.artboard)) : null
   );
-  const whereLabel = placeWords({ artboard: comment.artboard, selector: comment.selector });
+  const whereLabel = placeHeading({ artboard: comment.artboard, selector: comment.selector });
 
   // S4.V4 G5 (S4-S9-votes-comments §3.4) — a converted sticky's thread: the header's Undo (the converter,
   // while this app session holds the conversion — the shell answers `convert-undoable`) and the ⋯ "Turn back
@@ -1749,6 +1800,7 @@ export function CommentThread({
     <div
       ref={dialogRef}
       className="cm-thread"
+      data-seq={sequence}
       role="dialog"
       data-esc-owner="focus"
       aria-labelledby={headId}
@@ -1758,11 +1810,8 @@ export function CommentThread({
     >
       <div className="cm-thread__head" id={headId}>
         <div className="cm-thread__head-row">
-          {/* Plan C P18 — pin/sequence badge in the popover header (parity with
-              `.design/ui/Studio.tsx` thread popover). */}
-          <span className="cm-thread__seq" aria-hidden="true">
-            {sequence}
-          </span>
+          {/* P8 C5: no sequence badge — the board's card opens with its words ("Pricing · Desktop"), and a
+              pin wears its author's initial, not a number (the number stays on `data-seq`). */}
           {/* S9.22 (10 · co-comment-thread) — WHERE the thread is: the artboard it sits on, else the
               element it names. Resolve / Reopen live here, beside it. */}
           <span className="cm-thread__where" data-testid={`comment-where-${comment.id}`}>
@@ -1784,23 +1833,25 @@ export function CommentThread({
                 {comment.status === 'resolved' ? (
                   <button
                     type="button"
-                    className="cm-btn"
+                    className="cm-btn cm-btn--ghost"
                     data-testid={`comment-reopen-${comment.id}`}
                     onClick={() => onPatch({ status: 'open' })}
                   >
-                    ↺ Reopen
+                    <Glyph d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.5v2.6h2.6" />
+                    Reopen
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="cm-btn cm-btn--primary"
+                    className="cm-btn cm-btn--ghost"
                     data-testid={`comment-resolve-${comment.id}`}
                     onClick={() => {
                       onPatch({ status: 'resolved' });
                       onClose();
                     }}
                   >
-                    ✓ Resolve
+                    <Glyph d="M3 8.4 6.4 11.8 13 4.6" />
+                    Resolve
                   </button>
                 )}
                 {mine ? (
@@ -1993,7 +2044,7 @@ export function CommentThread({
           read-only role) VIEWS threads; reply / resolve / delete are absent. The server decides
           either way — this only stops offering what it would refuse. */}
       {canAct && (
-        <div className="cm-thread__reply-form">
+        <div className="cm-thread__reply-form cm-thread__reply-form--field">
           <MentionAwareTextarea
             textareaRef={replyRef}
             className="cm-thread__reply-textarea"
@@ -2002,18 +2053,29 @@ export function CommentThread({
             title="⌘↵ to send · @name to tag"
             onChange={setReply}
             onKeyDown={onReplyKeyDown}
-            rows={2}
+            rows={1}
             ariaLabel="Reply"
             disabled={sending}
           />
           <div className="cm-thread__reply-actions">
             <button
               type="button"
-              className="cm-btn cm-btn--primary"
+              className="cm-btn cm-btn--primary cm-thread__send"
+              aria-label="Send"
+              title="Send · ⌘↵"
               disabled={!reply.trim() || sending}
               onClick={() => void trySendReply()}
             >
-              Send
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M6 3.5 10.5 8 6 12.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
         </div>
@@ -2036,6 +2098,22 @@ function ImportedMark(): React.ReactElement {
   return <span className="cm-av cm-av--imported" aria-hidden="true" />;
 }
 
+/** One 16-grid stroke glyph (the board's Resolve check, Reopen arrow) — decorative, the button has words. */
+function Glyph({ d }: { d: string }): React.ReactElement {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" className="cm-glyph">
+      <path
+        d={d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** Initials in a circle — a person's mark in a thread; `AI` for an AI-written message. */
 function Avatar({ name, ai = false }: { name?: string; ai?: boolean }): React.ReactElement {
   const parts = (name ?? '')
@@ -2050,7 +2128,18 @@ function Avatar({ name, ai = false }: { name?: string; ai?: boolean }): React.Re
         ? (parts[0] ?? '').slice(0, 2).toUpperCase()
         : `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`.toUpperCase();
   return (
-    <span className={`cm-av${ai ? ' cm-av--ai' : ''}`} aria-hidden="true">
+    // 10 co-comment-thread: a face wears the colour its person wears everywhere (pin, panel, Share sheet)
+    <span
+      className={`cm-av${ai ? ' cm-av--ai' : ''}`}
+      style={
+        !ai && parts.length > 0
+          ? ({
+              ['--cm-av-tone' as string]: toneColor(toneFor((name ?? '').trim())),
+            } as React.CSSProperties)
+          : undefined
+      }
+      aria-hidden="true"
+    >
       {initials}
     </span>
   );
