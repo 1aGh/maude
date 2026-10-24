@@ -201,3 +201,130 @@ export function ArtboardWarnMark({ count }: { count: number }) {
   );
 }
 ArtboardWarnMark.displayName = 'ArtboardWarnMark';
+
+// ── the layer a warning is about, outlined on the artboard (08 ak-warnings: "Crosses the cut") ─────────────────────
+
+/** The word on the tag of an outlined layer, per warning code. Only the cut says it on the canvas; every other warning
+ *  is the label mark + one inspector line. */
+export const OUTLINE_WORDS: Readonly<Record<string, string>> = Object.freeze({
+  'crosses-cut': 'Crosses the cut',
+  'layers-at-cut': 'Crosses the cut',
+});
+
+const MAX_OUTLINES = 8;
+
+/** The cdIds the warnings name that deserve an outline. */
+export function outlineTargets(list: readonly Warning[]): Array<{ cdId: string; word: string }> {
+  const out: Array<{ cdId: string; word: string }> = [];
+  for (const w of list) {
+    const word = OUTLINE_WORDS[w.code];
+    if (!word) continue;
+    const fix = w.fix as { element?: string; elements?: string[] };
+    for (const id of fix.elements ?? (fix.element ? [fix.element] : []))
+      if (typeof id === 'string' && out.length < MAX_OUTLINES) out.push({ cdId: id, word });
+  }
+  return out;
+}
+
+interface Outline {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  word: string;
+}
+
+/**
+ * A dashed `--status-warn` outline and a small tag on each layer the warnings name, drawn over the artboard's design
+ * surface like the guides: a transient design aid (`dc-artboard-guides`, hidden from every export), not selectable.
+ * `rect` is the surface in WORLD px; the layer's rect is measured in the artboard's own px and carried over.
+ */
+export function ArtboardWarnOutlines({
+  warnings,
+  bodyRef,
+  rect,
+  show,
+}: {
+  warnings: readonly Warning[];
+  bodyRef: RefObject<HTMLElement | null>;
+  rect: { x: number; y: number; w: number; h: number };
+  show: boolean;
+}) {
+  const [outlines, setOutlines] = useState<Outline[]>([]);
+  const key = JSON.stringify(outlineTargets(warnings));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for the targets; the body is read inside.
+  useEffect(() => {
+    const body = bodyRef.current;
+    const targets = outlineTargets(warnings);
+    if (!show || !body || targets.length === 0) {
+      setOutlines((prev) => (prev.length ? [] : prev));
+      return;
+    }
+    const b = body.getBoundingClientRect();
+    const k = body.offsetWidth > 0 && b.width > 0 ? b.width / body.offsetWidth : 1;
+    const next: Outline[] = [];
+    for (const t of targets) {
+      const el = body.querySelector(`[data-cd-id="${t.cdId.replace(/["\\]/g, '\\$&')}"]`);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (!(r.width > 0 && r.height > 0)) continue;
+      next.push({
+        x: (r.left - b.left) / k,
+        y: (r.top - b.top) / k,
+        w: r.width / k,
+        h: r.height / k,
+        word: t.word,
+      });
+    }
+    setOutlines((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, [key, show, rect.x, rect.y, rect.w, rect.h]);
+  if (!show || outlines.length === 0) return null;
+  return (
+    <div
+      className="dc-artboard-guides dc-warn-outlines"
+      data-testid="artboard-warn-outlines"
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        left: rect.x,
+        top: rect.y,
+        width: rect.w,
+        height: rect.h,
+        pointerEvents: 'none',
+      }}
+    >
+      {outlines.map((o, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: outlines are positional, re-derived on every change
+          key={i}
+          data-testid="artboard-warn-outline"
+          style={{
+            position: 'absolute',
+            left: o.x,
+            top: o.y,
+            width: o.w,
+            height: o.h,
+            border: '1.5px dashed var(--maude-hud-warn, #f5b84a)',
+            borderRadius: 0,
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              right: -1.5,
+              bottom: 'calc(100% + 4px)',
+              padding: '1px 4px',
+              borderRadius: 4,
+              background: 'var(--maude-hud-warn, #f5b84a)',
+              color: 'var(--maude-hud-object-ink, #1a1d24)',
+              font: '600 11px/1.3 var(--font-body, system-ui, sans-serif)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {o.word}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
