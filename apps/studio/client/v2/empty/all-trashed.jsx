@@ -89,12 +89,14 @@ export function AllTrashed({
   onChanged,
   now = Date.now,
   lane: laneIn,
+  onShown, // (boolean) => void — told when the card goes on / off screen (the host hides "Your canvas is ready.")
 }) {
   const prefix = `${designRel.replace(/\/+$/, '')}/`;
   const canvasPath = activePath?.startsWith(prefix) ? activePath.slice(prefix.length) : null;
   const wantTrash = ready === true && artboardCount === 0 && canvasPath !== null;
 
   const [items, setItems] = useState([]);
+  const [loaded, setLoaded] = useState(false); // the Trash has answered once for this canvas
   const [gone, setGone] = useState(() => new Set()); // restored here; the list catches up on its own
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
@@ -118,11 +120,15 @@ export function AllTrashed({
   useEffect(() => {
     if (!wantTrash) {
       setItems([]);
+      setLoaded(false);
       return undefined;
     }
     let live = true;
     readTrash(fetchImpl).then((list) => {
-      if (live && alive.current) setItems(list);
+      if (live && alive.current) {
+        setItems(list);
+        setLoaded(true);
+      }
     });
     return () => {
       live = false;
@@ -132,6 +138,12 @@ export function AllTrashed({
   const visible = items.filter((i) => !gone.has(i.id));
   const model = wantTrash ? allTrashedModel(visible, canvasPath, now()) : null;
   const shown = showAllTrashed({ artboardCount, ready, model });
+  // true / false once the Trash has answered (or there is nothing to ask); null while it has not — the host
+  // holds "Your canvas is ready." back that long so it does not flash under the card
+  const settled = !wantTrash || loaded;
+  useEffect(() => {
+    onShown?.(settled ? shown : null);
+  }, [settled, shown, onShown]);
 
   // The outlines: the canvas keeps the places the artboards stood in.
   const lane = useRef(laneIn ?? null);

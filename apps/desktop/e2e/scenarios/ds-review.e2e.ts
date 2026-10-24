@@ -317,9 +317,13 @@ part('4')(
       startReport('ds-review (part 4)');
     });
 
-    it('the empty pinned row opens the three-input sheet; only the sentence is needed', async () => {
+    it('the Advanced "Make a design system" row opens the three-input sheet; only the sentence is needed', async () => {
       await waitForSidecar();
       await ensureFilesTab();
+      // P8 C5: a project with no system draws no accent row above its canvases; the door is in Advanced
+      const fold = await $('[data-testid="canvases-advanced"]');
+      await fold.waitForDisplayed({ timeout: 60_000 });
+      if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click();
       const row = await $('[data-testid="canvases-ds-make"]');
       await row.waitForExist({ timeout: 60_000 });
       await row.click();

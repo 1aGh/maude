@@ -9,13 +9,16 @@
 // Can view / Can comment get none of it (no create affordance). Ask AI opens the chat and PRE-FILLS; it never
 // sends. The registry action `ai.ask-fill-artboard` (⌘K) runs the same ask for the hint's board (fill-ask.js).
 
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { isNativeApp } from '../../github.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
+import { insetsNow } from '../shell/insets-now.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
+import { freeCentre } from './free-centre.js';
+import { AllTrashed } from './all-trashed.jsx';
 import { ArtboardHint, HINT_SIZE } from './artboard-hint.jsx';
 import { EmptyCanvas } from './empty-canvas.jsx';
 import { emptyHintStore } from './empty-hint-store.js';
@@ -39,6 +42,8 @@ export function EmptyHost() {
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const mode = useSyncExternalStore(shellMode.subscribe, modeNow, modeNow);
   const online = useOnline();
+  const insets = useSyncExternalStore(insetsNow.subscribe, insetsNow.get, insetsNow.get);
+  const centre = freeCentre(insets, window.innerWidth, window.innerHeight);
   const canEdit = !viewerMode;
   const native = isNativeApp();
   const canAsk = native && canEdit;
@@ -52,6 +57,18 @@ export function EmptyHost() {
   const model = canvasOpen
     ? emptyCanvasModel({ count, mode, canEdit, online, claude, canAsk })
     : null;
+
+  // P8 C5 (05 es-all-trashed): a canvas whose every artboard is in the Trash says that, not "Your canvas is
+  // ready." — the card (S11.5) reads the shared Trash itself and tells us when it is on screen.
+  const trashWatch = canvasOpen && count === 0;
+  // the answer is kept WITH its canvas, so a canvas switch never reads the last canvas's answer
+  const [trashAnswer, setTrashAnswer] = useState({ path: null, shown: null });
+  const onTrashShown = useCallback(
+    (shown) => setTrashAnswer({ path: activePath, shown }),
+    [activePath]
+  );
+  const trashShown = trashAnswer.path === activePath ? trashAnswer.shown : null; // null = not answered yet
+  const drawEmpty = !!model && (!trashWatch || trashShown === false);
 
   // the Layers tab names the board in its own words
   useEffect(() => {
@@ -113,17 +130,32 @@ export function EmptyHost() {
   );
 
   const showHint = !!hint && !!placement && canEdit && mode === 'edit' && !model;
-  if (!model && !showHint) return null;
+  if (!model && !showHint && !trashWatch) return null;
   return (
     <>
-      {model ? (
-        // the canvas is the whole window body (V2-4.1): the block centres on the window, above the toolbar
-        <div className="es-host">
-          <EmptyCanvas
-            model={model}
-            onAsk={askCanvas}
-            onNewArtboard={() => menuRunner.run('artboard.new-desktop')}
-          />
+      {drawEmpty || trashWatch ? (
+        // the canvas is the whole window body (V2-4.1), the panels float over it: the block centres on what
+        // they leave free (05 es-canvas-ai — the board puts it at ~0.59 of the window), above the toolbar
+        <div className="es-host" style={{ '--es-cx': `${centre}px` }}>
+          {drawEmpty ? (
+            <EmptyCanvas
+              model={model}
+              onAsk={askCanvas}
+              onNewArtboard={() => menuRunner.run('artboard.new-desktop')}
+            />
+          ) : null}
+          {trashWatch ? (
+            <div className="es-ec es-ec--trash">
+              <AllTrashed
+                activePath={activePath}
+                designRel={cfg?.designRel || '.design'}
+                artboardCount={count}
+                ready={count === 0}
+                canEdit={canEdit}
+                onShown={onTrashShown}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
       {showHint ? (

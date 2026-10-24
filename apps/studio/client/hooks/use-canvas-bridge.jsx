@@ -59,6 +59,11 @@ import {
   handleCommentBridgeMessage,
   isCommentBridgeMessage,
 } from '../v2/comments/comment-bridge.js';
+import { createCommentToolWatch } from '../v2/comments/comment-tool.js';
+import { selectNewArtboard } from '../v2/empty/select-new-artboard.js';
+
+// one shell, one watch: the Comment tool's arming edge (P8 C5)
+const commentToolWatch = createCommentToolWatch();
 
 export function useCanvasBridge({
   activePath,
@@ -140,6 +145,11 @@ export function useCanvasBridge({
     [selectedRef, iframesRef]
   );
   useEffect(() => () => selectionRestoreRef.current?.(), []);
+  // P8 C5: the ladder that selects a just-added artboard once the canvas has reloaded with it; a canvas switch
+  // (or unmount) drops what is left of it
+  const newArtboardSelect = useRef(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger — another canvas, drop the ladder
+  useEffect(() => () => newArtboardSelect.current?.(), [activePath]);
   // S7.22 — the inspector's "Show on canvas" is the person's own view state (view.json, already stored); this tells the
   // open canvas to redraw its safe zones now. Only that one boolean is forwarded, and only to the canvas it names.
   useEffect(() => {
@@ -239,6 +249,8 @@ export function useCanvasBridge({
         // global shell cursor, so the shell chrome keeps its own affordance
         // cursors (pointer over buttons). Also fire the one-time "press V" hint
         // — a live canvas booting in browse is exactly when it's teachable.
+        // P8 C5 (04 md-comment): the Comment tool in hand docks the Comments panel (on the arming edge only).
+        if (commentToolWatch.armed(m.tool)) openRightPanel('comments');
         if (m.tool === 'browse') {
           document.body.style.cursor = '';
           const el = document.getElementById('dc-app-cursor');
@@ -2045,10 +2057,25 @@ export function useCanvasBridge({
         '/_api/insert-artboard',
         { id, label, width, height },
         // plain words (G4, gate B): the toast reads "Couldn't add an artboard — <why>."
-        { label: 'add an artboard' }
+        {
+          label: 'add an artboard',
+          // P8 C5 (05 es-artboard-new): the new board is the selected one — its hint and its Inspector follow
+          onOk: (_j, canvas) => {
+            const file = canvas || activePath;
+            newArtboardSelect.current?.();
+            newArtboardSelect.current = selectNewArtboard({
+              artboardId: id,
+              post: (msg) => {
+                try {
+                  iframesRef.current.get(file)?.contentWindow?.postMessage(msg, '*');
+                } catch {}
+              },
+            });
+          },
+        }
       );
     },
-    [structuralWrite]
+    [structuralWrite, activePath, iframesRef]
   );
 
   const resizeArtboardShell = useCallback(

@@ -147,3 +147,6 @@ Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all me
 | `md-edge-mixed` | re-shot | re-shot |
 | `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (same) |
 | `md-esc` | re-shot | re-shot |
+
+## After (round 5, p8-c5-panels @ 2e203e9e6)
+`md-comment` re-shot (IMPL light + dark, SPEC reused): the Comment tool docks the Comments panel, the composer card is the board's card (heading, field, small accent send). Other ids unchanged.

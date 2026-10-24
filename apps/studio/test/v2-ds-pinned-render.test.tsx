@@ -51,6 +51,12 @@ const click = (el: Element | null) => {
   });
 };
 
+/** The Advanced fold is remembered per Mac, so an earlier test may have left it open: open it only if shut. */
+async function openAdvanced(host: ParentNode) {
+  const fold = q(host, 'canvases-advanced');
+  if (fold?.getAttribute('aria-expanded') !== 'true') await click(fold);
+}
+
 const GROUPS = [
   {
     label: 'Design system',
@@ -207,7 +213,9 @@ describe('the pinned system rows', () => {
     expect(labels).toEqual(['Open Combine 2026', 'Preview in…']);
   });
 
-  test('a project without a system shows "Make a design system", and the door runs ds.make', async () => {
+  // P8 C5 (01 / 02 / 05: the board's panel draws no accent row for a project without a system): the door is
+  // Canvases › Advanced, the same `canvases-ds-make` hook, one row in the fold.
+  test('a project without a system has the "Make a design system" door in Advanced, and it runs ds.make', async () => {
     installFetch({ '/_api/ds/state': { format: 'maude.ds-state', v: 1, systems: [] } });
     const ran: Array<[string, unknown]> = [];
     const host = await sidebar({
@@ -216,7 +224,13 @@ describe('the pinned system rows', () => {
       onDsAction: (id: string, p: unknown) => ran.push([id, p]),
     });
     expect(qa(host, 'canvases-ds-row')).toHaveLength(0);
+    // not an accent row above the list …
+    expect(q(host, 'canvases-pinned')).toBeNull();
+    expect(q(host, 'canvases-ds-make')).toBeNull();
+    // … one row inside the open Advanced fold
+    await openAdvanced(host);
     const make = q(host, 'canvases-ds-make');
+    expect(make?.closest('[data-testid="canvases-advanced-fold"]')).not.toBeNull();
     expect(make?.textContent).toContain('Make a design system');
     await click(make);
     expect(ran).toEqual([['ds.make', {}]]);
@@ -230,6 +244,7 @@ describe('the pinned system rows', () => {
       dsCfg: { ...CFG, designSystems: [], canvasDesignSystems: {}, dsConverted: {} },
       onDsAction: () => {},
     });
+    await openAdvanced(host);
     expect(q(host, 'canvases-ds-make')).toBeNull();
   });
 

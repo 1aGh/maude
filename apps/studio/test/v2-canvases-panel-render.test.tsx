@@ -175,8 +175,10 @@ describe('93 canvases', () => {
       'social31',
     ]);
     expect(q(host, 'canvas-row-ui-test')).not.toBeNull();
-    expect(q(host, 'canvases-foot')?.textContent).toBe('93 canvases · ⌘K searches every project');
+    // P8 C5: no foot line at rest (the board draws none); a long list keeps its Sort on the project row
+    expect(q(host, 'canvases-foot')).toBeNull();
     expect(q(host, 'canvases-head-project')?.textContent).toContain('Alligators brand');
+    expect(q(host, 'canvases-sort')?.textContent).toBe('Recent');
   });
 
   test('everything open: well over 100 rows in the list, at most 60 in the page', async () => {

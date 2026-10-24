@@ -3407,7 +3407,10 @@ function ShellTree() {
       {/* S5.14: the shell's "Quit while AI is working?" (quit://ask) — desktop only. */}
       <QuitDialog />
       <WhatsNewPanel wn={whatsNew} onStartTour={startTour} />
-      <ExportPanel center={exportCenter} />
+      <ExportPanel
+        center={exportCenter}
+        projectName={cfg?.cloud?.projectName || cfg?.name || project || ''}
+      />
       <ReadinessDialog open={readinessOpen} onClose={() => setReadinessOpen(false)} />
       <IntroVideoDialog open={introOpen} onClose={() => setIntroOpen(false)} />
       <SetupChecklistDialog

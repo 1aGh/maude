@@ -145,7 +145,9 @@ describe('Canvases tab', () => {
     const hd = q(host, 'canvases-head-project') as HTMLElement;
     expect(hd.querySelector('.st-pill')).toBeNull();
     expect(hd.textContent).toContain('Alligators brand');
-    expect(q(host, 'canvases-foot')?.textContent).toBe('1 canvas · ⌘K searches every project');
+    // P8 C5: the count is on the project row ("1 canvas"), not a foot line the board does not draw
+    expect(q(host, 'canvases-foot')).toBeNull();
+    expect(q(host, 'canvases-sort')?.textContent).toBe('1 canvas');
     expect(host.querySelector('.st-tree-sec-hd')).toBeNull();
   });
 
@@ -168,7 +170,7 @@ describe('Canvases tab', () => {
     expect(host.querySelector('[aria-label="Collapse sidebar"]')).toBeNull();
     const row = q(host, 'canvases-new-row') as HTMLElement;
     expect(row.textContent).toContain('New canvas');
-    const main = row.querySelector('[aria-label="New blank brief board"]') as HTMLElement;
+    const main = row.querySelector('[aria-label="New canvas"]') as HTMLElement;
     expect(main).toBeTruthy();
     expect(row.querySelector('[data-testid="tree-new-folder"]')).toBeTruthy();
     // it sits after the list and before the Trash row
@@ -177,13 +179,13 @@ describe('Canvases tab', () => {
     expect(list.compareDocumentPosition(row) & 4).toBeTruthy();
     expect(row.compareDocumentPosition(trash) & 4).toBeTruthy();
     // the header has no "+" glyph button left over
-    expect(host.querySelectorAll('[aria-label="New blank brief board"]').length).toBe(1);
+    expect(host.querySelectorAll('[aria-label="New canvas"]').length).toBe(1);
   });
 
   test('the new-canvas row opens the composer; the folder button opens the folder composer', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar();
-    await click(host.querySelector('[aria-label="New blank brief board"]'));
+    await click(host.querySelector('[aria-label="New canvas"]'));
     expect(host.querySelector('input[aria-label="New brief board name"]')).toBeTruthy();
     await click(q(host, 'tree-new-folder'));
     expect(host.querySelector('input[aria-label="New folder name"]')).toBeTruthy();
@@ -193,7 +195,7 @@ describe('Canvases tab', () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar({ readOnly: true });
     expect(q(host, 'canvases-new-row')).toBeNull();
-    expect(host.querySelector('[aria-label="New blank brief board"]')).toBeNull();
+    expect(host.querySelector('[aria-label="New canvas"]')).toBeNull();
   });
 
   test('the Design system row is pinned above the list; Trash is the last row, Advanced under it', async () => {
@@ -304,8 +306,12 @@ describe('Canvases tab', () => {
   test('an empty trash says so in the contract’s words', async () => {
     installFetch({ '/_api/sync/trash': { entries: [], total: 0, bytes: 0 } });
     const { host } = await sidebar();
-    expect(q(host, 'canvases-trash-row')?.textContent).toBe('Trash');
-    await click(q(host, 'canvases-trash-row'));
+    // P8 C5: no Trash row while the trash is empty (01 / 02 / 05 draw none); Advanced still opens it
+    expect(q(host, 'canvases-trash-row')).toBeNull();
+    // (the fold remembers it was open from the test before: open it only if it is shut)
+    const fold = q(host, 'canvases-advanced');
+    if (fold?.getAttribute('aria-expanded') !== 'true') await click(fold);
+    await click(q(host, 'canvases-advanced-trash'));
     expect(q(host, 'canvases-trash-empty')?.textContent).toContain('Trash is empty.');
     expect(q(host, 'canvases-trash-clear')).toBeNull();
   });

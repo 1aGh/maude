@@ -346,7 +346,7 @@ describe('the Canvases panel', () => {
     expect(names(host).sort()).toEqual(['flyer', 'mixed']);
     await click(q(host, 'kind-chip-print'));
     expect(getKindFilter()).toBe('all');
-    expect(q(host, 'canvases-foot')?.textContent).toContain('6 canvases');
+    expect(q(host, 'canvases-foot')).toBeNull(); // P8 C5: no foot line at rest
     await click(q(host, 'kind-chip-web'));
     await click(q(host, 'kind-chip-all'));
     expect(getKindFilter()).toBe('all');

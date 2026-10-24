@@ -340,6 +340,20 @@
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
+  /* P8 C5: a short list in the default order reads the board's count ("6 canvases", fg-2, regular weight —
+     kit `.k-cp-tc`); the Sort is still this control, its chevron arrives with hover / focus / open. */
+  .cv-sort--quiet {
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .cv-sort--quiet svg {
+    display: none;
+  }
+  .cv-sort--quiet:hover svg,
+  .cv-sort--quiet:focus-visible svg,
+  .cv-sort--quiet.is-open svg {
+    display: inline;
+  }
 
   /* ── the Sort menu: 260 wide like 11 · pn-organise, placed in the window (fixed, inline left/top) so the
      panel's edge never clips it ── */

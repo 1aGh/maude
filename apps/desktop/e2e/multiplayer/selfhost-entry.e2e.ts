@@ -86,7 +86,7 @@ describe('S01 self-host entry on a clean Linux native profile', () => {
     const hubs = readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8');
     expect(hubs.includes(target.password)).toBe(false);
 
-    await (await $('button[aria-label="New blank brief board"]')).click();
+    await (await $('button[aria-label="New canvas"]')).click();
     await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
     await (await $('button[aria-label="Create brief board"]')).click();
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;

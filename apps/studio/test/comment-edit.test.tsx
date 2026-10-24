@@ -93,6 +93,6 @@ describe('editing a comment', () => {
     // S9.22 (CONTRACT §6, D8): "Delete comment" is on your own comments only.
     expect(button('Delete comment')).toBeNull();
     expect(button('Delete')).toBeNull();
-    expect(button('✓ Resolve')).not.toBeNull();
+    expect(button('Resolve')).not.toBeNull();
   });
 });

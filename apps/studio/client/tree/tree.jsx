@@ -22,7 +22,7 @@ import { CanvasesPanel } from '../v2/canvases/canvases-panel.jsx';
 import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-advanced.jsx';
 import { DsPinnedRows, NewCanvasRow, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
 import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
-import { dsPinnedModel } from '../v2/left-panel/left-panel-model.js';
+import { dsPinnedModel, trashRowCount } from '../v2/left-panel/left-panel-model.js';
 import { newCanvasDesignSystem } from '../v2/ds/new-canvas-default.js';
 import { systemMenuItems } from '../v2/ds/system-menu.jsx';
 import { trashedTokenItems } from '../v2/ds/door-write.js';
@@ -1275,6 +1275,10 @@ export function Sidebar({
     );
   };
 
+  // P8 C5 (boards 01 / 02 / 05 draw no Trash row; 11 draws it with things in it): the row is the panel's last
+  // row once the trash holds something. An empty trash is still one Open away in Advanced.
+  const showTrashRow = !readOnly && !!trashRowCount(trash);
+
   // P8 C4: the board's "+ New canvas" row ends the list and carries the old header pair's hooks.
   const newCanvasRow = readOnly ? null : (
     <NewCanvasRow
@@ -1384,7 +1388,7 @@ export function Sidebar({
               <input
                 type="search"
                 data-testid="canvas-search"
-                placeholder="Search canvases…"
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => {
@@ -1395,7 +1399,7 @@ export function Sidebar({
                     else e.currentTarget.blur();
                   }
                 }}
-                aria-label="Filter canvases"
+                aria-label="Search canvases"
               />
               {search ? (
                 <button
@@ -1407,7 +1411,8 @@ export function Sidebar({
                   ×
                 </button>
               ) : (
-                <Kbd>/</Kbd>
+                // the board's well (kit `.k-find`): the key that searches everything; "/" still focuses it
+                <Kbd>⌘K</Kbd>
               )}
             </div>
           </div>
@@ -1416,11 +1421,12 @@ export function Sidebar({
           {/* V2-4.4a — the project's Design system(s), pinned above every canvas; the Design system's
           FILES moved under Advanced (CONTRACT §7). While searching the pinned row steps aside (kit)
           and the group's hits show in the list below. */}
+          {/* P8 C5: no `empty` row — a project without a system draws nothing here (01 / 02 / 05); the
+          "Make a design system" door is one row in Advanced (`makeDs` below). */}
           {!search && (
             <DsPinnedRows
               rows={pinnedDs}
               header={dsModel.header}
-              empty={dsModel.empty}
               activeDsName={activeDsName ?? openDsCanvasOf}
               onOpen={openDs}
               onMenu={onDsAction ? (e, row) => rowMenu.openAt(e, { kind: 'ds', row }) : undefined}
@@ -1441,7 +1447,7 @@ export function Sidebar({
               </FileTree>
               {newCanvasRow}
               {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
-              {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
+              {showTrashRow ? <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} /> : null}
             </>
           ) : (
             <>
@@ -1476,7 +1482,7 @@ export function Sidebar({
               >
                 {newCanvasRow}
                 {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
-                {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
+                {showTrashRow ? <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} /> : null}
               </CanvasesPanel>
               {/* While searching, the Design system's hits follow (never Project or Runtime files). */}
               {search ? (
@@ -1505,6 +1511,8 @@ export function Sidebar({
             isSystem={activePath === SYSTEM_TAB}
             dsName={activeDsName ?? pinnedDs[0]?.dsName ?? null}
             onOpenDs={onOpenSystem}
+            makeDs={dsModel.empty && !search ? dsModel.empty : null}
+            onMakeDs={() => onDsAction?.('ds.make', {})}
           >
             {dsGroup && !search ? (
               <FileTree aria-label="Design system files" data-testid="canvases-ds-files">

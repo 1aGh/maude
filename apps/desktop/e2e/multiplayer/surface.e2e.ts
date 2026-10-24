@@ -1608,7 +1608,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       for (const from of all) {
         await check('L04.canvas.create.tree', `${from.name}-to-peers`, async () => {
           const name = `SurfaceBoard-${from.name}`;
-          await from.click('[aria-label="New blank brief board"]');
+          await from.click('[aria-label="New canvas"]');
           await from.fill('[aria-label="New brief board name"]', name);
           const start = performance.now();
           await from.click('[aria-label="Create brief board"]');
@@ -3267,7 +3267,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await openCanvas(viewer, 'ui/SurfaceMedia.tsx');
           await until(async () => (await viewer.read('h1', true)) === 'Surface media baseline');
           const controls = [];
-          for (const q of [selector('tree-new-folder'), '[aria-label="New blank brief board"]']) {
+          for (const q of [selector('tree-new-folder'), '[aria-label="New canvas"]']) {
             const element = page.locator(q);
             const writable =
               (await element.count()) > 0 &&

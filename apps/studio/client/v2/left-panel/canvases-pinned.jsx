@@ -136,7 +136,8 @@ export function DsPinnedRows({
 /**
  * P8 C4 (lead call v2-p8-lead-canvases-header-and-switcher): the board's "+ New canvas" row, the last row of
  * the list (kit `.k-cp-new`: a 28 px plus well, then the words). It replaced the header's "+" / folder pair and
- * carries their hooks: the row's button is the old "New blank brief board" control (the composer's opener) and
+ * carries their hooks: the row's button is the old header "+" control (the composer's opener; its accessible name is the visible
+ * words, "New canvas" — WCAG 2.5.3, decision v2-p8-c5-new-row-name-is-its-words) and
  * the quiet folder button at its end is `tree-new-folder` (shown on hover / focus, always present for keys).
  */
 export function NewCanvasRow({ onNew, onNewFolder, boardOpen = false, folderOpen = false }) {
@@ -145,7 +146,7 @@ export function NewCanvasRow({ onNew, onNewFolder, boardOpen = false, folderOpen
       <button
         type="button"
         className="lp-row lp-newrow-main"
-        aria-label="New blank brief board"
+        aria-label="New canvas"
         aria-expanded={boardOpen}
         onClick={onNew}
       >

@@ -60,5 +60,9 @@ export async function wantResponse(svc: ThumbService | null, req: Request): Prom
   const keys = (body as { keys?: unknown })?.keys;
   if (!Array.isArray(keys) || keys.length > 500) return new Response('bad keys', { status: 400 });
   svc?.want(keys.filter((k): k is string => typeof k === 'string' && KEY_RE.test(k)));
+  // P8 C5: the Canvases panel asks for every canvas's cover once (the service queues them at background
+  // priority and runs the pass once per server). Only the boolean `true` counts; the answer is the same.
+  if ((body as { background?: unknown })?.background === true)
+    void svc?.startBackground().catch(() => {});
   return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
 }

@@ -108,3 +108,8 @@ Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (sta
 | `ob-edge-accounts` | re-shot | re-shot |  |
 | `ob-edge-ai-missing` | re-shot | re-shot |  |
 | `ob-edge-whats-new` | re-shot | re-shot |  |
+
+## After (round 5, p8-c5-panels @ 2e203e9e6)
+IMPL re-shot light + dark on the round-5 tip (stage-D harness, repointed, system Chrome channel). SPEC reused. Every id with a pair was overwritten. Evidence only.
+
+- Same panel changes as 01 (the Canvases panel island, "+ New canvas" name).

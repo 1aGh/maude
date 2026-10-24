@@ -18,6 +18,24 @@ export const SORT_LABELS = Object.freeze({
 /** The short word the project row shows beside its name ("Recent ▾"). */
 export const SORT_ASIDE = Object.freeze({ recent: 'Recent', name: 'Name', kind: 'Kind' });
 
+/** A list this short fits the panel: there is nothing to put in order, so the project row says how many
+ *  canvases (the board's "6 canvases", 01 / 02 / 05) and keeps the Sort a quiet control behind it. */
+export const SORT_QUIET_MAX = 12;
+
+/**
+ * What the project row's Sort control reads and what it is called. A short list in the default order reads
+ * its count ("6 canvases"); a long list, or any order the person chose, reads the order ("Recent"). The
+ * accessible name always holds the visible words (WCAG 2.5.3).
+ */
+export function sortControl({ by, total }) {
+  const quiet = by === 'recent' && total <= SORT_QUIET_MAX;
+  if (quiet) {
+    const text = `${total} ${total === 1 ? 'canvas' : 'canvases'}`;
+    return { quiet, text, label: `${text} — sort canvases (${SORT_LABELS.recent})` };
+  }
+  return { quiet, text: SORT_ASIDE[by], label: `Sort canvases — ${SORT_LABELS[by]}` };
+}
+
 /** The note under "Kind" — the order kinds sort in (the artboard's own words). */
 export const KIND_NOTE = 'web · social · print · video';
 

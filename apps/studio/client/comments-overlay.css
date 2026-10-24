@@ -39,8 +39,12 @@
   color: var(--maude-hud-object-ink, #1a1d24);
   border: 0;
   border-radius: 999px 999px 999px 2px;
-  box-shadow: var(--maude-hud-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.3)), 0 0 0 2px var(--maude-chrome-bg-2, #fff);
-  font: 600 var(--maude-hud-type-xs, 11px) / 1 var(--maude-hud-font-rounded, ui-rounded, system-ui, sans-serif);
+  box-shadow:
+    var(--maude-hud-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.3)),
+    0 0 0 2px var(--maude-chrome-bg-2, #fff);
+  font:
+    600 var(--maude-hud-type-xs, 11px) / 1
+    var(--maude-hud-font-rounded, ui-rounded, system-ui, sans-serif);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -57,7 +61,9 @@
 
 .cm-pin:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--maude-chrome-bg-2, #fff), 0 0 0 4px var(--maude-hud-accent, #d63b1f);
+  box-shadow:
+    0 0 0 2px var(--maude-chrome-bg-2, #fff),
+    0 0 0 4px var(--maude-hud-accent, #d63b1f);
 }
 
 .cm-pin[data-resolved="true"] {
@@ -92,19 +98,22 @@
   --cm-radius-sm: 6px;
 }
 
+/* P8 C5 (04 md-comment `md-th--new`, 10 `co-th`): one island — lg radius, the island shadow and its hairline edge,
+ * 12 px in, 12 px between its parts, 330 wide for a new comment, 320 for a thread. */
 .cm-composer {
   position: absolute;
-  width: 300px;
+  width: 330px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: var(--maude-chrome-bg-1);
-  border: 1px solid var(--maude-chrome-border);
-  border-radius: var(--cm-radius-md);
-  padding: 10px 12px 12px;
-  box-shadow: 0 6px 20px var(--maude-chrome-shadow);
-  font: 400 13px / 1.45 var(--maude-chrome-font-body);
+  gap: 12px;
+  background: var(--maude-chrome-bg-2);
+  border-radius: var(--maude-hud-radius-lg);
+  padding: 12px;
+  box-shadow:
+    var(--maude-hud-island-shadow),
+    inset 0 0 0 0.5px var(--maude-hud-island-edge);
+  font: 400 var(--maude-hud-type-sm) / 1.4 var(--maude-chrome-font-body);
   color: var(--maude-chrome-fg-0);
   pointer-events: auto;
   z-index: 4;
@@ -123,28 +132,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--maude-hud-type-xs);
   font-weight: 500;
-  color: var(--maude-chrome-fg-1);
+  color: var(--maude-chrome-fg-2);
 }
 
 .cm-composer__chip {
   align-self: flex-start;
 }
 
+/* the board's `.md-th-comp`: bg-3, the field's own radius, the accent ring while it holds the focus */
 .cm-composer__field {
   display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  padding: 6px 6px 6px 10px;
-  background: var(--maude-chrome-bg-0);
-  border: 1px solid var(--maude-chrome-border);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  background: var(--maude-chrome-bg-3);
+  border: 0;
   border-radius: var(--cm-radius-md);
 }
 
 .cm-composer__field:focus-within {
-  border-color: var(--maude-hud-accent);
-  box-shadow: 0 0 0 1px var(--maude-hud-accent);
+  box-shadow:
+    0 0 0 3px var(--maude-hud-accent-tint),
+    inset 0 0 0 1px var(--maude-hud-accent);
 }
 
 /* the mention-aware field's own wrapper takes the row; the textarea fills it */
@@ -158,13 +169,13 @@
   width: 100%;
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 40px;
+  min-height: 24px;
   max-height: 160px;
   resize: none;
   background: transparent;
   color: var(--maude-chrome-fg-0);
   border: 0;
-  padding: 2px 0;
+  padding: 5px 0;
   font: inherit;
   box-sizing: border-box;
 }
@@ -177,14 +188,16 @@
   color: var(--maude-chrome-fg-1);
 }
 
-.cm-composer__send {
+/* the board's `.md-th-send`: 26 px, the sm radius, accent, a › in it */
+.cm-composer__send,
+.cm-thread__send {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--maude-hud-radius-sm);
 }
 
 .cm-btn {
@@ -225,23 +238,24 @@
 }
 
 /* ─── Thread popover ──────────────────────────────────────────────────────── */
+/* P8 C5 (04 `md-th`, 10 `co-th`): the same island as the composer — 320 wide, its parts 12 px apart. */
 .cm-thread {
   position: absolute;
-  width: 340px;
+  width: 320px;
   max-height: 60vh;
   overflow: auto;
-  background: var(
-    --maude-chrome-bg-2,
-    color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%)
-  );
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  border-radius: 2px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--maude-chrome-bg-2);
+  border-radius: var(--maude-hud-radius-lg);
   padding: 12px;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
-  font:
-    13px / 1.5 system-ui,
-    sans-serif;
-  color: var(--maude-chrome-fg-0, #2a2520);
+  box-shadow:
+    var(--maude-hud-island-shadow),
+    inset 0 0 0 0.5px var(--maude-hud-island-edge);
+  font: 400 var(--maude-hud-type-sm) / 1.4 var(--maude-chrome-font-body);
+  color: var(--maude-chrome-fg-0);
   pointer-events: auto;
   z-index: 5;
 }
@@ -250,8 +264,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--maude-chrome-border, #3a352f);
+  padding: 0;
+  border: 0;
 }
 
 .cm-thread__head-row {
@@ -261,26 +275,15 @@
   gap: 4px;
 }
 
-/* Plan C P18 — pin/sequence badge in the thread popover header. */
-.cm-thread__seq {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: var(--maude-hud-accent, #d63b1f);
-  color: var(--maude-hud-accent-fg, #fff);
-  font: 600 11px / 1 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-}
-
 .cm-thread__close {
   background: transparent;
-  color: var(--maude-chrome-fg-1, #6e6660);
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  padding: 0 4px;
-  font:
-    600 11px / 1.2 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--maude-chrome-fg-2);
+  border: 0;
+  border-radius: var(--maude-hud-radius-sm);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font: 500 var(--maude-hud-type-sm) / 1 var(--maude-chrome-font-body);
   cursor: pointer;
   align-self: flex-start;
   margin-left: auto;
@@ -298,13 +301,13 @@
 }
 
 .cm-thread__author {
-  color: var(--maude-chrome-fg-0, #2a2520);
+  color: var(--maude-chrome-fg-0);
   font-weight: 600;
 }
 
 .cm-thread__time {
-  color: var(--maude-chrome-fg-1, #6e6660);
-  font-size: 11px;
+  color: var(--maude-chrome-fg-2);
+  font-size: var(--maude-hud-type-xs);
 }
 
 .cm-thread__selector {
@@ -326,21 +329,21 @@
 }
 
 .cm-thread__body {
-  padding: 8px 0;
+  padding: 0;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .cm-thread__body strong,
 .cm-thread__reply-body strong {
-  /* @mention tokens — bold, accent color. Inserted by `renderBodyWithMentions`. */
-  color: var(--maude-hud-accent, #d63b1f);
+  /* @mention tokens — semibold, the accent's text colour (the board's `.md-mention-q`). */
+  color: var(--maude-hud-accent-text);
   font-weight: 600;
 }
 
 .cm-thread__reply {
-  padding: 8px 0;
-  border-top: 1px solid var(--maude-chrome-border, #c8bfb4);
+  padding: 0;
+  border: 0;
 }
 
 .cm-thread__reply-head {
@@ -351,13 +354,13 @@
 }
 
 .cm-thread__reply-author {
-  color: var(--maude-chrome-fg-0, #4a4540);
+  color: var(--maude-chrome-fg-0);
   font-weight: 600;
 }
 
 .cm-thread__reply-time {
-  color: var(--maude-chrome-fg-1, #6e6660);
-  font-size: 11px;
+  color: var(--maude-chrome-fg-2);
+  font-size: var(--maude-hud-type-xs);
 }
 
 .cm-thread__reply-body {
@@ -366,8 +369,8 @@
 }
 
 .cm-thread__reply-form {
-  padding-top: 8px;
-  border-top: 1px solid var(--maude-chrome-border, #3a352f);
+  padding: 0;
+  border: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -375,21 +378,50 @@
 
 .cm-thread__reply-textarea {
   width: 100%;
-  min-height: 56px;
-  resize: vertical;
-  background: var(--maude-chrome-bg-0, #ffffff);
-  color: var(--maude-chrome-fg-0, #2a2520);
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  border-radius: 5px;
-  padding: 8px;
+  min-height: 24px;
+  max-height: 160px;
+  resize: none;
+  background: var(--maude-chrome-bg-3);
+  color: var(--maude-chrome-fg-0);
+  border: 0;
+  border-radius: var(--cm-radius-md);
+  padding: 8px 12px;
   font: inherit;
   box-sizing: border-box;
 }
 
 .cm-thread__reply-textarea:focus-visible {
   outline: none;
-  border-color: var(--maude-hud-accent, #d63b1f);
-  box-shadow: 0 0 0 2px var(--maude-hud-accent, #d63b1f);
+  box-shadow:
+    0 0 0 3px var(--maude-hud-accent-tint),
+    inset 0 0 0 1px var(--maude-hud-accent);
+}
+
+/* the reply is the board's `.md-th-comp`: one field, the small accent send at its right */
+.cm-thread__reply-form--field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  background: var(--maude-chrome-bg-3);
+  border-radius: var(--cm-radius-md);
+}
+.cm-thread__reply-form--field:focus-within {
+  box-shadow:
+    0 0 0 3px var(--maude-hud-accent-tint),
+    inset 0 0 0 1px var(--maude-hud-accent);
+}
+.cm-thread__reply-form--field > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cm-thread__reply-form--field .cm-thread__reply-textarea {
+  background: transparent;
+  box-shadow: none;
+  padding: 5px 0;
+}
+.cm-thread__reply-form--field .cm-thread__reply-actions {
+  flex: none;
 }
 
 .cm-thread__reply-actions {
@@ -398,71 +430,57 @@
   gap: 4px;
 }
 
-.cm-thread__actions {
-  display: flex;
-  gap: 4px;
-  padding-top: 8px;
-  margin-top: 8px;
-  border-top: 1px solid var(--maude-chrome-border, #3a352f);
-}
-
 .cm-thread__actions .cm-btn--danger {
-  margin-left: auto;
-  color: #c0392b;
-  border-color: #c0392b;
+  color: var(--maude-chrome-error);
 }
 
 .cm-thread__actions .cm-btn--danger:hover {
-  background: color-mix(in oklab, #c0392b 12%, transparent);
+  background: color-mix(in oklab, var(--maude-chrome-error) 12%, transparent);
 }
 
 /* ─── @mention autocomplete ──────────────────────────────────────────────── */
 .cm-mention-popup {
   position: absolute;
-  background: var(
-    --maude-chrome-bg-2,
-    color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%)
-  );
-  border: 1px solid var(--maude-chrome-border, #3a352f);
-  border-radius: 5px;
-  font: 11px / 1.3 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  color: var(--maude-chrome-fg-0, #2a2520);
+  background: var(--maude-chrome-bg-2);
+  border-radius: var(--maude-hud-radius-md);
+  font: 400 var(--maude-hud-type-sm) / 1.3 var(--maude-chrome-font-body);
+  color: var(--maude-chrome-fg-0);
   max-height: 180px;
-  min-width: 160px;
+  min-width: 220px;
   overflow: auto;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
+  padding: 4px;
+  margin: 8px 0 0;
+  box-shadow:
+    var(--maude-hud-island-shadow),
+    inset 0 0 0 0.5px var(--maude-hud-island-edge);
   pointer-events: auto;
   z-index: 6;
   list-style: none;
-  padding: 0;
-  margin: 0;
 }
 
 .cm-mention-popup__item {
-  padding: 4px 8px;
+  padding: 6px 8px;
+  border-radius: var(--maude-hud-radius-sm);
   cursor: pointer;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
 }
 
 .cm-mention-popup__item[aria-selected="true"] {
-  background: var(--maude-hud-accent, #d63b1f);
-  color: var(--maude-hud-accent-fg, #faf6ef);
+  background: var(--maude-hud-accent-muted);
+  color: var(--maude-hud-accent-text);
 }
 
 .cm-mention-popup__name {
-  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
 }
 
 .cm-mention-popup__email {
-  color: var(--maude-chrome-fg-1, #6e6660);
-  font-size: 11px;
-}
-
-.cm-mention-popup__item[aria-selected="true"] .cm-mention-popup__email {
-  color: var(--maude-hud-accent-fg, #faf6ef);
-  opacity: 0.85;
+  color: var(--maude-chrome-fg-2);
+  font-size: var(--maude-hud-type-xs);
 }
 
 /* ─── Comments v2 (S9.22) — 10 · co-comment-thread / -video / -print ───────────────────────────────
@@ -474,8 +492,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--maude-chrome-fg-1, #6e6660);
-  font-size: 11px;
+  color: var(--maude-chrome-fg-2);
+  font-size: var(--maude-hud-type-xs);
   font-weight: 500;
 }
 
@@ -610,30 +628,31 @@ button.cm-chip--seek:focus-visible {
   gap: 8px;
 }
 
+/* the board's `.k-av--sm`: 20 px, the person's tone, ink initial in the rounded face */
 .cm-av {
   flex: none;
   display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   margin-top: 1px;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 10%, transparent);
-  color: var(--maude-chrome-fg-1, #6e6660);
-  font-size: 10px;
-  font-weight: 600;
+  background: var(--cm-av-tone, color-mix(in oklab, var(--maude-chrome-fg-0) 10%, transparent));
+  color: var(--maude-hud-object-ink);
+  font: 600 10px / 1 var(--maude-hud-font-rounded);
 }
 
 .cm-av--ai {
-  background: var(--maude-hud-accent, #d63b1f);
-  color: var(--maude-hud-accent-fg, #fff);
+  background: var(--maude-hud-spark);
+  color: var(--maude-hud-spark-fg);
 }
 
 /* S8.17b - words written in another tool (Figma): where an avatar would be, an empty ring.
    Not a person of this project, so no initials and no fill. */
 .cm-av--imported {
   background: transparent;
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 28%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 28%, transparent);
 }
 
 .cm-notice {
@@ -666,11 +685,28 @@ button.cm-chip--seek:focus-visible {
 }
 
 .cm-mention-popup__role {
-  color: var(--maude-chrome-fg-1, #6e6660);
-  font-size: 11px;
+  color: var(--maude-chrome-fg-2);
+  font-size: var(--maude-hud-type-xs);
 }
 
 .cm-mention-popup__item[aria-selected="true"] .cm-mention-popup__role {
-  color: var(--maude-hud-accent-fg, #faf6ef);
-  opacity: 0.85;
+  color: var(--maude-hud-accent-text);
+}
+
+/* ─── The ghost button (the board's `.btn--ghost .btn--sm`: Resolve / Reopen / Edit) ──────────────────────────── */
+.cm-btn--ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--maude-chrome-fg-0);
+  padding: 3px 8px;
+  border-radius: var(--maude-hud-radius-sm);
+}
+.cm-btn--ghost:hover {
+  background: var(--maude-chrome-bg-3);
+}
+.cm-glyph {
+  flex: none;
 }

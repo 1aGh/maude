@@ -4,6 +4,7 @@
 
 import { useEffect, useRef } from 'react';
 import { postToCanvas } from '../../../bridge/dgn-protocol.ts';
+import { setShellInsets } from './insets-now.js';
 import { createInsetsPump, measureShellInsets, seedOnLadder } from './occlusion-insets.js';
 
 /** V2-4.3b — the live pump's synchronous flush, for the mode lane (insets before `set-mode`). A no-op
@@ -31,6 +32,7 @@ export function useOccludedInsets({ bodyRef, iframesRef, presenting, layoutKey }
     const pump = createInsetsPump({
       measure,
       send(seq, insets, to) {
+        setShellInsets(insets); // P8 C5: shell surfaces that centre on the free canvas read the same value
         const targets = to ? [to] : frames().map((f) => f.contentWindow);
         for (const win of targets) postToCanvas(win, 'occluded-insets', { seq, insets }, '*');
       },

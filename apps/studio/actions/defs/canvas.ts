@@ -18,7 +18,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     // menu sends `menu://action`). v1's bare N (the browser never delivers ⌘N) died with V2-4.5b,
     // which bound N to Sticky (rule 13; help.ts MOVED_KEYS).
     keys: [kb('⌘N', 'global', { inText: true, when: { shell: ['desktop'] } })],
-    legacy: { palette: 'New canvas…', menu: 'New canvas…', sheet: 'New brief board' },
+    legacy: { palette: 'New canvas', menu: 'New canvas…', sheet: 'New brief board' },
   },
   // S6.1 — the brief board keeps a door of its own (⌘K and the Canvases panel's New menu); ⌘N makes a blank
   // canvas. It runs what `canvas.new` ran in v1: the tree's composer asks for a name, then stamps the board.

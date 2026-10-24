@@ -53,11 +53,12 @@ import {
 import { InlineRename } from './inline-rename.jsx';
 import { JumpBoardRow, JumpNoteRow, JumpToggle, Marked } from './jump-list.jsx';
 import { moveTargets } from './move-model.js';
+import { askForCovers } from './covers.js';
 import { siblingNames } from './rename-model.js';
 import { useRowSlots } from './row-slots.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
 import { leftOutOf } from '../ds/update-model.js';
-import { SORT_ASIDE, SORT_BYS, SORT_LABELS, KIND_NOTE } from './sort.js';
+import { SORT_BYS, SORT_LABELS, KIND_NOTE, sortControl } from './sort.js';
 import {
   allCanvases,
   buildTree,
@@ -135,6 +136,11 @@ export function CanvasesPanel({
   const slots = useRowSlots();
   // S11.4 — canvases the hub lists that are not on this Mac yet: ghost rows + the "Getting …" foot
   useArrivingRows({ groups, designRel, fetchImpl });
+  // P8 C5: the rows' pictures — ask the thumbnail service once for every canvas's cover (background priority)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per page load; the request is the same whatever the panel holds
+  useEffect(() => {
+    askForCovers(fetchImpl);
+  }, []);
   // S11.9 — Canvases › Advanced › Show file names: each canvas row grows a second mono line
   const [showFileNames] = useViewPref(VIEW_PREF_KEYS.fileNames);
   const tree = useMemo(
@@ -548,6 +554,7 @@ export function CanvasesPanel({
   // a11y gate B1: the Sort button is a control, not a treeitem, so it cannot live inside the role=tree element. The
   // head row (name + count) stays a row of the list; the button is drawn over its right end from a sibling lane
   // that follows the list's scroll.
+  const sortCtl = sortControl({ by: sort.by, total: tree.total });
   const headIndex = searching ? -1 : rows.findIndex((r) => r.key === 'head:project');
   const headTop = headIndex >= 0 ? layout.tops[headIndex] - scrollTop : 0;
   const headH = headIndex >= 0 ? rowHeight(rows[headIndex]) : 0;
@@ -556,14 +563,14 @@ export function CanvasesPanel({
       <div className="cv-sort-lane" style={{ top: headTop + (headH - 20) / 2 }}>
         <button
           type="button"
-          className={`cv-sort${sortOpen ? ' is-open' : ''}`}
+          className={`cv-sort${sortOpen ? ' is-open' : ''}${sortCtl.quiet ? ' cv-sort--quiet' : ''}`}
           data-testid="canvases-sort"
           aria-haspopup="menu"
           aria-expanded={sortOpen}
-          aria-label={`Sort canvases — ${SORT_LABELS[sort.by]}`}
+          aria-label={sortCtl.label}
           onClick={openSortMenu}
         >
-          {SORT_ASIDE[sort.by]}
+          {sortCtl.text}
           <StIcon name="chevron-down" size={11} />
         </button>
       </div>
@@ -620,14 +627,18 @@ export function CanvasesPanel({
         {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
       {children}
-      <p
-        className="cv-foot"
-        data-testid="canvases-foot"
-        data-slot={foot.source}
-        data-tone={foot.tone || undefined}
-      >
-        {emptyProject && foot.source === 'default' ? PANEL_NONE_FOOT : foot.text}
-      </p>
+      {/* P8 C5: the board draws no foot line at rest (01 / 02 / 05 / 11) — a foot is a state's words (a
+          search, a kind filter, sync, arriving, an empty project). */}
+      {foot.source === 'default' && !searching && !emptyProject ? null : (
+        <p
+          className="cv-foot"
+          data-testid="canvases-foot"
+          data-slot={foot.source}
+          data-tone={foot.tone || undefined}
+        >
+          {emptyProject && foot.source === 'default' ? PANEL_NONE_FOOT : foot.text}
+        </p>
+      )}
       {sortMenu ? (
         <div
           className="cv-menu"

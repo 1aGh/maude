@@ -113,18 +113,6 @@ const ALLOW: readonly { file: string; rule: string; text: RegExp; why: string }[
     why: "Anthropic's plan names",
   },
   {
-    file: 'left-panel/left-panel-model.js',
-    rule: 'board',
-    text: /^New blank brief board$/,
-    why: 'a record of the v1 control: tree.jsx keeps this aria-label as an e2e hook (cloud-entry, selfhost-entry)',
-  },
-  {
-    file: 'left-panel/canvases-pinned.jsx',
-    rule: 'board',
-    text: /^New blank brief board$/,
-    why: 'the "+ New canvas" row keeps the v1 control\'s aria-label as the e2e hook (cloud-entry, selfhost-entry, surface) — P8 C4 moved it here from the header "+"',
-  },
-  {
     file: 'import/figma-model.js',
     rule: 'board',
     text: /^(board|A board from FigJam works too — it comes in as annotations\.)$/,
