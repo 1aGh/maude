@@ -39,8 +39,9 @@ describe('Connect sheet fits the AI island', () => {
   });
 
   test('quick-reply chips and the feed padding give way while the sheet is open', () => {
+    // P8 C2 (03 ai-not-ready): the sheet floats over the dimmed island, which hides the strip itself
     expect(needs).toMatch(
-      /\.chat-thread:has\(\.ai-conn-sheet\) \.ai-suggest\s*\{\s*display:\s*none;/
+      /\.ai-island:has\(\.ai-conn-sheet--inline\) \.ai-suggest\s*\{\s*display:\s*none;/
     );
     expect(needs).toMatch(
       /\.chat-thread:has\(\.ai-conn-sheet\) \.chat-feed\s*\{\s*padding-block:\s*0;/

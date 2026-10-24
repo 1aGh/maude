@@ -47,7 +47,6 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8'
 const components = read('../client/styles/4-components.css');
 const search = read('../client/v2/search/search.css');
 const fold = read('../client/v2/fold/fold.css');
-const diagnostics = read('../client/v2/diagnostics/diagnostics.css');
 
 const TEXT_RULES: [string, string, string][] = [
   ['shell', '.st-search-box', shell],
@@ -105,13 +104,8 @@ for (const theme of ['light', 'dark']) {
     });
   }
 
-  test(`${theme} the selected Diagnostics tab reads on its accent-muted fill`, () => {
-    const token = block(diagnostics, '.dg-tab[aria-selected="true"]').match(
-      /(?:^|;)\s*color:\s*var\((--[^),]+)/
-    )?.[1];
-    if (!token) throw new Error('Missing selected tab colour');
-    expect(ratio(token, '--accent-muted')).toBeGreaterThanOrEqual(4.5);
-  });
+  // the Diagnostics tabs are gone (P8 C2, decision v2-p8-c2-kitadv-diagnostics-three-boxes: Logs, Server and AI
+  // setup are three boxes at once), so the selected-tab contrast pin has nothing left to read.
 
   test(`${theme} the Present exit pill is not faded and its label and Esc hint hold AA on it`, () => {
     const pill = block(shell, '.st-present-exit');
