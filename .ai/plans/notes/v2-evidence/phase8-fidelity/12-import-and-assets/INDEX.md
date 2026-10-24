@@ -47,3 +47,18 @@ All 19 reachable ids were re-shot, dark and light, on the release client at bran
 | ia-photo-inspector, ia-photo-steps | fixture photos have human names; real imports are content-addressed |
 | ia-advanced | no change (C1 fold) |
 | ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable (stubs not built) |
+
+## After (stage D, 53ceb26c5)
+
+The C9 builder already re-shot the 19 reachable ids on its own branch (table above, "After (C9 round 2)"); the stage-D pass re-shot only the ones that table lists as "shot still differs" or fixture-blocked, with **fixture changes only** (no product code). New fixture `photos2`: the photo is stored under a content-addressed name (`assets/<sha8>.jpg`, what a real import produces, which is what mounts the Photo section) and a new `Spread` canvas holds one artboard of six empty `<img data-cd-id>` frames. Spec side: reused (board `12 Import and Assets.tsx` unchanged since stage A). Full-size pairs for the six re-shot ids: `full-size-path.txt` (stage D line); the other ids keep C9's JPEGs (their full-size PNGs live in the C9 worktree, not in the stage-D folder).
+
+| id | dark · light | note |
+|---|---|---|
+| ia-photo-inspector | re-shot, **now reachable**: the right panel opens with an Image / Photo tab pair | previously the generic element inspector |
+| ia-photo-steps | re-shot, **now reachable**: Photo section (Look tiles Original… Night, Light / Colour, Remove background, Replace… / Reset, "Only this use changes" + Apply to every use…, Advanced) | |
+| ia-drop-photos | re-shot, **now reachable**: the dragover event is dispatched inside the canvas frame at the artboard's own coordinates, and the artboard draws its outline plus the chip "Drop to fill 6 empty frames in order" | still synthetic (no native file drop) |
+| ia-placed | re-shot, **now reachable**: Spread artboard selected, Assets › From this Mac… with 6 files fills the six frames; toast "Placed 6 photos in MVP zápasu. They're in Assets too." + Undo; "Just added 6" group | no upload ring (local project) |
+| ia-gen-ask | re-shot with an artboard selected (⌘K › Generate with AI…): inline ask in the Assets panel | AI-island hosting is still open (C9) |
+| ia-advanced | re-shot (details › Advanced fold) | unchanged by C9 |
+| all other reachable ids | reused: C9's round-2 shots (same tip lineage) | see the C9 table |
+| ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | stubs not built (network, hub peer, providers, nine conditions) |
