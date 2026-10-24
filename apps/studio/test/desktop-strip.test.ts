@@ -295,3 +295,36 @@ describe('Home is the pinned first tab (S1.22c)', () => {
     expect(invoked('tab_reorder')).toEqual([{ label: tabs[2].label, to: 0 }]);
   });
 });
+
+// P8 C4 (11 critic-d): "0 more" with nothing hidden, resting names, the done / spark marks and the list's place words.
+describe('the tab strip page (P8 C4)', () => {
+  test('the "N more" chip never shows when nothing is hidden: [hidden] beats the chip\'s display', () => {
+    // `.more` sets display:inline-flex, which beats the UA's [hidden] rule — the chip drew as "0 more".
+    expect(HTML).toMatch(/\.more\[hidden\]\s*\{\s*display:\s*none/);
+  });
+
+  test('a resting tab keeps its name in the same tone as the other tabs (the ring says resting)', () => {
+    expect(HTML).not.toMatch(/\.tab\.resting \.name\s*\{/);
+  });
+
+  test('the done mark and the working spark use the text-strength tokens (AA on the title bar)', () => {
+    expect(HTML).toMatch(/--dot-done:\s*var\(--status-success-text\)/);
+    expect(HTML).toMatch(/--dot-working:\s*var\(--spark-text\)/);
+  });
+
+  test('the tab list says where a project is the way the board does: "<account> · cloud" / "On this Mac"', async () => {
+    const tabs = [
+      tab(1, { place: 'cloud', account: { initial: 'S', tone: 'yellow', label: 'Studio team' } }),
+      tab(2, { place: 'cloud' }),
+      tab(3),
+    ];
+    mount(state(tabs));
+    await tick();
+    push(state(tabs, { overview: true }));
+    const where = (i: number) =>
+      $(`tab-overview-row-${tabs[i].label}`)!.querySelector('.words span')?.textContent;
+    expect(where(0)).toBe('Studio team · cloud');
+    expect(where(1)).toBe('In the cloud');
+    expect(where(2)).toBe('On this Mac');
+  });
+});

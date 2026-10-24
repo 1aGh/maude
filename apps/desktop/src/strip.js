@@ -424,10 +424,13 @@
     strong.textContent = t.name;
     words.appendChild(strong);
     const where = document.createElement('span');
+    // 11 pn-tab-b20: "<account> · cloud" for a cloud project (the board's `where`), "On this Mac" for a local one
     where.textContent = t.home
       ? 'Every project on this Mac'
       : t.place === 'cloud'
-        ? 'In the cloud'
+        ? t.account?.label
+          ? t.account.label + ' · cloud'
+          : 'In the cloud'
         : 'On this Mac';
     words.appendChild(where);
     r.appendChild(words);
