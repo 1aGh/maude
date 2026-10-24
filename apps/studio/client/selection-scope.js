@@ -61,13 +61,36 @@ export function exportSelectionV2(selected, activePath) {
     ? String(one.attrs?.['data-dc-label'] ?? '')
         .replace(/\s+/g, ' ')
         .trim() || String(one.artboardId ?? one.attrs?.['data-dc-screen'] ?? '')
-    : '';
+    : list.length === 1
+      ? elementName(list[0])
+      : '';
+  // p8-bugs3 #1 — the one thing selected, as big as the canvas draws it: the estimate cannot know an element's size
+  // (it only indexes artboards), so the sheet's size chips and size line read it from here
+  const e = list.length === 1 ? list[0] : null;
+  const w = Number(e?.worldW ?? e?.geometry?.w);
+  const h = Number(e?.worldH ?? e?.geometry?.h);
   return {
     hasSelection: list.length > 0,
     selectedArtboards: artboards,
     selectedElements: elements,
     selectionLabel: label || null,
+    selectionSize: w > 0 && h > 0 ? { w: Math.round(w), h: Math.round(h) } : null,
   };
+}
+
+const ELEMENT_KINDS = { img: 'Photo', picture: 'Photo', svg: 'Graphic', video: 'Video' };
+
+/**
+ * p8-bugs3 #1 — what to call ONE selected element in the Export sheet's title: its own words (a heading, a button),
+ * else what kind of thing it is. Never an id.
+ */
+export function elementName(sel) {
+  const words = String(sel?.text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (words && !ELEMENT_KINDS[String(sel?.tag ?? '').toLowerCase()])
+    return words.length > 40 ? `${words.slice(0, 39)}…` : words;
+  return ELEMENT_KINDS[String(sel?.tag ?? '').toLowerCase()] ?? 'Object';
 }
 
 /**

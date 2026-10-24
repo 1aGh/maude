@@ -67,7 +67,9 @@ export function ImageSection({
               id: String(scale),
               label,
               // 09 ex-social: the pixels ride on the chip — "1× 1080 × 1350 · 2× 2160 × 2700"
-              small: board ? sizeLine(board.w * scale, board.h * scale) || undefined : undefined,
+              small: Number.isFinite(board?.w)
+                ? sizeLine(board.w * scale, board.h * scale) || undefined
+                : undefined,
               testid: `export-size-${scale}x`,
             }))}
             value={String(effectiveScale(state, 'digital'))}
