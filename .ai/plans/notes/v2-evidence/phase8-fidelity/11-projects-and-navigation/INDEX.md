@@ -66,3 +66,15 @@ Extra unpaired frames kept in `.scr/impl`: `strip-b20-overview-*`, `pn-home-top-
 ## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
 
 Re-shot, IMPL side only, light + dark (SPEC reused): pn-organise, pn-move, pn-jump, pn-trash, pn-k-across, pn-k-close, pn-deeplink, pn-relaunch, pn-history, pn-compare. What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel and Version history hug their rows (no twisty at rest), B on the Now row replaces its dot, kind chips only for a mixed project. The other rows of this canvas were not re-shot this round. See `01-create-flow/fix-c3-shell.md`.
+
+## After (round 4, p8-c4-navpanels)
+
+Re-shot on the release client of the p8-c4-navpanels tip with the committed stage-D harness (`_d-harness-g4`): `s11 / s11e / s11b / s11d / s11ds`, `strip-shoot`, `home11`; same fixtures and stubs as stage D. Every pair above was overwritten (dark + light); `fix-c4-navpanels.md` says what changed and what is open.
+
+| id | dark · light | note |
+|---|---|---|
+| pn-tab-b, pn-tab-b20, pn-switch-ai-strip, pn-relaunch-strip | re-shot | no "0 more" chip; resting names in the tabs' tone; done / spark at text strength |
+| pn-organise, pn-move, pn-trash, pn-jump, pn-ds, pn-ds-search, pn-history, pn-compare | re-shot | Canvases header carries no "+" / folder pair — "+ New canvas" ends the list; no project-switcher foot (the pill is the switcher) |
+| pn-k-close, pn-k-across | re-shot | close-match note quotes the typo word; "Tools and settings" group |
+| pn-home, pn-home-search | re-shot | Work leads; Projects foot "N more" + Open project… (this seed has 5 projects, so no "N more" shows); no "New project…" row |
+| pn-switch-ai, pn-relaunch, pn-deeplink | re-shot | unchanged by this round (keys sheet, toast and deep link are open) |

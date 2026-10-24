@@ -101,6 +101,7 @@ describe('"unifromy 2027": close matches, said once', () => {
     expect(res.closeOnly).toBe(true);
     expect(res.didYouMean).toBe(false); // 2027 is right: this is not "nothing"
     expect(res.closeWord).toBe('Uniformy');
+    expect(res.closeTyped).toBe('unifromy');
     const canvas = res.groups[0].rows[0];
     expect(canvas.name).toBe('Uniformy-2027');
     expect(slice(canvas.name, canvas.marks)).toEqual(['Uniformy', '2027']);

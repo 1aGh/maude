@@ -1469,7 +1469,8 @@ export const OPENERS = [
     id: 'team-signed-out',
     state: 'team-signed-out',
     steps: [
-      { click: tid('repo-switcher-trigger') },
+      { click: tid('project-pill') },
+      { click: tid('project-menu-row-sub-switch-project') },
       { click: tid('switcher-open-team') },
       { wait: 800 },
       { click: tid('team-cloud-signin'), optional: true },
@@ -1480,7 +1481,8 @@ export const OPENERS = [
     id: 'team-recents',
     state: 'team-recents',
     steps: [
-      { click: tid('repo-switcher-trigger') },
+      { click: tid('project-pill') },
+      { click: tid('project-menu-row-sub-switch-project') },
       { click: tid('switcher-open-team') },
       { wait: 800 },
       { click: tid('team-recent-r1'), optional: true },
@@ -1491,7 +1493,8 @@ export const OPENERS = [
     id: 'team-empty',
     state: 'team-empty',
     steps: [
-      { click: tid('repo-switcher-trigger') },
+      { click: tid('project-pill') },
+      { click: tid('project-menu-row-sub-switch-project') },
       { click: tid('switcher-open-team') },
       { wait: 800 },
     ],
@@ -1500,7 +1503,8 @@ export const OPENERS = [
     id: 'team-opening',
     state: 'team-opening',
     steps: [
-      { click: tid('repo-switcher-trigger') },
+      { click: tid('project-pill') },
+      { click: tid('project-menu-row-sub-switch-project') },
       { click: tid('switcher-open-team') },
       { wait: 800 },
       { click: tid('team-recent-r1'), optional: true },

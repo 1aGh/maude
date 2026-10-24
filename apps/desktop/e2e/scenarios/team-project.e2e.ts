@@ -14,6 +14,7 @@ import {
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { openSwitcher } from '../helpers/switcher';
 import { canvasRow } from '../helpers/tree';
 import { activeTab, HOME, labels, pinCurrentWindow, waitWindow } from '../helpers/windows';
 
@@ -265,11 +266,7 @@ describe('team-project (native-desktop)', () => {
 
   it('5 · the switcher names the project and offers team projects again', async () => {
     await settleMotion();
-    const trigger = await $(tid('repo-switcher-trigger'));
-    await trigger.waitForDisplayed({ timeout: 30_000 });
-    await trigger.click();
-    const popup = await $(tid('repo-switcher-popup'));
-    await popup.waitForDisplayed({ timeout: 10_000 });
+    const popup = await openSwitcher();
     expect(await popup.getText()).not.toContain('--local');
     await (await $(tid('switcher-open-team'))).click();
     const dialog = await $(tid('team-projects-dialog'));
@@ -295,8 +292,7 @@ describe('team-project (native-desktop)', () => {
 
   it('6 · keyboard and dark mode: Escape closes the picker, focus returns, dark theme renders', async () => {
     await settleMotion();
-    const trigger = await $(tid('repo-switcher-trigger'));
-    await trigger.click();
+    await openSwitcher();
     await (await $(tid('switcher-open-team'))).click();
     const dialog = await $(tid('team-projects-dialog'));
     await dialog.waitForDisplayed({ timeout: 10_000 });
@@ -312,7 +308,7 @@ describe('team-project (native-desktop)', () => {
     });
     // Dark theme: the same dialog, legible.
     await toggleTheme();
-    await trigger.click();
+    await openSwitcher();
     await (await $(tid('switcher-open-team'))).click();
     await (await $(tid('team-projects-dialog'))).waitForDisplayed({ timeout: 10_000 });
     const theme = await browser.execute(() => document.documentElement.getAttribute('data-theme'));
@@ -373,7 +369,7 @@ describe('team-project (native-desktop)', () => {
 
       // Reopen the project through the picker, exactly as a person would.
       await settleMotion();
-      await (await $(tid('repo-switcher-trigger'))).click();
+      await openSwitcher();
       await (await $(tid('switcher-open-team'))).click();
       await (await $(tid('team-projects-dialog'))).waitForDisplayed({ timeout: 10_000 });
       const recent = await $$('[data-testid^="team-recent-"]');

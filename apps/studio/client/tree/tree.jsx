@@ -16,12 +16,11 @@ import { prefetchPreviewImage } from '../panels/file-preview.jsx';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTreeDrag } from '../use-tree-drag.js';
 import { TreeRowMenu, useRowMenu } from '../tree-row-menu.jsx';
-import RepoBranchSwitcher from '../panels/RepoBranchSwitcher.jsx';
 import CloudBar from '../panels/CloudBar.jsx';
 import IdentityBar from '../panels/IdentityBar.jsx';
 import { CanvasesPanel } from '../v2/canvases/canvases-panel.jsx';
 import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-advanced.jsx';
-import { DsPinnedRows, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
+import { DsPinnedRows, NewCanvasRow, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
 import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
 import { dsPinnedModel } from '../v2/left-panel/left-panel-model.js';
 import { newCanvasDesignSystem } from '../v2/ds/new-canvas-default.js';
@@ -1276,6 +1275,30 @@ export function Sidebar({
     );
   };
 
+  // P8 C4: the board's "+ New canvas" row ends the list and carries the old header pair's hooks.
+  const newCanvasRow = readOnly ? null : (
+    <NewCanvasRow
+      boardOpen={creating && composerMode === 'board'}
+      folderOpen={creating && composerMode === 'folder'}
+      onNew={() => {
+        setNewErr('');
+        setComposerMode('board');
+        setComposerTarget(null);
+        setCreating((v) => (composerMode === 'board' ? !v : true));
+      }}
+      onNewFolder={
+        defaultFolderParent
+          ? () => {
+              setNewErr('');
+              setComposerMode('folder');
+              setComposerTarget(null);
+              setCreating((v) => (composerMode === 'folder' ? !v : true));
+            }
+          : undefined
+      }
+    />
+  );
+
   return (
     <nav
       className={
@@ -1285,47 +1308,10 @@ export function Sidebar({
       aria-label="Canvases"
       data-tour="sidebar"
     >
-      {/* The panel's tab row already names it and owns the one fold control, so this row carries only the
-          create actions; the title stays for screen readers and for the e2e that clicks it. */}
+      {/* The panel's tab row already names it and owns the one fold control; the create actions are the
+          list's last row now ("+ New canvas", P8 C4), so this keeps only the title for screen readers. */}
       <div className="st-sb-hd">
         <span className="st-sb-title">Canvases</span>
-        <div className="st-sb-hd-actions">
-          {!readOnly && (
-            <button
-              type="button"
-              className="st-iconbtn"
-              data-tip="New blank brief board"
-              aria-label="New blank brief board"
-              aria-expanded={creating && composerMode === 'board'}
-              onClick={() => {
-                setNewErr('');
-                setComposerMode('board');
-                setComposerTarget(null);
-                setCreating((v) => (composerMode === 'board' ? !v : true));
-              }}
-            >
-              <StIcon name="plus" size={15} />
-            </button>
-          )}
-          {!readOnly && defaultFolderParent && (
-            <button
-              type="button"
-              className="st-iconbtn"
-              data-tip="New folder"
-              aria-label="New folder"
-              data-testid="tree-new-folder"
-              aria-expanded={creating && composerMode === 'folder'}
-              onClick={() => {
-                setNewErr('');
-                setComposerMode('folder');
-                setComposerTarget(null);
-                setCreating((v) => (composerMode === 'folder' ? !v : true));
-              }}
-            >
-              <StIcon name="folder-plus" size={15} />
-            </button>
-          )}
-        </div>
       </div>
 
       {creating ? (
@@ -1453,6 +1439,7 @@ export function Sidebar({
                   .filter((g) => g.label !== 'Design system' || !!search)
                   .map((g) => renderSection(g))}
               </FileTree>
+              {newCanvasRow}
               {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
               {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
             </>
@@ -1487,6 +1474,7 @@ export function Sidebar({
                   setCreating(true);
                 }}
               >
+                {newCanvasRow}
                 {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
                 {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
               </CanvasesPanel>
@@ -1533,12 +1521,7 @@ export function Sidebar({
         destinations={rowMenuDestinations}
         onPickDestination={(dest) => onMoveCanvas(menuExtra.path, dest)}
       />
-      {/* The project switcher: a compact one-line dock that opens UPWARD, sitting directly above the GitHub
-          identity avatar so the two form one bottom dock. S11.10 — it is the way to another project ONLY now;
-          the branch half (drafts, New branch, Fetch, Add to main, Continue, the chat guard) lives in Version
-          history › Advanced, withdrawn there for a project somebody else saves (feature-cloud-managed-git-
-          posture, DDR-218). */}
-      <RepoBranchSwitcher project={project} />
+      {/* P8 C4: no project switcher here — the project pill is the switcher (RepoBranchSwitcher.jsx). */}
       {/* Cloud Phase 23 C3 — Maude Cloud sign-in + remote-project attach, docked
           above the GitHub identity. Dev-server-backed, so it works in the desktop
           shell AND a plain browser. */}

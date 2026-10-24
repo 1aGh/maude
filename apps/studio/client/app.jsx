@@ -234,6 +234,7 @@ import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-ru
 import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
+import { useProjectSwitcher } from './panels/RepoBranchSwitcher.jsx';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { AskSelectionHost } from './v2/ai/AskSelectionHost.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
@@ -1616,6 +1617,8 @@ function ShellState({ children }) {
 // the handler map is built once), binds it (⌘K's twin rows call the same runner) and renders
 // PROJECT_MENU through the registry.
 function ShellProjectPill() {
+  // P8 C4: the pill is the project switcher (a "Switch project" submenu in the desktop app).
+  const switcher = useProjectSwitcher();
   const {
     shellCore: {
       activePath,
@@ -1965,6 +1968,7 @@ function ShellProjectPill() {
         ctx={ctx}
         state={state}
         run={(id) => menuRunner.run(id)}
+        switcher={switcher}
         docked={pinned && !panelsHidden && !!leftActive}
         // S3.9 — Preview folds the pill to its mark (04 md-preview).
         folded={previewing}

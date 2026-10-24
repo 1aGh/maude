@@ -232,12 +232,23 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
       };
     })
     .filter((g) => g.rows.length > 0 || g.cloud?.signedIn);
+  // 11 pn-home: the account with the most recently used project leads (the board draws Work above Personal). A
+  // group with no local project has no recency and keeps the shell's order after the ones that have.
+  const rank = (g) =>
+    Math.min(
+      ...g.rows.filter((r) => r.kind === 'local' && mru.has(r.pid)).map((r) => mru.get(r.pid)),
+      Number.POSITIVE_INFINITY
+    );
+  const ranked = groups
+    .map((g, i) => ({ g, i, r: rank(g) }))
+    .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
+    .map((x) => x.g);
 
   return {
     pinned,
     recent,
     recentProjects,
-    groups,
+    groups: ranked,
     projectCount: localRows.length + cloudRows.length,
   };
 }
@@ -459,4 +470,21 @@ export function linkProfile(shell, clouds, project) {
   const signed = (clouds ?? []).filter((c) => c?.signedIn && typeof c.profile === 'string');
   const owner = signed.find((c) => (c.projects ?? []).some((cp) => cp?.id === project));
   return (owner ?? signed[0])?.profile ?? shell?.profiles?.[0]?.id ?? 'default';
+}
+
+/**
+ * The Projects list keeps its first `cap` rows across the groups (11 pn-home: five of twenty, then "15 more");
+ * a group left with no row drops out. `more` is what stays hidden.
+ */
+export function capProjectGroups(groups, cap) {
+  let left = cap;
+  let more = 0;
+  const out = [];
+  for (const g of groups) {
+    const keep = g.rows.slice(0, Math.max(0, left));
+    left -= keep.length;
+    more += g.rows.length - keep.length;
+    if (keep.length) out.push({ ...g, rows: keep });
+  }
+  return { groups: out, more };
 }

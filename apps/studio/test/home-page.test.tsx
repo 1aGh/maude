@@ -406,11 +406,75 @@ describe('Home page in the desktop app', () => {
       root: '/Users/x/Maude/Plakaty',
     });
     expect($('home-create-dialog')).toBeNull();
-    // The Projects foot opens the same sheet; Cancel closes it with nothing created.
-    act(() => $('home-new-project')?.click());
-    expect($('home-create-dialog')).not.toBeNull();
-    act(() => $('home-create-cancel')?.click());
-    expect($('home-create-dialog')).toBeNull();
+    // 11 pn-home: the Projects foot is "N more" + Open project… — New project… lives in the menu (⇧⌘N), not a row
+    expect($('home-new-project')).toBeNull();
+    expect($('home-open-folder')).not.toBeNull();
+  });
+
+  test('a long Projects list shows its first rows and "N more"; the foot opens the rest', async () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      pid: `l0000000000000${String(i).padStart(4, '0')}`,
+      root: `/x/m${i}`,
+      name: `Many ${i}`,
+      profile: 'default',
+      place: 'closed',
+      focused: false,
+    }));
+    shellOverride = { ...SHELL, projects: many, recent: many.map((m) => m.pid) };
+    mount();
+    await flush();
+    const rows = () => host.querySelectorAll('[data-testid^="home-project-row-"]').length;
+    const before = rows();
+    expect(before).toBe(6);
+    expect($('home-projects-more')?.textContent).toBe('3 more');
+    act(() => $('home-projects-more')?.click());
+    await flush();
+    expect(rows()).toBe(9);
+    expect($('home-projects-more')).toBeNull();
+  });
+
+  test('the slim ask bar takes over once the question has scrolled under the sticky header', async () => {
+    // The question sits under the (transparent) sticky header long before it leaves the viewport, so the
+    // observer's root must stop at the header's lower edge — otherwise the bar never docks (11 pn-home).
+    const seen: Array<{ rootMargin?: string }> = [];
+    const G = globalThis as unknown as { IntersectionObserver?: unknown };
+    const real = G.IntersectionObserver;
+    G.IntersectionObserver = class {
+      constructor(_cb: unknown, opts: { rootMargin?: string } = {}) {
+        seen.push(opts);
+      }
+      observe() {}
+      disconnect() {}
+    };
+    try {
+      mount();
+      await flush();
+    } finally {
+      G.IntersectionObserver = real;
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen[0].rootMargin).toMatch(/^-\d+px 0px 0px 0px$/);
+  });
+
+  test('the account whose project was used last leads the Projects list (Work above Personal)', async () => {
+    shellOverride = {
+      ...SHELL,
+      projects: [
+        { ...SHELL.projects[0], profile: 'default', place: 'closed' },
+        { ...SHELL.projects[1], profile: 'work', place: 'tab' },
+      ],
+      profiles: [
+        { id: 'default', label: 'Personal' },
+        { id: 'work', label: 'Work' },
+      ],
+      recent: [P2, P1],
+    };
+    mount();
+    await flush();
+    const heads = Array.from(host.querySelectorAll('[data-testid^="home-profile-"]')).map((e) =>
+      e.getAttribute('data-testid')
+    );
+    expect(heads).toEqual(['home-profile-work', 'home-profile-default']);
   });
 
   test('pin toggles POST /_home/pins {pid, canvas, pinned}', async () => {

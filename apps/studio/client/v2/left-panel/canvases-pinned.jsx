@@ -133,6 +133,44 @@ export function DsPinnedRows({
   );
 }
 
+/**
+ * P8 C4 (lead call v2-p8-lead-canvases-header-and-switcher): the board's "+ New canvas" row, the last row of
+ * the list (kit `.k-cp-new`: a 28 px plus well, then the words). It replaced the header's "+" / folder pair and
+ * carries their hooks: the row's button is the old "New blank brief board" control (the composer's opener) and
+ * the quiet folder button at its end is `tree-new-folder` (shown on hover / focus, always present for keys).
+ */
+export function NewCanvasRow({ onNew, onNewFolder, boardOpen = false, folderOpen = false }) {
+  return (
+    <div className="lp-newrow" data-testid="canvases-new-row">
+      <button
+        type="button"
+        className="lp-row lp-newrow-main"
+        aria-label="New blank brief board"
+        aria-expanded={boardOpen}
+        onClick={onNew}
+      >
+        <span className="lp-new-ic" aria-hidden="true">
+          <StIcon name="plus" size={14} />
+        </span>
+        <span className="lp-name">New canvas</span>
+      </button>
+      {onNewFolder ? (
+        <button
+          type="button"
+          className="st-iconbtn lp-newrow-folder"
+          data-tip="New folder"
+          aria-label="New folder"
+          data-testid="tree-new-folder"
+          aria-expanded={folderOpen}
+          onClick={onNewFolder}
+        >
+          <StIcon name="folder-plus" size={14} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /** The panel's last row: Trash and what is in it. Opens the Trash list. */
 export function TrashRow({ trash, onOpen, on = false }) {
   const count = trashRowCount(trash);

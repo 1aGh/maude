@@ -104,8 +104,8 @@ export const CAPABILITY_HOMES = [
   {
     row: 'G0-D/D4',
     feature: 'New canvas',
-    home: '⌘N, Menu › File › New canvas, the + at the head of Canvases',
-    file: 'client/tree/tree.jsx',
+    home: '⌘N, Menu › File › New canvas, the + New canvas row at the end of the list',
+    file: 'client/v2/left-panel/canvases-pinned.jsx',
     label: 'New blank brief board',
     actionId: 'canvas.new',
   },
@@ -113,14 +113,14 @@ export const CAPABILITY_HOMES = [
   {
     row: 'G0-D/D5',
     feature: 'New folder',
-    home: 'Canvases head (folder +)',
-    file: 'client/tree/tree.jsx',
+    home: 'the folder button at the end of the + New canvas row',
+    file: 'client/v2/left-panel/canvases-pinned.jsx',
     testid: 'tree-new-folder',
   },
   {
     row: 'G0-D/D5',
     feature: 'Inline composer',
-    home: 'Canvases head — opens under the + / folder +',
+    home: 'opens under the Canvases head from the + New canvas row / its folder button',
     file: 'client/tree/tree.jsx',
     label: 'st-newboard',
   },

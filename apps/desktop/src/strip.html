@@ -36,7 +36,10 @@
         --focus-ring: var(--accent);
         --x-spark: oklch(0.66 0.200 36);
         --spark: var(--x-spark);
+        --x-spark-text: oklch(0.50 0.170 36);
+        --spark-text: var(--x-spark-text);
         --status-success: oklch(0.60 0.140 152);
+        --status-success-text: oklch(0.52 0.130 152);
         --palette-1: oklch(0.91 0.120 95);
         --object-yellow: var(--palette-1);
         --palette-2: oklch(0.82 0.120 152);
@@ -73,7 +76,10 @@
           --focus-ring: oklch(0.72 0.140 238);
           --x-spark: oklch(0.70 0.185 38);
           --spark: var(--x-spark);
+          --x-spark-text: oklch(0.74 0.150 38);
+          --spark-text: var(--x-spark-text);
           --status-success: oklch(0.72 0.140 152);
+          --status-success-text: oklch(0.72 0.140 152);
           --palette-1: oklch(0.80 0.120 95);
           --object-yellow: var(--palette-1);
           --palette-2: oklch(0.72 0.110 152);
@@ -106,10 +112,10 @@
         --tab-sep: var(--border-default);
         --close-hover: color-mix(in oklab, var(--fg-0) 10%, transparent);
         --focus: var(--focus-ring);
-        --dot-done: var(--status-success);
+        --dot-done: var(--status-success-text);
         /* S5.14: needs you is azure (03 ai-needs-tab), the working spark is AI's vermilion. */
         --dot-needs: var(--accent);
-        --dot-working: var(--spark);
+        --dot-working: var(--spark-text);
         /* S1.22b: the project squares — the maude-v2 object palette (the generated block above). */
         --tone-yellow: var(--object-yellow);
         --tone-green: var(--object-green);
@@ -208,9 +214,6 @@
       .home:focus-visible,
       .close:focus-visible {
         box-shadow: inset 0 0 0 2px var(--focus);
-      }
-      .tab.resting .name {
-        color: var(--strip-fg-dim);
       }
       .name {
         flex: 0 1 auto;
@@ -401,6 +404,10 @@
         white-space: nowrap;
         outline: none;
         position: relative;
+      }
+      /* the chip's display (above) beats the UA's [hidden] rule: with nothing hidden it drew as "0 more" */
+      .more[hidden] {
+        display: none;
       }
       .more::after {
         content: "";

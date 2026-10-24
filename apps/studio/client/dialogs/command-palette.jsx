@@ -323,11 +323,11 @@ export function CommandPalette({ open, onClose, actions }) {
         <div className="st-pal-note" data-testid="palette-close-note" role="status">
           <StIcon name="search" size={12} />
           <span>
-            Nothing called “{q.trim()}”.
+            Nothing called “{(view.closeTyped ?? q).trim()}”.
             {view.closeWord ? (
               <>
                 {' '}
-                Showing close matches for <strong>{view.closeWord}</strong>.
+                Showing close matches for <strong>{view.closeWord.toLowerCase()}</strong>.
               </>
             ) : null}
           </span>

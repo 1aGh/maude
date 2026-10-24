@@ -39,6 +39,14 @@
   .st-pill[data-open="true"] {
     background: var(--bg-2);
   }
+  /* "Opening <project>…" / a failed switch: a quiet line under the pill (the switcher moved here, P8 C4) */
+  .st-pill > .rb-switching,
+  .st-pill > .rb-switcher-err {
+    position: absolute;
+    left: 0;
+    top: calc(100% + var(--space-1));
+    white-space: nowrap;
+  }
   .st-body:not(.st-body--float) .st-pill[data-docked="true"] {
     left: var(--space-2, 8px);
     top: var(--space-2, 8px);
