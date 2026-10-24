@@ -249,8 +249,9 @@ import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-
 import { ShellTakes } from './v2/assets/takes-overlay.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
-import { panelOpenDecision, rightPanelWidth } from './v2/shell/panel-layout.js';
+import { panelOpenDecision, rightMainWidth, rightPanelWidth } from './v2/shell/panel-layout.js';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
+import { useFitOnAiPin } from './v2/shell/use-fit-on-ai-pin.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
 import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
@@ -2952,6 +2953,12 @@ function ShellTree() {
     if (d.show) panelLayout.show();
   }, [leftActive, rightActive, assistantOpen, panelsUserHidden, panelsFolded, rightInFold]);
   const rightHidden = panelsHidden && !(rightInFold && !panelsUserHidden);
+  // P8 c5 (03 ai-long-pinned): the chat docked as a column narrows the canvas frame - Fit the canvas to what is left
+  useFitOnAiPin({
+    iframesRef,
+    aiPinned:
+      pinned && !panelsHidden && assistantOpen && (leftHostsAssistant || rightHostsAssistant),
+  });
   useOccludedInsets({
     bodyRef,
     iframesRef,
@@ -3141,6 +3148,7 @@ function ShellTree() {
             <DockSlot
               side="right"
               width={rpW}
+              mainWidth={rightMainWidth({ active: rightActive, base: rpSize.w })}
               open={!!rightActive}
               ids={rightIds}
               activeId={rightActive}
