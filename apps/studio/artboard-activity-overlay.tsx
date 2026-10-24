@@ -222,12 +222,10 @@ export function drawingTag(label: string | null | undefined): string | null {
   return name ? `AI is drawing ${name.slice(0, 60)}` : null;
 }
 
-function screenIds(): string[] {
-  if (typeof document === 'undefined') return [];
-  return Array.from(document.querySelectorAll('[data-dc-screen]'))
-    .map((el) => el.getAttribute('data-dc-screen') ?? '')
-    .filter(Boolean);
-}
+/** Artboards that appear this soon after the canvas first drew are the AI's (not the canvas loading). */
+export const landing = { graceMs: 1500 }; // mutable so a test need not wait out the canvas's first draw
+/** A hold or ring can be announced a little after the write that made the artboard land. */
+const LANDED_WINDOW_MS = 5000;
 
 function labelOfArtboard(id: string): string | null {
   const el = artboardEl(id);
@@ -243,7 +241,8 @@ export function ArtboardRingsLayer() {
   // run leases the artboards it edits, not the ones it has yet to create, so the canvas itself sees the new one
   // arrive and gives it the dashed outline and "AI is drawing <name>" until the next one lands or the run ends.
   const [drafted, setDrafted] = useState<{ id: string; label: string | null } | null>(null);
-  const known = useRef<Set<string> | null>(null); // artboards on the canvas when the run began; null = none live
+  // artboards that appeared on this canvas after it first rendered, newest last (a hold can arrive just after the write)
+  const landed = useRef<Array<{ id: string; at: number }>>([]);
   const nodes = useRef(new Map<string, HTMLDivElement>());
   const ranAt = useRef(new Map<string, number>());
   // a run of yours is live when it holds an artboard (`ai-runs`) or an object (`ai-holds`)
@@ -266,16 +265,48 @@ export function ArtboardRingsLayer() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const timers = new Set<ReturnType<typeof setTimeout>>();
-    // a run of yours is live: remember what was already here, so an artboard that lands is known as new
+    const born = Date.now();
+    let wasLive = false;
+    // a run of yours is live: the artboard that landed just before it was announced is the one being drawn
     const syncLive = () => {
       const on = liveBy.current.rings || liveBy.current.holds;
-      if (on && known.current === null) known.current = new Set(screenIds());
-      if (!on) {
-        known.current = null;
-        setDrafted(null);
+      if (on && !wasLive) {
+        const last = landed.current[landed.current.length - 1];
+        if (last && Date.now() - last.at <= LANDED_WINDOW_MS) {
+          ranAt.current.set(last.id, Date.now());
+          setDrafted({ id: last.id, label: labelOfArtboard(last.id) });
+        }
       }
+      if (!on) setDrafted(null);
+      wasLive = on;
       setLive(on);
     };
+    // artboards that arrive after the canvas first drew; while a run of yours is live the newest is "being drawn"
+    const watch =
+      typeof MutationObserver === 'undefined'
+        ? null
+        : new MutationObserver((records) => {
+            if (Date.now() - born < landing.graceMs) return;
+            for (const rec of records)
+              for (const node of Array.from(rec.addedNodes)) {
+                if (!(node instanceof Element)) continue;
+                const hit = node.matches('[data-dc-screen]') ? [node] : [];
+                for (const el of [
+                  ...hit,
+                  ...Array.from(node.querySelectorAll('[data-dc-screen]')),
+                ]) {
+                  const id = el.getAttribute('data-dc-screen');
+                  if (!id) continue;
+                  landed.current.push({ id, at: Date.now() });
+                  if (landed.current.length > 20) landed.current.shift();
+                  if (wasLive) {
+                    ranAt.current.set(id, Date.now());
+                    setDrafted({ id, label: labelOfArtboard(id) });
+                  }
+                }
+              }
+          });
+    watch?.observe(document.body, { childList: true, subtree: true });
     const onMessage = (e: MessageEvent) => {
       // Only the shell may say it (DDR-054: the canvas is the untrusted side). The table then parses the
       // payload — state/who/tag/waiting only, capped, no `__proto__` key.
@@ -331,6 +362,7 @@ export function ArtboardRingsLayer() {
     window.addEventListener('message', onMessage);
     return () => {
       window.removeEventListener('message', onMessage);
+      watch?.disconnect();
       for (const t of timers) clearTimeout(t);
     };
   }, []);
@@ -341,14 +373,6 @@ export function ArtboardRingsLayer() {
     let raf: number | null = null;
     const tick = () => {
       raf = null;
-      if (known.current) {
-        for (const id of screenIds()) {
-          if (known.current.has(id)) continue;
-          known.current.add(id);
-          ranAt.current.set(id, Date.now());
-          setDrafted({ id, label: labelOfArtboard(id) });
-        }
-      }
       for (const id of ids) {
         const div = nodes.current.get(id);
         if (!div) continue;

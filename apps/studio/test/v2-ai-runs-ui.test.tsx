@@ -304,6 +304,8 @@ describe('the rings on the canvas', () => {
   async function overlay() {
     const React = await import('react');
     const { ArtboardRingsLayer } = await import('../artboard-activity-overlay.tsx');
+    // the canvas's first draw is not "landing"; a test has no first draw to wait out
+    (await import('../artboard-activity-overlay.tsx')).landing.graceMs = 0;
     const view = await mount(<ArtboardRingsLayer />);
     const board = document.createElement('div');
     board.setAttribute('data-dc-screen', 'post');
@@ -434,15 +436,8 @@ describe('the rings on the canvas', () => {
     expect(q('ai-ring-tablet')).toBeNull();
   });
 
-  test('P8 c3: a run that holds objects only (no artboard lease yet) still counts as live for the drawing ring', async () => {
+  test('P8 c3: a run that holds objects only (no artboard lease) is live too; the artboard that landed just before is the one being drawn', async () => {
     const { act } = await overlay();
-    await act(async () => {
-      post({
-        dgn: 'ai-holds',
-        holds: [{ artboard: 'post', element: 'h1', tag: 'AI is working', mine: true }],
-      });
-    });
-    expect(q('ai-rings')).toBeNull();
     const board = document.createElement('div');
     board.setAttribute('data-dc-screen', 'mobile');
     board.setAttribute('data-dc-label', 'Mobile');
@@ -459,7 +454,18 @@ describe('the rings on the canvas', () => {
       }) as DOMRect;
     document.body.append(board);
     await act(async () => {
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    // landed with no run live: nothing is drawn
+    expect(q('ai-rings')).toBeNull();
+    // the write is announced a moment later as objects held by your run
+    await act(async () => {
+      post({
+        dgn: 'ai-holds',
+        holds: [{ artboard: 'mobile', element: 'h1', tag: 'AI is working', mine: true }],
+      });
+    });
+    await act(async () => {
       await new Promise((r) => requestAnimationFrame(() => r(null)));
     });
     expect(q('ai-ring-mobile')?.textContent).toContain('AI is drawing Mobile');
