@@ -39,7 +39,7 @@ export interface CommitPositionsOptions {
   /**
    * HUD / undo-stack label override. Default = `"move N artboard(s)"`.
    * Distribute / align gestures pass their own label so undo HUD reads
-   * `"Undo: equal-space 4 artboards"` instead of `"Undo: move 4 artboards"`.
+   * `"Undone — equal-space 4 artboards"` instead of `"Undone — move 4 artboards"`.
    */
   label?: string;
   /** The write id the layout and its riders share; minted by the bus when absent. */

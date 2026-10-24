@@ -130,7 +130,7 @@ test('⌘Z the moment an AI run says Done undoes that run as one step, not the f
   const r = (await shell.undo(REPO_REL)) as { ok?: boolean };
   await ending;
   expect(r.ok).toBe(true);
-  expect(toasts).toEqual(['Undo: Try a dark hero']);
+  expect(toasts).toEqual(['Undone — Try a dark hero']);
   // the dark hero is gone; the first draft stays
   const disk = readFileSync(file, 'utf8');
   expect(disk).toContain('background: "#fff"');

@@ -173,10 +173,10 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
       JSON.stringify({ actionId: 'u1', redo: true, via: 'keys' }),
     ]);
     expect(toasts).toEqual([
-      'Undo: Restyle story',
-      'Undo: Headline text',
-      'Redo: Headline text',
-      'Redo: Restyle story',
+      'Undone — Restyle story',
+      'Undone — Headline text',
+      'Redone — Headline text',
+      'Redone — Restyle story',
     ]);
   });
 
@@ -233,7 +233,7 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
     });
     home.skips.set('p', 2);
     await store.undo(REPO);
-    expect(toasts).toEqual(['Undo: Card padding', undoWords.skipped('Card padding', 2, 'Tereza')]);
+    expect(toasts).toEqual(['Undone — Card padding', undoWords.skipped('Card padding', 2, 'Tereza')]);
   });
 
   test('redo is cleared by your AI run landing (a new entry)', async () => {
@@ -263,7 +263,7 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
       JSON.stringify({ pendingTx: 'tx1', canvas: REPO, via: 'keys' }),
     ]);
     expect(home.pendingCalls).toEqual([{ repoRel: REPO, tx: 'tx1' }]);
-    expect(toasts).toEqual(['Undo: Moved See pricing 10 px']);
+    expect(toasts).toEqual(['Undone — Moved See pricing 10 px']);
     // undone, and it stays so on the next refresh (the server folds the queued inverse)
     await store.refresh(REPO);
     expect(store.rows(REPO).map((e) => e.actionId ?? e.pendingTx)).toEqual(['old']);
@@ -332,7 +332,7 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
     const r = await store.undoToHere(REPO, 2);
     expect(r).toMatchObject({ ok: true, undid: ['d', 'c', 'b'] });
     expect(ids(home.posts)).toEqual([JSON.stringify({ actionIds: ['d', 'c', 'b'], via: 'panel' })]);
-    expect(toasts).toEqual(['Undo: Hero picture']);
+    expect(toasts).toEqual(['Undone — Hero picture']);
     const rows = store.rows(REPO);
     expect(rows[0]).toMatchObject({ actionId: 'u1', top: true });
     expect(rows.filter((e) => e.covered).map((e) => e.actionId)).toEqual(['d', 'c', 'b']);

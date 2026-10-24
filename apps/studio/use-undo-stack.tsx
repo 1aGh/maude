@@ -291,7 +291,7 @@ export function UndoStackProvider({
           return;
         }
         writeState(undoReducer(stateRef.current, { type: 'undo' }));
-        bumpLabel(`Undo: ${top.label}`);
+        bumpLabel(`Undone — ${top.label}`);
       }),
     [enqueue, build, reportError, bumpLabel, writeState]
   );
@@ -315,7 +315,7 @@ export function UndoStackProvider({
           return;
         }
         writeState(undoReducer(stateRef.current, { type: 'redo' }));
-        bumpLabel(`Redo: ${top.label}`);
+        bumpLabel(`Redone — ${top.label}`);
       }),
     [enqueue, build, reportError, bumpLabel, writeState]
   );

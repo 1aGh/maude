@@ -92,6 +92,19 @@ export function notifyCanvasText(title: unknown, kind: NoticeKind = 'info'): str
   });
 }
 
+/** The shell's own ⌘Z / ⇧⌘Z toast (never canvas traffic): the one undo slot, with its one inline action (Redo). */
+export function notifyUndo(title: string, action?: { label: string; onClick: () => void }): string {
+  const previous = entries.find((entry) => entry.group === 'canvas' && entry.kind === 'undo');
+  return notify({
+    id: previous?.id ?? `canvas-notice-${canvasSlot++ % 2}`,
+    title,
+    kind: 'undo',
+    group: 'canvas',
+    timerKey: `${++sequence}`,
+    ...(action ? { action } : {}),
+  });
+}
+
 /** Drop every canvas notice (programmatic: none is acknowledged) — the standalone host's teardown. */
 export function dismissCanvasNotices(): void {
   if (!entries.some((entry) => entry.group === 'canvas')) return;

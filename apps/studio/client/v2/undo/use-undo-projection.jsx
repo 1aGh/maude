@@ -22,7 +22,9 @@
 // No React below `useUndoProjection` — the store is unit-tested without a DOM.
 
 import { useSyncExternalStore } from 'react';
-import { notifyCanvasText } from '../../../notifications.tsx';
+import { notifyUndo } from '../../../notifications.tsx';
+import { getRunsStore } from '../ai/runs-store.js';
+import { ownRunWorkingOn } from '../ai/runs-model.js';
 import { historyRows, nextRedo, nextUndo } from './projection.js';
 
 export const UNDO_STACK_ROUTE = '/_api/project/undo-stack';
@@ -31,8 +33,13 @@ export const HISTORY_ROUTE = '/_api/project/history';
 
 /** The words (V2-1.5 §5.4; the iframe HUD's "Undo: …" / "Redo: …" move here with it). */
 export const undoWords = {
-  undone: (label) => `Undo: ${label}`,
-  redone: (label) => `Redo: ${label}`,
+  // board 01 cf-undo-ai: "Undone — <label> · Redo" (Redo is the toast's action, ⇧⌘Z's own run)
+  undone: (label) => `Undone — ${label}`,
+  redone: (label) => `Redone — ${label}`,
+  // decision v2-p8-undo-while-ai-runs-refuses
+  aiWorking: 'AI is still working — Stop is in the AI chat',
+  redo: 'Redo',
+  undo: 'Undo',
   skipped: (label, n, name) =>
     `Undid ${label} — ${n} ${n === 1 ? 'part was' : 'parts were'} changed by ${name} since, kept`,
   stale: (label, name) => `Can't undo ${label} — ${name} changed it since`,
@@ -76,7 +83,17 @@ export function canvasKeyOf(repoRel, designRel = '.design') {
 export function createUndoProjection(o = {}) {
   const request = o.request ?? defaultRequest;
   const now = o.now ?? Date.now;
-  const announce = o.announce ?? ((t) => notifyCanvasText(t, 'undo'));
+  const announce = o.announce ?? ((t, action) => notifyUndo(t, action));
+  // is a run of mine still working on this canvas? (the runs store is the shell's; a test hands its own)
+  const ownRunOn =
+    o.ownRunOn ??
+    ((repoRel) => {
+      try {
+        return ownRunWorkingOn(getRunsStore().getSnapshot().view, repoRel, designRel());
+      } catch {
+        return false;
+      }
+    });
   const designRel = o.designRel ?? (() => '.design');
 
   /** repoRel → { repoRel, canvas, openedAt, mode, entries, chain, version } */
@@ -207,9 +224,19 @@ export function createUndoProjection(o = {}) {
     announce(undoWords.skipped(entry.label, skipped.length, name));
   }
 
+  /** The toast's inline actions: the same run a key press would make. */
+  const redoAction = (repoRel) => ({ label: undoWords.redo, onClick: () => redo(repoRel) });
+  const undoAction = (repoRel) => ({ label: undoWords.undo, onClick: () => undo(repoRel) });
+
   /** ⌘Z. `{ handled: false }` → not on the op log: the caller runs the canvas stack. */
   function undo(repoRel) {
     const d = doc(repoRel);
+    // decision v2-p8-undo-while-ai-runs-refuses: undoing the entry the run builds on would lose its work and
+    // leave Version history and disk disagreeing (the server's landing barrier stays for the moment it ends)
+    if (ownRunOn(repoRel)) {
+      announce(undoWords.aiWorking);
+      return Promise.resolve({ handled: true, ok: false, reason: 'ai-working' });
+    }
     return serial(d, async () => {
       await refreshNow(d);
       if (d.mode !== 'op-log') return { handled: false };
@@ -234,7 +261,7 @@ export function createUndoProjection(o = {}) {
           undoneAt: version + 1,
           pendingVia: str(r.body.pendingTx) ?? undefined,
         });
-        announce(undoWords.undone(e.label));
+        announce(undoWords.undone(e.label), redoAction(repoRel));
         return { handled: true, ok: true, pending: true, pendingTx: r.body.pendingTx ?? null };
       }
       const r = await request('POST', UNDO_ROUTE, { actionId: e.actionId, via: 'keys' }).catch(
@@ -246,7 +273,7 @@ export function createUndoProjection(o = {}) {
         undoneAt: version + 1,
         undoneVia: str(r.body.actionId) ?? undefined,
       });
-      announce(undoWords.undone(e.label));
+      announce(undoWords.undone(e.label), redoAction(repoRel));
       await skippedNote(d, e, r.body.skipped);
       return { handled: true, ok: true, actionId: r.body.actionId, undid: e.actionId };
     });
@@ -275,7 +302,7 @@ export function createUndoProjection(o = {}) {
         undoneVia: undefined,
         pendingVia: undefined,
       });
-      announce(undoWords.redone(e.label));
+      announce(undoWords.redone(e.label), undoAction(repoRel));
       return { handled: true, ok: true, actionId: r.body.actionId, redid: e.actionId };
     });
   }
@@ -297,7 +324,7 @@ export function createUndoProjection(o = {}) {
         () => null
       );
       if (!r?.body?.ok) return onRejected(d, target, r);
-      announce(undoWords.undone(target.label));
+      announce(undoWords.undone(target.label), redoAction(repoRel));
       await skippedNote(d, target, r.body.skipped);
       await refreshNow(d); // the panel undo is an entry now — ⌘Z takes it back
       return { handled: true, ok: true, actionId: r.body.actionId, undid: ids };
