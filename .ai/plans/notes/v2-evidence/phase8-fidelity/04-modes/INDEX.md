@@ -67,3 +67,40 @@ Theme: both themes were made for every artboard. Differences below are the dark 
 | `md-edge-offline` | 25 - presenting with no internet (Presenter view offline, clip missing, Skip) | not reachable | no - desktop shell (Presenter view, offline clip) | n/a | same structure; chrome follows the light host theme | `04-modes/md-edge-offline-light.jpg` |
 | `md-esc` | 26 - what esc does, everywhere (table) | Preview on Combine-kampan, then one esc | partially: one row of the table | After one esc from Preview the app returns to Edit with panels back (matches row 'Preview: esc back to Edit'); the other ten rows (menus, Present, Image, Comment, Annotation tools, Inspect, Viewing, mid-drag, browser) not driven | base | `04-modes/md-esc-dark.jpg` |
 | `md-esc` | 26 - what esc does, everywhere (table) | Preview on Combine-kampan, then one esc | partially: one row of the table | After one esc from Preview the app returns to Edit with panels back (matches row 'Preview: esc back to Edit'); the other ten rows (menus, Present, Image, Comment, Annotation tools, Inspect, Viewing, mid-drag, browser) not driven | same structure; chrome follows the light host theme | `04-modes/md-esc-light.jpg` |
+
+
+## after (stage D, 6d19daa9a)
+
+Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes, so the critic re-check compares the board with what the app draws now. No match / mismatch judged here. Pair images (`<id>-<theme>.jpg`, SPEC left | IMPL right) were overwritten in place; the SPEC side is **reused** from stage A for every id (no `.design/ui/v2/04 *` change since the stage-A shot; `git log` shows only 02 and 09 touched). The `extra-impl-*` frames were re-shot too.
+
+- Same harness as stage A. Adaptations: the What's new toast dismissed through its close button, the composer picked with `:visible`. No spec side re-render (board 04 unchanged since stage A).
+- Not reachable, unchanged since stage A: md-motion (a storyboard), md-present-video (no footage in the fixture), md-presenter / md-edge-offline (second display / desktop shell), md-present-link / md-comment-only / md-edge-viewer (hub or second person).
+
+| id | dark | light |
+|---|---|---|
+| `md-model` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-keys` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-edit` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-edit-image` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-edit-component` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-motion` | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) | unreachable (same) |
+| `md-annotate` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-preview` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-preview-follow` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-preview-combine` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-present-menu` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-present-lift` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-present-full` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-present-video` | unreachable (Needs a 9:16 video artboard with footage; the fixture has no footage file.) | unreachable (same) |
+| `md-present-canvas` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-presenter` | unreachable (Presenter view needs a second display (desktop shell).) | unreachable (same) |
+| `md-present-link` | unreachable (A cloud viewer link needs a hub project.) | unreachable (same) |
+| `md-comment` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-comment-only` | unreachable (A Can comment role needs a hub / second person.) | unreachable (same) |
+| `md-draw` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-inspect` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-edge-ai` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-edge-viewer` | unreachable (A view-only link in a browser needs a cloud project.) | unreachable (same) |
+| `md-edge-mixed` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (same) |
+| `md-esc` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
