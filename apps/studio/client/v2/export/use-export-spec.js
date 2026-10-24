@@ -299,6 +299,51 @@ export async function fetchEstimate(spec, signal, fetchImpl = globalThis.fetch) 
   return body && typeof body === 'object' && body.counts ? body : null;
 }
 
+// ── the pictures (POST /_api/export-preview — one small still per artboard the spec reaches) ──────
+const PICTURE_RETRY_MS = 1500;
+const PICTURE_TRIES = 6;
+
+export async function fetchPictures(spec, signal, fetchImpl = globalThis.fetch) {
+  const r = await fetchImpl('/_api/export-preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ spec }),
+    signal,
+  });
+  if (!r.ok) return [];
+  const body = await r.json();
+  return Array.isArray(body?.items) ? body.items : [];
+}
+
+/** The artboard stills a batch row draws. A picture still being rendered is asked for again, a few times. */
+export function usePictures(spec, { enabled = true } = {}) {
+  const [items, setItems] = useState([]);
+  const key = JSON.stringify(spec);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` IS the spec
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const ctl = new AbortController();
+    let timer = null;
+    let tries = 0;
+    const ask = () => {
+      fetchPictures(spec, ctl.signal)
+        .then((got) => {
+          if (ctl.signal.aborted) return;
+          setItems(got);
+          if (got.some((i) => i?.picture?.status === 'pending') && ++tries < PICTURE_TRIES)
+            timer = setTimeout(ask, PICTURE_RETRY_MS);
+        })
+        .catch(() => {});
+    };
+    timer = setTimeout(ask, ESTIMATE_DEBOUNCE_MS * 2);
+    return () => {
+      clearTimeout(timer);
+      ctl.abort();
+    };
+  }, [key, enabled]);
+  return items;
+}
+
 /** The server's estimate for `spec`, re-asked (debounced) when the spec changes. `null` until it answers. */
 export function useEstimate(spec, { enabled = true } = {}) {
   const [est, setEst] = useState(null);
@@ -384,6 +429,8 @@ export function useExportSpec(request, ctx) {
     [state, ctx, kindsSeen, batch, vctx]
   );
   const est = useEstimate(draft, { enabled: ctx.estimate !== false });
+  // 09: a batch row's thumbnail stack — only a batch asks (a single artboard draws its own preview)
+  const pictures = usePictures(draft, { enabled: ctx.estimate !== false && batch });
   const seen = [...kindsOf(est)].sort().join('\u0000');
   // biome-ignore lint/correctness/useExhaustiveDependencies: `seen` IS the kinds the estimate named
   useEffect(() => {
@@ -462,6 +509,7 @@ export function useExportSpec(request, ctx) {
     setScope,
     spec,
     est,
+    pictures,
     kind,
     section,
     batch,

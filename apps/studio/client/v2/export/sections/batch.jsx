@@ -42,15 +42,35 @@ export function namesLine(boards, { max = 3 } = {}) {
 }
 
 /** One kind: its icon, title, the names it holds, where it renders, and the format row for it. */
-function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0 }) {
+/** Up to three stills of what this kind holds, overlapped (09 ex-batch: the row's thumbnail stack). */
+export function stillsOf(pictures, kind, max = 3) {
+  return (pictures ?? [])
+    .filter((i) => i?.kind === kind && i?.picture?.status === 'ready' && i.picture.url)
+    .slice(0, max)
+    .map((i) => ({ url: i.picture.url, label: i.label }));
+}
+
+function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stills = [] }) {
   const Icon = KIND_ICON[kind] ?? DigitalIcon;
   const choice = choiceFor(kind, { [kind]: pick });
   const where = kind === 'video' ? (cloud ? WHERE_CLOUD : WHERE_THIS_MAC) : WHERE_THIS_MAC;
   return (
     <div className="ex-group" data-testid={`export-group-${kind}`} data-kind={kind}>
-      <span className="ex-grp-ic" aria-hidden="true">
-        <Icon size={16} />
-      </span>
+      {stills.length ? (
+        <span
+          className="ex-grp-stack"
+          data-testid={`export-group-${kind}-stack`}
+          aria-hidden="true"
+        >
+          {stills.map((s) => (
+            <img key={s.url} src={s.url} alt="" loading="lazy" draggable={false} />
+          ))}
+        </span>
+      ) : (
+        <span className="ex-grp-ic" aria-hidden="true">
+          <Icon size={16} />
+        </span>
+      )}
       <div className="ex-group-t">
         <strong data-testid={`export-group-${kind}-title`}>
           {groupTitle(kind, row.artboards)}
@@ -90,6 +110,7 @@ export function BatchSection({
   annotationsOff = false,
   annotationsNote,
   setFormat,
+  pictures,
 }) {
   const byKind = est?.byKind ?? {};
   const boards = est?.boards ?? [];
@@ -119,6 +140,7 @@ export function BatchSection({
               new Set(boards.filter((b) => (b.kind ?? 'digital') === kind).map((b) => b.canvas))
                 .size
             }
+            stills={stillsOf(pictures, kind)}
             onPick={(id) => set({ kindPicks: { ...picks, [kind]: id } })}
           />
         ))}

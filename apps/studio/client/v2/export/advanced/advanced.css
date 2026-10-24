@@ -28,6 +28,25 @@
     background: var(--bg-2);
     color: var(--fg-1);
   }
+  /* 09 ex-batch: up to three artboard stills, overlapped, in place of the kind's icon tile */
+  .ex-grp-stack {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    padding-left: var(--space-2);
+  }
+  .ex-grp-stack img {
+    display: block;
+    width: 36px;
+    height: 36px;
+    margin-left: calc(var(--space-2) * -1);
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    background: var(--bg-2);
+    box-shadow:
+      0 0 0 1.5px var(--bg-3),
+      var(--shadow-sm);
+  }
   .ex-group-w {
     font-size: var(--type-xs, 11px);
     color: var(--fg-2);
