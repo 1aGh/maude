@@ -209,9 +209,9 @@ export const COPY = Object.freeze({
   },
   'es-edge-panels.chat-search-none': {
     title: 'No chat mentions “{q}”.',
-    next: 'Searched {count} chats in {project} — titles and every message.',
+    next: 'Searched {chats} in {project} — titles and every message.',
     action: 'Start a chat about it',
-    foot: '{count} chats · kept with the project',
+    foot: '{chats} · kept with the project',
   },
   'es-edge-panels.share-alone': {
     title: 'Only you on {project} so far.',

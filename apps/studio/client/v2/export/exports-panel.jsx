@@ -18,7 +18,12 @@ import { FOLD_LABEL, PANEL_FOOT, PANEL_TITLE, panelGroups } from './exports-mode
 
 const EMPTY_ID = 'es-panels-make.exports-none';
 
-export function ExportsPanel({ center, native = isNativeApp(), onNewExport = openExport }) {
+export function ExportsPanel({
+  center,
+  native = isNativeApp(),
+  onNewExport = openExport,
+  projectName = '', // the shell hands over the open project's name (05 · es-panels-make: "of Studio site")
+}) {
   const { panelOpen, closePanel, selectedJobId } = center;
   useEffect(() => {
     if (!panelOpen) return undefined;
@@ -30,7 +35,7 @@ export function ExportsPanel({ center, native = isNativeApp(), onNewExport = ope
   }, [panelOpen, closePanel]);
 
   const groups = useMemo(() => panelGroups(center.jobs), [center.jobs]);
-  const vars = { project: center.projectName || 'this project' };
+  const vars = { project: projectName || center.projectName || 'this project' };
   if (!panelOpen) return null;
 
   const on = {

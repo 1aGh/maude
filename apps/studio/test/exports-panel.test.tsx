@@ -246,6 +246,22 @@ describe('Exports empty uses the S11 kit', () => {
     expect(m.q('.ex-panel-foot')).toBeNull();
     m.unmount();
   });
+
+  // P8 C5 (05 es-panels-make): the line names the project — the shell hands the panel its name
+  test('"Every export of Studio site lands here" — the project by name, not "this project"', () => {
+    const named = mount(
+      createElement(ExportsPanel, { center: center([]), native: true, projectName: 'Studio site' })
+    );
+    expect(named.q('[data-copy="es-panels-make.exports-none"]')?.textContent).toContain(
+      'Every export of Studio site lands here'
+    );
+    named.unmount();
+    const bare = mount(createElement(ExportsPanel, { center: center([]), native: true }));
+    expect(bare.q('[data-copy="es-panels-make.exports-none"]')?.textContent).toContain(
+      'Every export of this project lands here'
+    );
+    bare.unmount();
+  });
 });
 
 describe('the done toast carries ONE action', () => {

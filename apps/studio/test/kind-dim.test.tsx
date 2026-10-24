@@ -87,7 +87,7 @@ describe('the model', () => {
     expect(w.action).toBe('Clear filter');
     expect(
       noArtboardsOfKind({ kind: 'video', canvas: 'Solo', boards: [{ id: 'a', kind: 'web' }] }).next
-    ).toBe('The Video filter is on. The one artboard here is web page.');
+    ).toBe('The Video filter is on. The one artboard here is a web page.');
   });
 });
 

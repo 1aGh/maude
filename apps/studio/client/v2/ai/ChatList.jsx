@@ -18,6 +18,7 @@ import {
   boardsByRel,
   buildChatList,
   buildSearchList,
+  chatsWord,
   queuedPromptsOf,
   rowMenu,
   trashDialog,
@@ -433,7 +434,7 @@ export function ChatList({
         // 05 · es-edge-panels: what was searched, and one way on — a new chat about it
         const vars = {
           q: query.trim(),
-          count: browse.total,
+          chats: chatsWord(browse.total),
           project: projectName || 'this project',
         };
         return (

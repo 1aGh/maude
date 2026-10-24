@@ -176,9 +176,14 @@ export function buildChatList({
   return { running, groups: out, total: all, foot: footLine(all) };
 }
 
+/** "1 chat" / "41 chats" — the count with its noun (P8 C5: "Searched 1 chat", never "1 chats"). */
+export function chatsWord(n) {
+  return `${n} ${n === 1 ? 'chat' : 'chats'}`;
+}
+
 /** "41 chats · kept with the project" */
 export function footLine(n) {
-  return `${n} ${n === 1 ? 'chat' : 'chats'} · kept with the project`;
+  return `${chatsWord(n)} · kept with the project`;
 }
 
 /** The search view: hits grouped by canvas, the title and the snippet carrying their marked words. */

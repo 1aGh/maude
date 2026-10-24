@@ -63,6 +63,14 @@ const LOWER = Object.freeze({
   video: 'video',
 });
 
+/** The same words after "is" — with their article ("The one artboard here is a web page."). */
+const A_KIND = Object.freeze({
+  digital: 'a fixed size artboard',
+  web: 'a web page',
+  print: 'a print artboard',
+  video: 'a video',
+});
+
 const orJoin = (xs) =>
   xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} or ${xs.at(-1)}`;
 
@@ -78,7 +86,7 @@ export function noArtboardsOfKind({ kind, canvas, boards }) {
     title: `No ${LOWER[kind] || ''} artboards${canvas ? ` in ${canvas}` : ''}.`,
     next:
       total === 1
-        ? `The ${KIND_WORD[kind] || ''} filter is on. The one artboard here is ${what}.`
+        ? `The ${KIND_WORD[kind] || ''} filter is on. The one artboard here is ${A_KIND[have[0]] ?? what}.`
         : `The ${KIND_WORD[kind] || ''} filter is on. All ${total} artboards here are ${what}.`,
     action: 'Clear filter',
   };

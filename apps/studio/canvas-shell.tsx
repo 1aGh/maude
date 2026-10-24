@@ -107,6 +107,7 @@ import {
 } from './input-router.tsx';
 import { inspectedSelection, shouldFlipToMove } from './inspect-canvas.ts';
 import { InspectOverlay, measureNeighbour } from './inspect-overlay.tsx';
+import { plainLayerName } from './layer-name.ts';
 import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
@@ -442,17 +443,14 @@ function kebabToTitle(s: string): string {
     .join(' ');
 }
 
-// Human label: data-dc-element (Title Case) → aria-label → role → tag(.class).
+// Human label: data-dc-element (Title Case) → aria-label → the plain word for its role / tag ("Heading",
+// "Text", "Frame" — P8 C5: never the code's own `div` / `h1` / `div.hero`).
 function layerLabel(el: Element): string {
   const dc = el.getAttribute('data-dc-element');
   if (dc) return kebabToTitle(dc);
   const aria = el.getAttribute('aria-label');
   if (aria) return aria.slice(0, 40);
-  const role = el.getAttribute('role');
-  if (role) return role;
-  const tag = el.tagName.toLowerCase();
-  const cls = realClasses(el).split(/\s+/).filter(Boolean)[0];
-  return cls ? `${tag}.${cls}` : tag;
+  return plainLayerName(el.tagName, el.getAttribute('role'));
 }
 
 function layerType(el: Element): string {
