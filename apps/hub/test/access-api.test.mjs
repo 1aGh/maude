@@ -329,6 +329,9 @@ describe('the access API, self-hosted (after the flip): This canvas', () => {
       (await onA()).some((p) => p.email === 'bob@x.test' && p.state === 'invited'),
       'the owner sees the invitation waiting'
     );
+    // 10 co-share-sheet: "Invited 2 days ago" needs when it was sent (p8-c2 patch request)
+    const waiting = (await onA()).find((p) => p.email === 'bob@x.test' && p.state === 'invited');
+    assert.equal(typeof waiting.invitedAt, 'number', 'an invitation row says when it was sent');
     const value = add.body.url.split('/join/')[1];
     const join = (password) =>
       fetch(`${ctx.hub.http}/join`, {

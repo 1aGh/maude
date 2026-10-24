@@ -157,6 +157,36 @@ export function choiceModel(request) {
   };
 }
 
+/**
+ * 03 `.ai-sw`: the colour an option names, for its 18 px disc. Only a literal hex in the label or hint
+ * (`#2f9e44`) is a colour — nothing is guessed from a word, and nothing but a validated hex reaches a style.
+ */
+export function swatchOf(option) {
+  const m = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/.exec(
+    `${option?.label ?? ''} ${option?.hint ?? ''}`
+  );
+  return m ? m[0] : null;
+}
+
+/**
+ * 03 `PERM_DETAIL`: the artboards a waiting permission is about, named. From the run's scope (the artboards it
+ * was asked about) or, for a whole-canvas ask, what it has touched so far; never "all of them" — we do not
+ * know. `boards` is the canvas index's list for the run's canvas. At most `max` come back, the rest as a count.
+ */
+export function willChangeFor(run, boards, max = 4) {
+  const scope = run?.scope;
+  if (!scope) return { boards: [], more: 0 };
+  const touched =
+    scope.canvas && Array.isArray(run.touched?.[scope.canvas]) ? run.touched[scope.canvas] : [];
+  const ids = Array.isArray(scope.artboards) ? scope.artboards : touched;
+  const uniq = [...new Set(ids.filter((id) => typeof id === 'string' && id))];
+  const named = uniq.map((id) => ({
+    id,
+    label: (boards || []).find((b) => b.id === id)?.label || id,
+  }));
+  return { boards: named.slice(0, max), more: Math.max(0, named.length - max) };
+}
+
 /** The `accept` response for picking one of the card's options (or typing the "Something else…" answer). */
 export function choiceAnswer(model, { value, custom }) {
   const answers = {};

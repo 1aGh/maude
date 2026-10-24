@@ -52,3 +52,6 @@ Branch `p8-c-aichat` (from feat/maude-v2 0f6b1242b). Harness copy + fake agents:
 `p8-c6-ai-panel.test.tsx` (header, hint, bubbles, strip, working-line gate, quit/corner/attach pins), `ai-run-doing.test.ts`, `acp-run-stage.test.ts` (symlink).
 Run with the 9 related suites: 154 pass. Wider AI/shell sweep: 1181 pass; the 4 failures are not mine (`p8-b2-css-pins` pinned-panels pin on 3-shell-maude.css, gen-actions
 manifest, `p8-backspace-clip`, acp permission-flood).
+
+## Round 2 (p8-c2-chatshare)
+See `fix-chatshare.md` in this directory: permission strip + neutral card, needs-you rings on touched artboards only, connect sheet floating, one chat-list header + 22 px disc, pill toasts are DONE; the rest stays open.

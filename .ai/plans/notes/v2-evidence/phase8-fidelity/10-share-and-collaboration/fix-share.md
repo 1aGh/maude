@@ -47,3 +47,6 @@ Access (co-access-ends · co-trashed · co-ask-edit)
 - `apps/hub/src/routes-v2/access.mjs` `peopleFor`: add `invitedAt: inv.createdAt` to invitation rows (owner-only block).
 - `apps/studio/notifications.tsx` (C1): accept `placement: 'top'` and `icon` on `Notice`; `sync-states/back-online.jsx` already passes both.
 - Shared-file touches in this branch (separate from C7 files): `client/v2/shell/share-cluster.{jsx,css}`, `client/v2/shell/save-status.js`, `client/v2/shell/callouts-model.js`, `client/v2/canvases/canvases.css` (one rule). No `app.jsx`, no dist.
+
+## Round 2 (p8-c2-chatshare)
+See `../03-ai-chat/fix-chatshare.md`: hub `invitedAt`, Notice `placement`/`icon` (pill toast), Comments panel close + tone faces + Reply placeholder are DONE (patch requests implemented). Open: presence-peers stub, video comment markers, "Tereza changed this", conflict-on-canvas, board-side fixes for the Comments panel (4 filters, right).

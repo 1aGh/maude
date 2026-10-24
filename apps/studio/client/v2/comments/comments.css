@@ -88,6 +88,10 @@
     font-variant-numeric: tabular-nums;
     color: var(--fg-2);
   }
+  /* 10 co-comment-thread: "Open 4", never "Open4" — the segment is a flex row, so a text space collapses */
+  .cmp-seg-b .cmp-n {
+    margin-left: var(--space-1);
+  }
 
   .cmp-body {
     flex: 1 1 auto;

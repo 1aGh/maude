@@ -11,10 +11,22 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
-import { Spark } from './icons.jsx';
-import { choiceAnswer, choiceModel } from './needs-you.js';
+import { choiceAnswer, choiceModel, swatchOf } from './needs-you.js';
 
 export { choiceModel };
+
+/** The 18 px disc in front of a row: the colour the option names (a hex in its label or hint), else nothing. */
+function Swatch({ option }) {
+  const hex = swatchOf(option);
+  return hex ? (
+    <span
+      className="ai-nc-sw"
+      style={{ background: hex }}
+      aria-hidden="true"
+      data-testid="ai-choice-swatch"
+    />
+  ) : null;
+}
 
 /**
  * `settled` (S5.18 G6, 03 `picked`): the card AFTER it was answered — the same question and rows, read only, the
@@ -56,7 +68,7 @@ export default function ChoiceCard({
       >
         <p className="ai-nc-t">
           <span className="ai-nc-ic ai-nc-ic--ask" aria-hidden="true">
-            <Spark size={12} />
+            <StIcon name="help" size={14} />
           </span>
           <span className="ai-nc-tt">{model.question}</span>
         </p>
@@ -67,6 +79,7 @@ export default function ChoiceCard({
               className="ai-nc-opt"
               aria-current={o.label === picked ? 'true' : undefined}
             >
+              <Swatch option={o} />
               <span className="ai-nc-opt-t">
                 {o.label}
                 {o.hint ? <span className="ai-nc-opt-h">{o.hint}</span> : null}
@@ -78,7 +91,7 @@ export default function ChoiceCard({
               className="ai-nc-opt ai-nc-opt--other"
               aria-current={picked && !hit ? 'true' : undefined}
             >
-              <span className="ai-nc-opt-ic" aria-hidden="true">
+              <span className="ai-nc-sw ai-nc-sw--none" aria-hidden="true">
                 <StIcon name="pen" size={12} />
               </span>
               <span className="ai-nc-opt-t">{picked && !hit ? picked : 'Something else…'}</span>
@@ -110,7 +123,7 @@ export default function ChoiceCard({
     >
       <p className="ai-nc-t">
         <span className="ai-nc-ic ai-nc-ic--ask" aria-hidden="true">
-          <Spark size={12} />
+          <StIcon name="help" size={14} />
         </span>
         <span className="ai-nc-tt" data-testid="ai-choice-question">
           {model.question}
@@ -125,6 +138,7 @@ export default function ChoiceCard({
             data-testid={`chat-elicit-option-${model.questionId}-${i}`}
             onClick={() => onRespond(choiceAnswer(model, { value: o.value }), { picked: o.label })}
           >
+            <Swatch option={o} />
             <span className="ai-nc-opt-t">
               {o.label}
               {o.hint ? <span className="ai-nc-opt-h">{o.hint}</span> : null}
@@ -139,7 +153,7 @@ export default function ChoiceCard({
             data-testid={`chat-elicit-option-${model.questionId}-other`}
             onClick={() => setOther(true)}
           >
-            <span className="ai-nc-opt-ic" aria-hidden="true">
+            <span className="ai-nc-sw ai-nc-sw--none" aria-hidden="true">
               <StIcon name="pen" size={12} />
             </span>
             <span className="ai-nc-opt-t">Something else…</span>

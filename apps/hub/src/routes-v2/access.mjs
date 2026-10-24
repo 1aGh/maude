@@ -363,6 +363,7 @@ function peopleFor(svc, access, canvas) {
       role: projectRoleForAccount(inv.role) ?? 'member',
       ...(inv.email ? { email: inv.email } : {}),
       state: 'invited',
+      invitedAt: inv.createdAt,
       expiresAt: inv.expiresAt,
     });
   }
