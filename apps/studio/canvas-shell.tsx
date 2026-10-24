@@ -102,6 +102,7 @@ import {
   crossedDragThreshold,
   dropPageRoot,
   type HoverTarget,
+  pageRootOf,
   resolveHoverTarget,
   useInputRouter,
 } from './input-router.tsx';
@@ -600,7 +601,16 @@ export function serializeArtboardTree(root: Element): LayerNode[] {
     }
     return out;
   }
-  return walk(root);
+  const top = walk(root);
+  // V2-8.5 round 4 — the page root IS the artboard (14 Editing: Layers lists Nav · Hero · Services directly under
+  // "Desktop"; decision v2-c3-page-root-is-the-artboard): the one filling root is not a row, its objects are the top
+  // level. A page that does not fill the artboard (a lone card) stays a row — it is an object like any other.
+  const body = root.querySelector('.dc-artboard-body');
+  const page = body ? pageRootOf(body) : null;
+  const only = top[0];
+  if (page && top.length === 1 && only && only.id === page.getAttribute('data-cd-id'))
+    return only.children ?? [];
+  return top;
 }
 
 // The artboard whose Layers tree the shell is currently showing. Set every time
