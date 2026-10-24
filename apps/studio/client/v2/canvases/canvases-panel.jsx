@@ -85,6 +85,10 @@ const INDENT_STEP = 16;
 const pad = (depth) => ({ paddingLeft: `${INDENT_BASE + depth * INDENT_STEP}px` });
 // S1.3 — a canvas row keeps a gutter for its artboard twisty: the column under its folder's own chevron
 // (or, at the top level, 20px in). The twisty is positioned in that gutter.
+/** Does the project hold more than one kind of artboard? (counts by kind, `all` aside) */
+export const kindsMixed = (counts) =>
+  ['digital', 'web', 'print', 'video'].filter((k) => (counts?.[k] ?? 0) > 0).length >= 2;
+
 const canvasPad = (depth) => (depth === 0 ? { paddingLeft: '20px' } : pad(depth));
 const twistyLeft = (depth) => (depth === 0 ? 3 : INDENT_BASE + (depth - 1) * INDENT_STEP + 1);
 
@@ -571,7 +575,11 @@ export function CanvasesPanel({
 
   return (
     <div className="cv-panel" ref={panelRef}>
-      {tree.total > 0 ? <KindChips counts={kindCounts} on={kind} onPick={pickKindChip} /> : null}
+      {/* P8 C3 (01 cf-blank, 02, 05, 11): a filter with one kind to pick is noise — the chips come once the project
+          mixes kinds (08 draws them for that), and stay while one is on so it can be turned off. */}
+      {tree.total > 0 && (kind !== 'all' || kindsMixed(kindCounts)) ? (
+        <KindChips counts={kindCounts} on={kind} onPick={pickKindChip} />
+      ) : null}
       <div className="cv-listwrap">
         {sortLane}
         {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}

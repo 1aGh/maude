@@ -126,3 +126,7 @@ Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes
 | `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (same) |
 | `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (same) |
 | `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (same) |
+
+## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
+
+Re-shot, IMPL side only, light + dark (SPEC reused): ad-history, ad-pinned. What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel and Version history hug their rows (no twisty at rest), B on the Now row replaces its dot, kind chips only for a mixed project. The other rows of this canvas were not re-shot this round. See `01-create-flow/fix-c3-shell.md`.

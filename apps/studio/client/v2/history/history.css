@@ -463,10 +463,15 @@
   .vh-now {
     position: relative;
   }
+  /* 11 pn-compare: B on the Now row REPLACES the accent dot (it sat over the dot and the word): the circle takes the
+     dot's place — centred on it — and the dot steps aside. */
   .vh-now .cmp-mark {
-    left: var(--space-1);
+    left: calc(var(--space-3) - 4px);
     top: 50%;
     transform: translateY(-50%);
+  }
+  .vh-now:has(> .cmp-mark) > .vh-dot {
+    visibility: hidden;
   }
   .vh-acts--cmp {
     flex-direction: column;

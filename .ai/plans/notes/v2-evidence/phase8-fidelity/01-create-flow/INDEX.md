@@ -71,3 +71,6 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 ## Round 3 re-shoot (p8-c3-modes)
 
 IMPL re-shot after the round-3 modes / menus fixes; the committed <id>-<theme>.jpg pairs are overwritten for: cf-duplicate-width. No match is judged here. Shot on the 04 fixture (Homepage, Desktop artboard) with the left panel folded; the SPEC image is the stage-A one.
+## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
+
+All rows above re-shot, IMPL side only, light + dark (SPEC reused, boards unchanged). What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel hugs its rows (no twisty at rest), kind chips only for a mixed project. See `fix-c3-shell.md`.

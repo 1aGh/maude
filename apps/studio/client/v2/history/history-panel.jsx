@@ -440,6 +440,7 @@ export function VersionHistoryPanel({
             data-testid="vh-now"
           >
             <span className="vh-dot" aria-hidden="true" />
+            {comparing && compare.b?.at === 'now' ? <Mark mark="B" /> : null}
             {sel ? (
               <button
                 type="button"
@@ -447,10 +448,7 @@ export function VersionHistoryPanel({
                 data-testid="vh-now-back"
                 onClick={() => (comparing ? onPickB?.(null) : onLeaveViewing?.())}
               >
-                <strong>
-                  {comparing && compare.b?.at === 'now' ? <Mark mark="B" /> : null}
-                  {W.now}
-                </strong>
+                <strong>{W.now}</strong>
                 <span>{`${canvasLabel} · ${now.status}`}</span>
               </button>
             ) : (

@@ -72,3 +72,7 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 | `ob-edge-accounts` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-edge-ai-missing` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
 | `ob-edge-whats-new` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC re-rendered |
+
+## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
+
+All rows above re-shot, IMPL side only, light + dark (SPEC reused, boards unchanged). What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel hugs its rows (no twisty at rest), kind chips only for a mixed project. See `fix-c3-shell.md`.

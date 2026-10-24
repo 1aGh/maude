@@ -4172,7 +4172,9 @@ const OVERLAY_CSS = `
 .dc-zoom-tb {
   position: absolute;
   left: 16px;
-  bottom: 16px;
+  /* P8 C3: the shell's Undo · Redo · zoom % island owns the bottom-left corner (16px + 40px tall + a gap); this
+     fit / 1:1 pill (View › Zoom controls) stacks above it instead of under it. */
+  bottom: 64px;
   display: flex;
   align-items: stretch;
   background: var(--maude-chrome-bg-0, #ffffff);
