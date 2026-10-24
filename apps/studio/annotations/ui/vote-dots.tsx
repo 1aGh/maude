@@ -160,14 +160,14 @@ const VOTE_CSS = `
 .dc-vdots, .dc-vcount { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; white-space: nowrap;
   background: var(--maude-hud-bg, #fff); color: var(--maude-hud-fg, #1a1a1a); box-shadow: 0 2px 8px rgb(0 0 0 / 0.16);
   font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); }
-.dc-vdot { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: var(--maude-hud-accent, #d63b1f); }
+.dc-vdot { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: var(--maude-hud-accent, oklch(0.53 0.175 238)); }
 .dc-vdots-n { padding: 0 6px 0 2px; }
 .dc-vdot-add { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; font: inherit; font-weight: 600;
   color: var(--maude-hud-fg, #1a1a1a); background: color-mix(in oklab, var(--maude-hud-fg, #1a1a1a) 8%, transparent); }
 .dc-vdot-add:disabled { opacity: 0.4; cursor: default; }
-.dc-vdot:focus-visible, .dc-vdot-add:focus-visible { outline: 2px solid var(--maude-hud-accent, #d63b1f); outline-offset: 1px; }
+.dc-vdot:focus-visible, .dc-vdot-add:focus-visible { outline: 2px solid var(--maude-hud-accent, oklch(0.53 0.175 238)); outline-offset: 1px; }
 .dc-vcount { min-width: 26px; justify-content: center; padding: 3px 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.dc-vcount--win { background: var(--maude-hud-accent, #d63b1f); color: var(--maude-hud-accent-fg, #fff); }
+.dc-vcount--win { background: var(--maude-hud-accent, oklch(0.53 0.175 238)); color: var(--maude-hud-accent-fg, #fff); }
 `;
 
 /** The chip events the canvas's own gestures must never see (S4.V4 G3). */

@@ -128,7 +128,7 @@ describe('G4 - the selected sticky follows canvas 15 an-sticky', () => {
     expect(byId(host, 'annot-sticky-paper-more')).toBeNull();
   });
   test('a paper from the rest is already showing when the sticky wears it', async () => {
-    const { host } = await mountToolbar([sticky({ color: STICKY_PALETTE[8] })], ['st']);
+    const { host } = await mountToolbar([sticky({ color: STICKY_PALETTE[4] })], ['st']);
     expect(papers(host)).toHaveLength(10);
   });
   test('a Small..Huge select sets the size; Medium is the sticky default', async () => {

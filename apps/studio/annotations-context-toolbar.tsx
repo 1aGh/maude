@@ -38,6 +38,7 @@ import { SECTION_TONES } from './annotations/ui/section-fold.ts';
 import { postToShell } from './annotations/ui/shell-asks.ts';
 import { flipPatch, isGallerySticker } from './annotations/ui/sticker-drop.ts';
 import type { AlignEdge } from './annotations-align.ts';
+import { STICKY_FRONT, STICKY_MORE } from './annotations/ui/tool-prefs.ts';
 import {
   type ArrowHead,
   type ArrowLineType,
@@ -46,7 +47,6 @@ import {
   DEFAULT_FONT_SIZE,
   FILL_PALETTE,
   type ListType,
-  STICKY_PALETTE,
   STROKE_PALETTE,
   type Stroke,
   shapeKindOf,
@@ -165,8 +165,10 @@ const FONT_SIZE_PRESETS: ReadonlyArray<{ px: number; label: string }> = [
 ];
 /** S4.19 - a sticky's five front papers (canvas 15 `an-sticky`); the other five sit behind "+5". */
 // Read at render time, never at module top level: annotations-layer and this file import each other.
-const stickyPapersFront = (): readonly string[] => STICKY_PALETTE.slice(0, 5);
-const stickyPapersRest = (): readonly string[] => STICKY_PALETTE.slice(5);
+// P8-C2 (15 R1b): ONE front five for the dock's colour row and this toolbar — yellow · coral · green · sky · lilac
+// (tool-prefs STICKY_FRONT) — instead of the first five array slots (yellow · white · grey · salmon · peach).
+const stickyPapersFront = (): readonly string[] => STICKY_FRONT.map((s) => s.hex);
+const stickyPapersRest = (): readonly string[] => STICKY_MORE.map((s) => s.hex);
 /** A sticky's Small..Huge: its Medium is the sticky's own default size, so a fresh sticky reads "Medium". */
 const stickySizes = (): ReadonlyArray<{ px: number; label: string }> =>
   FONT_SIZE_PRESETS.map((p) => (p.label === 'Medium' ? { ...p, px: DEFAULT_FONT_SIZE } : p));
@@ -1347,7 +1349,7 @@ export function AnnotationContextToolbar({
   const papersOpen = papersMore || activeRest;
   const showPalette = allSticky
     ? papersOpen
-      ? STICKY_PALETTE
+      ? [...stickyPapersFront(), ...stickyPapersRest()]
       : stickyPapersFront()
     : allSection
       ? SECTION_TONES.map((t) => t.value)
