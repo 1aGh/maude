@@ -25,3 +25,9 @@ Tests (fail-first, red proven by reverting the code and watching them go red): `
 - **History width**: 372 (11 `pn-vh`) kept; 06 `ad-vh` draws 340, 400 with the Advanced fold open. The two boards disagree and the slot width is app.jsx's (`rpW`), not a panel's.
 - **pn-compare** stage (two framed panes, 660 px change island, "changed in between" without an author), version titles (machine change-lines), the fold hint ("Branch, git, changed files" is 06's own copy; 11 draws "branch, version ids"): not touched, the compare view is its own task.
 - **Search well** copy ("Search canvases…" / `/`): board says "Search" / ⌘K; ⌘K opens the project-wide palette, so a ⌘K hint on this field would lie. Kept.
+
+## Stage D (IMPL re-shot, light + dark, impl at c7f1a0efd; SPEC reused)
+
+- 01, 02, 05: every row (g1 chain + `pairall`; INDEX "after" + `full-size-path.txt` "round 3:" lines).
+- 06: `ad-history`, `ad-pinned` only. 11: `pn-organise`, `pn-move`, `pn-jump`, `pn-trash`, `pn-k-across`, `pn-k-close`, `pn-deeplink`, `pn-relaunch`, `pn-history`, `pn-compare`.
+- **Not re-shot** (budget): 10 and 14 (their frames carry the new island but no other change from this round), the other rows of 06 and 11.
