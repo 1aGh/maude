@@ -52,7 +52,7 @@ import { ScopeBar } from './scope-bar.jsx';
 import { picksForOther } from './sections/batch-model.js';
 import { BatchAdvancedRows, BatchSection } from './sections/batch.jsx';
 import { ImageSection } from './sections/image.jsx';
-import { PrintSection } from './sections/print.jsx';
+import { PrintSection, printChoices } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { videoButtonLabel } from './sections/video-copy.js';
 import { VideoSection } from './sections/video.jsx';
@@ -295,6 +295,8 @@ export function ExportSheet({
   const canvasName = canvasOpen ? displayName(basename(activePath)) : '';
   const folder = folderRel(ctx);
   const canvasCounts = est?.canvasCounts ?? null;
+  // 09 ex-print: the print file's own choices (the back page, the PDF) name themselves in the title and the summary
+  const printChoice = section === 'print' ? printChoices(state, preflight) : { printPdf: false, withBack: false };
   const title =
     mode === 'handoff'
       ? HANDOFF_TITLE
@@ -306,6 +308,7 @@ export function ExportSheet({
           count,
           canvases: canvasCounts,
           project: projectName,
+          withBack: printChoice.withBack,
         });
   const sub =
     mode === 'handoff'
@@ -319,7 +322,13 @@ export function ExportSheet({
           kind: section === 'print' ? 'print' : null,
           canvases: canvasCounts,
         });
-  const summary = mode === 'export' ? summaryWords(est) : null;
+  const summary =
+    mode === 'export'
+      ? summaryWords(
+          est,
+          printChoice.printPdf ? { pdfPages: printChoice.withBack ? 2 : 1 } : undefined
+        )
+      : null;
   const button =
     mode === 'handoff'
       ? HANDOFF_BUTTON

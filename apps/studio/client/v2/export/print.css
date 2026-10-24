@@ -117,21 +117,42 @@
     gap: var(--space-2, 8px);
   }
   .ex-pg-th {
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 32px;
+    display: block;
+    width: 34px;
+    height: 47px;
     padding: 0;
     border: 0;
-    border-radius: var(--radius-sm, 6px);
-    background: var(--bg-3);
+    border-radius: var(--radius-xs, 3px);
+    background: var(--bg-2) center / cover no-repeat;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
     color: var(--fg-1);
-    font-size: var(--type-xs, 11px);
     cursor: pointer;
   }
   .ex-pg-th[data-on="true"] {
     box-shadow: 0 0 0 1.5px var(--accent);
-    color: var(--fg-0);
+  }
+  .ex-pg-nav {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill, 999px);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .ex-pg-nav:hover:not(:disabled) {
+    background: var(--bg-3);
+  }
+  .ex-pg-nav:disabled {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ex-pg-nav:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   .ex-pg-th:focus-visible {
     outline: 2px solid var(--accent);

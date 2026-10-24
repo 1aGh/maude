@@ -533,7 +533,7 @@ describe('the sheet: many at once', () => {
     await mountSheet();
     expect($('[data-testid="export-rows"]')?.getAttribute('data-section')).toBe('batch');
     expect(text('[data-testid="export-group-digital-title"]')).toBe('Fixed size · 4 artboards');
-    expect(text('[data-testid="export-group-print-title"]')).toBe('Print · 1 artboard');
+    expect(text('[data-testid="export-group-print-title"]')).toBe('Print · 1 page');
     expect(($('[data-testid="export-group-digital-format"]') as HTMLSelectElement).value).toBe(
       'png-1'
     );
