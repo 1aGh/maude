@@ -1,4 +1,4 @@
-// P8 C4 (11 critic-d): ⌘K words — the hidden tools next to canvases are "Tools and settings · not on screen"
+// P8 C4 (11 critic-d): ⌘K words — the hidden tools next to canvases are "Tools and settings · not shown"
 // (pn-k-across, pn-k-close); a tools-only search keeps 06's "Actions · N hidden tools".
 import { describe, expect, test } from 'bun:test';
 import {
@@ -24,11 +24,11 @@ const canvasRow = {
 };
 
 describe('the hidden tools beside canvases', () => {
-  test('a search that also finds a canvas names the tools group "Tools and settings · not on screen"', () => {
+  test('a search that also finds a canvas names the tools group "Tools and settings · not shown"', () => {
     const res = assemble({ query: 'print guides', local: [...local, canvasRow], canAskAI: true });
     const g = res.groups.find((x: { id: string }) => x.id === 'actions');
     expect(g?.title).toBe('Tools and settings');
-    expect(g?.aside).toBe('not on screen');
+    expect(g?.aside).toBe('not shown');
   });
 
   test('a tools-only search keeps 06’s "Actions · 1 hidden tool"', () => {
@@ -62,6 +62,6 @@ describe('the hidden tools beside canvases', () => {
       canAskAI: true,
     });
     const g = res.groups.find((x: { title: string }) => x.title === 'Tools and settings');
-    expect(g?.aside).toBe('not on screen, found by search');
+    expect(g?.aside).toBe('not shown, found by search');
   });
 });

@@ -410,7 +410,7 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
       id: g.id,
       title: toolsNextToProjects ? 'Tools and settings' : g.title,
       ...(toolsNextToProjects
-        ? { aside: 'not on screen' }
+        ? { aside: 'not shown' }
         : g.id === 'actions' && hidden
           ? { aside: `${hidden} hidden ${hidden === 1 ? 'tool' : 'tools'}` }
           : g.aside

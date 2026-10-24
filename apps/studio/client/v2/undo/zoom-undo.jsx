@@ -58,8 +58,8 @@ export function ZoomUndo({ zoom, form = 'full', onUndo, onRedo, onFit }) {
         type="button"
         className="btn btn--ghost btn--sm st-zoomundo-pct"
         data-testid="zoom-undo-pct"
-        aria-label={`Zoom ${zoomLabel(zoom)}, fit to screen`}
-        title="Fit to screen ⌘0"
+        aria-label={`Zoom ${zoomLabel(zoom)}, zoom to fit`}
+        title="Zoom to fit ⌘0"
         onClick={onFit}
       >
         {zoomLabel(zoom)}

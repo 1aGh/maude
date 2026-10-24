@@ -162,7 +162,7 @@ export function assembleAcross({
     ...view.groups
       .filter((g) => !PROJECT_GROUPS.has(g.id))
       .map((g) =>
-        g.title === 'Tools and settings' ? { ...g, aside: 'not on screen, found by search' } : g
+        g.title === 'Tools and settings' ? { ...g, aside: 'not shown, found by search' } : g
       )
   );
   const shown = groups.flatMap((g) => g.rows);
