@@ -1,2 +1,3 @@
 stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a55262287b808e562/.scr/pairs/13-design-system
 stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d25731/.scr/pairs/13-design-system
+round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa7620f74c8aa594a/.scr/pairs/13-design-system (p8-c3-dsboard; only the ids listed in INDEX "round 3" were re-shot)
