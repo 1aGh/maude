@@ -200,13 +200,13 @@
 
   /* ─── The broken-canvas card ────────────────────────────────────────────────────────────── */
   .v2-err {
-    width: 520px;
+    width: 460px; /* 01 cf-render-error: 460, radius-xl */
     max-width: calc(100% - var(--space-8, 32px));
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
     padding: var(--space-4);
-    border-radius: var(--radius-xl, 14px);
+    border-radius: var(--radius-xl);
     background: var(--bg-2);
     box-shadow:
       var(--shadow-lg),
@@ -215,33 +215,36 @@
   }
   .v2-err-hd {
     display: flex;
-    align-items: flex-start;
-    gap: var(--space-2);
+    align-items: center;
+    gap: var(--space-3);
   }
+  /* the 36 px icon tile of the kit's situation block (bg-3, error text) */
   .v2-err-ic {
     display: grid;
     place-items: center;
-    width: 24px;
-    height: 24px;
+    width: 36px;
+    height: 36px;
     flex: none;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
     color: var(--status-error-text);
   }
   .v2-err-t {
     margin: 0;
-    font-size: var(--type-base);
-    line-height: var(--lh-base, 1.4);
+    font-size: var(--type-md);
+    line-height: var(--lh-md, 1.35);
     font-weight: var(--w-semibold, 600);
   }
   .v2-err-d {
     margin: 0;
-    padding-left: 32px;
+    padding-left: 48px;
     font-size: var(--type-sm);
     line-height: var(--lh-sm, 1.5);
     color: var(--fg-1);
   }
   .v2-err-lg {
     margin: 0;
-    padding-left: 32px;
+    padding-left: 48px;
     font-size: var(--type-xs);
     color: var(--fg-2);
     font-variant-numeric: tabular-nums;

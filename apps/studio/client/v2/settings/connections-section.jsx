@@ -296,7 +296,7 @@ export default function ConnectionsSection({ onLinkedHub, onLocalProject, syncSt
         row="cloud"
         testid="settings-cloud"
         icon="cloud"
-        title="Maude Cloud"
+        title="cloud.maude.sh"
         rowTestid={cloud.state === 'in' ? 'cloud-account' : undefined}
         status={cr.status}
         tone={cr.tone}

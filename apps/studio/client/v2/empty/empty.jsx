@@ -21,8 +21,9 @@ const GLYPHS = {
   layers: <path d="M8 2.5l5.5 3L8 8.5 2.5 5.5zM2.5 8.5 8 11.5l5.5-3M2.5 11 8 14l5.5-3" />,
   export: (
     <>
-      <path d="M8 9.5v-7M5.25 5.25 8 2.5l2.75 2.75" />
-      <path d="M3 9.5v3a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3" />
+      {/* the kit's export (05 es-panels-make): the arrow goes DOWN into the tray */}
+      <path d="M8 2.5V10M5.25 7.25L8 10l2.75-2.75" />
+      <path d="M2.75 10.5V12a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-1.5" />
     </>
   ),
   trash: (

@@ -43,7 +43,18 @@ export function normHubUrl(url) {
 export function cloudRoleWord(role) {
   if (role === 'observer') return 'Can view';
   if (role === 'viewer') return 'Can comment';
+  if (role === 'owner') return 'Owner';
   return 'Can edit';
+}
+
+/**
+ * Whose project a row is, in CONTRACT §4 words: "Tereza's", and "Yours" for your own — the possessive was
+ * built as `${name}'s` and printed "You's" (02 ob-edge-other-mac). null = say nothing.
+ */
+export function ownerWord(ownerName, role) {
+  const name = typeof ownerName === 'string' ? ownerName.trim() : '';
+  if (role === 'owner' || /^you$/i.test(name)) return 'Yours';
+  return name ? `${name}'s` : null;
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -335,7 +346,7 @@ export function sharedRows(clouds, now = Date.now()) {
         grantedAt: when,
         meta: [
           s.projectName || s.projectId,
-          s.ownerName ? `${s.ownerName}'s` : null,
+          ownerWord(s.ownerName, s.role),
           when != null ? relativeTime(when, now) : null,
         ]
           .filter(Boolean)

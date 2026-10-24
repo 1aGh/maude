@@ -665,9 +665,9 @@ function HmrHoldingToast({ message }: { message?: string }): ReactNode {
       className: 'dc-hmr-holding',
       role: 'status',
       'aria-live': 'polite',
-      title: message ? `Holding last working render — ${message}` : 'Holding last working render',
+      title: message ? `Showing the last version that worked — ${message}` : 'Showing the last version that worked',
     },
-    '⏸ build error — držím poslední funkční verzi'
+    'This canvas has an error. Showing the last version that worked.'
   );
 }
 

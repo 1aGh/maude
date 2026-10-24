@@ -1134,7 +1134,7 @@
     gap: var(--space-1);
   }
   .home-ask-hint--off {
-    color: var(--fg-1);
+    color: var(--status-warn-text); /* 02 ob-edge-offline: the board's --status-warn-text, not grey */
   }
   .home-empty-canvas {
     margin-top: var(--space-2);

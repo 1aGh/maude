@@ -59,6 +59,7 @@ import {
   buildHomeModel,
   canvasCount,
   cloudRoleWord,
+  ownerWord,
   defaultTarget,
   indexQuery,
   invitedRows,
@@ -1324,7 +1325,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
       ) : null}
       {cloud?.offline ? (
         <p className="home-acct-note" role="note">
-          Maude Cloud can't be reached. Showing the last list; projects on this Mac still open.
+          cloud.maude.sh can't be reached. Showing the last list; projects on this Mac still open.
         </p>
       ) : null}
       <ul className="home-prows">
@@ -1335,7 +1336,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
               <span className="home-prow-t" data-testid={`home-cloud-row-${r.projectId}`}>
                 <strong>{r.name}</strong>
                 <span>
-                  {r.ownerName ? `${r.ownerName}'s · ` : ''}
+                  {ownerWord(r.ownerName, r.role) ? `${ownerWord(r.ownerName, r.role)} · ` : ''}
                   {cloudRoleWord(r.role)} · {STATE_WORD.cloud}
                 </span>
               </span>

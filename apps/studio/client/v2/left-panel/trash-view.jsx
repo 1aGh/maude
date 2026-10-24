@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { KeptOnThisMac } from '../canvases/kept-on-this-mac.jsx';
+import { Empty } from '../empty/index.js';
 import { clearTokenNow, restoreTokenNow } from '../ds/door-write.js';
 import { clearOut, restoreItem } from './use-trash.js';
 import {
@@ -137,12 +138,12 @@ export function TrashView({
         <>
           <div className="lp-trash-list">
             {items.length === 0 ? (
-              <div className="lp-empty" data-testid="canvases-trash-empty">
-                <p className="lp-empty-t">Trash is empty.</p>
-                <p className="lp-empty-b">
-                  Canvases and artboards you move to the trash wait here until you clear them out.
-                </p>
-              </div>
+              // 05 es-panels-make: the kit's block (glyph tile, Rounded situation line), not a left-aligned note
+              <Empty
+                copyId="es-panels-make.trash-empty"
+                glyph="trash"
+                testid="canvases-trash-empty"
+              />
             ) : (
               groups.map((g) => (
                 <section
