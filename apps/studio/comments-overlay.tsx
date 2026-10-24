@@ -1084,6 +1084,7 @@ function MentionAwareTextarea({
   disabled,
   textareaRef,
   ariaLabel,
+  title,
 }: {
   className: string;
   value: string;
@@ -1094,6 +1095,7 @@ function MentionAwareTextarea({
   disabled?: boolean;
   textareaRef?: React.MutableRefObject<HTMLTextAreaElement | null>;
   ariaLabel?: string;
+  title?: string;
 }): React.ReactElement {
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const setRef = useCallback(
@@ -1202,6 +1204,7 @@ function MentionAwareTextarea({
         rows={rows}
         disabled={disabled}
         aria-label={ariaLabel}
+        title={title}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onFocus={onFocus}
@@ -1985,7 +1988,8 @@ export function CommentThread({
             textareaRef={replyRef}
             className="cm-thread__reply-textarea"
             value={reply}
-            placeholder="Reply… ⌘↵ to send · @name to tag"
+            placeholder="Reply…"
+            title="⌘↵ to send · @name to tag"
             onChange={setReply}
             onKeyDown={onReplyKeyDown}
             rows={2}

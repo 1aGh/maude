@@ -889,6 +889,8 @@ export function usePaletteAndPanels({
           // viewer's empty line names the people who see a comment right away
           onShare={viewerMode ? undefined : () => showShare()}
           viewer={viewerMode}
+          // 10 co-comment-thread: the panel's own close (Hide Comments), beside its title
+          onClose={() => togglePanel('comments')}
           artboardLabel={labelOfArtboard}
           resizing={resizingFor('comments')}
         />

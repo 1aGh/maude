@@ -10,7 +10,9 @@
 // comment-delete-<id>, comment-where-<id>, comment-from-<id> (S4-S9 §3.4).
 
 import { useEffect, useState } from 'react';
-import { StIcon, initialsOf } from '../../shell/icons.jsx';
+import { StIcon } from '../../shell/icons.jsx';
+import { Spark } from '../ai/icons.jsx';
+import { Person } from '../share/person.jsx';
 import { basename, displayName } from '../../shell/util.js';
 import { Confetti, copy, Empty } from '../empty/index.js';
 import { fetchMentionPeople } from './comment-client.js';
@@ -296,12 +298,17 @@ export function CommentsPanel({
                         onJump?.(g.file, t.id);
                       }}
                     >
-                      <span
-                        className={`cmp-av${ai ? ' is-ai' : ''}${t.importedLabel ? ' is-imported' : ''}`}
-                        aria-hidden="true"
-                      >
-                        {t.importedLabel ? '' : ai ? 'AI' : initialsOf(t.author)}
-                      </span>
+                      {ai ? (
+                        <span className="cmp-av is-ai" aria-hidden="true">
+                          <Spark size={12} />
+                        </span>
+                      ) : t.importedLabel ? (
+                        <span className="cmp-av is-imported" aria-hidden="true" />
+                      ) : (
+                        // 10 co-comment-thread: a tone-filled face with one letter, the colour a person
+                        // wears everywhere (Share sheet, presence, conflict card)
+                        <Person name={t.author} you={!!me && t.author === me} size="md" />
+                      )}
                       <span className="cmp-txt">
                         {on ? (
                           <span className="cmp-on" data-testid={`comment-where-${t.id}`}>
