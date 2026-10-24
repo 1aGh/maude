@@ -33,3 +33,17 @@ How to read: left = spec (Stage window body 1440×860, or the close-up's own pan
 ## Notes for the critics
 - Harness caveats are stated per row.
 - Light theme was sampled, not compared frame by frame.
+
+## After (C9 round 2, 2026-10-24)
+
+All 19 reachable ids were re-shot, dark and light, on the release client at branch `p8-c2-assets` (the `*.jpg` pairs above are the new ones). Per-id verdicts and the open list: [`fix-assets.md`](fix-assets.md).
+
+| id | after |
+|---|---|
+| ia-assets-panel, ia-assets-keys, ia-assets-browse, ia-assets-find, ia-assets-tidy, ia-asset-details, ia-missing-gone, ia-figma-sheets(-connect), ia-brand-steps(-1/-2/-3) | fixed (dark + light) |
+| ia-placed | fixed in code (toast with Undo); fixture refuses the place |
+| ia-drop-photos | code fixed; the capture lane cannot drag inside the canvas iframe |
+| ia-gen-ask | partly (calm line, kit chips, starters); AI-island hosting open |
+| ia-photo-inspector, ia-photo-steps | fixture photos have human names; real imports are content-addressed |
+| ia-advanced | no change (C1 fold) |
+| ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable (stubs not built) |
