@@ -3239,7 +3239,7 @@ function ShellTree() {
           initialScope={exportDialog.scope}
           request={exportDialog}
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
-          projectName={cfg?.name || ''}
+          projectName={cfg?.cloud?.projectName || cfg?.name || project || ''}
           // S8.9 — Can comment gets the sheet with one line on top; the server is the lock
           access={{ canEdit: !viewerMode, role: cfg?.cloud?.role }}
           lastFinishedAt={exportLastFinishedAt}
