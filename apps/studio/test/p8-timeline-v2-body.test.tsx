@@ -278,3 +278,42 @@ describe('the styles hold the board’s rules (cheap pins)', () => {
     expect(css).toMatch(/\.tl-seq-block\.tl-beat\s*\{[^}]*background:\s*var\(--object-ink\)/);
   });
 });
+
+describe('a purely digital comp keeps its rows, but its beats share one Video lane (07 · ve-select) — V2-8.5 c4-video', () => {
+  const scene = (id: string, from: number, duration: number, layers = 0) => ({
+    stableId: id,
+    label: id,
+    series: true,
+    mediaTag: null,
+    from,
+    duration,
+    keyframes: [],
+    ...(layers
+      ? { layers: Array.from({ length: layers }, (_, n) => ({ label: `layer ${n}`, kind: 'jsx' })) }
+      : {}),
+  });
+  const joins = () =>
+    all('[data-track="video"] .tl-row[data-testid^="timeline-row-"]').map((r) => [
+      r.getAttribute('data-testid'),
+      r.getAttribute('data-lane-join'),
+    ]);
+  test('three beats that never overlap are ONE lane: the 2nd and 3rd rows are drawn onto the first', () => {
+    mount({
+      sequences: [scene('beat-one', 0, 150), scene('beat-two', 150, 150), scene('beat-three', 300, 150)],
+    });
+    expect(joins()).toEqual([
+      ['timeline-row-0', null],
+      ['timeline-row-1', '1'],
+      ['timeline-row-2', '1'],
+    ]);
+  });
+  test('a beat that opens into layers keeps a lane to itself (the layer view stays)', () => {
+    mount({
+      sequences: [scene('beat-one', 0, 150), scene('beat-two', 150, 150, 3), scene('beat-three', 300, 150)],
+    });
+    const byId = Object.fromEntries(joins());
+    expect(byId['timeline-row-1']).toBeNull(); // the layered beat is its own lane
+    expect(byId['timeline-row-0']).toBeNull();
+    expect(byId['timeline-row-2']).toBe('1'); // the plain beats still share
+  });
+});

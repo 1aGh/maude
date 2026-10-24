@@ -2504,7 +2504,7 @@ export default function TimelinePanel({
                   // expand under a row, dogfood 2026-07-30), but the rows sit in the SAME four tracks as a media
                   // cut: Text · Graphics · Video · Music, top covers bottom. A track groups rows; every row's
                   // testid, drag and expand are unchanged (S7.8: tracks are caption strips around the rows).
-                  const stackRow = (seq, i) => {
+                  const stackRow = (seq, i, join = false) => {
                     const layers = Array.isArray(seq.layers) ? seq.layers : [];
                     const decomposable = layers.length >= 2;
                     const isExpanded = decomposable && !collapsed.has(i);
@@ -2512,7 +2512,11 @@ export default function TimelinePanel({
                       retimeDrag && retimeDrag.index === i ? retimeDrag.curDur : seq.duration;
                     return (
                       <Fragment key={i}>
-                        <div className="tl-row" data-testid={`timeline-row-${i}`}>
+                        <div
+                          className="tl-row"
+                          data-testid={`timeline-row-${i}`}
+                          data-lane-join={join ? '1' : undefined}
+                        >
                           <span className="tl-row-label" title={seq.label}>
                             {decomposable ? (
                               <button
@@ -2618,10 +2622,14 @@ export default function TimelinePanel({
                       </Fragment>
                     );
                   };
+                  // V2-8.5 c4-video (07 · ve-select): beats that never overlap share ONE lane — the board's Video
+                  // track is a strip of clips, not a staircase. A beat open into its layers keeps a lane to itself.
                   const rowsOn = (id) =>
-                    sequences
-                      .map((seq, i) => (trackOfIdx.get(i) === id ? stackRow(seq, i) : null))
-                      .filter(Boolean);
+                    packed(
+                      sequences
+                        .map((seq, i) => ({ seq, i }))
+                        .filter(({ i }) => trackOfIdx.get(i) === id)
+                    ).map(({ seq, i, join }) => stackRow(seq, i, join));
                   const bedsOn = (id) =>
                     audio
                       .map((a, i) => (trackOfBed.get(i) === id ? renderAudioRow(a, i) : null))
