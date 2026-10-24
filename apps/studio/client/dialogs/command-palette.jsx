@@ -22,11 +22,12 @@ import {
 } from '../v2/search/search-model.js';
 import { fetchRecents, RECENT_EMPTY, recentRows, startRows } from '../v2/search/search-recent.js';
 import { assembleAcross, projectGroups } from '../v2/search/search-projects.js';
+import { glyphFor } from '../v2/search/palette-icons.js';
 
 const FALLBACK_ICON = {
   canvases: 'file',
   artboards: 'square',
-  actions: 'chevron-right',
+  actions: 'chevron',
   tools: 'pen',
   settings: 'sliders',
   'ask-ai': 'sparkle',
@@ -34,7 +35,8 @@ const FALLBACK_ICON = {
 
 function iconFor(row, group) {
   const wanted = row.icon && STICONS[row.icon] ? row.icon : null;
-  return wanted ?? FALLBACK_ICON[group] ?? 'chevron-right';
+  // 06 ad-search: a fold action that names no glyph gets the one its words say, not a stand-in chevron
+  return wanted ?? glyphFor(row, group, FALLBACK_ICON[group] ?? 'chevron');
 }
 
 /** The name with its matched ranges marked (ranges index the unfolded name). */
