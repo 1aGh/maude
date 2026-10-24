@@ -63,3 +63,26 @@ Theme: both themes were made for every artboard. Differences below are the dark 
 | `ad-edge-where` | Where you are changes a few Advanced rows - browser, comment-only, local, offline (table) | not reachable | no - needs those contexts (browser viewer, role, offline) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-edge-where-light.jpg` |
 | `ad-edge-remember` | An Advanced you open stays open - for that panel (remembered fold across days and canvases) | not reachable as one state | no - a per-Mac preference story over days (the fold is remembered per panel under a fold key) | n/a | base | `06-advanced/ad-edge-remember-dark.jpg` |
 | `ad-edge-remember` | An Advanced you open stays open - for that panel (remembered fold across days and canvases) | not reachable as one state | no - a per-Mac preference story over days (the fold is remembered per panel under a fold key) | n/a | same structure; chrome follows the light host theme | `06-advanced/ad-edge-remember-light.jpg` |
+
+## After stage C round 2 (kit-advanced) — re-shot 2026-10-24
+
+The pairs above (`06-advanced/<id>-<theme>.jpg`) were overwritten with the release client built from branch `p8-c2-kitadv`. Harness: stage A's, repointed (`s06d.mjs` = `s06b` + the Diagnostics popover, the three boxes, Settings › Advanced, Open all). Fix log: `fix-kitadv.md`.
+
+| id | dark | light | state now |
+|---|---|---|---|
+| ad-left | fixed | fixed | kit fold row + "kept open", ARow rows (sm / fg-0 right, Folder Copy = icon), kit switch; still differs: the extra "Open canvas" row (a nothing-deleted row), no file-name subtitles / row menu / Trash card driven |
+| ad-inspector | still differs | still differs | fold row + selects are the kit's; the fold sits under about 25 rows (Inspector builder's layout) |
+| ad-ai | fixed (look) | fixed (look) | kit fold, kit selects; the headings are not empty (Folders row sits under "AI may"); Model / Effort / Fast need a configured agent (H) |
+| ad-share | not re-shot | not re-shot | the harness step could not reach the cluster after the pin step (frame is stage A's); C7 owns the fixes |
+| ad-export | still differs | still differs | kit fold + selects; Advanced body layout and the terminal block are C4's open list |
+| ad-history | still differs | still differs | "Compare" is one line, kit fold; container (island vs dock) is the chrome builder's |
+| ad-diag | board-fixed / fixed | board-fixed / fixed | the menu popover (Sync · Server · AI setup · Logs · Reload canvas · Check AI setup again · Advanced) with kit status dots |
+| ad-logs | fixed | fixed | three boxes at once, no tabs; kit seg, find, log well, rows, discs; still differs: the spec's "reloaded" pill, and the log content (a stub on this fixture) |
+| ad-syncd | not re-shot | not re-shot | the Sync view opens alone now; the harness step used a palette row that is not on this local fixture ("nothing to sync") |
+| ad-settings | fixed (layout) | fixed (layout) | 1300 x 700, three columns, rail glyphs, kit veil; still differs: Engines cards are the v1 cards (taller than the board's model cards), a second hint line under many rows |
+| ad-pinned | still differs | still differs | the Canvases-collapses-while-pinned bug is the red-test builder's |
+| ad-search | fixed | fixed | 560, 36 px rows, quiet glyph tile, DS chip path, per-action glyphs |
+| ad-open-all | fixed | fixed | one-line pill with the done glyph and "Close all" inline |
+| ad-code | fixed (palette rows) | fixed (palette rows) | per-action glyphs; the read-only code panel was not opened |
+| ad-edge-syntax | still differs | still differs | disclosure is "Advanced", ARow rows, ghost Copy error; the provenance clause and the last-good ghost boards need server signals |
+| ad-map · ad-why · ad-trace · ad-timeline · ad-ds · ad-menus · ad-edge-sync · ad-edge-hub · ad-edge-where · ad-edge-remember | unreachable | unreachable | unchanged: documentation, native menu bar, hub / roles / offline, a video canvas, a Design system board |

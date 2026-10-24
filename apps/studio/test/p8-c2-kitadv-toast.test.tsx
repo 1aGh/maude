@@ -1,9 +1,9 @@
 // Phase 8 C1/C10 — a notification is the kit's one-line pill (06 ad-open-all, 10 co-sync-back): the kind's glyph,
 // the sentence, ONE inline action in accent-text, then a quiet ×. Restart / link / reconnect events land at the top.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 

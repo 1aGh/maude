@@ -4,9 +4,9 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { STICONS } from '../client/shell/icons.jsx';
-import { glyphFor } from '../client/v2/search/palette-icons.js';
 import { COMPARE_PICTURES_WORDS } from '../client/v2/history/compare-words.js';
 import { GIT_WORDS } from '../client/v2/history/git-model.js';
+import { glyphFor } from '../client/v2/search/palette-icons.js';
 
 const CLIENT = join(import.meta.dir, '..', 'client');
 const src = (rel: string) => readFileSync(join(CLIENT, rel), 'utf8');
