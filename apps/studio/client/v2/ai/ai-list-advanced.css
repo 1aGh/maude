@@ -452,7 +452,7 @@
     color: var(--fg-1);
   }
   .ai-adv-select {
-    max-width: 62%;
+    max-width: 100%; /* P8 c5: a native select sizes to its longest option; 62% cut "Replace or move to the t…" */
     height: 26px;
     padding: 0 var(--space-2);
     border: 0;

@@ -25,7 +25,6 @@ import { ADVANCED_ROW_EVENT, takeParkedRow } from './advanced-handlers.js';
 import {
   AI_FOLD_PANEL,
   contextMeter,
-  currentModeNote,
   foldersLine,
   limitMeter,
   MODE_GROUP_LABEL,
@@ -47,6 +46,74 @@ function Row({ row, label, children, hint }) {
       {children}
       {hint ? <span className="ai-adv-hint">{hint}</span> : null}
     </div>
+  );
+}
+
+/** P8 c5 (03 `ai-advanced` `.seg.k-in-seg`): a short list (Low · Medium · High) is a segmented control, not a
+ *  select. More than four choices, or long names, stay a select — the agent's own list is never cut. */
+export function segmentedOptions(opt) {
+  const flat = flattenSelectOptions(opt?.options);
+  if (flat.length < 2 || flat.length > 4) return null;
+  if (flat.some((o) => String(o.name || o.value).length > 10)) return null;
+  return flat;
+}
+
+/** A two-value option whose values are off/on (Fast mode) is a switch: `{ on, off }` option values, or null. */
+export function switchOptions(opt) {
+  const flat = flattenSelectOptions(opt?.options);
+  if (flat.length !== 2) return null;
+  const word = (o) => String(o.value ?? o.name).toLowerCase();
+  const on = flat.find((o) => /^(on|true|enabled?|yes|fast)$/.test(word(o)));
+  const off = flat.find(
+    (o) => o !== on && /^(off|false|disabled?|no|normal|standard)$/.test(word(o))
+  );
+  return on && off ? { on: on.value, off: off.value } : null;
+}
+
+function OptionSegmented({ row, label, opt, onChange }) {
+  const flat = segmentedOptions(opt);
+  if (!flat) return <OptionSelect row={row} label={label} opt={opt} onChange={onChange} />;
+  return (
+    <Row row={row} label={label}>
+      <span className="seg k-in-seg" role="radiogroup" aria-label={label} data-adv-control>
+        {flat.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            className="k-seg-b"
+            aria-checked={o.value === opt.currentValue}
+            aria-pressed={o.value === opt.currentValue}
+            title={o.description || undefined}
+            data-testid={`ai-adv-${row}-${o.value}`}
+            onClick={() => onChange(opt.id, o.value)}
+          >
+            {o.name || o.value}
+          </button>
+        ))}
+      </span>
+    </Row>
+  );
+}
+
+function OptionSwitch({ row, label, opt, onChange }) {
+  const sw = switchOptions(opt);
+  if (!sw) return <OptionSelect row={row} label={label} opt={opt} onChange={onChange} />;
+  const on = opt.currentValue === sw.on;
+  return (
+    <Row row={row} label={label}>
+      <button
+        id={rowDomId(row)}
+        type="button"
+        role="switch"
+        className="switch"
+        aria-checked={on}
+        aria-label={label}
+        data-adv-control
+        data-testid={`ai-adv-${row}-switch`}
+        onClick={() => onChange(opt.id, on ? sw.off : sw.on)}
+      />
+    </Row>
   );
 }
 
@@ -317,19 +384,23 @@ export function ChatAdvanced({
                   );
                 })}
               </select>
-              <span className="ai-adv-val" title="The agent's own name for this mode">
-                {currentModeNote(modes)}
-              </span>
+              {/* P8 c5: the agent's own id for the mode ("default") sat on its own line under the select; 03 draws
+                  the row as label · select only. It stays one hover away, as the select's own title. */}
             </Row>
           ) : null}
           {parsed.model ? (
             <OptionSelect row="model" label="Model" opt={parsed.model} onChange={onSetConfig} />
           ) : null}
           {parsed.effort ? (
-            <OptionSelect row="effort" label="Effort" opt={parsed.effort} onChange={onSetConfig} />
+            <OptionSegmented
+              row="effort"
+              label="Effort"
+              opt={parsed.effort}
+              onChange={onSetConfig}
+            />
           ) : null}
           {parsed.fast ? (
-            <OptionSelect row="fast" label="Fast mode" opt={parsed.fast} onChange={onSetConfig} />
+            <OptionSwitch row="fast" label="Fast mode" opt={parsed.fast} onChange={onSetConfig} />
           ) : null}
 
           <Row row="show-in-chat" label="Show in chat">

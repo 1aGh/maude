@@ -157,7 +157,7 @@ export function permissionModel(request, work = null) {
     title,
     line: line ?? title.replace(/\?$/, ''),
     // the question already says the work: the tool call's own title would only repeat it as "Edit x.tsx"
-    detail: !workApplied && raw && raw !== target ? raw : null,
+    detail: !workApplied && raw && raw !== target && !title.includes(raw) ? raw : null, // P8 c5: not when the headline already carries it
     target,
     allow: pickDefaultAllow(options),
     always: always[0] ?? null,

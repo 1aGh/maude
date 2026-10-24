@@ -51,6 +51,57 @@ describe('P8 c5: the failure card names the file and the verb that fixes it (03 
   });
 });
 
+describe('P8 c5: the permission card says a non-file ask once (03 ai-permission)', () => {
+  test('the tool title that already heads the card is not repeated as its detail; "Always" comes from the agent', async () => {
+    const { permissionModel } = await import('../client/v2/ai/needs-you.js');
+    const m = permissionModel({
+      id: 'p1',
+      toolCall: { kind: 'other', title: 'Replace 4 team photos in Uniformy-2027', rawInput: {} },
+      options: [
+        { optionId: 'a', kind: 'allow_once', name: 'Allow' },
+        { optionId: 'aa', kind: 'allow_always', name: 'Always allow' },
+        { optionId: 'r', kind: 'reject_once', name: 'Not now' },
+      ],
+    });
+    expect(m.title.includes('Replace 4 team photos in Uniformy-2027')).toBe(true);
+    expect(m.detail).toBeNull();
+    expect(m.always?.optionId).toBe('aa');
+  });
+});
+
+describe('P8 c5: Advanced draws the agent rows the way 03 does (ai-advanced)', () => {
+  test('Effort is a segmented control for a short list, a select when the names are long or many', async () => {
+    const { segmentedOptions } = await import('../client/v2/ai/Advanced.jsx');
+    const o = (...names: string[]) => ({ options: names.map((n) => ({ value: n, name: n })) });
+    expect(
+      segmentedOptions(o('Low', 'Medium', 'High'))?.map((x: { name: string }) => x.name)
+    ).toEqual(['Low', 'Medium', 'High']);
+    expect(segmentedOptions(o('Low', 'Medium', 'High', 'Extra', 'Max'))).toBeNull();
+    expect(segmentedOptions(o('Low', 'A very long effort name'))).toBeNull();
+    expect(segmentedOptions(o('Only'))).toBeNull();
+  });
+
+  test('Fast mode is a switch only for an off/on pair; any other pair stays a select', async () => {
+    const { switchOptions } = await import('../client/v2/ai/Advanced.jsx');
+    const pair = (a: string, b: string) => ({
+      options: [
+        { value: a, name: a },
+        { value: b, name: b },
+      ],
+    });
+    expect(switchOptions(pair('off', 'on'))).toEqual({ on: 'on', off: 'off' });
+    expect(switchOptions(pair('false', 'true'))).toEqual({ on: 'true', off: 'false' });
+    expect(switchOptions(pair('opus', 'sonnet'))).toBeNull();
+  });
+
+  test('a native select is never cut to 62% of the row, and the agent-id note no longer sits under it', () => {
+    const css = read('client/v2/ai/ai-list-advanced.css');
+    const rule = css.slice(css.indexOf('.ai-adv-select {'));
+    expect(rule.slice(0, 120).includes('max-width: 100%')).toBe(true);
+    expect(read('client/v2/ai/Advanced.jsx').includes('currentModeNote(modes)')).toBe(false);
+  });
+});
+
 describe('P8 c5: the attach menu is anchored to the field, the scope menu escapes the card', () => {
   test('both menus place from the composer field rect (fixed), 8 px over its top', () => {
     const attach = read('client/v2/ai/AttachMenu.jsx');
