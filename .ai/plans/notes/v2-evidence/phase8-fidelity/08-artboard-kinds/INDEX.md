@@ -88,3 +88,33 @@ Re-shot light + dark with the committed stage-D harness (`_d-harness-g3`, t08 no
 | ak-mixed-filter | the Canvases chip no longer dims the open canvas (only a Layers pick does) |
 | ak-warnings | the layer a cut warning names carries a dashed warn outline + "Crosses the cut" tag (canvas, edit chrome only; the fixture's flyer has no layer across the cut, so the shot shows the label marks only) |
 | ak-real-print, ak-real-web | unchanged (matched in stage D) |
+
+## FINAL (stage D2, d3881fe41) — p8-d2-g3
+
+Every reachable id re-shot on the merged tip (release-built client, Google Chrome channel for H.264, light + dark), IMPL side only; spec frames reused from stage D (the board .tsx files and .design are byte-identical to the stage-D copy: `git diff 6d19daa9a HEAD -- .design` is empty). No match/mismatch judged here. Pairs: full-size-path.txt (last line).
+
+| artboard id | light | dark |
+|---|---|---|
+| ak-picker | re-shot | re-shot |
+| ak-picker-full | re-shot | re-shot |
+| ak-web-hug | re-shot | re-shot |
+| ak-web-widths | re-shot (Desktop and Mobile added beside the 834 page; the menu itself is closed) | re-shot (Desktop and Mobile added beside the 834 page; the menu itself is closed) |
+| ak-social | re-shot | re-shot |
+| ak-safe-zones | re-shot (inspector safe-zone select driven by option index; the board shows a menu of platforms next to three overlays) | re-shot (inspector safe-zone select driven by option index; the board shows a menu of platforms next to three overlays) |
+| ak-print-letak | re-shot | re-shot |
+| ak-print-view | re-shot (Menu › View › Advanced › Print guides, opened again after the toggle so the checked row shows) | re-shot (Menu › View › Advanced › Print guides, opened again after the toggle so the checked row shows) |
+| ak-video | re-shot | re-shot |
+| ak-mixed-fit | re-shot (a 7-artboard mixed canvas, not 21) | re-shot (a 7-artboard mixed canvas, not 21) |
+| ak-mixed-filter | re-shot (13 canvases not 93) | re-shot (13 canvases not 93) |
+| ak-mixed-select | re-shot | re-shot |
+| ak-convert | re-shot | re-shot |
+| ak-convert-after | re-shot | re-shot |
+| ak-warnings | re-shot (same selection as ak-print-letak; whether a warning line shows depends on the fixture QR box) | re-shot (same selection as ak-print-letak; whether a warning line shows depends on the fixture QR box) |
+| ak-advanced | re-shot | re-shot |
+| ak-real-about | unreachable — a note card on the board, not an app state | unreachable — a note card on the board, not an app state |
+| ak-real-print | re-shot (the fixture’s print artboard, not the Alligators flyer) | re-shot (the fixture’s print artboard, not the Alligators flyer) |
+| ak-real-web | re-shot (the fixture’s web artboard, not the Alligators page) | re-shot (the fixture’s web artboard, not the Alligators page) |
+
+Totals: 36 id×theme re-shot, 2 unreachable (spec-only frames kept from stage A/D).
+
+Harness notes (D2): ak-convert / ak-convert-after select the post by clicking its LABEL chip (a click on the picture selects the photo inside it), wait up to 30 s for the "Check after" list (it read "Nothing to check." in the shots; once, under load, it answered "The pictures and the cut can’t be checked right now.") and wait 9 s for the A6 copy to land; the convert runs LAST so its extra artboard does not move the other crops. New this round: ak-mixed-select = shift-click of two artboard labels (2 artboards, 2 kinds), ak-advanced opens the inspector fold (`fold-inspector-toggle`), ak-web-widths drives Other widths > Add a width (Desktop + Mobile), ak-print-view opens Menu > View > Advanced (Print guides toggled on first). **Observation for the critic:** in the ak-print-view frame the View > Advanced submenu draws as an empty white panel with only the focused row ("Layers as a panel") visible; the submenu rows are laid out ~150 px below its panel (measured: Print guides row at y 746, panel 183-607). Seen in Chrome on both themes; not harness-caused (testid click, hover and ArrowRight all give the same). `ak-picker-custom` is an extra impl frame with no board artboard (no pair).

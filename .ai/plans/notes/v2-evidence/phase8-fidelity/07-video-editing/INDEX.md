@@ -109,3 +109,40 @@ Re-shot light + dark with the stage-D g3 harness on this branch's release client
 |---|---|
 | ve-none, ve-select, ve-deselect, ve-long, ve-advanced, ve-fullscreen, ve-drop, ve-move-transition, ve-trim-split, ve-transition, ve-text, ve-play, ve-export, ve-music, ve-formats, ve-captions, ve-footage, ve-reframe | re-shot, light + dark |
 | ve-ai-*, ve-render, ve-together, ve-fit-fill | unreachable (as before; the `*-spec-only.jpg` stand) |
+
+## FINAL (stage D2, d3881fe41) — p8-d2-g3
+
+Every reachable id re-shot on the merged tip (release-built client, Google Chrome channel for H.264, light + dark), IMPL side only; spec frames reused from stage D (the board .tsx files and .design are byte-identical to the stage-D copy: `git diff 6d19daa9a HEAD -- .design` is empty). No match/mismatch judged here. Pairs: full-size-path.txt (last line).
+
+| artboard id | light | dark |
+|---|---|---|
+| ve-none | re-shot (one real video artboard (spec: three artboards on a social canvas)) | re-shot (one real video artboard (spec: three artboards on a social canvas)) |
+| ve-select | re-shot | re-shot |
+| ve-deselect | re-shot (the state (Kept open) is reachable; the four-step diagram and the rules card are board explanation, not app UI) | re-shot (the state (Kept open) is reachable; the four-step diagram and the rules card are board explanation, not app UI) |
+| ve-drop | re-shot (synthetic drag events; a real Finder drag was not driven) | re-shot (synthetic drag events; a real Finder drag was not driven) |
+| ve-trim-split | re-shot | re-shot |
+| ve-move-transition | re-shot | re-shot |
+| ve-transition | re-shot | re-shot |
+| ve-text | re-shot | re-shot |
+| ve-captions | re-shot | re-shot |
+| ve-music | re-shot | re-shot |
+| ve-ai-cut | unreachable — AI cut needs a signed-in Claude run over 12 clips; claude is stubbed signed-out (no AI-cut stub exists in the harness) | unreachable — AI cut needs a signed-in Claude run over 12 clips; claude is stubbed signed-out (no AI-cut stub exists in the harness) |
+| ve-ai-watch | unreachable — AI cut in progress needs a live AI run | unreachable — AI cut in progress needs a live AI run |
+| ve-ai-scrub | unreachable — AI cut in progress needs a live AI run | unreachable — AI cut in progress needs a live AI run |
+| ve-ai-proposal | unreachable — a finished AI cut + chat recap needs a live AI run | unreachable — a finished AI cut + chat recap needs a live AI run |
+| ve-ai-adjust | unreachable — swapping a take after an AI cut needs a finished AI cut | unreachable — swapping a take after an AI cut needs a finished AI cut |
+| ve-formats | re-shot | re-shot |
+| ve-reframe | re-shot (footage in the fixture is missing, so the window frames a hatch, not a picture) | re-shot (footage in the fixture is missing, so the window frames a hatch, not a picture) |
+| ve-play | re-shot | re-shot |
+| ve-fullscreen | re-shot | re-shot |
+| ve-export | re-shot | re-shot |
+| ve-render | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) | re-shot (job LIST seeded by a route intercept on GET /_api/export-jobs; no render runs) |
+| ve-footage | re-shot (only the Missing + Relink state; no "waiting for Jonas’s Mac" owner line, no preparing bars) | re-shot (only the Missing + Relink state; no "waiting for Jonas’s Mac" owner line, no preparing bars) |
+| ve-together | unreachable — two people on one video needs a second peer on a linked hub | unreachable — two people on one video needs a second peer on a linked hub |
+| ve-long | re-shot (24 beats not 40; no fold-tracks / marker jump in the app) | re-shot (24 beats not 40; no fold-tracks / marker jump in the app) |
+| ve-fit-fill | unreachable — the vertical-clip ask appears only on dropping a real vertical clip; the lane has no real file drag (synthetic drag events carry no video metadata) | unreachable — the vertical-clip ask appears only on dropping a real vertical clip; the lane has no real file drag (synthetic drag events carry no video metadata) |
+| ve-advanced | re-shot | re-shot |
+
+Totals: 38 id×theme re-shot, 14 unreachable (spec-only frames kept from stage A/D).
+
+Harness notes (D2): lane = Google Chrome (`SHOT_CHANNEL=chrome`, H.264). ve-fullscreen is shot ~2.5 s after pressing play from the 37 % poster moment (0:11), re-trying from other scrub points if the stage is black (a paused seek does not repaint; a later moment of the cut can be dark). ve-reframe now selects the video first, so the Re-frame window opens (it frames a hatch: the fixture footage is missing). ve-render = the real Exports panel with a seeded job list (route intercept on GET /_api/export-jobs; no render runs), newly reachable. The AI-cut, together and fit-fill ids stay unreachable (no AI / second-peer / real-file-drop stub in the lane).
