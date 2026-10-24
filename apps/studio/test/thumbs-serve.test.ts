@@ -125,6 +125,30 @@ describe('picture responses (V2-2.17 R5/R6)', () => {
     expect(known).toEqual(unknown);
   });
 
+  // P8 C5 (01 / 02 / 05 / 11: the Canvases panel's rows were blank pictures): nothing ever called
+  // `startBackground`, so no canvas had a cover. The panel asks for them on `want`, in the background.
+  test('want {background:true} starts the background pass (and answers exactly what any want answers)', async () => {
+    let started = 0;
+    const svc = {
+      want() {},
+      startBackground: async () => {
+        started++;
+      },
+    } as unknown as Parameters<typeof wantResponse>[0];
+    const ask = (body: unknown) =>
+      wantResponse(
+        svc,
+        new Request('http://x/_api/thumbs/want', { method: 'POST', body: JSON.stringify(body) })
+      );
+    const plain = await snapshotOf(await ask({ keys: [] }));
+    expect(started).toBe(0);
+    const bg = await snapshotOf(await ask({ keys: [], background: true }));
+    expect(started).toBe(1);
+    expect(bg).toEqual(plain);
+    await ask({ background: 'yes' }); // only the boolean true counts
+    expect(started).toBe(1);
+  });
+
   test('R7: a cell renders nothing', async () => {
     const { svc } = project({ enabled: false });
     expect(await svc.thumb(COVER)).toEqual({ status: 'unavailable', reason: 'no-engine' });

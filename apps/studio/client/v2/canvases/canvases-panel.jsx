@@ -53,6 +53,7 @@ import {
 import { InlineRename } from './inline-rename.jsx';
 import { JumpBoardRow, JumpNoteRow, JumpToggle, Marked } from './jump-list.jsx';
 import { moveTargets } from './move-model.js';
+import { askForCovers } from './covers.js';
 import { siblingNames } from './rename-model.js';
 import { useRowSlots } from './row-slots.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
@@ -135,6 +136,11 @@ export function CanvasesPanel({
   const slots = useRowSlots();
   // S11.4 — canvases the hub lists that are not on this Mac yet: ghost rows + the "Getting …" foot
   useArrivingRows({ groups, designRel, fetchImpl });
+  // P8 C5: the rows' pictures — ask the thumbnail service once for every canvas's cover (background priority)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per page load; the request is the same whatever the panel holds
+  useEffect(() => {
+    askForCovers(fetchImpl);
+  }, []);
   // S11.9 — Canvases › Advanced › Show file names: each canvas row grows a second mono line
   const [showFileNames] = useViewPref(VIEW_PREF_KEYS.fileNames);
   const tree = useMemo(
