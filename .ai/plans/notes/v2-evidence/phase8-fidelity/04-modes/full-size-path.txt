@@ -12,3 +12,9 @@ Harness (scenarios, fake agent, fixtures): /Users/iagh/git/personal/maude/.claud
 
 round 3 (p8-c3-modes): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/pairs/04-modes/
 (pairs re-shot: md-model, md-annotate, md-preview, md-preview-follow, md-preview-combine, md-inspect, md-comment, md-draw, md-present-menu, md-edge-ai, md-esc; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/impl-out/04-modes/; harness: _d-harness-g2 plus s-menus.mjs / s04c.mjs kept in the worktree .scr/impl/)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/pairs/04-modes/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D2) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/impl-out/04-modes/
+final (D2) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/spec/04/
+final (D2) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/ (D2 changes under _d2-harness-g2/)

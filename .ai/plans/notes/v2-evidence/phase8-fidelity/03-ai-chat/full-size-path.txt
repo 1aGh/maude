@@ -10,3 +10,9 @@ SPEC images alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b47
 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl-out/03-ai-chat/
 Harness (scenarios, fake agent, fixtures): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl/
 round 3 (p8-c3-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4979f0dfac4967a6/.scr/pairs/03-ai-chat/ (IMPL frames alone: .scr/impl-out/03-ai-chat/; harness changes: _c3-ai-harness/)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/pairs/03-ai-chat/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+final (D2) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/impl-out/03-ai-chat/
+final (D2) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/spec/03/
+final (D2) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/ (D2 changes under _d2-harness-g2/)
