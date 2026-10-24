@@ -16,19 +16,25 @@
     padding: var(--space-2);
     gap: 0;
     border-radius: var(--radius-lg);
+    /* the Custom size island stands outside the panel's edge */
+    overflow: visible;
   }
+  /* the kit's `.k-find`: 30 px, resting on bg-3. The accent ring is the kit's `.k-find--on` — drawn once there is
+     something typed in it, not while F has merely put the caret there (08 ak-picker draws the resting field). */
   .sz-find {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2);
+    height: 30px;
+    padding: 0 var(--space-1) 0 var(--space-2);
     margin-bottom: var(--space-2);
     border-radius: var(--radius-md);
     background: var(--bg-3);
     color: var(--fg-2);
   }
-  .sz-find:focus-within {
-    color: var(--fg-0);
+  .sz-find[data-on="true"] {
+    color: var(--fg-1);
+    background: var(--bg-2);
     box-shadow:
       0 0 0 3px var(--accent-tint),
       inset 0 0 0 1px var(--accent);
@@ -235,7 +241,6 @@
     display: grid;
     margin-top: -2px;
     color: var(--accent-text);
-    transform: rotate(180deg);
   }
   .sz-shape[data-k="print"]::after {
     content: "";
@@ -275,7 +280,19 @@
     color: var(--fg-2);
   }
 
-  /* Custom size… — the mm island */
+  /* Custom size… — the mm island, beside the picker (the kit's `.ak-custom`: 340 px, a plane of its own) */
+  .sz-island {
+    position: absolute;
+    left: calc(100% + var(--space-3));
+    bottom: 0;
+    width: 340px;
+    border-radius: var(--radius-lg);
+    background: var(--island-bg-strong, var(--bg-2));
+    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge, transparent);
+  }
+  .sz-island .sz-custom {
+    padding: var(--space-4);
+  }
   .sz-custom {
     display: flex;
     flex-direction: column;

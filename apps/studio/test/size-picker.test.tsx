@@ -346,12 +346,36 @@ describe('the panel', () => {
     await m.unmount();
   });
 
+  test('the groups wear the kit glyphs: App a laptop, Social a picture, Video a play frame — never the phone or the camera', async () => {
+    const m = await mount();
+    const head = (g: string) =>
+      m.q(`size-picker-group-${g}`)?.querySelector('.sz-h-ic svg')?.innerHTML ?? '';
+    expect(head('app')).toContain('M1.75 12.5h12.5'); // laptop base
+    expect(head('social')).toContain('circle'); // picture: sun
+    expect(head('video')).toContain('M6.75 6.1v3.8L9.9 8z'); // play inside a frame
+    expect(head('app')).not.toContain('M7 12.2h2'); // the phone's home bar
+    await m.unmount();
+  });
+
+  test('the search rests on bg-3 until something is typed (the accent ring is the kit\'s find--on)', async () => {
+    const m = await mount();
+    const find = () => m.q('size-picker-search')?.closest('.sz-find');
+    expect(find()?.getAttribute('data-on')).toBeNull();
+    await typeInto(m.q('size-picker-search') as HTMLInputElement, 'a5');
+    expect(find()?.getAttribute('data-on')).toBe('true');
+    await m.unmount();
+  });
+
   test('Custom size… → the mm island → Add artboard sends mm', async () => {
     const m = await mount();
     await act(async () => m.q('size-picker-all-print')?.click());
     await act(async () => m.q('size-picker-tile-print-custom')?.click());
     expect(m.q('size-picker-custom')).not.toBeNull();
-    expect(m.q('size-picker-search')).toBeNull();
+    // V2-8.5 C4 (08 ak-picker-full): the picker STAYS open with the Custom tile lit; the mm island is beside it
+    expect(m.q('size-picker-search')).not.toBeNull();
+    expect(m.q('size-picker-tile-print-custom')?.getAttribute('data-hl')).toBe('true');
+    expect(m.q('size-picker-island')?.contains(m.q('size-picker-custom'))).toBe(true);
+    expect(m.q('size-picker-island')?.contains(m.q('size-picker-search'))).toBe(false);
     expect((m.q('size-picker-custom-width') as HTMLInputElement).value).toBe('99');
     expect((m.q('size-picker-custom-height') as HTMLInputElement).value).toBe('210');
     expect((m.q('size-picker-custom-bleed') as HTMLInputElement).value).toBe('3');

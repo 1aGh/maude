@@ -17,7 +17,14 @@
 // overlay. Tokens only (size-picker.css).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DigitalIcon, PrintIcon, VideoIcon, WebIcon } from '../canvases/canvas-icons.jsx';
+import {
+  DigitalIcon,
+  ImageIcon,
+  LaptopIcon,
+  PrintIcon,
+  VideoIcon,
+  WebIcon,
+} from '../canvases/canvas-icons.jsx';
 import {
   badgeTone,
   CUSTOM_DEFAULTS,
@@ -37,10 +44,11 @@ import {
 } from './size-picker-model.js';
 
 const KIND_ICON = { digital: DigitalIcon, web: WebIcon, print: PrintIcon, video: VideoIcon };
+// 08: App is a laptop, Social a picture — the phone is the kind's glyph (Recent chips), not the group's
 const GROUP_ICON = {
-  laptop: DigitalIcon,
+  laptop: LaptopIcon,
   web: WebIcon,
-  image: DigitalIcon,
+  image: ImageIcon,
   print: PrintIcon,
   video: VideoIcon,
 };
@@ -68,9 +76,10 @@ const SearchIcon = () => (
     <path d="M10.2 10.2L13.5 13.5" />
   </Svg>
 );
+// the kit's `chevron` (down) when open, `submenu` (right) when not — "Grows as you add" and "Fewer" point down
 const ChevronIcon = ({ open }) => (
   <Svg size={11}>
-    <path d={open ? 'M4 10l4-4 4 4' : 'M6 3.5l4.5 4.5L6 12.5'} />
+    <path d={open ? 'M4 6l4 4 4-4' : 'M6 3.5l4.5 4.5L6 12.5'} />
   </Svg>
 );
 const LockIcon = () => (
@@ -389,7 +398,7 @@ export default function SizePicker({
     setShowGhost(true);
   };
 
-  const tileOn = (id) => showGhost && flat[at]?.id === id;
+  const tileOn = (id) => (custom && id === 'print-custom') || (showGhost && flat[at]?.id === id);
 
   return (
     <div
@@ -407,10 +416,14 @@ export default function SizePicker({
       onMouseLeave={() => setShowGhost(false)}
     >
       {custom ? (
-        <CustomPrint onAdd={addCustom} onCancel={() => setCustom(false)} />
-      ) : (
+        // 08 ak-picker-full: the picker stays open; the mm island sits BESIDE it (its own floating plane)
+        <div className="sz-island" data-testid="size-picker-island">
+          <CustomPrint onAdd={addCustom} onCancel={() => setCustom(false)} />
+        </div>
+      ) : null}
+      {
         <>
-          <label className="sz-find">
+          <label className="sz-find" data-on={query ? 'true' : undefined}>
             <SearchIcon />
             <input
               ref={inputRef}
@@ -547,7 +560,7 @@ export default function SizePicker({
             {FOOT_LINE}
           </p>
         </>
-      )}
+      }
     </div>
   );
 }
