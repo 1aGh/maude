@@ -227,6 +227,38 @@ export const landing = { graceMs: 1500 }; // mutable so a test need not wait out
 /** A hold or ring can be announced a little after the write that made the artboard land. */
 const LANDED_WINDOW_MS = 5000;
 
+function screenIds(): string[] {
+  if (typeof document === 'undefined') return [];
+  return Array.from(document.querySelectorAll('[data-dc-screen]'))
+    .map((el) => el.getAttribute('data-dc-screen') ?? '')
+    .filter(Boolean);
+}
+
+/**
+ * A file change reloads the canvas, so what "landed" cannot live in memory alone: the ids on the canvas are kept in
+ * sessionStorage (this frame's own, per canvas address), and the ones the new load has that the last did not are
+ * the artboards that landed in between. Returns them in document order; the first load of a canvas returns none.
+ */
+function newSinceLastLoad(): string[] {
+  if (typeof sessionStorage === 'undefined') return [];
+  const key = `dc-ai-seen:${location.pathname}${location.search}`;
+  const cur = screenIds();
+  let prev: unknown = null;
+  try {
+    prev = JSON.parse(sessionStorage.getItem(key) || 'null');
+  } catch {
+    /* unreadable: treat as a first load */
+  }
+  try {
+    // an empty list this early is a canvas still drawing, not a blank one: it is not worth remembering yet
+    const early = typeof performance !== 'undefined' && performance.now() < landing.graceMs + 1000;
+    if (cur.length || !early) sessionStorage.setItem(key, JSON.stringify(cur));
+  } catch {
+    /* storage blocked: no memory across reloads */
+  }
+  return Array.isArray(prev) ? cur.filter((id) => !prev.includes(id)) : [];
+}
+
 function labelOfArtboard(id: string): string | null {
   const el = artboardEl(id);
   return el?.getAttribute('data-dc-label') || el?.getAttribute('aria-label') || null;
@@ -267,9 +299,13 @@ export function ArtboardRingsLayer() {
     const timers = new Set<ReturnType<typeof setTimeout>>();
     const born = Date.now();
     let wasLive = false;
+    // the blank-canvas starting point: once the first draw is over, note what is on the canvas
+    const settle = setTimeout(() => void newSinceLastLoad(), landing.graceMs + 1100);
+    timers.add(settle);
     // a run of yours is live: the artboard that landed just before it was announced is the one being drawn
     const syncLive = () => {
       const on = liveBy.current.rings || liveBy.current.holds;
+      for (const id of newSinceLastLoad()) landed.current.push({ id, at: Date.now() });
       if (on && !wasLive) {
         const last = landed.current[landed.current.length - 1];
         if (last && Date.now() - last.at <= LANDED_WINDOW_MS) {

@@ -306,6 +306,7 @@ describe('the rings on the canvas', () => {
     const { ArtboardRingsLayer } = await import('../artboard-activity-overlay.tsx');
     // the canvas's first draw is not "landing"; a test has no first draw to wait out
     (await import('../artboard-activity-overlay.tsx')).landing.graceMs = 0;
+    sessionStorage.clear();
     const view = await mount(<ArtboardRingsLayer />);
     const board = document.createElement('div');
     board.setAttribute('data-dc-screen', 'post');
@@ -474,6 +475,28 @@ describe('the rings on the canvas', () => {
       post({ dgn: 'ai-holds', holds: [] });
     });
     expect(q('ai-ring-mobile')).toBeNull();
+  });
+
+  test('P8 c3: a file change reloads the canvas, so the artboard that is new since the last load is the one being drawn', async () => {
+    const { act } = await overlay(); // the board "post" is on the canvas
+    sessionStorage.setItem(
+      `dc-ai-seen:${location.pathname}${location.search}`,
+      JSON.stringify([]) // the load before this one had no artboard
+    );
+    await act(async () => {
+      post({
+        dgn: 'ai-holds',
+        holds: [{ artboard: 'post', element: 'h1', tag: 'AI is working', mine: true }],
+      });
+    });
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(q('ai-ring-post')?.getAttribute('data-drawing')).toBe('true');
+    await act(async () => {
+      post({ dgn: 'ai-holds', holds: [] });
+    });
+    expect(q('ai-ring-post')).toBeNull();
   });
 
   test('only the shell may say it: a message from anywhere else draws nothing', async () => {
