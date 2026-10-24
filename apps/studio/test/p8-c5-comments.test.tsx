@@ -8,8 +8,13 @@ beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => {
-  GlobalRegistrator.unregister();
+afterAll(async () => {
+  // let React's scheduler / store timers run while `window` exists (else "window is not defined" between tests)
+  const { act } = await import('react');
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+  await GlobalRegistrator.unregister();
 });
 
 import { readFileSync } from 'node:fs';

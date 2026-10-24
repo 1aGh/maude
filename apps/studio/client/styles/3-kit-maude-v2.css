@@ -67,6 +67,11 @@
     background: var(--bg-3);
   }
   :where(.maude) .seg > button,
+  /* a segmented control living inside a form row (AI › Advanced effort): hugs its options instead of filling */
+  :where(.maude) .seg.k-in-seg {
+    width: auto;
+    justify-self: start;
+  }
   :where(.maude) .k-seg-b {
     appearance: none;
     display: inline-flex;

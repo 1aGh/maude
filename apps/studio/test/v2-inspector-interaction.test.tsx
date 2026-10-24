@@ -399,7 +399,9 @@ describe('the Export slot (S8 fills it; C21: the default presets per kind)', () 
       expect(shown(q(host, 'insp-export-format-0'))).toBe('PNG');
     }
     expect(presets(await at('print'))).toEqual(['Print PDF']);
-    expect(presets(await at('video'))).toEqual(['MP4']);
+    // P8 C4 video (decision v2-p8-c4-video-card-is-flat): a video's Export is one MP4 row on its flat card, not an
+    // Export-section preset — the section stands aside
+    expect(presets(await at('video'))).toEqual([]);
   });
 
   test('several objects offer one export for all of them', async () => {

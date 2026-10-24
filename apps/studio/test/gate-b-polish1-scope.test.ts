@@ -142,7 +142,6 @@ const DEBT = new Set([
   'dsr-group',
   'dst-stack',
   'insp-adv-kind',
-  'insp-kinds',
   'lp-browse-run',
   'lp-trash-group',
   'ob-dialog',

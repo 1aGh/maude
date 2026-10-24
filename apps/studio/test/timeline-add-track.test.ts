@@ -65,7 +65,8 @@ describe('the store', () => {
       JSON.stringify({ mode: 'wild', tracks: { a: ['text', 'video2', 7], b: 'x' } }),
     ]) {
       const s = createAdvancedStore(memory(bad));
-      expect(s.get().mode).toBe('timecode');
+      // P8 C4 video (07 ve-advanced): the ruler opens in frames — a bad value reads as that default
+      expect(s.get().mode).toBe('frames');
     }
     const odd = createAdvancedStore(
       memory(JSON.stringify({ tracks: { a: ['text', 'video2', 7], b: 'x' } }))
