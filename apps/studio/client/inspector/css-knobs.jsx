@@ -452,8 +452,7 @@ export function CssKnobs({
           <span className="st-cp-idtag">{el.tag || 'element'}</span>
         </div>
         <div className="st-css-disabled">
-          This selection has no stable element id (a legacy canvas, or a non-element target). Edit
-          it with <code>/design:edit</code>.
+          This can’t be edited here. Ask AI in the chat to change it.
         </div>
       </div>
     );

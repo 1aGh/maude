@@ -191,7 +191,15 @@ export function InspectorAdvanced({
         <div className="insp-adv">
           {many ? null : <Groups groups={ADVANCED_GROUPS} kind="element" el={el} ctx={ctx} />}
           {/* several objects: the raw editor alone, as before (a writer's) */}
-          {many && access.canEdit ? <CssKnobs el={el} cfg={cfg} mode="advanced" {...edit} /> : null}
+          {many && access.canEdit && el?.id ? (
+            <CssKnobs el={el} cfg={cfg} mode="advanced" {...edit} />
+          ) : null}
+          {/* several things with no element to edit (boards): say so in plain words, never a developer's */}
+          {many && !el?.id ? (
+            <p className="insp-quiet" data-testid="adv-many-note">
+              Select one thing to see its properties.
+            </p>
+          ) : null}
         </div>
       )}
     </AdvancedFold>

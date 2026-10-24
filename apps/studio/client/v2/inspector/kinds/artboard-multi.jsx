@@ -36,11 +36,11 @@ function MultiKindRows({ selection, ctx }) {
   return (
     <>
       <Row k="Kinds" name="mk-kinds">
-        <span className="insp-kinds" data-testid="insp-mk-kinds">
+        <span className="insp-mk-kinds" data-testid="insp-mk-kinds">
           {m.kinds.map(({ kind, word }) => {
             const Glyph = GLYPH[kind] ?? DigitalIcon;
             return (
-              <span key={kind} className="insp-kind" data-kind={kind}>
+              <span key={kind} className="insp-mk-kind" data-kind={kind}>
                 <Glyph size={12} /> {word}
               </span>
             );

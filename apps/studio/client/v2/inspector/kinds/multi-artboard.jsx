@@ -12,6 +12,7 @@ import { registerSlot } from '../slots.js';
 import { artboardFacts, presetOptions, presetValue } from './artboard-model.js';
 
 export const MULTI_ARTBOARD = 'multi-artboard';
+const UNSET = 'unset:';
 
 /** What the selected boards share, per field — `{ mixed: false, value }` or `{ mixed: true, values }`. */
 export function multiArtboardModel(selection) {
@@ -27,13 +28,15 @@ export function multiArtboardModel(selection) {
     h: field((f) => f.h),
     x: field((f) => f.geometry?.x),
     y: field((f) => f.geometry?.y),
-    bg: field((f) => f.bg),
+    // p8-bugs3 #3: a board that sets no background wears its kind's own (paper, canvas…), so a post and a print
+    // page with none declared are still a Mixed fill, not "Default"
+    bg: field((f) => f.bg || `${UNSET}${f.kind}`),
   };
 }
 
 const show = (r, empty = '—') => {
   if (r.mixed) return 'Mixed';
-  const v = r.value;
+  const v = typeof r.value === 'string' && r.value.startsWith(UNSET) ? '' : r.value;
   return v === undefined || v === null || v === '' ? empty : String(v);
 };
 

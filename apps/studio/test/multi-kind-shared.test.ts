@@ -162,3 +162,40 @@ describe('the chip', () => {
     expect(kindChipOf([IG, STORY])).toBe('Fixed size');
   });
 });
+
+describe('p8-bugs3 #3 — the mixed inspector, as 08 ak-mixed-select draws it', () => {
+  // the Matchday boards declare no background of their own (the board's own `data-dc-bg` is absent)
+  const bare = (id: string, kind: string, w: number, h2: number) => {
+    const b = board(id, kind, w, h2);
+    delete b.attrs['data-dc-bg'];
+    return b;
+  };
+
+  test('boards of different kinds that set no background are still a Mixed fill, not "Default"', async () => {
+    const host = await frame([bare('post', 'digital', 432, 540), bare('a6', 'print', 397, 559)]);
+    expect(q(host, 'insp-mab-bg')?.textContent).toBe('Mixed');
+  });
+
+  test('two boards of one kind with no background keep saying Default', async () => {
+    const host = await frame([bare('a', 'digital', 432, 540), bare('b', 'digital', 304, 540)]);
+    expect(q(host, 'insp-mab-bg')?.textContent).toBe('Default');
+  });
+
+  test('the Kinds row keeps its own class: the header pill (insp-kind, margin-left:auto) is not its glyph-and-word pairs', async () => {
+    const host = await frame([IG, KARTA]);
+    const items = q(host, 'insp-mk-kinds')?.children ?? [];
+    expect(items.length).toBe(2);
+    for (const it of items) expect(it.classList.contains('insp-kind')).toBe(false);
+  });
+
+  test('the Advanced fold of several boards never prints the developer sentence', async () => {
+    const { foldStore } = await import('../client/v2/fold/use-fold.js');
+    foldStore.set('inspector', true);
+    const host = await frame([IG, KARTA]);
+    const body = q(host, 'fold-inspector-body');
+    expect(body).not.toBeNull();
+    const words = body?.textContent ?? '';
+    expect(words).not.toMatch(/stable element id|design:edit|legacy canvas/i);
+    expect(words).not.toContain('article'); // the first board's tag, from the raw editor's header
+  });
+});
