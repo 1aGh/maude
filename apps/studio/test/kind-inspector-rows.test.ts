@@ -322,6 +322,7 @@ describe('Video (ak-video)', () => {
     expect(snd?.className).toContain('insp-ro--pill');
     expect(snd?.querySelector('.insp-ro-swatch')).toBeTruthy();
     // no music: the quiet note, not a pill
+    clips = [];
     const none = q(
       await frame(board('other', 'video', 1920, 1080, { 'data-dc-fixed': 'true' })),
       'insp-ab-sound'
