@@ -138,13 +138,13 @@ describe('06 · ad-inspector — closed and open', () => {
     expect(rowIds(host)).toEqual([]);
   });
 
-  test('open, the groups come in the golden order: Element · Used in · Tokens bound · CSS · actions', async () => {
+  test('open, the groups come in the golden order: Element · Used in · Tokens it uses · CSS · actions', async () => {
     const host = await fold();
     expect(rowIds(host)).toEqual(['element', 'used-in', 'tokens', 'css', 'in-code']);
     const titles = [...host.querySelectorAll('.insp-sub')].map(
       (p) => p.firstElementChild?.textContent
     );
-    expect(titles).toEqual(['Element', 'Used in', 'Tokens bound', 'CSS']);
+    expect(titles).toEqual(['Element', 'Used in', 'Tokens it uses', 'CSS']);
   });
 
   test('every registered row of an element, in draw order (the registry golden)', async () => {
@@ -196,7 +196,7 @@ describe('06 · ad-inspector — closed and open', () => {
     expect(q(local, 'adv-detach')).toBeNull();
   });
 
-  test('Tokens bound: the property in plain words, the variable beside it, once per binding', async () => {
+  test('Tokens it uses: the property in plain words, the variable beside it, once per binding', async () => {
     const host = await fold();
     const rows = [...(q(host, 'inspector-tokens-used')?.querySelectorAll('li') ?? [])].map((li) => [
       li.querySelector('.insp-ak')?.textContent,

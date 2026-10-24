@@ -2,7 +2,7 @@
 //
 // Closed, the inspector speaks designer and the fold says "Code, tokens, CSS". Open, it ADDS what the code says
 // under the unchanged rows (06 · ad-inspector): Element (Tag · Classes · Selector · Element id) · Used in
-// (Shared · 4 places + Detach) · Tokens bound · CSS (Edit as text · Property · Attribute) · Copy style · Paste
+// (Shared · 4 places + Detach) · Tokens it uses · CSS (Edit as text · Property · Attribute) · Copy style · Paste
 // style · Copy CSS · Copy code — and UNDER them the v1 raw editor exactly as it was (CssKnobs: custom CSS
 // property rows, HTML attribute rows, the token popover). An artboard has its own sections (kinds/artboard.jsx, S2.8) and only its Theme here (ArtboardAdvanced).
 //

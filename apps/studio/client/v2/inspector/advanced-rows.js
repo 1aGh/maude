@@ -32,7 +32,7 @@ export const ADVANCED_GROUPS = Object.freeze([
 export const GROUP_TITLES = Object.freeze({
   element: 'Element',
   'used-in': 'Used in',
-  tokens: 'Tokens bound',
+  tokens: 'Tokens it uses',
   css: 'CSS',
   artboard: null,
   'in-code': null,

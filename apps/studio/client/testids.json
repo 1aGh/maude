@@ -16285,7 +16285,7 @@
     "hook": "inspector-tokens-used",
     "kind": "testid",
     "pattern": false,
-    "meaning": "› Advanced › Tokens bound: one `li` per (property, token) the element's CSS binds — the property in plain words (Fill · Text colour · Corners) and the variable in `code`; `title` = the variable.",
+    "meaning": "› Advanced › Tokens it uses (14 ed-inspector): one `li` per (property, token) the element's CSS binds — the property in plain words (Fill · Text colour · Corners) and the variable in `code`; `title` = the variable.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "TokensBound"
