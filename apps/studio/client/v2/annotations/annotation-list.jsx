@@ -114,6 +114,13 @@ function Row({ row, selected, onPick }) {
         />
       )}
       <span className="al-name">{row.label}</span>
+      {row.resolved ? (
+        // a11y A3 — "resolved" is a tick + a strike + a word for a screen reader, never only a paler colour
+        <span className="al-state al-state--done" data-testid="annotation-list-resolved">
+          <StIcon name="check" size={12} />
+          <span className="sr-only">Resolved</span>
+        </span>
+      ) : null}
       {row.locked ? (
         <span className="al-state" data-testid="annotation-list-lock" title={LOCKED_DRAG_TIP}>
           <StIcon name="lock" size={12} />

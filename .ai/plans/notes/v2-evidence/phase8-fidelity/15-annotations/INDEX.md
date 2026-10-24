@@ -153,3 +153,9 @@ Re-shot 60 of 62 pairs; 2 unreachable. SPEC side: `.design/ui/v2/15 Annotations.
 | `an-vote` | light | re-shot | spec reused (board unchanged since stage A) |
 | `an-vs` | dark | re-shot | spec reused (board unchanged since stage A) |
 | `an-vs` | light | re-shot | spec reused (board unchanged since stage A) |
+
+## After (round 4, c4-annot) — IMPL re-shot on the p8-c4-annot tip, both themes
+
+Changed since round 3 (see `fix-c4-annot.md`): keyboard placement of a picked sticky / sticker / stamp / template, AI connectors born Curved, resolved rows marked beyond colour in Layers, section title at full ink in Edit, sticker gallery and Templates without a ×, "Not printed" as a dark pill inside the note. `an-viewer` stays unreachable.
+
+Re-shot with the committed stage-D harness `_d-harness-g5` (ids): `an-ai-apply`, `an-ai-read`, `an-ai-stickers`, `an-ai-write`, `an-arrow-bind`, `an-arrow-kinds`, `an-convert`, `an-crowd`, `an-dangling`, `an-enter`, `an-figjam`, `an-follow`, `an-layers`, `an-marker`, `an-place`, `an-place-preview`, `an-plan`, `an-print`, `an-print-export`, `an-rebind`, `an-section`, `an-stamps`, `an-sticky`, `an-stk-drop`, `an-stk-gallery`, `an-stk-search`, `an-templates`, `an-today`, `an-video`, `an-visibility`, `an-vote`, `an-vs`. The "after" pairs above are overwritten in place (`<id>-<theme>.jpg`); the full-size path is in `full-size-path.txt` ("round 4:").

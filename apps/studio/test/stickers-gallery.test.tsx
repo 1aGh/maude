@@ -83,6 +83,21 @@ async function type(host: HTMLElement, value: string) {
   });
 }
 
+describe('chrome', () => {
+  test('opens straight on the search: no header, no × (15 an-stk-gallery); Esc still closes', async () => {
+    let closed = 0;
+    const { host, done } = await mount({ onClose: () => closed++ });
+    expect(host.querySelector('.st-dialog-hd')).toBeNull();
+    expect(host.querySelector('button[aria-label="Close"]')).toBeNull();
+    expect(host.querySelector('[data-testid="stickers-search"]')).not.toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(closed).toBe(1);
+    await done();
+  });
+});
+
 describe('browse', () => {
   test('Stamps row, packs in C13 order with "+N", credits', async () => {
     const { host, done } = await mount();

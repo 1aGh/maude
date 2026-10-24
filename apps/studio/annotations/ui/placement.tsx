@@ -30,6 +30,19 @@ export interface PlacementProps {
 
 const GHOST_Z = 2147483000;
 
+const ARROW_STEP: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+
+/** Where a keyboard placement starts: the middle of what the person sees. */
+const centreOfView = (): { x: number; y: number } => ({
+  x: Math.round((typeof window === 'undefined' ? 0 : window.innerWidth) / 2),
+  y: Math.round((typeof window === 'undefined' ? 0 : window.innerHeight) / 2),
+});
+
 export function PlacementGhost({
   pending,
   zoom,
@@ -40,15 +53,21 @@ export function PlacementGhost({
 }: PlacementProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const swallow = useRef(false);
+  const posRef = useRef<{ x: number; y: number } | null>(null);
   const cb = useRef({ onPlace, onCancel });
   cb.current = { onPlace, onCancel };
 
   useEffect(() => {
     if (!pending) {
+      posRef.current = null;
       setPos(null);
       return;
     }
-    const move = (e: PointerEvent) => setPos({ x: e.clientX, y: e.clientY });
+    const at = (p: { x: number; y: number }) => {
+      posRef.current = p;
+      setPos(p);
+    };
+    const move = (e: PointerEvent) => at({ x: e.clientX, y: e.clientY });
     const down = (e: PointerEvent) => {
       if (e.button !== 0) return;
       e.preventDefault();
@@ -64,12 +83,22 @@ export function PlacementGhost({
       e.stopImmediatePropagation();
       if (e.type === 'click') swallow.current = false;
     };
+    // a11y A2 — a pick is placeable without a pointer: arrows walk the ghost (⇧ = 4 steps), ↵ / Space put it down,
+    // from where the pointer last was, else the middle of the canvas
     const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      const step = e.shiftKey ? 32 : 8;
+      const dir = ARROW_STEP[e.key];
+      const place = e.key === 'Enter' || e.key === ' ';
+      if (e.key !== 'Escape' && !dir && !place) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      cb.current.onCancel();
+      if (e.key === 'Escape') cb.current.onCancel();
+      else if (dir) {
+        const from = posRef.current ?? centreOfView();
+        at({ x: from.x + dir[0] * step, y: from.y + dir[1] * step });
+      } else cb.current.onPlace(posRef.current ?? centreOfView(), { shift: e.shiftKey });
     };
     const menu = (e: Event) => {
       e.preventDefault();

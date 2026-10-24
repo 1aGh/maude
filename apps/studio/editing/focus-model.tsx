@@ -59,6 +59,15 @@ export const FOCUS_RING_CSS = `
   --ed-focus-ring-fg: oklch(0.18 0.03 238);
   --ed-focus-halo: oklch(0.64 0.165 238 / 0.3);
 }
+/* 14 ed-edge-keys: while the keyboard is walking, the focused object wears the focus ring and NOTHING of the
+   selection — a person who tabs must never wonder whether an object is focused or selected. */
+.dc-el-resize-handle,
+.dc-el-resize-readout,
+.ed-name-tag,
+.ed-parent-outline,
+.dc-cv-halo--selected {
+  display: none !important;
+}
 .ed-focus-ring {
   position: fixed;
   pointer-events: none;

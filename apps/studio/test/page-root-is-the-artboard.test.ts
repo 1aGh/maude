@@ -16,6 +16,7 @@ afterAll(() => {
   GlobalRegistrator.unregister();
 });
 
+import { serializeArtboardTree } from '../canvas-shell.tsx';
 import {
   dropPageRoot,
   isPageHit,
@@ -139,5 +140,22 @@ describe('the page root is the artboard', () => {
     expect(
       yieldsToArtboardDrag(action, b.at('[data-cd-id="page"]'), { ...mods, metaKey: true })
     ).toBe(false);
+  });
+});
+
+describe('Layers does not list the page root as a row', () => {
+  test('the objects of the page are the top level under the artboard', () => {
+    const b = board(PAGE, FULL, { page: FULL });
+    expect(serializeArtboardTree(b.article).map((n) => n.id)).toEqual(['hero', 'sub']);
+    // ...and a nested object keeps its own children
+    expect(serializeArtboardTree(b.article)[0]?.children?.map((n) => n.id)).toEqual(['title']);
+  });
+  test('a lone card smaller than the artboard stays a row (it is an object)', () => {
+    const b = board(PAGE, FULL, { page: { w: 400, h: 300 } });
+    expect(serializeArtboardTree(b.article).map((n) => n.id)).toEqual(['page']);
+  });
+  test('two top-level objects: nothing to peel', () => {
+    const b = board('<div data-cd-id="a">A</div><div data-cd-id="b">B</div>', FULL);
+    expect(serializeArtboardTree(b.article).map((n) => n.id)).toEqual(['a', 'b']);
   });
 });

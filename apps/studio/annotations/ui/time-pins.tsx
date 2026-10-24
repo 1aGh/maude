@@ -28,7 +28,11 @@ export const TIME_PIN_CSS = `
   box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
 }
 .dc-annot-pintag[data-pin-tag="time"] { left: 4px; }
-.dc-annot-pintag[data-pin-tag="print"] { right: 4px; }
+.dc-annot-pintag[data-pin-tag="print"] {
+  /* 15 an-print (.an-noprint): a DARK pill INSIDE the note's top edge, at the board's small radius */
+  right: 6px; bottom: auto; top: 6px; margin: 0; padding: 2px 8px; border-radius: 4px; font-weight: 500;
+  background: var(--maude-chrome-fg-1, #1a1a1a); color: var(--maude-chrome-bg-1, #fff); box-shadow: none;
+}
 .dc-annot-pintag svg { width: 11px; height: 11px; flex: none; }
 @media (prefers-reduced-motion: reduce) { .dc-annot-el[data-pin] { transition-duration: 1ms; } }
 `;

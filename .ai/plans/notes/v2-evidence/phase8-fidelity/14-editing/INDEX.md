@@ -193,3 +193,9 @@ Re-shot 50 of 52 pairs (light + dark) with the g5 harness (`_d-harness-g5/`, rou
 | `ed-edge-keys` | dark | re-shot |
 | `ed-edge-keys` | light | re-shot |
 | `ed-edge-tereza` | dark / light | unreachable (needs a second synced collaborator) |
+
+## After (round 4, c4-annot) — IMPL re-shot on the p8-c4-annot tip, both themes
+
+Changed since round 3 (see `15-annotations/fix-c4-annot.md`): the gap / padding grips are not drawn at rest (the band chip is the grip), typing in place draws only the edit ring + halo (ed-text-edit), the keyboard focus ring replaces the selection chrome (ed-edge-keys), the pen hints are light pills (ed-pen), Layers drops the page-root row. `ed-ab-menu` keeps the round-3 (c3-modes) pair; `ed-edge-tereza` is still unreachable.
+
+Re-shot with the committed stage-D harness `_d-harness-g5` (ids): `ed-ab-arrange`, `ed-ab-menu`, `ed-ab-resize`, `ed-ab-select`, `ed-ab-tidy`, `ed-comp-instance`, `ed-comp-pick`, `ed-edge-ai`, `ed-edge-ask`, `ed-edge-huge`, `ed-edge-huge-fit`, `ed-edge-keys`, `ed-edge-paste`, `ed-edge-undo`, `ed-img`, `ed-inspector`, `ed-lay-auto`, `ed-lay-free`, `ed-lay-reorder`, `ed-obj-enter`, `ed-obj-multi`, `ed-obj-order`, `ed-pen`, `ed-shape`, `ed-text-edit`, `ed-text-style`. The "after" pairs above are overwritten in place (`<id>-<theme>.jpg`); the full-size path is in `full-size-path.txt` ("round 4:").

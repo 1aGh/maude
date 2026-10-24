@@ -49,14 +49,6 @@ export function moveTile(i, key, count = TEMPLATES.length, cols = TEMPLATE_COLUM
   return next >= 0 && next < count ? next : i;
 }
 
-function CloseIcon() {
-  return (
-    <svg width={15} height={15} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function SparkIcon() {
   return (
     <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -176,9 +168,6 @@ export default function TemplatesPanel({
         <div className="st-dialog-hd">
           <span className="st-dialog-title">Templates</span>
           <span className="tp-hint">or drag on the canvas for a blank one</span>
-          <button type="button" className="st-iconbtn" aria-label="Close" onClick={onClose}>
-            <CloseIcon />
-          </button>
         </div>
         <div className="st-dialog-bd">
           {/* biome-ignore lint/a11y/useSemanticElements: a CSS grid of tile buttons; a fieldset would bring its own border and legend */}
