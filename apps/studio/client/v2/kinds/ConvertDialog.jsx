@@ -32,6 +32,8 @@ export function notifyConverted({ plan, copy, onUndo, sourceWord = 'artboard' })
   notify({
     id: 'convert-kind',
     kind: 'undo',
+    // 08: the toast wears the copy glyph, not the undo/reload one — it says a copy was made
+    icon: copy ? 'duplicate' : undefined,
     title: copy
       ? CONVERT_WORDS.toastCopy(plan.paperName, sourceWord)
       : `Now ${/^[AEIOU8]/i.test(plan.paperName) ? 'an' : 'a'} ${plan.paperName} print.`,

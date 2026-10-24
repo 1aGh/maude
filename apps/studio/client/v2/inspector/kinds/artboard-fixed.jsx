@@ -11,6 +11,7 @@ import { useState } from 'react';
 
 import { planConvert } from '../../../../kinds/convert.ts';
 import ConvertDialog from '../../kinds/ConvertDialog.jsx';
+import { selectCopyPlan } from '../../kinds/convert-api.js';
 import { registerSlot } from '../slots.js';
 import { sourceWord } from './artboard-model.js';
 import { SizePairRow, SizeSelectRow, useArtboardWrites } from './artboard-rows.jsx';
@@ -48,6 +49,15 @@ function FixedRows({ el, ctx }) {
           artboardId={id}
           sourceWord={sourceWord(f)}
           onUndo={() => ctx.onUndoRedo?.('undo')}
+          onDone={(r) => {
+            // 08 ak-convert-after: the A6 copy is selected, the post stays as it was
+            const plan = selectCopyPlan(r);
+            if (!plan) return;
+            for (const d of plan.delays) {
+              if (d === 0) ctx.onRunAction?.(plan.message);
+              else setTimeout(() => ctx.onRunAction?.(plan.message), d);
+            }
+          }}
           onClose={() => setAsking(null)}
         />
       ) : null}

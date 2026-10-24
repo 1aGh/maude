@@ -86,3 +86,15 @@ export async function runConvert(req, fetchImpl = globalThis.fetch) {
     label: typeof d.label === 'string' ? d.label : null,
   };
 }
+
+/**
+ * V2-8.5 C4 (08 ak-convert-after) — after a conversion that made a COPY, the copy is what is selected: its Print
+ * inspector (the warnings, Paper A6, Made from) is what the person looks at next, the post stays as it was.
+ * The canvas re-renders with the copy a beat after the write, so the select is asked for a few times (it is
+ * idempotent and only reveals when the selection actually changes).
+ * @returns {{ delays: number[], message: object } | null}
+ */
+export function selectCopyPlan(result) {
+  if (!result?.ok || !result.copy) return null;
+  return { delays: [0, 450, 1200], message: { dgn: 'select-by-id', artboardId: result.copy } };
+}
