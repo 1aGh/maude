@@ -175,7 +175,21 @@ describe('ruler', () => {
     playbackStore.markStep();
     mount(SEQ.slice(0, 2), { frame: 212 });
     expect(q('[data-testid="timeline-readout"] b')?.textContent).toBe('0:07 + 2 frames');
-    expect(q('[data-testid="timeline-playpause"]')?.getAttribute('title')).toBe('Play — tap space');
+    // 07 ve-play (V2-8.5 c4-video): the keys are drawn tips (a dark pill with the key caps), not the browser's title
+    expect(q('[data-testid="timeline-playpause"]')?.getAttribute('title')).toBeNull();
+    const play = q('[data-testid="timeline-play-tip"]');
+    expect(play?.getAttribute('role')).toBe('tooltip');
+    expect(play?.textContent).toContain('Play — tap space');
+    expect(play?.textContent).toContain('hold space and drag to pan');
+    expect(play?.querySelector('kbd')?.textContent).toBe('space');
+    const step = q('[data-testid="timeline-step-tip"]');
+    expect(step?.textContent).toBe('Step ←→ one frame · ⇧ one second');
+  });
+
+  test('the step tip shows only while the playhead is being stepped', () => {
+    mount(SEQ.slice(0, 2), { frame: 212 });
+    expect(q('[data-testid="timeline-step-tip"]')).toBeNull();
+    expect(q('[data-testid="timeline-play-tip"]')).not.toBeNull(); // drawn always, shown on hover / focus by CSS
   });
 });
 

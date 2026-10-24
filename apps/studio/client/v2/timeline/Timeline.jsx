@@ -1901,17 +1901,36 @@ export default function TimelinePanel({
           <>
             {/* P8 C3 (07 · .ve-tl-hd) — play · loop · time / length · the video's name, then the status, four
                 tools and the size. Everything else the v1 header carried is one disclosure down (Advanced). */}
-            <button
-              type="button"
-              className="icon-btn k-icon-sm tl-play"
-              aria-label={playing ? 'Pause' : 'Play'}
-              aria-pressed={playing}
-              title={playing ? 'Pause — tap space' : 'Play — tap space'}
-              data-testid="timeline-playpause"
-              onClick={() => (playing ? onPause?.() : onPlay?.())}
-            >
-              <TGlyph name={playing ? 'pause' : 'play'} />
-            </button>
+            {/* 07 ve-play: the keys are drawn tips over the play button — "Pause — tap space" (hold space and drag to
+                pan) on hover / focus, and "Step ← → one frame · ⇧ one second" while the playhead is being stepped */}
+            <span className="tl-play-wrap">
+              <button
+                type="button"
+                className="icon-btn k-icon-sm tl-play"
+                aria-label={playing ? 'Pause' : 'Play'}
+                aria-pressed={playing}
+                aria-describedby="timeline-play-tip"
+                data-testid="timeline-playpause"
+                onClick={() => (playing ? onPause?.() : onPlay?.())}
+              >
+                <TGlyph name={playing ? 'pause' : 'play'} />
+              </button>
+              <span
+                className="tl-keytip tl-keytip--play"
+                id="timeline-play-tip"
+                role="tooltip"
+                data-testid="timeline-play-tip"
+              >
+                {playing ? 'Pause' : 'Play'} — tap <kbd className="kbd">space</kbd>
+                <span className="tl-keytip-dim">hold space and drag to pan</span>
+              </span>
+              {playback.stepping() ? (
+                <span className="tl-keytip tl-keytip--step" data-testid="timeline-step-tip">
+                  Step <kbd className="kbd">←</kbd>
+                  <kbd className="kbd">→</kbd> one frame · <kbd className="kbd">⇧</kbd> one second
+                </span>
+              ) : null}
+            </span>
             <button
               type="button"
               className="icon-btn k-icon-sm"

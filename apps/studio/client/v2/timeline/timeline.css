@@ -1267,6 +1267,55 @@
     background: transparent;
   }
 
+  /* V2-8.5 c4-video (07 `.ve-tip`, `.ve-tip--up`): the play button's key tip and the step tip — a dark pill over the
+     button, key caps outlined in it. Hover / keyboard focus shows the first; stepping shows the second. */
+  .tl-play-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .tl-keytip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-2));
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--fg-0);
+    color: var(--bg-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .tl-keytip .kbd {
+    background: transparent;
+    color: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--bg-2);
+  }
+  .tl-keytip-dim {
+    opacity: 0.72;
+  }
+  .tl-keytip--play {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-flip) var(--ease-out);
+  }
+  .tl-play-wrap:hover .tl-keytip--play,
+  .tl-play-wrap:focus-within .tl-keytip--play {
+    opacity: 1;
+    visibility: visible;
+  }
+  /* the two never stack: the play tip wins while the button is pointed at */
+  .tl-play-wrap:hover .tl-keytip--step,
+  .tl-play-wrap:focus-within .tl-keytip--step {
+    visibility: hidden;
+  }
+
   /* S7.9 — what a gesture says before the pointer lets go: a tip (title over a dimmer line), the insert line where
      a dragged beat lands, and the catcher that takes a drop over the artboard (the canvas draws the chip). */
   .tl-tip {
