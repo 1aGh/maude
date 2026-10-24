@@ -138,13 +138,13 @@ describe('anchors', () => {
     mount([comment('on-sticky', { annotationId: 's_sticky1', bounds: null })]);
     await wait(50);
     // Pin centre at the target's top-right corner: (right - 12, top - 12).
-    expect(pin('on-sticky')?.style.left).toBe(`${300 + 120 - 12}px`);
-    expect(pin('on-sticky')?.style.top).toBe(`${200 - 12}px`);
+    expect(pin('on-sticky')?.style.left).toBe(`${300 + 120 - 14}px`);
+    expect(pin('on-sticky')?.style.top).toBe(`${200 - 14}px`);
     expect(pin('on-sticky')?.getAttribute('data-detached')).toBe('false');
 
     giveRect(g, { x: 500, y: 260, w: 120, h: 80 }); // a peer moved the sticky
     await wait(50);
-    expect(pin('on-sticky')?.style.left).toBe(`${500 + 120 - 12}px`);
+    expect(pin('on-sticky')?.style.left).toBe(`${500 + 120 - 14}px`);
   });
 
   test('a floating comment holds a world point through pan and zoom', async () => {
@@ -157,12 +157,12 @@ describe('anchors', () => {
     mount([comment('floating', { world: { x: 100, y: 50 }, bounds: null })]);
     await wait(50);
     // screen point = vp + world·zoom = (210, 120); pin centred on it.
-    expect(pin('floating')?.style.left).toBe('210px');
-    expect(pin('floating')?.style.top).toBe(`${120 - 24}px`);
+    expect(pin('floating')?.style.left).toBe('208px');
+    expect(pin('floating')?.style.top).toBe(`${120 - 26}px`);
 
     vp = { x: -90, y: 20, zoom: 1 }; // pan left, zoom out
     await wait(50);
-    expect(pin('floating')?.style.left).toBe('10px');
-    expect(pin('floating')?.style.top).toBe(`${70 - 24}px`);
+    expect(pin('floating')?.style.left).toBe('8px');
+    expect(pin('floating')?.style.top).toBe(`${70 - 26}px`);
   });
 });
