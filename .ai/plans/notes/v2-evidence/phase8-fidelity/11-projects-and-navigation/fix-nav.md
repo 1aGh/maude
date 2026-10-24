@@ -26,3 +26,6 @@ Panel/⌘K/history/strip (nothing started): "not on this Mac" rows dim only the 
 ## Decisions
 - `decision:maude/v2-8.5-c8-home-pill-own-tree` — Home reuses `ProjectPill` with a Home-only tree instead of PROJECT_MENU (rows Home cannot run would be dead ends); rejected: a second hand-built pill, or the full project menu on Home.
 - `decision:maude/v2-8.5-c8-first-run-card-alone` — while the sign-in card shows, no empty shelves under it; 02 ob-first-launch (card alone) wins over 05 es-home-local's shelf in that state; Open project… stays reachable through the pill menu.
+
+## Round 2 (p8-c2-navcreate)
+Most of the OPEN list above is done in round 2 — see `fix-navcreate.md` (Home palette/ask row/See all/Find a project, account tone, strip, jump rows, trash, history Now row + A/B, ⌘K rows, deep-link toast). What is still open is listed there.

@@ -401,7 +401,10 @@ export function HomeApp() {
     const id = c.profile || 'default';
     const label = (data.shell?.profiles ?? []).find((p) => p.id === id)?.label || '';
     const email = c.account?.email || '';
-    return { ...accountFace({ id, label, email }), title: [label, email].filter(Boolean).join(' · ') || 'Your account' };
+    return {
+      ...accountFace({ id, label, email }),
+      title: [label, email].filter(Boolean).join(' · ') || 'Your account',
+    };
   }, [data.clouds, data.shell]);
   const searchPids = useMemo(
     () => (data.shell ? indexQuery(data.shell).pids : browserPids()),
@@ -831,7 +834,10 @@ export function HomeApp() {
               aria-label={face.title}
               title={face.title}
             >
-              <span className={`home-face home-face--md home-face--${face.tone}`} aria-hidden="true">
+              <span
+                className={`home-face home-face--md home-face--${face.tone}`}
+                aria-hidden="true"
+              >
                 {face.initial}
               </span>
             </span>
@@ -1415,7 +1421,18 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
 // foot; typing searches every project on this Mac, open or not.
 export const PALETTE_PLACEHOLDER = 'Search canvases, artboards, actions, or ask AI…';
 
-function HomeSearch({ open, onOpen, onClose, inputRef, pids, openTabs, recentCanvases, onOpenRow, onAsk, canOpen }) {
+function HomeSearch({
+  open,
+  onOpen,
+  onClose,
+  inputRef,
+  pids,
+  openTabs,
+  recentCanvases,
+  onOpenRow,
+  onAsk,
+  canOpen,
+}) {
   const [q, setQ] = useState('');
   const [result, setResult] = useState(null);
   const [recent, setRecent] = useState([]);
@@ -1705,7 +1722,10 @@ function HomeSearch({ open, onOpen, onClose, inputRef, pids, openTabs, recentCan
                               <Thumb src={thumbUrl(g.pid, row.cover)} className="home-thumb-pal" />
                             ) : (
                               <span className="home-pal-ic">
-                                <HIcon name={row.group === 'artboards' ? 'home' : 'folder'} size={14} />
+                                <HIcon
+                                  name={row.group === 'artboards' ? 'home' : 'folder'}
+                                  size={14}
+                                />
                               </span>
                             )}
                             <span className="home-pal-label">

@@ -4,12 +4,11 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
+import { STICONS } from '../client/shell/icons.jsx';
 import { applyShellNavigate } from '../client/shell-events.js';
 import { BOARD_H, ROW_H, rowHeight } from '../client/v2/canvases/tree-model.js';
 import { remoteRows } from '../client/v2/search/search-model.js';
 import { startRows } from '../client/v2/search/search-recent.js';
-import { STICONS } from '../client/shell/icons.jsx';
 
 const read = (rel: string) => readFileSync(join(import.meta.dir, '..', rel), 'utf8');
 const rule = (css: string, selector: string) => {

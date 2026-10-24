@@ -2,7 +2,6 @@
 // an Ask AI row), Find a project + sort, the trailing project square, See all, the top-right face.
 // Tauri is stubbed as in p8-c-nav-home.test.tsx; no keychain, no real cloud.
 
-
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
@@ -14,11 +13,10 @@ afterAll(() => {
   GlobalRegistrator.unregister();
 });
 
-import { act, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { act, createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 
 import * as api from '../client/home/home-api.js';
 import { HomeApp } from '../client/home/home-app.jsx';
@@ -216,7 +214,6 @@ const press = (el: Element | null, key: string, init: KeyboardEventInit = {}) =>
   return e;
 };
 
-
 // seven canvases in one project and three projects, so See all and Find a project have something to do
 const PB = 'l00000000000000b2';
 const PC = 'l00000000000000c3';
@@ -258,7 +255,14 @@ const MANY = {
 const SHELL_MANY = {
   projects: [
     { pid: P1, root: '/x/a', name: 'Alligators brand', profile: 'default', place: 'tab' },
-    { pid: PB, root: '/x/b', name: 'Studio site', profile: 'default', place: 'tab', ai: { running: 1 } },
+    {
+      pid: PB,
+      root: '/x/b',
+      name: 'Studio site',
+      profile: 'default',
+      place: 'tab',
+      ai: { running: 1 },
+    },
     { pid: PC, root: '/x/c', name: 'Portfolio 2026', profile: 'default', place: 'closed' },
   ],
   profiles: [{ id: 'default', label: 'Personal' }],
@@ -333,7 +337,9 @@ describe('⌘K on Home is a centred palette (11 pn-home-search)', () => {
     });
     press($('home-search'), 'Enter', { metaKey: true });
     await flush();
-    expect(hit('/_home/projects/create-local').length + cmds('open_project').length).toBeGreaterThan(0);
+    expect(
+      hit('/_home/projects/create-local').length + cmds('open_project').length
+    ).toBeGreaterThan(0);
   });
 });
 

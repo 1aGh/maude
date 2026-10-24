@@ -584,7 +584,13 @@ export function layoutRows(rows) {
 }
 
 export const rowHeight = (row) =>
-  row.type === 'empty' ? EMPTY_H : row.type === 'board' ? BOARD_H : row.fileName ? ROW_H_FILE : ROW_H;
+  row.type === 'empty'
+    ? EMPTY_H
+    : row.type === 'board'
+      ? BOARD_H
+      : row.fileName
+        ? ROW_H_FILE
+        : ROW_H;
 
 /**
  * The slice of rows to put in the DOM: what the viewport shows plus OVERSCAN either side, never more than
