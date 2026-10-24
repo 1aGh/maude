@@ -115,3 +115,6 @@ Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes
 | `ai-advanced` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
 | `ai-adv-edges` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
 | `ai-history` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+
+## Round 3 (p8-c3-ai)
+IMPL re-shot (light + dark) after the AI-on-canvas / chat fixes, SPEC reused: every id above except ai-queue-rule, ai-other-tab, ai-tereza, ai-needs-tab, ai-needs-away (unreachable). Judged by the lead critic; what this round did and left open: `fix-c3-ai.md`.
