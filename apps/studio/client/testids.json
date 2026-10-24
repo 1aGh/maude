@@ -30152,7 +30152,23 @@
     "hook": "insp-safe-zones",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Safe zones select (None, Instagram story, Instagram Reels, Instagram profile grid, TikTok, YouTube Shorts, Facebook event cover). Fixed-size and video artboards only.",
+    "meaning": "The Safe zones trigger (a select-shaped button; `data-value` = the chosen id): it opens the floating checked platform menu. Fixed-size and video artboards only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
+      "symbol": "SafeZonesBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
+    ],
+    "v2": "new in v2 (S7.22)"
+  },
+  {
+    "hook": "insp-safe-zones-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The floating platform list under the Safe zones trigger: head, one checked row per platform (`insp-safe-zones-<id>`; `none` for None), rule, footnote.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
       "symbol": "SafeZonesBody"
@@ -30181,26 +30197,10 @@
     "v2": "new in v2 (S7.22)"
   },
   {
-    "hook": "insp-safe-zones-note",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "One line under the Safe zones rows: what the chosen platform covers.",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
-      "symbol": "SafeZonesBody"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-safe-zones.test.tsx"
-    ],
-    "v2": "new in v2 (S7.22)"
-  },
-  {
     "hook": "insp-safe-zones-foot",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Shown on the canvas only — never exported. Zones as each platform publishes them, checked Oct 2026.\"",
+    "meaning": "The menu footnote: \"Shown on the canvas only — never exported. Zones as each platform publishes them, checked Oct 2026.\"",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/safe-zones.jsx",
       "symbol": "SafeZonesBody"

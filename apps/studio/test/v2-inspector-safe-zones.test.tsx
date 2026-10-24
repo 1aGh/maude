@@ -102,14 +102,22 @@ async function frame(el: ReturnType<typeof STORY>) {
     />
   );
 }
-const pick = async (el: Element | null, value: string) => {
-  const e = must(el, 'select') as HTMLSelectElement;
+const clickEl = async (el: Element) => {
   await act(async () => {
-    e.value = value;
-    e.dispatchEvent(new window.Event('change', { bubbles: true }));
+    el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   });
   await settle();
 };
+// V2-8.5 C4: the platform is a trigger that opens the floating checked menu; a pick is a click on its row
+const openMenu = async (host: HTMLElement) => {
+  if (!q(host, 'insp-safe-zones-menu')) await clickEl(must(q(host, 'insp-safe-zones'), 'trigger'));
+};
+const pick = async (trigger: Element | null, value: string) => {
+  const host = must(trigger, 'trigger').closest('[data-testid^="insp-sec-"]')?.parentElement as HTMLElement;
+  await openMenu(host ?? document.body);
+  await clickEl(must(document.querySelector(`[data-testid="insp-safe-zones-${value || 'none'}"]`), `row ${value}`));
+};
+const shown = (host: HTMLElement) => q(host, 'insp-safe-zones')?.getAttribute('data-value');
 
 describe('which artboards get the section', () => {
   test('a fixed-size artboard and a video artboard do; a web page and a print sheet do not', async () => {
@@ -121,11 +129,15 @@ describe('which artboards get the section', () => {
     expect(q(await frame(STORY({ 'data-dc-kind': 'print' })), 'insp-sec-safe-zones')).toBeNull();
   });
 
-  test('the section is titled "Safe zones" and the select is the canvas menu, None first', async () => {
-    const host = await frame(STORY());
+  test('the platform list is the floating checked menu: a head, None first, the checked row, a footnote', async () => {
+    const host = await frame(STORY({ 'data-dc-safe-zones': 'tiktok' }));
     expect(q(host, 'insp-sec-safe-zones')?.getAttribute('aria-label')).toBe('Safe zones');
-    const sel = must(q(host, 'insp-safe-zones'), 'select') as HTMLSelectElement;
-    expect([...sel.options].map((o) => o.textContent)).toEqual([
+    expect(q(host, 'insp-safe-zones-menu')).toBeNull(); // closed until asked
+    await openMenu(host);
+    const menu = must(q(host, 'insp-safe-zones-menu'), 'menu');
+    expect(menu.querySelector('.insp-zmenu-h')?.textContent).toBe('Safe zones');
+    const rows = [...menu.querySelectorAll('[role="menuitemradio"]')];
+    expect(rows.map((o) => o.textContent)).toEqual([
       'None',
       'Instagram story',
       'Instagram Reels',
@@ -134,12 +146,15 @@ describe('which artboards get the section', () => {
       'YouTube Shorts',
       'Facebook event cover',
     ]);
-    expect(sel.value).toBe('');
+    expect(rows.filter((r) => r.getAttribute('aria-checked') === 'true').map((r) => r.textContent)).toEqual(['TikTok']);
+    expect(rows.find((r) => r.getAttribute('aria-checked') === 'true')?.querySelector('svg')).toBeTruthy();
   });
 
-  test('the foot (a chosen platform only) says never exported and carries the date; None has no foot', async () => {
-    expect(q(await frame(STORY()), 'insp-safe-zones-foot')).toBeNull();
+  test('the footnote lives in the menu (never in the card), says never exported and carries the date', async () => {
     const host = await frame(STORY({ 'data-dc-safe-zones': 'instagram-story' }));
+    expect(q(host, 'insp-safe-zones-foot')).toBeNull();
+    expect(q(host, 'insp-safe-zones-note')).toBeNull();
+    await openMenu(host);
     expect(q(host, 'insp-safe-zones-foot')?.textContent).toBe(
       'Shown on the canvas only — never exported. Zones as each platform publishes them, checked Oct 2026.'
     );
@@ -147,17 +162,19 @@ describe('which artboards get the section', () => {
 });
 
 describe('the artboard already has a zone', () => {
-  test('the select shows it, "Show on canvas" appears, and so does the platform\'s note', async () => {
+  test('the trigger shows it, "Show on canvas" appears, and the platform\'s note is its row\'s tooltip', async () => {
     const host = await frame(STORY({ 'data-dc-safe-zones': 'instagram-reels' }));
-    expect((q(host, 'insp-safe-zones') as HTMLSelectElement).value).toBe('instagram-reels');
+    expect(shown(host)).toBe('instagram-reels');
+    expect(q(host, 'insp-safe-zones')?.textContent).toBe('Instagram Reels');
     expect(q(host, 'insp-row-safe-zones-show')).not.toBeNull();
-    expect(q(host, 'insp-safe-zones-note')?.textContent).toContain('Caption and audio');
+    await openMenu(host);
+    expect(q(host, 'insp-safe-zones-instagram-reels')?.getAttribute('title')).toContain('Caption and audio');
   });
 
   test('no zone, no "Show on canvas" row; an id this build does not know reads as None', async () => {
     expect(q(await frame(STORY()), 'insp-row-safe-zones-show')).toBeNull();
     const host = await frame(STORY({ 'data-dc-safe-zones': 'snapchat' }));
-    expect((q(host, 'insp-safe-zones') as HTMLSelectElement).value).toBe('');
+    expect(shown(host)).toBe('');
   });
 });
 
@@ -194,7 +211,7 @@ describe('writes', () => {
     expect(q(host, 'insp-safe-zones-said')?.textContent).toBe(
       'Not changed. This belongs to AI until it’s done; Stop is in the AI chat.'
     );
-    expect((q(host, 'insp-safe-zones') as HTMLSelectElement).value).toBe('');
+    expect(shown(host)).toBe('');
     answer = () => new Response(JSON.stringify({ ok: true }), { status: 200 });
   });
 
