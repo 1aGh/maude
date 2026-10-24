@@ -358,7 +358,7 @@ describe('the hint, live', () => {
     expect(document.querySelector('[data-testid="edit-drop-hint"]')).toBeNull();
   });
 
-  test('with no empty frame several photos say a tidy grid', async () => {
+  test('with no empty frame several photos name the artboard they go to (12 · ia-drop-photos)', async () => {
     const { art, body } = board(0, 2);
     over([body, art]);
     await mount();
@@ -366,7 +366,7 @@ describe('the hint, live', () => {
       document.body.dispatchEvent(drag('dragover', ['Files'], photos(6)));
     });
     expect(document.querySelector('[data-testid="edit-drop-hint"]')?.textContent).toBe(
-      'Drop to place 6 photos in a tidy grid'
+      'Drop to place 6 photos in Fotky ze zápasu'
     );
   });
 
