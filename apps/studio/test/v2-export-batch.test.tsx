@@ -541,6 +541,11 @@ describe('the sheet: many at once', () => {
       'print-pdf'
     );
     expect(text('[data-testid="export-group-print"]')).toContain('Bleed + crop marks');
+    // 09: the kind's icon tile is always first; the still stack (when there is one) sits after the names, before the value
+    const row = $('[data-testid="export-group-digital"]') as HTMLElement;
+    expect(row.firstElementChild?.className).toBe('ex-grp-ic');
+    expect(row.querySelector('.ex-grp-v [data-testid="export-group-digital-format"]')).not.toBeNull();
+    expect($('[data-testid="export-row-folders"] [data-testid="export-folders"]')).not.toBeNull();
     await click('[data-testid="export-submit"]');
     expect(posted()).toMatchObject({
       v: 2,
@@ -617,6 +622,11 @@ describe('the sheet: many at once', () => {
 
   test('Other… in a batch puts the format on every kind that can take it', async () => {
     await mountSheet();
+    // V2-8.5 C4 (09 ex-canvas): the batch sheet draws no "Other format" row — it sits under Advanced
+    expect($('[data-testid="export-row-other"]')).toBeNull();
+    expect($('[data-testid="export-row-annotations"]')).toBeNull();
+    await click('[data-testid="export-advanced-toggle"]');
+    expect($('[data-testid="export-row-annotations"]')).not.toBeNull();
     await click('[data-testid="export-other"]');
     await click('[data-testid="export-other-menu"] [data-testid="export-format-pdf"]');
     expect(($('[data-testid="export-group-digital-format"]') as HTMLSelectElement).value).toBe(

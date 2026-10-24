@@ -50,13 +50,14 @@ import { OtherFormats } from './other-formats.jsx';
 import { laneBlocked, replayBody, runExport } from './run-export.js';
 import { ScopeBar } from './scope-bar.jsx';
 import { picksForOther } from './sections/batch-model.js';
-import { BatchSection } from './sections/batch.jsx';
+import { BatchAdvancedRows, BatchSection } from './sections/batch.jsx';
 import { ImageSection } from './sections/image.jsx';
 import { PrintSection } from './sections/print.jsx';
 import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { videoButtonLabel } from './sections/video-copy.js';
 import { VideoSection } from './sections/video.jsx';
 import { VISIBLE_HEIGHT, WebCodeLine, WebSection } from './sections/web.jsx';
+import { Select } from './advanced/fields.jsx';
 import { Row } from './parts.jsx';
 import { FOLD_HINT, FOLD_HINT_BATCH } from './advanced/advanced-copy.js';
 import { RenderRow } from './sections/render-row.jsx';
@@ -482,7 +483,14 @@ export function ExportSheet({
       folders={
         batch ? (
           <Row k="Folders" testid="export-row-folders">
-            <span className="ex-val">One folder</span>
+            {/* 09: a select with the path it makes under it. File names carry no `/` yet, so one folder is the one choice */}
+            <Select
+              label="Folders"
+              testid="export-folders"
+              value="one"
+              options={[['one', 'One folder']]}
+              onChange={() => {}}
+            />
             <span className="ex-row-n ex-row-n--in" data-testid="export-folders-note">
               {fileSamples[0] ?? ''}
             </span>
@@ -603,6 +611,17 @@ export function ExportSheet({
             exportLane={exportLane}
             facts={nameFacts}
             sheetScale={effectiveScale(state, kind)}
+            extra={
+              batch ? (
+                <BatchAdvancedRows
+                  state={state}
+                  set={set}
+                  other={other}
+                  annotationsOff={annot.off}
+                  annotationsNote={annot.note}
+                />
+              ) : null
+            }
           />
           <ShareHint names={people} onCopyLink={copyLink} />
 

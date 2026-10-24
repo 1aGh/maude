@@ -16,8 +16,8 @@ import {
   formatSkipLine,
   groupTitle,
   kindLabel,
-  orderKinds,
   OTHER_ROW,
+  orderKinds,
   PROJECT_ZIP_ACTION,
   PROJECT_ZIP_LINE,
   sharedPartsLine,
@@ -53,9 +53,23 @@ export function stillsOf(pictures, kind, max = 3) {
 function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stills = [] }) {
   const Icon = KIND_ICON[kind] ?? DigitalIcon;
   const choice = choiceFor(kind, { [kind]: pick });
-  const where = kind === 'video' ? (cloud ? WHERE_CLOUD : WHERE_THIS_MAC) : WHERE_THIS_MAC;
+  // 09: the small note under the value — what the format adds (print: "Bleed + crop marks"), or that a video renders in
+  // the cloud; nothing for the ordinary "on this Mac"
+  const note = choice.note ?? (kind === 'video' && cloud ? WHERE_CLOUD : null);
   return (
     <div className="ex-group" data-testid={`export-group-${kind}`} data-kind={kind}>
+      <span className="ex-grp-ic" aria-hidden="true">
+        <Icon size={16} />
+      </span>
+      <div className="ex-group-t">
+        <strong data-testid={`export-group-${kind}-title`}>
+          {groupTitle(kind, row.artboards)}
+        </strong>
+        <span className="ex-group-s" data-testid={`export-group-${kind}-names`}>
+          {canvases > 1 ? `from ${canvases} canvases — ` : ''}
+          {namesLine(boards) || (kind === 'video' && cloud ? WHERE_CLOUD : WHERE_THIS_MAC)}
+        </span>
+      </div>
       {stills.length ? (
         <span
           className="ex-grp-stack"
@@ -66,31 +80,17 @@ function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stil
             <img key={s.url} src={s.url} alt="" loading="lazy" draggable={false} />
           ))}
         </span>
-      ) : (
-        <span className="ex-grp-ic" aria-hidden="true">
-          <Icon size={16} />
-        </span>
-      )}
-      <div className="ex-group-t">
-        <strong data-testid={`export-group-${kind}-title`}>
-          {groupTitle(kind, row.artboards)}
-        </strong>
-        <span className="ex-group-s" data-testid={`export-group-${kind}-names`}>
-          {canvases > 1 ? `from ${canvases} canvases — ` : ''}
-          {namesLine(boards) || where}
-        </span>
-        <span className="ex-group-w">
-          {where}
-          {choice.note ? ` · ${choice.note}` : ''}
-        </span>
-      </div>
-      <Select
-        label={kindLabel(kind)}
-        testid={`export-group-${kind}-format`}
-        value={choice.id}
-        options={choicesFor(kind).map((c) => [c.id, c.label])}
-        onChange={onPick}
-      />
+      ) : null}
+      <span className="ex-grp-v">
+        <Select
+          label={kindLabel(kind)}
+          testid={`export-group-${kind}-format`}
+          value={choice.id}
+          options={choicesFor(kind).map((c) => [c.id, c.label])}
+          onChange={onPick}
+        />
+        {note ? <small className="ex-grp-note">{note}</small> : null}
+      </span>
     </div>
   );
 }
@@ -99,16 +99,12 @@ function Group({ kind, row, pick, cloud, onPick, boards = [], canvases = 0, stil
  * @param state    the sheet's state (`kindPicks`: { [kind]: choiceId })
  * @param set      patch the sheet's state
  * @param est      the server's estimate (`byKind`, `skipped`, `counts`, numbers)
- * @param other    the "Other…" button node (the sheet owns that menu)
  * @param setFormat  the sheet's format setter (Project ZIP instead)
  */
 export function BatchSection({
   state,
   set,
   est,
-  other,
-  annotationsOff = false,
-  annotationsNote,
   setFormat,
   pictures,
 }) {
@@ -170,6 +166,17 @@ export function BatchSection({
           {PROJECT_ZIP_LINE}
         </Hint>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * 09 draws no "Other format" and no "Annotations" row in the batch sheet: each kind's own select is the format
+ * choice. The two stay reachable under Advanced, where the sheet's less common knobs live.
+ */
+export function BatchAdvancedRows({ state, set, other, annotationsOff = false, annotationsNote }) {
+  return (
+    <div className="ex-adv-extra" data-testid="export-adv-extra">
       <Row k={OTHER_ROW} testid="export-row-other">
         {other}
       </Row>
@@ -184,6 +191,6 @@ export function BatchSection({
           {ANNOTATIONS_LABEL}
         </Check>
       </Row>
-    </>
+    </div>
   );
 }
