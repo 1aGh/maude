@@ -1,4 +1,10 @@
-/Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/pairs/06-advanced/
+stage D (6d19daa9a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ace93bd2b562b89ad/.scr/pairs/06-advanced/
+(one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
+stage D IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ace93bd2b562b89ad/.scr/impl-out/06-advanced/
+stage D SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ace93bd2b562b89ad/.scr/spec/06/
+stage D harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/
+
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/pairs/06-advanced/
 (one PNG per artboard id and theme: <id>-<dark|light>.png, spec left | impl right, same height, label strip on top)
 SPEC images alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/spec/06/
 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl-out/06-advanced/

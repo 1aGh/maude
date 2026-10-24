@@ -86,3 +86,43 @@ The pairs above (`06-advanced/<id>-<theme>.jpg`) were overwritten with the relea
 | ad-code | fixed (palette rows) | fixed (palette rows) | per-action glyphs; the read-only code panel was not opened |
 | ad-edge-syntax | still differs | still differs | disclosure is "Advanced", ARow rows, ghost Copy error; the provenance clause and the last-good ghost boards need server signals |
 | ad-map · ad-why · ad-trace · ad-timeline · ad-ds · ad-menus · ad-edge-sync · ad-edge-hub · ad-edge-where · ad-edge-remember | unreachable | unreachable | unchanged: documentation, native menu bar, hub / roles / offline, a video canvas, a Design system board |
+
+
+## after (stage D, 6d19daa9a)
+
+Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes, so the critic re-check compares the board with what the app draws now. No match / mismatch judged here. Pair images (`<id>-<theme>.jpg`, SPEC left | IMPL right) were overwritten in place; the SPEC side is **reused** from stage A for every id (no `.design/ui/v2/06 *` change since the stage-A shot; `git log` shows only 02 and 09 touched). The `extra-impl-*` frames were re-shot too.
+
+- Same harness as stage A. Adaptations: the What's new toast dismissed through its close button.
+- **ad-share** was re-shot with the `window.__TAURI__` stub removed just before the Share click: in the desktop shell a local project's Share now opens "Move to the cloud?" and hides Share > Advanced (`offering`, share-sheet.jsx), so the Advanced fold is only drawn for a local project in the browser lane (or a linked one). The desktop-shell frame of the same click is not part of the pair.
+- **ad-diag / ad-syncd / ad-ai-diag**: the Diagnostics sheet no longer has the Server / Sync / AI tabs; it draws Logs, Server and AI setup at once (a local project has no Sync card). The three ids therefore show the same sheet frame (taken after the Logs frame, no tab click).
+- **ad-timeline** is newly reached (stage A: unreachable): the base fixture's VideoEdit canvas, Reel artboard selected, timeline expanded, its Advanced row opened (S7.18).
+- Panel-detail crops (ad-ai, ad-pinned...) widened as in 03. ad-ds stays unreachable: no Design system canvas can be seeded in this lane (the sheet needs a real system/ folder with specimens).
+- Not reachable, unchanged: ad-map, ad-why, ad-trace (explanation boards), ad-menus (native menu bar), ad-edge-sync / ad-edge-hub (hub), ad-edge-where, ad-edge-remember (multi-context stories).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (same) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (same) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (same) |
+| `ad-inspector` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-left` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-ai` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-share` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-timeline` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-export` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-history` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-ds` | unreachable (Design system board: the DS seeds do not make a real board in this lane (see wave-B gate note); no Design system canvas to open.) | unreachable (same) |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (same) |
+| `ad-diag` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-logs` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-syncd` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-settings` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-pinned` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-search` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-open-all` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-code` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (same) |
+| `ad-edge-syntax` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (same) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (same) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (same) |

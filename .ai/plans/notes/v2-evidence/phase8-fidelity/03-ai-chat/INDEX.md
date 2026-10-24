@@ -74,3 +74,44 @@ Theme: both themes were made for every artboard. Differences below are the dark 
 | `ai-adv-edges` | 28 - modes, slash, paste, Copy and Retry, the terminal (four panels) | type / in the field | partially: one of four | Slash menu present (/design:critic, :edit, :screenshot, :export + 'More... 27 more') matching the spec's third panel; Ask-before menu (Replace or move to the trash / When unsure / Nothing - change freely / Suggest only / Skip what needs asking / Skip every check), the 'AI is set to suggest only - Allow changes' banner and the Copy / Retry hover not driven | same structure; chrome follows the light host theme | `03-ai-chat/ai-adv-edges-light.jpg` |
 | `ai-history` | 29 - made by AI, in Version history (Made by AI rows, Undo this chat, Compare side by side) | alt-cmd-H after an AI edit | partially | Version history panel opens with All / Named / Made by AI / People tabs and the row actions; but the new version is attributed 'You - changed outside the app' (harness: the fake agent edits through hooks, not the real write path), so no 'Made by AI' badge, no 'Undo this chat' / 'Restore' pair on the row, no Compare bar (Side by side / Overlay) and no before/after pair on the canvas | base | `03-ai-chat/ai-history-dark.jpg` |
 | `ai-history` | 29 - made by AI, in Version history (Made by AI rows, Undo this chat, Compare side by side) | alt-cmd-H after an AI edit | partially | Version history panel opens with All / Named / Made by AI / People tabs and the row actions; but the new version is attributed 'You - changed outside the app' (harness: the fake agent edits through hooks, not the real write path), so no 'Made by AI' badge, no 'Undo this chat' / 'Restore' pair on the row, no Compare bar (Side by side / Overlay) and no before/after pair on the canvas | same structure; chrome follows the light host theme | `03-ai-chat/ai-history-light.jpg` |
+
+
+## after (stage D, 6d19daa9a)
+
+Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes, so the critic re-check compares the board with what the app draws now. No match / mismatch judged here. Pair images (`<id>-<theme>.jpg`, SPEC left | IMPL right) were overwritten in place; the SPEC side is **reused** from stage A for every id (no `.design/ui/v2/03 *` change since the stage-A shot; `git log` shows only 02 and 09 touched). The `extra-impl-*` frames were re-shot too.
+
+- Same harness as stage A (fake ACP agent, Alligators brand fixture, Chromium 1440x900 with a window.__TAURI__ stub, release-built client of the tip). Harness adaptations only, no product change: the What's new toast is dismissed through its close button; the composer is picked with `:visible` (a hidden earlier chat now keeps its composer in the DOM); the pin toggle is clicked through a dispatched click (the pin button sits under the settings corner icon while the chat is pinned, so a pointer click never lands).
+- Panel-detail crops were widened from x 1130 / w 310 to x 1050 / w 390 because the chat is now a floating island (bottom right) instead of a docked column.
+- Not reachable in the browser lane, unchanged since stage A: ai-queue-rule (a drawn rule), ai-other-tab / ai-needs-tab (second desktop tab), ai-needs-away (OS notification), ai-tereza (second person on a hub).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-open` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-suggest` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-scope` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-working` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-done` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-attach` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-attach-menu` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-question` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-long` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-long-pinned` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-two-artboards` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-same-artboard` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-copy` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (same) |
+| `ai-chat-list` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-panel-closed` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-quit` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-needs-hidden` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (same) |
+| `ai-permission` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-choice-fail` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-not-ready` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-advanced` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-adv-edges` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+| `ai-history` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
