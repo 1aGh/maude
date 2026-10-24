@@ -195,6 +195,8 @@ describe('annotate --ops: create / connect / group / delete', () => {
     );
     expect(bound).toHaveLength(1);
     expect(bound[0]?.start).toEqual({ el: refs['@n1'] });
+    // a connector is born the way a drawn arrow is (Curved), not a straight 1 px chord (15 an-follow · an-plan)
+    expect(bound[0]?.line).toBe('curved');
 
     const del = annotate(['ui/Flow.tsx'], { ops: [{ op: 'delete', id: refs['@n2'] }] });
     expect(del.code).toBe(0);
@@ -646,6 +648,7 @@ describe('annotate placement: --in / --pin / --near', () => {
     expect(arrows[0]?.start).toEqual({ el: sticky?.id });
     // The element side facing the note centre (760, 600): its bottom middle.
     expect(arrows[0]?.end).toEqual({ x: 560, y: 540 });
+    expect(arrows[0]?.line).toBe('curved');
     expect(arrows[0]?.author).toEqual({ kind: 'ai' });
   });
 

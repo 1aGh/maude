@@ -574,7 +574,10 @@ export class AiBatch {
 
   /** A bound connector between two elements; a label becomes a text at its midpoint. */
   connect(op: Record<string, unknown>): string {
+    // V2-8.5 round 4 — a connector is born the way a drawn arrow is: Curved (arrow-kinds.ts NEW_ARROW; 15 an-follow ·
+    // an-plan · an-ai-write draw curves), unless the op says Straight / Elbow
     const id = this.create('arrow', {
+      line: 'curved',
       ...Object.fromEntries(
         Object.entries(op).filter(([k]) => k !== 'label' && k !== 'text' && k !== 'op')
       ),
@@ -601,7 +604,7 @@ export class AiBatch {
     if (!from) return null;
     const a = facingAnchor(target, from.x + from.w / 2, from.y + from.h / 2);
     const [ex, ey] = anchorPoint(target, 0, a.nx, a.ny);
-    return this.create('arrow', { from: fromId, x2: ex, y2: ey, parent: null });
+    return this.create('arrow', { from: fromId, x2: ex, y2: ey, parent: null, line: 'curved' });
   }
 
   /** Patch fields of an element (world x/y). `text` goes to the type's text slot. */
