@@ -275,7 +275,9 @@ export function TokenPanel({
         <Row k="Dark" name="ds-dark">
           {isColour ? <Chip model={model} theme={themes.dark} value={darkV} /> : null}
           <span className="ds-tk-name" data-testid="ds-token-dark">
-            {follows && isColour ? 'Follows Light' : valueName(themes.dark) || (isColour ? token.label : darkV)}
+            {follows && isColour
+              ? 'Follows Light'
+              : valueName(themes.dark) || (isColour ? token.label : darkV)}
           </span>
         </Row>
       ) : null}
@@ -298,20 +300,20 @@ export function TokenPanel({
             />
           ) : null}
           {isColour ? null : (
-          <input
-            type="text"
-            className="ds-tk-text"
-            data-testid="ds-token-value"
-            aria-label={`${token.label} — value`}
-            spellCheck={false}
-            value={shown}
-            onChange={(e) => setTyped(e.target.value)}
-            onBlur={submitText}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-              if (e.key === 'Escape') setTyped(null);
-            }}
-          />
+            <input
+              type="text"
+              className="ds-tk-text"
+              data-testid="ds-token-value"
+              aria-label={`${token.label} — value`}
+              spellCheck={false}
+              value={shown}
+              onChange={(e) => setTyped(e.target.value)}
+              onBlur={submitText}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                if (e.key === 'Escape') setTyped(null);
+              }}
+            />
           )}
         </Row>
       )}
@@ -397,21 +399,24 @@ export function TokenPanel({
           Advanced <span>{isColour ? 'OKLCH' : 'CSS'}</span>
         </summary>
         {isColour && !locked ? (
-          <Row k={hasDark ? (theme === themes.dark ? 'Dark value' : 'Light value') : 'Value'} name="ds-value">
-          <input
-            type="text"
-            className="ds-tk-text"
-            data-testid="ds-token-value"
-            aria-label={`${token.label} — value`}
-            spellCheck={false}
-            value={shown}
-            onChange={(e) => setTyped(e.target.value)}
-            onBlur={submitText}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-              if (e.key === 'Escape') setTyped(null);
-            }}
-          />
+          <Row
+            k={hasDark ? (theme === themes.dark ? 'Dark value' : 'Light value') : 'Value'}
+            name="ds-value"
+          >
+            <input
+              type="text"
+              className="ds-tk-text"
+              data-testid="ds-token-value"
+              aria-label={`${token.label} — value`}
+              spellCheck={false}
+              value={shown}
+              onChange={(e) => setTyped(e.target.value)}
+              onBlur={submitText}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                if (e.key === 'Escape') setTyped(null);
+              }}
+            />
           </Row>
         ) : null}
         <Row k="Light" name="ds-adv-light">

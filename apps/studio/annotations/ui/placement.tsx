@@ -174,7 +174,8 @@ export function PlacementGhost({
         height: size.h * z,
         border: '1.5px dashed var(--maude-hud-accent, oklch(0.53 0.175 238))',
         borderRadius: 8,
-        background: 'color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 8%, transparent)',
+        background:
+          'color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 8%, transparent)',
       }}
     />
   );

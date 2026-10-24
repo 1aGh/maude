@@ -34,7 +34,10 @@ describe('the Design system bar', () => {
   });
 
   test('is drawn on the HUD island tokens, never on CSS system colours', () => {
-    const bar = CSS.slice(CSS.indexOf('/* ─── The bar'), CSS.indexOf('@media (prefers-reduced-motion'));
+    const bar = CSS.slice(
+      CSS.indexOf('/* ─── The bar'),
+      CSS.indexOf('@media (prefers-reduced-motion')
+    );
     expect(bar).not.toMatch(/\b(Canvas|CanvasText|Highlight|HighlightText)\b/);
     expect(rule('.ds-bar')).toContain('var(--maude-hud-island-bg)');
     expect(rule('.ds-bar')).toContain('height: 44px');

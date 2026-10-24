@@ -6048,7 +6048,14 @@ function LockBadge({
       data-testid="annot-lock-badge"
       transform={`translate(${xMax + pad} ${yMin - size - pad}) scale(${size / 24})`}
     >
-      <rect x={-2} y={-2} width={28} height={28} rx={6} fill="var(--maude-hud-accent, oklch(0.53 0.175 238))" />
+      <rect
+        x={-2}
+        y={-2}
+        width={28}
+        height={28}
+        rx={6}
+        fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
+      />
       <g fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="5" y="11" width="14" height="9" rx="2" />
         <path d="M8 11V8a4 4 0 018 0v3" />

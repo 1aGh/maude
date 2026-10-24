@@ -37,8 +37,8 @@ import { LOCKED_LINE } from './annotations/ui/locked.tsx';
 import { SECTION_TONES } from './annotations/ui/section-fold.ts';
 import { postToShell } from './annotations/ui/shell-asks.ts';
 import { flipPatch, isGallerySticker } from './annotations/ui/sticker-drop.ts';
-import type { AlignEdge } from './annotations-align.ts';
 import { STICKY_FRONT, STICKY_MORE } from './annotations/ui/tool-prefs.ts';
+import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
   type ArrowLineType,
@@ -92,9 +92,9 @@ import {
   IconUngroup,
   SHAPE_KIND_ICONS,
 } from './canvas-icons.tsx';
+import { IconMore } from './toolbars/toolbar-icons.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
 import { isHttpUrl, linkDomain } from './use-canvas-media-drop.tsx';
-import { IconMore } from './toolbars/toolbar-icons.tsx';
 
 // Phase 24 — arrowhead + line-type option metadata (icon + label per value),
 // driving the per-end head dropdowns + the line-type dropdown.
@@ -1974,7 +1974,7 @@ function StickyMore({
             role="menuitem"
             className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
             data-testid="annot-ctx-resolve"
-            aria-pressed={resolved}
+            data-resolved={resolved ? 'true' : undefined}
             title={resolved ? 'Reopen this sticky' : 'Resolve — strike it through'}
             onClick={() => {
               onResolve();

@@ -124,7 +124,7 @@ describe('the small toolbar over a sticky', () => {
     await click(byId(host, 'annot-ctx-more'));
     const b = byId(host, 'annot-ctx-resolve');
     expect(b?.textContent).toBe('Reopen');
-    expect(b?.getAttribute('aria-pressed')).toBe('true');
+    expect(b?.getAttribute('data-resolved')).toBe('true');
   });
   test("two stickies selected: no per-sticky words (a comment is one sticky's thread)", async () => {
     const { host } = await mountToolbar([sticky(), sticky({ id: 'st2' })], ['st', 'st2']);

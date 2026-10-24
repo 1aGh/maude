@@ -2,7 +2,7 @@
 // kit's corner on all four sides, full ink when resolved), the section title is a solid object-colour chip, and
 // the toolbar's "front five" is the dock's: yellow · coral · green · sky · lilac.
 import { describe, expect, test } from 'bun:test';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -60,7 +60,14 @@ describe('a sticky is the DS paper', () => {
 
 describe('the section title is a solid chip', () => {
   test('object colour fill, object-ink title in semibold', () => {
-    const html = scene({ id: 'sec1', type: 'section', label: 'Feedback', color: '#a9dbdb', w: 400, h: 300 });
+    const html = scene({
+      id: 'sec1',
+      type: 'section',
+      label: 'Feedback',
+      color: '#a9dbdb',
+      w: 400,
+      h: 300,
+    });
     const chip = /<div class="dc-annot-chip"[^>]*>/.exec(html)?.[0] ?? '';
     expect(chip).toContain('background-color:#a9dbdb');
     expect(chip).not.toContain('color-mix');
