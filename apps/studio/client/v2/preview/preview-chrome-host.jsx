@@ -28,6 +28,8 @@ import { OpenInApp, openInAppLink } from './open-in-app.jsx';
 import { PreviewBar, previewHint } from './preview-bar.jsx';
 import { clearPreviewBack, runPreviewBack, setPreviewBack } from './preview-back.js';
 import { previewHistory } from './preview-history.js';
+import { menuRunner } from '../shell/menu-runner.js';
+import { ZoomUndo, zoomUndoForm } from '../undo/zoom-undo.jsx';
 import { useViewportZoom, ZoomOnly } from './zoom-only.jsx';
 
 /** The islands, in Preview only. `state` is `in` while entering/showing, `out` for the exit fade.
@@ -192,7 +194,20 @@ export function ShellPreviewChrome() {
         : null;
     },
   });
-  if (!canvasOpen || (!previewing && !leaving)) return null;
+  // P8 C3 — Edit's bottom-left island (Undo · Redo · zoom %), Viewing's zoom alone; Preview has the readout below
+  const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
+  const zoomForm = zoomUndoForm(snap.mode, snap.present);
+  const zoomUndo = zoomForm ? (
+    <ZoomUndo
+      zoom={zoom}
+      form={zoomForm}
+      onUndo={() => menuRunner.run('edit.undo')}
+      onRedo={() => menuRunner.run('edit.redo')}
+      onFit={() => menuRunner.run('view.zoom-fit')}
+    />
+  ) : null;
+  if (!canvasOpen) return null;
+  if (!previewing && !leaving) return zoomUndo;
   const caps = capsFor({ canEdit: !viewerMode, role: cfg?.cloud?.role });
   const openApp = openInAppLink({
     native: isNativeApp(),

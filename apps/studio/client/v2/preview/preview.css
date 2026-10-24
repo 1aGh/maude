@@ -8,6 +8,7 @@
 
 @layer shell {
   .st-pbar.island,
+  .st-zoomundo.island,
   .st-zoomonly.island {
     position: absolute;
     z-index: 30;
@@ -17,6 +18,7 @@
   }
   /* Pinned layout: the island chrome that `.st-body--float .island` gives is not applied. */
   .st-body:not(.st-body--float) .st-pbar,
+  .st-body:not(.st-body--float) .st-zoomundo,
   .st-body:not(.st-body--float) .st-zoomonly {
     background: var(--bg-1);
     border-radius: 14px;
@@ -112,6 +114,26 @@
     bottom: var(--float-gap, 16px);
     padding: var(--space-1, 4px);
     animation: st-zoomonly-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  /* P8 C3 — Edit's Undo · Redo · zoom % island (kit `.k-uz`): bottom left, 2 px between the buttons, a hairline
+     before the percentage; Viewing's is the percentage alone (10 `co-zoom-only`). */
+  .st-zoomundo.island {
+    left: var(--float-gap, 16px);
+    bottom: var(--float-gap, 16px);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-1, 4px);
+  }
+  .st-zoomundo-div {
+    width: 1px;
+    height: 20px;
+    margin: 0 var(--space-1, 4px);
+    background: var(--border-default);
+  }
+  .st-zoomundo-pct.btn {
+    min-width: 52px;
+    font-variant-numeric: tabular-nums;
   }
   /* S9.21c (10 co-browser-view) — "Open in the Mac app", bottom right, in a browser on a cloud cell only. */
   .st-openapp.island {
