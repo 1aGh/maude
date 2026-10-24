@@ -1989,6 +1989,8 @@ export function createHttp(
     // a cell child's session is the proxy's claim ON THE REQUEST (never the ambient default)
     access: (req) => accessOf(req),
     history: () => exportJobs.loadHistory(),
+    // P8 C2 — /_api/export-preview: row and tile pictures from the project's picture service (created further down)
+    thumb: (req) => thumbs.thumb(req),
     renderLane: () => resolveRenderLane(),
     // S8.5 — the Render row: a cloud door on this Mac, and a comp's own length (Suggest each time)
     cloudRender: () => resolveRenderLane() === 'local' && cloudExports.available(),

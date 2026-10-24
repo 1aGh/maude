@@ -58,3 +58,6 @@ Pair image: `09-export/<id>-<theme>.jpg` (spec left, impl right; label strip "<i
 ## After stage C (C4-export)
 
 Pairs in this folder were re-shot after the fixes (light + dark); per-id status and what is still open: see `fix-export.md`.
+
+## After — stage C round 2 (p8-c2-insptl)
+Pairs re-shot light + dark on branch p8-c2-insptl. Changed: ex-batch / ex-batch-pick / ex-huge (kind rows carry artboard stills from the new `POST /_api/export-preview`). Unreachable: ex-progress, ex-states, ex-handoff-ready, ex-edges. Details: `08-artboard-kinds/fix-insptl.md`.

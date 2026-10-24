@@ -55,3 +55,6 @@ one combined `bun test` run with the timeline files and pass alone (cross-file s
   behind them), music bed selection with no comp-media in the lane.
 - **Unreachable** (ve-ai-*, ve-render, ve-together, ve-fit-fill): no stub built in this pass.
 - ve-drop was not re-shot (the harness step finds no `timeline-storyline` in that state); its stage-A pair stands.
+
+## Round 2
+See ../08-artboard-kinds/fix-insptl.md (transition picker, Advanced overflow, scrub after play, + Title selects). Still open: drop caret/tip, re-frame window, comment pins, unreachable AI states.

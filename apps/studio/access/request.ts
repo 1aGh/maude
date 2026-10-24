@@ -103,6 +103,8 @@ export const EXPORT_TABLE_WRITES: ReadonlySet<string> = new Set([
   '/_api/export-jobs/retry',
   // S8.7 — the Print preflight (paper, the back, safe margin, fonts) is numbers and names about an export
   '/_api/export-preflight',
+  // P8 C2 — the pictures of what an export would reach (artboard stills from the picture service)
+  '/_api/export-preview',
 ]);
 
 /** Stickies, marker, arrows, stickers, sections (V2-1.7 §5.2 `annotate`). */

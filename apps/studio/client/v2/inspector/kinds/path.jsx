@@ -52,6 +52,24 @@ function PathEndsBody({ el, ctx }) {
   );
 }
 
+/** 14 Editing's own glyphs (`LG.union` …): 16-unit boxes, 1.5 stroke, drawn by the row — the shell icon set has none. */
+const COMBINE_GLYPHS = {
+  union: <path d="M2.5 2.5h7v4h4v7h-7v-4h-4z" />,
+  subtract: (
+    <>
+      <path d="M2.5 2.5h7v4h-3v3h-4z" />
+      <path d="M6.5 6.5h7v7h-7z" strokeDasharray="1.5 1.5" />
+    </>
+  ),
+  intersect: (
+    <>
+      <path d="M2.5 2.5h7v7h-7zM6.5 6.5h7v7h-7z" strokeDasharray="1.5 1.5" />
+      <path d="M6.5 6.5h3v3h-3z" />
+    </>
+  ),
+  exclude: <path d="M2.5 2.5h7v4h-3v3h-4zM9.5 6.5h4v7h-7v-4h3z" />,
+};
+
 export const COMBINE_ROWS = [
   { kind: 'union', label: 'Union' },
   { kind: 'subtract', label: 'Subtract' },
@@ -76,7 +94,7 @@ function CombineBody({ selection, ctx }) {
   return (
     <Row k="Two or more" name="combine" dim={!live}>
       <span
-        className="insp-combine"
+        className="seg insp-combine"
         data-testid="insp-combine"
         role="group"
         aria-label="Combine shapes"
@@ -85,7 +103,7 @@ function CombineBody({ selection, ctx }) {
           <button
             key={r.kind}
             type="button"
-            className="insp-combine-btn"
+            className="k-seg-b insp-combine-btn"
             data-testid={`insp-combine-${r.kind}`}
             aria-label={r.label}
             title={r.label}
@@ -94,7 +112,19 @@ function CombineBody({ selection, ctx }) {
               live && ctx.onRunAction({ dgn: 'run-action', v: 1, id: `shape.combine.${r.kind}` })
             }
           >
-            {r.label}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {COMBINE_GLYPHS[r.kind]}
+            </svg>
           </button>
         ))}
       </span>

@@ -79,3 +79,6 @@ export (C4) are other areas. Details: `fix-timeline.md`.
 | ve-captions · ve-footage · ve-reframe | missing/waiting hatch; transcript / re-frame not reachable with the fixture |
 | ve-none | scrub-at-rest still differs (video-play-chrome.tsx, open) |
 | ve-deselect · ve-formats · ve-fullscreen · ve-export | timeline parts match where shown; rest belongs to other areas |
+
+## After — stage C round 2 (p8-c2-insptl)
+Pairs re-shot light + dark on branch p8-c2-insptl. Changed: ve-transition (no slab, tile pictures, tip, keyboard), ve-advanced (contained, tracks stay, quiet Copy timecode), ve-play (scrub bar only after play), ve-text (+ Title selects the clip). Unreachable (spec only, no stub): ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust, ve-render, ve-together, ve-fit-fill; ve-drop not re-shot. Details: `08-artboard-kinds/fix-insptl.md`.

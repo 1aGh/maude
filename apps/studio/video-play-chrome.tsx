@@ -53,6 +53,9 @@ export function VideoPlayChrome({
 }) {
   const [playing, setPlaying] = useState(false);
   const [frame, setFrame] = useState(0);
+  // 07 ve-play: the scrub bar belongs to a clip that has PLAYED. A paused Player parked on its poster frame (frame > 0)
+  // has not started — it used to count as started and drew the bar over the poster.
+  const [played, setPlayed] = useState(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const last = Math.max(1, durationInFrames - 1);
 
@@ -61,7 +64,9 @@ export function VideoPlayChrome({
     if (!p) return undefined;
     const sync = () => {
       try {
-        setPlaying(p.isPlaying());
+        const now = p.isPlaying();
+        setPlaying(now);
+        if (now) setPlayed(true);
         setFrame(p.getCurrentFrame());
       } catch {
         /* Player transitional */
@@ -109,7 +114,7 @@ export function VideoPlayChrome({
     }
   };
 
-  const started = playing || frame > 0;
+  const started = playing || played;
   return (
     <>
       {playing ? null : (

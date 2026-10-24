@@ -48,3 +48,6 @@ Known red not mine: `v2-inspector-interaction` "the line under the rows" (string
 - `decision:maude/v2-c2-geometry-after-board-sections`: text and image keep Position/Size after the board's sections (board silent) so numbers stay reachable.
 - `decision:maude/v2-c2-select-all-by-level`: ⌘A selects every artboard when nothing/only artboards are selected, else the artboard's objects. Rejected: a separate chord.
 - `decision:maude/v2-c2-warning-is-a-block`: the artboard warning registers as a top block, not a row in a section.
+
+## Round 2
+See fix-insptl.md in 08-artboard-kinds/ (inspector rest: Length well, Sound pill, Combine icons; open: photo-by-asset-id split).

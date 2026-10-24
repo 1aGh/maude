@@ -1,8 +1,9 @@
 // client/v2/timeline/joins/transition-picker.jsx — S7.10 (07 · ve-transition): "Click a join for a transition".
 //
 // An anchored popover on the dot between two clips, titled with them ("Oslava → Logo"): six tiles — Cut · Fade ·
-// Slide · Wipe · Flip · Clock wipe — and a Length slider. A tile draws the join as a small picture; HOVER (or focus)
-// plays it on the two real shots above the grid — the outgoing clip's last frame under the incoming clip's first.
+// Slide · Wipe · Flip · Clock wipe — and a Length slider. A tile IS the preview (07 draws no separate slab): its
+// picture is the two real shots (the outgoing clip's last frame, the incoming one's first), HOVER (or focus) plays the
+// join inside it. ← ↑ → ↓ move between tiles (roving tabindex); a tip points at the dot it hangs from.
 // Picking a tile is one `video.transition.set`; the slider writes the join's length when it is let go. Esc closes.
 //
 // Where the old dialog's Transition tab went (D15): the six tiles are its presentation grid
@@ -26,24 +27,26 @@ const reducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** One of the two shots: its still frame (a muted video held on a frame), or a flat block with its name. */
-function Shot({ shot, refEl, testid }) {
+/** A tile's picture: the two real shots the join meets (the outgoing clip's last frame, the incoming one's first), or
+ *  the flat colours when a clip has no media (a title, a graphic). Held, never played: hover plays the tile itself. */
+function ShotFrame({ shot, b = false }) {
+  // a clip whose file is missing (or cannot be read) draws the flat colours, never a black video box
+  const [bad, setBad] = useState(false);
+  const show = !!shot.url && !bad;
   return (
-    <div className="tj-shot" ref={refEl} data-testid={testid}>
-      {shot.url ? (
+    <i className={b ? 'tj-pic-b' : undefined} data-media={show ? 'true' : undefined}>
+      {show ? (
         <video
-          className="tj-shot-media"
           src={shot.url}
           muted
           playsInline
           preload="metadata"
           aria-hidden="true"
           tabIndex={-1}
+          onError={() => setBad(true)}
         />
-      ) : (
-        <span className="tj-shot-flat">{shot.label}</span>
-      )}
-    </div>
+      ) : null}
+    </i>
   );
 }
 
@@ -76,8 +79,6 @@ export function TransitionPicker({
   onRemove,
   onClose,
 }) {
-  const aRef = useRef(null);
-  const bRef = useRef(null);
   const anims = useRef([]);
   const rootRef = useRef(null);
   const [secs, setSecs] = useState(() => joinSeconds(frames, fps));
@@ -92,11 +93,10 @@ export function TransitionPicker({
     for (const an of anims.current) an.cancel?.();
     anims.current = [];
   };
-  // hover / focus plays the join on the two shots; leaving puts them back
-  const play = (key) => {
+  // hover / focus plays the join inside the tile's own two shots; leaving puts them back (07: the tiles ARE the preview)
+  const play = (key, tile) => {
     stop();
-    const ea = aRef.current;
-    const eb = bRef.current;
+    const [ea, eb] = tile?.querySelectorAll?.('.tj-pic > i') ?? [];
     if (!ea || !eb || typeof eb.animate !== 'function') return;
     const k = previewKeyframes(key, { rm: reducedMotion() });
     const opts = { duration: PREVIEW_MS, easing: 'ease-in-out', fill: 'both', iterations: 1 };
@@ -142,6 +142,18 @@ export function TransitionPicker({
     onLength?.(joinFrames(secs, fps));
   };
 
+  // a radiogroup: ← ↑ → ↓ move between the tiles (focus plays the join on it); Enter / Space picks
+  const arrows = (e) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!step) return;
+    const tiles = [...e.currentTarget.querySelectorAll('button:not(:disabled)')];
+    const at = tiles.indexOf(document.activeElement);
+    if (!tiles.length || at < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    tiles[(at + step + tiles.length) % tiles.length].focus();
+  };
+
   const W = 288;
   const left = Math.max(
     8,
@@ -158,21 +170,19 @@ export function TransitionPicker({
         left,
         bottom: (typeof window === 'undefined' ? 900 : window.innerHeight) - y + 14,
         width: W,
+        '--tj-tip-x': `${Math.round(x - left)}px`,
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <p className="tj-title" data-testid="timeline-transition-title">
         {title}
       </p>
-      <div className="tj-preview" data-testid="timeline-transition-preview" aria-hidden="true">
-        <Shot shot={a} refEl={aRef} testid="timeline-transition-shot-a" />
-        <Shot shot={b} refEl={bRef} testid="timeline-transition-shot-b" />
-      </div>
       <div
         className="tj-grid"
         role="radiogroup"
         aria-label="Transition"
         data-testid="timeline-transition-grid"
+        onKeyDown={arrows}
       >
         {JOIN_TILES.map(([label, key]) => (
           // biome-ignore lint/a11y/useSemanticElements: a picture tile that is one of six; a native radio could not draw it
@@ -184,16 +194,17 @@ export function TransitionPicker({
             className="tj-tile"
             data-on={tile === key ? 'true' : undefined}
             data-testid={`timeline-transition-${key}`}
+            tabIndex={tile === key || (!tile && key === JOIN_TILES[0][1]) ? 0 : -1}
             disabled={!canEdit}
-            onMouseEnter={() => play(key)}
-            onFocus={() => play(key)}
+            onMouseEnter={(e) => play(key, e.currentTarget)}
+            onFocus={(e) => play(key, e.currentTarget)}
             onMouseLeave={stop}
             onBlur={stop}
             onClick={() => onPick?.(key)}
           >
             <span className={`tj-pic tj-pic--${key}`} aria-hidden="true">
-              <i />
-              <i className="tj-pic-b" />
+              <ShotFrame shot={a} />
+              <ShotFrame shot={b} b />
             </span>
             {label}
           </button>
