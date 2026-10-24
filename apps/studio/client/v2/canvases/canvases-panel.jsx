@@ -571,7 +571,7 @@ export function CanvasesPanel({
 
   return (
     <div className="cv-panel" ref={panelRef}>
-      {tree.total > 0 ? <KindChips counts={kindCounts} on={kind} onPick={pickKindChip} /> : null}
+      {tree.total > 0 ? <KindChips counts={kindCounts} on={kind} onPick={(k) => pickKindChip(k, 'canvases')} /> : null}
       <div className="cv-listwrap">
         {sortLane}
         {/* biome-ignore lint/a11y/useSemanticElements: an ARIA tree on a flat, windowed list */}

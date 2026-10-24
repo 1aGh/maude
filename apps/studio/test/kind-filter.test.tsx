@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 // S7.24 — the kind filter chips (08 · ak-mixed-filter, 05 · es-filter). Pinned here: the counts come from the
 // index's artboard kinds and a canvas counts ONCE per kind it has; the chip words and accessible names; the
 // shared store (one filter for Canvases and Layers); the Canvases list under a filter (flat hits with their folder
@@ -24,6 +26,7 @@ import {
 } from '../client/v2/kinds/kind-filter-model.js';
 import {
   clearKindFilter,
+  getDimKind,
   getKindFilter,
   pickKind,
   setKindFilter,
@@ -152,6 +155,24 @@ describe('the shared store', () => {
     expect(getKindFilter()).toBe('all');
     off();
     expect(seen).toEqual(['print', 'video', 'all', 'print', 'all']);
+  });
+});
+
+describe('what dims the open canvas', () => {
+  test('a Canvases chip narrows the list and dims nothing; a Layers pick dims', () => {
+    setKindFilter('all');
+    pickKind('print', 'canvases');
+    expect(getKindFilter()).toBe('print');
+    expect(getDimKind()).toBe('all');
+    setKindFilter('all');
+    pickKind('print', 'layers');
+    expect(getDimKind()).toBe('print');
+    pickKind('print', 'layers');
+    expect(getDimKind()).toBe('all');
+    // the Layers chips and the relay use the one dim value (never the list's)
+    const relay = readFileSync(join(import.meta.dir, '..', 'client/v2/kinds/kind-dim-relay.js'), 'utf8');
+    expect(relay).toContain('getDimKind()');
+    expect(relay).not.toContain('getKindFilter()');
   });
 });
 
