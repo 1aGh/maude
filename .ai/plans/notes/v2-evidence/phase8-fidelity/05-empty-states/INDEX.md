@@ -71,3 +71,33 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 ## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
 
 All rows above re-shot, IMPL side only, light + dark (SPEC reused, boards unchanged). What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel hugs its rows (no twisty at rest), kind chips only for a mixed project. See `fix-c3-shell.md`.
+
+## FINAL (stage D2, d3881fe41)
+Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (stage C rounds 1-4 merged); no product code changed. This section supersedes every per-round "after" section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Stage-D harness (`_d-harness-g1/`) plus the round-3 `_c3-ai-harness/` (fake agent writes through the design plugin's hook; panel folded for the result toast), repointed to this worktree; fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000. The AI finish moment (cf-ai-done, ob-first-draw's done frame) is shot while `[data-fresh]` is on the artboard. Undo waits 7 s for the canvas to settle. The final harness is kept in `_d-harness-g1-final/`.
+- **SPEC.** reused (board 05 .tsx/.css unchanged: no `.design` commit since the stage-D spec shots).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D2)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot |  |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot |  |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | harness: the Share cluster now draws the Comments icon only once the canvas has comments, so the empty Comments panel is opened by ⌘K › Comments (view.comments); the left Canvases panel is re-opened after `h.open` where the harness had folded it |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot |  |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot |  |
+| `es-viewer` | unreachable | unreachable | unreachable — a view-only / comment-only member session needs a hub / workspace cell vouching a role |
+| `es-arriving` | re-shot | re-shot |  |
+| `es-offline-uncached` | re-shot | re-shot |  |
+| `es-all-trashed` | re-shot | re-shot | the pair shows the states the app reaches (one left, empty); the all-trashed card itself is not reached by a local route |
+| `es-edge-panels` | re-shot | re-shot |  |

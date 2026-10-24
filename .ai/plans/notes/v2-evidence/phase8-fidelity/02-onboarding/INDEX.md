@@ -76,3 +76,35 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 ## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
 
 All rows above re-shot, IMPL side only, light + dark (SPEC reused, boards unchanged). What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel hugs its rows (no twisty at rest), kind chips only for a mixed project. See `fix-c3-shell.md`.
+
+## FINAL (stage D2, d3881fe41)
+Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (stage C rounds 1-4 merged); no product code changed. This section supersedes every per-round "after" section above. 20 artboards with pairs (light + dark), 2 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Stage-D harness (`_d-harness-g1/`) plus the round-3 `_c3-ai-harness/` (fake agent writes through the design plugin's hook; panel folded for the result toast), repointed to this worktree; fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000. The AI finish moment (cf-ai-done, ob-first-draw's done frame) is shot while `[data-fresh]` is on the artboard. Undo waits 7 s for the canvas to settle. The final harness is kept in `_d-harness-g1-final/`.
+- **SPEC.** reused (the stage-D re-render, which already carries board 02 commit 3840271a0; no `.design` commit since).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D2)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `ob-first-launch` | re-shot | re-shot |  |
+| `ob-signin-browser` | re-shot | re-shot |  |
+| `ob-home-new` | re-shot | re-shot |  |
+| `ob-ai-connect` | re-shot | re-shot |  |
+| `ob-first-draw` | re-shot | re-shot | IMPL = the 01 fake-agent frames (drafting, tablet landed, done) — the done frame is the data-fresh one |
+| `ob-sig-draw` | re-shot | re-shot | the motion study has no app counterpart; the pair shows the same fake-agent frames as ob-first-draw |
+| `ob-invite-page` | unreachable | unreachable | unreachable — a web page on cloud.maude.sh, not part of the app |
+| `ob-invite-landed` | re-shot | re-shot |  |
+| `ob-home-team` | re-shot | re-shot |  |
+| `ob-local-name` | re-shot | re-shot |  |
+| `ob-local-first` | re-shot | re-shot |  |
+| `ob-local-share` | re-shot | re-shot |  |
+| `ob-local-moved` | unreachable | unreachable | unreachable — needs a local project actually moved to a hub; no local route |
+| `ob-adv-open` | re-shot | re-shot |  |
+| `ob-adv-sheets` | re-shot | re-shot |  |
+| `ob-settings` | re-shot | re-shot |  |
+| `ob-edge-offline` | re-shot | re-shot |  |
+| `ob-edge-timeout` | re-shot | re-shot |  |
+| `ob-edge-other-mac` | re-shot | re-shot |  |
+| `ob-edge-accounts` | re-shot | re-shot |  |
+| `ob-edge-ai-missing` | re-shot | re-shot |  |
+| `ob-edge-whats-new` | re-shot | re-shot |  |
