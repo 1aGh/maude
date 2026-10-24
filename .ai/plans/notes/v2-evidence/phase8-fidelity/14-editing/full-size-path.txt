@@ -7,3 +7,4 @@ round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a39e34b6d43db61c
 round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdefb8ca3c77c0e1/.scr/pairs/14-editing (14 Editing re-shot on the c4-annot tip with the g5 harness; ed-ab-menu pair kept from round 3 c3-modes, ed-edge-tereza kept from stage D)
 final (D2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae0b93df010d6d2f4/.scr/pairs/14-editing
 round 5 (p8-c5-inspector): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad8cd4d7eb545f8ab/.scr/pairs/14-editing (14 Editing re-shot on the c5-inspector tip: ed-ab-select/-resize/-menu, ed-obj-*, ed-lay-auto/-reorder, ed-text-edit, ed-inspector, ed-comp-pick, ed-pen; the other ids kept from round 4 / D2)
+final (D3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6c55c2a9eae9f5e5/.scr/pairs/14-editing

@@ -264,3 +264,66 @@ Re-shot 50 of 52 pairs; 2 unreachable. Supersedes the per-round "after" sections
 
 ## After (round 5, c5-inspector) - IMPL re-shot on the p8-c5-inspector tip, both themes
 Re-shot: ed-ab-select, ed-ab-resize (the harness now drags the edge onto the Laptop 1280 preset, so the shot shows the lit ruler stop and "Laptop - 1280 x 1052"), ed-ab-menu, ed-obj-enter / -multi / -order, ed-lay-auto / -reorder, ed-text-edit, ed-inspector, ed-comp-pick, ed-pen. Changed in the product: the web page's artboard card is the board's (Preset, Size W-H, Height, Clip content, Fill > Background, Layout > Content, Export, Other widths last, no "Uses" line); the Advanced tokens group reads "Tokens it uses". Still open: the inspector does not follow a live resize, the digital card, Padding on one row, Instance Variant flyout (see `fix-c5-inspector.md`).
+
+## FINAL (D3, 63592219a) — IMPL re-shot on the merged tip (stage C rounds 1–5 + bugs3)
+
+Re-shot 50 of 52 pairs; 2 unreachable. Supersedes every earlier "after" / "FINAL" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged — the board `.design/ui/v2/14 Editing.*` has no commit after the stage-A shot, so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D3):").
+
+- Harness: `_d3-harness-g5/`. D3 changes: ed-comp-pick / ed-comp-instance select the artboard (label chip) before ⇧I and place the Button with the picker’s Enter (a click on empty canvas selects nothing, a row click only arms the ghost), the label press is by coordinates. The fixtures are the Studio site / Alligators brand ones, drill counts from round 3.
+- Also shot (no spec pair): `ed-edge-huge-fit`.
+- `ed-edge-tereza` stays unreachable: another person’s presence needs a second synced collaborator. `ed-edge-ai` is shot, but the AI is the stubbed signed-out one here (the "Connect your Claude account?" sheet shows, no run in progress) — the fake-agent harness (`_c3-ai-harness`) was not adapted to 14, so "AI is drawing the footer" is not reached.
+
+| id | theme | FINAL (D3) | spec |
+| --- | --- | --- | --- |
+| `ed-ab-arrange` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-arrange` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-pick` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-pick` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ai` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ai` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-huge` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-huge` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-tereza` | dark | unreachable — Another person's presence (sky ring + name on an object, fields read-only) needs a second synced collaborator; none locally. | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-tereza` | light | unreachable — Another person's presence (sky ring + name on an object, fields read-only) needs a second synced collaborator; none locally. | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-img` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-img` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-free` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-free` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-multi` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-multi` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-pen` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-pen` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-shape` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-shape` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
