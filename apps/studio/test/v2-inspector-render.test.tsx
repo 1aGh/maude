@@ -158,6 +158,14 @@ describe('the header', () => {
     expect(q(host, 'inspector-uses')?.textContent).toContain('Uses Studio');
   });
 
+  test('the “Uses <system>” door sits among the fields, under a hairline — not right under the title (13 · ds-where-studio, P8 C5)', async () => {
+    const host = await frame();
+    const uses = q(host, 'inspector-uses') as HTMLElement;
+    const fields = host.querySelector('fieldset.ed-insp-fields') as HTMLElement;
+    expect(fields.contains(uses)).toBe(true);
+    expect(uses.closest('.insp-uses-wrap')).not.toBeNull();
+  });
+
   test('an artboard shows its artboard kind (C16) and its own id as the name', async () => {
     const host = await frame({
       selected: {

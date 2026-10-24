@@ -220,10 +220,6 @@ export function InspectorFrame({
           {chip}
         </span>
       </div>
-      {/* S10.13 — the line is a door to the system's canvas (ds.go-to) when the shell can run it */}
-      {ds && isConfiguredSystem(cfg, ds) ? (
-        <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} />
-      ) : null}
       {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
       <AssetAbsentBox el={el1} canvas={canvasFile} />
       <HoldLine line={hold.line} />
@@ -253,6 +249,13 @@ export function InspectorFrame({
         {blocksFor(kind.id, 'bottom').map(({ id, Body }) => (
           <Body key={id} el={el} selection={selected} kind={kind.id} ctx={ctx} />
         ))}
+        {/* S10.13 — the line is a door to the system's canvas (ds.go-to) when the shell can run it. 13 ·
+            ds-where-studio draws it as the last thing before Advanced, under a hairline (P8 C5) */}
+        {!kind.bare && ds && isConfiguredSystem(cfg, ds) ? (
+          <div className="insp-uses-wrap">
+            <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} />
+          </div>
+        ) : null}
         {kind.bare ? null : kind.Advanced ? (
           // S7.10 — a kind with a fold of its own (a clip on the Timeline: no CSS, a file and its in and out)
           <kind.Advanced

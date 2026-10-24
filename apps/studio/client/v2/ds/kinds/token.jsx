@@ -380,7 +380,7 @@ export function TokenPanel({
           {note}
         </p>
       ) : null}
-      <details className="ds-tk-adv" data-testid="ds-token-advanced">
+      <details className="ds-tk-adv" data-testid="ds-token-advanced" open={isColour}>
         <summary>
           Advanced <span>{isColour ? 'OKLCH' : 'CSS'}</span>
         </summary>

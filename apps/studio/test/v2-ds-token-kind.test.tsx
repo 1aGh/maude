@@ -487,4 +487,9 @@ describe('the colour block reads as the board draws it', () => {
     expect(q(host, 'ds-token-picker')?.closest('details')).toBeNull();
     expect(q(host, 'ds-token-name')?.closest('details')).not.toBeNull(); // the board's face is the picker, not a name box
   });
+
+  test('a colour opens with Advanced open — the OKLCH rows and the token are what the board shows (P8 C5)', async () => {
+    const host = await frame(ACCENT);
+    expect(q(host, 'ds-token-advanced')?.hasAttribute('open')).toBe(true);
+  });
 });
