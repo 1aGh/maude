@@ -150,3 +150,43 @@ Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all me
 
 ## After (round 5, p8-c5-panels @ 2e203e9e6)
 `md-comment` re-shot (IMPL light + dark, SPEC reused): the Comment tool docks the Comments panel, the composer card is the board's card (heading, field, small accent send). Other ids unchanged.
+
+
+## FINAL (D3, 63592219a)
+
+Re-shoot of the IMPL side on the merged tip 63592219a (stage C rounds 1-5 + bugs3 merged), both themes, **every reachable id**; this section supersedes every earlier "after" / FINAL section above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/04 *` since 2026-10-19, before the stage-A shot). No match / mismatch is judged here.
+
+- Harness: `_d3-harness-g2/` = D2 `s04a` / `s04c` / `s04v`, with two adaptations to the merged product: **md-draw** now closes the docked Comments panel, leaves Preview with one esc (re-entering Preview if the toolbar is gone), and picks the sticky tool by its testid `toolbar-slot-sticky` (the toolbar moved up, the old fixed coordinate opened the sticker palette); **md-esc** therefore shows the esc ladder without the Comments panel left open from the comment step.
+- **md-comment** shows the Comment tool docking the Comments panel with the composer card; `extra-impl-md-comment-thread` is the thread after ⌘↵.
+- **md-edge-ai** is the board's state (`s04c`: the prompt `Make it greener, keep the logo white` asked in Edit, then Preview folds the panels, shot mid change; the frame +3.5 s later is `extra-impl-md-edge-ai-after`).
+- **md-present-video**: the base fixture's VideoEdit canvas, the Reel artboard selected, ⌥⌘↵, shot with Google Chrome (`SHOT_CHANNEL=chrome`, H.264). The fixture clip is 16:9 and a single artboard, not the board's 9:16 Reels in a 14-artboard deck, so Present shows no deck counter; `extra-impl-md-present-video-play` is the frame after the play button.
+- Not reachable, unchanged: md-motion (a storyboard), md-presenter / md-edge-offline (second display / desktop shell), md-present-link / md-comment-only / md-edge-viewer (hub or second person).
+
+| id | dark | light |
+|---|---|---|
+| `md-model` | re-shot | re-shot |
+| `md-keys` | re-shot | re-shot |
+| `md-edit` | re-shot | re-shot |
+| `md-edit-image` | re-shot | re-shot |
+| `md-edit-component` | re-shot | re-shot |
+| `md-motion` | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) | unreachable (same) |
+| `md-annotate` | re-shot | re-shot |
+| `md-preview` | re-shot | re-shot |
+| `md-preview-follow` | re-shot | re-shot |
+| `md-preview-combine` | re-shot | re-shot |
+| `md-present-menu` | re-shot | re-shot |
+| `md-present-lift` | re-shot | re-shot |
+| `md-present-full` | re-shot | re-shot |
+| `md-present-video` | re-shot | re-shot |
+| `md-present-canvas` | re-shot | re-shot |
+| `md-presenter` | unreachable (Presenter view needs a second display (desktop shell).) | unreachable (same) |
+| `md-present-link` | unreachable (A cloud viewer link needs a hub project.) | unreachable (same) |
+| `md-comment` | re-shot | re-shot |
+| `md-comment-only` | unreachable (A Can comment role needs a hub / second person.) | unreachable (same) |
+| `md-draw` | re-shot | re-shot |
+| `md-inspect` | re-shot | re-shot |
+| `md-edge-ai` | re-shot | re-shot |
+| `md-edge-viewer` | unreachable (A view-only link in a browser needs a cloud project.) | unreachable (same) |
+| `md-edge-mixed` | re-shot | re-shot |
+| `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (same) |
+| `md-esc` | re-shot | re-shot |
