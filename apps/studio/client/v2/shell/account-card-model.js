@@ -19,6 +19,7 @@
 // list to say so.
 
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { accountTone } from '../../shell/account-tone.js';
 
 const DEFAULT_ID = 'default';
 
@@ -35,13 +36,9 @@ export function projectsPhrase(names) {
   return `${list[0]}, ${list[1]} and ${list.length - 2} more`;
 }
 
-/** Two tones only (the DS's accent and its warm status colour, as the canvas's sky / yellow): the same
- *  id is always the same tone, two accounts rarely look alike. */
-export function toneOf(id) {
-  let h = 0;
-  for (const ch of String(id ?? '')) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return Math.abs(h) % 2 === 0 ? 'a' : 'b';
-}
+/** The account's tone: the one function every surface asks (shell/account-tone.js) — Work sky,
+ *  Personal yellow, anything else a stable object-palette tone. */
+const toneOf = (id, label) => accountTone(id, label);
 
 /**
  * The chip in the Share cluster, or null when there is nothing to show.
@@ -59,7 +56,7 @@ export function accountChip({ native, connected, cloud = false, profile, email, 
     id,
     label,
     initial: initialOf(label),
-    tone: toneOf(id),
+    tone: toneOf(id, label),
     title: email ? `${label} · ${email}` : label,
   };
 }
@@ -79,7 +76,7 @@ export function accountCard({ project, profile, email, accounts = null }) {
   return {
     current: {
       initial: initialOf(label),
-      tone: toneOf(id),
+      tone: toneOf(id, label),
       title: email ? `${label} · ${email}` : label,
       sub: project ? `${project} uses this account` : 'This project uses this account',
     },
@@ -90,7 +87,7 @@ export function accountCard({ project, profile, email, accounts = null }) {
         return {
           id: a.id,
           initial: initialOf(l),
-          tone: toneOf(a.id),
+          tone: toneOf(a.id, l),
           title: a.email ? `${l} · ${a.email}` : l,
           // S1.22b `accounts_list` (option B): another account carries a COUNT, not names.
           sub: Array.isArray(a.projects)

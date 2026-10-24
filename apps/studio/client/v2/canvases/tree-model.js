@@ -23,6 +23,8 @@ const TSX_EXT = /\.tsx$/i;
 export const ROW_H = 30;
 /** S11.9 — a canvas row that also shows its file name (Canvases › Advanced › Show file names): two lines. */
 export const ROW_H_FILE = 42;
+/** 11 pn-jump: the artboard rows under an open canvas are 22 px (`.row-item.pn-ab`), so 21 of them fit the panel. */
+export const BOARD_H = 22;
 export const EMPTY_H = 104;
 /** Rows drawn beyond the viewport on each side, and the most rows the panel ever puts in the DOM. */
 export const OVERSCAN = 6;
@@ -582,7 +584,13 @@ export function layoutRows(rows) {
 }
 
 export const rowHeight = (row) =>
-  row.type === 'empty' ? EMPTY_H : row.fileName ? ROW_H_FILE : ROW_H;
+  row.type === 'empty'
+    ? EMPTY_H
+    : row.type === 'board'
+      ? BOARD_H
+      : row.fileName
+        ? ROW_H_FILE
+        : ROW_H;
 
 /**
  * The slice of rows to put in the DOM: what the viewport shows plus OVERSCAN either side, never more than

@@ -42,7 +42,7 @@ export function dsSearchRows({ systems, run, sections = 7 }) {
       keys: '',
       where: '',
       advanced: false,
-      icon: 'sliders',
+      icon: 'system',
       disabled: false,
       keywords: ['design system', 'design', 'system', 'tokens', 'colours', 'type', 'components'],
       searchRow: true,

@@ -106,7 +106,7 @@ export const SIGNIN_WORDS = {
   waiting: 'Waiting for your browser…',
   again: 'Open the page again',
   otherDevice: 'Signed in on another device?',
-  useCode: 'Use a code instead',
+  useCode: 'Enter a code instead',
   codeLine: 'Open cloud.maude.sh/activate on any device and enter this code.',
   timeoutTitle: "Sign-in didn't finish",
   timeoutBody: 'Nothing changed on this Mac. Try again whenever you like.',
@@ -115,7 +115,7 @@ export const SIGNIN_WORDS = {
   offlineFoot: 'A local project works right now, and moves to the cloud any time.',
   hint: 'Opens your browser, then brings you back. 14 days free, no card.',
   advanced: 'Advanced options',
-  unreachable: 'Maude Cloud could not be reached. Try again in a moment.',
+  unreachable: 'cloud.maude.sh could not be reached. Try again in a moment.',
   toastFirst: 'Signed in. What you make now lives on cloud.maude.sh.',
 };
 

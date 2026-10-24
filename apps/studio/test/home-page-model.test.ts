@@ -277,7 +277,7 @@ describe('helpers', () => {
   });
 
   test('cloud roles read as people permissions', () => {
-    expect(cloudRoleWord('owner')).toBe('Can edit');
+    expect(cloudRoleWord('owner')).toBe('Owner'); // CONTRACT §4: your own project is Owner, not Can edit
     expect(cloudRoleWord('member')).toBe('Can edit');
     expect(cloudRoleWord('viewer')).toBe('Can comment');
     expect(cloudRoleWord('observer')).toBe('Can view');

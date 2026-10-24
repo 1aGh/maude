@@ -35,7 +35,7 @@ const THREAD_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const INVITE_WORDS = {
   gone: 'This invitation link is not valid. Ask the person who invited you for a new one.',
-  unreachable: 'Maude Cloud could not be reached. Try again in a moment.',
+  unreachable: 'cloud.maude.sh could not be reached. Try again in a moment.',
   busy: 'Too many tries with that invitation. Wait a minute, then open the link again.',
   update: 'This invitation needs a newer Maude. Update Maude, then open the link again.',
   open: 'Open',

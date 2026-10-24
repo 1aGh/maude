@@ -82,7 +82,7 @@
     const a = document.createElement('span');
     a.className = 'acct';
     a.setAttribute('data-testid', 'tab-account');
-    a.setAttribute('data-tone', t.account.tone === 'b' ? 'b' : 'a');
+    a.setAttribute('data-tone', t.account.tone || 'grey');
     a.setAttribute('role', 'img');
     a.setAttribute('aria-label', 'Account: ' + t.account.label);
     a.title = t.account.label;

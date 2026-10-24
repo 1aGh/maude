@@ -175,7 +175,7 @@ export function CanvasErrorCard({
     >
       <header className="v2-err-hd">
         <span className="v2-err-ic" aria-hidden="true">
-          <StIcon name="problem" size={18} />
+          <StIcon name="problem" size={20} />
         </span>
         <h2 className="v2-err-t" id="v2-err-title" data-testid="canvas-error-title">
           {name} can't be drawn right now.

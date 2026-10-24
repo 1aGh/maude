@@ -14,6 +14,9 @@ import { useEffect, useRef } from 'react';
 
 import { HIcon, HSpark } from '../../home/home-icons.jsx';
 import { ADVANCED_FOOT, ADVANCED_ROWS } from './advanced-rows.js';
+
+// 02 ob-adv-open: the ⌘K in the foot is a Kbd chip, the line around it is ADVANCED_FOOT's words
+const [ADVANCED_FOOT_BEFORE, ADVANCED_FOOT_AFTER] = ADVANCED_FOOT.split('⌘K');
 import { SIGNIN_WORDS as W } from './signin-model.js';
 
 function Line({ kind, title, children, testid }) {
@@ -245,7 +248,11 @@ export function SignInCard({
               </button>
             );
           })}
-          <p className="si-fly-foot">{ADVANCED_FOOT}</p>
+          <p className="si-fly-foot">
+            {ADVANCED_FOOT_BEFORE}
+            <kbd className="kbd">⌘K</kbd>
+            {ADVANCED_FOOT_AFTER}
+          </p>
         </div>
       ) : null}
     </section>

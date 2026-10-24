@@ -319,13 +319,16 @@ export function CommandPalette({ open, onClose, actions }) {
     note =
       view.closeOnly && !view.didYouMean ? (
         <div className="st-pal-note" data-testid="palette-close-note" role="status">
-          Nothing called “{q.trim()}”.
-          {view.closeWord ? (
-            <>
-              {' '}
-              Showing close matches for <strong>{view.closeWord}</strong>.
-            </>
-          ) : null}
+          <StIcon name="search" size={12} />
+          <span>
+            Nothing called “{q.trim()}”.
+            {view.closeWord ? (
+              <>
+                {' '}
+                Showing close matches for <strong>{view.closeWord}</strong>.
+              </>
+            ) : null}
+          </span>
         </div>
       ) : null;
     // A misspelling and no word right: the CONTRACT line first, then what it may have meant
@@ -441,7 +444,7 @@ export function CommandPalette({ open, onClose, actions }) {
               }
             }}
           />
-          <Kbd>⌘K</Kbd>
+          <Kbd>esc</Kbd>
         </div>
         {note}
         <div

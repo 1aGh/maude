@@ -59,6 +59,7 @@ import {
   buildHomeModel,
   canvasCount,
   cloudRoleWord,
+  ownerWord,
   defaultTarget,
   indexQuery,
   invitedRows,
@@ -337,10 +338,16 @@ export function HomeApp() {
   const theme = useSystemTheme();
   const data = useHomeData();
   const [filterPid, setFilterPid] = useState('');
+  // Recent canvases are one row of six with a "See all" (pn-home); Projects: find + sort (pn-projlist)
+  const [recentAll, setRecentAll] = useState(false);
+  const [projFind, setProjFind] = useState('');
+  const [projSort, setProjSort] = useState('recent');
   const [notice, setNotice] = useState(null);
   const [link, setLink] = useDeepLink(data.native);
   const [linkBusy, setLinkBusy] = useState(false);
   const searchRef = useRef(null);
+  // the ⌘K palette (pn-home-search)
+  const [searchOpen, setSearchOpen] = useState(false);
   // null | { name, busy } — the New project… sheet.
   const [creating, setCreating] = useState(null);
   const askNewProject = useCallback(() => setCreating((c) => c ?? { name: '', busy: false }), []);
@@ -387,12 +394,48 @@ export function HomeApp() {
       }),
     [data.shell, data.index, data.clouds, filterPid]
   );
+  // the signed-in account's face at the top right (02 ob-home-new: a circle, never the project's square)
+  const face = useMemo(() => {
+    const c = data.clouds.find((x) => x?.signedIn);
+    if (!c) return null;
+    const id = c.profile || 'default';
+    const label = (data.shell?.profiles ?? []).find((p) => p.id === id)?.label || '';
+    const email = c.account?.email || '';
+    return {
+      ...accountFace({ id, label, email }),
+      title: [label, email].filter(Boolean).join(' · ') || 'Your account',
+    };
+  }, [data.clouds, data.shell]);
   const searchPids = useMemo(
     () => (data.shell ? indexQuery(data.shell).pids : browserPids()),
     [data.shell]
   );
 
   const signedIn = useMemo(() => data.clouds.some((c) => c?.signedIn), [data.clouds]);
+  // an empty ⌘K is a shortcut list: the tabs that are open (with their AI) and the last canvases
+  const searchTabs = useMemo(
+    () =>
+      (data.shell?.projects ?? [])
+        .filter((p) => p?.place === 'tab' && typeof p.pid === 'string')
+        .map((p) => ({
+          pid: p.pid,
+          name: p.name || 'Untitled project',
+          meta: p.ai?.awaiting > 0 ? 'Needs you' : p.ai?.running > 0 ? 'AI is working' : '',
+        })),
+    [data.shell]
+  );
+  const searchRecent = useMemo(
+    () =>
+      model.recent.slice(0, 3).map((r) => ({
+        pid: r.pid,
+        rel: r.rel,
+        slug: r.slug,
+        name: r.name,
+        thumb: r.thumb,
+        meta: [r.projectName, relativeTime(r.openedAt)].filter(Boolean).join(' · '),
+      })),
+    [model.recent]
+  );
   // S6.8 — the card shows only on a first run (no project, no account, the lists have answered)
   const firstRun =
     data.native &&
@@ -424,8 +467,7 @@ export function HomeApp() {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
+        setSearchOpen((o) => !o);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -744,6 +786,17 @@ export function HomeApp() {
   );
 
   const hasProjects = model.groups.some((g) => g.rows.length);
+  // Find a project + the sort (pn-home Projects): by name as typed, Recent keeps the model's order
+  const projGroups = useMemo(() => {
+    const q = projFind.trim().toLowerCase();
+    const byName = (a, b) => String(a.name).localeCompare(String(b.name));
+    return model.groups
+      .map((g) => {
+        const rows = g.rows.filter((r) => !q || String(r.name).toLowerCase().includes(q));
+        return { ...g, rows: projSort === 'name' ? [...rows].sort(byName) : rows };
+      })
+      .filter((g) => g.rows.length || !q);
+  }, [model.groups, projFind, projSort]);
   const showShared = signedIn && (hasProjects || shared.length > 0 || invited.length > 0);
   return (
     <div className="maude-v2 home-root" data-theme={theme} data-testid="home-root">
@@ -760,11 +813,35 @@ export function HomeApp() {
             <SignInQuiet onClick={() => signin.begin()} disabled={!online} />
           ) : null}
           <HomeSearch
+            open={searchOpen}
+            onOpen={() => setSearchOpen(true)}
+            onClose={() => setSearchOpen(false)}
             inputRef={searchRef}
             pids={searchPids}
-            onOpen={(pid, canvas, artboard) => open(pid, canvas, artboard)}
+            openTabs={searchTabs}
+            recentCanvases={searchRecent}
+            onOpenRow={(pid, canvas, artboard) => open(pid, canvas, artboard)}
+            onAsk={(text) => {
+              if (text) sendSentence(text);
+            }}
             canOpen={data.native}
           />
+          {face ? (
+            <span
+              className="home-top-acct"
+              data-testid="home-top-face"
+              role="img"
+              aria-label={face.title}
+              title={face.title}
+            >
+              <span
+                className={`home-face home-face--md home-face--${face.tone}`}
+                aria-hidden="true"
+              >
+                {face.initial}
+              </span>
+            </span>
+          ) : null}
         </div>
       </header>
 
@@ -851,7 +928,7 @@ export function HomeApp() {
           <section className="home-sec" aria-labelledby="home-h-pinned">
             <h2 className="home-h" id="home-h-pinned">
               Pinned
-              <span className="home-h-aside">pin any canvas from its card</span>
+              <span className="home-h-aside">pin any canvas from its row or its menu</span>
             </h2>
             <ul className="home-pins">
               {model.pinned.map((r) => (
@@ -909,10 +986,21 @@ export function HomeApp() {
                   </label>
                 </span>
               ) : null}
+              {model.recent.length > RECENT_CAP ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm home-seeall"
+                  data-testid="home-recent-seeall"
+                  aria-expanded={recentAll}
+                  onClick={() => setRecentAll((v) => !v)}
+                >
+                  {recentAll ? 'Show fewer' : 'See all'}
+                </button>
+              ) : null}
             </h2>
             {model.recent.length ? (
               <ul className="home-cards">
-                {model.recent.map((r) => (
+                {(recentAll ? model.recent : model.recent.slice(0, RECENT_CAP)).map((r) => (
                   <li key={`${r.pid}:${r.rel}`} className="home-card">
                     <button
                       type="button"
@@ -979,13 +1067,42 @@ export function HomeApp() {
                     {model.projectCount} {model.projectCount === 1 ? 'project' : 'projects'}
                   </span>
                 ) : null}
+                {model.projectCount > 1 ? (
+                  <span className="home-h-right">
+                    <label className="home-projfind">
+                      <span className="home-sr">Find a project</span>
+                      <HIcon name="search" size={14} />
+                      <input
+                        type="search"
+                        className="home-projfind-input"
+                        data-testid="home-project-find"
+                        placeholder="Find a project"
+                        value={projFind}
+                        onChange={(e) => setProjFind(e.target.value)}
+                      />
+                    </label>
+                    <label className="home-filter">
+                      <span className="home-sr">Sort projects</span>
+                      <select
+                        className="chip home-filter-select"
+                        data-testid="home-project-sort"
+                        value={projSort}
+                        onChange={(e) => setProjSort(e.target.value)}
+                      >
+                        <option value="recent">Recent</option>
+                        <option value="name">Name</option>
+                      </select>
+                      <HIcon name="chevron" size={12} />
+                    </label>
+                  </span>
+                ) : null}
               </h2>
               <div className="island home-projlist">
-                {model.groups.map((g) => (
+                {projGroups.map((g) => (
                   <ProfileGroup
                     key={g.profile.id}
                     group={g}
-                    showHeader={model.groups.length > 1 || !!g.profile.email}
+                    showHeader={projGroups.length > 1 || !!g.profile.email}
                     canOpen={data.native}
                     onOpen={(pid) => open(pid)}
                     onRelink={relink}
@@ -1142,6 +1259,8 @@ function PinButton({ row, testid, onToggle }) {
   );
 }
 
+const RECENT_CAP = 6;
+
 const STATE_WORD = {
   tab: 'in a tab',
   mac: (
@@ -1212,7 +1331,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
       ) : null}
       {cloud?.offline ? (
         <p className="home-acct-note" role="note">
-          Maude Cloud can't be reached. Showing the last list; projects on this Mac still open.
+          cloud.maude.sh can't be reached. Showing the last list; projects on this Mac still open.
         </p>
       ) : null}
       <ul className="home-prows">
@@ -1223,7 +1342,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
               <span className="home-prow-t" data-testid={`home-cloud-row-${r.projectId}`}>
                 <strong>{r.name}</strong>
                 <span>
-                  {r.ownerName ? `${r.ownerName}'s · ` : ''}
+                  {ownerWord(r.ownerName, r.role) ? `${ownerWord(r.ownerName, r.role)} · ` : ''}
                   {cloudRoleWord(r.role)} · {STATE_WORD.cloud}
                 </span>
               </span>
@@ -1266,11 +1385,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                   onClick={() => onOpen(r.pid)}
                   disabled={!canOpen}
                 >
-                  {r.cover ? (
-                    <Thumb src={r.cover} className="home-prow-thumb" />
-                  ) : (
-                    <ProjectSquare id={r.pid} name={r.name} size="md" />
-                  )}
+                  <Thumb src={r.cover} className="home-prow-thumb" />
                   <span className="home-prow-t">
                     <strong>{r.name}</strong>
                     <span>
@@ -1289,6 +1404,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                     </span>
                   </span>
                   <RowLive row={r} />
+                  <ProjectSquare id={r.pid} name={r.name} />
                 </button>
               )}
             </li>
@@ -1299,27 +1415,50 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
   );
 }
 
-// ── ⌘K Search ───────────────────────────────────────────────────────────────────────────────
-function HomeSearch({ inputRef, pids, onOpen, canOpen }) {
+// ── ⌘K Search (11 pn-home-search) ───────────────────────────────────────────────────────────
+// The top bar holds an icon + the ⌘K key; the field lives in a centred 620 palette over a veil. Before you
+// type it is a shortcut list — Recent searches · Open tabs · Recent canvases — with an Ask AI row and a
+// foot; typing searches every project on this Mac, open or not.
+export const PALETTE_PLACEHOLDER = 'Search canvases, artboards, actions, or ask AI…';
+
+function HomeSearch({
+  open,
+  onOpen,
+  onClose,
+  inputRef,
+  pids,
+  openTabs,
+  recentCanvases,
+  onOpenRow,
+  onAsk,
+  canOpen,
+}) {
   const [q, setQ] = useState('');
-  const [openList, setOpenList] = useState(false);
   const [result, setResult] = useState(null);
   const [recent, setRecent] = useState([]);
   const [sel, setSel] = useState(0);
   const seq = useRef(0);
-  const wrapRef = useRef(null);
+  const triggerRef = useRef(null);
   const pidKey = pids.join(',');
 
-  // focus leaving the field and its panel closes the panel
+  // opening starts clean; closing hands focus back to the trigger
   useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return undefined;
-    const out = (e) => {
-      if (!el.contains(e.relatedTarget)) setOpenList(false);
+    if (!open) return undefined;
+    setQ('');
+    setResult(null);
+    setSel(0);
+    (async () => {
+      const r = await getRecentSearches();
+      if (r.ok && Array.isArray(r.json?.recentSearches))
+        setRecent(r.json.recentSearches.slice(0, 3));
+    })();
+    const t = setTimeout(() => inputRef.current?.focus(), 0);
+    const trigger = triggerRef.current;
+    return () => {
+      clearTimeout(t);
+      trigger?.focus?.();
     };
-    el.addEventListener('focusout', out);
-    return () => el.removeEventListener('focusout', out);
-  }, []);
+  }, [open, inputRef]);
 
   useEffect(() => {
     const term = q.trim();
@@ -1337,12 +1476,8 @@ function HomeSearch({ inputRef, pids, onOpen, canOpen }) {
     return () => clearTimeout(t);
   }, [q, pidKey]);
 
-  const loadRecent = async () => {
-    const r = await getRecentSearches();
-    if (r.ok && Array.isArray(r.json?.recentSearches)) setRecent(r.json.recentSearches.slice(0, 6));
-  };
-
-  const rows = useMemo(() => {
+  const term = q.trim();
+  const found = useMemo(() => {
     const out = [];
     for (const g of result?.groups ?? [])
       for (const row of g.rows ?? []) {
@@ -1352,153 +1487,304 @@ function HomeSearch({ inputRef, pids, onOpen, canOpen }) {
     return out;
   }, [result]);
 
-  const pick = (row) => {
-    if (!row || !canOpen) return;
-    saveRecentSearch(q.trim(), rows.length);
-    setOpenList(false);
-    onOpen(row.pid, row.rel, row.artboard);
+  // one flat list of everything the arrows walk: the shortcut groups before you type, results after
+  const items = useMemo(() => {
+    const out = [];
+    if (!term) {
+      for (const r of recent) out.push({ type: 'recent', q: r.q, hint: r.results });
+      for (const t of openTabs) out.push({ type: 'tab', ...t });
+      for (const c of recentCanvases) out.push({ type: 'canvas', ...c });
+    } else for (const f of found) out.push({ type: 'found', row: f });
+    out.push({ type: 'ask' });
+    return out;
+  }, [term, recent, openTabs, recentCanvases, found]);
+
+  const run = (it) => {
+    if (!it) return;
+    if (it.type === 'recent') {
+      setQ(it.q);
+      inputRef.current?.focus();
+    } else if (it.type === 'ask') {
+      onClose();
+      onAsk(term);
+    } else if (!canOpen) {
+      // a browser tab cannot open projects
+    } else if (it.type === 'tab') {
+      onClose();
+      onOpenRow(it.pid);
+    } else if (it.type === 'canvas') {
+      onClose();
+      onOpenRow(it.pid, it.rel);
+    } else if (it.type === 'found') {
+      saveRecentSearch(term, found.length);
+      onClose();
+      onOpenRow(it.row.pid, it.row.rel, it.row.artboard);
+    }
   };
 
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {
-      if (q) setQ('');
-      else {
-        setOpenList(false);
-        e.currentTarget.blur();
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSel((s) => Math.min(rows.length - 1, s + 1));
+      setSel((s) => Math.min(items.length - 1, s + 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSel((s) => Math.max(0, s - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      pick(rows[sel]);
+      const ask = items[items.length - 1];
+      run(e.metaKey || e.ctrlKey ? ask : items[sel]);
+    } else if (e.key === 'Tab') {
+      e.preventDefault(); // the palette is one stop: the field; the arrows walk the rows
     }
   };
 
-  const term = q.trim();
   const listId = 'home-search-list';
+  const rowProps = (i) => ({
+    id: `home-sr-${i}`,
+    role: 'option',
+    'aria-selected': i === sel,
+    tabIndex: -1,
+    onMouseEnter: () => setSel(i),
+  });
+  let at = -1;
+  const next = () => ++at;
+
   return (
-    <div className="home-search-wrap" ref={wrapRef}>
-      <div className="island home-search">
-        <HIcon name="search" size={16} />
-        <input
-          ref={inputRef}
-          className="home-search-input"
-          data-testid="home-search"
-          type="search"
-          role="combobox"
-          aria-label="Search canvases in every project"
-          aria-expanded={openList}
-          aria-controls={listId}
-          aria-activedescendant={openList && rows[sel] ? `home-sr-${sel}` : undefined}
-          aria-autocomplete="list"
-          placeholder="Search canvases and artboards…"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setOpenList(true);
-          }}
-          onFocus={() => {
-            setOpenList(true);
-            loadRecent();
-          }}
-          onKeyDown={onKeyDown}
-        />
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="island home-search-tr"
+        data-testid="home-search-open"
+        aria-label="Search canvases in every project"
+        aria-haspopup="dialog"
+        aria-keyshortcuts="Meta+K"
+        onClick={onOpen}
+      >
+        <span className="icon-btn" aria-hidden="true">
+          <HIcon name="search" size={16} />
+        </span>
         <kbd className="kbd">⌘K</kbd>
-      </div>
-      {openList ? (
-        <div className="home-pal">
-          {!term ? (
-            recent.length ? (
-              <div>
-                <p className="island-title home-pal-gt" id="home-pal-recent">
-                  Recent searches
-                </p>
-                {recent.map((r) => (
-                  <button
-                    key={r.q}
-                    type="button"
-                    className="home-pal-row"
-                    onClick={() => {
-                      setQ(r.q);
-                      inputRef.current?.focus();
-                    }}
-                  >
-                    <span className="home-pal-ic">
-                      <HIcon name="search" size={14} />
-                    </span>
-                    <span className="home-pal-label">{r.q}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="home-pal-none">Search every project on this Mac, open or not.</p>
-            )
-          ) : result && !rows.length ? (
-            <p className="home-pal-none">
-              {result.failed
-                ? "Search isn't available right now. Try again in a moment."
-                : `Nothing called “${term}”. Try another word.`}
-            </p>
-          ) : (
-            <div id={listId} role="listbox" aria-label="Search results">
-              {result?.closeOnly ? (
-                <p className="home-pal-note">Showing close matches for “{term}”</p>
-              ) : null}
-              {(result?.groups ?? []).map((g) => (
-                <div key={g.pid}>
-                  <p className="island-title home-pal-gt">
-                    <ProjectSquare id={g.pid} name={g.name} />
-                    {g.name}
-                  </p>
-                  {g.rows.map((row) => {
-                    const i = rows.findIndex((x) => x.pid === g.pid && x.key === row.key);
-                    const [rel, artboard] = String(row.key).split('#');
-                    return (
-                      <button
-                        key={row.key}
-                        id={`home-sr-${i}`}
-                        type="button"
-                        role="option"
-                        aria-selected={i === sel}
-                        className="home-pal-row"
-                        data-testid={`home-search-row-${g.pid}-${rowSlug(rel)}${artboard ? `-${artboard}` : ''}`}
-                        onMouseEnter={() => setSel(i)}
-                        onClick={() => pick(rows[i])}
-                        disabled={!canOpen}
-                      >
-                        {row.cover ? (
-                          <Thumb src={thumbUrl(g.pid, row.cover)} className="home-thumb-pal" />
-                        ) : (
-                          <span className="home-pal-ic">
-                            <HIcon name={row.group === 'artboards' ? 'home' : 'folder'} size={14} />
-                          </span>
-                        )}
-                        <span className="home-pal-label">
-                          <span className="home-pal-ltxt">{marked(row.name, row.marks)}</span>
-                          {row.meta ? <span className="home-pal-meta">{row.meta}</span> : null}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+      </button>
+      {open ? (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: esc closes from the field; the veil click is the pointer door
+        <div
+          className="home-pal-veil"
+          data-testid="home-search-veil"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          <div className="home-pal" role="dialog" aria-modal="true" aria-label="Search">
+            <div className="home-pal-field">
+              <HIcon name="search" size={18} />
+              <input
+                ref={inputRef}
+                className="home-search-input"
+                data-testid="home-search"
+                type="search"
+                role="combobox"
+                aria-label="Search canvases in every project"
+                aria-expanded="true"
+                aria-controls={listId}
+                aria-activedescendant={items[sel] ? `home-sr-${sel}` : undefined}
+                aria-autocomplete="list"
+                placeholder={PALETTE_PLACEHOLDER}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={onKeyDown}
+              />
+              <kbd className="kbd">esc</kbd>
             </div>
-          )}
-          <div className="home-pal-foot">
-            <span>
-              {term && rows.length
-                ? `${rows.length} ${rows.length === 1 ? 'result' : 'results'}`
-                : ''}
-            </span>
-            <span>every project, open or not</span>
+            <div className="home-pal-res" id={listId} role="listbox" aria-label="Search results">
+              {!term ? (
+                <>
+                  {recent.length ? (
+                    <div>
+                      <p className="island-title home-pal-gt">Recent searches</p>
+                      {recent.map((r) => {
+                        const i = next();
+                        return (
+                          <button
+                            key={r.q}
+                            type="button"
+                            className="home-pal-row"
+                            data-testid={`home-recent-search-${i}`}
+                            {...rowProps(i)}
+                            onClick={() => run(items[i])}
+                          >
+                            <span className="home-pal-ic">
+                              <HIcon name="search" size={14} />
+                            </span>
+                            <span className="home-pal-label">{r.q}</span>
+                            {r.results != null ? (
+                              <span className="home-pal-hint">
+                                {r.results} {r.results === 1 ? 'result' : 'results'}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {openTabs.length ? (
+                    <div>
+                      <p className="island-title home-pal-gt">Open tabs</p>
+                      {openTabs.map((t) => {
+                        const i = next();
+                        return (
+                          <button
+                            key={t.pid}
+                            type="button"
+                            className="home-pal-row"
+                            data-testid={`home-search-tab-${t.pid}`}
+                            {...rowProps(i)}
+                            onClick={() => run(items[i])}
+                            disabled={!canOpen}
+                          >
+                            <ProjectSquare id={t.pid} name={t.name} size="md" />
+                            <span className="home-pal-label">
+                              <span className="home-pal-ltxt">{t.name}</span>
+                              {t.meta ? <span className="home-pal-meta">{t.meta}</span> : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {recentCanvases.length ? (
+                    <div>
+                      <p className="island-title home-pal-gt">Recent canvases</p>
+                      {recentCanvases.map((c) => {
+                        const i = next();
+                        return (
+                          <button
+                            key={`${c.pid}:${c.rel}`}
+                            type="button"
+                            className="home-pal-row"
+                            data-testid={`home-search-recent-${c.pid}-${c.slug}`}
+                            {...rowProps(i)}
+                            onClick={() => run(items[i])}
+                            disabled={!canOpen}
+                          >
+                            <Thumb src={c.thumb} className="home-thumb-pal" />
+                            <span className="home-pal-label">
+                              <span className="home-pal-ltxt">{c.name}</span>
+                              <span className="home-pal-meta">{c.meta}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {!recent.length && !openTabs.length && !recentCanvases.length ? (
+                    <p className="home-pal-none">Search every project on this Mac, open or not.</p>
+                  ) : null}
+                </>
+              ) : result && !found.length ? (
+                <p className="home-pal-none">
+                  {result.failed
+                    ? "Search isn't available right now. Try again in a moment."
+                    : `Nothing called “${term}”. Try another word.`}
+                </p>
+              ) : (
+                <>
+                  {result?.closeOnly ? (
+                    <p className="home-pal-note">
+                      <HIcon name="search" size={12} />
+                      <span>Showing close matches for “{term}”</span>
+                    </p>
+                  ) : null}
+                  {(result?.groups ?? []).map((g) => (
+                    <div key={g.pid}>
+                      <p className="island-title home-pal-gt">
+                        <ProjectSquare id={g.pid} name={g.name} />
+                        {g.name}
+                      </p>
+                      {g.rows.map((row) => {
+                        const i = found.findIndex((x) => x.pid === g.pid && x.key === row.key);
+                        const [rel, artboard] = String(row.key).split('#');
+                        return (
+                          <button
+                            key={row.key}
+                            type="button"
+                            className="home-pal-row"
+                            data-testid={`home-search-row-${g.pid}-${rowSlug(rel)}${artboard ? `-${artboard}` : ''}`}
+                            {...rowProps(i)}
+                            onClick={() => run(items[i])}
+                            disabled={!canOpen}
+                          >
+                            {row.cover ? (
+                              <Thumb src={thumbUrl(g.pid, row.cover)} className="home-thumb-pal" />
+                            ) : (
+                              <span className="home-pal-ic">
+                                <HIcon
+                                  name={row.group === 'artboards' ? 'home' : 'folder'}
+                                  size={14}
+                                />
+                              </span>
+                            )}
+                            <span className="home-pal-label">
+                              <span className="home-pal-ltxt">{marked(row.name, row.marks)}</span>
+                              {row.meta ? <span className="home-pal-meta">{row.meta}</span> : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </>
+              )}
+              <div className="home-pal-ask">
+                <button
+                  type="button"
+                  className="home-pal-row"
+                  data-testid="home-search-ask"
+                  {...rowProps(items.length - 1)}
+                  onClick={() => run(items[items.length - 1])}
+                >
+                  <span className="home-pal-ic home-pal-ic--spark">
+                    <HSpark size={12} />
+                  </span>
+                  <span className="home-pal-label">
+                    <span className="home-pal-ltxt">Ask AI</span>
+                    <span className="home-pal-meta">
+                      {term
+                        ? ` — find “${term}” by what it looks like`
+                        : ' — describe what you want on the canvas'}
+                    </span>
+                  </span>
+                  <span className="home-pal-keys">
+                    <kbd className="kbd">⌘</kbd>
+                    <kbd className="kbd">↵</kbd>
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div className="home-pal-foot">
+              <span className="home-pal-hints">
+                <span>
+                  <kbd className="kbd">↑</kbd>
+                  <kbd className="kbd">↓</kbd> move
+                </span>
+                <span>
+                  <kbd className="kbd">↵</kbd> open
+                </span>
+              </span>
+              <span>
+                {term && found.length
+                  ? `${found.length} ${found.length === 1 ? 'result' : 'results'} · every project, open or not`
+                  : 'every project, open or not'}
+              </span>
+            </div>
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
 

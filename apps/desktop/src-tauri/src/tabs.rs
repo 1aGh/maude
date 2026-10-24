@@ -175,17 +175,26 @@ pub fn project_square(pid: &str, name: &str) -> (String, &'static str) {
     (initial_of(name), PROJECT_TONES[(h as usize) % PROJECT_TONES.len()])
 }
 
-/// Pure twin of the account card's `toneOf(id)` (account-card-model.js): `a` | `b`.
-pub fn account_tone(id: &str) -> &'static str {
-    let h = id.chars().fold(0i32, |h, c| {
-        let unit = c.encode_utf16(&mut [0u16; 2])[0];
-        h.wrapping_mul(31).wrapping_add(unit as i32)
-    });
-    if (h as i64).abs() % 2 == 0 {
-        "a"
-    } else {
-        "b"
+/// Pure twin of `accountTone(id, label)` (client/shell/account-tone.js): the ONE account tone on Home, in
+/// the Share cluster and on this strip — Work sky, Personal yellow (board 11 ACCT), anything else a stable
+/// object-palette tone hashed from the id.
+pub fn account_tone(id: &str, label: &str) -> &'static str {
+    const TONES: [&str; 5] = ["lilac", "yellow", "sky", "green", "coral"];
+    match id.to_lowercase().as_str() {
+        "work" => return "sky",
+        "personal" | "default" => return "yellow",
+        _ => {}
     }
+    match label.trim().to_lowercase().as_str() {
+        "work" => return "sky",
+        "personal" => return "yellow",
+        _ => {}
+    }
+    let h = id.chars().fold(0u32, |h, c| {
+        let unit = c.encode_utf16(&mut [0u16; 2])[0];
+        h.wrapping_mul(31).wrapping_add(unit as u32)
+    });
+    TONES[(h as usize) % TONES.len()]
 }
 
 /// Pure: the badge for a tab bound to profile `id` labelled `label` — none on
@@ -198,7 +207,7 @@ pub fn account_badge(id: &str, label: &str) -> Option<StripAccount> {
     let label = if label.is_empty() { id.to_string() } else { label };
     Some(StripAccount {
         initial: initial_of(&label),
-        tone: account_tone(id),
+        tone: account_tone(id, &label),
         label,
     })
 }
@@ -1777,13 +1786,20 @@ mod tests {
         assert_eq!(project_square("l9f86d081884c7d65", "Ž lutý"), ("Ž".into(), "grey"));
         assert_eq!(project_square("", "Cloud"), ("C".into(), "grey"));
         assert_eq!(project_square("lffffffffffffffff", "  "), ("·".into(), "coral"));
-        for (id, tone) in [("work", "b"), ("personal", "a"), ("e2e-b", "b"), ("x", "a")] {
-            assert_eq!(account_tone(id), tone, "{id}");
+        // the same table test/p8-c2-account-tone.test.ts pins on the client side
+        for (id, label, tone) in [
+            ("work", "", "sky"),
+            ("personal", "", "yellow"),
+            ("default", "Personal", "yellow"),
+            ("w2", "Work", "sky"),
+            ("x", "Personal", "yellow"),
+        ] {
+            assert_eq!(account_tone(id, label), tone, "{id}");
         }
         assert_eq!(account_badge("default", "Personal"), None, "the first account wears none");
         assert_eq!(
             account_badge("work", "work\u{202e} studio"),
-            Some(StripAccount { initial: "W".into(), tone: "b", label: "work studio".into() })
+            Some(StripAccount { initial: "W".into(), tone: "sky", label: "work studio".into() })
         );
         assert_eq!(account_badge("e2e-b", "").map(|a| a.label), Some("e2e-b".into()));
     }

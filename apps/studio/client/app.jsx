@@ -2914,7 +2914,8 @@ function ShellTree() {
   });
   const floating = !pinned;
   // V2-8.5 C2 — the Inspector is a 264 px card (14 `.k-insp`), not the user's panel width
-  const rpW = rightActive === 'inspector' ? 264 : rpSize.w;
+  // P8-C8 — Version history is the 372 px island of 11 `.pn-vh` (pictures 72×54 need the room)
+  const rpW = rightActive === 'inspector' ? 264 : rightActive === 'changes' ? 372 : rpSize.w;
   // Opening a panel while ⌘\ hides them brings them all back (the open panel must be seen). V2-4.4b — the AI
   // chat is its own island: its opening un-hides the panels like any other panel's does. P8 C5 — Preview's fold
   // is the mode's: an opening does not end it (`panelOpenDecision`); a right panel opened in it (Inspect on a

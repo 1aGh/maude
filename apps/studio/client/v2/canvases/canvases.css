@@ -66,16 +66,18 @@
     display: flex;
     align-items: center;
     height: 100%;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-sm);
     color: var(--fg-1);
   }
   .cv-row:hover,
   .cv-row:focus-within {
     background: var(--bg-2);
   }
+  /* the current row is the DS row-item[aria-current]: accent-muted, semibold (11 pn-organise) */
   .cv-row.is-sel {
-    background: var(--accent-tint);
+    background: var(--accent-muted);
     color: var(--fg-0);
+    font-weight: var(--w-semibold);
   }
   .cv-row.is-dragging {
     opacity: 0.35;
@@ -183,14 +185,24 @@
     color: var(--fg-2);
     font-variant-numeric: tabular-nums;
   }
+  /* k-thumb--row: 28 × 20 (11 pn-organise); a row with no picture yet draws a small page, not a blank box */
   .cv-thumb {
     flex: none;
-    width: 20px;
+    width: 28px;
     height: 20px;
     border-radius: var(--radius-xs);
     background: var(--bg-3);
     overflow: hidden;
     box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .cv-thumb:empty::after {
+    content: "";
+    display: block;
+    width: 10px;
+    height: 8px;
+    margin: 6px auto 0;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--border-strong);
   }
   .cv-thumb img {
     display: block;
@@ -602,14 +614,17 @@
     width: 20px;
     color: var(--fg-2);
   }
+  /* 11 pn-jump: type-xs, fg-1; the current board fg-0 and its kind icon accent-text */
   .cv-row--board .cv-name {
-    font-size: var(--type-sm);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
   }
   .cv-row--board.is-sel .cv-bk {
-    color: var(--accent);
+    color: var(--accent-text);
   }
   .cv-row--board.is-sel .cv-name {
-    font-weight: 500;
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
   }
   .cv-note {
     position: absolute;

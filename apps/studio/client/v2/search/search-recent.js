@@ -65,6 +65,15 @@ export function recentRows(opened, { designRel = '.design', cap = RECENT_CAP } =
     });
 }
 
+/** The glyph each Start-here row wears (05 es-search-more: plus · folder · insert · help on neutral tiles) —
+ *  a registry id without a kit glyph used to fall to the ">" chevron. */
+const START_ICON = Object.freeze({
+  'canvas.new': 'plus',
+  'project.open': 'folder',
+  'import.figma': 'insert',
+  'help.shortcuts': 'help',
+});
+
 /** The Start here rows: the shell's rows for `START_HERE` that can run here, in that order. */
 export function startRows(actions) {
   const out = [];
@@ -75,7 +84,7 @@ export function startRows(actions) {
       group: 'short',
       id: `start:${id}`,
       name: a.name ?? a.label,
-      icon: a.icon,
+      icon: START_ICON[id] ?? a.icon,
       keys: a.keys ?? a.kbd ?? '',
       heading: 'Start here',
       run: a.run,

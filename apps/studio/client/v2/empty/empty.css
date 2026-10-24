@@ -403,7 +403,17 @@
     line-height: var(--lh-xs);
   }
   .es-e--inpanel {
-    padding: var(--space-6) var(--space-3);
+    padding: var(--space-5) var(--space-2) var(--space-4);
+  }
+  /* 05 .es-e--inpanel: the situation line is type-base, the next line xs fg-2 (the panel is 248 wide) */
+  .es-e--inpanel .es-sit {
+    font-size: var(--type-base);
+    line-height: var(--lh-base, var(--lh-md));
+  }
+  .es-e--inpanel .es-next {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
   }
   .es-conn-veil {
     position: fixed;

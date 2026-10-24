@@ -88,7 +88,7 @@ describe('the tab strip page (S1.22b)', () => {
   test('a tab draws its square, its name as text, its account badge and one state mark', async () => {
     const tabs = [
       tab(1, { name: '<b>Alligators</b>', initial: 'A', tone: 'lilac' }),
-      tab(2, { account: { initial: 'W', tone: 'b', label: 'Work' }, dot: 'needs-you' }),
+      tab(2, { account: { initial: 'W', tone: 'sky', label: 'Work' }, dot: 'needs-you' }),
       tab(3, { resting: true }),
       tab(4, { resting: true, dot: 'working' }),
     ];
@@ -103,7 +103,7 @@ describe('the tab strip page (S1.22b)', () => {
     const t2 = $(`tab-${tabs[1].label}`)!;
     const badge = t2.querySelector('[data-testid="tab-account"]')!;
     expect(badge.textContent).toBe('W');
-    expect(badge.getAttribute('data-tone')).toBe('b');
+    expect(badge.getAttribute('data-tone')).toBe('sky');
     expect(badge.getAttribute('aria-label')).toBe('Account: Work');
     expect(t2.querySelector('[data-testid="tab-dot"]')?.textContent).toBe('?');
     // A resting tab wears the ring; an AI mark wins over it (one mark per tab).

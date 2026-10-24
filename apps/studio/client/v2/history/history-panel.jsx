@@ -117,12 +117,10 @@ function Row({
         data-ref={row.ref}
         onClick={() => onView(row)}
       >
+        <Mark mark={mark} />
         <Picture row={row} />
         <span className="vh-t">
-          <strong>
-            <Mark mark={mark} />
-            {row.title}
-          </strong>
+          <strong>{row.title}</strong>
           <span>
             <Face row={row} />
             <span className="vh-sub" title={row.sub}>
@@ -143,10 +141,11 @@ function Row({
           {onCompare ? (
             <button
               type="button"
-              className="btn btn--sm"
+              className="btn btn--ghost btn--sm"
               data-testid="vh-compare"
               onClick={() => onCompare(row)}
             >
+              <StIcon name="eye" size={14} />
               {W.compare}
             </button>
           ) : null}

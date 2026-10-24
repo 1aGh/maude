@@ -354,7 +354,8 @@ export function remoteRows(result, { designRel = '.design', query = '', project 
       keys: '',
       where: '',
       advanced: false,
-      icon: board ? 'frame' : 'file',
+      // an artboard wears its KIND's glyph (11 pn-k-close: print → the printer), a canvas the page
+      icon: board ? (r.kind === 'print' ? 'print' : 'frame') : 'file',
       // a canvas shows its cover picture when one is rendered (the icon stays for a canvas without one)
       thumb: !board && THUMB_KEY.test(r.cover ?? '') ? `/_api/thumb/${r.cover}` : null,
       disabled: false,

@@ -405,6 +405,29 @@ export const STICONS = {
       <path d="M5 7.5h-.5A1.5 1.5 0 0 0 3 9v3a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5V9a1.5 1.5 0 0 0-1.5-1.5H11" />
     </>
   ),
+  // P8-C8 (11 pn-k-close · pn-ds-search · 05 es-search-more): the kit glyphs a ⌘K row names — an artboard
+  // (frame), a print artboard, the design system, a new canvas.
+  frame: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" />,
+  print: (
+    <>
+      <path d="M4.5 6V2.5h7V6M4.5 11.5h-1A1.5 1.5 0 0 1 2 10V7.5A1.5 1.5 0 0 1 3.5 6h9A1.5 1.5 0 0 1 14 7.5V10a1.5 1.5 0 0 1-1.5 1.5h-1" />
+      <path d="M4.5 9.5h7v4h-7z" />
+    </>
+  ),
+  system: (
+    <>
+      <rect x="2.5" y="2.5" width="4.75" height="4.75" rx="1.25" />
+      <rect x="8.75" y="2.5" width="4.75" height="4.75" rx="1.25" />
+      <rect x="2.5" y="8.75" width="4.75" height="4.75" rx="1.25" />
+      <circle cx="11.125" cy="11.125" r="2.375" />
+    </>
+  ),
+  insert: (
+    <>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" />
+      <path d="M8 5.5v5M5.5 8h5" />
+    </>
+  ),
 };
 
 export function StIcon({ name, size = 16, className }) {
