@@ -318,7 +318,7 @@ export function failureCause(raw) {
   if (own) return own[1].trim();
   if (/rate.?limit|usage limit|too many requests|\b429\b|quota|overloaded|\b529\b/i.test(t))
     return 'Claude is too busy to answer right now';
-  if (/offline|enotfound|econnrefused|econnreset|network|fetch failed|getaddrinfo/i.test(t))
+  if (/offline|enotfound|enetunreach|network is unreachable|fetch failed|getaddrinfo/i.test(t))
     return 'this Mac lost its connection';
   if (/time.?d? ?out|etimedout|took too long|deadline/i.test(t))
     return 'Claude took too long to answer';
