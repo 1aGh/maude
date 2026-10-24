@@ -60,3 +60,6 @@ Nothing is "matches" yet; the lead's critic re-check decides.
 - `decision:maude/v2-p8-c4-quality-names-a-size` — 1080p / 4K are the shorter side, scale derived (clamped 0.25–4), 4K greyed when it would equal 1080p. Rejected: renaming the chips to "1×/2×" (board names them).
 - `decision:maude/v2-p8-c4-save-to-in-spec` — the sheet always sends `options.saveTo` (default Downloads) because it now says where the file lands; absent meant "ask" on desktop. Rejected: showing "Downloads" with no spec field (a lie on desktop).
 - `decision:maude/v2-p8-c4-held-back-controls` — controls the engine cannot honour (Visible area, caption file, Both) are drawn disabled with a reason, not faked.
+
+## Round 2
+See ../08-artboard-kinds/fix-insptl.md (POST /_api/export-preview landed; batch stacks use it). Still open: filmstrip stills, format-tile pictures, Advanced fields, unreachable stubs.

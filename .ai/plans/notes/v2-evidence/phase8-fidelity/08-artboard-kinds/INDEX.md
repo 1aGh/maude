@@ -51,3 +51,6 @@ Pair image: `08-artboard-kinds/<id>-<theme>.jpg` (spec left, impl right; label s
 - artboards on the board: 19
 - pair images (id × theme): 32
 - artboards with no impl frame (spec-only): 3 — ak-convert, ak-convert-after, ak-real-about
+
+## After — stage C round 2 (p8-c2-insptl)
+Pairs in this folder were re-shot light + dark on branch p8-c2-insptl (spec left, impl right). Per artboard id × theme: see `fix-insptl.md` (08 table). Changed this round: ak-video (Length well, Sound note), ak-advanced (fold open in the frame). Everything else is the wave-1 state.
