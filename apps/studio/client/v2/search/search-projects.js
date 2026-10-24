@@ -157,7 +157,14 @@ export function assembleAcross({
       aside: PLACE_ASIDE[g.place],
       rows: g.rows.slice(0, OTHER_PROJECT_CAP).map(quiet),
     });
-  groups.push(...view.groups.filter((g) => !PROJECT_GROUPS.has(g.id)));
+  // 11 pn-k-across: across projects the tools group says how they are found
+  groups.push(
+    ...view.groups
+      .filter((g) => !PROJECT_GROUPS.has(g.id))
+      .map((g) =>
+        g.title === 'Tools and settings' ? { ...g, aside: 'not on screen, found by search' } : g
+      )
+  );
   const shown = groups.flatMap((g) => g.rows);
   return { ...view, groups, items: view.ask ? [...shown, view.ask] : shown };
 }

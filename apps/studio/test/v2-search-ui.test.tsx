@@ -376,7 +376,7 @@ describe('⌘K words (S1.4)', () => {
       await sleep(250);
     });
     expect(el.querySelector('[data-testid="palette-close-note"]')?.textContent).toBe(
-      'Nothing called “unifromy 2027”. Showing close matches for Uniformy.'
+      'Nothing called “unifromy”. Showing close matches for uniformy.'
     );
     expect(el.querySelector('[data-testid="palette-did-you-mean-note"]')).toBeNull();
     const marks = (id: string, where: string) =>

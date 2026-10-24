@@ -394,6 +394,9 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   }
   const groups = [];
   let total = 0;
+  // 11 pn-k-across / pn-k-close: next to canvases and artboards the hidden tools are "Tools and settings · not on
+  // screen" (what they are), not 06's "Actions · N hidden tools" (that is the search with only tools in it).
+  const withProjectRows = (byGroup.get('canvases')?.length ?? 0) + (byGroup.get('artboards')?.length ?? 0) > 0;
   for (const g of GROUPS) {
     const all = byGroup.get(g.id) ?? [];
     if (all.length === 0) continue;
@@ -401,14 +404,17 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
     // S11.18 (a11y): the count is the rows drawn — "31 results" over 13 rows told a screen reader a lie
     total += rows.length;
     const hidden = all.filter((r) => r.advanced).length;
+    const toolsNextToProjects = g.id === 'actions' && hidden > 0 && withProjectRows;
     groups.push({
       id: g.id,
-      title: g.title,
-      ...(g.id === 'actions' && hidden
-        ? { aside: `${hidden} hidden ${hidden === 1 ? 'tool' : 'tools'}` }
-        : g.aside
-          ? { aside: g.aside }
-          : {}),
+      title: toolsNextToProjects ? 'Tools and settings' : g.title,
+      ...(toolsNextToProjects
+        ? { aside: 'not on screen' }
+        : g.id === 'actions' && hidden
+          ? { aside: `${hidden} hidden ${hidden === 1 ? 'tool' : 'tools'}` }
+          : g.aside
+            ? { aside: g.aside }
+            : {}),
       rows,
     });
   }
@@ -433,6 +439,8 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
     closeOnly,
     didYouMean,
     closeWord: closeOnly ? closeWordFor(q, shown) : null,
+    // 11 pn-k-close: the note quotes the word that was mistyped ("unifromy"), not the whole query
+    closeTyped: closeOnly ? closeTypedFor(q, shown) : null,
     ask,
   };
 }
@@ -479,6 +487,24 @@ function closeWordFor(q, rows) {
       }
   }
   return null;
+}
+
+/** The query word the close matches stand for, as typed ("unifromy" in "unifromy 2027"). */
+function closeTypedFor(q, rows) {
+  const word = closeWordFor(q, rows);
+  if (!word) return null;
+  const f = fold(word);
+  const typed = String(q ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const hay = fold(rows.map((r) => r.name).join(' '));
+  return (
+    typed.find((w) => {
+      const fw = fold(w);
+      return !/\d/.test(fw) && !hay.includes(fw) && (withinOneEdit(fw, f) || withinOneEdit(fw, f.slice(0, fw.length)));
+    }) ?? null
+  );
 }
 
 /** CONTRACT §4: "Nothing called “pricng”. Try another word, or ask AI to find it." (no AI → no 2nd half) */
