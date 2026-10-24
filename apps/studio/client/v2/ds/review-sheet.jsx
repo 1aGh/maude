@@ -75,12 +75,22 @@ function Delta({ change, view }) {
             style={cb ? { background: cb } : undefined}
             data-testid="ds-review-chip-before"
           />
+          {change.beforeName ? (
+            <span className="dsr-sw-name" data-testid="ds-review-name-before">
+              {change.beforeName}
+            </span>
+          ) : null}
           <StIcon name="chevron-right" size={12} />
           <span
             className="dsr-chip"
             style={ca ? { background: ca } : undefined}
             data-testid="ds-review-chip-after"
           />
+          {change.afterName ? (
+            <span className="dsr-sw-name" data-testid="ds-review-name-after">
+              {change.afterName}
+            </span>
+          ) : null}
         </>
       ) : (
         <em data-testid="ds-review-value">{`${b ?? '—'} → ${a ?? 'removed'}`}</em>
@@ -136,6 +146,7 @@ export function RowView({ row, keeps, onToggle, cover }) {
 export function DsReviewSheet({
   review,
   components = [],
+  componentLines = {},
   places = {},
   scope = '',
   openBy = null,
@@ -236,6 +247,11 @@ export function DsReviewSheet({
             {components.map((c) => (
               <p key={`c-${c}`} className="dsr-sw-line" data-component={c}>
                 <b>{c}</b>
+                {componentLines[c]?.length ? (
+                  <span className="dsr-sw-name" data-testid="ds-review-master-lines">
+                    {componentLines[c].join(' · ')}
+                  </span>
+                ) : null}
               </p>
             ))}
             {review.changes.length > shown.length ? (

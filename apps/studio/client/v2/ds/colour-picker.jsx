@@ -95,7 +95,9 @@ export function ColourPicker({ value, onChange, onEnd, label = 'Colour' }) {
         onPointerDown={dragIn(sq, (x, y) => emit({ l: 1 - y, c: x * C_MAX, h: o.h }))}
         onKeyDown={squareKey}
       >
-        <i style={{ left: `${(clamp(o.c, 0, C_MAX) / C_MAX) * 100}%`, top: `${(1 - o.l) * 100}%` }} />
+        <i
+          style={{ left: `${(clamp(o.c, 0, C_MAX) / C_MAX) * 100}%`, top: `${(1 - o.l) * 100}%` }}
+        />
       </span>
       <span
         ref={rail}

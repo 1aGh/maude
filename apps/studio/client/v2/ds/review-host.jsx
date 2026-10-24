@@ -17,7 +17,15 @@ import { DsLibraryHost } from './library-host.jsx';
 import { DsReachView } from './reach-view.jsx';
 import { DsReviewSheet } from './review-sheet.jsx';
 import { onDsReviewRequest } from './review-bus.js';
-import { publishBody, REVIEW_WORDS, refusalWords, updatedWords } from './review-model.js';
+import {
+  masterLines,
+  publishBody,
+  REVIEW_WORDS,
+  refusalWords,
+  updatedWords,
+  withValueNames,
+} from './review-model.js';
+import { fetchBoard } from './token-write.js';
 import { useDsRowDots } from './row-dots.js';
 import { DsOffSystemHost } from './off-system-host.jsx';
 import { DsSwitchHost } from './switch-host.jsx';
@@ -78,9 +86,10 @@ export async function placesOf(ds, changes, components, fetchImpl = globalThis.f
  * @returns {Promise<{ ok: true, review: any, components: string[], places: Record<string, number> } | { ok: false, message: string }>}
  */
 export async function loadDsReview(ds, fetchImpl = globalThis.fetch) {
-  const [rev, state] = await Promise.all([
+  const [rev, state, board] = await Promise.all([
     call(fetchImpl, 'POST', '/_api/ds/publish', { ds, dryRun: true }),
     call(fetchImpl, 'GET', `/_api/ds/state?ds=${encodeURIComponent(ds)}`),
+    fetchBoard(ds, fetchImpl),
   ]);
   if (!rev.ok) return { ok: false, message: refusalWords(rev.code) };
   const review = rev.body;
@@ -97,10 +106,11 @@ export async function loadDsReview(ds, fetchImpl = globalThis.fetch) {
     review: {
       system: review.system ?? ds,
       expectHead: review.expectHead ?? null,
-      changes,
+      changes: withValueNames(changes, board),
       canvases: Array.isArray(review.canvases) ? review.canvases : [],
     },
     components,
+    componentLines: masterLines(board),
     places: await placesOf(ds, changes, components, fetchImpl),
   };
 }
@@ -342,6 +352,7 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         key={`${sheet.ds}:${sheet.review.expectHead}`}
         review={sheet.review}
         components={sheet.components}
+        componentLines={sheet.componentLines}
         places={sheet.places}
         scope={scope}
         onClose={close}

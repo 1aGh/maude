@@ -218,3 +218,47 @@ export const updatedWords = (updated, leftOut) =>
   leftOut > 0
     ? `Updated ${canvasCount(updated)}. ${leftOut} left out keep${leftOut === 1 ? 's' : ''} the old look.`
     : `Updated ${canvasCount(updated)}.`;
+
+/**
+ * The changes with the colours' own names on each side (13 · ds-edit-review: "Azure › Deeper azure"): the name the
+ * file gives the old value, and the name the waiting edit gives the new one. Read from the board model, which
+ * already carries both; a change the model does not know keeps no names (the sheet then shows only the chips).
+ */
+export function withValueNames(changes = [], board = null) {
+  const toks = new Map((board?.tokens ?? []).map((t) => [t.css, t]));
+  const light = board?.themes?.light;
+  return changes.map((c) => {
+    const t = toks.get(c.css);
+    if (!t || !light) return c;
+    const beforeName = t.valueNames?.[light] ?? null;
+    const afterName = t.pending?.valueNames?.[light] ?? null;
+    return { ...c, ...(beforeName ? { beforeName } : {}), ...(afterName ? { afterName } : {}) };
+  });
+}
+
+const MASTER_WORDS = {
+  'border-radius': 'Corners',
+  background: 'Fill',
+  color: 'Text',
+  height: 'Height',
+};
+const bare = (v) => (typeof v === 'string' ? v.trim().replace(/px$/, '') : '');
+
+/**
+ * What a waiting master edit changes, in the words the editor uses (13 · ds-edit-master: "Corners 2 → 6"):
+ * `{ [master]: ['Corners 2 → 6', …] }`. Only the master's own look (Corners · Fill · Text · Height) is worded.
+ */
+export function masterLines(board = null) {
+  const out = {};
+  for (const c of board?.components ?? []) {
+    const lines = [];
+    for (const p of c.patches ?? []) {
+      const word = MASTER_WORDS[p.prop];
+      if (!word || p.selector?.trim() !== `.${c.className}`) continue;
+      const was = bare(c.look?.[p.prop]);
+      lines.push(was ? `${word} ${was} → ${bare(p.value)}` : `${word} → ${bare(p.value)}`);
+    }
+    if (lines.length) out[c.name] = lines;
+  }
+  return out;
+}

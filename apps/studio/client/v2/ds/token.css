@@ -65,7 +65,9 @@
     height: 12px;
     translate: -50% -50%;
     border-radius: var(--radius-pill);
-    box-shadow: 0 0 0 2px var(--bg-2), 0 1px 3px var(--fg-0);
+    box-shadow:
+      0 0 0 2px var(--bg-2),
+      0 1px 3px var(--fg-0);
     pointer-events: none;
   }
   .ds-picker-hue i {
