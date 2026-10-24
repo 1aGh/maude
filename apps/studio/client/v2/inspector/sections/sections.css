@@ -96,7 +96,7 @@
     width: 14px;
     height: 14px;
     border-radius: var(--radius-xs);
-    background: var(--object-green, var(--status-ok));
+    background: var(--object-green, var(--status-success));
   }
   .insp-pair {
     display: flex;

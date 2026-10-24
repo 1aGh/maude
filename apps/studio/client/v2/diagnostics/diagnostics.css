@@ -371,6 +371,10 @@
     color: var(--fg-0);
     font-weight: var(--w-semibold);
   }
+  /* the message column: the one that wraps (a long path or stack frame never widens the box) */
+  .dg-line-m {
+    min-width: 0;
+  }
   /* 06 .ad-ll--warn: the whole row marks — bg-4 and an inset 2 px status bar; error uses the error colour */
   .dg-line[data-level="warn"],
   .dg-line[data-level="error"] {
