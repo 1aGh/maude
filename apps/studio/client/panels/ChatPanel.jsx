@@ -44,7 +44,8 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
-import { cleanChatTitle } from '../v2/ai/chat-list-model.js';
+import { cleanChatTitle, runTitleFor } from '../v2/ai/chat-list-model.js';
+import { useAiRuns } from '../v2/ai/runs-store.js';
 import { fetchChatRuns, undoNote, undoRun } from '../v2/ai/run-api.js';
 import { RunsCount } from '../v2/ai/RunList.jsx';
 import NeedsYouSlot from '../v2/ai/NeedsYouSlot.jsx';
@@ -495,6 +496,7 @@ function ChatThread({
                     justShared={justShared}
                     enabled={suggestOn}
                     lastFailed={!!turnError}
+                    chatId={chatId}
                   />
                 </ThreadPrimitive.If>
               }
@@ -879,13 +881,20 @@ export default function ChatPanel({
   // Switcher options — open chats first (parallel), then the rest of the recents.
   // Title precedence: the agent's own session_info_update title (live, this
   // process lifetime) > the persisted transcript's title > "New chat".
+  const { view: runsView } = useAiRuns();
   const chatOptions = useMemo(() => {
     const seen = new Set();
     const list = [];
     for (const id of openChatIds) {
       if (seen.has(id)) continue;
       seen.add(id);
-      const title = sessionTitles[id] || chats.find((c) => c.id === id)?.title || 'New chat';
+      const stored = chats.find((c) => c.id === id)?.title;
+      const title =
+        sessionTitles[id] ||
+        (stored && stored !== 'New chat' ? stored : null) ||
+        runTitleFor(runsView, id) ||
+        stored ||
+        'New chat';
       list.push({ id, title, open: true });
     }
     for (const c of chats) {
@@ -894,7 +903,7 @@ export default function ChatPanel({
       list.push(sessionTitles[c.id] ? { ...c, title: sessionTitles[c.id] } : c);
     }
     return list;
-  }, [chats, openChatIds, sessionTitles]);
+  }, [chats, openChatIds, sessionTitles, runsView]);
 
   const connected = status.available !== false;
 

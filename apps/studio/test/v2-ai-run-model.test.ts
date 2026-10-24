@@ -154,8 +154,8 @@ describe('the AI describes the result, never itself (rule ai-describes-the-resul
 });
 
 describe('follow-ups and the steps fold', () => {
-  test('"Same on <another artboard>" after a one-artboard change, at most two', () => {
-    expect(followUps(run(), BOARDS)).toEqual(['Same on Story 9:16', 'Same on A4']);
+  test('"Same on <another artboard>" after a one-artboard change — ONE, as 03 ai-done draws it', () => {
+    expect(followUps(run(), BOARDS)).toEqual(['Same on Story 9:16']);
     expect(followUps(run({ touched: { 'Combine.tsx': ['post', 'story'] } }), BOARDS)).toEqual([]);
     expect(followUps(run({ outcome: 'stopped' }), BOARDS)).toEqual([]);
     expect(followUps(run({ touched: {} }), BOARDS)).toEqual([]);

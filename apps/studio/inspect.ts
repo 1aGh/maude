@@ -570,6 +570,11 @@ const INSPECTOR_SCRIPT = `
        loop. transform-only; linear so it flows at a steady pace. */
     'html .dc-activity-scan { position: absolute; inset: 0; overflow: hidden; border-radius: 4px; pointer-events: none; z-index: 1; }',
     'html .dc-activity-scan::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 135%; will-change: transform; background: linear-gradient(to top, color-mix(in oklab, var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))) 20%, transparent) 0%, transparent 100%); animation: dc-activity-wave var(--mdcc-activity-scan-ms, 3800ms) linear infinite; }',
+    /* P8 c6 — while an AI run of yours is live (the ring layer sets data-maude-ai-live on <html>, with a short tail),
+       the S5.11 spark outline + tag is the ONE indicator (03 ai-hero / ai-done, 01 cf-ai-drafting): the file-write rim
+       and wash would draw a second dashed outline on every artboard the run touched. A terminal agent's edit has no
+       ring, so it keeps both. */
+    'html[data-maude-ai-live] .dc-activity-rim, html[data-maude-ai-live] .dc-activity-scan { display: none; }',
     '@keyframes dc-activity-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }',
     '@keyframes dc-activity-wave { from { transform: translateY(-100%); } to { transform: translateY(100%); } }',
     '@media (prefers-reduced-motion: reduce) { html .dc-activity-rim { transition: none; } html .dc-activity-rim::after { animation: none; opacity: 0.55; } html .dc-activity-scan { display: none; } }',

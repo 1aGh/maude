@@ -20,6 +20,7 @@ import {
   copyDividerText,
   createAnnouncer,
   describeResult,
+  foldedSteps,
   followUps,
   interruptedText,
   isWorking,
@@ -41,6 +42,7 @@ import { runCardFor } from './run-cards.js';
 import './video/cards.jsx';
 import { RunLiveRegion, useRunClock, WorkingLine } from './Working.jsx';
 import { useChatRuns } from './use-chat-runs.js';
+import { setResultShown } from './result-shown.js';
 
 const IDLE = { runId: null, status: 'idle', note: '' };
 const PICTURE_RETRY_MS = 1500;
@@ -93,6 +95,14 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
   const view = useMemo(() => compareView(versions ?? { after: null, before: null }), [versions]);
   const verbs = useMemo(() => resultVerbs(run, { canCompare: view.canCompare }), [run, view]);
   const showResult = !live && ended && (verbs.length > 0 || cutShort);
+  // P8 c6 (03 ai-done): the fold only on a long run; ONE chip row — the strip above the composer yields to it
+  const folded = useMemo(() => foldedSteps(digest.steps), [digest.steps]);
+  const chips = useMemo(() => followUps(run, artboards), [run, artboards]);
+  const chipsShown = showResult && chips.length > 0;
+  useEffect(() => {
+    setResultShown(chatId, chipsShown);
+    return () => setResultShown(chatId, false);
+  }, [chatId, chipsShown]);
   const elapsed = useRunClock(run?.startedAt, showWorking);
   // S5.18 G2: a run that ran on a copy says so, with the artboard that was busy
   const boardLabels = useBoardLabels(designRel, 0);
@@ -238,10 +248,10 @@ export function RunSurface({ conn, chatId, tools = [], artboards = [], designRel
             onVerb={onVerb}
             status={cur.status}
             note={cur.note}
-            steps={digest.steps}
-            stepsLabel={digest.steps.length ? stepsSummary(digest.steps, run) : ''}
+            steps={folded}
+            stepsLabel={folded.length ? stepsSummary(folded, run) : ''}
             thumbs={view.thumbs}
-            followUps={followUps(run, artboards)}
+            followUps={chips}
             onFollowUp={onFollowUp}
           />
         </div>

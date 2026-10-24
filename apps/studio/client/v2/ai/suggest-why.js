@@ -67,6 +67,7 @@ const chip = (id, label, prompt, extra = {}) => ({ id, label, prompt: prompt ?? 
  * @param {{ name?: string, at: number } | null} [i.justShared] — a canvas shared by this person
  * @param {{ text: string } | null} [i.lastAsk] — this person's last ask in this chat
  * @param {boolean} [i.lastFailed=false] — S5.19: the last ask FAILED; "Try a variation / Explain what changed" would follow up on nothing
+ * @param {boolean} [i.resultShown=false] — P8 c6: the result card under the last reply already carries the follow-up chips (03 `ai-done`)
  * @param {number} [i.now]
  * @returns {{ context: string, icon: string, chips: Array<{id:string,label:string,prompt:string,testid?:string}>, why: string } | null}
  */
@@ -77,6 +78,7 @@ export function deriveSuggestions({
   justShared = null,
   lastAsk = null,
   lastFailed = false,
+  resultShown = false,
   now = Date.now(),
 } = {}) {
   if (!enabled) return null;
@@ -132,6 +134,7 @@ export function deriveSuggestions({
   // A slash command is not an ask to follow up on (and `/design:edit fix open comments` is a chip's own text).
   if (
     !lastFailed &&
+    !resultShown &&
     lastAsk?.text &&
     String(lastAsk.text).trim() &&
     !String(lastAsk.text).trim().startsWith('/')

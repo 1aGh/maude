@@ -190,6 +190,13 @@ describe('the Inspector follows the selection', () => {
     expect(shouldOpenOnSelect({ ...on, hasId: false })).toBe(false);
     expect(shouldOpenOnSelect({ ...on, anyMainOpen: true })).toBe(false);
   });
+  test('a whole-artboard pick while the AI chat is open is the ask scope, not an edit: no Inspector (board 03)', () => {
+    expect(shouldOpenOnSelect({ ...on, askingAi: true })).toBe(false);
+    // an element with an id still follows even with the chat open (01 cf-select-tweak)
+    expect(shouldOpenOnSelect({ ...on, askingAi: false })).toBe(true);
+    const src = read('client/hooks/use-shell-core.jsx');
+    expect(src).toMatch(/askingAi: assistantOpenRef\.current && isArtboardSelection\(sel\)/);
+  });
   test('goes away on deselect — only when the selection opened it, and only with the pref on', () => {
     const off = { pref: true, autoOpened: true, hasSelection: false };
     expect(shouldCloseOnDeselect(off)).toBe(true);
