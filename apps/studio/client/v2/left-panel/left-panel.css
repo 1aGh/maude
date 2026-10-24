@@ -425,8 +425,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    flex: 1;
-    min-width: 0;
+    flex: 1 0 auto; /* the key never gives way to a long value (the path / folder clips instead) */
     white-space: nowrap;
   }
   .lp-adv-v {
