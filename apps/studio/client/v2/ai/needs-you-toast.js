@@ -43,6 +43,8 @@ export function needsYouNotice({ id, canvas, line, onOpen }) {
     id,
     title: q ? `${lead} — ${q.charAt(0).toLowerCase()}${q.slice(1)}?` : lead,
     kind: 'info',
+    // 03 ai-needs-hidden: the one-line island pill, help glyph first (the kit Toast, CONTRACT §4)
+    icon: 'help',
     group: 'ai-needs-you',
     // A question has no deadline: the toast outlives the default 10 s and goes when it is answered.
     duration: 600_000,
@@ -65,5 +67,12 @@ export function doneLine(text) {
 export function doneNotice({ id, text, onShow }) {
   const line = doneLine(text);
   if (!line) return null;
-  return { id, title: line, kind: 'success', action: { label: 'Show', onClick: onShow } };
+  // 03 ai-panel-closed: the same pill with the spark (the kit's Toast icon spark, action Show)
+  return {
+    id,
+    title: line,
+    kind: 'success',
+    icon: 'spark',
+    action: { label: 'Show', onClick: onShow },
+  };
 }

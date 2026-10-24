@@ -9,6 +9,8 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Toaster, toast } from 'sonner';
+import { StIcon } from './client/shell/icons.jsx';
+import { Spark } from './client/v2/ai/icons.jsx';
 
 export type NoticeKind = 'info' | 'success' | 'error' | 'warning' | 'undo';
 export interface Notice {
@@ -24,6 +26,12 @@ export interface Notice {
   paused?: boolean;
   action?: { label: string; onClick: () => void };
   onDismiss?: () => void;
+  /** kit `Toast at=`: where the pill sits. A state of the project (back online) sits at the top, the rest docks
+   *  above the toolbar. Only a notice that also has an `icon` is drawn as the one-line pill. */
+  placement?: 'top' | 'dock';
+  /** kit `Toast icon=`: a glyph name (`sync`, `help`, `problem`, …) or `spark`. Having one makes the one-line
+   *  island pill (03 ai-needs-hidden, 10 co-sync-back): glyph · text · one accent-text action, no close ×. */
+  icon?: string;
 }
 type Entry = Notice & { id: string };
 let entries: Entry[] = [];
@@ -117,7 +125,35 @@ export function summarizeNoticeText(text: unknown): string {
   return compact.length > 280 ? `${compact.slice(0, 279)}…` : compact;
 }
 
-function NoticeCard({ entry }: { entry: Entry }) {
+export function NoticeCard({ entry }: { entry: Entry }) {
+  if (entry.icon) {
+    return (
+      <div
+        className="maude-notice maude-notice--pill island"
+        data-kind={entry.kind ?? 'info'}
+        data-testid={`notice-${entry.id}`}
+        data-placement={entry.placement ?? 'dock'}
+      >
+        <span className={`maude-notice-ic maude-notice-ic--${entry.icon}`} aria-hidden="true">
+          {entry.icon === 'spark' ? <Spark size={14} /> : <StIcon name={entry.icon} size={16} className="maude-notice-glyph" />}
+        </span>
+        <span className="maude-notice-title">{summarizeNoticeText(entry.title)}</span>
+        {entry.action && (
+          <button
+            type="button"
+            className="maude-notice-action"
+            onClick={(event) => {
+              event.currentTarget.blur();
+              entry.action?.onClick();
+              acknowledge(entry.id);
+            }}
+          >
+            {entry.action.label}
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       className="maude-notice"
@@ -193,6 +229,7 @@ function MountedNotice({
       toast.custom(() => <NoticeCard entry={entry} />, {
         id: token,
         duration: Infinity,
+        ...(entry.placement === 'top' ? { position: 'top-center' as const } : {}),
         onDismiss: () => {
           if (presentationId.current === token) acknowledge(entry.id);
         },
@@ -228,6 +265,17 @@ const NOTICE_CSS = `
   display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
 .maude-notice[data-kind=error], .maude-notice[data-kind=warning] { border-left-color: var(--status-error, #d65b4d); }
 .maude-notice-title { font-weight: 600; padding-right: 20px; }
+.maude-notice--pill { flex-direction: row; align-items: center; gap: var(--space-2, 8px); width: auto;
+  min-height: 40px; padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) var(--space-4, 16px);
+  border: 0; border-left: 0; border-radius: var(--radius-pill, 999px); background: var(--bg-2, #26262b);
+  box-shadow: inset 0 0 0 0.5px var(--border-default, #45454c), var(--shadow-md, 0 8px 28px #0004);
+  font-size: var(--type-sm, 12px); line-height: var(--lh-sm, 1.4); white-space: nowrap; margin-inline: auto; }
+.maude-notice--pill .maude-notice-title { font-weight: var(--w-regular, 400); padding-right: var(--space-2, 8px);
+  display: block; overflow: hidden; text-overflow: ellipsis; max-width: 56ch; }
+.maude-notice-ic { display: grid; flex: none; color: var(--fg-1, #ddd); }
+.maude-notice-ic--spark { color: var(--spark, #e8552d); }
+.maude-notice-ic--help, .maude-notice-ic--sync { color: var(--fg-1, #ddd); }
+.maude-notice--pill .maude-notice-action { align-self: center; padding: 0 var(--space-2, 8px); }
 .maude-notice-summary, .maude-notice-title, .maude-notice .st-export-degraded {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   overflow-wrap: anywhere; }
@@ -293,7 +341,7 @@ export function NotificationHost({
           left panel (a toast there covered its Trash / Advanced rows). */}
       <Toaster
         position="bottom-center"
-        offset={{ bottom: 84 }}
+        offset={{ bottom: 84, top: 16 }}
         mobileOffset={{ left: 16, right: 16, bottom: 84 }}
         visibleToasts={3}
         expand={focused}
