@@ -20,13 +20,11 @@ import { type KindOverlayRenderFn, registerKindOverlay } from './artboard-guides
 import { effectivePrintGuides } from './kinds/print-guides.ts';
 import { resolveBleedMm, resolveMarginsMm, resolveMmPx } from './print/units.ts';
 
-// Adobe print-tool convention (Design Decision 3): bleed = red, trim = solid
-// dark line, margins/safe-area = magenta dashed. Chrome-engine constants, not
-// DS tokens — guides are never part of exported artboard content, same
-// reasoning as the foundation's own COLUMN_FILL/GRID_LINE constants.
-const BLEED_TINT = 'color-mix(in oklab, oklch(55% 0.22 25) 14%, transparent)';
-const TRIM_LINE = 'oklch(25% 0 0)';
-const MARGIN_LINE = 'oklch(58% 0.24 340)';
+// P8 C5 (08 RC-5, board 'ak-print-view'): bleed = the coral object colour, trim = a solid ink line, margins = the
+// lilac object colour dashed - the app's own object palette from the HUD tokens (chrome, never exported content).
+const BLEED_TINT = 'color-mix(in oklab, var(--maude-hud-object-coral, #f08a7c) 30%, transparent)';
+const TRIM_LINE = 'var(--maude-hud-object-ink, #1a1d24)';
+const MARGIN_LINE = 'var(--maude-hud-object-lilac, #a98bd9)';
 
 const PrintOverlayContent: KindOverlayRenderFn = ({ rect, print, visibility }) => {
   // C25 — View › Advanced › Print guides is the default; the artboard's own switch (`print.showGuides`) wins.

@@ -14,6 +14,7 @@
 
 import { type RefObject, useEffect, useState } from 'react';
 
+import { DsIcon } from './canvas-ds-icons.tsx';
 import { readArtboardVideoMeta } from './kinds/meta.ts';
 import {
   detectWarnings,
@@ -171,9 +172,9 @@ export function useArtboardWarnings(p: WarnProps): Warning[] {
 export const warningsAttr = (list: readonly Warning[]): string | undefined =>
   list.length ? JSON.stringify(list) : undefined;
 
-const MARK = 'oklch(62% 0.17 65)';
-
-/** The glyph beside the label. Not a control: a title, and `aria-hidden` (the label's own name says the count). */
+/** The glyph beside the label. Not a control: a title, and `aria-hidden` (the label's own name says the count).
+ *  08 `.ak-lw`: a 16 px `--status-warn` pill with the DS `problem` glyph in `--object-ink` (6.5:1 in both themes, also
+ *  on the selected accent label - it is a fill, not a stroke that vanishes there). */
 export function ArtboardWarnMark({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -184,27 +185,18 @@ export function ArtboardWarnMark({ count }: { count: number }) {
       title={summaryWords(count)}
       aria-hidden="true"
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
+        display: 'inline-grid',
+        placeItems: 'center',
+        width: 16,
+        height: 16,
         marginLeft: 6,
-        color: MARK,
+        borderRadius: 999,
+        background: 'var(--maude-hud-warn, #f5b84a)',
+        color: 'var(--maude-hud-object-ink, #1a1d24)',
         verticalAlign: 'middle',
       }}
     >
-      <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden="true">
-        <path
-          d="M8 1.8 15 14H1L8 1.8Z"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M8 6.2v3.6M8 11.6v.1"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        />
-      </svg>
+      <DsIcon name="problem" size={11} />
     </span>
   );
 }

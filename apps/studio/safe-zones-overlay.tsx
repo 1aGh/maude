@@ -30,14 +30,16 @@ import {
   type UnderFlag,
 } from './kinds/safe-zones.ts';
 
+// P8 C5 (08 RC-5, board .ak-sz*): the bands are the app's accent, the flag its warn colour - read from the HUD tokens
+// (the project's own --accent is the design's, not the chrome's), never a hard-coded red / yellow.
 const BAND_FILL =
-  'repeating-linear-gradient(135deg, color-mix(in oklab, oklch(60% 0.2 25) 30%, transparent) 0 6px, color-mix(in oklab, oklch(60% 0.2 25) 14%, transparent) 6px 12px)';
-const BAND_EDGE = 'oklch(60% 0.2 25)';
-const TAG_BG = 'oklch(60% 0.2 25)';
-const TAG_FG = 'oklch(98% 0.01 25)';
-const FLAG_BG = 'oklch(82% 0.15 85)';
-const FLAG_FG = 'oklch(24% 0.04 85)';
-const CUT_FILL = 'color-mix(in oklab, oklch(96% 0.01 90) 72%, transparent)';
+  'repeating-linear-gradient(135deg, color-mix(in oklab, var(--maude-hud-accent, #4a8cff) 30%, transparent) 0 6px, color-mix(in oklab, var(--maude-hud-accent, #4a8cff) 14%, transparent) 6px 12px)';
+const BAND_EDGE = 'var(--maude-hud-accent, #4a8cff)';
+const TAG_BG = 'var(--maude-hud-accent, #4a8cff)';
+const TAG_FG = 'var(--maude-hud-accent-fg, #ffffff)';
+const FLAG_BG = 'var(--maude-hud-warn, #f5b84a)';
+const FLAG_FG = 'var(--maude-hud-object-ink, #1a1d24)';
+const CUT_FILL = 'color-mix(in oklab, var(--maude-chrome-bg-2, #ffffff) 72%, transparent)';
 
 /** Most text elements measured per pass — a safety bound on an artboard with thousands of nodes. */
 const MAX_MEASURED = 400;
@@ -45,14 +47,16 @@ const MAX_MEASURED = 400;
 /** A label that stays readable at any artboard size (artboard px, not screen px). */
 const tagSize = (w: number) => Math.round(Math.min(44, Math.max(12, w * 0.026)));
 
+// type-xs on screen at any zoom (board: the tag is 11 px whatever the artboard's scale): the artboard-px size is the
+// floor for a large artboard, 11 screen px (11 / --dc-zoom) for a small one. Padding and radius ride the em.
 const tagStyle = (fs: number, bg: string, fg: string) =>
   ({
-    padding: `${Math.round(fs * 0.1)}px ${Math.round(fs * 0.45)}px`,
-    borderRadius: Math.round(fs * 0.25),
+    padding: '0.1em 0.45em',
+    borderRadius: '0.25em',
     background: bg,
     color: fg,
     fontFamily: 'var(--maude-chrome-font-body, system-ui, sans-serif)',
-    fontSize: fs,
+    fontSize: `max(${fs}px, calc(11px / var(--dc-zoom, 1)))`,
     fontWeight: 600,
     lineHeight: 1.25,
     whiteSpace: 'nowrap',

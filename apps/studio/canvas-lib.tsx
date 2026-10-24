@@ -119,6 +119,7 @@ import {
   warningsAttr,
 } from './artboard-warn-mark.tsx';
 import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
+import { DsIcon } from './canvas-ds-icons.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
 import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
 import { summaryWords } from './kinds/warnings.ts';
@@ -507,29 +508,27 @@ const ENGINE_CSS = `
 ${presentHidesCss()}
 .dc-canvas .dc-artboard-label {
   flex-shrink: 0;
-  background: var(--bg-2, #e8e3d8);
-  border-bottom: 1px solid var(--fg-0, #2a2520);
+  background: var(--maude-chrome-bg-2, #e8e3d8);
+  border-bottom: 1px solid var(--maude-chrome-border, #2a2520);
   padding: 6px 14px;
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--fg-1, #4a3f30);
+  color: var(--maude-chrome-fg-1, #4a3f30);
   font-family: var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
-/* T3 — per-kind chrome. Subtle tint on the header + a small glyph before the
-   label text, for any non-digital kind. digital (the default, and every
-   unmigrated canvas) renders no chip and no tint — byte-identical chrome. */
+/* P8 C5 (08 RC-3) - every label keeps its kind glyph (the DS family: web / digital / video / print), in the label's
+   own colour. The strip header tints a non-digital kind from the HUD accent, never from the project's tokens. */
 .dc-canvas .dc-artboard:not(.dc-positioned)[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
-  background: color-mix(in oklab, var(--accent, var(--fg-2, #4a3f30)) 10%, var(--bg-2, #e8e3d8));
+  background: color-mix(in oklab, var(--maude-hud-accent, var(--maude-chrome-fg-2, #4a3f30)) 10%, var(--maude-chrome-bg-2, #e8e3d8));
 }
 .dc-canvas .dc-artboard-kind-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-right: 6px;
-  color: var(--accent, var(--fg-1, #4a3f30));
-  opacity: 0.85;
-  vertical-align: -1px;
+  color: inherit;
+  vertical-align: -2px;
 }
 .dc-canvas .dc-artboard-body {
   flex: 1;
@@ -627,9 +626,9 @@ input.dc-artboard-rename {
   padding: 0;
   appearance: none;
   border: none;
-  border-radius: 3px;
-  background: var(--bg-2, #e8e3d8);
-  color: var(--fg-1, #4a3f30);
+  border-radius: var(--maude-hud-radius-xs, 3px);
+  background: var(--maude-chrome-bg-3, #e8e3d8);
+  color: var(--maude-chrome-fg-1, #4a3f30);
   cursor: pointer;
 }
 /* gate-a-polish - the badge rides the name row above the frame, at the right end, in screen px. */
@@ -641,7 +640,7 @@ input.dc-artboard-rename {
   transform: scale(calc(1 / var(--dc-zoom, 1)));
   transform-origin: 100% 100%;
 }
-.dc-canvas .dc-artboard-video-badge:hover { background: color-mix(in oklab, var(--fg-0, #2a2520) 12%, var(--bg-2, #e8e3d8)); }
+.dc-canvas .dc-artboard-video-badge:hover { background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 12%, var(--maude-chrome-bg-3, #e8e3d8)); }
 .dc-canvas .dc-artboard-video-badge:focus-visible { outline: 2px solid var(--maude-hud-accent, #d63b1f); outline-offset: 1px; }
 /* Active-artboard ring is in canvas-shell HALO_CSS (subtle 1 px tint). */
 /* Phase 4.2 — drag chrome. */
@@ -2613,53 +2612,11 @@ export function DCSection({
 DCSection.displayName = 'DCSection';
 
 /**
- * Small monochrome glyph shown in the SKU-strip header for a non-`digital`
- * artboard (T3). Mirrors the corner video-badge's stroke style (viewBox 16,
- * `currentColor`, ~1.2px stroke) for chrome consistency. `video` reuses that
- * exact badge glyph.
+ * The kind glyph before an artboard's name (T3, 08 RC-3): the DS family's `web` / `digital` / `video` / `print`
+ * (`canvas-ds-icons.tsx`, pinned path-for-path to the kit), 12 px, `currentColor`. Every kind has one - digital too.
  */
 function ArtboardKindIcon({ kind }: { kind: ArtboardKind }) {
-  if (kind === 'print') {
-    return (
-      <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
-        <rect
-          x="3"
-          y="1.5"
-          width="10"
-          height="5"
-          rx="0.5"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        />
-        <rect x="1.5" y="6" width="13" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="4.5" y="10.5" width="7" height="4" stroke="currentColor" strokeWidth="1.1" />
-      </svg>
-    );
-  }
-  if (kind === 'web') {
-    return (
-      <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
-        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
-        <path
-          d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"
-          stroke="currentColor"
-          strokeWidth="1.1"
-        />
-      </svg>
-    );
-  }
-  // video — same glyph as the corner Timeline badge.
-  return (
-    <svg viewBox="0 0 16 16" width="10" height="10" fill="none" aria-hidden="true">
-      <rect x="1.5" y="4.5" width="8" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
-      <path
-        d="M9.5 7l4-2.3v6.6l-4-2.3"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <DsIcon name={kind} size={12} />;
 }
 ArtboardKindIcon.displayName = 'ArtboardKindIcon';
 
@@ -3099,11 +3056,9 @@ export function DCArtboard({
                 : `Artboard ${label}`
             }${warnings.length ? `, ${summaryWords(warnings.length)}` : ''}`}
           >
-            {resolvedKind !== 'digital' ? (
-              <span className="dc-artboard-kind-chip" aria-hidden="true">
-                <ArtboardKindIcon kind={resolvedKind} />
-              </span>
-            ) : null}
+            <span className="dc-artboard-kind-chip" aria-hidden="true">
+              <ArtboardKindIcon kind={resolvedKind} />
+            </span>
             {label}
             <ArtboardWarnMark count={warnings.length} />
           </button>
