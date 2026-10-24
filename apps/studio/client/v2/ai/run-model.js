@@ -106,7 +106,9 @@ export function touchedIds(run) {
 }
 
 const names = (ids, artboards) =>
-  ids.map((id) => shortArtboardName((artboards || []).find((a) => a.id === id)?.label ?? id));
+  ids.map((id) =>
+    shortArtboardName((artboards || []).find((a) => a.id === id)?.label ?? humanize(id))
+  );
 
 /**
  * "Done — Post 1:1 is updated." — the sentence for a finished run whose reply has no words of its own.

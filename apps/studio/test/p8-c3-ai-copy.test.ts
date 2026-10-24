@@ -109,6 +109,17 @@ describe('P8 c3: the done toast says what was done and offers Undo (01 cf-ai-don
     expect(n?.title).toBe('Done — Desktop, Tablet and Mobile are updated.');
     expect(n?.action.label).toBe('Undo');
   });
+  test('an artboard whose name is not known yet reads as its id, humanized - never "mobile"', () => {
+    const n = doneNotice({
+      id: 'd',
+      text: 'Drafting.',
+      run,
+      artboards: [],
+      onShow() {},
+      onUndo() {},
+    });
+    expect(n?.title).toBe('Done — Desktop, Tablet and Mobile are updated.');
+  });
   test('a reply that opens with Done is quoted; an answer-only run offers Show', () => {
     expect(
       doneNotice({
