@@ -8,7 +8,7 @@
 // Actions go to the same routes the registry serves; each one re-reads on success so the UI never guesses.
 
 import { useSyncExternalStore } from 'react';
-import { EMPTY_RUNS, normalizeRuns } from './runs-model.js';
+import { EMPTY_RUNS, finishedArtboards, normalizeRuns } from './runs-model.js';
 
 export const RUNS_EVENT = 'maude:ai-runs';
 const DONE_MS = 6000;
@@ -42,7 +42,10 @@ export function createRunsStore({ fetchImpl, target = globalThis.window, setTime
       const view = normalizeRuns(await res.json());
       // a reply older than what we hold is a late answer to an earlier question
       if (snap.loaded && view.seq < snap.view.seq) return;
+      const finished = snap.loaded ? finishedArtboards(snap.view, view) : [];
       set({ view, loaded: true });
+      // a run that ended well settles its ring on the artboards it held (C5: markDone had no caller)
+      if (finished.length) markDone(finished);
     } catch {
       /* an old server, or offline: the list stays as it was */
     }

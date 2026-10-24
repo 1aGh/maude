@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { linkLabel, parseLinkTarget } from './bridge/link-target.ts';
 import { modeShows } from './bridge/mode-shows.ts';
+import { DsIcon } from './canvas-ds-icons.tsx';
 import { resolveSelectionEl } from './dom-selection.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 
@@ -46,24 +47,37 @@ export function linkedSelection(
   return el && raw ? { el, raw } : null;
 }
 
-/** The chip's height (16 line + 1 + 1 padding) and its distance from the element's right edge. */
-const CHIP_H = 18;
-const CHIP_GAP = 10;
+/** The chip's height (04 `.md-linkchip`: a 26 px pill) and its distance from the element's right edge. */
+const CHIP_H = 26;
+const CHIP_GAP = 14;
 
 const CSS_TEXT = `
 .ed-linkchip {
   position: fixed;
   pointer-events: none;
   z-index: 6;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
   max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 1px 6px;
-  border-radius: 3px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
+  font: 600 var(--maude-hud-type-xs, 11px)/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
+  white-space: nowrap;
+}
+.ed-linkchip > span { overflow: hidden; text-overflow: ellipsis; }
+.ed-linkchip > svg { flex: none; }
+/* 04 .md-link--h: the dashed run from the element to its chip */
+.ed-linkline {
+  position: fixed;
+  pointer-events: none;
+  z-index: 5;
+  height: 0;
+  border-top: 1.5px dashed var(--maude-hud-accent);
 }
 `;
 
@@ -96,7 +110,12 @@ function useEditing(): boolean {
 export function LinkChipOverlay() {
   const { selected } = useSelectionSet();
   const editing = useEditing();
-  const [chip, setChip] = useState<{ words: string; left: number; top: number } | null>(null);
+  const [chip, setChip] = useState<{
+    words: string;
+    left: number;
+    top: number;
+    from: number;
+  } | null>(null);
   const raf = useRef<number | null>(null);
 
   useEffect(() => {
@@ -113,8 +132,11 @@ export function LinkChipOverlay() {
       } else {
         const r = hit.el.getBoundingClientRect();
         const { left, top } = linkChipPosition(r);
+        const from = Math.round(r.right);
         setChip((c) =>
-          c && c.words === words && c.left === left && c.top === top ? c : { words, left, top }
+          c && c.words === words && c.left === left && c.top === top && c.from === from
+            ? c
+            : { words, left, top, from }
         );
       }
       raf.current = requestAnimationFrame(tick);
@@ -131,12 +153,22 @@ export function LinkChipOverlay() {
     <>
       <style>{CSS_TEXT}</style>
       <span
+        className="ed-linkline"
+        aria-hidden="true"
+        style={{
+          left: chip.from,
+          top: chip.top + CHIP_H / 2,
+          width: Math.max(0, chip.left - chip.from),
+        }}
+      />
+      <span
         className="ed-linkchip"
         data-testid="edit-link-chip"
         role="status"
         style={{ left: chip.left, top: chip.top }}
       >
-        {chip.words}
+        <DsIcon name="link" size={13} />
+        <span>{chip.words}</span>
       </span>
     </>
   );

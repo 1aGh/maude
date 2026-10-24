@@ -555,10 +555,10 @@ const INSPECTOR_SCRIPT = `
        (compositor), unmounts when the file goes idle (infinite-with-control,
        flow:motion-rules §5); reduced-motion drops the beam to a static rim. The
        rim border + glow are static boundary chrome. */
-    'html .dc-activity-rim { position: absolute; pointer-events: none; box-sizing: border-box; border: 2.5px solid var(--mdcc-activity, hsl(210 90% 58%)); border-radius: 5px; z-index: 6; opacity: 1; transition: opacity 200ms ease-out; }',
+    'html .dc-activity-rim { position: absolute; pointer-events: none; box-sizing: border-box; border: 1.5px dashed var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); border-radius: var(--maude-hud-radius-sm, 5px); z-index: 6; opacity: 1; transition: opacity 200ms ease-out; }',
     'html .dc-activity-rim[data-fading="true"] { opacity: 0; }',
-    'html .dc-activity-rim::after { content: ""; position: absolute; inset: -1px; border-radius: 6px; box-shadow: 0 0 0 1px var(--mdcc-activity, hsl(210 90% 58%)), 0 0 16px 2px var(--mdcc-activity, hsl(210 90% 58%)); opacity: 0.55; pointer-events: none; will-change: opacity; animation: dc-activity-glow var(--mdcc-activity-scan-ms, 2200ms) ease-in-out infinite; }',
-    'html .dc-activity-badge { position: absolute; top: 4px; right: 4px; z-index: 2; padding: 2px 8px; border-radius: 4px; background: var(--mdcc-activity, hsl(210 90% 58%)); color: #fff; font: 600 11px/1.5 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }',
+    'html .dc-activity-rim::after { content: ""; position: absolute; inset: -1px; border-radius: 6px; box-shadow: 0 0 0 1px var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))), 0 0 16px 2px var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); opacity: 0.55; pointer-events: none; will-change: opacity; animation: dc-activity-glow var(--mdcc-activity-scan-ms, 2200ms) ease-in-out infinite; }',
+    'html .dc-activity-badge { position: absolute; top: 4px; right: 4px; z-index: 2; padding: 2px 8px; border-radius: 999px; background: var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); color: var(--maude-hud-spark-fg, #1a1d24); font: 600 var(--maude-hud-type-xs, 11px)/1.5 var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: var(--maude-hud-shadow-md, 0 1px 4px rgba(0,0,0,0.45)); }',
     /* Phase 13.3 — the AGENT BORDER is the primary "editing" indicator: a clear
        2.5px border in the agent color with a softly pulsing glow (::after,
        opacity-only, compositor). Clipping lives on the wash (not the rim) so the
@@ -569,7 +569,7 @@ const INSPECTOR_SCRIPT = `
        edge (translateY -100% → 100%), then the next wave enters from the top in a
        loop. transform-only; linear so it flows at a steady pace. */
     'html .dc-activity-scan { position: absolute; inset: 0; overflow: hidden; border-radius: 4px; pointer-events: none; z-index: 1; }',
-    'html .dc-activity-scan::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 135%; will-change: transform; background: linear-gradient(to top, color-mix(in oklab, var(--mdcc-activity, hsl(210 90% 58%)) 20%, transparent) 0%, transparent 100%); animation: dc-activity-wave var(--mdcc-activity-scan-ms, 3800ms) linear infinite; }',
+    'html .dc-activity-scan::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 135%; will-change: transform; background: linear-gradient(to top, color-mix(in oklab, var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))) 20%, transparent) 0%, transparent 100%); animation: dc-activity-wave var(--mdcc-activity-scan-ms, 3800ms) linear infinite; }',
     '@keyframes dc-activity-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }',
     '@keyframes dc-activity-wave { from { transform: translateY(-100%); } to { transform: translateY(100%); } }',
     '@media (prefers-reduced-motion: reduce) { html .dc-activity-rim { transition: none; } html .dc-activity-rim::after { animation: none; opacity: 0.55; } html .dc-activity-scan { display: none; } }',
@@ -590,7 +590,7 @@ const INSPECTOR_SCRIPT = `
        whole window. opacity is one of the few properties browsers composite
        off the main thread unconditionally, so the pulse keeps animating
        exactly when the page is busiest — the one moment it needs to. */
-    'html [data-photo-busy] { outline: 2px solid var(--mdcc-activity, hsl(210 90% 58%)); outline-offset: 2px; animation: dc-photo-busy-pulse 1100ms ease-in-out infinite; will-change: opacity; }',
+    'html [data-photo-busy] { outline: 2px solid var(--mdcc-activity, var(--maude-hud-spark, hsl(14 86% 58%))); outline-offset: 2px; animation: dc-photo-busy-pulse 1100ms ease-in-out infinite; will-change: opacity; }',
     '@keyframes dc-photo-busy-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }',
     '@media (prefers-reduced-motion: reduce) { html [data-photo-busy] { animation: none; opacity: 0.75; } }',
     /* Phase 13.1 / DDR-077 — "holding last good render" toast, shown when an

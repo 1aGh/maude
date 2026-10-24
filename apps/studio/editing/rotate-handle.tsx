@@ -125,6 +125,24 @@ export function RotateHandle({ readOnly = false }: { readOnly?: boolean }) {
 
   const canRotate = !readOnly && targets.length > 0 && tool !== 'browse';
 
+  // P8 C5 (14 R3, "no marks at rest"): the handle shows only while the pointer is by the corner it sits at (or
+  // while it is held / lit), never on every selection at rest
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      pointer.current = { x: e.clientX, y: e.clientY };
+    };
+    const leave = () => {
+      pointer.current = null;
+    };
+    window.addEventListener('pointermove', move, { passive: true, capture: true });
+    document.documentElement.addEventListener('pointerleave', leave);
+    return () => {
+      window.removeEventListener('pointermove', move, { capture: true });
+      document.documentElement.removeEventListener('pointerleave', leave);
+    };
+  }, []);
+
   // keep the handle at the selection's bottom-right corner, every frame (pan / zoom / write)
   useEffect(() => {
     const h = handle.current;
@@ -141,6 +159,14 @@ export function RotateHandle({ readOnly = false }: { readOnly?: boolean }) {
           ? unionOf(els)
           : null;
       if (!box) {
+        h.style.display = 'none';
+        tip.style.display = 'none';
+        return;
+      }
+      const p = pointer.current;
+      const near =
+        !!p && p.x >= box.r - 16 && p.x <= box.r + 44 && p.y >= box.b - 16 && p.y <= box.b + 44;
+      if (!near && !turning.current && h.dataset.on !== 'true' && document.activeElement !== h) {
         h.style.display = 'none';
         tip.style.display = 'none';
         return;

@@ -29,37 +29,35 @@
 /* ─── Pin badge ───────────────────────────────────────────────────────────── */
 .cm-pin {
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   margin: 0;
-  background: var(--maude-hud-accent, #6f63ef);
-  color: var(--maude-hud-accent-fg, #faf6ef);
-  border: 1.5px solid var(--maude-chrome-bg-0, #14131a);
-  border-radius: 5px 5px 5px 2px;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.3));
-  font: 600 11px / 1 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  letter-spacing: 0.04em;
+  /* board .k-cpin-dot: the author's person tone, ink initial in the rounded face, pill with a 2 px tail,
+     shadow-md and a 2 px bg-2 ring */
+  background: var(--cm-pin-tone, var(--maude-hud-accent, #6f63ef));
+  color: var(--maude-hud-object-ink, #1a1d24);
+  border: 0;
+  border-radius: 999px 999px 999px 2px;
+  box-shadow: var(--maude-hud-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.3)), 0 0 0 2px var(--maude-chrome-bg-2, #fff);
+  font: 600 var(--maude-hud-type-xs, 11px) / 1 var(--maude-hud-font-rounded, ui-rounded, system-ui, sans-serif);
   display: grid;
   place-items: center;
   cursor: pointer;
   pointer-events: auto;
   user-select: none;
-  transition: background 120ms ease-out;
+  transition: filter 120ms ease-out;
   will-change: transform;
 }
 
 .cm-pin:hover,
 .cm-pin[aria-expanded="true"] {
-  background: var(
-    --maude-hud-accent-hover,
-    color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 90%, white)
-  );
+  filter: brightness(1.06) saturate(1.1);
 }
 
 .cm-pin:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--maude-hud-accent, #d63b1f);
+  box-shadow: 0 0 0 2px var(--maude-chrome-bg-2, #fff), 0 0 0 4px var(--maude-hud-accent, #d63b1f);
 }
 
 .cm-pin[data-resolved="true"] {

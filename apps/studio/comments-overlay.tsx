@@ -70,6 +70,7 @@ import { handleOfName } from './comments/mentions.ts';
 import { committerRows, type MentionRow } from './comments/people.ts';
 import { mmAtArtboardPx, trimOfPrint, videoPinVisible, whereOf } from './comments/where.ts';
 import { resolveByDomPath } from './dom-selection.ts';
+import { toneColor, toneFor } from './presence/tones.ts';
 import { canCommentCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { currentCanvasFile } from './shell-canvas-file.ts';
 import { useCollab } from './use-collab.tsx';
@@ -1288,6 +1289,12 @@ export function locateComment(comment: OverlayComment): {
   return { pos, missing: anchored };
 }
 
+/** The one letter a pin wears: the author's initial ('?' when nobody signed it). */
+export function pinInitial(author: string): string {
+  const c = author.trim().charAt(0);
+  return c && author !== 'unknown' ? c.toUpperCase() : '?';
+}
+
 function CommentPin({
   comment,
   sequence,
@@ -1330,10 +1337,10 @@ function CommentPin({
         return;
       }
       pin.style.display = 'grid';
-      // Position the pin's center at (right - 12, top - 12) — the FigJam
-      // convention. 12 = half of 24 (the pin's own size).
-      const left = Math.round(pos.x + pos.w - 12);
-      const top = Math.round(pos.y - 12);
+      // Position the pin's center at (right - 14, top - 14) — the FigJam
+      // convention. 14 = half of 28 (the pin's own size, board `.k-cpin-dot`).
+      const left = Math.round(pos.x + pos.w - 14);
+      const top = Math.round(pos.y - 14);
       pin.style.left = `${left}px`;
       pin.style.top = `${top}px`;
       rafRef.current = requestAnimationFrame(tick);
@@ -1359,13 +1366,16 @@ function CommentPin({
       aria-label={label}
       aria-expanded={focused}
       title={comment.text.slice(0, 200)}
+      data-seq={sequence}
+      // P8 C5 (10 co-comment-thread): the author's person tone fills the pin, and it wears their initial
+      style={{ ['--cm-pin-tone' as string]: toneColor(toneFor(author)) }}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onClick(comment.id);
       }}
     >
-      {sequence}
+      {pinInitial(author)}
     </button>
   );
 }

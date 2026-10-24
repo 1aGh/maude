@@ -199,6 +199,27 @@ const CSS_TEXT = `
 }
 `;
 
+/**
+ * A video artboard's selected label ends with its length - "Hype trailer · 0:15" (08 ak-video, "Duration on the label") -
+ * not its pixel size. Read off the comp the page registered; '' for any other kind or a comp not yet mounted.
+ */
+function videoLengthWords(article: Element, id: string): string {
+  if (article.getAttribute('data-dc-kind') !== 'video') return '';
+  const comps = (
+    window as unknown as {
+      __maude_comps__?: () => {
+        artboardId: string | null;
+        fps: number;
+        durationInFrames: number;
+      }[];
+    }
+  ).__maude_comps__?.();
+  const c = comps?.find((x) => x.artboardId === id);
+  if (!c || !(c.fps > 0) || !(c.durationInFrames > 0)) return '';
+  const secs = Math.round(c.durationInFrames / c.fps);
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+}
+
 type DragMods = { alt: boolean; meta: boolean; shift: boolean };
 
 interface Drag {
@@ -250,7 +271,10 @@ export function ArtboardHandles(): React.ReactNode {
         lastSize = '';
       }
       // S7.23: a print artboard says its size on paper ("105 × 148 mm"), not in px
-      const size = physicalSizeWords({ attrs: attrsOf(m.article) }) || sizeText(m.box.w, m.box.h);
+      const size =
+        videoLengthWords(m.article, id) ||
+        physicalSizeWords({ attrs: attrsOf(m.article) }) ||
+        sizeText(m.box.w, m.box.h);
       if (size !== lastSize) {
         lastSize = size;
         const label = m.article.querySelector(':scope > .dc-artboard-label');

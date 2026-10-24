@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { DsIcon } from '../canvas-ds-icons.tsx';
 import { getLiveViewport } from '../canvas-lib.tsx';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { Tool } from '../input-router.tsx';
@@ -157,11 +158,13 @@ const CSS_TEXT = `
 .ed-size-ghost {
   position: fixed; z-index: 5; pointer-events: none; box-sizing: border-box;
   border: 1.5px dashed var(--maude-hud-accent);
-  background: color-mix(in oklab, var(--maude-hud-accent) 10%, transparent);
+  background: var(--maude-hud-accent-tint, color-mix(in oklab, var(--maude-hud-accent) 10%, transparent));
+  border-radius: var(--maude-hud-radius-xs, 3px);
 }
 .ed-size-ghost-name {
   position: absolute; left: -2px; bottom: calc(100% + 4px);
-  padding: 2px 8px; border-radius: 3px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: var(--maude-hud-radius-xs, 3px); white-space: nowrap;
   background: var(--maude-hud-accent); color: var(--maude-hud-accent-fg);
   font: 600 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
 }
@@ -287,6 +290,7 @@ export function SizeGhost({ readOnly = false }: { readOnly?: boolean }) {
         style={{ left, top, width: ghost.w * z, height: ghost.h * z }}
       >
         <span className="ed-size-ghost-name" data-testid="edit-size-ghost-name">
+          <DsIcon name={presetById(ghost.presetId)?.kind ?? 'digital'} size={11} />
           {ghost.label}
           <span className="ed-size-ghost-size">{ghost.sizeText}</span>
         </span>

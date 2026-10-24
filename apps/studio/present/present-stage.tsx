@@ -328,7 +328,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
     s.position = 'absolute';
     s.pointerEvents = 'none';
     s.zIndex = '2147483000';
-    s.boxShadow = `0 0 0 ${MASK_SPREAD_PX}px var(--bg-0, oklch(0.165 0.012 255))`;
+    s.boxShadow = `0 0 0 ${MASK_SPREAD_PX}px var(--maude-hud-object-ink, oklch(0.165 0.012 255))`;
     s.opacity = '0';
     s.transition = `opacity ${ms()}ms ease-out`;
     world.appendChild(el);
