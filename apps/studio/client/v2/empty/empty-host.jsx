@@ -15,7 +15,9 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
+import { insetsNow } from '../shell/insets-now.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
+import { freeCentre } from './free-centre.js';
 import { ArtboardHint, HINT_SIZE } from './artboard-hint.jsx';
 import { EmptyCanvas } from './empty-canvas.jsx';
 import { emptyHintStore } from './empty-hint-store.js';
@@ -39,6 +41,8 @@ export function EmptyHost() {
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const mode = useSyncExternalStore(shellMode.subscribe, modeNow, modeNow);
   const online = useOnline();
+  const insets = useSyncExternalStore(insetsNow.subscribe, insetsNow.get, insetsNow.get);
+  const centre = freeCentre(insets, window.innerWidth, window.innerHeight);
   const canEdit = !viewerMode;
   const native = isNativeApp();
   const canAsk = native && canEdit;
@@ -117,8 +121,9 @@ export function EmptyHost() {
   return (
     <>
       {model ? (
-        // the canvas is the whole window body (V2-4.1): the block centres on the window, above the toolbar
-        <div className="es-host">
+        // the canvas is the whole window body (V2-4.1), the panels float over it: the block centres on what
+        // they leave free (05 es-canvas-ai — the board puts it at ~0.59 of the window), above the toolbar
+        <div className="es-host" style={{ '--es-cx': `${centre}px` }}>
           <EmptyCanvas
             model={model}
             onAsk={askCanvas}

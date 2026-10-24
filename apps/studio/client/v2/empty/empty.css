@@ -369,7 +369,7 @@
   }
   .es-ec {
     position: absolute;
-    left: 50%;
+    left: var(--es-cx, 50%);
     top: 45%;
     translate: -50% -50%;
     width: 520px;
