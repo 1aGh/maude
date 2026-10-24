@@ -191,3 +191,15 @@ describe('the drop chip names the target (12 · ia-drop-photos)', () => {
     expect(css).not.toContain('12%, transparent');
   });
 });
+
+describe('the import sheets are the kit dialog (12 · ia-figma-sheets, ia-brand-steps)', () => {
+  test('widths 420 / 372, title semibold; the callouts wear a lock and a warning', () => {
+    const brand = read('client/v2/import/brand.css');
+    expect(brand).toContain('width: min(420px, calc(100% - 2 * var(--float-gap, 16px)))');
+    expect(brand).toContain('font-weight: var(--w-semibold, 600)');
+    expect(read('client/v2/import/figma.css')).toContain('width: min(372px');
+    expect(read('client/v2/import/figma-sheet.jsx')).toContain('<StIcon name="lock"');
+    expect(read('client/v2/import/brand-sheet.jsx')).toContain('<StIcon name="warn"');
+    expect(read('client/shell/icons.jsx')).toContain('warn: (');
+  });
+});

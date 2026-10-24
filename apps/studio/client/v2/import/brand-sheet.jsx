@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { isNativeApp, pickMediaFile } from '../../github.js';
+import { StIcon } from '../../shell/icons.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { useModalFocus } from '../shell/modal-focus.js';
@@ -301,6 +302,9 @@ export default function BrandSheet({ open, onClose }) {
                 data-testid="brand-site-failed"
                 data-reason={site.result?.reason}
               >
+                <span className="bi-callout-ic" aria-hidden="true">
+                  <StIcon name="warn" size={14} />
+                </span>
                 <span className="bi-callout-t">
                   <strong>Couldn't read {site.result?.host ?? host}.</strong>{' '}
                   {siteReason(site.result?.reason)}

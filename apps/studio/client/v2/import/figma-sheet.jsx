@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { canvasRel } from '../access/access-client.js';
+import { StIcon } from '../../shell/icons.jsx';
 import { getPaletteEnv } from '../search/search-env.js';
 import { askNow, clearAsked } from '../assets/ask-once.js';
 import { useFigmaConnection } from '../settings/use-connections.js';
@@ -269,6 +270,9 @@ export default function FigmaSheet({ open, onClose, onImported, activePath = nul
             </label>
             {connected === false ? (
               <div className="bi-callout" data-testid="figma-not-connected">
+                <span className="bi-callout-ic" aria-hidden="true">
+                  <StIcon name="lock" size={14} />
+                </span>
                 <span className="bi-callout-t">
                   <strong>{W.notConnected}</strong> {W.notConnectedRest}
                 </span>
