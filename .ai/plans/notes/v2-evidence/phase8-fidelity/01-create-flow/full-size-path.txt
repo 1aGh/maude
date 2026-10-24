@@ -8,3 +8,4 @@ round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4979f0dfac4967a
 final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a14cd45eae2ac5f32/.scr/pairs/01
 bugfix (p8-bug-aiundo — ⌘Z after an AI run undoes that run; pairs re-shot: cf-undo-before, cf-undo-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a40066d9a08a8bead/.scr/pairs/01 (IMPL frames: .scr/impl-raw/01; harness _d-harness-g1-final/s01ai.mjs now waits for the run's Done + dark hero, and for the undone frame)
 round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b00/.scr/pairs/01/ (p8-c5-panels @ 2e203e9e6; IMPL re-shot light + dark, SPEC reused; every id with a pair)
+bugs3: (undo toast "Undone — <label> · Redo"; ⌘Z while your own AI works is refused — pairs re-shot: cf-undo-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad1e7b1fa8d504037/.scr/pairs/01

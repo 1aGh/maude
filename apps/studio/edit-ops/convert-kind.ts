@@ -17,6 +17,7 @@
 //
 // Same result by hand: `canvas-tsx.md` § "Change an artboard's kind".
 
+import { artboardRects, placeBeside, placeCopy } from '../ai/copy-meta.ts';
 import {
   applyDuplicateArtboard,
   applyResizeArtboard,
@@ -32,7 +33,7 @@ import { artboardFactsOf } from './artboard-facts.ts';
 import { ARTBOARD_ID_RE } from './artboard-resize.ts';
 import { refuse } from './constraints.ts';
 import { artboardLabels, copyName } from './duplicate-at-width.ts';
-import type { EditOp, ResolvedEditOp } from './types.ts';
+import type { EditOp, LayoutPatch, ResolvedEditOp } from './types.ts';
 
 export const CONVERT_LABEL = 'Change kind';
 const PAPER_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
@@ -73,6 +74,34 @@ function paramsOf(req: ResolvedEditOp) {
     paper,
     orientation: o as 'portrait' | 'landscape' | undefined,
     keepOriginal: keep !== false,
+  };
+}
+
+/**
+ * p8-bugs3 #6 (08 ak-convert-after) — "the A6 copy is beside the post": the copy has no place of its own, so the
+ * canvas would draw it in the default-grid slot its position in the file gives it — on top of any board the person
+ * has placed there. Every board is pinned where it is drawn NOW (splicing the copy shifts the later default-grid
+ * slots), the copy goes right of the post at the gutter, and what that slot covers in the post's row moves over
+ * (`placeBeside`, the one rule an AI's copy follows); when the row cannot shift, the first clear spot.
+ */
+function beside(
+  before: string,
+  layout: unknown,
+  sourceId: string,
+  copyId: string,
+  w: number,
+  h: number
+): LayoutPatch | null {
+  const drawn = artboardRects(before, layout);
+  if (!drawn.some((r) => r.id === sourceId)) return null;
+  const rects = [...drawn, { id: copyId, x: 0, y: 0, w, h }];
+  const put = placeBeside(rects, copyId, sourceId);
+  const at = put?.at ?? placeCopy(rects, copyId, sourceId);
+  if (!at) return null;
+  const shifts = put?.shifts ?? [];
+  return {
+    pin: drawn.map((r) => ({ id: r.id, x: r.x, y: r.y })),
+    set: [{ id: copyId, x: at.x, y: at.y }, ...shifts],
   };
 }
 
@@ -147,9 +176,13 @@ export const artboardConvertKind: EditOp = {
       throw e;
     }
     const finalLabel = artboardLabels(out).get(target) ?? plan.copyLabel;
+    const layout = p.keepOriginal
+      ? beside(source, req.ctx?.layout, p.id, target, plan.widthPx, plan.heightPx)
+      : null;
     return {
       source: out,
       ...(p.keepOriginal ? { created: [{ artboard: target, element: target }] } : {}),
+      ...(layout ? { layout } : {}),
       detail: {
         artboard: target,
         copy: p.keepOriginal,

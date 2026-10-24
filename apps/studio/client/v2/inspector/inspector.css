@@ -100,6 +100,20 @@
     padding-top: var(--space-2);
     border-top: 1px solid var(--border-subtle);
   }
+  /* 08 ak-mixed-select — the Kinds row: each kind's glyph and word as one unit, a gap between the units */
+  .insp-mk-kinds,
+  .insp-mk-kind {
+    display: inline-flex;
+    align-items: center;
+  }
+  .insp-mk-kinds {
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3, 12px);
+  }
+  .insp-mk-kind {
+    gap: var(--space-1, 4px);
+    white-space: nowrap;
+  }
   .insp-uses {
     margin: 0 0 var(--space-1);
     font-size: var(--type-xs);

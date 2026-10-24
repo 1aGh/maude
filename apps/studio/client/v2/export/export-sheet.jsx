@@ -11,6 +11,7 @@
 //   hasSelection     is something selected on the active canvas? (nothing → This canvas)
 //   selectedArtboards / selectedElements   DCArtboard ids · V2-1.4 element ids of that selection
 //   selectionLabel   the one selected thing's name, for the title
+//   selectionSize   {w,h} of the one selected thing as the canvas draws it (an element has no size in the estimate)
 //   access           S8.9 — the shell's `{ canEdit, role }` (access-line.jsx): Can comment gets one line on top and
 //                    "Needs Can edit" on Handoff; Can view gets no sheet at all (the server refuses too)
 //   lastFinishedAt   S8.9 — ms timestamp of the last finished version, for "From 14:05" while AI is working
@@ -105,6 +106,7 @@ export function ExportSheet({
   selectedElements,
   hasSelection,
   selectionLabel = null,
+  selectionSize = null,
   projectName = '',
   exportLane = 'local',
   onBrowserCapture = null,
@@ -226,7 +228,7 @@ export function ExportSheet({
     mode !== 'export' || state.scope !== 'selection'
       ? null
       : est?.boards?.length === 1
-        ? est.boards[0]
+        ? sizedBoard(est.boards[0], selectionSize)
         : videoRow
           ? {
               canvas: videoRow.canvas,
@@ -708,6 +710,16 @@ export function ExportSheet({
 }
 
 /** 09 ex-social — a post: its picture, then "1080 × 1350". */
+/**
+ * p8-bugs3 #1 — the estimate indexes ARTBOARDS: for one selected element it answers a board with no size. The
+ * selection knows how big the canvas draws that element, so the chips and the size line read it from there
+ * (never "0 × 0").
+ */
+function sizedBoard(board, size) {
+  if (!board || Number.isFinite(board.w) || !size) return board;
+  return { ...board, w: size.w, h: size.h };
+}
+
 function ImagePreview({ board, src }) {
   const box = fitBox(board.w, board.h, 136, 170);
   return <Pic w={box.w} h={box.h} src={src} cap={sizeLine(board.w, board.h)} />;

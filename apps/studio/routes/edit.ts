@@ -397,6 +397,16 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     }
   };
 
+  /** `meta.layout.artboards` of a canvas, as the layout lane holds it (the boards the canvas places by hand) */
+  const layoutOf = (rel: string): unknown => {
+    try {
+      const m = JSON.parse(readFileSync(abs(rel.replace(/\.tsx$/i, '.meta.json')), 'utf8'));
+      return Array.isArray(m?.layout?.artboards) ? m.layout.artboards : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   /** S2.17 — the variants the canvas's design system gives a component: the server's reading, per request. */
   const variantsOf = (rel: string) => {
     let items: ReturnType<typeof pickerItems> | null = null;
@@ -453,7 +463,11 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
             after
           ) ?? null,
         log,
-        ctx: (rel) => ({ dsRev: dsRevOf(rel), variantsOf: variantsOf(rel) }),
+        ctx: (rel) => ({
+          dsRev: dsRevOf(rel),
+          layout: layoutOf(rel),
+          variantsOf: variantsOf(rel),
+        }),
         ...(deps.references ? { references: deps.references } : {}),
         ...(deps.ops ? { ops: deps.ops } : {}),
       })

@@ -44,13 +44,16 @@ export async function run(h) {
   await page.keyboard.type('Try a dark hero');
   await page.keyboard.press('Enter');
   // the board's moment is AFTER the run: "Done" in the chat and the dark hero on the canvas (a fixed
-  // 6 s caught a loaded machine mid-run, where ⌘Z undid the newest LANDED entry, the first draft: V2-1.5 §5.4 "⌘Z while your run is open", open question in p8-bug-aiundo)
+  // 6 s caught a loaded machine mid-run, where ⌘Z rightly undid the newest LANDED entry - the first draft)
   await page.getByText('the hero on Desktop is dark now').first().waitFor({ timeout: 40000 }).catch((e) => console.log('NO done line', String(e.message).split('\n')[0]));
   await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-cd-id="desktop-page"]').first()
     .evaluate((e) => new Promise((r) => { const t0 = Date.now(); const k = () => (getComputedStyle(e).backgroundColor !== 'rgb(255, 255, 255)' || Date.now() - t0 > 20000 ? r() : setTimeout(k, 200)); k(); }))
     .catch(() => {});
   await sleep(1500);
   await h.step(`${D}/cf-undo-before`, 'AI went too far — the Desktop hero is dark', 'second prompt: Try a dark hero', async () => {});
+  // p8-bugs3: ⌘Z while your own run is still working is refused (v2-p8-undo-while-ai-runs-refuses) — wait for its end
+  await page.evaluate(async () => { const t0 = Date.now(); while (Date.now() - t0 < 30000) { const r = await fetch('/_api/ai/runs').then((x) => x.json()).catch(() => null); if (!(r?.mine || []).some((x) => ['running', 'starting', 'needs-you'].includes(x.state))) return; await new Promise((y) => setTimeout(y, 300)); } });
+  await sleep(1200);
   await page.mouse.click(1200, 120);
   await page.keyboard.press('Meta+z');
   await sleep(2500);

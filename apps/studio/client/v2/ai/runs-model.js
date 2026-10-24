@@ -72,6 +72,23 @@ export function runFile(run, designRel) {
   return typeof rel === 'string' && rel ? join(designRel, rel) : null;
 }
 
+const WORKING = new Set(['starting', 'running', 'needs-you']);
+
+/**
+ * p8-bugs3 #4 (decision v2-p8-undo-while-ai-runs-refuses) — is a run of YOURS still working on this canvas
+ * (`file` = its repo-relative path)? Working = starting, running, or stopped on a question for you; a run still in
+ * line, or an ended one, is not, and nobody else's run ever is (their work never sits under your ⌘Z).
+ */
+export function ownRunWorkingOn(view, file, designRel = '.design') {
+  const key = pathKey(file);
+  if (!key) return false;
+  return (view?.mine || []).some(
+    (r) =>
+      WORKING.has(r?.state) &&
+      ((r.leases || []).some((l) => l?.canvas === key) || runFile(r, designRel) === file)
+  );
+}
+
 /** Does this lease key belong to the open canvas? `entryOf(file)` (optional) maps a file to its kernel entry. */
 export function onCanvas(key, activeCanvas, entryOf) {
   if (!key || !activeCanvas) return false;

@@ -61,13 +61,36 @@ export function exportSelectionV2(selected, activePath) {
     ? String(one.attrs?.['data-dc-label'] ?? '')
         .replace(/\s+/g, ' ')
         .trim() || String(one.artboardId ?? one.attrs?.['data-dc-screen'] ?? '')
-    : '';
+    : list.length === 1
+      ? elementName(list[0])
+      : '';
+  // p8-bugs3 #1 — the one thing selected, as big as the canvas draws it: the estimate cannot know an element's size
+  // (it only indexes artboards), so the sheet's size chips and size line read it from here
+  const e = list.length === 1 ? list[0] : null;
+  const w = Number(e?.worldW ?? e?.geometry?.w);
+  const h = Number(e?.worldH ?? e?.geometry?.h);
   return {
     hasSelection: list.length > 0,
     selectedArtboards: artboards,
     selectedElements: elements,
     selectionLabel: label || null,
+    selectionSize: w > 0 && h > 0 ? { w: Math.round(w), h: Math.round(h) } : null,
   };
+}
+
+const ELEMENT_KINDS = { img: 'Photo', picture: 'Photo', svg: 'Graphic', video: 'Video' };
+
+/**
+ * p8-bugs3 #1 — what to call ONE selected element in the Export sheet's title: its own words (a heading, a button),
+ * else what kind of thing it is. Never an id.
+ */
+export function elementName(sel) {
+  const words = String(sel?.text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (words && !ELEMENT_KINDS[String(sel?.tag ?? '').toLowerCase()])
+    return words.length > 40 ? `${words.slice(0, 39)}…` : words;
+  return ELEMENT_KINDS[String(sel?.tag ?? '').toLowerCase()] ?? 'Object';
 }
 
 /**
@@ -150,17 +173,55 @@ export function renamesOf(targets, refs) {
  * S2.24 G2 — the `select-by-id` message that puts `selected` back on the canvas of `file`, or null when there is
  * nothing to put back. A list of several is left alone: the canvas holds all of it, and one id would collapse it.
  */
-export function restorePostOf(selected, file, renames) {
+export function restorePostOf(selected, file, renames, now = Date.now()) {
   if (Array.isArray(selected) && selected.length > 1) return null;
   const back = restoreAfterLoad(selected, file);
   if (!back) return null;
-  if (back.kind === 'artboard') return { dgn: 'select-by-id', artboardId: back.artboardId };
+  if (back.kind === 'artboard') {
+    const to = intendedBoard(back.artboardId, file, now);
+    return { dgn: 'select-by-id', artboardId: to ?? back.artboardId };
+  }
   return {
     dgn: 'select-by-id',
     id: renamedId(renames, back.sel.artboardId, back.sel.id),
     artboardId: back.sel.artboardId ?? null,
     index: back.sel.index ?? 0,
   };
+}
+
+// p8-bugs3 #6 (decision v2-p8-c4-convert-selects-the-copy) — a selection the shell ASKED for that the canvas has not
+// echoed yet: after Change kind made a copy the person means the COPY, but the shell still holds the post until the
+// canvas re-renders with the copy, and a restore ladder that fires in that gap would put the post back over it.
+let intent = null; // { file, from, to, until }
+
+/**
+ * Remember that the whole-artboard selection of `from` on `file` should become `to` (a board that does not exist
+ * on the canvas yet). It lives `ttl` ms; a restore inside that time sends the copy, not the post.
+ * @param {string} file
+ * @param {{ from: string, to: string }} ids
+ * @param {{ now?: number, ttl?: number }} [o]
+ */
+export function intendSelection(file, { from, to }, { now = Date.now(), ttl = 8000 } = {}) {
+  intent = { file, from, to, until: now + ttl };
+}
+
+export function clearSelectionIntent() {
+  intent = null;
+}
+
+/** The board a restore of `artboardId` should select instead, or null. Holding the target itself spends the ask. */
+function intendedBoard(artboardId, file, now) {
+  if (!intent) return null;
+  if (now >= intent.until) {
+    intent = null;
+    return null;
+  }
+  if (intent.file !== file) return null;
+  if (artboardId === intent.to) {
+    intent = null;
+    return null;
+  }
+  return artboardId === intent.from ? intent.to : null;
 }
 
 /** The rungs after the first: a fresh iframe mounts its listener 100 ms .. seconds after `loaded`. */
