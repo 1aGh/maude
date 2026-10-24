@@ -25,7 +25,7 @@ function VideoRows({ el, ctx }) {
     <>
       <SizeSelectRow k="Size" f={f} resize={resize} />
       <Row k="Length" name="ab-length">
-        <span className="insp-ro" data-testid="insp-ab-length">
+        <span className="insp-ro insp-ro--well" data-testid="insp-ab-length">
           <StIcon name="clock" size={12} /> {lengthWords(v.durationInFrames, v.fps)}
         </span>
       </Row>
@@ -45,9 +45,16 @@ function VideoRows({ el, ctx }) {
         ) : null}
       </Row>
       <Row k="Sound" name="ab-sound" dim={!v.sound}>
-        <span className="insp-ro" data-testid="insp-ab-sound">
-          {v.sound ? v.sound : 'None yet'}
-        </span>
+        {v.sound ? (
+          <span className="insp-ro insp-ro--pill" data-testid="insp-ab-sound">
+            <i className="insp-ro-swatch" aria-hidden="true" />
+            <b>{v.sound}</b>
+          </span>
+        ) : (
+          <span className="insp-ro insp-ro--note" data-testid="insp-ab-sound">
+            None yet
+          </span>
+        )}
       </Row>
     </>
   );

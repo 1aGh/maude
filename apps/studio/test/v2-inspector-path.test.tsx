@@ -154,6 +154,24 @@ describe('a Pen path', () => {
     expect(q('insp-row-path-ends')).toBeNull();
   });
 
+  test('14 ISeg: the four Combine buttons are icon segments (a glyph each, a name for AT), not words', async () => {
+    await frame(PATH);
+    const group = q('insp-combine');
+    expect(group?.className).toContain('seg');
+    for (const [kind, name] of [
+      ['union', 'Union'],
+      ['subtract', 'Subtract'],
+      ['intersect', 'Intersect'],
+      ['exclude', 'Exclude'],
+    ]) {
+      const b = q(`insp-combine-${kind}`) as HTMLButtonElement;
+      expect(b.className, kind).toContain('k-seg-b');
+      expect(b.querySelector('svg'), kind).not.toBeNull();
+      expect(b.textContent?.trim(), kind).toBe('');
+      expect(b.getAttribute('aria-label'), kind).toBe(name);
+    }
+  });
+
   test('Combine shapes is greyed for one object: "Two or more"', async () => {
     const sent: unknown[] = [];
     await frame(PATH, (m) => sent.push(m));

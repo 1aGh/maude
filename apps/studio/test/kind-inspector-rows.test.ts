@@ -305,6 +305,30 @@ describe('Video (ak-video)', () => {
     expect(q(host, 'insp-export-preset')?.textContent).toBe('MP4');
   });
 
+  test('08 ak-video: Length is a number well with the clock, Sound a pill with the music swatch', async () => {
+    const { publishVideoComps, resetVideoFacts } = await import(
+      '../client/v2/inspector/kinds/video-facts.js'
+    );
+    resetVideoFacts();
+    publishVideoComps(FILE, [
+      { id: 'hype-comp', artboardId: 'hype', fps: 30, durationInFrames: 450 },
+    ]);
+    clips = [{ mediaTag: 'Audio', mediaSrc: 'assets/Hype%20instrumental.mp3' }];
+    const host = await frame(REELS);
+    const len = q(host, 'insp-ab-length');
+    expect(len?.className).toContain('insp-ro--well');
+    expect(len?.querySelector('svg')).toBeTruthy();
+    const snd = q(host, 'insp-ab-sound');
+    expect(snd?.className).toContain('insp-ro--pill');
+    expect(snd?.querySelector('.insp-ro-swatch')).toBeTruthy();
+    // no music: the quiet note, not a pill
+    const none = q(
+      await frame(board('other', 'video', 1920, 1080, { 'data-dc-fixed': 'true' })),
+      'insp-ab-sound'
+    );
+    expect(none?.className).not.toContain('insp-ro--pill');
+  });
+
   test('before the comp has announced itself: no numbers invented; no music reads "None yet"', async () => {
     const { resetVideoFacts } = await import('../client/v2/inspector/kinds/video-facts.js');
     resetVideoFacts();
