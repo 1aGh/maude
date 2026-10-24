@@ -21,9 +21,17 @@ export const AI_PINNED_W = 420;
  * dragged it wider; anything else is the user's panel width.
  */
 export function rightPanelWidth({ active, base, aiPinned = false }) {
+  const own = rightMainWidth({ active, base });
+  // P8 c5 (03 ai-long-pinned): the pinned chat shares the slot with whatever panel is open (the Inspector opens by
+  // itself on a selection) — the slot takes the wider of the two, else the 420 column overran the window edge.
+  return aiPinned ? Math.max(own, AI_PINNED_W) : own;
+}
+
+/** The open panel's OWN width (the slot is wider when the pinned chat shares it). */
+export function rightMainWidth({ active, base }) {
   if (active === 'inspector') return 264;
   if (active === 'changes') return 372;
-  return aiPinned ? Math.max(base, AI_PINNED_W) : base;
+  return base;
 }
 /** The one-line hint shown when panels are hidden (CONTRACT §4 voice). */
 export const PANELS_HIDDEN_HINT = 'Panels hidden. Press ⌘\\ to bring them back.';

@@ -129,8 +129,12 @@ export function AttachMenu({ attach, disabled = false }) {
         aria-controls={open ? menuId : undefined}
         disabled={disabled}
         onClick={() => {
+          // Anchored to the FIELD (03 draws the menu flush to the composer's left, 8 px over its top), not the
+          // paperclip: the clip sits inside the field's padding, which made the menu float detached.
           const r = btnRef.current?.getBoundingClientRect();
-          if (r) setPlace({ left: r.left, bottom: window.innerHeight - r.top + 8 });
+          const f = btnRef.current?.closest('.chat-box, .chat-input-wrap')?.getBoundingClientRect();
+          const a = f && f.width > 0 ? f : r;
+          if (a) setPlace({ left: a.left, bottom: window.innerHeight - a.top + 8 });
           setOpen((v) => !v);
         }}
         data-testid="ai-attach-clip"

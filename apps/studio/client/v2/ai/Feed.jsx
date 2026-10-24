@@ -18,6 +18,7 @@ import { OfferSlot } from './OfferCard.jsx';
 import { dayDividerFor } from './run-model.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { Copy, Retry, Spark } from './icons.jsx';
+import { OPEN_ASSETS_EVENT } from './AttachMenu.jsx';
 import { failureModel } from './needs-you.js';
 
 // ── message-part renderers ──
@@ -521,6 +522,11 @@ export function ErrorCard({ error, onRetry, changed = null }) {
           {failure.title}
         </span>
       </p>
+      {failure.detail ? (
+        <p className="ai-nc-d" data-testid="chat-error-detail">
+          {failure.detail}
+        </p>
+      ) : null}
       {failure.raw ? (
         <>
           <button
@@ -547,7 +553,10 @@ export function ErrorCard({ error, onRetry, changed = null }) {
           type="button"
           className="btn btn--sm btn--primary"
           data-testid="chat-error-retry"
-          onClick={onRetry}
+          // "Pick another clip" opens Assets (the file is gone, retrying it would only fail again)
+          onClick={
+            failure.pick ? () => window.dispatchEvent(new CustomEvent(OPEN_ASSETS_EVENT)) : onRetry
+          }
         >
           {failure.verb}
         </button>

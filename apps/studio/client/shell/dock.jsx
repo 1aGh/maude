@@ -123,6 +123,7 @@ export function DockSlot({
   hidden = false,
   ai = null,
   aiShown = false,
+  mainWidth = 0,
 }) {
   const tabs = open && hasPanelTabs(ids);
   const shown = open || aiShown;
@@ -186,7 +187,12 @@ export function DockSlot({
         (open && aiShown ? ' has-ai' : '') +
         (hidden ? ' is-hidden' : '')
       }
-      style={{ width: shown ? width : 0, flexBasis: shown ? width : 0 }}
+      style={{
+        width: shown ? width : 0,
+        flexBasis: shown ? width : 0,
+        // P8 c5: the open panel's OWN width when the slot is wider for the pinned chat (v2/ai/panel.css reads it)
+        ...(mainWidth ? { '--dock-main-w': `${mainWidth}px` } : {}),
+      }}
     >
       {open && (
         <div

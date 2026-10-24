@@ -13,6 +13,19 @@
     min-height: 0;
     max-height: 100%;
   }
+  /* P8 c5 (03 ai-long-pinned): docked (pinned layout) the slot is the 420 column when the chat shares it; the other
+     panel (the Inspector opens by itself on a selection) keeps ITS width, flush to the window edge, instead of
+     stretching or letting the chat overrun a 264 slot */
+  .st-body:not(.st-body--float) .st-dockslot.has-ai > .st-dockslot-inner:not(.st-dockslot-ai) > .st-rpanel,
+  .st-body:not(.st-body--float) .st-dockslot.has-ai > .st-rpanel {
+    width: var(--dock-main-w, 100%);
+    align-self: flex-end;
+  }
+  /* the pinned column pads like the floating island: bubbles stopped at the window edge with no 12 px gutter */
+  .st-body:not(.st-body--float) .st-dockslot-ai > .ai-island {
+    padding: var(--space-3);
+    box-sizing: border-box;
+  }
   .st-body--float .st-dockslot-ai:has(> .ai-island[data-full="true"]) {
     flex: 1 1 100%;
     width: 420px;

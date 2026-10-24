@@ -21,6 +21,10 @@ export function ScopeChip({
 }) {
   const [open, setOpen] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  // The chat card clips its content (the dock slot and the body are both `overflow` boxes) — a menu that
+  // opens ABOVE the field was cut to its last two rows. The menu is FIXED and placed from the field's own
+  // rect (the same escape AttachMenu and ChatFootInfo use), above it with the board's 8 px gap.
+  const [place, setPlace] = useState(null);
   const rootRef = useRef(null);
   const btnRef = useRef(null);
   const menuId = useId();
@@ -102,7 +106,20 @@ export function ScopeChip({
             ? `${scopeTitle(scope, artboards)} — canvas changed since selection`
             : scopeTitle(scope, artboards)
         }
-        onClick={() => (open ? close(false) : setOpen(true))}
+        onClick={() => {
+          if (open) return close(false);
+          const r = btnRef.current?.getBoundingClientRect();
+          const field = btnRef.current
+            ?.closest('.chat-box, .chat-input-wrap')
+            ?.getBoundingClientRect();
+          if (r) {
+            setPlace({
+              left: Math.max(8, r.left),
+              bottom: window.innerHeight - (field?.top ?? r.top) + 8,
+            });
+          }
+          setOpen(true);
+        }}
       >
         {none ? null : (
           <span className="ai-scope-dot" aria-hidden="true">
@@ -139,6 +156,7 @@ export function ScopeChip({
           role="menu"
           aria-label="What AI works on"
           data-testid="ai-scope-menu"
+          style={place ? { position: 'fixed', left: place.left, bottom: place.bottom } : undefined}
           onKeyDown={onMenuKey}
         >
           {choosing ? (
