@@ -662,14 +662,32 @@ export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
 export function yieldsToArtboardDrag(
   action: RouterAction,
   target: EventTarget | null,
-  modifiers: { metaKey: boolean; ctrlKey: boolean }
+  modifiers: { metaKey: boolean; ctrlKey: boolean; clientX?: number; clientY?: number }
 ): boolean {
   return (
     action.kind === 'select' &&
     !modifiers.metaKey &&
     !modifiers.ctrlKey &&
-    isArtboardDragChrome(target)
+    (isArtboardDragChrome(target) || isPageHit(target, modifiers.clientX, modifiers.clientY))
   );
+}
+
+/**
+ * V2-8.5 round 3 (14 ed-ab-arrange) — a press ON the page (the artboard's one root element, nothing under the
+ * pointer but the page itself) is a press on the artboard: its drag moves the artboard, like its label does.
+ * A press on an object inside the page is that object's (select, then the element's own drag).
+ */
+export function isPageHit(
+  target: EventTarget | null,
+  clientX: number | undefined,
+  clientY: number | undefined
+): boolean {
+  if (!target || typeof (target as Element).closest !== 'function') return false;
+  const el = target as Element;
+  if (!el.closest('.dc-artboard-body') || typeof clientX !== 'number' || typeof clientY !== 'number')
+    return false;
+  const hit = resolveHoverTarget(el.ownerDocument, clientX, clientY, { deep: false });
+  return !!hit && hit.cdId === null && hit.el.hasAttribute('data-dc-screen');
 }
 
 /**
@@ -1107,6 +1125,37 @@ export interface HoverTarget {
   artboardId: string | null;
 }
 
+/**
+ * V2-8.5 round 3 — the page root IS the artboard (14 Editing: Layers lists Nav · Hero · Services under "Desktop";
+ * 01/04: a click on the page selects the artboard). An artboard's page is ONE stamped element that fills the
+ * body; return it, or null when the body has several top-level objects or the lone one is a card smaller than the
+ * artboard (then it is an object like any other and stays selectable by a plain click).
+ */
+export function pageRootOf(bodyEl: Element): Element | null {
+  let root: Element | null = null;
+  for (const el of Array.from(bodyEl.querySelectorAll('[data-cd-id]'))) {
+    const above = el.parentElement?.closest('[data-cd-id]') ?? null;
+    if (above && bodyEl.contains(above)) continue; // nested: not top level
+    if (root) return null; // two top-level objects: no single page
+    root = el;
+  }
+  if (!root) return null;
+  const b = bodyEl.getBoundingClientRect();
+  const r = root.getBoundingClientRect();
+  // a hair of slack: scrollbars, sub-pixel scale. Both boxes share one transform, so the ratio is zoom-proof.
+  if (!(b.width > 0 && b.height > 0)) return null;
+  if (r.width < b.width * 0.98 || r.height < b.height * 0.98) return null;
+  return root;
+}
+
+/** The double-click ladder / top-object chain below the page: drop the page root (the artboard) from its head. */
+export function dropPageRoot<T extends Element>(chain: readonly T[]): T[] {
+  const head = chain[0];
+  const body = head?.closest('.dc-artboard-body');
+  if (head && body && pageRootOf(body) === head) return chain.slice(1);
+  return [...chain];
+}
+
 export function resolveHoverTarget(
   doc: Document,
   clientX: number,
@@ -1166,9 +1215,21 @@ export function resolveHoverTarget(
   // the body wrapper or higher).
   let cur: Element | null = hit;
   let topCdEl: Element | null = null;
+  let belowRoot: Element | null = null; // the stamped rung just under the page root
   while (cur && cur !== bodyEl) {
-    if (cur.hasAttribute?.('data-cd-id')) topCdEl = cur;
+    if (cur.hasAttribute?.('data-cd-id')) {
+      belowRoot = topCdEl;
+      topCdEl = cur;
+    }
     cur = cur.parentElement;
+  }
+  // The page root is the artboard: a click ON the page (no object under it) selects the artboard, a click on
+  // an object selects the top object inside the page.
+  if (topCdEl && pageRootOf(bodyEl) === topCdEl) {
+    if (!belowRoot) {
+      return artboardEl && artboardId ? { el: artboardEl, cdId: null, artboardId } : null;
+    }
+    topCdEl = belowRoot;
   }
   const el = topCdEl ?? hit;
   const cdId = el.getAttribute?.('data-cd-id') ?? null;

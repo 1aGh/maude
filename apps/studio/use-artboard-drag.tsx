@@ -36,7 +36,7 @@ import {
   useState,
 } from 'react';
 
-import { DRAG_THRESHOLD_PX as INPUT_DRAG_THRESHOLD_PX } from './input-router.tsx';
+import { DRAG_THRESHOLD_PX as INPUT_DRAG_THRESHOLD_PX, isPageHit } from './input-router.tsx';
 import type { Selection } from './use-selection-set.tsx';
 import { computeSnap, type Rect, type SnapResult } from './use-snap-guides.tsx';
 
@@ -469,7 +469,14 @@ export function useArtboardDrag(opts: UseArtboardDragOptions): UseArtboardDragHa
       // events that originate inside `.dc-artboard-body` stay click-through
       // so Cmd-select continues to work on inner content.
       const target = e.target as Element | null;
-      if (target && typeof target.closest === 'function' && target.closest('.dc-artboard-body')) {
+      // V2-8.5 round 3 — except a press ON the page itself (nothing under it but the artboard's own root): the page
+      // is the artboard, so dragging it moves the artboard (14 ed-ab-arrange).
+      if (
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('.dc-artboard-body') &&
+        !isPageHit(target, e.clientX, e.clientY)
+      ) {
         return;
       }
       const leaderStart = rectForRef.current(artboardId);
