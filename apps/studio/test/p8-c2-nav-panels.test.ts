@@ -65,8 +65,11 @@ describe('pn-history: the Now row keeps its column; A/B are circles', () => {
   test('the selected version is accent-muted', () => {
     expect(rule(css, '.vh-row[aria-current="true"]')).toContain('var(--accent-muted)');
   });
-  test('the panel is 372 wide (app.jsx)', () => {
-    expect(read('client/app.jsx')).toContain("rightActive === 'changes' ? 372");
+  test('the panel is 372 wide (rightPanelWidth, which app.jsx asks)', async () => {
+    // P8 C3 moved the width table into panel-layout.js so the pinned AI column (420) shares it
+    const { rightPanelWidth } = await import('../client/v2/shell/panel-layout.js');
+    expect(rightPanelWidth({ active: 'changes', base: 304 })).toBe(372);
+    expect(read('client/app.jsx')).toContain('rightPanelWidth({');
   });
 });
 

@@ -12,6 +12,7 @@
 // Words: CONTRACT §3–§4. The title verb IS the button verb ("Replace 4 photos" under "Replace 4 team photos?").
 
 import { buildElicitationContent, parseElicitationSchema } from '../../panels/acp-elicitation.js';
+import { shortArtboardName } from './scope.js';
 import {
   describeOutOfProject,
   pickDefaultAllow,
@@ -44,6 +45,39 @@ function targetOf(toolCall) {
   return path ? sanitizePathForDisplay(String(path).split('/').pop()) : null;
 }
 
+const CANVAS_FILE = /\.(tsx|jsx|html)$/i;
+const nameOf = (b) => shortArtboardName(b?.label ?? b?.id ?? '');
+
+/**
+ * The permission question in words about the work. `work` is `{ canvas, boards: [{id,label}], more }` - the run's
+ * canvas path and the artboards it is about (`willChangeFor`). `null` = keep the tool words.
+ */
+function workWords(work, kind, toolVerb, target) {
+  if (!work || kind !== 'edit') return null;
+  const canvas =
+    canvasName(work.canvas) ?? (target && CANVAS_FILE.test(target) ? canvasName(target) : null);
+  const base = work.canvas ? String(work.canvas).split('/').pop() : null;
+  if (!canvas || !(CANVAS_FILE.test(target ?? '') || (base && target === base))) return null;
+  const verb = toolVerb === 'Write' ? 'Add' : 'Change';
+  const boards = Array.isArray(work.boards) ? work.boards : [];
+  const n = boards.length + (Number(work.more) || 0);
+  const names = boards.slice(0, 2).map(nameOf);
+  const what = n === 0 ? canvas : n <= 2 ? names.join(' and ') : `${n} artboards`;
+  const button = n === 0 ? verb : n === 1 ? `${verb} ${names[0]}` : `${verb} ${n} artboards`;
+  const line = `${verb.toLowerCase()} ${what}`;
+  return {
+    verb: button,
+    title: n === 0 ? `${verb} ${canvas}?` : `${verb} ${what} in ${canvas}?`,
+    line,
+  };
+}
+
+function canvasName(path) {
+  if (typeof path !== 'string' || !path) return null;
+  const base = path.split('/').pop() ?? path;
+  return base.replace(CANVAS_FILE, '') || null;
+}
+
 /**
  * @param {{ id?: string, toolCall?: object, options?: object[], scope?: object|null }} request
  * @returns {{
@@ -59,7 +93,7 @@ function targetOf(toolCall) {
  *   options: object[],         // every visible option (the `options` shape renders them all)
  * }}
  */
-export function permissionModel(request) {
+export function permissionModel(request, work = null) {
   const toolCall = request?.toolCall ?? {};
   const outside = describeOutOfProject(request?.scope);
   const all = Array.isArray(request?.options) ? request.options.filter(Boolean) : [];
@@ -88,6 +122,8 @@ export function permissionModel(request) {
 
   let verb = null;
   let title;
+  let line = null;
+  let workApplied = false;
   if (outside) {
     // Never echo the model's own title for a write the path gate refused (acp-write-scope): a fixed
     // headline plus the resolved basename; the body carries the full resolved path.
@@ -100,6 +136,16 @@ export function permissionModel(request) {
         ? 'Write'
         : (VERB_BY_KIND[toolCall.kind] ?? 'Allow');
     title = target ? `${verb} ${target}?` : raw ? `${verb} — ${raw}?` : `${verb}?`;
+    // P8 C3 (03 ai-permission): the question is about the WORK, not the tool call - "Change Post and Story in
+    // Combine-kampan?" with the button "Change 2 artboards", never "Edit Combine-kampan.tsx?". Only for a change
+    // to a canvas file that says which artboards (or at least which canvas) it is; anything else keeps the tool words.
+    const w = workWords(work, toolCall.kind, verb, target);
+    if (w) {
+      verb = w.verb;
+      title = w.title;
+      line = w.line;
+      workApplied = true;
+    }
   } else {
     title = raw ?? 'Claude needs your OK';
   }
@@ -109,7 +155,9 @@ export function permissionModel(request) {
     outside,
     verb,
     title,
-    detail: raw && raw !== target ? raw : null,
+    line: line ?? title.replace(/\?$/, ''),
+    // the question already says the work: the tool call's own title would only repeat it as "Edit x.tsx"
+    detail: !workApplied && raw && raw !== target ? raw : null,
     target,
     allow: pickDefaultAllow(options),
     always: always[0] ?? null,
@@ -249,13 +297,40 @@ export function failureModel(error, { changed } = {}) {
   if (changed === true) safe = ' Undo this chat takes back what it did.';
   else if (changed === false) safe = ' Nothing changed.';
   return {
-    title: `Couldn't finish — the connection to Claude was interrupted.${safe}`,
+    title: `Couldn't finish — ${failureCause(raw)}.${safe}`,
     verb: 'Try again',
     raw: raw || null,
   };
 }
 
+/**
+ * P8 C3 (03 `ai-choice-fail`): "Couldn't finish — <what>" names the cause the error text allows, in plain words;
+ * a failure we cannot tell apart keeps the general line. The raw message stays under › Advanced either way.
+ */
+export function failureCause(raw) {
+  const t = String(raw ?? '');
+  // an error that already speaks plainly ("Couldn't finish — the footage file is missing. Nothing changed.") is
+  // quoted, not re-guessed from keywords; the safe half is said once, by the caller, from what the run touched
+  const own =
+    /^Couldn['’]t finish\s*[—–-]\s*([^.\n]{3,140}?)\.?(?:\s+(?:Nothing changed|Undo this chat[^.]*)\.?)?\s*$/i.exec(
+      t.trim()
+    );
+  if (own) return own[1].trim();
+  if (/rate.?limit|usage limit|too many requests|\b429\b|quota|overloaded|\b529\b/i.test(t))
+    return 'Claude is too busy to answer right now';
+  if (/offline|enotfound|enetunreach|network is unreachable|fetch failed|getaddrinfo/i.test(t))
+    return 'this Mac lost its connection';
+  if (/time.?d? ?out|etimedout|took too long|deadline/i.test(t))
+    return 'Claude took too long to answer';
+  if (/unauthori[sz]ed|authenticat|not logged in|sign.?in|log.?in|credential|\b401\b/i.test(t))
+    return 'Claude needs you to sign in again';
+  if (/enoent|no such file|not found|missing/i.test(t)) return 'a file it needed is missing';
+  if (/eacces|eperm|permission denied|read-only|forbidden|\b403\b/i.test(t))
+    return 'it could not write to the project';
+  return 'the connection to Claude was interrupted';
+}
+
 /** The question a Needs-you toast / row quotes: "replace 4 team photos?" — lower-cased verb, no trailing "?". */
 export function needsYouLine(model) {
-  return model.title.replace(/\?$/, '');
+  return model.line ?? model.title.replace(/\?$/, '');
 }

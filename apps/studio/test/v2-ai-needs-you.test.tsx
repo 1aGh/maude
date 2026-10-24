@@ -566,7 +566,11 @@ describe('NeedsYouSlot: a kept prompt is never lost across a reload', () => {
     await v.act(async () => {
       await tick(20);
     });
-    expect(v.q('ai-connect-sheet')).not.toBeNull();
+    // P8 c3: a centred modal in the document body over a strong veil, not a strip inside the panel
+    const sheet = document.querySelector('[data-testid="ai-connect-sheet"]');
+    expect(sheet).not.toBeNull();
+    expect(sheet?.closest('.ai-conn-veil')).not.toBeNull();
+    expect(sheet?.getAttribute('role')).toBe('dialog');
     // CONTRACT §7 (gate-b-polish2): with nothing waiting, Ask AI looks the same as always — no setup list,
     // no sheet; the readiness list lives at Menu › Diagnostics › AI setup
     const setup = await mount(({ NeedsYouSlot, runtime }) => (

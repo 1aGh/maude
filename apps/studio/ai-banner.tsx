@@ -1,5 +1,7 @@
 /**
  * @file       ai-banner.tsx — yellow "Claude is editing this canvas" banner
+ *             NOT MOUNTED since P8 C3 (03 ai-working): v2 says it with the ring + tag on the artboard
+ *             (artboard-activity-overlay.tsx). The module stays as the `ai-activity` reader the dgn table names.
  * @scope      apps/studio/ai-banner.tsx
  * @purpose    Mounted by canvas-shell. Subscribes to the inspector WS
  *             `ai-activity` event for the canvas's own file path; shows a

@@ -9,3 +9,4 @@ stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd833
 SPEC images alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/spec/03/
 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl-out/03-ai-chat/
 Harness (scenarios, fake agent, fixtures): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl/
+round 3 (p8-c3-ai): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4979f0dfac4967a6/.scr/pairs/03-ai-chat/ (IMPL frames alone: .scr/impl-out/03-ai-chat/; harness changes: _c3-ai-harness/)

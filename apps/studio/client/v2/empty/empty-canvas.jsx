@@ -16,7 +16,7 @@ import { copy } from './empty-copy.js';
 import { AskButton } from './ask-button.jsx';
 import { Empty } from './empty.jsx';
 import { StIcon } from '../../shell/icons.jsx';
-import ConnectSheet from '../ai/ConnectSheet.jsx';
+import { ConnectModal } from '../ai/ConnectSheet.jsx';
 
 const COPY_ID = {
   ready: 'es-canvas-ai.canvas-ready',
@@ -83,9 +83,14 @@ export function EmptyCanvas({ model, onAsk, onNewArtboard }) {
  * @param {{ phase?: 'idle'|'installing'|'waiting', error?: string|null, onConnect: () => void, onCancel: () => void }} props
  */
 export function EmptyConnect({ phase = 'idle', error = null, onConnect, onCancel }) {
+  // P8 C3: the shared centred modal over the strong veil (focus, Tab trap, Esc) - one look for every Connect
   return (
-    <div className="es-conn-veil" data-testid="empty-connect">
-      <ConnectSheet phase={phase} error={error} onConnect={onConnect} onCancel={onCancel} />
-    </div>
+    <ConnectModal
+      testid="empty-connect"
+      phase={phase}
+      error={error}
+      onConnect={onConnect}
+      onCancel={onCancel}
+    />
   );
 }

@@ -48,12 +48,12 @@ Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merg
 | id | light | dark | note |
 | --- | --- | --- | --- |
 | `cf-home-prompt` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
-| `cf-ai-drafting` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
-| `cf-ai-done` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-ai-drafting` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
+| `cf-ai-done` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
 | `cf-select-tweak` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `cf-sticky-comment` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
-| `cf-undo-before` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
-| `cf-undo-ai` | re-shot (state not reached) | re-shot (state not reached) | stage A reason stands: the fake agent writes the canvas file directly, not through the edit-op stack; stage C round 2 lists "undo of an AI edit through the shared stack" as still open (fix-navcreate.md) — no new state to reach |
+| `cf-undo-before` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
+| `cf-undo-ai` | re-shot (state not reached) | re-shot (state not reached) | stage A reason stands: the fake agent writes the canvas file directly, not through the edit-op stack; stage C round 2 lists "undo of an AI edit through the shared stack" as still open (fix-navcreate.md) — no new state to reach **Round 3 (p8-c3-ai):** IMPL re-shot after the AI-on-canvas / chat fixes; SPEC reused. |
 | `cf-blank` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `cf-add-artboard` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
 | `cf-duplicate-width` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |

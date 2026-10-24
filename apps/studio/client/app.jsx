@@ -247,7 +247,7 @@ import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-
 import { ShellTakes } from './v2/assets/takes-overlay.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
-import { panelOpenDecision } from './v2/shell/panel-layout.js';
+import { panelOpenDecision, rightPanelWidth } from './v2/shell/panel-layout.js';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
@@ -2915,7 +2915,13 @@ function ShellTree() {
   const floating = !pinned;
   // V2-8.5 C2 — the Inspector is a 264 px card (14 `.k-insp`), not the user's panel width
   // P8-C8 — Version history is the 372 px island of 11 `.pn-vh` (pictures 72×54 need the room)
-  const rpW = rightActive === 'inspector' ? 264 : rightActive === 'changes' ? 372 : rpSize.w;
+  // P8 C3 (03 ai-long-pinned): the AI chat pinned to the side is the board's 420 column, not the 304 default of the
+  // other right panels (the canvas then re-fits to the room left of it - `layoutKey` carries the width)
+  const rpW = rightPanelWidth({
+    active: rightActive,
+    base: rpSize.w,
+    aiPinned: pinned && rightHostsAssistant && assistantOpen,
+  });
   // Opening a panel while ⌘\ hides them brings them all back (the open panel must be seen). V2-4.4b — the AI
   // chat is its own island: its opening un-hides the panels like any other panel's does. P8 C5 — Preview's fold
   // is the mode's: an opening does not end it (`panelOpenDecision`); a right panel opened in it (Inspect on a

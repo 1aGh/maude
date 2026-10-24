@@ -3630,6 +3630,7 @@
     "testid:studio/ds/board/ds-bar.tsx#canvas/ds-bar-review": "v2 code (added after the freeze)",
     "testid:studio/ds/board/outline.tsx#other/ds-outline-kind": "v2 code (added after the freeze)",
     "testid:studio/ds/board/parts.tsx#canvas/ds-section-kind": "v2 code (added after the freeze)",
+    "testid:studio/ds/board/section-brand.tsx#other/ds-hero": "v2 code (added after the freeze)",
     "testid:studio/editing/ai-point-ring.tsx#canvas/edit-ai-point": "v2 code (added after the freeze)",
     "testid:studio/editing/ai-scope-outline.tsx#canvas/edit-ai-scope": "v2 code (added after the freeze)",
     "testid:studio/editing/ai-scope-outline.tsx#canvas/edit-ai-scope-skeleton": "v2 code (added after the freeze)",

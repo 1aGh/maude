@@ -76,7 +76,12 @@ ArtboardActivityOverlay.displayName = 'ArtboardActivityOverlay';
 //
 //   running    dashed spark outline + spark-led tag ("AI is working", "Tereza's AI") + "· N waiting"
 //   needs-you  dashed azure outline + azure tag ("Waiting for you")
-//   done       solid spark outline that settles once, a sweep across the artboard, "Made by AI"
+//   done       the "Made by AI" label mark only (01 cf-ai-done draws no ring on a finished artboard). A run that
+//              JUST ended well also settles a solid spark ring once and sweeps Before / After across the
+//              artboard (`data-fresh`, ~1.8 s), then lets go of the ring - 03 `ai-ring--done` is that moment.
+//   drafting   the artboard that LANDS while a run of yours is live wears the dashed ring and reads
+//              "AI is drawing <its name>" (01 cf-ai-drafting) until the next one lands or the run ends; the name
+//              is the artboard's own, read here (the shell's tag stays the fixed "AI is working")
 //   Reduced motion collapses every animation to 1 ms.
 //
 // Data flow, one direction only: the shell (client/v2/ai/ring-relay.js) posts `{ dgn: 'ai-runs', artboards }`
@@ -120,7 +125,8 @@ const RINGS_CSS = `
 .dc-ai-ring { position: fixed; display: none; border-radius: var(--maude-hud-radius-sm, 6px); box-sizing: border-box; pointer-events: none; }
 .dc-ai-ring[data-state="running"] { border: 1.5px dashed var(--dc-ai-spark); }
 .dc-ai-ring[data-state="needs-you"] { border: 1.5px dashed var(--dc-ai-azure); box-shadow: 0 0 0 4px var(--dc-ai-azure-muted); }
-.dc-ai-ring[data-state="done"] {
+/* a settled "Made by AI" artboard wears the label mark only; the ring is the finish moment (data-fresh) */
+.dc-ai-ring[data-state="done"][data-fresh] {
   border: 2px solid var(--dc-ai-spark); box-shadow: 0 0 0 4px var(--dc-ai-spark-muted);
   animation: dc-ai-settle var(--dc-ai-dur) var(--dc-ai-ease) 1 both;
 }
@@ -149,7 +155,7 @@ const RINGS_CSS = `
   position: absolute; top: 0; bottom: 0; left: 0; width: 2px; margin-left: -1px; display: none;
   background: var(--dc-ai-spark); box-shadow: 0 0 0 1px var(--dc-ai-spark-muted);
 }
-.dc-ai-ring[data-state="done"] .dc-ai-sweep { display: block; animation: dc-ai-sweep var(--dc-ai-sweep) ease-in-out 1 both; }
+.dc-ai-ring[data-state="done"][data-fresh] .dc-ai-sweep { display: block; animation: dc-ai-sweep var(--dc-ai-sweep) ease-in-out 1 both; }
 /* 03 .ai-wipe-lab: the Before / After pills ride the sweep line - bg-2 pill, fg-0 semibold, shadow-sm */
 .dc-ai-wipe-lab {
   position: absolute; top: 8px; display: none; padding: 1px 8px; border-radius: 999px; white-space: nowrap;
@@ -159,7 +165,7 @@ const RINGS_CSS = `
 }
 .dc-ai-wipe-lab[data-side="before"] { right: calc(100% + 4px); }
 .dc-ai-wipe-lab[data-side="after"] { left: calc(100% + 4px); }
-.dc-ai-ring[data-state="done"] .dc-ai-wipe-lab { display: block; }
+.dc-ai-ring[data-state="done"][data-fresh] .dc-ai-wipe-lab { display: block; }
 @keyframes dc-ai-sweep { from { left: 0; opacity: 1; } 85% { opacity: 1; } to { left: 100%; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .dc-ai-rings { --dc-ai-dur: 1ms; --dc-ai-sweep: 1ms; }
@@ -175,6 +181,9 @@ function ensureRingStyles(): void {
   s.textContent = RINGS_CSS;
   document.head.appendChild(s);
 }
+
+/** The shell's fixed words for a run in progress (runs-model.js TAG_WORKING) - the one a drafted artboard renames. */
+const TAG_WORKING_WORDS = 'AI is working';
 
 /** The words on the tag: the fixed phrase from the shell, plus "· N waiting" when asks are in line. */
 export function ringTagText(r: AiRing): string {
@@ -202,29 +211,201 @@ function artboardEl(id: string): Element | null {
   return document.querySelector(`[data-dc-screen="${esc}"]`);
 }
 
+/** How long the finish moment (settled ring + Before / After sweep) lasts before only the label mark is left. */
+export const FRESH_DONE_MS = 1800;
+/** A "done" counts as just-finished when the artboard was a running ring this recently. */
+const FRESH_WINDOW_MS = 20_000;
+
+/** "AI is drawing Tablet" - the words for an artboard the AI is drafting (01 cf-ai-drafting). */
+export function drawingTag(label: string | null | undefined): string | null {
+  const name = (label ?? '').replace(/\s+/g, ' ').trim();
+  return name ? `AI is drawing ${name.slice(0, 60)}` : null;
+}
+
+/** Artboards that appear this soon after the canvas first drew are the AI's (not the canvas loading). */
+export const landing = { graceMs: 1500 }; // mutable so a test need not wait out the canvas's first draw
+/** A hold or ring can be announced a little after the write that made the artboard land. */
+const LANDED_WINDOW_MS = 5000;
+
+function screenIds(): string[] {
+  if (typeof document === 'undefined') return [];
+  return Array.from(document.querySelectorAll('[data-dc-screen]'))
+    .map((el) => el.getAttribute('data-dc-screen') ?? '')
+    .filter(Boolean);
+}
+
+/**
+ * A file change reloads the canvas, so what "landed" cannot live in memory alone: the ids on the canvas are kept in
+ * sessionStorage (this frame's own, per canvas address), and the ones the new load has that the last did not are
+ * the artboards that landed in between. Returns them in document order; the first load of a canvas returns none.
+ */
+function newSinceLastLoad(): string[] {
+  if (typeof sessionStorage === 'undefined') return [];
+  const key = `dc-ai-seen:${location.pathname}${location.search}`;
+  const cur = screenIds();
+  let prev: unknown = null;
+  try {
+    prev = JSON.parse(sessionStorage.getItem(key) || 'null');
+  } catch {
+    /* unreadable: treat as a first load */
+  }
+  try {
+    // an empty list this early is a canvas still drawing, not a blank one: it is not worth remembering yet
+    const early = typeof performance !== 'undefined' && performance.now() < landing.graceMs + 1000;
+    if (cur.length || !early) sessionStorage.setItem(key, JSON.stringify(cur));
+  } catch {
+    /* storage blocked: no memory across reloads */
+  }
+  return Array.isArray(prev) ? cur.filter((id) => !prev.includes(id)) : [];
+}
+
+function labelOfArtboard(id: string): string | null {
+  const el = artboardEl(id);
+  return el?.getAttribute('data-dc-label') || el?.getAttribute('aria-label') || null;
+}
+
 export function ArtboardRingsLayer() {
   ensureRingStyles();
-  const [rings, setRings] = useState<AiRings>({});
+  const [shellRings, setRings] = useState<AiRings>({});
+  // ids of artboards whose run just ended well: they wear the ring + sweep for FRESH_DONE_MS
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+  // The artboard that LANDED while a run of yours was live is the one still being drawn (01 cf-ai-drafting): the
+  // run leases the artboards it edits, not the ones it has yet to create, so the canvas itself sees the new one
+  // arrive and gives it the dashed outline and "AI is drawing <name>" until the next one lands or the run ends.
+  const [drafted, setDrafted] = useState<{ id: string; label: string | null } | null>(null);
+  // artboards that appeared on this canvas after it first rendered, newest last (a hold can arrive just after the write)
+  const landed = useRef<Array<{ id: string; at: number }>>([]);
   const nodes = useRef(new Map<string, HTMLDivElement>());
+  const ranAt = useRef(new Map<string, number>());
+  // a run of yours is live when it holds an artboard (`ai-runs`) or an object (`ai-holds`)
+  const liveBy = useRef({ rings: false, holds: false });
+  const [live, setLive] = useState(false);
+  const rings = useMemo<AiRings>(() => {
+    if (!drafted || shellRings[drafted.id]) return shellRings;
+    return {
+      ...shellRings,
+      [drafted.id]: {
+        state: 'running',
+        who: 'you',
+        tag: drawingTag(drafted.label) ?? TAG_WORKING_WORDS,
+        waiting: 0,
+      },
+    };
+  }, [shellRings, drafted]);
   const ids = useMemo(() => Object.keys(rings), [rings]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const born = Date.now();
+    let wasLive = false;
+    // the blank-canvas starting point: once the first draw is over, note what is on the canvas
+    const settle = setTimeout(() => void newSinceLastLoad(), landing.graceMs + 1100);
+    timers.add(settle);
+    // a run of yours is live: the artboard that landed just before it was announced is the one being drawn
+    const syncLive = () => {
+      const on = liveBy.current.rings || liveBy.current.holds;
+      for (const id of newSinceLastLoad()) landed.current.push({ id, at: Date.now() });
+      if (on && !wasLive) {
+        const last = landed.current[landed.current.length - 1];
+        if (last && Date.now() - last.at <= LANDED_WINDOW_MS) {
+          ranAt.current.set(last.id, Date.now());
+          setDrafted({ id: last.id, label: labelOfArtboard(last.id) });
+        }
+      }
+      if (!on) setDrafted(null);
+      wasLive = on;
+      setLive(on);
+    };
+    // artboards that arrive after the canvas first drew; while a run of yours is live the newest is "being drawn"
+    const watch =
+      typeof MutationObserver === 'undefined'
+        ? null
+        : new MutationObserver((records) => {
+            if (Date.now() - born < landing.graceMs) return;
+            for (const rec of records)
+              for (const node of Array.from(rec.addedNodes)) {
+                if (!(node instanceof Element)) continue;
+                const hit = node.matches('[data-dc-screen]') ? [node] : [];
+                for (const el of [
+                  ...hit,
+                  ...Array.from(node.querySelectorAll('[data-dc-screen]')),
+                ]) {
+                  const id = el.getAttribute('data-dc-screen');
+                  if (!id) continue;
+                  landed.current.push({ id, at: Date.now() });
+                  if (landed.current.length > 20) landed.current.shift();
+                  if (wasLive) {
+                    ranAt.current.set(id, Date.now());
+                    setDrafted({ id, label: labelOfArtboard(id) });
+                  }
+                }
+              }
+          });
+    watch?.observe(document.body, { childList: true, subtree: true });
     const onMessage = (e: MessageEvent) => {
       // Only the shell may say it (DDR-054: the canvas is the untrusted side). The table then parses the
       // payload — state/who/tag/waiting only, capped, no `__proto__` key.
       if (e.source !== window.parent) return;
-      if ((e.data as { dgn?: string } | null)?.dgn !== 'ai-runs') return;
+      const kind = (e.data as { dgn?: string } | null)?.dgn;
+      if (kind === 'ai-holds') {
+        const h = acceptFromShell(e, window);
+        if (h?.dgn !== 'ai-holds') return;
+        liveBy.current.holds = (h.holds as Array<{ mine: boolean; point?: boolean }>).some(
+          (x) => x.mine && !x.point
+        );
+        syncLive();
+        return;
+      }
+      if (kind !== 'ai-runs') return;
       const m = acceptFromShell(e, window);
-      if (m && m.dgn === 'ai-runs') setRings(m.artboards as AiRings);
+      if (m?.dgn !== 'ai-runs') return;
+      const next = m.artboards as AiRings;
+      const now = Date.now();
+      const justDone: string[] = [];
+      liveBy.current.rings = false;
+      for (const [id, r] of Object.entries(next)) {
+        if (r.state === 'running') {
+          if (r.who === 'you') liveBy.current.rings = true;
+          if (!ranAt.current.has(id)) ranAt.current.set(id, now);
+        } else if (r.state === 'done') {
+          const at = ranAt.current.get(id);
+          if (at !== undefined && now - at <= FRESH_WINDOW_MS) {
+            justDone.push(id);
+            ranAt.current.delete(id);
+          }
+        }
+      }
+      // a ring that went away without a "done" (stopped, failed) forgets its run
+      for (const id of [...ranAt.current.keys()])
+        if (!next[id] && now - (ranAt.current.get(id) ?? 0) > FRESH_WINDOW_MS)
+          ranAt.current.delete(id);
+      syncLive();
+      if (justDone.length) {
+        setFresh((f) => new Set([...f, ...justDone]));
+        const t = setTimeout(() => {
+          timers.delete(t);
+          setFresh((f) => {
+            const n = new Set(f);
+            for (const id of justDone) n.delete(id);
+            return n;
+          });
+        }, FRESH_DONE_MS);
+        timers.add(t);
+      }
+      setRings(next);
     };
     window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      watch?.disconnect();
+      for (const t of timers) clearTimeout(t);
+    };
   }, []);
 
   // One animation-frame loop while any ring exists: follow each artboard's on-screen rectangle.
   useEffect(() => {
-    if (ids.length === 0) return;
+    if (ids.length === 0 && !live) return;
     let raf: number | null = null;
     const tick = () => {
       raf = null;
@@ -237,7 +418,7 @@ export function ArtboardRingsLayer() {
           div.style.display = 'none';
           continue;
         }
-        const grow = div.dataset.state === 'done' ? 6 : 5;
+        const grow = div.dataset.state === 'done' ? (div.dataset.fresh ? 6 : 0) : 5;
         div.style.display = 'block';
         div.style.left = `${Math.round(r.left - grow)}px`;
         div.style.top = `${Math.round(r.top - grow)}px`;
@@ -251,7 +432,7 @@ export function ArtboardRingsLayer() {
     return () => {
       if (raf != null) cancelAnimationFrame(raf);
     };
-  }, [ids]);
+  }, [ids, live]);
 
   if (ids.length === 0) return null;
   return (
@@ -271,6 +452,8 @@ export function ArtboardRingsLayer() {
             data-state={r.state}
             data-who={r.who}
             data-at="below"
+            data-fresh={r.state === 'done' && fresh.has(id) ? 'true' : undefined}
+            data-drawing={drafted?.id === id && !shellRings[id] ? 'true' : undefined}
           >
             <span className="dc-ai-sweep">
               <span className="dc-ai-wipe-lab" data-side="before">
