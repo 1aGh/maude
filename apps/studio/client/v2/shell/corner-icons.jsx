@@ -60,6 +60,7 @@ function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, tes
 
 /**
  * @param hidden ⌘\ is on — every panel steps aside, every available corner icon shows
+ * @param folded Preview's fold alone (not ⌘\): a design only being looked at has no Inspector to come back to
  * @param leftActive / rightActive the panel showing in each slot (null = none)
  * @param leftIds / rightIds the panels assigned to each slot
  * @param assistant null (no AI chat here) or { side, shown, busy }
@@ -68,6 +69,7 @@ function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, tes
  */
 export function CornerIcons({
   hidden,
+  folded = false,
   leftActive,
   rightActive,
   leftIds,
@@ -102,7 +104,8 @@ export function CornerIcons({
       />
     );
   const rightTarget = cornerTarget('right', rightIds);
-  if (rightTarget && (hidden || !rightActive))
+  // P8 C3 (04 X1): Preview's fold alone leaves no Inspector icon - 04 draws Canvases + the AI spark there
+  if (rightTarget && !(folded && rightTarget === 'inspector') && (hidden || !rightActive))
     out.push(
       <Corner
         key="right"

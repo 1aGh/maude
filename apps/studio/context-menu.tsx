@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { DsIcon, DsSpark } from './canvas-ds-icons.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -56,6 +57,11 @@ export interface MenuItem {
    * falls back to the static `label`, which stays the word every list, test and screen reader can rely on.
    */
   labelOf?: (target: ContextTarget) => string | null | undefined;
+  /**
+   * P8 C3 (14 ed-ab-menu / ed-obj-order) - a glyph of the DS family (`canvas-ds-icons`, or `spark` for the AI) in the
+   * menu's icon column. Rows of the same menu without one keep the column's place, so labels line up.
+   */
+  icon?: string;
   /** Right-aligned shortcut hint (e.g. `⌘C`, `⌫`). */
   shortcut?: string;
   /** S2.22 — a quiet word beside the row where there is no shortcut ("same style" on Select matching). */
@@ -203,7 +209,8 @@ const MENU_CSS = `
   border-radius: 14px;
   box-shadow: 0 8px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)), inset 0 0 0 0.5px var(--maude-chrome-border, rgba(0,0,0,0.08));
   padding: 4px;
-  min-width: 220px;
+  /* 14: the artboard menu is drawn 268 wide, the object menu 292 */
+  min-width: 268px;
   font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
   line-height: 1.42;
@@ -232,9 +239,15 @@ const MENU_CSS = `
   font: inherit;
   color: inherit;
 }
-.dc-context-menu .dc-menu-item:hover {
-  background: color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent);
+.dc-context-menu .dc-menu-lab { flex: 1; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.dc-context-menu .dc-menu-ic { display: grid; place-items: center; width: 16px; flex: none; color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55)); }
+/* 14 ed-ab-menu: a hovered row, and the parent of an open flyout, read accent-muted (the board's data-hl) */
+.dc-context-menu .dc-menu-item:hover,
+.dc-context-menu .dc-menu-item[aria-expanded="true"] {
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent));
 }
+.dc-context-menu[data-target="element"] { min-width: 292px; }
+.dc-context-menu:focus { outline: none; }
 .dc-context-menu .dc-menu-item:focus-visible {
   /* fix-photo-editor-followup-debt Task 16 — was outline: none (an
      ~1.05:1-contrast, effectively invisible focus ring). Reuses
@@ -242,7 +255,7 @@ const MENU_CSS = `
      token for this chrome family — artboard labels, zoom toolbar) rather
      than inventing a new one; -2px inset offset matches that same
      convention for a control inside a bordered container. */
-  background: color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent);
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent));
   outline: 2px solid var(--maude-hud-accent, #d63b1f);
   outline-offset: -2px;
 }
@@ -268,7 +281,7 @@ const MENU_CSS = `
 /* Submenu flyout (Theme ▸ …). Anchored to the right of its parent row; flips
    left near the viewport edge via .is-flip. Reuses .dc-menu-item styling. */
 .dc-context-menu .dc-menu-sub { position: relative; }
-.dc-context-menu .dc-menu-caret { color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55)); font-size: 11px; }
+.dc-context-menu .dc-menu-caret { display: grid; color: var(--maude-chrome-fg-1, rgba(40,30,20,0.55)); }
 .dc-context-menu .dc-menu-flyout {
   position: absolute;
   top: -5px;
@@ -372,9 +385,9 @@ export function ContextMenuView({
     if (nx + r.width > vw - 8) nx = Math.max(8, vw - r.width - 8);
     if (ny + r.height > vh - 8) ny = Math.max(8, vh - r.height - 8);
     if (nx !== pos.x || ny !== pos.y) setPos({ x: nx, y: ny });
-    // Focus first menu item for keyboard nav.
-    const firstBtn = el.querySelector<HTMLButtonElement>('button.dc-menu-item:not([disabled])');
-    firstBtn?.focus();
+    // P8 C3 (14 ed-ab-menu): focus lands on the MENU, not its first row - a mouse open used to paint a focus ring
+    // on the first item; ArrowDown / ArrowUp walk into the rows from here.
+    el.focus({ preventScroll: true });
     // Dismiss on outside-click / Esc / scroll.
     const onDocPointer = (e: PointerEvent) => {
       if (!el.contains(e.target as Node)) onClose();
@@ -399,7 +412,9 @@ export function ContextMenuView({
         const nextIdx =
           e.key === 'ArrowDown'
             ? (idx + 1) % items.length
-            : (idx - 1 + items.length) % items.length;
+            : idx < 0
+              ? items.length - 1
+              : (idx - 1 + items.length) % items.length;
         items[nextIdx]?.focus();
       }
     };
@@ -426,11 +441,14 @@ export function ContextMenuView({
       })
     )
     .filter((section) => section.length > 0);
+  // one icon column per menu: if any row wears a glyph, every row keeps the column's place
+  const iconCol = visibleSections.some((sec) => sec.some((it) => !!it.icon));
   return (
     <div
       ref={ref}
       className="dc-context-menu"
       role="menu"
+      tabIndex={-1}
       // a11y gate W7: a menu needs a name; which one follows what was right-clicked
       aria-label={
         target.kind === 'artboard-chrome'
@@ -440,6 +458,7 @@ export function ContextMenuView({
             : 'Canvas actions'
       }
       data-esc-owner=""
+      data-target={target.kind}
       style={{ left: pos.x, top: pos.y }}
     >
       {visibleSections.map((section, si) => {
@@ -448,7 +467,13 @@ export function ContextMenuView({
           <div key={sectionKey} role="group">
             {si > 0 ? <div className="dc-menu-sep" aria-hidden="true" /> : null}
             {section.map((item) => (
-              <MenuItemRow key={item.id} item={item} target={target} onClose={onClose} />
+              <MenuItemRow
+                key={item.id}
+                item={item}
+                target={target}
+                onClose={onClose}
+                iconCol={iconCol}
+              />
             ))}
           </div>
         );
@@ -462,14 +487,28 @@ export function ContextMenuView({
 // `submenu` render a flyout (opens on hover / ArrowRight / click). Additive:
 // existing flat registries (no `submenu`) take the plain-button path unchanged.
 
+function MenuGlyph({ icon }: { icon?: string }) {
+  return (
+    <span className="dc-menu-ic" aria-hidden="true">
+      {icon === 'spark' ? (
+        <DsSpark size={14} color="var(--maude-hud-spark, currentColor)" />
+      ) : icon ? (
+        <DsIcon name={icon} size={14} />
+      ) : null}
+    </span>
+  );
+}
+
 function MenuItemRow({
   item,
   target,
   onClose,
+  iconCol = false,
 }: {
   item: MenuItem;
   target: ContextTarget;
   onClose: () => void;
+  iconCol?: boolean;
 }) {
   const [subOpen, setSubOpen] = useState(false);
   const [flip, setFlip] = useState(false);
@@ -499,7 +538,10 @@ function MenuItemRow({
           onClose();
         }}
       >
-        <span>{item.labelOf?.(target) || item.label}</span>
+        <span className="dc-menu-lab">
+          {iconCol ? <MenuGlyph icon={item.icon} /> : null}
+          {item.labelOf?.(target) || item.label}
+        </span>
         {item.shortcut ? (
           <span className="dc-menu-shortcut">{item.shortcut}</span>
         ) : item.note ? (
@@ -557,9 +599,12 @@ function MenuItemRow({
           }
         }}
       >
-        <span>{item.labelOf?.(target) || item.label}</span>
+        <span className="dc-menu-lab">
+          {iconCol ? <MenuGlyph icon={item.icon} /> : null}
+          {item.labelOf?.(target) || item.label}
+        </span>
         <span className="dc-menu-caret" aria-hidden="true">
-          ▸
+          <DsIcon name="submenu" size={12} />
         </span>
       </button>
       {subOpen ? (

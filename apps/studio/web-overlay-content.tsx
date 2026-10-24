@@ -25,7 +25,9 @@
 
 import { type KindOverlayRenderFn, registerKindOverlay } from './artboard-guides-overlay.tsx';
 
-const WebOverlayContent: KindOverlayRenderFn = ({ rect }) => {
+export const WebOverlayContent: KindOverlayRenderFn = ({ rect, visibility }) => {
+  // P8 C3 (04 X1) - the chip is Edit's chrome: Preview / Viewing / Present show the design, not its handles
+  if (visibility?.editChrome === false) return null;
   const width = Math.round(rect.w);
   return (
     <div

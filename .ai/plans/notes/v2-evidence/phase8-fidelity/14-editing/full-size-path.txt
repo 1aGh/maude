@@ -1,2 +1,5 @@
 stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a55262287b808e562/.scr/pairs/14-editing
 stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d25731/.scr/pairs/14-editing
+
+round 3 (p8-c3-modes): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/pairs/14-editing/
+(pairs re-shot: ed-ab-menu; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/impl-out/14-editing/; harness: _d-harness-g2 plus s-menus.mjs / s04c.mjs kept in the worktree .scr/impl/)

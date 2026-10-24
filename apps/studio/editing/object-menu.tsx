@@ -121,11 +121,12 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
           return name ? askAboutWords(name) : null;
         },
         shortcut: '⌘/',
+        icon: 'spark',
         onSelect: () => window.dispatchEvent(new CustomEvent(ASK_OBJECTS_EVENT)),
       },
     ],
     [
-      ...reuse('duplicate-element', { label: 'Duplicate', shortcut: '⌘D' }),
+      ...reuse('duplicate-element', { label: 'Duplicate', shortcut: '⌘D', icon: 'duplicate' }),
       ...reuse('copy-style', { label: 'Copy properties', shortcut: '⌥⌘C' }),
       ...reuse('paste-style', { label: 'Paste properties', shortcut: '⌥⌘V' }),
       {
@@ -136,7 +137,7 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
       },
     ],
     [
-      row('frame', 'Frame selection', 'object.frame', '⌥⌘G'),
+      row('frame', 'Frame selection', 'object.frame', '⌥⌘G', { icon: 'frame' }),
       row('unframe', 'Remove frame', 'object.unframe', '⇧⌘G', {
         disabled: (t) => !state(t).canUnframe,
         disabledHint: 'Select a frame of objects',
@@ -149,9 +150,15 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
       row('send-back', 'Send to back', 'object.send-back', '⌘['),
     ],
     [
-      row('lock', 'Lock', 'object.lock', '⇧⌘L', { hidden: (t) => state(t).locked }),
-      row('unlock', 'Unlock', 'object.lock', '⇧⌘L', { hidden: (t) => !state(t).locked }),
-      row('hide', 'Hide', 'object.hide', undefined, { hidden: (t) => state(t).hidden }),
+      row('lock', 'Lock', 'object.lock', '⇧⌘L', { icon: 'lock', hidden: (t) => state(t).locked }),
+      row('unlock', 'Unlock', 'object.lock', '⇧⌘L', {
+        icon: 'lock',
+        hidden: (t) => !state(t).locked,
+      }),
+      row('hide', 'Hide', 'object.hide', undefined, {
+        icon: 'eye-off',
+        hidden: (t) => state(t).hidden,
+      }),
       row('show', 'Show', 'object.hide', undefined, { hidden: (t) => !state(t).hidden }),
     ],
     [
@@ -162,7 +169,15 @@ export function objectMenuSections(v1: MenuSection[], deps: ObjectMenuDeps): Men
         submenu: dedup(advanced),
       },
     ],
-    [...reuse('delete-element', { label: 'Remove', shortcut: '⌫' })],
+    // 14 ed-obj-order draws Remove as a plain row with the trash glyph and ⌫ (not red)
+    [
+      ...reuse('delete-element', {
+        label: 'Remove',
+        shortcut: '⌫',
+        icon: 'trash',
+        destructive: false,
+      }),
+    ],
   ];
   return sections.filter((s) => s.length > 0);
 }

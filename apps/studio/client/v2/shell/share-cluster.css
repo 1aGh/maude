@@ -343,7 +343,14 @@
     right: 0;
     top: calc(100% + 10px);
     z-index: 40;
-    width: 300px;
+    /* 04 md-present-menu: Menu width={352} */
+    width: 352px;
+  }
+  .st-mode-menu .st-pm-row[data-hl="true"] {
+    background: var(--accent-muted, var(--bg-3));
+  }
+  .st-mode-menu .st-pm-row[data-hl="true"] :is(.st-pm-ic, .st-mode-menu-note) {
+    color: inherit;
   }
   .st-mode-menu-hd {
     padding: 8px 8px 4px;

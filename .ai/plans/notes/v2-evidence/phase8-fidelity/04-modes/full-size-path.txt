@@ -9,3 +9,6 @@ stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd833
 SPEC images alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/spec/04/
 IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl-out/04-modes/
 Harness (scenarios, fake agent, fixtures): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a45b4750975bd8337/.scr/impl/
+
+round 3 (p8-c3-modes): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/pairs/04-modes/
+(pairs re-shot: md-model, md-annotate, md-preview, md-preview-follow, md-preview-combine, md-inspect, md-comment, md-draw, md-present-menu, md-edge-ai, md-esc; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/impl-out/04-modes/; harness: _d-harness-g2 plus s-menus.mjs / s04c.mjs kept in the worktree .scr/impl/)
