@@ -106,11 +106,26 @@
   .vh-now > .btn {
     margin-left: auto;
   }
+  /* 11 pn-history: while a version is shown, Now is a button that is ALSO `.vh-row`, declared later — its
+     `align-items: center`, `gap` and `font: inherit` beat `.vh-now-t` and the row lost its column (the word
+     floated centred, the status wrapped at body size). The compound selector puts the column back. */
   button.vh-now-t.vh-row {
     flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
     min-height: 0;
     padding: 0;
     background: transparent;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs, 1.35);
+    color: var(--fg-2);
+  }
+  button.vh-now-t.vh-row > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
   }
 
   .vh-g,
@@ -144,7 +159,7 @@
     color: inherit;
     font: inherit;
     text-align: left;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
   .vh-row:hover {
@@ -152,7 +167,7 @@
   }
   .vh-row.is-sel,
   .vh-row[aria-current="true"] {
-    background: var(--accent-tint);
+    background: var(--accent-muted);
   }
   .vh-t {
     flex: 1;
@@ -420,23 +435,38 @@
   }
 
   /* ── Compare (S1.15 · 11 · pn-compare) ── */
+  /* pn-vh-mark: an 18 px accent CIRCLE on the thumbnail's left edge (B stays a quiet ink one) */
+  .vh-row {
+    position: relative;
+  }
   .cmp-mark {
-    display: inline-grid;
+    position: absolute;
+    left: calc(var(--space-2) - 9px);
+    top: var(--space-1);
+    z-index: 1;
+    display: grid;
     place-items: center;
-    min-width: 16px;
-    height: 16px;
-    margin-right: var(--space-1);
-    padding: 0 3px;
-    border-radius: var(--radius-xs);
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
     background: var(--accent);
     color: var(--accent-fg, var(--bg-0));
-    font-size: 9px;
+    font-size: var(--type-xs);
     font-weight: var(--w-semibold);
-    vertical-align: 1px;
+    line-height: 1;
+    box-shadow: 0 0 0 2px var(--bg-2);
   }
   .cmp-mark--b {
     background: var(--fg-1);
     color: var(--bg-0);
+  }
+  .vh-now {
+    position: relative;
+  }
+  .vh-now .cmp-mark {
+    left: var(--space-1);
+    top: 50%;
+    transform: translateY(-50%);
   }
   .vh-acts--cmp {
     flex-direction: column;
@@ -573,22 +603,22 @@
     font: inherit;
     font-size: var(--type-sm);
     text-align: left;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
   .cmp-line:hover {
     background: var(--bg-2);
   }
   .cmp-line.is-focus {
-    background: var(--accent-tint);
+    background: var(--accent-muted);
   }
   .cmp-line:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
   .cmp-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     flex: none;
     border-radius: var(--radius-pill);
     background: var(--accent);

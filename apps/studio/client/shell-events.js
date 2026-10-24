@@ -92,9 +92,15 @@ const okThread = (t) => typeof t === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(t)
 export function applyShellNavigate(payload, deps) {
   const plan = navigatePlan(payload, deps);
   if (!plan) return null;
-  if (plan.artboard && plan.file && CANVAS_RE.test(plan.file))
+  if (plan.artboard && plan.file && CANVAS_RE.test(plan.file)) {
     applyUiOpen({ file: plan.file, artboard: plan.artboard }, deps);
-  else if (plan.rel) deps.openLinkedFile(plan.rel);
+    // 11 pn-deeplink: a link to an artboard says where it came from ("Opened from a link — Pozvánka · story.").
+    // A thread landing has its own, better-informed line below (it knows who wrote the comment).
+    if (!plan.thread) {
+      const canvas = String(plan.file).split('/').pop().replace(CANVAS_RE, '');
+      deps.toast?.(openedFromWords({ who: null, canvas, artboard: plan.artboard }));
+    }
+  } else if (plan.rel) deps.openLinkedFile(plan.rel);
   // S9.17 — then the thread: `comments.open-thread` (its tab, its pin, the Comments panel, read marks).
   // Only for a canvas in this tree; after the open, so the tab it focuses exists.
   // S6.11b — every thread landing (an invite or a mention) opens with the reply field focused, then ONE

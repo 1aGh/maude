@@ -161,6 +161,7 @@ export function TrashView({
                         data-kind={it.kind}
                         data-id={it.id}
                       >
+                        <span className="cv-thumb lp-trash-thumb" aria-hidden="true" />
                         <span className="lp-two">
                           <span className="lp-name" title={it.path ?? it.css}>
                             {itemName(it)}
