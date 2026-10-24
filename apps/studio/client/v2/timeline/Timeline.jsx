@@ -1084,7 +1084,6 @@ export default function TimelinePanel({
       a: shot(A, ai, 'last'),
       b: shot(B, ai + 1, 'first'),
       set: (params) => onClipVerb?.(ref, 'video.transition.set', params),
-      remove: () => onClipVerb?.(ref, 'remove-transition', {}),
     };
   })();
 
@@ -2891,10 +2890,6 @@ export default function TimelinePanel({
               canEdit={island ? island.canEdit !== false : true}
               onPick={(key) => picker.set({ presentation: key })}
               onLength={(frames) => picker.set({ durationInFrames: frames })}
-              onRemove={() => {
-                picker.remove();
-                setJoinPicker(null);
-              }}
               onClose={() => {
                 // a11y — esc / a click away hands focus back to the join it opened from
                 const from = joinPicker.from;

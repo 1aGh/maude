@@ -291,15 +291,14 @@ describe('a join (ve-transition)', () => {
     expect(cancelled).toBeGreaterThan(0);
   });
 
-  test('Esc closes it; Remove transition (hard cut) is the old button, in the picker’s foot', () => {
-    const verbs = open();
-    act(() => {
-      q('timeline-transition-remove')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(verbs).toEqual([[{ stableId: 'tr0', transition: true }, 'remove-transition', {}]]);
-    expect(q('timeline-transition-picker')).toBeNull();
+  test('Esc closes it; the foot is the board’s one line — Remove transition (hard cut) lives under the clip inspector’s Advanced (V2-8.5 c4-video)', () => {
     open();
     expect(q('timeline-transition-picker')).not.toBeNull();
+    // 07 ve-transition: "Hover a tile to play it." and nothing else under the Length row
+    expect(q('timeline-transition-remove')).toBeNull();
+    expect(q('timeline-transition-picker')?.querySelector('.tj-foot')?.textContent).toBe(
+      'Hover a tile to play it.'
+    );
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });

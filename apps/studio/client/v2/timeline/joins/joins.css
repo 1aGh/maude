@@ -181,25 +181,6 @@
     flex-wrap: wrap;
     row-gap: var(--space-1);
   }
-  .tj-remove {
-    white-space: nowrap;
-    appearance: none;
-    border: 0;
-    margin-left: auto;
-    padding: 0;
-    background: none;
-    color: var(--fg-2);
-    font: inherit;
-    border-radius: var(--radius-xs);
-    cursor: pointer;
-  }
-  .tj-remove:hover {
-    color: var(--fg-0);
-  }
-  .tj-remove:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
 
   /* ve-fit-fill: three ways a vertical clip can sit, and "Same for every vertical clip" */
   .tf-pop {
