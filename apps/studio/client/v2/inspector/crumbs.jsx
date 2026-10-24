@@ -15,11 +15,12 @@ export function InspectorCrumbs({ crumbs, onPick }) {
   const last = crumbs.length - 1;
   const stepsOut = crumbs[last]?.ref != null;
   // 14 R4: a deep path (the fixture's pages nest four frames) is folded, not crushed to "Fr…": the artboard, "…",
-  // the last two rungs — each whole. The folded names are the "…" rung's title.
-  const folded = crumbs.length > 4;
+  // the object — each whole, like the board's "Desktop › Nav › Book a call" (three rungs + esc fit the 264 px card).
+  // The folded names are the "…" rung's title; esc steps out one level at a time.
+  const folded = crumbs.length > 3;
   const rungs = crumbs
     .map((c, i) => ({ c, i }))
-    .filter(({ i }) => !folded || i === 0 || i >= last - 1);
+    .filter(({ i }) => !folded || i === 0 || i === last);
   return (
     <nav className="insp-crumbs" data-testid="inspector-crumbs" aria-label="Where this is">
       {rungs.map(({ c, i }) => (
@@ -30,13 +31,13 @@ export function InspectorCrumbs({ crumbs, onPick }) {
               <StIcon name="chevron-right" size={10} />
             </span>
           ) : null}
-          {folded && i === last - 1 ? (
+          {folded && i === last ? (
             <>
               <span
                 className="insp-crumb"
                 data-testid="inspector-crumb-gap"
                 title={crumbs
-                  .slice(1, last - 1)
+                  .slice(1, last)
                   .map((x) => x.label)
                   .join(' › ')}
               >
