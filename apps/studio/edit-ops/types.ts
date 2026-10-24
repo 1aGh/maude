@@ -74,6 +74,8 @@ export interface ResolvedEditOp {
 export interface EditCtx {
   /** `meta.dsRev` — set on a canvas left out of the design system's current revision */
   dsRev: string | null;
+  /** `meta.layout.artboards` as the server reads it now — where the boards sit (an op that adds one places it) */
+  layout?: unknown;
   /**
    * S2.17 — the variants the canvas's design system really gives this component (its `components.json`,
    * else the shipped defaults); null = the system does not say. A swap is checked against this, never

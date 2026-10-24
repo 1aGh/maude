@@ -10,6 +10,7 @@
 import { useState } from 'react';
 
 import { planConvert } from '../../../../kinds/convert.ts';
+import { intendSelection } from '../../../selection-scope.js';
 import ConvertDialog from '../../kinds/ConvertDialog.jsx';
 import { selectCopyPlan } from '../../kinds/convert-api.js';
 import { registerSlot } from '../slots.js';
@@ -53,6 +54,8 @@ function FixedRows({ el, ctx }) {
             // 08 ak-convert-after: the A6 copy is selected, the post stays as it was
             const plan = selectCopyPlan(r);
             if (!plan) return;
+            // the shell's own put-back after the canvas reloads must not return the selection to the post
+            intendSelection(ctx.canvasFile, { from: id, to: r.copy });
             for (const d of plan.delays) {
               if (d === 0) ctx.onRunAction?.(plan.message);
               else setTimeout(() => ctx.onRunAction?.(plan.message), d);

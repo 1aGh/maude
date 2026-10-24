@@ -2,10 +2,13 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  clearSelectionIntent,
   exportSelectionFor,
   exportSelectionV2,
+  intendSelection,
   isOwnSelectEcho,
   localSelectRecord,
+  restorePostOf,
   stampSelectionFile,
 } from '../client/selection-scope.js';
 
@@ -88,5 +91,53 @@ describe('export sheet selection (09 Export)', () => {
     // an entry that names another canvas is left alone
     expect((stampSelectionFile([B], A.file) as { file: string }[])[0].file).toBe(B.file);
     expect(stampSelectionFile(null, A.file)).toBeNull();
+  });
+});
+
+describe('p8-bugs3 #6 — the selection Change kind asked for outlives the reload (decision v2-p8-c4-convert-selects-the-copy)', () => {
+  // The shell puts the selection back on a canvas that just reloaded, from what IT holds — the post, until the
+  // canvas echoes the copy. A reload that finished after the 0 / 450 / 1200 ms asks for the copy put the post back
+  // over it ("dark: the selection stays on the post"). The ask is now remembered: while it is fresh, a restore
+  // of the post's whole-artboard selection goes to the copy instead.
+  const post = { file: A.file, artboardId: 'post', selector: '[data-dc-screen="post"]' };
+  const other = { file: A.file, artboardId: 'story', selector: '[data-dc-screen="story"]' };
+  test('a restore of the post goes to the copy while the ask is fresh, and only then', () => {
+    clearSelectionIntent();
+    expect(restorePostOf(post, A.file)).toEqual({ dgn: 'select-by-id', artboardId: 'post' });
+    intendSelection(A.file, { from: 'post', to: 'post-a6' }, { now: 1000, ttl: 5000 });
+    expect(restorePostOf(post, A.file, undefined, 2000)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'post-a6',
+    });
+    // past its time the post is the post again
+    expect(restorePostOf(post, A.file, undefined, 7000)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'post',
+    });
+    clearSelectionIntent();
+  });
+  test('anything else the person selected meanwhile, or another canvas, is restored as it was', () => {
+    intendSelection(A.file, { from: 'post', to: 'post-a6' }, { now: 1000, ttl: 5000 });
+    expect(restorePostOf(other, A.file, undefined, 2000)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'story',
+    });
+    expect(restorePostOf({ ...post, file: B.file }, B.file, undefined, 2000)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'post',
+    });
+    clearSelectionIntent();
+  });
+  test('once the copy is what the shell holds, the ask is spent', () => {
+    intendSelection(A.file, { from: 'post', to: 'post-a6' }, { now: 1000, ttl: 5000 });
+    const copy = { file: A.file, artboardId: 'post-a6', selector: '[data-dc-screen="post-a6"]' };
+    expect(restorePostOf(copy, A.file, undefined, 1500)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'post-a6',
+    });
+    expect(restorePostOf(post, A.file, undefined, 1600)).toEqual({
+      dgn: 'select-by-id',
+      artboardId: 'post',
+    });
   });
 });
