@@ -3144,6 +3144,7 @@ function ShellTree() {
               they replaced the pinned layout's old collapsed rail (Expand · Search · Files) along with it. */}
           <CornerIcons
             hidden={panelsHidden}
+            folded={panelsFolded && !panelsUserHidden}
             leftActive={leftActive}
             rightActive={rightActive}
             leftIds={leftIds}
