@@ -246,6 +246,9 @@ export function ArtboardRingsLayer() {
   const known = useRef<Set<string> | null>(null); // artboards on the canvas when the run began; null = none live
   const nodes = useRef(new Map<string, HTMLDivElement>());
   const ranAt = useRef(new Map<string, number>());
+  // a run of yours is live when it holds an artboard (`ai-runs`) or an object (`ai-holds`)
+  const liveBy = useRef({ rings: false, holds: false });
+  const [live, setLive] = useState(false);
   const rings = useMemo<AiRings>(() => {
     if (!drafted || shellRings[drafted.id]) return shellRings;
     return {
@@ -263,20 +266,40 @@ export function ArtboardRingsLayer() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const timers = new Set<ReturnType<typeof setTimeout>>();
+    // a run of yours is live: remember what was already here, so an artboard that lands is known as new
+    const syncLive = () => {
+      const on = liveBy.current.rings || liveBy.current.holds;
+      if (on && known.current === null) known.current = new Set(screenIds());
+      if (!on) {
+        known.current = null;
+        setDrafted(null);
+      }
+      setLive(on);
+    };
     const onMessage = (e: MessageEvent) => {
       // Only the shell may say it (DDR-054: the canvas is the untrusted side). The table then parses the
       // payload — state/who/tag/waiting only, capped, no `__proto__` key.
       if (e.source !== window.parent) return;
-      if ((e.data as { dgn?: string } | null)?.dgn !== 'ai-runs') return;
+      const kind = (e.data as { dgn?: string } | null)?.dgn;
+      if (kind === 'ai-holds') {
+        const h = acceptFromShell(e, window);
+        if (h?.dgn !== 'ai-holds') return;
+        liveBy.current.holds = (h.holds as Array<{ mine: boolean; point?: boolean }>).some(
+          (x) => x.mine && !x.point
+        );
+        syncLive();
+        return;
+      }
+      if (kind !== 'ai-runs') return;
       const m = acceptFromShell(e, window);
       if (m?.dgn !== 'ai-runs') return;
       const next = m.artboards as AiRings;
       const now = Date.now();
       const justDone: string[] = [];
-      let live = false;
+      liveBy.current.rings = false;
       for (const [id, r] of Object.entries(next)) {
         if (r.state === 'running') {
-          if (r.who === 'you') live = true;
+          if (r.who === 'you') liveBy.current.rings = true;
           if (!ranAt.current.has(id)) ranAt.current.set(id, now);
         } else if (r.state === 'done') {
           const at = ranAt.current.get(id);
@@ -290,12 +313,7 @@ export function ArtboardRingsLayer() {
       for (const id of [...ranAt.current.keys()])
         if (!next[id] && now - (ranAt.current.get(id) ?? 0) > FRESH_WINDOW_MS)
           ranAt.current.delete(id);
-      // a run of yours is live: remember what was already here, so an artboard that lands is known as new
-      if (live && known.current === null) known.current = new Set(screenIds());
-      if (!live) {
-        known.current = null;
-        setDrafted(null);
-      }
+      syncLive();
       if (justDone.length) {
         setFresh((f) => new Set([...f, ...justDone]));
         const t = setTimeout(() => {
@@ -319,7 +337,7 @@ export function ArtboardRingsLayer() {
 
   // One animation-frame loop while any ring exists: follow each artboard's on-screen rectangle.
   useEffect(() => {
-    if (ids.length === 0) return;
+    if (ids.length === 0 && !live) return;
     let raf: number | null = null;
     const tick = () => {
       raf = null;
@@ -354,7 +372,7 @@ export function ArtboardRingsLayer() {
     return () => {
       if (raf != null) cancelAnimationFrame(raf);
     };
-  }, [ids]);
+  }, [ids, live]);
 
   if (ids.length === 0) return null;
   return (

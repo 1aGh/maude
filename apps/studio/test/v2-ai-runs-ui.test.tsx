@@ -434,6 +434,42 @@ describe('the rings on the canvas', () => {
     expect(q('ai-ring-tablet')).toBeNull();
   });
 
+  test('P8 c3: a run that holds objects only (no artboard lease yet) still counts as live for the drawing ring', async () => {
+    const { act } = await overlay();
+    await act(async () => {
+      post({
+        dgn: 'ai-holds',
+        holds: [{ artboard: 'post', element: 'h1', tag: 'AI is working', mine: true }],
+      });
+    });
+    expect(q('ai-rings')).toBeNull();
+    const board = document.createElement('div');
+    board.setAttribute('data-dc-screen', 'mobile');
+    board.setAttribute('data-dc-label', 'Mobile');
+    board.getBoundingClientRect = () =>
+      ({
+        left: 5,
+        top: 5,
+        width: 109,
+        height: 236,
+        right: 114,
+        bottom: 241,
+        x: 5,
+        y: 5,
+      }) as DOMRect;
+    document.body.append(board);
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(q('ai-ring-mobile')?.textContent).toContain('AI is drawing Mobile');
+    // the holds go away: the run is over, the word with it
+    await act(async () => {
+      post({ dgn: 'ai-holds', holds: [] });
+    });
+    expect(q('ai-ring-mobile')).toBeNull();
+  });
+
   test('only the shell may say it: a message from anywhere else draws nothing', async () => {
     const { act } = await overlay();
     await act(async () => {
