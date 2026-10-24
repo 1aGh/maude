@@ -25,12 +25,17 @@ export const PEN_CSS = `
 }
 .ed-pen-chip[data-tone="quiet"] { background: var(--maude-hud-bg, #222); color: var(--maude-hud-fg, #eee); }
 .ed-pen-hints {
+  /* 14 ed-pen: the keys of drawing are LIGHT PILLS (the board's .ed-hint), one per key, not a dark bar */
   position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 6; pointer-events: none;
-  display: flex; gap: 14px; padding: 4px 10px; border-radius: 6px; white-space: nowrap;
-  background: var(--maude-hud-bg, #222); color: var(--maude-hud-fg, #eee);
-  font: 500 11px/16px var(--maude-chrome-font, system-ui, sans-serif);
+  display: flex; gap: 8px; white-space: nowrap;
 }
-.ed-pen-hints kbd { font: inherit; padding: 0 4px; border-radius: 3px; border: 1px solid currentColor; opacity: 0.8; }
+.ed-pen-hint {
+  display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 12px; border-radius: 999px;
+  background: var(--maude-chrome-bg-1, #fff); color: var(--maude-chrome-fg-1, #333);
+  box-shadow: inset 0 0 0 1px var(--maude-chrome-border, rgba(0,0,0,0.12)), 0 1px 2px var(--maude-chrome-shadow, rgba(0,0,0,0.12));
+  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, -apple-system, sans-serif);
+}
+.ed-pen-hints kbd { font: inherit; padding: 0 4px; border-radius: 3px; border: 1px solid currentColor; opacity: 0.7; }
 `;
 
 /** "Click — a sharp point" … the keys of drawing (the words of the canvas's hint row). */
@@ -60,7 +65,7 @@ export function PenHints({
   return (
     <div className="ed-pen-hints" data-testid={testid} aria-hidden="true">
       {hints.map(([key, words]) => (
-        <span key={words}>
+        <span key={words} className="ed-pen-hint">
           {key ? <kbd>{key}</kbd> : null} {words}
         </span>
       ))}

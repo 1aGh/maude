@@ -57,3 +57,16 @@ describe('the keyboard focus ring is not the selection (14 ed-edge-keys)', () =>
     expect(hide?.[1]).toContain('.dc-cv-halo--selected');
   });
 });
+
+describe('the pen hints are light pills (14 ed-pen)', () => {
+  test('one pill per key, not one dark bar', async () => {
+    const css = await src('../editing/pen/overlay.tsx');
+    expect(rule(css, '.ed-pen-hint')).toContain('border-radius: 999px');
+    expect(rule(css, '.ed-pen-hints')).not.toContain('--maude-hud-bg');
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const { createElement } = await import('react');
+    const { PenHints, DRAW_HINTS } = await import('../editing/pen/overlay.tsx');
+    const html = renderToStaticMarkup(createElement(PenHints, { hints: DRAW_HINTS, testid: 'x' }));
+    expect(html.match(/class="ed-pen-hint"/g)?.length).toBe(DRAW_HINTS.length);
+  });
+});
