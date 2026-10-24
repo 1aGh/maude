@@ -65,6 +65,13 @@ export function AssetTile({
         onPick(asset.path, e, true);
         onMenu(e, asset);
       }}
+      onKeyDown={(e) => {
+        // the menu is not right-click only: the ContextMenu key and ⇧F10 open it on the focused tile (a11y)
+        if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+          onPick(asset.path, e, true);
+          onMenu(e, asset);
+        }
+      }}
       {...(isImage && canDrag ? tileDragProps(asset.path) : {})}
     >
       {asset.kind === 'video' ? (

@@ -22,6 +22,19 @@ const SAID = {
   invalid: 'Not placed. That picture does not fit there; try another.',
 };
 
+/**
+ * "Placed 6 photos in Fotky ze zápasu. They're in Assets too." — the line a placement says (12 · ia-placed). The same words
+ * the drop says (`editing/finder-drop-model.ts` placedLine; pinned equal in p8-c9-assets.test.tsx), kept here so the shell
+ * bundle does not pull the canvas editing code in for one sentence.
+ */
+export function placedWords(count, artboardLabel) {
+  const what = count === 1 ? 'the photo' : `${count} photos`;
+  const them = count === 1 ? "It's" : "They're";
+  return artboardLabel
+    ? `Placed ${what} in ${artboardLabel}. ${them} in Assets too.`
+    : `Placed ${what}. ${them} in Assets too.`;
+}
+
 export const PLACE_MODES = Object.freeze(['fill', 'loose', 'fill-in-order', 'grid', 'auto']);
 
 /**

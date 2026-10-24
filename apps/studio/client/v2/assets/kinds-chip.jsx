@@ -29,7 +29,8 @@ export function KindsChip({ value, onChange }) {
       e.preventDefault();
       const items = Array.from(el.querySelectorAll('[role="menuitemradio"]'));
       const i = items.indexOf(document.activeElement);
-      const n = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      const n =
+        e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
       items[n]?.focus();
     };
     document.addEventListener('pointerdown', onPointer, true);

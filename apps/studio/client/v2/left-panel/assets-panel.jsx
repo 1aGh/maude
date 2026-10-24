@@ -41,7 +41,7 @@ import { KindsChip } from '../assets/kinds-chip.jsx';
 import { filterKind, GROUP_CAP, libraryFootWords } from '../assets/library-foot.js';
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
-import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
+import { placeAsset, placedWords, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
 import { toastArrivals } from '../assets/import-toast.js';
 import { SeenLine } from '../assets/search-marks.jsx';
 import { AssetTile } from '../assets/tile.jsx';
@@ -202,6 +202,17 @@ export function AssetsPanel({
   const pickFiles = () =>
     isNativeApp() ? addFilesNative(setProgress) : addFilesBrowser(setProgress);
   const add = () => upload(pickFiles);
+  // 12 · ia-placed — "Placed 6 photos in Fotky ze zápasu. They're in Assets too." with Undo, the same pill a drop says
+  const announcePlaced = useCallback(
+    (count) => {
+      if (!toast || !alive.current) return;
+      toast(placedWords(count, placeLabel || ''), true, {
+        label: 'Undo',
+        onClick: () => menuRunner.run('edit.undo'),
+      });
+    },
+    [toast, placeLabel]
+  );
   // S8.14 — Image (I) shows this tab; "From this Mac…" there does what a drop on the artboard does: the photos chosen are
   // imported AND placed on the selected artboard (empty frames in order, else a tidy grid, else loose), in one write.
   // With no artboard selected it is the plain import it always was.
@@ -214,6 +225,7 @@ export function AssetsPanel({
       { record: onRecord }
     );
     if (!r.ok && alive.current) setErr(r.message);
+    else announcePlaced(Math.min(paths.length, MAX_PLACE));
   };
 
   const byPath = useMemo(() => new Map((assets || []).map((a) => [a.path, a])), [assets]);
@@ -289,8 +301,9 @@ export function AssetsPanel({
         { record: onRecord }
       );
       if (!r.ok && alive.current) setErr(r.message);
+      else announcePlaced(1);
     },
-    [readOnly, byPath, placeTarget, onRecord]
+    [readOnly, byPath, placeTarget, onRecord, announcePlaced]
   );
   const showDetails = useCallback(
     (path) => {
@@ -372,8 +385,9 @@ export function AssetsPanel({
         { record: onRecord }
       );
       if (!r.ok && alive.current) setErr(r.message);
+      else announcePlaced(list.length);
     },
-    [readOnly, byPath, place, placeTarget, onRecord]
+    [readOnly, byPath, place, placeTarget, onRecord, announcePlaced]
   );
 
   // ── S8.13: Move to the trash — one request, the studio decides; Undo puts the bundles back ──────────────────────
@@ -703,7 +717,7 @@ export function AssetsPanel({
             readOnly
               ? undefined
               : (e, asset) => {
-            const r = e.currentTarget.getBoundingClientRect();
+                  const r = e.currentTarget.getBoundingClientRect();
                   setMenu({ anchor: { left: r.left, top: r.top, bottom: r.bottom }, asset });
                 }
           }

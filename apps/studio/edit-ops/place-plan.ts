@@ -51,7 +51,9 @@ export function dropHint(
     return plan.rest > 0 ? `${head}, then place ${plan.rest} more` : head;
   }
   if (plan.mode === 'grid')
-    return label ? `Drop to place ${n} photos in ${label}` : `Drop to place ${n} photos in a tidy grid`;
+    return label
+      ? `Drop to place ${n} photos in ${label}`
+      : `Drop to place ${n} photos in a tidy grid`;
   if (plan.mode === 'fill') return 'Drop to fill the frame';
   if (label) return `Drop to place ${n === 1 ? 'the photo' : `${n} ${photos(n)}`} in ${label}`;
   return n > 1 ? `Drop to place ${n} ${photos(n)} here` : 'Drop to place the photo here';

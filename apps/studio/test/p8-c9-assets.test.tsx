@@ -6,18 +6,19 @@ import { fileURLToPath } from 'node:url';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
 
+import { FRAME_MIN, frameBox } from '../asset-placeholder.tsx';
+import { GenerateAsk } from '../client/v2/assets/generate-ask.jsx';
 import {
   bytesWords,
   filterKind,
   GROUP_CAP,
   libraryFootWords,
 } from '../client/v2/assets/library-foot.js';
-
-import { FRAME_MIN, frameBox } from '../asset-placeholder.tsx';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { GenerateAsk } from '../client/v2/assets/generate-ask.jsx';
+import { placedWords } from '../client/v2/assets/place-asset.js';
 import { dropHint } from '../edit-ops/place-plan.ts';
+import { placedLine } from '../editing/finder-drop-model.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
@@ -120,6 +121,33 @@ describe('the panel (render)', () => {
     expect(q(host, 'assets-tile-match')?.textContent).toBe('p1.jpg');
   });
 
+  test('the ContextMenu key opens the tile menu (not right-click only); Copy is in it', async () => {
+    const host = await mount();
+    const tile = host.querySelector('[data-testid="assets-tile"]') as HTMLElement;
+    await act(async () => {
+      tile.dispatchEvent(
+        new window.KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })
+      );
+    });
+    expect(q(host, 'assets-tile-menu')).not.toBeNull();
+    expect(q(host, 'assets-menu-copy')?.textContent).toContain('Copy');
+    expect(q(host, 'assets-menu-details')).not.toBeNull();
+  });
+
+  test('Browse draws a pick circle on every thumb', async () => {
+    const host = await mount();
+    await act(async () => {
+      q(host, 'assets-group-image')?.dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true })
+      );
+    });
+    const tiles = host.querySelectorAll(
+      '[data-testid="assets-browse"] [data-testid="assets-tile"]'
+    );
+    expect(tiles.length).toBe(9);
+    expect(host.querySelectorAll('[data-testid="assets-tile-pick"]')).toHaveLength(9);
+  });
+
   test('the kind chip narrows the list', async () => {
     const host = await mount();
     await act(async () => {
@@ -150,7 +178,7 @@ describe('the CSS the board draws (pins)', () => {
   });
   test('the left panel stops above the bottom row; its island is 248 wide', () => {
     expect(read('client/v2/shell/floating-panels.css')).toContain('padding-bottom: 72px');
-    expect(read('client/hooks/use-shell-core.jsx')).toContain("def: 264 }");
+    expect(read('client/hooks/use-shell-core.jsx')).toContain('def: 264 }');
   });
 });
 
@@ -215,5 +243,20 @@ describe('the ask is quiet until asked (12 · ia-gen-ask)', () => {
     expect(html).not.toContain('role="alert"');
     expect(html).toContain('Use our photos as a style');
     expect(html).toContain('Daylight instead');
+  });
+});
+
+describe('a placement says so, with Undo (12 · ia-placed)', () => {
+  test("the words are the drop's words", () => {
+    for (const [n, label] of [
+      [1, ''],
+      [1, 'Fotky'],
+      [6, 'Fotky ze zápasu'],
+      [6, ''],
+    ] as const)
+      expect(placedWords(n, label)).toBe(placedLine(n, label));
+    expect(placedWords(6, 'Fotky ze zápasu')).toBe(
+      "Placed 6 photos in Fotky ze zápasu. They're in Assets too."
+    );
   });
 });

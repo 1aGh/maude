@@ -104,10 +104,7 @@ interface Box {
  * following ITS rectangle draws a hatched strip and clips the card away. The board hatches the whole picture frame, so a
  * collapsed element takes the nearest ancestor that is big enough to hold the card (never past the body).
  */
-export function frameBox(el: {
-  getBoundingClientRect(): Box;
-  parentElement: unknown;
-}): Box | null {
+export function frameBox(el: { getBoundingClientRect(): Box; parentElement: unknown }): Box | null {
   const own = el.getBoundingClientRect();
   if (own.width >= FRAME_MIN && own.height >= FRAME_MIN) return own;
   let up = el.parentElement as (typeof el & { tagName?: string }) | null;
