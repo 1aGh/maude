@@ -2574,8 +2574,36 @@ export default function TimelinePanel({
                             )}
                             <span className="tl-row-label-text">{displayNameOf(seq, i)}</span>
                           </span>
-                          <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
+                          {/* V2-8.5 c4-video (07 · ve-drop): files over the Video lane land between its beats, with the
+                              caret and "Drop N clips at …" — the same lane the media cut's storyline is */}
+                          <div
+                            className="tl-row-track"
+                            style={{ width: axisPx, flex: 'none' }}
+                            {...(seq.series
+                              ? {
+                                  onDragOver: onStoryDragOver,
+                                  onDrop: onLaneDrop({ lane: 'storyline' }),
+                                }
+                              : {})}
+                          >
                             {renderBlock(seq, i, { lane: 'row' })}
+                            {dropCaret?.lane === 'storyline' &&
+                            seq.series &&
+                            i === sequences.findIndex((s) => s.series) ? (
+                              <>
+                                <span
+                                  className="tl-drop-caret"
+                                  data-testid="timeline-drop-caret"
+                                  style={{ left: dropCaret.x - 1 }}
+                                />
+                                <DropLanding
+                                  x={dropCaret.x}
+                                  count={dropCaret.count}
+                                  atFrame={dropCaret.frame}
+                                  fps={fps}
+                                />
+                              </>
+                            ) : null}
                             {/* the lifted beat's landing line + "Drop before …" tip, on the Video lane's first row */}
                             {landing && seq.series && i === landing.firstRow ? (
                               <MoveLanding x={x(landing.frame ?? 0)} text={landing.text} />

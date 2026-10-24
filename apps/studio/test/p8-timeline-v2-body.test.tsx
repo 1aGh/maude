@@ -331,6 +331,41 @@ describe('a purely digital comp keeps its rows, but its beats share one Video la
     });
     expect(q('[data-testid="timeline-landing-line"]')).toBeNull();
   });
+  test('files dragged over the Video lane show the drop caret and "Drop 2 clips at …" (07 · ve-drop)', () => {
+    const dropped: unknown[] = [];
+    mount({
+      sequences: [scene('Oslava', 0, 150), scene('Touchdown', 150, 150), scene('Logo', 300, 150)],
+      extra: { onDropMedia: (f: unknown, pos: unknown) => dropped.push([f, pos]) },
+    });
+    const track = q('[data-testid="timeline-row-0"] .tl-row-track') as HTMLElement;
+    expect(q('[data-testid="timeline-drop-caret"]')).toBeNull();
+    const dt = {
+      types: ['Files'],
+      items: [{ kind: 'file' }, { kind: 'file' }],
+      files: [{ name: 'a.mp4' }, { name: 'b.mp4' }],
+      dropEffect: '',
+    };
+    act(() => {
+      const ev = new Event('dragover', { bubbles: true, cancelable: true }) as Event & {
+        dataTransfer: unknown;
+        clientX: number;
+      };
+      ev.dataTransfer = dt;
+      ev.clientX = 100;
+      track.dispatchEvent(ev);
+    });
+    expect(q('[data-testid="timeline-drop-caret"]')).not.toBeNull();
+    expect(q('[data-testid="timeline-drop-tip"]')?.textContent).toMatch(/^Drop 2 clips at/);
+    act(() => {
+      const ev = new Event('drop', { bubbles: true, cancelable: true }) as Event & {
+        dataTransfer: unknown;
+      };
+      ev.dataTransfer = dt;
+      track.dispatchEvent(ev);
+    });
+    expect(dropped).toHaveLength(1);
+    expect((dropped[0] as [unknown, { lane: string }])[1].lane).toBe('storyline');
+  });
   test('pressing a clip selects it at once — the lifted clip wears the selection while it is dragged (07 · ve-move-transition)', () => {
     const picked: unknown[] = [];
     mount({
