@@ -110,3 +110,32 @@ IMPL re-shot light + dark on the round-5 tip with the stage-D harness (`_d-harne
 
 - Changed in the product for these frames: the Canvases panel is the board island (no accent Make-a-design-system row, no empty Trash row, no foot at rest, "Search ⌘K", "N canvases" on the project row, pictures on the rows), "+ New canvas" named by its words, the comment card (04 / 10 / 01 cf-sticky-comment).
 - Harness drift handled (no product code): the Trash row is gone while the trash is empty, so the Trash frame opens it from Advanced; the Comments icon is drawn only with comments, so the Comments frame opens by ⌘K › Comments; the Layers frame re-opens the left panel first.
+
+## FINAL (D3, 63592219a)
+Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (stage C rounds 1-5 + bugs3 merged); no product code changed. This section supersedes every earlier "after" / FINAL section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** D2 harness (`_d-harness-g1-final/`, round-5 revision of the 01/02/05 scenarios) plus the bugs3 `s01ai.mjs` (waits for the run's end before ⌘Z), repointed to this worktree; kept in `_d-harness-g1-d3/`. Changes for D3: the fake agent steps every 9 s (was 7 s) so the harness's folding clicks finish before the run does; the finish moment is detected by a MutationObserver inside the canvas frame (re-armed on reload) and shot while `[data-fresh]` is on, panel folded, result toast up; the undo frame is shot while the "Undone — <label> · Redo" toast is still up. Fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000, light + dar- **SPEC.** reused (board 01 .tsx/.css unchanged since 2026-10-18).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D3)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `cf-home-prompt` | re-shot | re-shot |  |
+| `cf-ai-drafting` | re-shot | re-shot |  |
+| `cf-ai-done` | re-shot | re-shot | IMPL = two frames: the panel-folded frame with the result toast shot the moment `[data-fresh]` appears (the 1.8 s finish moment), and the panel reopened ~2 s later (settled: label only) |
+| `cf-select-tweak` | re-shot | re-shot |  |
+| `cf-sticky-comment` | re-shot | re-shot |  |
+| `cf-undo-before` | re-shot | re-shot |  |
+| `cf-undo-ai` | re-shot | re-shot | shot after the run ended (⌘Z is refused while your own AI works), while the undo toast "Undone — Try a dark hero · Redo" is up |
+| `cf-blank` | re-shot | re-shot |  |
+| `cf-add-artboard` | re-shot | re-shot |  |
+| `cf-duplicate-width` | re-shot | re-shot |  |
+| `cf-duplicate-done` | re-shot | re-shot |  |
+| `cf-frames-text` | re-shot | re-shot |  |
+| `cf-big-tree` | re-shot | re-shot |  |
+| `cf-panel-search` | re-shot | re-shot |  |
+| `cf-search-k` | re-shot | re-shot |  |
+| `cf-open-big` | re-shot | re-shot |  |
+| `cf-busy` | unreachable | unreachable | unreachable — needs other people on the canvas (presence, two AI chats, a second person): a hub / collab peers; no local route |
+| `cf-status-words` | re-shot | re-shot |  |
+| `cf-render-error` | re-shot | re-shot |  |
+| `cf-offline-create` | re-shot | re-shot |  |
