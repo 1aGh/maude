@@ -431,9 +431,7 @@ describe('S2.22 G1 — the artboard inspector says what the canvas says', () => 
       'insp-sec-layout',
       'insp-sec-export',
       'insp-row-ab-add-width',
-    ].map(
-      (id) => must(q(host, id), id)
-    );
+    ].map((id) => must(q(host, id), id));
     for (let i = 1; i < order.length; i++)
       expect(
         order[i - 1].compareDocumentPosition(order[i]) & 4,
