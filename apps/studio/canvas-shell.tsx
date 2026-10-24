@@ -36,7 +36,6 @@ import {
   useState,
 } from 'react';
 
-import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
@@ -3746,10 +3745,11 @@ function CanvasRouter({
       <PhotoPreviewBridge />
       <UndoHud />
       {/* DDR-247 — an embed inside another app shows the design, not who
-          else is in the room: collaborator cursors, the AI banner and the
-          avatar stack are studio chrome. */}
+          else is in the room: collaborator cursors and the avatar stack are
+          studio chrome. */}
       {!isEmbedCanvas() && <CursorsOverlay />}
-      {!isEmbedCanvas() && <AiBanner />}
+      {/* P8 C3 (03 ai-working): no v1 "AI is editing this canvas" banner - the dashed spark ring + tag on the
+          artboard (ArtboardRingsLayer) say it for every run, the board draws nothing else. */}
       {!isEmbedCanvas() && <ParticipantsChrome />}
     </>
   );
