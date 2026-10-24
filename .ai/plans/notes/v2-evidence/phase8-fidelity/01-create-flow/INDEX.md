@@ -36,3 +36,34 @@ Evidence only — no product code changed. Pair = SPEC left, IMPL right, same he
 | `cf-status-words` | 18 · Save status, in words | fixture project, Edit mode, top-right cluster; second frame with navigator.onLine = false (network up) | partial: only "Local project" is reachable — Saved, Syncing… and Offline — kept on this Mac need a project linked to a hub | • offline emulation does not change a local project's word (identical frames); the spec lists four words with a sentence each, impl has the cluster only<br>• spec avatars (T, J) beside the word; impl avatar YO + a comment icon in the cluster | [light](cf-status-words-light.jpg) · [dark](cf-status-words-dark.jpg) |
 | `cf-render-error` | 19 · A canvas that won't draw | big fixture, open Broken.tsx (syntax error); second frame: open Smoke, then a syntax error is written to its file | partial: the card is reached; the "last good version" dimmed behind it is not (Broken has none) | • card is smaller and plain: no dimmed last-good picture behind it, no "Go back to 14:05" verb, no "Last good version · 6 Oct, 14:05" line; the only action is "Ask AI to fix it" (spec puts AI repair in the panel as a chip)<br>• live break of an open canvas keeps the old picture and shows the v1 dev bar "build error — držím poslední funkční verzi" (Czech debug text) instead of the v2 card<br>• text: "Its code stops halfway on line 3. Other canvases are fine; the last good version is in Version history." vs spec "The last change has a mistake the canvas can't show…" | [light](cf-render-error-light.jpg) · [dark](cf-render-error-dark.jpg) |
 | `cf-offline-create` | 20 · A new canvas with no internet | navigator.onLine = false (the local server stays reachable), ⌘K › New canvas | yes | • "AI is back when this Mac is online." line ✓ and Ask AI stays on; the spec's queued prompt ("Three reel covers… Queued — sends when this Mac is online.") is not shown because no prompt was sent<br>• status word stays "Local project" (spec "Offline — kept on this Mac", a hub-linked project)<br>• left panel is a full-height column; spec floating island with real folders | [light](cf-offline-create-light.jpg) · [dark](cf-offline-create-dark.jpg) |
+
+
+## After (stage D, 2739edc35)
+Re-shoot of the IMPL side on `feat/maude-v2` tip 2739edc35 (stage C round 2 merged), no product code changed. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Same stage-A harness (`_harness-g1/`, copied and repointed; kept as `_d-harness-g1/`), fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 × 1000. Harness adaptations (the product moved; no product code touched): the What’s new notice’s dismiss is now `.maude-notice-close` (its first button became "See all" and opened the panel over every shot); Esc no longer closes Version history, so 05 closes it by its own button (`vh-close`); the right-hand panels, Settings and the sheets moved, so the impl crops of es-panels-canvas (history), es-panels-make (AI), es-canvas-three, ob-adv-sheets and ob-settings were re-fitted to the new geometry; the dark es-landing filmstrip now finds its first frame by the blue Ask AI button (stage A picked loading skeletons).
+- **SPEC.** reused (board 01 .tsx/.css unchanged since stage A — git log 04c20ad74..tip empty); light = host dark-token rule removed, dark = host injection, as in stage A.
+- **Full-size pairs.** `full-size-path.txt` (stage D line); committed `<id>-<theme>.jpg` overwritten (JPEG q55 ≤ 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `cf-home-prompt` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-ai-drafting` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-ai-done` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-select-tweak` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-sticky-comment` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-undo-before` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-undo-ai` | re-shot (state not reached) | re-shot (state not reached) | stage A reason stands: the fake agent writes the canvas file directly, not through the edit-op stack; stage C round 2 lists "undo of an AI edit through the shared stack" as still open (fix-navcreate.md) — no new state to reach |
+| `cf-blank` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-add-artboard` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-duplicate-width` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-duplicate-done` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-frames-text` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-big-tree` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-panel-search` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-search-k` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-open-big` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-busy` | unreachable | unreachable | needs other people on the canvas (presence, two AI chats, a second person) — a hub / collab peers; no local route; stage C did not add one |
+| `cf-status-words` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-render-error` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
+| `cf-offline-create` | re-shot | re-shot | IMPL re-shot on the current tip; SPEC reused |
