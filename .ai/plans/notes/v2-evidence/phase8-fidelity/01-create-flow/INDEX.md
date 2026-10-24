@@ -74,3 +74,33 @@ IMPL re-shot after the round-3 modes / menus fixes; the committed <id>-<theme>.j
 ## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
 
 All rows above re-shot, IMPL side only, light + dark (SPEC reused, boards unchanged). What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel hugs its rows (no twisty at rest), kind chips only for a mixed project. See `fix-c3-shell.md`.
+
+## FINAL (stage D2, d3881fe41)
+Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (stage C rounds 1-4 merged); no product code changed. This section supersedes every per-round "after" section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** Stage-D harness (`_d-harness-g1/`) plus the round-3 `_c3-ai-harness/` (fake agent writes through the design plugin's hook; panel folded for the result toast), repointed to this worktree; fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000. The AI finish moment (cf-ai-done, ob-first-draw's done frame) is shot while `[data-fresh]` is on the artboard. Undo waits 7 s for the canvas to settle. The final harness is kept in `_d-harness-g1-final/`.
+- **SPEC.** reused (board 01 .tsx/.css unchanged: no `.design` commit since the stage-D spec shots).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D2)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `cf-home-prompt` | re-shot | re-shot |  |
+| `cf-ai-drafting` | re-shot | re-shot |  |
+| `cf-ai-done` | re-shot | re-shot | IMPL = two frames: the panel-folded frame with the result toast shot the moment `[data-fresh]` appears (the 1.8 s finish moment), and the panel reopened ~2 s later (settled: label only) |
+| `cf-select-tweak` | re-shot | re-shot |  |
+| `cf-sticky-comment` | re-shot | re-shot |  |
+| `cf-undo-before` | re-shot | re-shot |  |
+| `cf-undo-ai` | re-shot | re-shot |  |
+| `cf-blank` | re-shot | re-shot |  |
+| `cf-add-artboard` | re-shot | re-shot |  |
+| `cf-duplicate-width` | re-shot | re-shot |  |
+| `cf-duplicate-done` | re-shot | re-shot |  |
+| `cf-frames-text` | re-shot | re-shot |  |
+| `cf-big-tree` | re-shot | re-shot |  |
+| `cf-panel-search` | re-shot | re-shot |  |
+| `cf-search-k` | re-shot | re-shot |  |
+| `cf-open-big` | re-shot | re-shot |  |
+| `cf-busy` | unreachable | unreachable | unreachable — needs other people on the canvas (presence, two AI chats, a second person): a hub / collab peers; no local route |
+| `cf-status-words` | re-shot | re-shot |  |
+| `cf-render-error` | re-shot | re-shot |  |
+| `cf-offline-create` | re-shot | re-shot |  |
