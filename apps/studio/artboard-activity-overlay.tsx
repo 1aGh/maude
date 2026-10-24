@@ -2,7 +2,7 @@
  * @file       artboard-activity-overlay.tsx — Phase 13 / DDR-029 overlay.
  * @scope      apps/studio/artboard-activity-overlay.tsx
  * @purpose    The "agent works here" chrome for a single artboard: an animated
- *             rim + a top-right `editing — <label>` badge. Rendered by
+ *             rim + a top-right `AI’s new <artboard> — shown live` badge (04 md-edge-ai). Rendered by
  *             `DCArtboard` as a world-coord sibling of the `<article>`, so it
  *             pans/zooms with the artboard for free.
  *
@@ -65,7 +65,7 @@ export function ArtboardActivityOverlay({
       {/* Phase 13.3 — full-artboard scan beam (top→bottom sweep). Styled +
           animated by the injected inspector CSS; this just mounts the cover. */}
       <div className="dc-activity-scan" />
-      <span className="dc-activity-badge">editing — {label}</span>
+      <span className="dc-activity-badge">AI’s new {label} — shown live</span>
     </div>
   );
 }

@@ -119,6 +119,7 @@ import {
   warningsAttr,
 } from './artboard-warn-mark.tsx';
 import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
+import { modeShows } from './bridge/mode-shows.ts';
 import { DsIcon } from './canvas-ds-icons.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
 import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
@@ -127,6 +128,7 @@ import { presentHidesCss, usePresentStage } from './present/present-stage.tsx';
 import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
 import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
+import { useGovernedMode } from './use-governed-mode.ts';
 import { VideoLinksLayer } from './video-links-overlay.tsx';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
@@ -2807,6 +2809,10 @@ export function DCArtboard({
   }, [ctx, dragHook.dragState.kind, measured.height, id]);
   // S7.21 (08 ak-web-hug) — "+ 373 px" beside a web page that just grew (a hugging page only; never exported)
   const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height);
+  // P8 C3 (04 X1) - the breakpoint chip and the growth tag are Edit's chrome (the what-shows `object-tools` cell;
+  // an ungoverned canvas keeps v1): Preview / Viewing / Present show the design, not Maude's marks on it.
+  const governedMode = useGovernedMode();
+  const artboardEditChrome = modeShows(governedMode, 'object-tools');
 
   // The design surface (`.dc-artboard-body`) inside the frame, in world px —
   // offsets are layout values, untouched by the world's pan/zoom transform.
@@ -2962,12 +2968,8 @@ export function DCArtboard({
   // this artboard (null scope = file-level = every artboard). Rendered as a
   // world-coord sibling of the <article> so it pans/zooms with the artboard.
   const showActivity = activity.present && matchesArtboard(activity.artboardIds, id);
-  // Agent-driven → funny name + agent color; manual edit → file label + default hue.
-  const activityLabel = agent
-    ? agent.name
-    : activity.artboardIds
-      ? `${activity.fileLabel}:${label}`
-      : activity.fileLabel;
+  // P8 C3 (04 X8) - the tag speaks as the AI ("AI’s new Desktop — shown live"), in the agent's colour; it names the
+  // artboard, never the file or the agent's nickname (v1's `editing — Combine-kampan.tsx`).
 
   return (
     <>
@@ -3105,7 +3107,7 @@ export function DCArtboard({
       {showActivity ? (
         <ArtboardActivityOverlay
           rect={{ x: liveX, y: liveY, w: rect.w, h: rect.h }}
-          label={activityLabel}
+          label={label}
           active={activity.active}
           color={agent?.color}
         />
@@ -3129,9 +3131,14 @@ export function DCArtboard({
           guides: chrome?.guides ?? false,
           print: chrome?.print ?? false,
           safeZones: chrome?.safeZones ?? true,
+          editChrome: artboardEditChrome,
         }}
       />
-      <ArtboardGrowthTag x={liveX + rect.w} bottom={liveY + rect.h} delta={growth} />
+      <ArtboardGrowthTag
+        x={liveX + rect.w}
+        bottom={liveY + rect.h}
+        delta={artboardEditChrome ? growth : null}
+      />
     </>
   );
 }
