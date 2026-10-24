@@ -186,7 +186,7 @@ const CSS_TEXT = `
   border-radius: var(--maude-hud-radius-xs, 3px);
   animation: ed-fdrop-in var(--maude-dur-fast, 120ms) ease-out;
 }
-/* the chip names the target: ABOVE the artboard, a small accent pill (`.ia-dropt-pill`: bottom 100% + space-2) */
+/* the chip names the target: ABOVE the artboard, a small accent pill (the board's .ia-dropt-pill: bottom 100% + space-2) */
 .ed-fdrop-pill {
   position: absolute;
   left: 0;
