@@ -37,9 +37,8 @@ describe('02: words', () => {
 describe('02: material', () => {
   test('a sheet field is the bg-3 well on radius-md; the pressed segment has the accent ring', () => {
     const css = read('client/v2/onboarding/onboarding.css');
-    const input = rule(css, '.ob-input');
-    expect(input).toContain('var(--bg-3)');
-    expect(input).toContain('var(--radius-md)');
+    expect(css).toMatch(/\.ob-input \{[^}]*var\(--bg-3\)[^}]*\}/);
+    expect(css).toMatch(/\.ob-input \{[^}]*var\(--radius-md\)/);
     expect(rule(css, '.ob-seg-b[aria-pressed="true"]')).toContain('var(--accent)');
   });
   test('the offline line is warn text, not grey (ob-edge-offline)', () => {

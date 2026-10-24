@@ -370,8 +370,10 @@ describe('Projects: Find a project + sort + trailing square (11 pn-home)', () =>
     expect(rows()[0]).toContain('Studio site');
     type($('home-project-find'), '');
     const sort = $('home-project-sort') as HTMLSelectElement;
-    const key = Object.keys(sort).find((k) => k.startsWith('__reactProps')) as string;
-    act(() => (sort as any)[key].onChange({ target: { value: 'name' } }));
+    act(() => {
+      sort.value = 'name';
+      sort.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     await flush();
     expect(rows()[0]).toContain('Alligators');
     expect(rows()[2]).toContain('Studio');
@@ -381,6 +383,7 @@ describe('Projects: Find a project + sort + trailing square (11 pn-home)', () =>
 
   test('Pinned says where to pin (the board words)', async () => {
     many();
+    routes['/_home/pins'] = () => [200, { ok: true }];
     mount();
     await flush();
     await act(async () => {
