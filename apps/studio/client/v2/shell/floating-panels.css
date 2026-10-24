@@ -74,8 +74,15 @@
   .st-body--float > .st-dockslot--left {
     left: 0;
     padding-right: 0;
+    /* 12 · the left panel stops above the bottom row (kit `.k-cp`: max-height calc(100% - 68px - 72px)) — the zoom pill
+       and Undo/Redo sit there, and the panel's last row used to run under them */
+    padding-bottom: 72px;
     /* V2-4.2: the project pill is the top-left island; the panel starts below it (kit: 68px). */
     padding-top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
+  }
+  /* a chat docked under the panel keeps the bottom edge: it IS the bottom row */
+  .st-body--float > .st-dockslot--left.has-ai {
+    padding-bottom: var(--float-gap);
   }
   .st-body--float > .st-dockslot--right {
     right: 0;
@@ -90,7 +97,7 @@
     padding-bottom: calc(var(--float-gap) + 44px);
   }
   .st-body--float:has(> .st-corner--ai-left) > .st-dockslot--left {
-    padding-bottom: calc(var(--float-gap) + 44px);
+    padding-bottom: max(72px, calc(var(--float-gap) + 44px));
   }
   .st-body--float .st-dockslot-inner {
     flex: 1 1 auto;
