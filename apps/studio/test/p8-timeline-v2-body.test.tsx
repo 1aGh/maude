@@ -307,6 +307,30 @@ describe('a purely digital comp keeps its rows, but its beats share one Video la
       ['timeline-row-2', '1'],
     ]);
   });
+  test('a lifted beat lifts, and the lane shows the landing line with "Drop before …" (07 · ve-move-transition)', () => {
+    mount({
+      sequences: [scene('Oslava', 0, 150), scene('Touchdown', 150, 150), scene('Logo', 300, 150)],
+      extra: { onReorderMove: () => {} },
+    });
+    const block = q('[data-testid="timeline-seq-0"]') as HTMLElement;
+    expect(q('[data-testid="timeline-landing-tip"]')).toBeNull();
+    act(() => {
+      block.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100 })
+      );
+    });
+    act(() => {
+      // drag right past Touchdown's centre: it would land before Logo
+      window.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 100 + 520 }));
+    });
+    expect((q('[data-testid="timeline-seq-0"]') as HTMLElement).className).toContain('is-dragging');
+    expect(q('[data-testid="timeline-landing-line"]')).not.toBeNull();
+    expect(q('[data-testid="timeline-landing-tip"]')?.textContent).toMatch(/^Drop before /);
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 620 }));
+    });
+    expect(q('[data-testid="timeline-landing-line"]')).toBeNull();
+  });
   test('a beat that opens into layers keeps a lane to itself (the layer view stays)', () => {
     mount({
       sequences: [scene('beat-one', 0, 150), scene('beat-two', 150, 150, 3), scene('beat-three', 300, 150)],

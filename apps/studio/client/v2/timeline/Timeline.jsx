@@ -1291,7 +1291,9 @@ export default function TimelinePanel({
     const rows = sequences.map((s, i) => ({ s, i })).filter(({ s }) => s.series);
     const l = landingOf({ story: rows.map(({ s }) => s), reorderDrag });
     const at = rows[reorderDrag.slot];
-    return l && at ? { ...l, frame: previewFroms?.get(at.i) ?? at.s.from } : null;
+    return l && at
+      ? { ...l, frame: previewFroms?.get(at.i) ?? at.s.from, firstRow: rows[0].i }
+      : null;
   })();
 
   // DDR-150 P4 / Task 6 — file drops. Lanes set an insertion caret and hand a
@@ -1403,7 +1405,8 @@ export default function TimelinePanel({
     // its siblings take their preview slots.
     let dragOffset = 0;
     let dragging = false;
-    if (lane === 'storyline' && reorderDrag) {
+    // V2-8.5 c4-video: a digital comp's beats (lane 'row') lift and shuffle like the media cut's storyline
+    if ((lane === 'storyline' || (lane === 'row' && seq.series)) && reorderDrag) {
       if (reorderDrag.index === i) {
         dragging = true;
         dragOffset = reorderDrag.dx;
@@ -2551,6 +2554,10 @@ export default function TimelinePanel({
                           </span>
                           <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
                             {renderBlock(seq, i, { lane: 'row' })}
+                            {/* the lifted beat's landing line + "Drop before …" tip, on the Video lane's first row */}
+                            {landing && seq.series && i === landing.firstRow ? (
+                              <MoveLanding x={x(landing.frame ?? 0)} text={landing.text} />
+                            ) : null}
                           </div>
                         </div>
                         {isExpanded
