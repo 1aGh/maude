@@ -13,6 +13,7 @@
 // plain module with fixtures in test/home-page-model.test.ts.
 
 import { localIdentityMatches } from '../share-link.js';
+import { accountTone } from '../shell/account-tone.js';
 import { pathTestIdSlug } from '../shell/util.js';
 
 /** `canvas-row-<slug>`'s rule, so Home rows and tree rows name a canvas the same way. */
@@ -392,15 +393,11 @@ export const sharedAside = (n) =>
   `canvases from other people's projects${n > 0 ? ` · ${n} new this week` : ''}`;
 
 // ── the person's face (a circle — never the project's square) ──────────────────────────────────
-const FACE_TONES = ['lilac', 'yellow', 'sky', 'green', 'coral'];
-
-/** An account's initial and a tone that stays put for it (hashed from the profile id). */
+/** An account's initial and its tone — the ONE tone function (shell/account-tone.js, tabs.rs twin). */
 export function accountFace({ id = '', label = '', email = '' } = {}) {
   const pick = (s) => (typeof s === 'string' ? s.match(/[\p{L}\p{N}]/u)?.[0] : null);
   const initial = (pick(label) ?? pick(email) ?? '·').toUpperCase();
-  let h = 0;
-  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return { initial, tone: FACE_TONES[h % FACE_TONES.length] };
+  return { initial, tone: accountTone(id, label) };
 }
 
 function firstCover(ix) {

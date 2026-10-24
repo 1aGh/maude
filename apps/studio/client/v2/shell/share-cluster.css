@@ -407,11 +407,24 @@
     font-size: var(--type-xs, 12px);
     font-weight: var(--w-semibold, 600);
     line-height: 1;
-    color: var(--fg-0);
-    background: color-mix(in oklab, var(--accent) 24%, var(--bg-3));
+    color: var(--object-ink);
+    background: var(--object-grey);
   }
-  .st-acct-face[data-tone="b"] {
-    background: color-mix(in oklab, var(--status-warn) 30%, var(--bg-3));
+  /* the one account tone (shell/account-tone.js — Work sky, Personal yellow; tabs.rs + Home agree) */
+  .st-acct-face[data-tone="lilac"] {
+    background: var(--object-lilac);
+  }
+  .st-acct-face[data-tone="yellow"] {
+    background: var(--object-yellow);
+  }
+  .st-acct-face[data-tone="sky"] {
+    background: var(--object-sky);
+  }
+  .st-acct-face[data-tone="green"] {
+    background: var(--object-green);
+  }
+  .st-acct-face[data-tone="coral"] {
+    background: var(--object-coral);
   }
   .st-acct-face--lg {
     width: 32px;
