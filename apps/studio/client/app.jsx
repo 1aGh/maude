@@ -2481,6 +2481,8 @@ function ShellTimelinePanel() {
               else if (j?.ok) {
                 shellToast('Title added.', true);
                 if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
+                // 07: the new title is selected, so the Title inspector (words, font, motion) is what opens next
+                if (typeof j.stableId === 'string' && j.stableId) setTimelineSelectedClip(j.stableId);
               }
             })
             .catch(() => shellToast('Title failed: network error'));
