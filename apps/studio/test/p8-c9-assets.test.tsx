@@ -15,6 +15,8 @@ import {
 } from '../client/v2/assets/library-foot.js';
 
 import { FRAME_MIN, frameBox } from '../asset-placeholder.tsx';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { GenerateAsk } from '../client/v2/assets/generate-ask.jsx';
 import { dropHint } from '../edit-ops/place-plan.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -201,5 +203,17 @@ describe('the import sheets are the kit dialog (12 · ia-figma-sheets, ia-brand-
     expect(read('client/v2/import/figma-sheet.jsx')).toContain('<StIcon name="lock"');
     expect(read('client/v2/import/brand-sheet.jsx')).toContain('<StIcon name="warn"');
     expect(read('client/shell/icons.jsx')).toContain('warn: (');
+  });
+});
+
+describe('the ask is quiet until asked (12 · ia-gen-ask)', () => {
+  test('with no artboard it says what sets the shape, calmly — no red alert — and offers the two starters', () => {
+    const html = renderToStaticMarkup(
+      <GenerateAsk target={null} where={null} onClose={() => {}} />
+    );
+    expect(html).toContain('The selected artboard sets the picture’s shape.');
+    expect(html).not.toContain('role="alert"');
+    expect(html).toContain('Use our photos as a style');
+    expect(html).toContain('Daylight instead');
   });
 });

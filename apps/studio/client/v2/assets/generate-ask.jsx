@@ -27,6 +27,8 @@ export const ASK_WORDS = {
       ? `Describe what should be in the picture. AI makes ${NUMBER[n] ?? n} takes in the artboard's shape and puts the best one in the frame; the others are one key away.`
       : "Describe what should be in the picture. AI makes it in the artboard's shape and puts it in the frame.",
   noTarget: 'Select an artboard first — it sets the picture’s shape.',
+  // the calm line under the prompt before an artboard is chosen (12 · ia-gen-ask: the shape chip names the artboard instead)
+  needTarget: 'The selected artboard sets the picture’s shape.',
   noProvider: 'No image provider is ready. Add a key in Settings › Connections.',
   noConsent: 'The line above changed. Check it, then press Generate again.',
   busy: 'AI is busy with other pictures. Try again in a moment.',
@@ -155,6 +157,9 @@ export async function runGenerate(
   };
 }
 
+/** The two prompt starters the board's chat offers (12 · ia-gen-ask `ia-chat-sugg`). */
+export const SUGGESTIONS = Object.freeze(['Use our photos as a style', 'Daylight instead']);
+
 /**
  * The ask, in the Assets tab.
  * @param {{ target: object | null, where: string | null, onClose: () => void, onRecord?: (p: object) => void,
@@ -192,7 +197,8 @@ export function GenerateAsk({
     const mine = ++seq.current;
     setQuote(null);
     if (!canvas || !artboard) {
-      setErr(ASK_WORDS.noTarget);
+      // 12 · ia-gen-ask — nothing is wrong yet: the line below the prompt says what sets the shape, calmly
+      setErr('');
       return;
     }
     const r = await askQuote(
@@ -238,6 +244,19 @@ export function GenerateAsk({
     <section className="v2-gen" data-testid="generate-ask" aria-label={ASK_WORDS.title}>
       <p className="v2-gen-t">{ASK_WORDS.title}</p>
       <p className="v2-gen-hint">{ASK_WORDS.hint(n)}</p>
+      <span className="v2-gen-sugg" data-testid="generate-ask-suggestions">
+        {SUGGESTIONS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            className="chip v2-gen-sugg-b"
+            disabled={making > 0}
+            onClick={() => setPrompt((p) => (p.trim() ? `${p.trim()}. ${t}` : t))}
+          >
+            {t}
+          </button>
+        ))}
+      </span>
       <textarea
         data-testid="generate-ask-prompt"
         aria-label="What should be in the picture"
@@ -258,10 +277,14 @@ export function GenerateAsk({
       />
       <div className="v2-gen-opts">
         {aspect ? (
-          <span className="v2-gen-chip" data-testid="generate-ask-shape">
+          <span className="v2-gen-chip chip" data-testid="generate-ask-shape">
             {where ? `${aspect} · from ${where}` : aspect}
           </span>
-        ) : null}
+        ) : (
+          <span className="v2-gen-need" data-testid="generate-ask-need">
+            {canvas && artboard ? null : ASK_WORDS.needTarget}
+          </span>
+        )}
         <select
           className="v2-gen-chip"
           data-testid="generate-ask-count"
