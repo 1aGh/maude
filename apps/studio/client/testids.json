@@ -29911,7 +29911,7 @@
     "hook": "ds-token-picker",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S10.7: The native colour picker for the mode being edited. Dragging it updates contrast live and writes nothing; one write when the drag ends.",
+    "meaning": "S10.7: The native colour input for the mode being edited — out of sight, kept for the keyboard and a screen reader (an exact colour). Dragging updates contrast live and writes nothing; one write when the drag ends.",
     "producer": {
       "file": "apps/studio/client/v2/ds/kinds/token.jsx",
       "symbol": "TokenPanel"
@@ -29920,6 +29920,70 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-picker",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-c3-dsboard: The drawn colour picker — lightness × chroma square and hue rail (13 · ds-edit-colour).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/colour-picker.jsx",
+      "symbol": "ColourPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-picker-square",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-c3-dsboard: The picker's lightness × chroma square (a slider: pointer drag or arrow keys).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/colour-picker.jsx",
+      "symbol": "ColourPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-picker-hue",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-c3-dsboard: The picker's hue rail (a slider: pointer drag or arrow keys).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/colour-picker.jsx",
+      "symbol": "ColourPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ds-token-kind.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-hero",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "p8-c3-dsboard: The Design system board's hero at the top of Brand — glyph tile, the system's name and what it holds.",
+    "producer": {
+      "file": "apps/studio/ds/board/section-brand.tsx",
+      "symbol": "BrandSection"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/p8-c3-dsboard-sections.test.tsx"
     ],
     "v2": "new"
   },

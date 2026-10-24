@@ -107,16 +107,36 @@ export function ColourSection({ model, mode }: SectionProps) {
   const placed = new Set(ROWS.flat());
   const rest = [...groups.keys()].filter((g) => !placed.has(g));
   // the rows the board draws: the named pairs first, then every other role two to a row
-  const order: string[][] = [
-    ...ROWS.map((r) => r.filter((g) => groups.has(g))),
-    ...rest.reduce<string[][]>((acc, g, i) => {
-      if (i % 2 === 0) acc.push([g]);
+  const named = ROWS.map((r) => r.filter((g) => groups.has(g))).filter((r) => r.length);
+  const others = rest
+    .slice(0, 3)
+    .reduce<string[][]>((acc, g, i) => {
+      if (i % 3 === 0) acc.push([g]);
       else acc[acc.length - 1].push(g);
       return acc;
-    }, []),
-  ].filter((r) => r.length);
+    }, [])
+    .filter((r) => r.length);
   const { dark } = model.themes;
   let drawn = 0;
+  const drawRow = (row: string[]) => (
+    <div key={row.join('+')} className="ds-swrow">
+      {row.map((group) => {
+        const tokens = groups.get(group) ?? [];
+        const shown = tokens.slice(0, Math.min(PER_GROUP, CAP.colour));
+        drawn += shown.length;
+        return (
+          <div key={group} className="ds-swg" data-ds-group={group}>
+            <p className="ds-k">{TITLES[group] ?? GROUP_TITLES[group] ?? humanize(group)}</p>
+            <div className="ds-swg-row">
+              {shown.map((t) => (
+                <Swatch key={t.css} token={t} model={model} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
   return (
     <Frame kind="colour" model={model} mode={mode}>
       <div className="ds-pad ds-colour">
@@ -130,27 +150,10 @@ export function ColourSection({ model, mode }: SectionProps) {
           ) : null}
         </p>
         {all.length === 0 ? <p className="ds-cap">No colours declared yet.</p> : null}
-        {order.map((row) => (
-          <div key={row.join('+')} className="ds-swrow">
-            {row.map((group) => {
-              const tokens = groups.get(group) ?? [];
-              const shown = tokens.slice(0, Math.min(PER_GROUP, CAP.colour));
-              drawn += shown.length;
-              return (
-                <div key={group} className="ds-swg" data-ds-group={group}>
-                  <p className="ds-k">{TITLES[group] ?? GROUP_TITLES[group] ?? humanize(group)}</p>
-                  <div className="ds-swg-row">
-                    {shown.map((t) => (
-                      <Swatch key={t.css} token={t} model={model} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        <More n={all.length - drawn} />
+        {named.map(drawRow)}
         <Pairs model={model} />
+        {others.map(drawRow)}
+        <More n={all.length - drawn} />
       </div>
     </Frame>
   );

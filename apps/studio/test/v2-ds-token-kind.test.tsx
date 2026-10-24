@@ -269,6 +269,29 @@ async function panel(over: Record<string, unknown> = {}, css = '--accent') {
   return { host, writes, adopted, refreshed: () => refreshed };
 }
 
+describe('the drawn picker (p8-c3-dsboard · 13 ds-edit-colour)', () => {
+  test('a lightness × chroma square and a hue rail are drawn; the Name row sits under Advanced', async () => {
+    const { host } = await panel();
+    expect(q(host, 'ds-picker-square')?.getAttribute('role')).toBe('slider');
+    expect(q(host, 'ds-picker-hue')?.getAttribute('role')).toBe('slider');
+    expect(q(host, 'ds-picker-hue')?.getAttribute('aria-valuenow')).toMatch(/^\d+$/);
+    // the native control is only the keyboard / screen-reader fallback, out of sight
+    expect(q(host, 'ds-token-picker')?.className).toContain('ds-tk-picker--native');
+    expect(q(host, 'ds-token-name')?.closest('details')).not.toBeNull();
+  });
+
+  test('an arrow key on the hue rail writes a new oklch colour once', async () => {
+    const { host, writes } = await panel();
+    const hue = must(q(host, 'ds-picker-hue'), 'hue rail');
+    await act(async () => {
+      propsOf(hue).onKeyDown({ key: 'ArrowRight', shiftKey: true, preventDefault() {} });
+    });
+    await settle();
+    expect(writes).toHaveLength(1);
+    expect((writes[0] as { edit: { value: string } }).edit.value).toMatch(/^oklch\(/);
+  });
+});
+
 describe('dragging the picker', () => {
   test('contrast updates live in both modes and NOTHING is written until the drag ends', async () => {
     const { host, writes, refreshed } = await panel();
@@ -462,6 +485,6 @@ describe('the colour block reads as the board draws it', () => {
     const host = await frame(ACCENT);
     expect(q(host, 'ds-token-value')?.closest('details')).not.toBeNull();
     expect(q(host, 'ds-token-picker')?.closest('details')).toBeNull();
-    expect(q(host, 'ds-token-name')?.closest('details')).toBeNull();
+    expect(q(host, 'ds-token-name')?.closest('details')).not.toBeNull(); // the board's face is the picker, not a name box
   });
 });
