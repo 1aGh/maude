@@ -421,10 +421,10 @@
     "hook": "tree-new-folder",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The sidebar \"new folder\" button.",
+    "meaning": "The quiet \"New folder\" button at the end of the \"+ New canvas\" row (P8 C4: it left the Canvases header).",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "Sidebar"
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "NewCanvasRow"
     },
     "region": "sidebar/tree",
     "consumers": [
@@ -2945,10 +2945,10 @@
     "hook": "repo-switcher-trigger",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Bottom-of-sidebar project/branch switcher button (two render branches).",
+    "meaning": "The project pill's wrapper: the project switcher is the pill (P8 C4: the dock at the Canvases foot is gone). Present in the desktop app only.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "ProjectPill"
     },
     "region": "git/history",
     "consumers": [
@@ -2965,10 +2965,10 @@
     "hook": "repo-switcher-popup",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The switcher popup menu (two render branches).",
+    "meaning": "The pill menu's \"Switch project\" submenu (recents, Open a team project…, Open another folder…).",
     "producer": {
       "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "symbol": "switcherNode"
     },
     "region": "git/history",
     "consumers": [
@@ -3001,10 +3001,10 @@
     "hook": "switcher-open-team",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Switcher item that opens the team-projects dialog.",
+    "meaning": "Switch project row that opens the team-projects dialog.",
     "producer": {
       "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "symbol": "switcherNode"
     },
     "region": "git/history",
     "consumers": [
@@ -8031,10 +8031,10 @@
     "hook": "[aria-label=\"New blank brief board\"]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Sidebar button that starts a new blank brief board.",
+    "meaning": "The \"+ New canvas\" row at the end of the Canvases list; it opens the composer (P8 C4: it left the Canvases header).",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "Sidebar"
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "NewCanvasRow"
     },
     "region": "sidebar/tree",
     "consumers": [
@@ -40215,5 +40215,31 @@
       "apps/studio/test/v2-export-print.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "canvases-new-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"+ New canvas\" row: the last row of the Canvases list, holding the New canvas and New folder controls (P8 C4).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "NewCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "switcher-open-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Switch project row that opens the folder picker.",
+    "producer": {
+      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
+      "symbol": "switcherNode"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "v2": "stable"
   }
 ]

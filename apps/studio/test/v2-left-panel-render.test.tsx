@@ -158,13 +158,42 @@ describe('Canvases tab', () => {
     expect(hd.querySelector('.st-sec-name')?.textContent).toBe('UI canvases');
   });
 
-  test('the header row keeps + and New folder but no second fold control', async () => {
+  // P8 C4 (lead call v2-p8-lead-canvases-header-and-switcher): the header's "+" / folder pair is gone; the
+  // board's "+ New canvas" row ends the list and carries the hooks the pair did.
+  test('the header row carries no create buttons; "+ New canvas" ends the list and keeps the hooks', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar();
-    const hd = host.querySelector('.st-sb-hd') as HTMLElement;
-    expect(hd.querySelector('[aria-label="New blank brief board"]')).toBeTruthy();
-    expect(hd.querySelector('[aria-label="Collapse sidebar"]')).toBeNull();
-    expect(hd.querySelectorAll('button').length).toBeLessThanOrEqual(2);
+    const hd = host.querySelector('.st-sb-hd') as HTMLElement | null;
+    expect(hd?.querySelectorAll('button').length ?? 0).toBe(0);
+    expect(host.querySelector('[aria-label="Collapse sidebar"]')).toBeNull();
+    const row = q(host, 'canvases-new-row') as HTMLElement;
+    expect(row.textContent).toContain('New canvas');
+    const main = row.querySelector('[aria-label="New blank brief board"]') as HTMLElement;
+    expect(main).toBeTruthy();
+    expect(row.querySelector('[data-testid="tree-new-folder"]')).toBeTruthy();
+    // it sits after the list and before the Trash row
+    const list = q(host, 'canvas-list') as HTMLElement;
+    const trash = q(host, 'canvases-trash-row') as HTMLElement;
+    expect(list.compareDocumentPosition(row) & 4).toBeTruthy();
+    expect(row.compareDocumentPosition(trash) & 4).toBeTruthy();
+    // the header has no "+" glyph button left over
+    expect(host.querySelectorAll('[aria-label="New blank brief board"]').length).toBe(1);
+  });
+
+  test('the new-canvas row opens the composer; the folder button opens the folder composer', async () => {
+    installFetch({ '/_api/sync/trash': TRASH });
+    const { host } = await sidebar();
+    await click(host.querySelector('[aria-label="New blank brief board"]'));
+    expect(host.querySelector('input[aria-label="New brief board name"]')).toBeTruthy();
+    await click(q(host, 'tree-new-folder'));
+    expect(host.querySelector('input[aria-label="New folder name"]')).toBeTruthy();
+  });
+
+  test('a viewer gets no new-canvas row', async () => {
+    installFetch({ '/_api/sync/trash': TRASH });
+    const { host } = await sidebar({ readOnly: true });
+    expect(q(host, 'canvases-new-row')).toBeNull();
+    expect(host.querySelector('[aria-label="New blank brief board"]')).toBeNull();
   });
 
   test('the Design system row is pinned above the list; Trash is the last row, Advanced under it', async () => {
@@ -184,8 +213,10 @@ describe('Canvases tab', () => {
     // nothing else sits between the list and the Trash row: it is the last ROW
     // (S7.24 wrapped the list in `.cv-listwrap` with the Sort lane beside it, so the Trash row follows the
     // wrapper, not the tree element itself — same order on screen, stale sibling check.)
+    // P8 C4: the "+ New canvas" row ends the list, so it is the one thing between the list and Trash.
     const wrap = list?.closest('.cv-listwrap') ?? list;
-    expect(wrap?.nextElementSibling).toBe(trash);
+    expect(wrap?.nextElementSibling).toBe(q(host, 'canvases-new-row'));
+    expect(q(host, 'canvases-new-row')?.nextElementSibling).toBe(trash);
     expect(trash?.textContent).toContain('2'); // the count
     // …and the DESIGN SYSTEM section is not in the default list any more
     expect(host.querySelector('[data-testid="tree-section-design-system"]')).toBeNull();

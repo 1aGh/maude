@@ -11,9 +11,11 @@
     flex-direction: column;
   }
   /* S7.24 — the kind chips sit above the list; the Sort lane's offsets are the list's own, so it rides in here */
+  /* P8 C4: the list is as tall as its rows (and scrolls when the panel is shorter), so the "+ New canvas" row
+     that follows it ends the list; Trash and the foot ride the panel's bottom (.lp-trashrow margin-top:auto). */
   .cv-listwrap {
     position: relative;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -31,7 +33,7 @@
     align-items: center;
   }
   .cv-tree.st-tree {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
     overflow-y: auto;
     padding: var(--space-1) var(--space-2) var(--space-2);

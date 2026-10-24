@@ -412,7 +412,9 @@ describe('the v1 Changes / History panel is retired into the fold', () => {
       'git/checkout',
     ])
       expect(dock).not.toContain(gone);
+    // P8 C4: the dock is the project pill's "Switch project" submenu now; the trigger id moved with it
     expect(dock).toContain('repo-switcher-trigger');
+    expect(dock).toContain('repo-switcher-popup');
   });
 
   test('every v1 testid of the two retired surfaces is still emitted by the fold', () => {

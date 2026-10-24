@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Kbd, StIcon } from '../../shell/icons.jsx';
+import { SWITCHER_TRIGGER_TESTID } from '../../panels/RepoBranchSwitcher.jsx';
 import { buildProjectMenu } from './project-menu-model.js';
 
 const slug = (s) =>
@@ -39,7 +40,7 @@ export function Mark({ size = 22 }) {
   );
 }
 
-function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, label }) {
+function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, label, popupTestid }) {
   const ref = useRef(null);
   // A submenu that would run off the bottom slides up to fit (the Diagnostics / Help case).
   useLayoutEffect(() => {
@@ -56,7 +57,9 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
       role="menu"
       aria-label={label}
       className={`st-pm${depth > 0 ? ' st-pm--sub' : ''}`}
-      data-testid={depth === 0 ? 'project-menu' : `project-menu-sub-${slug(label)}`}
+      data-testid={
+        depth === 0 ? 'project-menu' : (popupTestid ?? `project-menu-sub-${slug(label)}`)
+      }
     >
       {nodes.map((n, i) => {
         // biome-ignore lint/suspicious/noArrayIndexKey: separators have no identity but position
@@ -97,6 +100,7 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
                   onRow={onRow}
                   onHover={onHover}
                   label={n.label}
+                  popupTestid={n.popupTestid}
                 />
               ) : null}
             </div>
@@ -114,7 +118,7 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
               aria-disabled={n.disabled ? 'true' : undefined}
               className="st-pm-row"
               tabIndex={cur === key ? 0 : -1}
-              data-testid={`project-menu-row-${n.id}`}
+              data-testid={n.testid ?? `project-menu-row-${n.id}`}
               data-key={key}
               data-action={n.id}
               onFocus={() => setCur(key)}
@@ -156,6 +160,9 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
  * @param onOpen (opener) => void — called with the element that had focus before the menu opened
  *   (Cut / Paste act on it)
  * @param pillRef optional ref to the pill button
+ * @param switcher optional `useProjectSwitcher()` result (RepoBranchSwitcher.jsx) — the desktop app's
+ *   "Switch project" submenu after the first group (P8 C4: the pill is the project switcher); its rows run
+ *   `switcher.run(id)` instead of `run`, and the pill's wrapper carries `repo-switcher-trigger`
  * @param tree optional menu tree (actions/menu.ts node shape) — Home passes its own (home/home-menu.js); a
  *   project leaves it and gets PROJECT_MENU
  */
@@ -170,6 +177,7 @@ export function ProjectPill({
   onOpen,
   pillRef: outerRef,
   tree,
+  switcher,
 }) {
   const [open, setOpen] = useState(false);
   const [openPath, setOpenPath] = useState([]);
@@ -179,10 +187,16 @@ export function ProjectPill({
   const btnRef = outerRef ?? ownBtn;
   const menuRef = useRef(null);
   const opener = useRef(null);
-  const model = useMemo(
-    () => buildProjectMenu(ctx, state, tree ? { tree } : undefined),
-    [ctx, state, tree]
-  );
+  const switchNode = !tree ? (switcher?.node ?? null) : null;
+  const model = useMemo(() => {
+    const base = buildProjectMenu(ctx, state, tree ? { tree } : undefined);
+    if (!switchNode) return base;
+    // after the first group (Home), before the four menus
+    const at = base.findIndex((n) => n.type === 'sep');
+    return at < 0
+      ? [...base, { type: 'sep' }, switchNode]
+      : [...base.slice(0, at + 1), switchNode, ...base.slice(at + 1)];
+  }, [ctx, state, tree, switchNode]);
 
   const close = useCallback(
     (focusPill = true) => {
@@ -249,7 +263,8 @@ export function ProjectPill({
     }
     if (n.disabled) return;
     close(true);
-    run(n.id);
+    if (typeof n.id === 'string' && n.id.startsWith('switch:')) switcher?.run(n.id);
+    else run(n.id);
   };
 
   const onHover = (depth, subLabel, el) => {
@@ -333,6 +348,7 @@ export function ProjectPill({
       data-open={open ? 'true' : undefined}
       data-docked={docked ? 'true' : undefined}
       data-folded={folded ? 'true' : undefined}
+      data-testid={switchNode ? SWITCHER_TRIGGER_TESTID : undefined}
     >
       <button
         ref={btnRef}
@@ -405,6 +421,8 @@ export function ProjectPill({
           />
         </div>
       ) : null}
+      {switcher?.status}
+      {switcher?.dialog}
     </span>
   );
 }

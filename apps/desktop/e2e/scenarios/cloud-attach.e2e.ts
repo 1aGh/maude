@@ -9,6 +9,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { openSwitcher } from '../helpers/switcher';
 import { canvasRow } from '../helpers/tree';
 
 /**
@@ -454,9 +455,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
   it('10 · a cloud project opens as its OWN copy — no folder chosen (plan T21/T22)', async () => {
     // The project-switcher way in: Maude Cloud (already signed in above) lists
     // the account's projects; Open makes the managed copy and switches to it.
-    const trigger = await $(tid('repo-switcher-trigger'));
-    await trigger.waitForDisplayed({ timeout: 30_000 });
-    await trigger.click();
+    await openSwitcher();
     await (await $(tid('switcher-open-team'))).click();
     const dialog = await $(tid('team-projects-dialog'));
     await dialog.waitForDisplayed({ timeout: 15_000 });
