@@ -36,8 +36,21 @@ export function ExportSlotBody({ el, selection, kind }) {
   );
 }
 
-export const offExportSlot = registerSlot('export', {
+/**
+ * 07 VideoInspector: a video artboard's card has Export as ONE row with an MP4 button (kinds/artboard-video.jsx),
+ * not a section with presets — so the generic section stands aside for it.
+ */
+const first = (selection) => (Array.isArray(selection) ? selection[0] : selection);
+export const isVideoArtboard = (selection) => {
+  const el = first(selection);
+  return !!el?.attrs && el.attrs['data-dc-kind'] === 'video' && /^\[data-dc-screen=/.test(el.selector || '');
+};
+
+export const EXPORT_SLOT_ENTRY = Object.freeze({
   id: 'export.presets',
   order: 100,
+  when: ({ selection }) => !isVideoArtboard(selection),
   Body: ExportSlotBody,
 });
+
+export const offExportSlot = registerSlot('export', EXPORT_SLOT_ENTRY);

@@ -20,6 +20,7 @@ import {
   writeSafeZonesVisible,
 } from '../safe-zones-write.js';
 import { registerSlot } from '../slots.js';
+import { videoHasFormats } from '../formats-ui.js';
 import { Quiet, Row } from './row.jsx';
 
 /** Safe zones are for what is made for a screen of someone else's app: a fixed size or a video. */
@@ -108,6 +109,10 @@ export const offSafeZones = registerSlot('safe-zones', {
   id: 'safe-zones.artboard',
   order: 10,
   kinds: ['artboard'],
-  when: ({ selection }) => KINDS_WITH_ZONES.has(artboardKindOf(first(selection))),
+  // 07 VideoInspector: a lone video's card has no Safe zones (ve-select); they sit with the Formats once it has others
+  when: ({ selection, ctx }) => {
+    const kind = artboardKindOf(first(selection));
+    return KINDS_WITH_ZONES.has(kind) && (kind !== 'video' || videoHasFormats(selection, ctx));
+  },
   Body: SafeZonesBody,
 });

@@ -15,7 +15,7 @@ import { posterFrame, soundName } from './artboard-kinds-model.js';
 
 const MAX_ENTRIES = 200;
 const comps = new Map(); // `${file}\u0000${artboardId}` → { fps, durationInFrames, compId }
-const sounds = new Map(); // same key → { name } | { name: '' } (read, none) — absent = not read yet
+const sounds = new Map(); // same key → { name, videos } | { name: '', videos: [] } (read, none) — absent = not read yet
 const subs = new Set();
 let version = 0;
 const keyOf = (file, id) => `${file}\u0000${id}`;
@@ -49,11 +49,28 @@ export const videoFactsOf = (file, artboardId) => comps.get(keyOf(file, artboard
 /** The sound row's name; '' when the comp has no music; null until it has been read. */
 export const soundOf = (file, artboardId) => sounds.get(keyOf(file, artboardId))?.name ?? null;
 
+/**
+ * 07 VideoInspector: the picture the poster frame shows — the video clip that is playing at that frame (else the first
+ * one) and the second inside the file to hold it on. null until the clips have been read, or when the comp has no
+ * footage (the row then draws the quiet empty chip).
+ * @returns {{ src: string, t: number } | null}
+ */
+export function posterPicOf(file, artboardId, frame, fps) {
+  const videos = sounds.get(keyOf(file, artboardId))?.videos;
+  if (!videos?.length) return null;
+  const at = Number.isFinite(frame) ? frame : 0;
+  const v = videos.find((c) => at >= c.from && at < c.from + c.dur) ?? videos[0];
+  const rate = fps > 0 ? fps : 30;
+  return { src: v.src, t: Math.max(0, (at - v.from) / rate) };
+}
+
 /** Read the comp's music clip (the first Audio layer). Never throws: a failed read leaves the row on "None yet". */
 export async function loadSound(file, artboardId, fetchImpl = globalThis.fetch) {
   if (!file || !artboardId) return;
   const k = keyOf(file, artboardId);
   let name = '';
+  /** @type {Array<{ from: number, dur: number, src: string }>} the picture clips, for the poster thumbnail */
+  let videos = [];
   try {
     const r = await fetchImpl(
       `/_api/comp-clips?canvas=${encodeURIComponent(file)}&artboardId=${encodeURIComponent(artboardId)}`
@@ -62,12 +79,19 @@ export async function loadSound(file, artboardId, fetchImpl = globalThis.fetch) 
       const body = await r.json();
       const audio = (body?.clips ?? []).find((c) => c?.mediaTag === 'Audio' && c?.mediaSrc);
       name = audio ? soundName(audio.mediaSrc) : '';
+      videos = (body?.clips ?? [])
+        .filter((c) => c?.mediaTag === 'Video' && typeof c?.mediaSrc === 'string' && c.mediaSrc)
+        .map((c) => ({
+          from: Number(c.from) || 0,
+          dur: Number(c.durationInFrames) || 0,
+          src: c.mediaSrc,
+        }));
     }
   } catch {
     /* "None yet" stays */
   }
   if (sounds.size >= MAX_ENTRIES) sounds.delete(sounds.keys().next().value);
-  sounds.set(k, { name });
+  sounds.set(k, { name, videos });
   notify();
 }
 
@@ -84,11 +108,13 @@ export function useVideoFacts(file, artboardId) {
   }, [file, artboardId, length]);
   const comp = file && artboardId ? videoFactsOf(file, artboardId) : null;
   const stored = file && artboardId ? posterOf(file, artboardId) : null;
+  const poster = comp ? posterFrame(stored, comp.durationInFrames) : stored;
   return {
     fps: comp?.fps ?? null,
     durationInFrames: comp?.durationInFrames ?? null,
-    poster: comp ? posterFrame(stored, comp.durationInFrames) : stored,
+    poster,
     sound: file && artboardId ? soundOf(file, artboardId) : null,
+    pic: file && artboardId ? posterPicOf(file, artboardId, poster, comp?.fps) : null,
   };
 }
 

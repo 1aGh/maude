@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { shellToast } from '../../../shell/util.js';
 import { compMediaStore, useCompMedia } from '../../transcript/comp-media-store.js';
-import { formatsUi, useAddRequests } from '../formats-ui.js';
+import { formatsUi, useAddRequests, videoHasFormats } from '../formats-ui.js';
 import { addedWords, addFormat, makeUnlinked, unlinkedWords } from '../formats-write.js';
 import { registerSlot } from '../slots.js';
 import { Quiet, Row } from './row.jsx';
@@ -67,7 +67,8 @@ export function FormatsBody({ el, ctx }) {
   const id =
     el?.artboardId || /^\[data-dc-screen="([^"]+)"\]$/.exec(el?.selector || '')?.[1] || null;
   const { media } = useCompMedia(canvas, id);
-  const [adding, setAdding] = useState(false);
+  // Cmd-K asked for the rows on a lone video: they open with the size list showing
+  const [adding, setAdding] = useState(() => formatsUi.asked());
   const [said, setSaid] = useState('');
   // the Timeline's feed keeps this fresh for the video it follows; a video selected first is read here
   useEffect(() => {
@@ -75,7 +76,10 @@ export function FormatsBody({ el, ctx }) {
   }, [canvas, id]);
   // another artboard: nothing said, nothing open
   // biome-ignore lint/correctness/useExhaustiveDependencies: the selection is the trigger
+  const shownFor = useRef(id);
   useEffect(() => {
+    if (shownFor.current === id) return; // the first draw keeps what Cmd-K asked for (the list open)
+    shownFor.current = id;
     setAdding(false);
     setSaid('');
   }, [id]);
@@ -197,7 +201,7 @@ export function registerFormatsSlot() {
     id: 'formats.video',
     order: 10,
     kinds: ['artboard'],
-    when: ({ selection }) => kindOf(selection) === 'video',
+    when: ({ selection, ctx }) => kindOf(selection) === 'video' && videoHasFormats(selection, ctx),
     Body: FormatsBody,
   });
 }

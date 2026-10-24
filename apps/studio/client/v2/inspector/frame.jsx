@@ -29,6 +29,7 @@ import '../ds/kinds/master.jsx';
 import '../ds/direction-bar.jsx';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { sectionsFor } from './sections.js';
+import { useFormatsVersion } from './formats-ui.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
 import { HoldLine, useHoldView, viewModeOf } from './view-mode.jsx';
 
@@ -46,6 +47,12 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
   const named = entries.find((e) => e.title != null)?.title;
   const title =
     (typeof named === 'function' ? named({ el, selection, kind: kindId }) : named) || def.title;
+  // a body may also draw its section without a heading (07's video card is one flat list: no "Artboard" above Size)
+  const headless =
+    def.headless ||
+    entries.some((e) =>
+      typeof e.headless === 'function' ? e.headless({ el, selection, kind: kindId }) : e.headless
+    );
   return (
     <section
       className="insp-sec"
@@ -53,7 +60,7 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
       data-n={def.n}
       aria-label={title}
     >
-      <p className="insp-sec-t" hidden={def.headless || undefined}>
+      <p className="insp-sec-t" hidden={headless || undefined}>
         <span className="insp-sec-name" title={def.explain}>
           {title}
         </span>
@@ -110,6 +117,8 @@ export function InspectorFrame({
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
   useSyncExternalStore(subscribeBlocks, blocksVersion, blocksVersion);
+  // 07 VideoInspector: Formats and Safe zones join a video's card when it has another format
+  useFormatsVersion();
   // S2.17 — the server says whether a single selection is an instance; the answer rides on the selection
   const { selected, refresh: refreshInstance } = useInstanceSelection(selectedProp, canvasFile);
   const el = Array.isArray(selected) ? selected[0] : selected;

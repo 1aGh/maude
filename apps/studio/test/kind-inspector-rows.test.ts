@@ -143,9 +143,7 @@ async function seat() {
   seated.push(web.registerArtboardWebSlots());
   seated.push(fixed.registerArtboardFixedSlots());
   seated.push(video.registerArtboardVideoSlots());
-  seated.push(
-    registerSlot('export', { id: 'export.presets', order: 100, Body: exp.ExportSlotBody })
-  );
+  seated.push(registerSlot('export', exp.EXPORT_SLOT_ENTRY));
 }
 
 async function frame(el: Record<string, unknown>, over: Record<string, unknown> = {}) {
@@ -296,13 +294,40 @@ describe('Video (ak-video)', () => {
       'ab-length = Length',
       'ab-poster = Poster frame',
       'ab-sound = Sound',
+      'ab-export = Export',
     ]);
     expect(shown(host)).toBe('Reels 9:16');
     expect(q(host, 'insp-ab-length')?.textContent?.trim()).toBe('0:15');
     // the meta says frame 120 → 0:04
     expect(q(host, 'insp-ab-poster')?.textContent).toBe('0:04');
     expect(q(host, 'insp-ab-sound')?.textContent).toBe('Hype instrumental');
-    expect(q(host, 'insp-export-preset')?.textContent).toBe('MP4');
+    // 07 VideoInspector: Export is one row with an MP4 button, not a section with presets
+    expect(q(host, 'insp-export-preset')).toBeNull();
+    expect(q(host, 'insp-sec-export')).toBeNull();
+    expect(q(host, 'insp-ab-export')?.textContent?.trim()).toBe('MP4');
+  });
+
+  test('07 VideoInspector (V2-8.5 c4-video): a flat card — no "Artboard" heading, an MP4 button that opens the export sheet', async () => {
+    const host = await frame(REELS);
+    // the board's video card has no section heading above Size
+    expect(q(host, 'insp-sec-size')?.querySelector('.insp-sec-t')?.hasAttribute('hidden')).toBe(
+      true
+    );
+    const btn = q(host, 'insp-ab-export');
+    expect(btn?.tagName).toBe('BUTTON');
+    await click(btn, 'MP4');
+    expect(calls).toEqual([['shell', 'export.open']]);
+  });
+
+  test('07 VideoInspector: the poster frame row draws the 22×38 picture beside the time and a ghost Change', async () => {
+    const host = await frame(REELS);
+    const pic = q(host, 'insp-ab-poster-pic');
+    expect(pic).not.toBeNull();
+    expect(pic?.className).toContain('insp-poster-pic');
+    const change = q(host, 'insp-ab-poster-change');
+    // a quiet ghost button (the kit's .btn--ghost), not an underlined link
+    expect(change?.className).toContain('btn--ghost');
+    expect(change?.className).not.toContain('insp-quietlink');
   });
 
   test('08 ak-video: Length is a number well with the clock, Sound a pill with the music swatch', async () => {
