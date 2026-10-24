@@ -303,3 +303,9 @@ Re-shot 52 of 60 pairs; 8 unreachable. Supersedes every earlier "after" / "FINAL
 | `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## Round 6 (p8-c6-bugs4) — after
+
+| id | after | notes |
+|---|---|---|
+| ds-truth-outside | re-shot, light + dark | `s13` group c: the inspector is opened (nothing selected) and the 6 s poll awaited — the "2 tokens changed outside the app" card (file, accent / bg-1 old → new, Undo / Keep) draws. The earlier "never surfaces" was the probe reading the FIRST system of `ds status` (maude, no change) instead of `ds status maude-v2`; the detection itself works |

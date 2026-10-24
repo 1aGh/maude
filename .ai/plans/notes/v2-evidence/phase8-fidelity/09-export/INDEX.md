@@ -156,3 +156,9 @@ Every reachable id re-shot again on the merged tip after stage C round 5 + bugs3
 Totals: 38 id×theme re-shot, 4 unreachable (spec-only frames kept).
 
 Harness notes (D3): the D2 harness plus the bugs3 deltas, repointed (the Export sheet for one element names it — "Export “Zápas · post 4:5”" — because the harness selects the artboard by its label chip). ex-formats-dark timed out on its first dark run (click on Other… after a slow open) and was re-run once; the frame kept is from the re-run. ex-progress / ex-states are the real Exports panel with the seeded job list (route intercept on GET /_api/export-jobs). ex-handoff-ready and ex-edges stay unreachable (need a finished AI handoff run / a viewer session).
+
+## Round 6 (p8-c6-bugs4) — after
+
+| id | after | notes |
+|---|---|---|
+| ex-social | re-shot, light + dark | mini scenario `t09c`. The size chip / size line read 432 × 540 in both themes (the render worker's artboard harvest measured the bordered frame: 436 × 544 in dark); the preview tile fills ~0.8 s after the sheet opens in both themes (the earlier empty dark tile was a 1.1 s shot) |

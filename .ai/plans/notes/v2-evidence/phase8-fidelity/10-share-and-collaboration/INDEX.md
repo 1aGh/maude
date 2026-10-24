@@ -96,3 +96,10 @@ Harness: `_d3-harness-g4/` on top of `_d2-harness-g4/`. Playwright Chromium 1440
 | co-mention-notify | unreachable | OS banner / e-mail, native only |
 
 Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). Still not reachable in the lane (unchanged since D2): the @ picker (no peers), the existing Jonas/Tereza thread with Resolve, the video timeline strip, print guides.
+
+## Round 6 (p8-c6-bugs4) — after
+
+| id | after | notes |
+|---|---|---|
+| co-sync-offline | re-shot, light + dark | mini scenario `s10m` (an offline day seeded: `maude-offline-since` = yesterday 18:20, then a reload — how a relaunch looks). The foot reads "14 changes since yesterday 18:20 — kept on this Mac" (it read "since 0:19": a relaunch's first paint forgot the stored day, and the clock was an unpadded hour) |
+| co-comment-thread | re-shot, light + dark | `s10m`. With no configured identity the comment is signed by the OS account (author and pin initial on a tone pill) — it read "unknown" and a "?" disc |
