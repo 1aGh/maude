@@ -656,7 +656,9 @@ const ANNOT_CSS = `
 /* S4.9 - Edit's posture (annotations/ui/posture.ts): the ink fades, a sticky's paper is mixed with grey in
    JS (quietPaper) so its words keep their contrast, and nothing in the scene takes a pointer: a click
    reaches the design under it. */
-.dc-annot-scene[data-an-quiet] .dc-annot-el:not([data-tool="sticky"]) { opacity: 0.45; }
+.dc-annot-scene[data-an-quiet] .dc-annot-el:not([data-tool="sticky"]):not([data-type="section"]) { opacity: 0.45; }
+/* a11y (15 an-section) - a section's title chip is WORDS: it stays at full ink in Edit (a faded chip read 1.5:1);
+   its body is already a 7 % wash, so nothing of the section needs fading. */
 .dc-annot-scene[data-an-quiet], .dc-annot-scene[data-an-quiet] * { pointer-events: none !important; }
 .dc-annot-input {
   position: absolute;
