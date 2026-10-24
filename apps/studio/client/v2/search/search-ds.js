@@ -25,10 +25,11 @@ const usedIn = (n) =>
 /**
  * @param {{ systems: { name: string, label?: string, converted?: boolean, board?: any }[],
  *           run: (params: { ds: string, section?: string, token?: string, component?: string }) => void,
+ *           runAction?: (id: string, params: { ds: string }) => void,
  *           sections?: number }} a
  * @returns {object[]} search rows (client/v2/search/search-model.js row shape)
  */
-export function dsSearchRows({ systems, run, sections = 7 }) {
+export function dsSearchRows({ systems, run, runAction, sections = 7 }) {
   const rows = [];
   const many = systems.length > 1;
   for (const sys of systems) {
@@ -68,9 +69,13 @@ export function dsSearchRows({ systems, run, sections = 7 }) {
         icon: section === 'type' ? 'type' : 'eyedropper',
         disabled: false,
         // a value's own name ("Klubová zelená") is found as well as the token's
-        keywords: [t.css.replace(/^--/, ''), SECTION_WORD[section], t.group, ...names].filter(
-          Boolean
-        ),
+        keywords: [
+          t.css.replace(/^--/, ''),
+          'design system',
+          SECTION_WORD[section],
+          t.group,
+          ...names,
+        ].filter(Boolean),
         searchRow: true,
         onlyWhenSearched: true,
         runnable: () => true,
@@ -89,13 +94,49 @@ export function dsSearchRows({ systems, run, sections = 7 }) {
         advanced: false,
         icon: 'button',
         disabled: false,
-        keywords: [c.name, 'component'],
+        keywords: [c.name, 'component', 'design system'],
         searchRow: true,
         onlyWhenSearched: true,
         runnable: () => true,
         run: () => run({ ds: sys.name, component: c.name }),
       });
     }
+  }
+  // 13 · ds-where-gator — "Actions": the two things a system's own menu does, with the place each lives. They act on
+  // the first system (the default one a search lands on); a project with one system has nothing to switch to.
+  const first = systems.find((s) => s.converted) ?? null;
+  if (first && typeof runAction === 'function') {
+    const act = (id, name, where, icon, keywords) => ({
+      group: 'actions',
+      id: `ds-action:${id}`,
+      name,
+      meta: '',
+      keys: '',
+      where,
+      advanced: false,
+      icon,
+      disabled: false,
+      keywords: ['design system', ...keywords],
+      searchRow: true,
+      onlyWhenSearched: true,
+      runnable: () => true,
+      run: () => runAction(id, { ds: first.name }),
+    });
+    rows.push(
+      act('ds.check-system', 'Check the system', 'Design system › Advanced', 'done', [
+        'check',
+        'contrast',
+        'audit',
+      ])
+    );
+    if (many)
+      rows.push(
+        act('ds.switch', 'Switch canvases to another system…', 'Design system row', 'sync', [
+          'switch',
+          'move',
+          'another system',
+        ])
+      );
   }
   return rows;
 }

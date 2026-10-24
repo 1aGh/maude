@@ -332,6 +332,8 @@ export function remoteRows(result, { designRel = '.design', query = '', project 
   const out = [];
   for (const r of result?.rows ?? []) {
     const rel = r.key.split('#')[0];
+    // a system's own board (and its artboards) is the "Design system" row above, not a canvas to list twice
+    if (/^system\/[^/]+\/design-system\.tsx$/.test(rel)) continue;
     const board = r.group === 'artboards' ? r.key.split('#')[1] : null;
     const canvas = rel.replace(/^.*\//, '').replace(/\.tsx$/, '');
     // "artboard in LetakA6 · print" / "Alligators brand · 2026/combine · 12 artboards"
@@ -401,7 +403,14 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   for (const g of GROUPS) {
     const all = byGroup.get(g.id) ?? [];
     if (all.length === 0) continue;
-    const rows = all.slice(0, g.id === 'canvases' || g.id === 'artboards' ? 12 : cap);
+    const rows = all.slice(
+      0,
+      g.id === 'canvases' || g.id === 'artboards'
+        ? 12
+        : g.id === 'in-design-system'
+          ? Math.min(cap, 4)
+          : cap
+    );
     // S11.18 (a11y): the count is the rows drawn — "31 results" over 13 rows told a screen reader a lie
     total += rows.length;
     const hidden = all.filter((r) => r.advanced).length;

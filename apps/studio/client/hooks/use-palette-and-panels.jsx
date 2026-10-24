@@ -421,6 +421,7 @@ export function usePaletteAndPanels({
         systems: dsSystems,
         run: (p) =>
           cfg.dsConverted?.[p.ds] === true ? menuRunner.run('ds.go-to', p) : openSystem(p.ds),
+        runAction: (id, p) => menuRunner.run(id, p),
       }),
       // S7.16 (07 · ve-long) — ⌘K finds a clip of the video on the timeline by name (provider `timeline.clips`)
       ...clipSearchRows(),
