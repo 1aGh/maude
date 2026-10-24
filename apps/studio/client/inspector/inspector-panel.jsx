@@ -708,7 +708,7 @@ export function InspectorPanel({
                 kbd would stack as stretched flex items. */}
             <p>
               Press <Kbd>V</Kbd>, then click an element to select it — or <Kbd>⌘</Kbd>-click
-              straight from Browse.
+              straight from Preview.
             </p>
           </div>
         ) : effTab === 'layers' ? (

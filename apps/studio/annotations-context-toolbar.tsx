@@ -37,6 +37,7 @@ import { LOCKED_LINE } from './annotations/ui/locked.tsx';
 import { SECTION_TONES } from './annotations/ui/section-fold.ts';
 import { postToShell } from './annotations/ui/shell-asks.ts';
 import { flipPatch, isGallerySticker } from './annotations/ui/sticker-drop.ts';
+import { STICKY_FRONT, STICKY_MORE } from './annotations/ui/tool-prefs.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
@@ -46,7 +47,6 @@ import {
   DEFAULT_FONT_SIZE,
   FILL_PALETTE,
   type ListType,
-  STICKY_PALETTE,
   STROKE_PALETTE,
   type Stroke,
   shapeKindOf,
@@ -92,6 +92,7 @@ import {
   IconUngroup,
   SHAPE_KIND_ICONS,
 } from './canvas-icons.tsx';
+import { IconMore } from './toolbars/toolbar-icons.tsx';
 import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
 import { isHttpUrl, linkDomain } from './use-canvas-media-drop.tsx';
 
@@ -165,8 +166,10 @@ const FONT_SIZE_PRESETS: ReadonlyArray<{ px: number; label: string }> = [
 ];
 /** S4.19 - a sticky's five front papers (canvas 15 `an-sticky`); the other five sit behind "+5". */
 // Read at render time, never at module top level: annotations-layer and this file import each other.
-const stickyPapersFront = (): readonly string[] => STICKY_PALETTE.slice(0, 5);
-const stickyPapersRest = (): readonly string[] => STICKY_PALETTE.slice(5);
+// P8-C2 (15 R1b): ONE front five for the dock's colour row and this toolbar — yellow · coral · green · sky · lilac
+// (tool-prefs STICKY_FRONT) — instead of the first five array slots (yellow · white · grey · salmon · peach).
+const stickyPapersFront = (): readonly string[] => STICKY_FRONT.map((s) => s.hex);
+const stickyPapersRest = (): readonly string[] => STICKY_MORE.map((s) => s.hex);
 /** A sticky's Small..Huge: its Medium is the sticky's own default size, so a fresh sticky reads "Medium". */
 const stickySizes = (): ReadonlyArray<{ px: number; label: string }> =>
   FONT_SIZE_PRESETS.map((p) => (p.label === 'Medium' ? { ...p, px: DEFAULT_FONT_SIZE } : p));
@@ -197,11 +200,17 @@ const TOOLBAR_CSS = `
   display: flex;
   align-items: center;
   gap: 2px;
-  background: ${CTX_SURFACE};
-  border: 1px solid color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 8%, transparent);
-  border-radius: 12px;
-  padding: 5px 7px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.34), 0 2px 6px rgba(0,0,0,0.22);
+  /* P8-C2 (15 R4): the board's an-ctx island - the HUD island material (frosted, the 0.5 px edge, the island
+     shadow), 40 px tall, radius-lg - not a heavy 0 8 28 dark card */
+  background: var(--maude-hud-island-bg, ${CTX_SURFACE});
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  backdrop-filter: saturate(1.4) blur(18px);
+  border: 0;
+  border-radius: var(--maude-hud-radius-lg, 14px);
+  padding: 4px 6px;
+  min-height: 40px;
+  box-sizing: border-box;
+  box-shadow: var(--maude-hud-island-shadow, 0 2px 10px rgba(0,0,0,0.12)), inset 0 0 0 0.5px var(--maude-hud-island-edge, transparent);
   font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
   color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 85%, transparent);
@@ -311,13 +320,18 @@ const TOOLBAR_CSS = `
   color: var(--maude-chrome-fg-0, #fff);
 }
 .dc-annot-ctx-ibtn[aria-pressed="true"] {
-  background: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent);
-  color: var(--maude-chrome-fg-0, #fff);
+  /* a pressed segment is the accent outline + accent words (15 an-arrow-kinds), not a grey fill */
+  background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 18%, transparent));
+  color: var(--maude-hud-accent-text, var(--maude-chrome-fg-0, #fff));
+  box-shadow: inset 0 0 0 1px var(--maude-hud-accent, transparent);
 }
 .dc-annot-ctx-ibtn:focus-visible {
   outline: 2px solid var(--maude-chrome-fg-0, #fff);
   outline-offset: -2px;
 }
+/* the sticky's "..." menu: the words that used to sit in the bar (Resolve, Turn into a comment) */
+.dc-annot-ctx-menu--words { flex-direction: column; left: auto; right: 0; transform: none; min-width: 210px; gap: 0; }
+.dc-annot-ctx-menu--words .dc-annot-ctx-tbtn { width: 100%; height: 28px; justify-content: flex-start; }
 /* S4.12 - a word button (Resolve, Fold, Turn into a comment, Ask AI about it) */
 .dc-annot-ctx-tbtn { width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; font-family: inherit; white-space: nowrap; }
 .dc-annot-ctx-ibtn--danger { color: color-mix(in oklab, var(--maude-chrome-fg-0, #fff) 70%, transparent); }
@@ -1347,7 +1361,7 @@ export function AnnotationContextToolbar({
   const papersOpen = papersMore || activeRest;
   const showPalette = allSticky
     ? papersOpen
-      ? STICKY_PALETTE
+      ? [...stickyPapersFront(), ...stickyPapersRest()]
       : stickyPapersFront()
     : allSection
       ? SECTION_TONES.map((t) => t.value)
@@ -1684,25 +1698,11 @@ export function AnnotationContextToolbar({
       {soleSticky ? (
         <>
           <div className="dc-annot-ctx-sep" />
-          <button
-            type="button"
-            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
-            data-testid="annot-ctx-resolve"
-            aria-pressed={!!soleSticky.resolved}
-            title={soleSticky.resolved ? 'Reopen this sticky' : 'Resolve — strike it through'}
-            onClick={() => store.runAction?.('annotation.resolve')}
-          >
-            {soleSticky.resolved ? 'Reopen' : 'Resolve'}
-          </button>
-          <button
-            type="button"
-            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
-            data-testid="annot-ctx-to-comment"
-            title="Turn into a comment — its words become a thread, the sticky goes to the trash"
-            onClick={() => store.runAction?.('annotation.to-comment')}
-          >
-            Turn into a comment
-          </button>
+          <StickyMore
+            resolved={!!soleSticky.resolved}
+            onResolve={() => store.runAction?.('annotation.resolve')}
+            onToComment={() => store.runAction?.('annotation.to-comment')}
+          />
         </>
       ) : null}
       {soleSection ? (
@@ -1910,6 +1910,85 @@ function IconDropdown({
  * item fires an operation instead of reflecting a current value. Used by the
  * align/distribute cluster; distribute items disable below three strokes.
  */
+/**
+ * The sticky's "..." (15 an-sticky: colours, size, list, lock, duplicate, more): Resolve / Reopen and
+ * Turn into a comment live in this menu instead of as two word buttons crowding the bar.
+ */
+function StickyMore({
+  resolved,
+  onResolve,
+  onToComment,
+}: {
+  resolved: boolean;
+  onResolve: () => void;
+  onToComment: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="dc-annot-ctx-dd">
+      <button
+        type="button"
+        className="dc-annot-ctx-ibtn"
+        data-testid="annot-ctx-more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="More"
+        title="More"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <IconMore size={16} />
+      </button>
+      {open ? (
+        <div className="dc-annot-ctx-menu dc-annot-ctx-menu--words" role="menu" aria-label="More">
+          <button
+            type="button"
+            role="menuitem"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-to-comment"
+            title="Turn into a comment — its words become a thread, the sticky goes to the trash"
+            onClick={() => {
+              onToComment();
+              setOpen(false);
+            }}
+          >
+            Turn into a comment
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="dc-annot-ctx-ibtn dc-annot-ctx-tbtn"
+            data-testid="annot-ctx-resolve"
+            data-resolved={resolved ? 'true' : undefined}
+            title={resolved ? 'Reopen this sticky' : 'Resolve — strike it through'}
+            onClick={() => {
+              onResolve();
+              setOpen(false);
+            }}
+          >
+            {resolved ? 'Reopen' : 'Resolve'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ActionDropdown({
   ariaLabel,
   triggerIcon,

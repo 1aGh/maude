@@ -47,17 +47,17 @@ import { getLiveViewport, useViewportControllerContext } from './canvas-lib.tsx'
 import { useAnnotationSelection } from './use-annotation-selection.tsx';
 
 const RESIZE_CSS = `
-/* DS selection specimen .sel-handle recipe — accent square, 1px accent-fg
- * border, --radius-xs corners. (8px box kept: the JS centers handles on the
- * half-size offset; the specimen's 7px differs by a hairline only.) Comment
- * must stay backtick-free — it lives inside the RESIZE_CSS template literal. */
+/* The board's .ed-h handle (14 Editing, 15 .an-sk-sel): an 8px --bg-2 square with a 1.5px accent ring inset,
+ * no radius - the same square the object and artboard selections wear. Comment must stay backtick-free - it
+ * lives inside the RESIZE_CSS template literal. */
 .dc-annot-resize-handle {
   position: fixed;
   width: 8px;
   height: 8px;
-  background: var(--maude-hud-accent, oklch(0.680 0.180 268));
-  border: 1px solid var(--maude-hud-accent-fg, oklch(0.180 0.030 268));
-  border-radius: 3px;
+  background: var(--maude-chrome-bg-2, #fff);
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px var(--maude-hud-accent, oklch(0.530 0.175 238));
+  border-radius: 0;
   z-index: 6;
   pointer-events: auto;
   touch-action: none;
@@ -74,8 +74,8 @@ const RESIZE_CSS = `
 .dc-annot-resize-handle[data-corner="ep1"], .dc-annot-resize-handle[data-corner="ep2"] { cursor: move !important; }
 /* FigJam v3 — mid-edge handles: single-axis resize. Slightly smaller pills so
    the corner squares stay the primary affordance. */
-.dc-annot-resize-handle[data-corner="n"], .dc-annot-resize-handle[data-corner="s"] { cursor: ns-resize !important; width: 14px; height: 6px; }
-.dc-annot-resize-handle[data-corner="e"], .dc-annot-resize-handle[data-corner="w"] { cursor: ew-resize !important; width: 6px; height: 14px; }
+.dc-annot-resize-handle[data-corner="n"], .dc-annot-resize-handle[data-corner="s"] { cursor: ns-resize !important; width: 8px; height: 8px; }
+.dc-annot-resize-handle[data-corner="e"], .dc-annot-resize-handle[data-corner="w"] { cursor: ew-resize !important; width: 8px; height: 8px; }
 /* Wave G — rotation lives in INVISIBLE hover zones just outside each corner
    (FigJam): the cursor flips to a rotate glyph there and dragging turns the
    stroke. No knob — the old below-the-bbox knob read as clutter and collided
@@ -515,6 +515,11 @@ export function resizeStroke(
  * the screen-space handle divs each rAF tick. `pad` is the halo offset in
  * WORLD units (callers pass `HALO_PAD_PX / zoom` for a screen-constant gap).
  */
+/** An image that came from the sticker gallery (it carries its `sticker` identity). */
+function isStickerStroke(s: Stroke): boolean {
+  return s.tool === 'image' && !!(s as { sticker?: unknown }).sticker;
+}
+
 function handlePositions(s: Stroke, pad: number): Array<{ corner: Corner; x: number; y: number }> {
   if (s.tool === 'arrow') {
     return [
@@ -540,7 +545,10 @@ function handlePositions(s: Stroke, pad: number): Array<{ corner: Corner; x: num
   ];
   // FigJam v3 — mid-edge handles (single-axis resize) for the box-shaped
   // strokes; ink (pen) keeps corner-scale only.
-  if (s.tool !== 'pen') {
+  // P8-C2 (15 R3): a sticky (the paper) and a sticker carry the board's four corner squares and nothing else - no
+  // mid-edge pills, no rotate zones: `.an-st--sel` / `.an-sk-sel` ("Corners resize it, square").
+  const cornersOnly = s.tool === 'sticky' || isStickerStroke(s);
+  if (s.tool !== 'pen' && !cornersOnly) {
     corners.push(
       { corner: 'n', x: bb.x + bb.w / 2, y: bb.y },
       { corner: 'e', x: bb.x + bb.w, y: bb.y + bb.h / 2 },
@@ -551,7 +559,7 @@ function handlePositions(s: Stroke, pad: number): Array<{ corner: Corner; x: num
   // Wave G — invisible rotate zones AT the padded corners; the rAF tick adds
   // a screen-constant outward offset (along center→corner) so they hover just
   // beyond the corner squares at every zoom + rotation.
-  if (canRotate(s)) {
+  if (canRotate(s) && !cornersOnly) {
     corners.push(
       { corner: 'rot-nw', x: bb.x, y: bb.y },
       { corner: 'rot-ne', x: bb.x + bb.w, y: bb.y },
@@ -673,12 +681,10 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
           sx += (dx / len) * reach;
           sy += (dy / len) * reach;
         }
-        // Edge pills are 14×6 / 6×14, rotate zones 18×18 (corners 8×8) —
-        // center each on its point.
-        const ns = pos.corner === 'n' || pos.corner === 's';
-        const ew = pos.corner === 'e' || pos.corner === 'w';
-        const halfW = isRot ? 9 : ns ? 7 : ew ? 3 : 4;
-        const halfH = isRot ? 9 : ns ? 3 : ew ? 7 : 4;
+        // Every resize handle (corner or edge) is the board's 8×8 square, rotate zones 18×18 — center each
+        // on its point.
+        const halfW = isRot ? 9 : 4;
+        const halfH = isRot ? 9 : 4;
         handle.className = isRot ? 'dc-annot-rotate-zone' : 'dc-annot-resize-handle';
         handle.style.display = 'block';
         handle.style.left = `${Math.round(sx - halfW)}px`;

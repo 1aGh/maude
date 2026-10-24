@@ -437,87 +437,121 @@
   padding: 32px;
 }
 
-/* ─── The bar (Maude's chrome over the user's design — neutral system colours, not the DS) ─── */
+/* ─── The bar (Maude's chrome over the user's design — the HUD island tokens, never the DS and never CSS
+   system colours, so it follows the APP theme: 13 `.island.ds-bar`) ─── */
 .ds-bar {
   position: fixed;
   left: 50%;
-  top: 14px;
+  top: 16px;
   translate: -50% 0;
   z-index: 2147483000;
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 8px 0 14px;
-  border-radius: 12px;
-  background: Canvas;
-  color: CanvasText;
+  gap: 8px;
+  height: 44px;
+  padding: 0 8px 0 12px;
+  border-radius: var(--maude-hud-radius-lg, 14px);
+  background: var(--maude-hud-island-bg);
+  color: var(--maude-chrome-fg-0);
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  backdrop-filter: saturate(1.4) blur(18px);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, CanvasText 16%, transparent),
-    0 2px 10px color-mix(in srgb, CanvasText 12%, transparent);
-  font:
-    500 13px / 1 system-ui,
-    -apple-system,
-    sans-serif;
+    var(--maude-hud-island-shadow),
+    inset 0 0 0 0.5px var(--maude-hud-island-edge);
+  font: 400 var(--maude-hud-type-sm, 12px) / 1 var(--maude-chrome-font-body);
   white-space: nowrap;
+}
+.ds-bar-ic {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--maude-hud-radius-xs, 4px);
+  background: var(--maude-hud-accent-muted);
+  color: var(--maude-hud-accent-text);
 }
 .ds-bar b {
   font-weight: 600;
 }
 .ds-bar-seg {
   display: inline-flex;
-  margin: 0;
+  margin: 0 0 0 8px;
   min-width: 0;
   border: 0;
   padding: 2px;
-  border-radius: 9px;
-  background: color-mix(in srgb, CanvasText 8%, transparent);
+  border-radius: var(--maude-hud-radius-md, 10px);
+  background: var(--maude-chrome-bg-3);
 }
 .ds-bar-b {
   appearance: none;
   border: 0;
-  border-radius: 7px;
-  padding: 5px 10px;
+  border-radius: calc(var(--maude-hud-radius-md, 10px) - 2px);
+  padding: 4px 12px;
   background: transparent;
-  color: inherit;
+  color: var(--maude-chrome-fg-1);
   font: inherit;
+  font-size: var(--maude-hud-type-xs, 11px);
   cursor: pointer;
 }
 .ds-bar-b[aria-pressed="true"] {
-  background: Canvas;
-  box-shadow: 0 0 0 1px color-mix(in srgb, CanvasText 14%, transparent);
-  font-weight: 600;
+  background: var(--maude-chrome-bg-2);
+  color: var(--maude-chrome-fg-0);
+  box-shadow:
+    var(--maude-hud-shadow-md),
+    inset 0 0 0 1px var(--maude-hud-accent);
 }
 .ds-bar-b:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .ds-bar-b:focus-visible {
-  outline: 2px solid Highlight;
+  outline: 2px solid var(--maude-hud-focus-ring);
   outline-offset: 1px;
 }
 .ds-bar-p {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: color-mix(in srgb, CanvasText 70%, transparent);
+  gap: 8px;
+  font-size: var(--maude-hud-type-xs, 11px);
+  color: var(--maude-chrome-fg-1);
 }
 .ds-bar-sep {
-  width: 1px;
-  height: 18px;
-  background: color-mix(in srgb, CanvasText 16%, transparent);
+  width: 0.5px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--maude-chrome-border-default);
 }
 .ds-upd-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: Highlight;
+  background: var(--maude-hud-accent);
 }
+/* Review… is the kit primary button (btn--primary btn--sm): accent fill, white ink */
 .ds-bar-review {
-  background: Highlight;
-  color: HighlightText;
-  padding: 5px 12px;
+  appearance: none;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--maude-hud-radius-md, 10px);
+  background: var(--maude-hud-accent);
+  color: var(--maude-hud-accent-fg);
+  font: inherit;
+  font-size: var(--maude-hud-type-sm, 12px);
+  font-weight: 500;
+  cursor: pointer;
+}
+.ds-bar-review:hover {
+  background: var(--maude-hud-accent-hover);
+}
+.ds-bar-review:active {
+  background: var(--maude-hud-accent-active);
+}
+.ds-bar-review:focus-visible {
+  outline: 2px solid var(--maude-hud-focus-ring);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,8 +3,13 @@
    under reduced motion. */
 /* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
 @layer components {
-  .dss-dialog {
+  .island.dss-dialog {
     width: min(600px, calc(100vw - 32px));
+  }
+  /* the switch list's thumbnails are the small render: 44 x 32 */
+  .dss-dialog .dsr-thumb {
+    width: 44px;
+    height: 32px;
   }
   .dss-scope {
     display: flex;
@@ -116,10 +121,11 @@
   .dsp {
     position: fixed;
     left: 50%;
-    bottom: var(--space-5);
+    top: var(--space-4);
     z-index: 55;
     display: flex;
-    flex-direction: column;
+    /* the banner is the top-centre island (.ds-banner); the menu drops under it */
+    flex-direction: column-reverse;
     align-items: stretch;
     gap: var(--space-2);
     width: min(560px, calc(100vw - 32px));
@@ -168,7 +174,26 @@
     color: var(--fg-2);
   }
   .dsp-opt[data-highlight] {
-    background: var(--accent-soft);
+    background: var(--accent-muted);
+  }
+  .dsp-sep {
+    margin: var(--space-1) 0;
+    border: 0;
+    border-top: 0.5px solid var(--border-default);
+  }
+  .dsp-door {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .dsp-door kbd {
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
   }
   .dsp-banner {
     display: flex;

@@ -172,9 +172,10 @@ export function PlacementGhost({
         top: pos.y,
         width: size.w * z,
         height: size.h * z,
-        border: '1.5px dashed var(--accent, #d63b1f)',
+        border: '1.5px dashed var(--maude-hud-accent, oklch(0.53 0.175 238))',
         borderRadius: 8,
-        background: 'color-mix(in oklab, var(--accent, #d63b1f) 8%, transparent)',
+        background:
+          'color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 8%, transparent)',
       }}
     />
   );
@@ -203,7 +204,7 @@ export function StickerSizeChip({
         width={w}
         height={h}
         rx={3 / z}
-        fill="var(--accent, #d63b1f)"
+        fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
       />
       <text
         x={box.x + box.w / 2}

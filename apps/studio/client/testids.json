@@ -33526,10 +33526,10 @@
     "v2": "new"
   },
   {
-    "hook": "ds-preview-stop",
+    "hook": "ds-preview-door",
     "kind": "testid",
     "pattern": false,
-    "meaning": "S10.14: The banner's \"Stop previewing\": every canvas renders in its own system again.",
+    "meaning": "P8-C2: A row at the foot of the Preview-in menu: Open the Design system, Make a design system…, Link a team library… (data-door).",
     "producer": {
       "file": "apps/studio/client/v2/ds/preview-bar.jsx",
       "symbol": "DsPreviewBar"

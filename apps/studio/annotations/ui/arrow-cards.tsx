@@ -176,7 +176,7 @@ export function AimOverlay({ aim, zoom }: { aim: AimState; zoom: number }) {
               top: hot.box.y - PX(zoom, 3),
               width: hot.box.w + PX(zoom, 6),
               height: hot.box.h + PX(zoom, 6),
-              boxShadow: `0 0 0 ${PX(zoom, 2)}px var(--maude-hud-accent, #d63b1f), 0 0 0 ${PX(zoom, hot.edge ? 7 : 6)}px color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 22%, transparent)`,
+              boxShadow: `0 0 0 ${PX(zoom, 2)}px var(--maude-hud-accent, oklch(0.53 0.175 238)), 0 0 0 ${PX(zoom, hot.edge ? 7 : 6)}px color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 22%, transparent)`,
             }}
           />
           <span
@@ -295,7 +295,7 @@ export function HostMarks({
             top: r.box.y - PX(zoom, 3),
             width: r.box.w + PX(zoom, 6),
             height: r.box.h + PX(zoom, 6),
-            boxShadow: `0 0 0 ${PX(zoom, 2)}px var(--maude-hud-accent, #d63b1f)`,
+            boxShadow: `0 0 0 ${PX(zoom, 2)}px var(--maude-hud-accent, oklch(0.53 0.175 238))`,
           }}
         >
           <span

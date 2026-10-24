@@ -113,7 +113,7 @@
     flex: none;
     border-radius: var(--radius-xs);
     background: var(--accent-muted);
-    color: var(--fg-0);
+    color: var(--accent-text);
   }
   /* S10.13 — a system row of two lines, its ⋯ menu, the amber dot, "Design systems · 2 in use", the empty row */
   .lp-ds-wrap {

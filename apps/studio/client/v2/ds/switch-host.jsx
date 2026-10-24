@@ -178,6 +178,7 @@ export function DsSwitchHost({ cfg, activePath, toast, fetchImpl }) {
         <DsPreviewBar
           session={session}
           labelOf={labelOf}
+          project={cfg?.cloud?.projectName || cfg?.name || ''}
           shown={shownIn}
           blocked={!!sheet}
           onSwitch={(target) => requestDsSwitch({ to: target, from: session.from, scope: 'all' })}

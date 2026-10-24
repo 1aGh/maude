@@ -142,6 +142,15 @@ export const DS_GLYPHS: Readonly<Record<string, ReactNode>> = {
     </>
   ),
   play: <path d="M5 3.5v9l7.5-4.5z" />,
+  // the Design system glyph: four squares and a dot (_kit.tsx `system`)
+  system: (
+    <>
+      <rect x="2.5" y="2.5" width="4.75" height="4.75" rx="1.25" />
+      <rect x="8.75" y="2.5" width="4.75" height="4.75" rx="1.25" />
+      <rect x="2.5" y="8.75" width="4.75" height="4.75" rx="1.25" />
+      <circle cx="11.125" cy="11.125" r="2.375" />
+    </>
+  ),
 };
 
 /** One DS glyph by name; an unknown name draws nothing (never a wrong glyph). */

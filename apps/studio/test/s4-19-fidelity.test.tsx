@@ -128,7 +128,7 @@ describe('G4 - the selected sticky follows canvas 15 an-sticky', () => {
     expect(byId(host, 'annot-sticky-paper-more')).toBeNull();
   });
   test('a paper from the rest is already showing when the sticky wears it', async () => {
-    const { host } = await mountToolbar([sticky({ color: STICKY_PALETTE[8] })], ['st']);
+    const { host } = await mountToolbar([sticky({ color: STICKY_PALETTE[4] })], ['st']);
     expect(papers(host)).toHaveLength(10);
   });
   test('a Small..Huge select sets the size; Medium is the sticky default', async () => {
@@ -164,6 +164,7 @@ describe('G4 - the selected sticky follows canvas 15 an-sticky', () => {
     const { host, ran, locks } = await mountToolbar([sticky()], ['st']);
     await click(byId(host, 'annot-ctx-lock'));
     expect(locks).toEqual([true]);
+    await click(byId(host, 'annot-ctx-more'));
     await click(byId(host, 'annot-ctx-to-comment'));
     expect(ran).toEqual(['annotation.to-comment']);
     for (const gone of ['Bold', 'Italic', 'Strikethrough', 'Underline', 'Text alignment'])

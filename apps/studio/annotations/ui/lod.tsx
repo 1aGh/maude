@@ -116,7 +116,7 @@ export const LOD_CSS = `
 .dc-annot-lod button[data-lod="section"] { padding: 0; border: 0; font: inherit; }
 .dc-annot-lod [data-lod="section"] { border-radius: 10px; background: rgba(0,0,0,0.04);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.16); }
-.dc-annot-lod [data-lod="section"][data-hover] { box-shadow: inset 0 0 0 2px var(--maude-hud-accent, #d63b1f); }
+.dc-annot-lod [data-lod="section"][data-hover] { box-shadow: inset 0 0 0 2px var(--maude-hud-accent, oklch(0.53 0.175 238)); }
 .dc-annot-lod [data-lod="count"] { color: #2a2a28; font: 600 14px/1.2 system-ui, sans-serif;
   white-space: nowrap; transform-origin: 0 100%; font-variant-numeric: tabular-nums; }
 .dc-annot-lod [data-lod="card"] { z-index: 15; width: 220px; padding: 10px 12px; border-radius: 10px;
@@ -127,7 +127,7 @@ export const LOD_CSS = `
 .dc-annot-lod [data-lod="card"] .lod-faces { display: flex; gap: 2px; margin: 4px 0; align-items: center; }
 .dc-annot-lod [data-lod="card"] .lod-face { width: 20px; height: 20px; border-radius: 50%; background: #d8d8d4;
   color: #2a2a28; font-size: 10px; display: inline-grid; place-items: center; }
-.dc-annot-lod [data-lod="card"] .lod-k { color: var(--maude-hud-accent, #d63b1f); font-size: 11px; }
+.dc-annot-lod [data-lod="card"] .lod-k { color: var(--maude-hud-accent, oklch(0.53 0.175 238)); font-size: 11px; }
 @media (prefers-reduced-motion: no-preference) {
   .dc-annot-lod [data-lod="section"] { transition: box-shadow var(--dur-fast, 120ms); }
 }

@@ -184,7 +184,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `ds-preview-option` | testid | S10.14: One system in the preview menu (`data-ds`); `data-highlight` marks the one being looked at. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-preview-banner` | testid | S10.14: "Previewing Studio site in Warm paper." with "5 canvases shown in it · esc to stop". | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-preview-switch` | testid | S10.14: The banner's "Switch…": opens the switch review for the previewed system. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
-| `ds-preview-stop` | testid | S10.14: The banner's "Stop previewing": every canvas renders in its own system again. | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
+| `ds-preview-door` | testid | P8-C2: A row at the foot of the Preview-in menu: Open the Design system, Make a design system…, Link a team library… (data-door). | `client/v2/ds/preview-bar.jsx` · `DsPreviewBar` | — | new |
 | `ds-contrast-fix` | testid | S10.17: "Lighten to 4.5:1" (or Darken) on the contrast warning: the smallest lightness move, written as one waiting edit. | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |
 | `ds-contrast-short` | testid | S10.17: "Falls short in 3 canvases" under the contrast warning. | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |
 | `ds-contrast-show` | testid | S10.17: "Show" on that line: walks the canvases that use the token (the reach view). | `client/v2/ds/contrast-warning.jsx` · `ContrastWarning` | test:v2-ds-edges.test | new |

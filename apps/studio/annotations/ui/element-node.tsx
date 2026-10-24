@@ -38,8 +38,6 @@ import {
   SECTION_CORNER_RADIUS,
   SECTION_LABEL_FONT,
   SECTION_LABEL_H,
-  STICKY_CORNER_RADIUS,
-  stickyCornerPath,
   type WorldPoint,
 } from '../../annotations-model.ts';
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
@@ -263,12 +261,35 @@ function EditNotice({ notice }: { notice: EditRequest['notice'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-type views
 
+/** `--radius-xs` of the maude-v2 kit: the corner of a sticky's paper (SVG paths cannot read a var). */
+const STICKY_PAPER_RADIUS = 4;
+/** The DS `.sticky` ink: `--object-ink`, through the HUD's own name, with the old literal as the fallback. */
+const STICKY_INK_VAR = 'var(--maude-hud-object-ink, #2a2a28)';
+
+/** A rounded rectangle, all four corners the same - the sticky's paper outline. */
+export function stickyBoxPath(x: number, y: number, w: number, h: number, r: number): string {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  return [
+    `M${x + rr} ${y}`,
+    `L${x + w - rr} ${y}`,
+    `Q${x + w} ${y} ${x + w} ${y + rr}`,
+    `L${x + w} ${y + h - rr}`,
+    `Q${x + w} ${y + h} ${x + w - rr} ${y + h}`,
+    `L${x + rr} ${y + h}`,
+    `Q${x} ${y + h} ${x} ${y + h - rr}`,
+    `L${x} ${y + rr}`,
+    `Q${x} ${y} ${x + rr} ${y}`,
+    'Z',
+  ].join(' ');
+}
+
 function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
   const w = num(el.w);
   const h = num(el.h);
-  const r = num(el.radius, STICKY_CORNER_RADIUS);
+  // P8-C2 (15 R1c): the paper is `--radius-xs` on all four corners (the DS `.sticky`) - no dog-ear, whatever radius a file stored
+  const r = STICKY_PAPER_RADIUS;
   // S4.15 - an AI sticky is neutral paper with a spark edge, never a swatch (ai-marks.tsx)
   const aiMade = isAiAuthored(el);
   const paper = stickyPaper(el); // the stored fill always renders; neutral paper is only an AI sticky's default
@@ -278,12 +299,14 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
       ? (el.resolved as { by?: unknown; at?: unknown })
       : null;
   const fmt = textFmt(el, 'left');
-  // S4.12 (C29) — a resolved sticky is struck through in place and kept; the words stay readable.
+  // S4.12 (C29) — a resolved sticky is struck through in place and kept; the words stay readable, in full ink
+  // (the strike and the tick say it is done - the DS `.sticky` never dims its words). Rounded SEMIBOLD in the
+  // object ink, 12 px (`--space-3`) of padding.
   const style = {
     ...slotTextStyle('sticky', resolved ? { ...fmt, strike: true } : fmt),
-    color: '#2a2a28',
-    padding: aiMade ? '14px 16px 14px 28px' : '14px 16px',
-    ...(resolved ? { opacity: 0.72 } : {}),
+    color: STICKY_INK_VAR,
+    fontWeight: fmt.bold ? 700 : 600,
+    padding: aiMade ? '12px 12px 12px 28px' : '12px',
   };
   const text = str(el.text);
   const lst = list(el.list);
@@ -312,7 +335,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
       <PinTags pin={pin} />
       <Geo x={x} y={y} w={w} h={h}>
         <path
-          d={stickyCornerPath(x, y, w, h, r)}
+          d={stickyBoxPath(x, y, w, h, r)}
           fill={fill}
           stroke={aiMade ? AI_SPARK : 'rgba(0,0,0,0.05)'}
           strokeWidth={aiMade ? 2 : 1}
@@ -322,7 +345,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
         />
         {typist ? (
           <path
-            d={stickyCornerPath(x, y, w, h, r)}
+            d={stickyBoxPath(x, y, w, h, r)}
             fill="none"
             stroke={typist}
             strokeWidth={2}
@@ -345,7 +368,7 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
             // the `background` shorthand: the fill is peer-controlled and the
             // shorthand would take a `url(…)`.
             backgroundColor: fill,
-            borderRadius: `${r}px ${r}px 0 ${r}px`,
+            borderRadius: `${r}px`,
             zIndex: 1,
           }}
         >
@@ -945,7 +968,9 @@ function SectionChip({
     fontFamily: TEXT_FONT,
     fontSize: `${g.fontSize}px`,
     lineHeight: `${g.chipH}px`,
-    color,
+    // 15 `.an-sec-t`: a SOLID object-colour chip, the title in the object ink, rounded semibold
+    color: 'var(--maude-hud-object-ink, #1a1a1a)',
+    fontWeight: 600,
     padding: `0 ${g.padX}px`,
     textAlign: 'left',
   };
@@ -953,9 +978,8 @@ function SectionChip({
     top: -(g.chipH + g.gap),
     minWidth: g.chipW,
     height: g.chipH,
-    borderRadius: 5 / zoom,
-    // Same wash the SVG chip had (fill-opacity 0.16).
-    backgroundColor: `color-mix(in oklab, ${color} 16%, transparent)`,
+    borderRadius: 6 / zoom, // --radius-sm
+    backgroundColor: color,
     pointerEvents: interactive ? 'auto' : 'none',
   };
   if (edit) {
@@ -986,7 +1010,7 @@ function SectionChip({
       <div className="dc-annot-text dc-annot-text--nowrap" style={style}>
         {label}
         {count ? (
-          <span data-section-count="1" style={{ opacity: 0.7, marginLeft: 6, fontWeight: 500 }}>
+          <span data-section-count="1" style={{ opacity: 0.65, marginLeft: 6, fontWeight: 500 }}>
             {count}
           </span>
         ) : null}

@@ -2,10 +2,13 @@
 // and — once S10.7 writes any — "N changes waiting". Light | Dark is the SYSTEM's own mode; the
 // switch never touches `<html>` or the app's theme (state.ts).
 //
-// Drawn in neutral system colours (`Canvas` / `CanvasText`), not the system's tokens: it is Maude's
-// bar over the user's design, so a locked or garish brand must not restyle it.
+// Drawn on Maude's own HUD tokens (`--maude-hud-*`, the same island material as the dock), never the
+// system's tokens and never CSS system colours: it is Maude's bar over the user's design, so a locked or
+// garish brand must not restyle it, and it follows the APP theme (a `Canvas` bar was white in the dark app).
+// 13 `DsBar`: island · 24 px `system` glyph tile · name · `.seg` Light | Dark · Review… as the primary button.
 
 import { createPortal } from 'react-dom';
+import { DsIcon } from '../../canvas-ds-icons.tsx';
 import { setBoardMode, useBoardMode, useBoardModel } from './state.ts';
 import type { BoardMode, BoardModel } from './types.ts';
 
@@ -34,13 +37,16 @@ export function DsBarView({
   const hasDark = model.themes.dark !== null;
   return (
     <div className="ds-bar" data-testid="ds-bar" role="toolbar" aria-label="Design system">
+      <span className="ds-bar-ic" aria-hidden="true">
+        <DsIcon name="system" size={14} />
+      </span>
       <b>{model.label}</b>
       <fieldset className="ds-bar-seg" aria-label="Show the system in">
         {(['light', 'dark'] as const).map((m) => (
           <button
             key={m}
             type="button"
-            className="ds-bar-b"
+            className="ds-bar-b k-seg-b"
             data-testid={`ds-bar-mode-${m}`}
             aria-pressed={mode === m}
             disabled={m === 'dark' && !hasDark}
@@ -71,7 +77,7 @@ export function DsBarView({
           {onReview ? (
             <button
               type="button"
-              className="ds-bar-b ds-bar-review"
+              className="ds-bar-review btn btn--primary btn--sm"
               data-testid="ds-bar-review"
               onClick={onReview}
             >

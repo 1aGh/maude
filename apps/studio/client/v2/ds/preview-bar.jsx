@@ -11,10 +11,10 @@ import { PREVIEW_WORDS, pickDsPreview, stepDsPreview, stopDsPreview } from './pr
 
 /**
  * @param {{ session: { from: string, names: string[], index: number, target: string },
- *           labelOf: (name: string) => string, shown: number, blocked?: boolean,
+ *           labelOf: (name: string) => string, project?: string, shown: number, blocked?: boolean,
  *           onSwitch: (target: string) => void }} props
  */
-export function DsPreviewBar({ session, labelOf, shown, blocked = false, onSwitch }) {
+export function DsPreviewBar({ session, labelOf, project = '', shown, blocked = false, onSwitch }) {
   const listRef = useRef(null);
   // the menu takes focus when the preview starts, so ↑↓ ↵ esc work at once
   useEffect(() => {
@@ -72,9 +72,16 @@ export function DsPreviewBar({ session, labelOf, shown, blocked = false, onSwitc
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => pickDsPreview(name)}
           >
-            <StIcon name={name === session.from ? 'check' : 'layers'} size={14} />
+            <StIcon name="system" size={14} />
             <span className="dsp-opt-n">{labelOf(name)}</span>
             <em>{name === session.from ? 'in use' : i === session.index ? 'previewing' : ''}</em>
+          </div>
+        ))}
+        <hr className="dsp-sep" />
+        {PREVIEW_WORDS.doors.map((d) => (
+          <div key={d.id} className="dsp-door" data-testid="ds-preview-door" data-door={d.id}>
+            <span>{d.label}</span>
+            {d.key ? <kbd>{d.key}</kbd> : null}
           </div>
         ))}
         <p className="dsp-hint">{PREVIEW_WORDS.hint}</p>
@@ -82,7 +89,8 @@ export function DsPreviewBar({ session, labelOf, shown, blocked = false, onSwitc
       <div className="dsp-banner island" role="status" data-testid="ds-preview-banner">
         <StIcon name="eye" size={14} />
         <span className="dsp-banner-t">
-          <b>{PREVIEW_WORDS.banner(labelOf(session.from), labelOf(session.target))}</b>
+          {/* 13 · ds-many-switch: it is the PROJECT that is looked at in another system, not the system it follows */}
+          <b>{PREVIEW_WORDS.banner(project || labelOf(session.from), labelOf(session.target))}</b>
           <em>{PREVIEW_WORDS.shown(shown)}</em>
         </span>
         <button
@@ -92,14 +100,6 @@ export function DsPreviewBar({ session, labelOf, shown, blocked = false, onSwitc
           onClick={() => onSwitch(session.target)}
         >
           {PREVIEW_WORDS.action}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          data-testid="ds-preview-stop"
-          onClick={() => stopDsPreview()}
-        >
-          {PREVIEW_WORDS.stop}
         </button>
       </div>
     </div>

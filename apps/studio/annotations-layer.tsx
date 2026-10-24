@@ -691,15 +691,15 @@ const ANNOT_CSS = `
    interactive pieces take pointers (CHROME_SELECTOR), the rest never do. */
 .dc-annot-arrowui { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 6; }
 .dc-annot-arrowui-live { pointer-events: auto; }
-.dc-annot-cand { position: absolute; border-radius: 4px; outline-style: dashed; outline-color: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 55%, transparent); pointer-events: none; }
+.dc-annot-cand { position: absolute; border-radius: 4px; outline-style: dashed; outline-color: color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 55%, transparent); pointer-events: none; }
 .dc-annot-snap, .dc-annot-edge { position: absolute; border-radius: 4px; pointer-events: none; }
 .dc-annot-snap-tag {
   position: absolute; display: inline-flex; gap: 3px; transform-origin: 0 0; white-space: nowrap; pointer-events: none;
   font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 4px;
-  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, #d63b1f);
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
 }
 .dc-annot-snap-tag b { font-weight: 600; }
-.dc-annot-open { position: absolute; box-sizing: border-box; transform: translate(-50%, -50%); border-style: solid; border-radius: 50%; border-color: var(--maude-hud-accent, #d63b1f); background: var(--maude-hud-bg, #fff); pointer-events: none; }
+.dc-annot-open { position: absolute; box-sizing: border-box; transform: translate(-50%, -50%); border-style: solid; border-radius: 50%; border-color: var(--maude-hud-accent, oklch(0.53 0.175 238)); background: var(--maude-hud-bg, #fff); pointer-events: none; }
 .dc-annot-dg {
   position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 228px; transform-origin: 0 0;
   padding: 10px; border-radius: 10px; box-sizing: border-box;
@@ -709,22 +709,22 @@ const ANNOT_CSS = `
 .dc-annot-dg p { margin: 0; }
 .dc-annot-dg-btn {
   font: 500 12px/1 var(--font-ui, system-ui, sans-serif); padding: 5px 10px; border: 0; border-radius: 6px; cursor: pointer;
-  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, #d63b1f);
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
 }
 .dc-annot-alabel {
   position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
   font: 600 13px/1.3 var(--font-ui, system-ui, sans-serif); padding: 1px 6px; border-radius: 3px;
   color: var(--maude-hud-fg, #1a1a1a); background: var(--maude-hud-bg, #fff);
 }
-.dc-annot-alabel--edit { pointer-events: auto; border: 0; outline: 1.5px solid var(--maude-hud-accent, #d63b1f); min-width: 80px; text-align: center; transform-origin: 0 0; }
+.dc-annot-alabel--edit { pointer-events: auto; border: 0; outline: 1.5px solid var(--maude-hud-accent, oklch(0.53 0.175 238)); min-width: 80px; text-align: center; transform-origin: 0 0; }
 .dc-annot-belongs {
   position: absolute; pointer-events: none; border-radius: 6px;
-  outline: 1.5px dashed var(--maude-hud-accent, #d63b1f); outline-offset: 0;
+  outline: 1.5px dashed var(--maude-hud-accent, oklch(0.53 0.175 238)); outline-offset: 0;
 }
 .dc-annot-belongs-t {
   position: absolute; left: 0; top: -24px; white-space: nowrap;
   font: 500 12px/1.3 var(--font-ui, system-ui, sans-serif); padding: 2px 8px; border-radius: 999px;
-  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, #d63b1f);
+  color: var(--maude-hud-accent-fg, #fff); background: var(--maude-hud-accent, oklch(0.53 0.175 238));
 }
 @media (prefers-reduced-motion: reduce) {
   .dc-annot-ride-svg g.is-settling, .dc-annot-ride-svg g.is-leaving { transition-duration: 1ms; }
@@ -749,8 +749,8 @@ const ANNOT_CSS = `
 /* Drag-select marquee — rendered while user is dragging to select strokes. */
 .dc-annot-marquee {
   pointer-events: none;
-  fill: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 8%, transparent);
-  stroke: var(--maude-hud-accent, #d63b1f);
+  fill: color-mix(in oklab, var(--maude-hud-accent, oklch(0.53 0.175 238)) 8%, transparent);
+  stroke: var(--maude-hud-accent, oklch(0.53 0.175 238));
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
@@ -5435,7 +5435,7 @@ function AnnotationsSvg({
               y1={g.axis === 'x' ? g.from : g.at}
               x2={g.axis === 'x' ? g.at : g.to}
               y2={g.axis === 'x' ? g.to : g.at}
-              stroke="var(--maude-hud-accent, #d63b1f)"
+              stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
               pointerEvents="none"
@@ -5495,7 +5495,7 @@ function AnnotationsSvg({
                     width={bb.w + 4}
                     height={bb.h + 4}
                     fill="none"
-                    stroke="var(--maude-hud-accent, #d63b1f)"
+                    stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
                     strokeWidth={1.5}
                     strokeDasharray="5 3"
                     vectorEffect="non-scaling-stroke"
@@ -5508,7 +5508,7 @@ function AnnotationsSvg({
                 y={resizeInfo.box.y + resizeInfo.box.h + 18}
                 textAnchor="middle"
                 fontSize={11}
-                fill="var(--maude-hud-accent, #d63b1f)"
+                fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
                 style={{
                   fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
                 }}
@@ -5706,7 +5706,7 @@ function ConnectorDots({ stroke }: { stroke: Stroke }) {
             cx={pt[0] + (dx / len) * offset}
             cy={pt[1] + (dy / len) * offset}
             r={5 / zoom}
-            fill="var(--maude-hud-accent, #d63b1f)"
+            fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
             stroke="var(--maude-chrome-bg-0, #ffffff)"
             strokeWidth={1.5 / zoom}
             pointerEvents="all"
@@ -5891,7 +5891,7 @@ function BindHintHalo({
       width={bbox.w + pad * 2}
       height={bbox.h + pad * 2}
       fill="none"
-      stroke="var(--maude-hud-accent, #d63b1f)"
+      stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
       strokeWidth={2}
       strokeOpacity={0.8}
       vectorEffect="non-scaling-stroke"
@@ -5937,7 +5937,7 @@ function SelectionHalo({
       width={bbox.w + pad * 2}
       height={bbox.h + pad * 2}
       fill="none"
-      stroke="var(--maude-hud-accent, #d63b1f)"
+      stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
       strokeWidth={multi ? 1.5 : 2}
       vectorEffect="non-scaling-stroke"
       pointerEvents="none"
@@ -6048,7 +6048,14 @@ function LockBadge({
       data-testid="annot-lock-badge"
       transform={`translate(${xMax + pad} ${yMin - size - pad}) scale(${size / 24})`}
     >
-      <rect x={-2} y={-2} width={28} height={28} rx={6} fill="var(--maude-hud-accent, #d63b1f)" />
+      <rect
+        x={-2}
+        y={-2}
+        width={28}
+        height={28}
+        rx={6}
+        fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
+      />
       <g fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="5" y="11" width="14" height="9" rx="2" />
         <path d="M8 11V8a4 4 0 018 0v3" />
@@ -6120,7 +6127,7 @@ function AnnotGroupBbox({
         width={w}
         height={h}
         fill="none"
-        stroke="var(--maude-hud-accent, #d63b1f)"
+        stroke="var(--maude-hud-accent, oklch(0.53 0.175 238))"
         strokeWidth={1}
         strokeDasharray="4 3"
         vectorEffect="non-scaling-stroke"
@@ -6152,7 +6159,7 @@ function AnnotGroupBbox({
               y={c.y}
               width={handle}
               height={handle}
-              fill="var(--maude-hud-accent, #d63b1f)"
+              fill="var(--maude-hud-accent, oklch(0.53 0.175 238))"
               stroke="var(--maude-chrome-bg-0, #ffffff)"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"

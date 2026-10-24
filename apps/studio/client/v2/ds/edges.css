@@ -3,10 +3,20 @@
    reduced motion. */
 /* P8 C0: was unlayered. In @layer components: above the v1 shell layer and after the v1 component files, the place an unlayered v2 rule held over v1 — without beating every layer. */
 @layer components {
+  /* the warning is ONE `.ds-line--warn` block: glyph + words + the ghost action inside it */
   .ds-edge-line {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    min-height: 30px;
+    padding: 0 var(--space-1) 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .ds-edge-line .ds-tk-line {
+    min-height: 0;
+    padding: 0;
+    background: transparent;
   }
   .ds-edge-warn {
     flex: 1;
@@ -14,17 +24,19 @@
   }
   .ds-edge-act {
     flex: none;
+    /* 13 `.ds-line-act`: the ghost accent button on the right of the warning line, not an outlined v1 button */
     padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--border-default);
+    border: 0;
     border-radius: var(--radius-sm);
-    background: var(--bg-2);
-    color: var(--fg-0);
+    background: transparent;
+    color: var(--accent-text);
     font: inherit;
     font-size: var(--type-xs);
+    font-weight: var(--w-medium);
     cursor: pointer;
   }
   .ds-edge-act:hover:not(:disabled) {
-    background: var(--bg-3);
+    background: var(--accent-muted);
   }
   .ds-edge-act:disabled {
     opacity: 0.6;

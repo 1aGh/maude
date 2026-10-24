@@ -594,8 +594,8 @@ export const DEFAULT_HIGHLIGHTER_COLOR = HIGHLIGHTER_PALETTE[0];
 export const HIGHLIGHTER_WIDTHS = [10, 18, 28] as const;
 export const DEFAULT_HIGHLIGHTER_WIDTH = HIGHLIGHTER_WIDTHS[1];
 // Phase 24 — stickies are 1:1; the default tap size is a square.
-export const STICKY_DEFAULT_W = 200;
-export const STICKY_DEFAULT_H = 200;
+export const STICKY_DEFAULT_W = 148;
+export const STICKY_DEFAULT_H = 148;
 export const STICKY_MIN_SIZE = 40;
 /**
  * Ceiling for the grow-to-fit in `grownStickyBox` — ~370 lines at the default

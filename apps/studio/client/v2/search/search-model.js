@@ -343,7 +343,8 @@ export function remoteRows(result, { designRel = '.design', query = '', project 
     out.push({
       group: board ? 'artboards' : 'canvases',
       id: `${board ? 'artboard' : 'canvas'}:${r.key}`,
-      name: r.name,
+      // the system's own canvas is "Design system" to people, never its file slug (CONTRACT §7)
+      name: r.name === 'design-system' ? 'Design system' : r.name,
       marks: shown ? mergeMarks(shown.marks, shown.closeMarks) : (r.marks ?? []),
       metaMarks: shown?.metaMarks ?? [],
       close: shown ? shown.close : !!r.close,
