@@ -115,3 +115,15 @@ describe('quiet render', () => {
     expect(quietPaper('rgb(1,2,3)')).toBe('rgb(1,2,3)');
   });
 });
+
+describe('a section title stays at full ink in Edit (a11y, 15 an-section)', () => {
+  test('the quiet fade skips a section, whose chip is words', async () => {
+    const src = (await Bun.file(
+      new URL('../annotations-layer.tsx', import.meta.url).pathname
+    ).text()) as string;
+    const rule = src.match(
+      /\.dc-annot-scene\[data-an-quiet\] \.dc-annot-el:not\(([^{]*)\{ opacity: 0\.45; \}/
+    );
+    expect(rule?.[1]).toContain('[data-type="section"]');
+  });
+});
