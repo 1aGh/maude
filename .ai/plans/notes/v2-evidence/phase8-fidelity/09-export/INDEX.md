@@ -61,3 +61,22 @@ Pairs in this folder were re-shot after the fixes (light + dark); per-id status 
 
 ## After — stage C round 2 (p8-c2-insptl)
 Pairs re-shot light + dark on branch p8-c2-insptl. Changed: ex-batch / ex-batch-pick / ex-huge (kind rows carry artboard stills from the new `POST /_api/export-preview`). Unreachable: ex-progress, ex-states, ex-handoff-ready, ex-edges. Details: `08-artboard-kinds/fix-insptl.md`.
+
+## After (stage D, 6d19daa9a) — p8-d-g3
+
+Re-shot on the stage C round 2 tip (feat/maude-v2 6d19daa9a), release-built client, 1440×900 Chromium, throwaway HOME/XDG, claude stubbed signed-out. No product code touched. Evidence only — match / mismatch is judged by the critic re-check. Pairs: `<id>-<theme>.jpg` here (spec left, impl right); full size: `full-size-path.txt`.
+
+**SPEC side: re-rendered (all 21 artboards, both themes).** `09 Export.tsx` changed after the stage A shot (commit 2220acc81 — ex-states caption "is yours to press", ex-share-vs now says Can comment may download / Can view sees no Export, ex-advanced "Up to 3,600 frames"), so the whole board was rendered again from a scratch copy of `.design`.
+
+**IMPL side, per artboard id × theme (light, dark):**
+
+| artboard id | after (stage D) |
+|---|---|
+| ex-inspector, ex-social, ex-formats, ex-advanced, ex-web, ex-print, ex-print-warn, ex-video, ex-canvas, ex-batch-pick, ex-batch, ex-huge, ex-history, ex-share-vs, ex-offline | re-shot, light + dark |
+| ex-handoff | re-shot, light + dark — the stage C dark pair showed no sheet (⇧⌘H missed focus); the scenario now falls back to ⌘K › Hand off when the chord does not open it, so both themes show the sheet |
+| ex-handoff-edges | re-shot, light + dark — click "Hand off" with claude signed out; the sheet settles (3.5 s) to its title with an empty body |
+| ex-progress, ex-states | re-shot, light + dark — NEW this stage (unreachable in stage A/C). The job LIST is seeded by a Playwright route intercept on `GET /_api/export-jobs` (a running cloud MP4 at 16 of 25, a queued this-Mac MP4, a done PNG, a 114-of-115 partial in the shapes `test/exports-panel.test.tsx` uses); the Exports panel, rows and the ring on the Exports icon are the real client. No render runs |
+| ex-handoff-ready | unreachable — needs a finished AI handoff run; claude is stubbed signed-out. Spec only |
+| ex-edges | unreachable — needs a viewer-role session / a live AI edit on the artboard. Spec only |
+
+Harness notes: the What's New panel opens over a fresh project and is now closed by `run.mjs` before shooting.
