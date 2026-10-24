@@ -206,27 +206,30 @@ export function VideoPresent({
               }}
             />
           </span>
-          <button
-            type="button"
-            className="st-iconbtn"
-            data-testid="video-present-sound"
-            aria-label="Sound"
-            aria-pressed={!muted}
-            onClick={() => onSound?.(soundOp(media))}
-          >
-            <Glyph name={muted ? 'sound-off' : 'sound'} />
-          </button>
-          <input
-            type="range"
-            className="vp-volume"
-            data-testid="video-present-volume"
-            aria-label="Volume"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(volume * 100)}
-            onChange={(e) => onVolume?.(Number(e.target.value) / 100)}
-          />
+          {/* 07 ve-fullscreen: the bar shows the sound icon alone; the volume slider opens beside it on hover / focus */}
+          <span className="vp-snd">
+            <button
+              type="button"
+              className="st-iconbtn"
+              data-testid="video-present-sound"
+              aria-label="Sound"
+              aria-pressed={!muted}
+              onClick={() => onSound?.(soundOp(media))}
+            >
+              <Glyph name={muted ? 'sound-off' : 'sound'} />
+            </button>
+            <input
+              type="range"
+              className="vp-volume"
+              data-testid="video-present-volume"
+              aria-label="Volume"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(volume * 100)}
+              onChange={(e) => onVolume?.(Number(e.target.value) / 100)}
+            />
+          </span>
           <button
             type="button"
             className="st-iconbtn"
