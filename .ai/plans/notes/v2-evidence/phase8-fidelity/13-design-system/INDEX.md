@@ -79,3 +79,76 @@ Reading the impl side: most artboards are a 1440×900 window plus an 80 px note 
 | `ds-edge-migrate` | dark | Convert system/alligators into its Design system canvas: 42 pages fold into 7 sections | unconverted project: open the pinned row → Convert… | partially — the convert sheet opens; wording and contents differ | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
 | `ds-advanced` | light | Design system › Advanced: used-by, modes, Check the system, tokens CSS/JSON, files tree, Hand off tokens; history; check results | Canvases panel › Advanced; select the system | partially — inspector + panel Advanced exist; the combined card does not | Impl: the inspector for the system shows Modes, Check (button), Advanced Tokens · files, "Which way changes flow", "Version history"; "Hand off tokens" and the CSS/JSON token preview and the files tree card are not reachable in one place. The Canvases panel Advanced shows "Show file names / Show hidden files / Open canvas / Folder" and a raw file tree (more technical than spec). |
 | `ds-advanced` | dark | Design system › Advanced: used-by, modes, Check the system, tokens CSS/JSON, files tree, Hand off tokens; history; check results | Canvases panel › Advanced; select the system | partially — inspector + panel Advanced exist; the combined card does not | As the light row. No dark-only difference noticed (dark pairs not all inspected one by one — see the note above). |
+
+## After (stage D, 6d19daa9a) — IMPL re-shot on the stage-C-round-2 tip
+
+Re-shot 52 of 60 pairs; 8 unreachable. SPEC side: `.design/ui/v2/13 Design System.*` is unchanged since the stage-A shot, so the stage-A spec PNGs are reused. The committed JPEG pairs in this folder are overwritten with the stage-D pairs (same format and size as stage A); the stage-A IMPL frames are in the first section of this file (their pairs are in git history, commit 902d112ac).
+
+- Shot with the stage-A harness (scenario scripts s13 groups a-j, `dsboard.mjs` for the three whole-board frames), same fixtures (a converted scratch copy of the in-repo `maude-v2` + `maude` systems + Homepage / Landing / Pricing / Combine-kampaň canvases), on the stage-C-round-2 tip.
+- Harness fix only: the one-time What’s-new toast now has "See all (3)" as its FIRST button, so the old dismiss click opened the What’s-new panel over the app; the harness now clicks the "Dismiss notification" button. No product code changed.
+- **Gate from stage A is gone:** the two showcase specimens (`ui_kits-desktop-index/-showcase`) that made the converted board answer 403 in stage A were NOT removed from the scratch copy this time and the board renders; the three whole-board frames (`ds-board-*`) therefore now show the real Desktop index / Desktop showcase artboards (stage A: "This specimen is not loaded"). The crop is the top 2900 px of the board as in stage A (the board is now 9636 px tall, so the lower part is cut).
+- Still unreachable (no product path in a local single-project lane, as in stage A and confirmed in `fix-dsedit.md`): the AI suggestion, the team library / linked library (hub) and the older-schema upgrade.
+- `ds-make-*`, `ds-edit-instance`, `ds-edit-master` are re-shot with the same verb sequence as stage A; `fix-dsedit.md` RC6 says the make verbs still open the legacy folder view, so those frames show what the app draws now, not necessarily the board state.
+
+| id | theme | after (stage D) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the plain in-app frame was re-shot too) | spec reused (board unchanged since stage A) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-suggest` | dark | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since stage A) |
+| `ds-edge-suggest` | light | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since stage A) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since stage A) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since stage A) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since stage A) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since stage A) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-schema` | dark | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since stage A) |
+| `ds-multi-schema` | light | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since stage A) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since stage A) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since stage A) |

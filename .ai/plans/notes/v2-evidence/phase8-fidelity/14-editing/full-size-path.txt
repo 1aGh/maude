@@ -1,1 +1,2 @@
-/Users/iagh/git/personal/maude/.claude/worktrees/agent-a55262287b808e562/.scr/pairs/14-editing
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a55262287b808e562/.scr/pairs/14-editing
+stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d25731/.scr/pairs/14-editing
