@@ -30,9 +30,12 @@ const reducedMotion = () =>
 /** A tile's picture: the two real shots the join meets (the outgoing clip's last frame, the incoming one's first), or
  *  the flat colours when a clip has no media (a title, a graphic). Held, never played: hover plays the tile itself. */
 function ShotFrame({ shot, b = false }) {
+  // a clip whose file is missing (or cannot be read) draws the flat colours, never a black video box
+  const [bad, setBad] = useState(false);
+  const show = !!shot.url && !bad;
   return (
-    <i className={b ? 'tj-pic-b' : undefined} data-media={shot.url ? 'true' : undefined}>
-      {shot.url ? (
+    <i className={b ? 'tj-pic-b' : undefined} data-media={show ? 'true' : undefined}>
+      {show ? (
         <video
           src={shot.url}
           muted
@@ -40,6 +43,7 @@ function ShotFrame({ shot, b = false }) {
           preload="metadata"
           aria-hidden="true"
           tabIndex={-1}
+          onError={() => setBad(true)}
         />
       ) : null}
     </i>
