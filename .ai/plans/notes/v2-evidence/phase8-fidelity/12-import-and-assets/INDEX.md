@@ -62,3 +62,22 @@ The C9 builder already re-shot the 19 reachable ids on its own branch (table abo
 | ia-advanced | re-shot (details › Advanced fold) | unchanged by C9 |
 | all other reachable ids | reused: C9's round-2 shots (same tip lineage) | see the C9 table |
 | ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | stubs not built (network, hub peer, providers, nine conditions) |
+
+## FINAL (stage D2, d3881fe41)
+
+Final re-shoot, IMPL side, dark + light, on the release client built from `feat/maude-v2` @ `d3881fe41` (all stage C rounds 1-4 merged; client bundle = `fae2884fa`). Every pair in this folder (`<id>-<theme>.jpg`) was overwritten with this shot, replacing every earlier round's. Spec side: **reused** — the board `.design/ui/v2/12 Import and Assets.tsx` has not changed since the stage-A shot (`git log` on it is empty after 2026-10-21), so the stage-A spec PNGs were reused. Full-size pairs: `full-size-path.txt` (the "final (D2)" line). No product code touched; no verdicts here (the critic judges).
+
+Harness: the committed `_d-harness-g4` scripts repointed to this worktree, plus `_d2-harness-g4/` (new scripts below). Playwright Chromium 1440x860, `window.__TAURI__` stub unless noted, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`.
+
+| id | dark · light | note |
+|---|---|---|
+| ia-assets-panel, ia-assets-keys, ia-assets-browse, ia-assets-find, ia-assets-tidy, ia-asset-details, ia-missing-gone | re-shot | `s12` on the `photos` fixture (18 plasma JPEGs + a Photos canvas + Gone) |
+| ia-advanced | re-shot | `s12e` (dark) and `s12f` (light; the `s12e` light step timed out), `photos2` fixture, details › Advanced |
+| ia-photo-inspector, ia-photo-steps | re-shot | `s12h`: the photo is selected with a **⌘-click** (a plain click now selects the artboard); the Image / Photo tab pair and the Photo section (Look tiles, Remove background, Replace, Only this use changes) draw |
+| ia-gen-ask | re-shot | `s12e`: artboard selected, ⌘K › Generate with AI… |
+| ia-drop-photos | re-shot | `s12e`: SYNTHETIC dragenter + dragover inside the canvas frame at the artboard's centre (no native file drop in a browser) |
+| ia-placed | re-shot | `s12h`: Spread artboard selected, Assets › From this Mac… with 6 files (plain browser, no Tauri stub), shot after 7 s so the frames are filled and the toast shows |
+| ia-figma-sheets, ia-figma-sheets-connect | re-shot | ⌘K › Import from Figma… (`s12`); paste a link, Enter → Connect step (`s12b`) |
+| ia-brand-steps | re-shot | ⌘K › Import a brand, just opened (`s12`) |
+| ia-brand-steps-1, -2, -3 | re-shot | `s12g` in a plain browser (the Tauri stub made the logo pick a native dialog): logo chosen via the file chooser + website typed → Import → Reading… → the site does not answer. `AGENT_BROWSER_SOCKET_DIR=/tmp/abg4` is set because the logo read shells out to agent-browser and a throwaway-HOME session name was too long for the socket path (earlier shots of this id showed "Couldn't read the logo" for that reason — harness, not product) |
+| ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | stubs not built (network, hub peer, providers, nine conditions) |

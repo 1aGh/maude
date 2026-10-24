@@ -78,3 +78,29 @@ Re-shot on the release client of the p8-c4-navpanels tip with the committed stag
 | pn-k-close, pn-k-across | re-shot | close-match note quotes the typo word; "Tools and settings" group |
 | pn-home, pn-home-search | re-shot | Work leads; Projects foot "N more" + Open project… (this seed has 5 projects, so no "N more" shows); no "New project…" row |
 | pn-switch-ai, pn-relaunch, pn-deeplink | re-shot | unchanged by this round (keys sheet, toast and deep link are open) |
+
+## FINAL (stage D2, d3881fe41)
+
+Final re-shoot, IMPL side, dark + light, on the release client built from `feat/maude-v2` @ `d3881fe41` (all stage C rounds 1-4 merged; client bundle = `fae2884fa`). Every pair in this folder (`<id>-<theme>.jpg`) was overwritten with this shot, replacing every earlier round's. Spec side: **reused** — the board `.design/ui/v2/11 Projects and Navigation.tsx` has not changed since the stage-A shot (`git log` on it is empty after 2026-10-21), so the stage-A spec PNGs were reused. Full-size pairs: `full-size-path.txt` (the "final (D2)" line). No product code touched; no verdicts here (the critic judges).
+
+Harness: the committed `_d-harness-g4` scripts repointed to this worktree, plus `_d2-harness-g4/` (new scripts below). Playwright Chromium 1440x860, `window.__TAURI__` stub unless noted, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`.
+
+| id | dark · light | note |
+|---|---|---|
+| pn-tab-b, pn-tab-b20, pn-switch-ai-strip, pn-relaunch-strip | re-shot | the real `apps/desktop/src/strip.html` fed a stubbed `tabs_state`; native window chrome absent by construction |
+| pn-switch-ai | re-shot | ⌘K › Keyboard shortcuts (`s11d`) |
+| pn-relaunch | re-shot | stubbed `take_tabs_restored {count: 20}`; `s11r2` waits for the "20 tabs reopened" toast to be visible before the shot (a fixed sleep missed it under load) |
+| pn-home, pn-home-search | re-shot | project-less `--home` server, 5-project seeded machine index (`home11`) |
+| pn-ds, pn-ds-search | re-shot | scratch copy of this tree's `.design` (system + ui, refreshed); `s11ds` waits for "Loading canvases…" to go |
+| pn-organise, pn-move, pn-trash, pn-jump | re-shot | real panel interactions (`s11`); pn-jump retaken in `s11r` (first frame caught "server isn't responding" under load) |
+| pn-k-across | re-shot | `s11k`: fresh boot on Uniformy-2027, ⌘K "mobil" with stubbed `index_search` (the `s11` frame came after the trash step and carried its toast) |
+| pn-k-close | re-shot | `s11e`: "unifromy 2027" |
+| pn-history, pn-compare | re-shot | `s11b`: file edited 3x, second version viewed, then Compare; waits lengthened to 6 s so the viewed version has drawn |
+| pn-deeplink | re-shot | stubbed `take_pending_navigate` |
+| pn-tab-a, pn-tab-a20 | unreachable | variant A not picked (decision `v2-3.7-own-tab-bar`), superseded boards |
+| pn-ab | unreachable | decision board, no UI |
+| pn-tab-menu, pn-windows | unreachable | native NSMenu / multi-window, not drawable in a browser |
+| pn-accounts | unreachable | the account card by the faces is not built |
+| pn-cant-open | unreachable | needs a moved project root / removed access in the Rust shell + hub |
+
+Extra unpaired frames in the worktree `.scr/impl`: `strip-b20-overview-*`, `pn-home-top-*`, `pn-home-search-typed-*`, `pn-k-close-2-*`.
