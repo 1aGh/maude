@@ -261,3 +261,6 @@ Re-shot 50 of 52 pairs; 2 unreachable. Supersedes the per-round "after" sections
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 5, c5-inspector) - IMPL re-shot on the p8-c5-inspector tip, both themes
+Re-shot: ed-ab-select, ed-ab-resize (the harness now drags the edge onto the Laptop 1280 preset, so the shot shows the lit ruler stop and "Laptop - 1280 x 1052"), ed-ab-menu, ed-obj-enter / -multi / -order, ed-lay-auto / -reorder, ed-text-edit, ed-inspector, ed-comp-pick, ed-pen. Changed in the product: the web page's artboard card is the board's (Preset, Size W-H, Height, Clip content, Fill > Background, Layout > Content, Export, Other widths last, no "Uses" line); the Advanced tokens group reads "Tokens it uses". Still open: the inspector does not follow a live resize, the digital card, Padding on one row, Instance Variant flyout (see `fix-c5-inspector.md`).
