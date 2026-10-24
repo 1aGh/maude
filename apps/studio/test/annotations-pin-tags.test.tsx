@@ -114,6 +114,14 @@ describe('a sticky pinned to a moment of a video', () => {
 });
 
 describe('a note over a print artboard', () => {
+  test('the tag is a dark pill inside the note, not a white one outside above it (15 an-print)', async () => {
+    const { TIME_PIN_CSS } = await import('../annotations/ui/time-pins.tsx');
+    const at = TIME_PIN_CSS.indexOf('.dc-annot-pintag[data-pin-tag="print"] {');
+    const rule = TIME_PIN_CSS.slice(at, TIME_PIN_CSS.indexOf('}', at));
+    expect(rule).toContain('top: 6px');
+    expect(rule).toContain('bottom: auto');
+    expect(rule).toContain('--maude-chrome-fg-1');
+  });
   test('says "Not printed"; over a screen, or nothing, it says nothing', async () => {
     artboard('flyer', 'print');
     artboard('home', 'digital');
