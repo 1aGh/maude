@@ -236,7 +236,7 @@ export function LayerRow({
               onToggle(key);
             }}
           >
-            {isCollapsed ? '▸' : '▾'}
+            <StIcon name={isCollapsed ? 'submenu' : 'chevron'} size={12} />
           </button>
         ) : (
           <span className="st-layer-caret" aria-hidden="true" />

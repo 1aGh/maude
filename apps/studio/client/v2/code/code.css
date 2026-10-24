@@ -277,22 +277,25 @@
     max-height: none;
     gap: var(--space-2);
   }
+  /* the kit ARow (06 .ad-row): key fg-1 sm and flexible, value fg-0 mono xs on the right, Copy an icon button */
   .v2-err-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: var(--space-2);
     min-width: 0;
+    min-height: 28px;
   }
   .v2-err-k {
-    flex: none;
-    width: 48px;
-    font-size: var(--type-xs);
-    color: var(--fg-2);
-  }
-  .v2-err-v {
     flex: 1;
     min-width: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .v2-err-v {
+    max-width: 64%;
+    min-width: 0;
     overflow-wrap: anywhere;
+    text-align: right;
     font-family: var(--font-mono);
     font-size: var(--type-xs);
     line-height: var(--lh-sm, 1.5);

@@ -53,7 +53,7 @@ export const GIT_WORDS = {
   cloudVersions: 'Cloud versions',
   cloudSaving: 'Cloud is saving — changes sync automatically. Disconnect to commit locally.',
   readOnly: 'Saving and publishing are in your terminal here — this view is read-only.',
-  notVersioned: 'Not versioned yet. Once this is a Maude project, your changes show up here.',
+  notVersioned: 'Not versioned yet. Once it has versions, your changes show up here.',
   historyUnreachable: 'Couldn’t reach the cloud history.',
   historyUnreachableSub: 'Your work is still being saved — this is only the list of versions.',
   retry: 'Retry',
