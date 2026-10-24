@@ -299,7 +299,11 @@ describe('a purely digital comp keeps its rows, but its beats share one Video la
     ]);
   test('three beats that never overlap are ONE lane: the 2nd and 3rd rows are drawn onto the first', () => {
     mount({
-      sequences: [scene('beat-one', 0, 150), scene('beat-two', 150, 150), scene('beat-three', 300, 150)],
+      sequences: [
+        scene('beat-one', 0, 150),
+        scene('beat-two', 150, 150),
+        scene('beat-three', 300, 150),
+      ],
     });
     expect(joins()).toEqual([
       ['timeline-row-0', null],
@@ -384,7 +388,11 @@ describe('a purely digital comp keeps its rows, but its beats share one Video la
   });
   test('a beat that opens into layers keeps a lane to itself (the layer view stays)', () => {
     mount({
-      sequences: [scene('beat-one', 0, 150), scene('beat-two', 150, 150, 3), scene('beat-three', 300, 150)],
+      sequences: [
+        scene('beat-one', 0, 150),
+        scene('beat-two', 150, 150, 3),
+        scene('beat-three', 300, 150),
+      ],
     });
     const byId = Object.fromEntries(joins());
     expect(byId['timeline-row-1']).toBeNull(); // the layered beat is its own lane

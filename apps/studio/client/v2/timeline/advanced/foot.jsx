@@ -84,7 +84,7 @@ export function AdvancedFoot({
       className="tla"
       ref={footRef}
       data-testid="timeline-advanced"
-      data-open={open ? "true" : undefined}
+      data-open={open ? 'true' : undefined}
     >
       <AdvancedFold
         panel="timeline"

@@ -38,10 +38,7 @@ describe('artboardUnderIsland — does the island cover the video it points at?'
 });
 
 describe('TimelineHost asks for the camera, once the island is at rest', () => {
-  const src = readFileSync(
-    join(import.meta.dir, '../client/v2/timeline/TimelineHost.jsx'),
-    'utf8'
-  );
+  const src = readFileSync(join(import.meta.dir, '../client/v2/timeline/TimelineHost.jsx'), 'utf8');
   test('it posts reveal-artboard for the followed video when the island covers it', () => {
     expect(src).toContain("dgn: 'reveal-artboard'");
     expect(src).toContain('artboardUnderIsland(');

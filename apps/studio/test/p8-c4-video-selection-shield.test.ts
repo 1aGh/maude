@@ -8,7 +8,17 @@ import { join } from 'node:path';
 import { timelineSelection } from '../client/v2/timeline/selection.js';
 
 const snap = (stableId: string, deselect = () => {}) =>
-  ({ kind: 'title', canvas: 'c.tsx', artboardId: 'a', fps: 30, label: 'Title', stableId, seq: {}, transitionAfter: null, deselect }) as never;
+  ({
+    kind: 'title',
+    canvas: 'c.tsx',
+    artboardId: 'a',
+    fps: 30,
+    label: 'Title',
+    stableId,
+    seq: {},
+    transitionAfter: null,
+    deselect,
+  }) as never;
 
 describe('timelineSelection.shield', () => {
   test('a canvas select inside the shield leaves the clip selected', () => {

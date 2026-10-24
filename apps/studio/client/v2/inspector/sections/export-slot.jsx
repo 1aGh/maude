@@ -43,7 +43,11 @@ export function ExportSlotBody({ el, selection, kind }) {
 const first = (selection) => (Array.isArray(selection) ? selection[0] : selection);
 export const isVideoArtboard = (selection) => {
   const el = first(selection);
-  return !!el?.attrs && el.attrs['data-dc-kind'] === 'video' && /^\[data-dc-screen=/.test(el.selector || '');
+  return (
+    !!el?.attrs &&
+    el.attrs['data-dc-kind'] === 'video' &&
+    /^\[data-dc-screen=/.test(el.selector || '')
+  );
 };
 
 export const EXPORT_SLOT_ENTRY = Object.freeze({

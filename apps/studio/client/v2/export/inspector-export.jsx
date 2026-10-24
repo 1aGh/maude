@@ -22,7 +22,11 @@ import { Select } from '../../inspector-controls.jsx';
 import { shellToast } from '../../shell/util.js';
 import { advancedAccess } from '../inspector/advanced.jsx';
 import { isArtboardSelection } from '../inspector/kinds/index.js';
-import { exportPresets, isVideoArtboard, offExportSlot } from '../inspector/sections/export-slot.jsx';
+import {
+  exportPresets,
+  isVideoArtboard,
+  offExportSlot,
+} from '../inspector/sections/export-slot.jsx';
 import { Quiet, Row } from '../inspector/sections/row.jsx';
 import { registerSlot } from '../inspector/slots.js';
 import { copyAsPng } from './copy-png.js';

@@ -186,7 +186,9 @@ export default function TimelineHost({ children }) {
   useEffect(() => {
     if (!mounted || !targetId || typeof document === 'undefined') return undefined;
     const t = setTimeout(() => {
-      const isl0 = document.querySelector('[data-testid="timeline-island"]')?.getBoundingClientRect();
+      const isl0 = document
+        .querySelector('[data-testid="timeline-island"]')
+        ?.getBoundingClientRect();
       // Advanced's floating cards sit above the island: they are part of what must stay off the video
       const cards = document.querySelector('.tla-body')?.getBoundingClientRect();
       // (a DOMRect's fields are prototype getters: spreading one drops them, so the box is spelled out)
@@ -198,7 +200,9 @@ export default function TimelineHost({ children }) {
             top: cards ? Math.min(isl0.top, cards.top) : isl0.top,
           }
         : null;
-      const fr = live.current.iframesRef?.current?.get(live.current.activePath)?.getBoundingClientRect?.();
+      const fr = live.current.iframesRef?.current
+        ?.get(live.current.activePath)
+        ?.getBoundingClientRect?.();
       const r = rectNow.current;
       if (!isl || !fr || !r) return;
       const art = {
