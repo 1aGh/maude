@@ -100,6 +100,7 @@ import { forwardUndoKey } from './editing/undo-mode.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import {
   crossedDragThreshold,
+  dropPageRoot,
   type HoverTarget,
   resolveHoverTarget,
   useInputRouter,
@@ -3476,7 +3477,8 @@ function CanvasRouter({
         // progressively deeper; the chain's last rung is the clicked element
         // itself); default to the outermost rung when nothing in the chain is
         // currently selected.
-        const chain = stampedChainToBody(stamped);
+        // V2-8.5 round 3 — the page root is the artboard, so the ladder starts one rung below it.
+        const chain = dropPageRoot(stampedChainToBody(stamped));
         if (chain.length > 0) {
           const curIdx = currentId
             ? chain.findIndex((n) => n.getAttribute('data-cd-id') === currentId)

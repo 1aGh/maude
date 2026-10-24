@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackRecordableWrite } from './css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
-import { Kbd, StIcon } from '../shell/icons.jsx';
+import { StIcon } from '../shell/icons.jsx';
 import { shellToast } from '../shell/util.js';
 import { PhotoKnobs } from '../photo-knobs.jsx';
 import { PhotoSection } from '../v2/photo/photo-section.jsx';
@@ -706,10 +706,7 @@ export function InspectorPanel({
           <div className="st-rp-empty">
             {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +
                 kbd would stack as stretched flex items. */}
-            <p>
-              Press <Kbd>V</Kbd>, then click an element to select it — or <Kbd>⌘</Kbd>-click
-              straight from Preview.
-            </p>
+            <p>Click an object on the canvas to see its properties here.</p>
           </div>
         ) : effTab === 'layers' ? (
           byArtboard(

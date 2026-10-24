@@ -566,6 +566,8 @@ describe('inside the Inspector island', () => {
   test('nothing selected keeps the empty line', async () => {
     const host = await panel({ selected: null });
     gone(q(host, 'inspector-frame'));
-    expect(host.textContent).toContain('click an element to select it');
+    // V2-8.5 c3 (14 R2): v2 words — no "Press V", no "⌘-click straight from Preview"
+    expect(host.textContent).toContain('Click an object on the canvas to see its properties here');
+    expect(host.textContent).not.toContain('Press');
   });
 });

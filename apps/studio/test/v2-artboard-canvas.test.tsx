@@ -75,6 +75,13 @@ function artboard(id: string, label: string, g: Geo, children = ''): HTMLElement
 // ── the helpers a drag is made of ─────────────────────────────────────────────────────────────
 
 describe('measuring and the live preview', () => {
+  test('the name chip reads the box the drag pill reads, not what the page managed to render', async () => {
+    const { chipSize } = await import('../editing/artboard-handles.tsx');
+    expect(chipSize({ w: 1052, h: 1052 }, '1058 × 1052')).toBe('1052 × 1052');
+    expect(chipSize(null, '1440 × 1052')).toBe('1440 × 1052');
+    expect(chipSize(undefined, '1440 × 1052')).toBe('1440 × 1052');
+  });
+
   test('measureArtboard: world box from the frame, zoom from the surface, the surface on screen', async () => {
     const { measureArtboard } = await import('../editing/artboard-handles.tsx');
     artboard('desktop', 'Desktop', {

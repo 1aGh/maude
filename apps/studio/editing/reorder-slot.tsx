@@ -24,6 +24,7 @@ import { showCanvasToast } from '../canvas-notifications.tsx';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import type { CommandRecord } from '../undo-stack.ts';
 import type { RectLike } from './arrange.ts';
+import { crumbLabel } from './crumbs.ts';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { refOfElement } from './object-actions.ts';
 import { placeFreely } from './place-freely.tsx';
@@ -47,13 +48,21 @@ export function slotLine(i: SlotLineInput): string {
   return `${i.name} · moves to ${i.index} of ${i.total}`;
 }
 
-/** What to call the lifted object: its name in the code, its label, its first words, its tag. */
+/**
+ * What to call the lifted object — the breadcrumb's rule (`crumbLabel`): its name in the code, its label, the first
+ * words of its OWN text, else the kind word. Never the glued text of everything inside it ("ct designApps and …")
+ * and never the tag (14 R4).
+ */
 export function nameOf(el: Element): string {
-  const named = el.getAttribute('data-dc-element') || el.getAttribute('aria-label');
-  if (named) return named;
-  const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
-  if (text) return text.length > 24 ? `${text.slice(0, 23)}…` : text;
-  return el.tagName.toLowerCase();
+  let own = '';
+  for (const n of Array.from(el.childNodes)) if (n.nodeType === 3) own += n.textContent ?? '';
+  return crumbLabel({
+    id: el.getAttribute('data-cd-id'),
+    name: el.getAttribute('data-dc-element'),
+    aria: el.getAttribute('aria-label'),
+    text: own.replace(/\s+/g, ' ').trim(),
+    tag: el.tagName.toLowerCase(),
+  });
 }
 
 /**

@@ -45,7 +45,8 @@ export async function run(h) {
     await sleep(1000);
     await h.step(`${D}/ed-ab-arrange`, 'Move one — smart guides and equal gaps', 'drag the 4th post into the row', async () => {
       const b = await box('p4');
-      const x = b.x + b.width / 2, y = b.y + b.height / 2;
+      const hit = await k.pageHit('p4');
+      const x = hit ? hit.x : b.x + b.width / 2, y = hit ? hit.y : b.y + b.height / 2;
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.mouse.move(x + 30, y - 10, { steps: 5 });

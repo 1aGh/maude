@@ -25,6 +25,7 @@ for (const dir of dirs) {
     const cropF = join(ROOT, 'impl', dir, `${base}.crop.png`);
     if (existsSync(cropF)) impl = cropF;
     const missing = !existsSync(impl);
+    if (missing && process.env.ONLY_EXISTING) continue; // round 3: keep the committed pair of an id this run did not re-shoot
     const [sw, sh0] = dims(spec);
     if (missing) {
       impl = join(ROOT, 'pairs', dir, `_nr-${base}.png`);

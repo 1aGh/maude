@@ -9,3 +9,7 @@ Order used: release-build the client, `bun mk-dsconv.mjs` (the converted-system 
 `mkstage-d.mjs` (the INDEX "After (stage D)" section + `full-size-path.txt`). `missing.sh` / `cmp.sh` list absent frames and size changes against stage A.
 
 Only change from stage A: `run.mjs` dismisses the What's-new toast through its "Dismiss notification" button (the first button became "See all (3)" and opened the panel over the app).
+
+## Round 3 (c3-inspect, V2-8.5) — 14 Editing re-shoot
+Changed here: `g5.mjs` (`k.pageHit(id)`: a point on the artboard's PAGE itself; `k.click` now really holds its `modifiers`), `s14a.mjs` (ed-ab-arrange presses the page, which is an artboard press), `s14b.mjs` / `s14c.mjs` (the page is no longer a rung of the double-click ladder: each `k.deep(sel, n)` is one lower for a nested object, `see-work` = 4; several objects are ⌘⇧-clicked, a bare ⇧-click adds the TOP object), `mkpairs.mjs` (`ONLY_EXISTING=1` keeps the committed pair of an id the run did not shoot), `probe-c3.mjs` (prints the stamped chain depth of each drill target).
+Use: copy into `.scr/`, set `REPO` in `lib.mjs`, `ln -s ../fx5-canvases .scr/fx5/canvases`, copy `.design` to `.scr/spec-root/.design`, `bun .scr/spec.mjs 14`, `bash .scr/chain14.sh`, `ONLY_EXISTING=1 bun .scr/mkpairs.mjs 14-editing`.

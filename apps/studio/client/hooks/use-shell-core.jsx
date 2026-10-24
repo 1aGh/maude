@@ -34,6 +34,7 @@ import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js
 import { useWhatsNew } from '../whats-new.jsx';
 import {
   createCanvasesFold,
+  isFollowable,
   shouldCloseOnDeselect,
   shouldOpenOnSelect,
 } from '../v2/shell/inspector-follow.js';
@@ -945,7 +946,7 @@ export function useShellCore({}) {
       const open = shouldOpenOnSelect({
         pref: autoOpenInspectorRef.current,
         viewer: !!viewerMode || reads,
-        hasId: !!sel?.id,
+        hasId: isFollowable(sel), // an element with an id, or a whole artboard (V2-8.5 c3)
         anyMainOpen: anyRightPanelOpenRef.current,
       });
       if (!open) return;

@@ -14,15 +14,39 @@ export function InspectorCrumbs({ crumbs, onPick }) {
   if (!Array.isArray(crumbs) || crumbs.length < 2) return null;
   const last = crumbs.length - 1;
   const stepsOut = crumbs[last]?.ref != null;
+  // 14 R4: a deep path (the fixture's pages nest four frames) is folded, not crushed to "Fr…": the artboard, "…",
+  // the object — each whole, like the board's "Desktop › Nav › Book a call" (three rungs + esc fit the 264 px card).
+  // The folded names are the "…" rung's title; esc steps out one level at a time.
+  const folded = crumbs.length > 3;
+  const rungs = crumbs
+    .map((c, i) => ({ c, i }))
+    .filter(({ i }) => !folded || i === 0 || i === last);
   return (
     <nav className="insp-crumbs" data-testid="inspector-crumbs" aria-label="Where this is">
-      {crumbs.map((c, i) => (
+      {rungs.map(({ c, i }) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: a path can repeat a name; position is its identity
         <span key={`${i}:${c.label}`} className="insp-crumb-wrap">
           {i ? (
             <span className="insp-crumb-ch" aria-hidden="true">
               <StIcon name="chevron-right" size={10} />
             </span>
+          ) : null}
+          {folded && i === last ? (
+            <>
+              <span
+                className="insp-crumb"
+                data-testid="inspector-crumb-gap"
+                title={crumbs
+                  .slice(1, last)
+                  .map((x) => x.label)
+                  .join(' › ')}
+              >
+                …
+              </span>
+              <span className="insp-crumb-ch" aria-hidden="true">
+                <StIcon name="chevron-right" size={10} />
+              </span>
+            </>
           ) : null}
           {i < last && c.ref !== undefined && onPick ? (
             <button

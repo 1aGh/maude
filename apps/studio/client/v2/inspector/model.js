@@ -6,7 +6,7 @@
 //   validateElementId    the id rule of V2-1.4 §5.5, said in plain words
 
 import { tagWord } from '../../../editing/crumbs.ts';
-import { isArtboardSelection, singleOf } from './kinds/index.js';
+import { isArtboardSelection, kindChipOf, singleOf } from './kinds/index.js';
 
 /** "div", "h1.dc-text-editing", "button.cta" — a tag with classes, i.e. the CSS selector the tree fell back to. */
 const DOTTED_SELECTOR = /^[a-z][a-z0-9-]*[.#][\w.#-]+$/;
@@ -59,7 +59,12 @@ export function titleOf(selection, layersTree) {
   const label = collapse(hit?.node?.label);
   if (label && !isSelectorLabel(label, hit?.node?.tag)) return label;
   const text = collapse(el.text);
-  if (text) return clip(text, 48);
+  // V2-8.5 c3 (14 R4) — a FRAME's text is everything inside it, glued ("Brand systems Logos, ty…"): it is named by
+  // its own words, the same rung the breadcrumb ends on, else the kind word
+  if (text && kindChipOf(el) === 'Frame' && Array.isArray(el.crumbs)) {
+    const own = collapse(el.crumbs[el.crumbs.length - 1]?.label);
+    if (own) return clip(own, 48);
+  } else if (text) return clip(text, 48);
   // V2-8.5 C2 (14 R4) — the kind word, never "div" / "h1.dc-text-editing"
   return tagWord(el.tag || 'div');
 }

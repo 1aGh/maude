@@ -21366,26 +21366,10 @@
     "v2": "new"
   },
   {
-    "hook": "insp-layout-advanced",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Inspector › Layout: the \"Advanced\" subhead above Convert.",
-    "producer": {
-      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
-      "symbol": "ConvertBody"
-    },
-    "region": "inspector",
-    "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-layout-frame.test.tsx"
-    ],
-    "v2": "new"
-  },
-  {
     "hook": "insp-layout-convert",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Inspector › Layout › Advanced: Convert children to absolute position (runs `layout.convert-to-absolute`).",
+    "meaning": "Inspector › Advanced › CSS: Convert layout to absolute (runs `layout.convert-to-absolute`); the folded Advanced at the foot, never inline under Layout.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
       "symbol": "ConvertBody"
@@ -21401,7 +21385,7 @@
     "hook": "insp-layout-convert-note",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Inspector › Layout › Advanced: what Convert does, and that ⌘Z brings the layout back.",
+    "meaning": "Inspector › Advanced › CSS: what Convert does, and that ⌘Z brings the layout back.",
     "producer": {
       "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
       "symbol": "ConvertBody"

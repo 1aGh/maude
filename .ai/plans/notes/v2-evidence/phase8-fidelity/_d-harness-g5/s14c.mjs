@@ -30,7 +30,7 @@ export async function run(h) {
     });
     await h.esc(3);
     await h.step(`${D}/ed-edge-ask`, '⌘/ on a selection — AI works in place', 'select the Services row, press ⌘/', async () => {
-      await k.deep(hp('[data-cd-id="services"]'), 3);
+      await k.deep(hp('[data-cd-id="services"]'), 2);
       await page.keyboard.press('Meta+/'); await sleep(1200);
     });
     await h.esc(3);

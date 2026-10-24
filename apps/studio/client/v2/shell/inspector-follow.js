@@ -8,6 +8,18 @@
 //   · close on deselect — only an Inspector the SELECTION opened. One opened on purpose (⇧⌘I, View ▸ Inspector)
 //     stays until you close it; closing it by hand ends the claim.
 
+const ARTBOARD_SELECTOR = /^\[data-dc-screen="[^"]+"\]$/;
+
+/**
+ * Is this selection something the Inspector can speak for? An element with a stable id — or a whole artboard
+ * (no element id; its selector names the screen): 01 cf-select-tweak / 14 ed-ab-select, "the inspector comes
+ * with the selection", and the artboard's own card is Preset · Size · Fill · Corners · Clip · Export.
+ * @param {{ id?: string, selector?: string } | null | undefined} sel
+ */
+export function isFollowable(sel) {
+  return !!sel?.id || ARTBOARD_SELECTOR.test(sel?.selector || '');
+}
+
 /** @param {{pref: boolean, viewer: boolean, hasId: boolean, anyMainOpen: boolean}} s */
 export function shouldOpenOnSelect({ pref, viewer, hasId, anyMainOpen }) {
   return !!pref && !viewer && !!hasId && !anyMainOpen;

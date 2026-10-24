@@ -193,6 +193,26 @@ describe('the model', () => {
     expect(titleOf({ id: 'x', index: 0, tag: 'h1' }, selectorTree)).toBe('Text');
     expect(crumbsOf(selectorTree, { id: 'x', index: 0 })).toEqual(['desktop', 'Text']);
     expect(titleOf([{ id: 'a' }, { id: 'b' }, { id: 'c' }], null)).toBe('3 objects');
+    // V2-8.5 c3 (14 R4) — a frame is named by its OWN words (the crumb's rule), never by everything inside it
+    const crumbs = [
+      { label: 'Desktop', ref: null },
+      { label: 'Brand systems', ref: { element: 'x' } },
+    ];
+    expect(
+      titleOf({ id: 'x', tag: 'div', text: 'Brand systems Logos, type and tokens', crumbs }, null)
+    ).toBe('Brand systems');
+    // a text object still reads its whole line
+    expect(
+      titleOf(
+        {
+          id: 'y',
+          tag: 'h1',
+          text: 'Calm software, made in Brno.',
+          crumbs: [{ label: 'Calm software, made', ref: {} }],
+        },
+        null
+      )
+    ).toBe('Calm software, made in Brno.');
     expect(titleOf({ selector: '[data-dc-screen="desktop"]', artboardId: 'desktop' }, null)).toBe(
       'desktop'
     );
