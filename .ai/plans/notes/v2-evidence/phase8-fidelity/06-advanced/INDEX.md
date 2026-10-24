@@ -130,3 +130,41 @@ Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes
 ## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
 
 Re-shot, IMPL side only, light + dark (SPEC reused): ad-history, ad-pinned. What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel and Version history hug their rows (no twisty at rest), B on the Now row replaces its dot, kind chips only for a mixed project. The other rows of this canvas were not re-shot this round. See `01-create-flow/fix-c3-shell.md`.
+
+
+## FINAL (stage D2, d3881fe41)
+
+Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all merged), both themes, **every reachable id**, so the critic re-check compares the board with what the app draws now; this section supersedes the per-round "after" sections above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/06 *` after the stage-A shot). No match / mismatch is judged here.
+
+- Harness: stage-D scripts; Canvases / Layers > Advanced first opens the left panel from its corner icon (it folds when an artboard is selected). **ad-share** keeps the `window.__TAURI__` stub removed just before the Share click (in the desktop shell a local project's Share opens "Move to the cloud?" and hides Share > Advanced). **ad-diag / ad-syncd** show the one Diagnostics sheet (no tabs; Logs, Server, AI setup at once; a local project has no Sync card), taken after the Logs frame.
+- **ad-ds is newly reached**: the converted-system project fixture (the g5 `ds-converted`), the pinned Design system row opened, nothing selected, the right panel opened from its corner icon: the system panel (Modes, Check the system, Advanced with the tokens CSS / JSON and the files, Hand off tokens). Cropped to the panel (x 1050 / w 390 / h 760). The board draws the same panel beside a "how you get here" step; the app has no such step.
+- **ad-timeline** is the VideoEdit canvas, Reel selected, timeline expanded, its Advanced row open (S7.18); reached since stage D.
+- Not reachable, unchanged: ad-map, ad-why, ad-trace (explanation boards), ad-menus (native menu bar), ad-edge-sync / ad-edge-hub (hub), ad-edge-where, ad-edge-remember (multi-context stories).
+
+| id | dark | light |
+|---|---|---|
+| `ad-map` | unreachable (A reference map of where every old control went; documentation, not an app surface.) | unreachable (same) |
+| `ad-why` | unreachable (An explanation board (why there is no switch).) | unreachable (same) |
+| `ad-trace` | unreachable (An explanation board (one thing traced end to end).) | unreachable (same) |
+| `ad-inspector` | re-shot | re-shot |
+| `ad-left` | re-shot | re-shot |
+| `ad-ai` | re-shot | re-shot |
+| `ad-share` | re-shot | re-shot |
+| `ad-timeline` | re-shot | re-shot |
+| `ad-export` | re-shot | re-shot |
+| `ad-history` | re-shot | re-shot |
+| `ad-ds` | re-shot | re-shot |
+| `ad-menus` | unreachable (File / View / Help menu-bar menus are the desktop shell menu bar (native menus); not in the browser lane.) | unreachable (same) |
+| `ad-diag` | re-shot | re-shot |
+| `ad-logs` | re-shot | re-shot |
+| `ad-syncd` | re-shot | re-shot |
+| `ad-settings` | re-shot | re-shot |
+| `ad-pinned` | re-shot | re-shot |
+| `ad-search` | re-shot | re-shot |
+| `ad-open-all` | re-shot | re-shot |
+| `ad-code` | re-shot | re-shot |
+| `ad-edge-sync` | unreachable (A sync problem needs a cloud project in trouble (hub).) | unreachable (same) |
+| `ad-edge-syntax` | re-shot | re-shot |
+| `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (same) |
+| `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (same) |
+| `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (same) |

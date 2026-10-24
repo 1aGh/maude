@@ -108,3 +108,42 @@ Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes
 ## Round 3 re-shoot (p8-c3-modes)
 
 IMPL re-shot after the round-3 modes / menus fixes; the committed <id>-<theme>.jpg pairs are overwritten for: md-model, md-annotate, md-preview, md-preview-follow, md-preview-combine, md-inspect, md-comment, md-draw, md-present-menu, md-edge-ai, md-esc. No match is judged here. md-edge-ai is shot in the board's own state (the prompt asked in Edit, then Preview folds the panels); md-draw-dark is the stage-D frame of the same code (its click timed out on the second run).
+
+
+## FINAL (stage D2, d3881fe41)
+
+Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all merged), both themes, **every reachable id**, so the critic re-check compares the board with what the app draws now; this section supersedes the per-round "after" sections above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/04 *` after the stage-A shot). No match / mismatch is judged here.
+
+- Harness: stage-D scripts with the product's new camera / panel behaviour handled: selecting an artboard folds the left panel (md-edit-image first opens it from its corner icon); in Preview the camera is Desktop 81 % or Tablet 65 % depending on the run, so Preview clicks use the bounding box of whichever of the Desktop / Tablet element is on screen (md-inspect = ⌘-click with the real mouse on "Book a call"; md-preview-follow = a click event on "See pricing →", the link cannot be hit by the mouse at that camera); the toolbar slots are clicked by their position.
+- **md-edge-ai** is the board's state (`s04c`: the prompt `Make it greener, keep the logo white` asked in Edit, then Preview folds the panels, shot mid change; the frame +3.5 s later is `extra-impl-md-edge-ai-after`).
+- **md-present-video is newly reached**: the base fixture's VideoEdit canvas, the Reel artboard selected, ⌥⌘↵, the play button pressed, shot with Google Chrome (`SHOT_CHANNEL=chrome`: the bundled Chromium cannot decode H.264). The fixture clip is 16:9 and a single artboard, not the board's 9:16 Reels in a 14-artboard deck, so Present shows no deck counter; the pair compares the video-in-Present surface, not the exact scene.
+- Not reachable, unchanged: md-motion (a storyboard), md-presenter / md-edge-offline (second display / desktop shell), md-present-link / md-comment-only / md-edge-viewer (hub or second person).
+
+| id | dark | light |
+|---|---|---|
+| `md-model` | re-shot | re-shot |
+| `md-keys` | re-shot | re-shot |
+| `md-edit` | re-shot | re-shot |
+| `md-edit-image` | re-shot | re-shot |
+| `md-edit-component` | re-shot | re-shot |
+| `md-motion` | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) | unreachable (same) |
+| `md-annotate` | re-shot | re-shot |
+| `md-preview` | re-shot | re-shot |
+| `md-preview-follow` | re-shot | re-shot |
+| `md-preview-combine` | re-shot | re-shot |
+| `md-present-menu` | re-shot | re-shot |
+| `md-present-lift` | re-shot | re-shot |
+| `md-present-full` | re-shot | re-shot |
+| `md-present-video` | re-shot | re-shot |
+| `md-present-canvas` | re-shot | re-shot |
+| `md-presenter` | unreachable (Presenter view needs a second display (desktop shell).) | unreachable (same) |
+| `md-present-link` | unreachable (A cloud viewer link needs a hub project.) | unreachable (same) |
+| `md-comment` | re-shot | re-shot |
+| `md-comment-only` | unreachable (A Can comment role needs a hub / second person.) | unreachable (same) |
+| `md-draw` | re-shot | re-shot |
+| `md-inspect` | re-shot | re-shot |
+| `md-edge-ai` | re-shot | re-shot |
+| `md-edge-viewer` | unreachable (A view-only link in a browser needs a cloud project.) | unreachable (same) |
+| `md-edge-mixed` | re-shot | re-shot |
+| `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (same) |
+| `md-esc` | re-shot | re-shot |

@@ -118,3 +118,47 @@ Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes
 
 ## Round 3 (p8-c3-ai)
 IMPL re-shot (light + dark) after the AI-on-canvas / chat fixes, SPEC reused: every id above except ai-queue-rule, ai-other-tab, ai-tereza, ai-needs-tab, ai-needs-away (unreachable). Judged by the lead critic; what this round did and left open: `fix-c3-ai.md`.
+
+
+## FINAL (stage D2, d3881fe41)
+
+Re-shoot of the IMPL side on the merged tip d3881fe41 (stage C rounds 1-4 all merged), both themes, **every reachable id**, so the critic re-check compares the board with what the app draws now; this section supersedes the per-round "after" sections above. The committed `<id>-<theme>.jpg` pairs (SPEC left | IMPL right) are overwritten in place. SPEC side **reused** from stage A for every id (`git log` shows no change to `.design/ui/v2/03 *` after the stage-A shot). No match / mismatch is judged here.
+
+- Harness: the stage-D scripts plus the round-3 additions. The fake ACP agent writes the canvas through the design plugin's hook code (so rings / "Made by AI" attribute like a real run) and now takes its behaviour from a one-shot `next-mode` file, so the chat shows the board's own words as the prompt (`Make it greener, keep the logo white`, `Translate the poster to English, keep the layout`, `Headline in one word`, `Swap the 2025 team photos for the new ones in Assets › Foto 2026`, `Cut the hype reel to 15 s from the training footage`, the long-chat questions) and the board's own tool step lines ("Background done · badge next"). No trigger words ("hang", "permission") show any more.
+- **Finish moment (ai-hero, ai-done, ai-copy, ai-history)** is captured inside the 1.8 s `data-fresh` window: the shot waits for `.dc-ai-ring[data-fresh]` in the canvas frame and fires at once (ai-done then ai-hero are two frames of the same window; ai-history presses ⌥⌘H inside the window of a second finish; ai-copy waits for the copy run's finish).
+- **ai-question** is the board's state (a question answered in the chat, canvas stays put: `Is the A4 poster readable from three metres?`); the elicitation card ("Which green?") that stage A/D showed as ai-question is now frame `ai-choice-q` (committed as `extra-impl-ai-choice-q-<theme>.jpg`). **ai-choice-fail** is the failure card (`Couldn't finish - the footage file is missing`) as before; the board draws the question and the failure side by side, the app draws them in two chats.
+- **Menus**: ai-scope and ai-attach-menu are cropped 390x620 from the panel foot, so the whole menu is in the crop. **Finding for the lead: the scope menu is clipped by the app itself** - its DOM menu is 128 px tall (Whole canvas / Post 1:1 · Combine 2026 / Choose artboards… / No canvas - just ask, top 662 px) but the chat card cuts it at y 728, so only the last two rows show. Not a crop artefact (a probe frame of the bare page shows the same). The attach menu shows all four rows.
+- Panel-detail crops use x 1050 / w 390 (the chat is a floating island).
+- Not reachable in the browser lane, unchanged: ai-queue-rule (a drawn rule), ai-other-tab / ai-needs-tab (second desktop tab), ai-needs-away (OS notification), ai-tereza (second person on a hub).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot (in the finish window) | re-shot (in the finish window) |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (same) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (same) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot (in the finish window) | re-shot (in the finish window) |
