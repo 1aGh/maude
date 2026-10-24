@@ -2,3 +2,4 @@ stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a55262287b808e56
 stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d25731/.scr/pairs/15-annotations
 
 round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdefb8ca3c77c0e1/.scr/pairs/15-annotations (15 Annotations re-shot on the c4-annot tip with the g5 harness, groups a-f)
+final (D2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae0b93df010d6d2f4/.scr/pairs/15-annotations

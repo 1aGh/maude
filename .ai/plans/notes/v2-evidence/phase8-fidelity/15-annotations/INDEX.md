@@ -159,3 +159,76 @@ Re-shot 60 of 62 pairs; 2 unreachable. SPEC side: `.design/ui/v2/15 Annotations.
 Changed since round 3 (see `fix-c4-annot.md`): keyboard placement of a picked sticky / sticker / stamp / template, AI connectors born Curved, resolved rows marked beyond colour in Layers, section title at full ink in Edit, sticker gallery and Templates without a ×, "Not printed" as a dark pill inside the note. `an-viewer` stays unreachable.
 
 Re-shot with the committed stage-D harness `_d-harness-g5` (ids): `an-ai-apply`, `an-ai-read`, `an-ai-stickers`, `an-ai-write`, `an-arrow-bind`, `an-arrow-kinds`, `an-convert`, `an-crowd`, `an-dangling`, `an-enter`, `an-figjam`, `an-follow`, `an-layers`, `an-marker`, `an-place`, `an-place-preview`, `an-plan`, `an-print`, `an-print-export`, `an-rebind`, `an-section`, `an-stamps`, `an-sticky`, `an-stk-drop`, `an-stk-gallery`, `an-stk-search`, `an-templates`, `an-today`, `an-video`, `an-visibility`, `an-vote`, `an-vs`. The "after" pairs above are overwritten in place (`<id>-<theme>.jpg`); the full-size path is in `full-size-path.txt` ("round 4:").
+
+## FINAL (stage D2, d3881fe41) — IMPL re-shot on the merged tip (all stage C rounds 1–4)
+
+Re-shot 60 of 62 pairs; 2 unreachable. Supersedes the per-round "after" sections above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged — the board `.design/ui/v2/15 Annotations.*` has no commit after the stage-A shot, so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D2):").
+
+- Frames driven: scenarios s15 groups a-f (Studio site fixture, group f on the print fixture), same fixtures and driving as `_d-harness-g5`. Also shot (no spec pair): `an-place-preview`, `an-print-export`.
+- `an-viewer` stays unreachable: the viewer role needs a share-grant session, none in a local lane.
+- Round-4 R5 states the fixture still does not reach (open, see `fix-c4-annot.md`): snap ring + "Button · See the work" tag, dangling "Point to…" card, "0:12" pin on a video artboard, stamp row / count popover, vote running + result section.
+
+| id | theme | FINAL (D2) | spec |
+| --- | --- | --- | --- |
+| `an-ai-apply` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-apply` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-read` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-read` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-stickers` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-stickers` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-write` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-ai-write` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-bind` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-bind` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-kinds` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-arrow-kinds` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-convert` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-convert` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-crowd` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-crowd` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-dangling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-dangling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-enter` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-enter` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-figjam` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-figjam` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-follow` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-follow` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-layers` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-layers` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-marker` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-marker` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-place` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-place` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-plan` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-plan` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-print` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-print` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-rebind` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-rebind` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-section` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-section` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stamps` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stamps` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-sticky` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-sticky` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-drop` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-drop` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-gallery` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-gallery` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-search` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-stk-search` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-templates` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-templates` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-today` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-today` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-video` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-video` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-viewer` | dark | unreachable — Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer. | spec reused (board unchanged since the stage-A shot) |
+| `an-viewer` | light | unreachable — Can comment (viewer role: Hand + Comment only) needs a share-grant session; no local way to open the app as a viewer. | spec reused (board unchanged since the stage-A shot) |
+| `an-visibility` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-visibility` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vote` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vote` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `an-vs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
