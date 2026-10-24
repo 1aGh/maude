@@ -394,16 +394,16 @@ describe('the rings on the canvas', () => {
     expect(q('ai-ring-post')?.textContent).toContain('Made by AI');
   });
 
-  test('P8 c3: an artboard the AI took before it existed reads "AI is drawing <its name>" once it lands (01 cf-ai-drafting)', async () => {
+  test('P8 c3: the artboard that lands while your run is live is the one being drawn - dashed, "AI is drawing <its name>" (01 cf-ai-drafting)', async () => {
     const { act } = await overlay();
     const running = { state: 'running', who: 'you', tag: 'AI is working', waiting: 0 };
     await act(async () => {
-      post({ dgn: 'ai-runs', artboards: { post: running, tablet: running } });
+      post({ dgn: 'ai-runs', artboards: { post: running } });
     });
-    // on the canvas already: the neutral words stay
+    // the one already on the canvas keeps the neutral words
     expect(q('ai-ring-post')?.textContent).toContain('AI is working');
-    // not drawn yet: nothing to name, and no ring box
-    expect(q('ai-ring-tablet')?.textContent).toContain('AI is working');
+    expect(q('ai-ring-tablet')).toBeNull();
+    // Tablet lands while the run is live
     const board = document.createElement('div');
     board.setAttribute('data-dc-screen', 'tablet');
     board.setAttribute('data-dc-label', 'Tablet');
@@ -423,11 +423,13 @@ describe('the rings on the canvas', () => {
       await new Promise((r) => requestAnimationFrame(() => r(null)));
       await new Promise((r) => requestAnimationFrame(() => r(null)));
     });
+    expect(q('ai-ring-tablet')?.getAttribute('data-state')).toBe('running');
+    expect(q('ai-ring-tablet')?.getAttribute('data-drawing')).toBe('true');
     expect(q('ai-ring-tablet')?.textContent).toContain('AI is drawing Tablet');
     expect(q('ai-ring-post')?.textContent).not.toContain('drawing');
-    // when the run ends, the word goes with it
+    // the run ends: the drawing word goes with it
     await act(async () => {
-      post({ dgn: 'ai-runs', artboards: { post: running } });
+      post({ dgn: 'ai-runs', artboards: {} });
     });
     expect(q('ai-ring-tablet')).toBeNull();
   });

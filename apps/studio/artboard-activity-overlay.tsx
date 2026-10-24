@@ -79,8 +79,9 @@ ArtboardActivityOverlay.displayName = 'ArtboardActivityOverlay';
 //   done       the "Made by AI" label mark only (01 cf-ai-done draws no ring on a finished artboard). A run that
 //              JUST ended well also settles a solid spark ring once and sweeps Before / After across the
 //              artboard (`data-fresh`, ~1.8 s), then lets go of the ring - 03 `ai-ring--done` is that moment.
-//   drafting   a running ring on an artboard that was not on the canvas yet when the AI took it reads
-//              "AI is drawing <its name>" (01 cf-ai-drafting); the name is the artboard's own, read here
+//   drafting   the artboard that LANDS while a run of yours is live wears the dashed ring and reads
+//              "AI is drawing <its name>" (01 cf-ai-drafting) until the next one lands or the run ends; the name
+//              is the artboard's own, read here (the shell's tag stays the fixed "AI is working")
 //   Reduced motion collapses every animation to 1 ms.
 //
 // Data flow, one direction only: the shell (client/v2/ai/ring-relay.js) posts `{ dgn: 'ai-runs', artboards }`
@@ -221,6 +222,13 @@ export function drawingTag(label: string | null | undefined): string | null {
   return name ? `AI is drawing ${name.slice(0, 60)}` : null;
 }
 
+function screenIds(): string[] {
+  if (typeof document === 'undefined') return [];
+  return Array.from(document.querySelectorAll('[data-dc-screen]'))
+    .map((el) => el.getAttribute('data-dc-screen') ?? '')
+    .filter(Boolean);
+}
+
 function labelOfArtboard(id: string): string | null {
   const el = artboardEl(id);
   return el?.getAttribute('data-dc-label') || el?.getAttribute('aria-label') || null;
@@ -228,13 +236,28 @@ function labelOfArtboard(id: string): string | null {
 
 export function ArtboardRingsLayer() {
   ensureRingStyles();
-  const [rings, setRings] = useState<AiRings>({});
+  const [shellRings, setRings] = useState<AiRings>({});
   // ids of artboards whose run just ended well: they wear the ring + sweep for FRESH_DONE_MS
   const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
-  // artboards the AI took before they were on the canvas (it is drawing them), id -> name once known
-  const [drawing, setDrawing] = useState<Readonly<Record<string, string | null>>>({});
+  // The artboard that LANDED while a run of yours was live is the one still being drawn (01 cf-ai-drafting): the
+  // run leases the artboards it edits, not the ones it has yet to create, so the canvas itself sees the new one
+  // arrive and gives it the dashed outline and "AI is drawing <name>" until the next one lands or the run ends.
+  const [drafted, setDrafted] = useState<{ id: string; label: string | null } | null>(null);
+  const known = useRef<Set<string> | null>(null); // artboards on the canvas when the run began; null = none live
   const nodes = useRef(new Map<string, HTMLDivElement>());
   const ranAt = useRef(new Map<string, number>());
+  const rings = useMemo<AiRings>(() => {
+    if (!drafted || shellRings[drafted.id]) return shellRings;
+    return {
+      ...shellRings,
+      [drafted.id]: {
+        state: 'running',
+        who: 'you',
+        tag: drawingTag(drafted.label) ?? TAG_WORKING_WORDS,
+        waiting: 0,
+      },
+    };
+  }, [shellRings, drafted]);
   const ids = useMemo(() => Object.keys(rings), [rings]);
 
   useEffect(() => {
@@ -250,13 +273,11 @@ export function ArtboardRingsLayer() {
       const next = m.artboards as AiRings;
       const now = Date.now();
       const justDone: string[] = [];
-      const taken: string[] = [];
+      let live = false;
       for (const [id, r] of Object.entries(next)) {
         if (r.state === 'running') {
-          if (!ranAt.current.has(id)) {
-            ranAt.current.set(id, now);
-            if (r.who === 'you' && !artboardEl(id)) taken.push(id);
-          }
+          if (r.who === 'you') live = true;
+          if (!ranAt.current.has(id)) ranAt.current.set(id, now);
         } else if (r.state === 'done') {
           const at = ranAt.current.get(id);
           if (at !== undefined && now - at <= FRESH_WINDOW_MS) {
@@ -269,15 +290,12 @@ export function ArtboardRingsLayer() {
       for (const id of [...ranAt.current.keys()])
         if (!next[id] && now - (ranAt.current.get(id) ?? 0) > FRESH_WINDOW_MS)
           ranAt.current.delete(id);
-      setDrawing((d) => {
-        // it is drawing only while the ring runs; any other state (or no ring) lets the word go
-        const keep = Object.entries(d).filter(([id]) => next[id]?.state === 'running');
-        if (!taken.length && keep.length === Object.keys(d).length) return d;
-        return {
-          ...Object.fromEntries(keep),
-          ...Object.fromEntries(taken.map((id) => [id, null])),
-        };
-      });
+      // a run of yours is live: remember what was already here, so an artboard that lands is known as new
+      if (live && known.current === null) known.current = new Set(screenIds());
+      if (!live) {
+        known.current = null;
+        setDrafted(null);
+      }
       if (justDone.length) {
         setFresh((f) => new Set([...f, ...justDone]));
         const t = setTimeout(() => {
@@ -305,6 +323,14 @@ export function ArtboardRingsLayer() {
     let raf: number | null = null;
     const tick = () => {
       raf = null;
+      if (known.current) {
+        for (const id of screenIds()) {
+          if (known.current.has(id)) continue;
+          known.current.add(id);
+          ranAt.current.set(id, Date.now());
+          setDrafted({ id, label: labelOfArtboard(id) });
+        }
+      }
       for (const id of ids) {
         const div = nodes.current.get(id);
         if (!div) continue;
@@ -321,10 +347,6 @@ export function ArtboardRingsLayer() {
         div.style.width = `${Math.round(r.width + grow * 2)}px`;
         div.style.height = `${Math.round(r.height + grow * 2)}px`;
         div.dataset.at = tagPlacement(r.width);
-        if (div.dataset.drawing === 'pending') {
-          const name = labelOfArtboard(id);
-          if (name) setDrawing((d) => (d[id] ? d : { ...d, [id]: name }));
-        }
       }
       raf = requestAnimationFrame(tick);
     };
@@ -353,13 +375,7 @@ export function ArtboardRingsLayer() {
             data-who={r.who}
             data-at="below"
             data-fresh={r.state === 'done' && fresh.has(id) ? 'true' : undefined}
-            data-drawing={
-              r.state === 'running' && id in drawing
-                ? drawing[id]
-                  ? 'true'
-                  : 'pending'
-                : undefined
-            }
+            data-drawing={drafted?.id === id && !shellRings[id] ? 'true' : undefined}
           >
             <span className="dc-ai-sweep">
               <span className="dc-ai-wipe-lab" data-side="before">
@@ -380,11 +396,7 @@ export function ArtboardRingsLayer() {
                   />
                 </svg>
               )}
-              {ringTagText(
-                r.state === 'running' && id in drawing && r.tag === TAG_WORKING_WORDS
-                  ? { ...r, tag: drawingTag(drawing[id]) ?? r.tag }
-                  : r
-              )}
+              {ringTagText(r)}
             </span>
           </div>
         );
