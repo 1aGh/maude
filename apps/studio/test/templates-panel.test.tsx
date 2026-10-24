@@ -129,6 +129,12 @@ describe('tiles', () => {
     await done();
   });
 
+  test('no × (15 an-templates): Esc and a press outside close it', async () => {
+    const { done } = await mount();
+    expect(document.querySelector('button[aria-label="Close"]')).toBeNull();
+    await done();
+  });
+
   test('Escape closes', async () => {
     const { calls, done } = await mount();
     await act(async () => {
