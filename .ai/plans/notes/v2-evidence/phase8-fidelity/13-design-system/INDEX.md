@@ -231,3 +231,75 @@ Re-shot 52 of 60 pairs; 8 unreachable. Supersedes the per-round "after" sections
 ## Round 5 (p8-c5-dsfix) — IMPL re-shot on the round-5 branch
 
 Re-shot (light + dark pairs overwritten, harness `_d-harness-g5` + `_d2-harness-g5`, same fixtures, nothing judged): every id except the three whole-board crops `ds-board-studio` / `-dark` / `-gator` (the board did not change this round, the D2 pairs stay) and the unreachable ones. Product changes this round: ⌘K "design system" (`ds-where-gator`: the system, "In the Design system", Actions with `where`; the board is no longer listed twice), the "Uses <system>" door after the fields (`ds-where-studio`, `ds-multi-panel`), a colour opens with Advanced open (`ds-edit-colour`, `ds-edge-contrast`). Harness: `ds-truth-outside` / `ds-truth-conflict` wait for the tree before opening the board (the D2 frames fell back to the old folder view), `ds-edge-trash` drives the real "Move to the trash?" sheet (token `--palette-4`), `ds-make-mix` selects Direction A so "Use A · Mix with…" can show. `ds-multi-migrate` still shows the "No canvas open" empty state (the convert sheet opens only from the unconverted folder view). See `fix-c5-dsfix.md`.
+
+## FINAL (D3, 63592219a) — IMPL re-shot on the merged tip (stage C rounds 1–5 + bugs3)
+
+Re-shot 52 of 60 pairs; 8 unreachable. Supersedes every earlier "after" / "FINAL" section above: every pair in this folder (`<id>-<theme>.jpg`, JPEG q55, max 1100 px wide) now shows the merged product. The SPEC side is unchanged — the board `.design/ui/v2/13 Design System.*` has no commit after the stage-A shot, so the stage-A spec PNGs are reused. Full-size pairs: last line of `full-size-path.txt` ("final (D3):").
+
+- Harness: `_d3-harness-g5/` (the D2 harness + the round-5 deltas; `REPO` repointed). D3 changes: the artboard label is pressed by coordinates (`g5.mjs`), `ds` calls retry while the kernel answers "unavailable", a `system-*` board is waited for before shooting (no "Opening…" card), the ds make door is opened through Canvases › Advanced, ds-edit-instance drills 3 deep to the Buy button, ds-where-studio / ds-multi-migrate re-open the left panel so the pinned row shows with the inspector. `ds-board-*` are whole-board crops through the capture origin (top 2900 px of a 9636 px board).
+- Also shot (no spec pair, full-size only): `ds-edit-colour-pending`, `ds-make-entry`, `ds-make-sentence`, `ds-edge-trash-board`.
+- Unreachable in a local single-project lane: AI suggestion (`ds-edge-suggest`), team library / linked library on a hub (`ds-many-library`, `ds-many-linked`), older-schema upgrade (`ds-multi-schema`).
+- Shot but the state is not drawn by the app in this lane: `ds-truth-outside` (a disk edit of `colors_and_type.css` on a converted system never surfaces a "Changed outside" review: `ds status` stays `outside: null` after 9 s; probe `.scr/outside-probe.mjs`) — the frame shows the board as it is.
+
+| id | theme | FINAL (D3) | spec |
+| --- | --- | --- | --- |
+| `ds-advanced` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-advanced` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-dark` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-gator` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | dark | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-board-studio` | light | re-shot (whole-board crop through the capture origin; the in-app frame was re-shot too) | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-contrast` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | dark | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-suggest` | light | unreachable — AI offers the closest system colour — needs a signed-in Claude (stubbed signed-out here); no off-system question surface reachable without AI. | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edge-trash` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-colour` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-master` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-reach` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-edit-review` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-directions` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-done` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-filling` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-inputs` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-make-mix` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | dark | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-library` | light | unreachable — A team library on a hub (3 projects read it) needs a linked hub + library; not reachable in a local single-project lane. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | dark | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-linked` | light | unreachable — A project that links a team library (view-only Design system row) needs a hub-linked library; not reachable locally. | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-many-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-migrate` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-panel` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | dark | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-schema` | light | unreachable — An older-schema system brought up by AI first — AI-driven (signed out here); no schema-upgrade surface reachable without it. | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-multi-switch` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-conflict` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-truth-outside` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |

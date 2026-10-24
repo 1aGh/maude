@@ -3,3 +3,4 @@ stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a57a21718e6d2573
 round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aa7620f74c8aa594a/.scr/pairs/13-design-system (p8-c3-dsboard; only the ids listed in INDEX "round 3" were re-shot)
 final (D2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae0b93df010d6d2f4/.scr/pairs/13-design-system
 round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a5bb8bb16e773b003/.scr/pairs/13-design-system (p8-c5-dsfix; every pair re-shot except the three whole-board ds-board-* crops, which keep the D2 shots — nothing on the board changed this round)
+final (D3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6c55c2a9eae9f5e5/.scr/pairs/13-design-system
