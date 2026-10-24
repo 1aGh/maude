@@ -126,7 +126,10 @@ function textUsesOfDisabledGrade(css: string): string[] {
   for (const chunk of css.split('}')) {
     const open = chunk.lastIndexOf('{');
     if (open < 0 || !/var\(--fg-3\b/.test(chunk.slice(open))) continue;
-    const sel = chunk.slice(0, open).replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    const sel = chunk
+      .slice(0, open)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .trim();
     if (/:disabled|\[disabled|\[aria-disabled/.test(sel)) continue;
     out.push(sel);
   }

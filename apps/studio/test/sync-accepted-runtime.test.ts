@@ -294,13 +294,16 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     });
     try {
       await waitFor(() => provider.synced, 'the author to open its new room');
-      await waitFor(async () => {
-        const res = await fetch(`${hub.http}/api/documents`, {
-          headers: { authorization: `Bearer ${hub.tokens.owner}` },
-        });
-        const listing = (await res.json()) as { documents: { name: string }[] };
-        return listing.documents.some((d) => d.name === slug);
-      }, 'the unaccepted room to appear in the transport listing');
+      // gate-b F2: the hub advertises a live, not-yet-stored room only once a writer put content into it, and in
+      // accepted mode no peer's Y update lands at all — so the author's open, empty room is never listed and a
+      // receiver has nothing to attach. (Before F2 it WAS listed, and the receiver pinned a slug-derived path.)
+      // Give the hub a moment to register the room, then assert it stays out of the listing.
+      await new Promise((r) => setTimeout(r, 1500));
+      const res = await fetch(`${hub.http}/api/documents`, {
+        headers: { authorization: `Bearer ${hub.tokens.owner}` },
+      });
+      const listing = (await res.json()) as { documents: { name: string }[] };
+      expect(listing.documents.some((d) => d.name === slug)).toBe(false);
       const boot = await api(hub, 'bootstrap');
       expect((boot.body.docs as { doc: string }[]).some((d) => d.doc === slug)).toBe(false);
       await bob.runtime.pullRemoteNow();

@@ -230,7 +230,10 @@ test.skipIf(!existsSync(REAL))(
     expect(canvases.length).toBeGreaterThan(0);
     // budget: a send may cost a fingerprint, not a second
     expect(pick(ms, 0.95)).toBeLessThan(1000);
-  }
+  },
+  // the budget under test is the per-send p95 above; walking ~200 canvases once is not bounded by bun's 5 s default
+  // (25–30 s on a busy machine, p95 still 0.4 s) — that default turned a load spike into a red test
+  120_000
 );
 
 // ── 2. the bearer session ───────────────────────────────────────────────────────────────────────
