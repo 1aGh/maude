@@ -1138,7 +1138,7 @@ export default function TimelinePanel({
       timelineSelection.set(
         musicSelection({
           info: selBed.info,
-          label: audio[selBed.index]?.label ?? 'Music',
+          label: songName(audio[selBed.index]?.label),
           canvas: island?.canvas ?? null,
           artboardId: comp?.artboardId ?? null,
           fps,

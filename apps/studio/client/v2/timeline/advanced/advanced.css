@@ -46,7 +46,9 @@
   .tla-body > .tla-sec {
     flex: 1 1 0;
     max-width: 380px;
-    max-height: min(320px, 38vh);
+    /* a card scrolls inside rather than growing: the canvas keeps ≥ 240 px above the cards (bridge/occlusion.ts MIN_VISIBLE_PX)
+       or it ignores every inset and the video goes back behind them */
+    max-height: min(230px, 26vh);
     padding: var(--space-3);
     overflow: auto;
     border-radius: var(--island-radius, var(--radius-xl));

@@ -15,6 +15,7 @@ import { SliderField, Toggle } from '../../../inspector-controls.jsx';
 import { shellToast } from '../../../shell/util.js';
 import { AdvancedFold } from '../../fold/advanced-fold.jsx';
 import { refusalText } from '../../timeline/clip-verb.js';
+import { TGlyph } from '../../timeline/glyphs.jsx';
 import {
   findBeats,
   isFinding,
@@ -147,10 +148,11 @@ function SongRow({ t }) {
     <Row k={MUSIC_WORDS.song} name="music-song">
       <button
         type="button"
-        className="insp-quietlink"
+        className="btn btn--sm"
         data-testid="insp-music-change"
         onClick={() => t.changeSong()}
       >
+        <TGlyph name="music" size={12} />
         {MUSIC_WORDS.change}
       </button>
     </Row>
@@ -179,7 +181,7 @@ function BeatRows({ t, info }) {
         <Row k={MUSIC_WORDS.cutToBeat} name="music-cut-to-beat">
           <button
             type="button"
-            className="insp-quietlink"
+            className="btn btn--ghost btn--sm"
             data-testid="insp-music-cut-to-beat"
             onClick={() => runCutToBeat(t)}
           >

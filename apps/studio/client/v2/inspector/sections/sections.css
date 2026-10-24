@@ -636,6 +636,30 @@
     object-fit: cover;
     pointer-events: none;
   }
+  /* 07 `.ve-in-slider`: the music volume is a 140 px slider (4 px track, white thumb) with its value beside it — the
+     wrapper used to shrink to its content and the track vanished */
+  .insp-row-v > [data-testid="insp-music-volume"] {
+    display: flex;
+    flex: 1 1 140px;
+    min-width: 140px;
+    max-width: 180px;
+  }
+  [data-testid="insp-music-volume"] .st-cp-track {
+    height: 4px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+  }
+  [data-testid="insp-music-volume"] .st-cp-fill {
+    border-radius: inherit;
+  }
+  [data-testid="insp-music-volume"] .st-cp-thumb {
+    background: var(--bg-2);
+    border: 0;
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
   [data-testid="insp-row-ab-poster"] .insp-row-v {
     gap: var(--space-2);
   }

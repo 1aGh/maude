@@ -334,6 +334,13 @@ describe('a song on the Music track (07 ve-music)', () => {
     expect(chk(host, 'insp-music-duck').checked).toBe(true);
     expect(chk(host, 'insp-music-snap').checked).toBe(true);
     expect(q(host, 'insp-music-change')?.textContent).toBe('Change…');
+    // 07 ve-music (V2-8.5 c4-video): Change… is the kit's small button with the music glyph; Cut to the beat is a ghost
+    // button — not underlined links
+    const change = q(host, 'insp-music-change');
+    expect(change?.className).toContain('btn');
+    expect(change?.className).not.toContain('insp-quietlink');
+    expect(change?.querySelector('svg')).not.toBeNull();
+    expect(q(host, 'insp-music-cut-to-beat')?.className).toContain('btn--ghost');
   });
 
   test('Volume writes video.music.volume; Lower under speech writes video.music.duck (off unwraps)', async () => {
