@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { SelectionKind } from '../bridge/dgn-protocol.ts';
 import { resolveSelectionEl } from '../dom-selection.ts';
 import { type Selection, useSelectionSet } from '../use-selection-set.tsx';
-import { crumbLabel, selectionKind } from './crumbs.ts';
+import { crumbLabel, selectionKind, tagWord } from './crumbs.ts';
 import { useKeyboardModality } from './focus-model.tsx';
 import { crumbNodeOf, stampedParent } from './selection.tsx';
 import { domMeasure, type Measure, positionOf } from './tab-order.tsx';
@@ -78,7 +78,7 @@ const itemsOf = (el: Element, measure: Measure): number =>
 export function spokenNameOf(el: Element): string {
   const node = crumbNodeOf(el);
   const label = crumbLabel(node);
-  if (label !== node.tag) return label;
+  if (label !== tagWord(node.tag)) return label;
   const heading = el.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]');
   const words = (heading?.textContent ?? '').replace(/\s+/g, ' ').trim();
   return words ? crumbLabel({ ...node, text: words }) : label;
