@@ -243,6 +243,19 @@ const MASTER_WORDS = {
   height: 'Height',
 };
 const bare = (v) => (typeof v === 'string' ? v.trim().replace(/px$/, '') : '');
+/** `var(--radius-md)` → the value that token holds (Light), so a line says "2", never the name of a token. */
+function settle(v, board) {
+  let out = typeof v === 'string' ? v.trim() : '';
+  for (let i = 0; i < 4; i++) {
+    const name = /^var\(\s*(--[\w-]+)\s*(?:,[^)]*)?\)$/.exec(out)?.[1];
+    if (!name) break;
+    const t = (board?.tokens ?? []).find((x) => x.css === name);
+    const next = t?.values?.[board?.themes?.light] ?? Object.values(t?.values ?? {})[0];
+    if (typeof next !== 'string') break;
+    out = next.trim();
+  }
+  return out;
+}
 
 /**
  * What a waiting master edit changes, in the words the editor uses (13 · ds-edit-master: "Corners 2 → 6"):
@@ -255,8 +268,12 @@ export function masterLines(board = null) {
     for (const p of c.patches ?? []) {
       const word = MASTER_WORDS[p.prop];
       if (!word || p.selector?.trim() !== `.${c.className}`) continue;
-      const was = bare(c.look?.[p.prop]);
-      lines.push(was ? `${word} ${was} → ${bare(p.value)}` : `${word} → ${bare(p.value)}`);
+      const was = bare(settle(c.look?.[p.prop], board));
+      lines.push(
+        was
+          ? `${word} ${was} → ${bare(settle(p.value, board))}`
+          : `${word} → ${bare(settle(p.value, board))}`
+      );
     }
     if (lines.length) out[c.name] = lines;
   }

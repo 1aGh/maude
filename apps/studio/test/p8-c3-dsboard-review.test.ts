@@ -49,6 +49,20 @@ describe('review sheet words', () => {
   test('a master edit reads "Corners 2 → 6" — only the master’s own look, never a state rule', () => {
     expect(masterLines(board)).toEqual({ Button: ['Corners 2 → 6'] });
     expect(masterLines(null)).toEqual({});
+    // a value that names a token says what the token holds, never its name
+    const named = {
+      ...board,
+      tokens: [...board.tokens, { css: '--radius-md', values: { light: '8px' } }],
+      components: [
+        {
+          name: 'Card',
+          className: 'card',
+          look: { 'border-radius': 'var(--radius-md)' },
+          patches: [{ selector: '.card', prop: 'border-radius', value: '12px' }],
+        },
+      ],
+    };
+    expect(masterLines(named)).toEqual({ Card: ['Corners 8 → 12'] });
   });
 });
 
