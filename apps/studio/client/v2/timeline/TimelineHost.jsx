@@ -20,7 +20,7 @@ import { useShellStore } from '../../stores/shell-store.jsx';
 import { usePanelLayout } from '../shell/use-panel-layout.js';
 import { AiLandingIsland, useAiCut } from './ai-edge.jsx';
 import { measureShellInsets } from '../shell/occlusion-insets.js';
-import { anchorCentre, placeCompact, placeFull } from './anchor.js';
+import { anchorCentre, artboardUnderIsland, placeCompact, placeFull } from './anchor.js';
 import { createAnchorLane } from './anchor-lane.js';
 import { useFileDrag } from './edit/drop.jsx';
 import { playToggle } from './keys.js';
@@ -36,6 +36,8 @@ import { TimelineEmpty } from './timeline-empty.jsx';
 
 /** How long the island takes to leave (--dur-panel is 220 ms; reduced motion cuts the animation, not this). */
 const LEAVE_MS = 260;
+/** The island is at rest after 260 ms (island.jsx); its inset reaches the canvas a frame or two later. */
+const REFIT_MS = 480;
 
 export default function TimelineHost({ children }) {
   const {
@@ -171,6 +173,39 @@ export default function TimelineHost({ children }) {
     // leaving this video (or the island going away) files its playhead under its own name
     return () => timelineStore.remember(targetId, frameRef.current);
   }, [targetId, postToActiveCanvas, setCanvasActiveArtboard, setTimelineFrame]);
+
+  // ── V2-8.5 c4-video (07 ve-select): the island sits UNDER the video it points at, never over it ──
+  // The island is anchored to the window's foot, so a video that fills the canvas ran down behind it. Once the island is
+  // at rest (it has published its footprint as an inset) and it covers its video, the canvas is asked to bring that
+  // artboard into the free part of the canvas — once per summon / video / size, never while the person pans.
+  const rectNow = useRef(null);
+  rectNow.current = view.target?.rect ?? null;
+  const sizeNow = view.size;
+  useEffect(() => {
+    if (!mounted || !targetId || typeof document === 'undefined') return undefined;
+    const t = setTimeout(() => {
+      const isl = document.querySelector('[data-testid="timeline-island"]')?.getBoundingClientRect();
+      const fr = live.current.iframesRef?.current?.get(live.current.activePath)?.getBoundingClientRect?.();
+      const r = rectNow.current;
+      if (!isl || !fr || !r) return;
+      const art = {
+        left: fr.left + r.x,
+        top: fr.top + r.y,
+        right: fr.left + r.x + r.w,
+        bottom: fr.top + r.y + r.h,
+      };
+      if (!artboardUnderIsland(art, isl)) return;
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+      postToActiveCanvas({
+        dgn: 'reveal-artboard',
+        artboardId: targetId,
+        glide: !still,
+        flash: false,
+      });
+    }, REFIT_MS);
+    return () => clearTimeout(t);
+    // `sizeNow` re-runs it when the island grows to Full (its footprint changes)
+  }, [mounted, targetId, sizeNow, postToActiveCanvas]);
 
   // ── the poster frame: read for the ruler's flag, and the playhead `video.poster.set` writes it at ──
   usePosterVersion();

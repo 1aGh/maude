@@ -60,3 +60,21 @@ export function freeSpan({ viewportW, minX = 0, maxX = viewportW }) {
 export function anchorCentre(frameBox, rect) {
   return frameBox.left + rect.x + rect.w / 2;
 }
+
+/** The notch (and a breath) the island leaves between itself and the video it points at. */
+export const ISLAND_AIR = 12;
+
+/**
+ * V2-8.5 c4-video (07 ve-select): does the island sit over the video it belongs to? Both rects in window px
+ * (`{ left, top, right, bottom }`). The board draws the video ABOVE the island with the notch on its bottom edge, so
+ * a video that runs down behind the island (or ends within the notch's reach of it) is to be brought into the free
+ * canvas — see TimelineHost.
+ * @param {{ left: number, top: number, right: number, bottom: number } | null} art
+ * @param {{ left: number, top: number, right: number, bottom: number } | null} island
+ */
+export function artboardUnderIsland(art, island, air = ISLAND_AIR) {
+  if (!art || !island) return false;
+  const across = art.right > island.left && art.left < island.right;
+  const down = art.bottom > island.top - air && art.top < island.bottom;
+  return across && down;
+}
