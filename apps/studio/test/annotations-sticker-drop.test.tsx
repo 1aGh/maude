@@ -310,6 +310,65 @@ describe('the ghost trails the pointer until a click', () => {
   });
 });
 
+describe('a pick is placeable by keyboard (a11y A2)', () => {
+  async function mount(pending: Parameters<typeof PlacementGhost>[0]['pending']) {
+    const placed: Array<{ x: number; y: number }> = [];
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    roots.push(root);
+    await act(async () =>
+      root.render(
+        <PlacementGhost
+          pending={pending}
+          zoom={1}
+          resolveAsset={(p: string) => `/${p}`}
+          templateSize={() => ({ w: 700, h: 400 })}
+          onPlace={(at) => placed.push(at)}
+          onCancel={() => {}}
+        />
+      )
+    );
+    return { placed };
+  }
+  const press = async (key: string, init: Record<string, unknown> = {}) =>
+    act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init })
+      );
+    });
+  test('Enter puts it down where the pointer was; arrows walk it first; Space works too', async () => {
+    const { placed } = await mount({ kind: 'stamp', stampKind: 'yes' });
+    await act(async () => {
+      document.body.dispatchEvent(
+        new (globalThis as any).PointerEvent('pointermove', {
+          bubbles: true,
+          clientX: 100,
+          clientY: 100,
+        })
+      );
+    });
+    await press('ArrowRight');
+    await press('ArrowDown', { shiftKey: true });
+    await press('Enter');
+    expect(placed).toEqual([{ x: 108, y: 132 }]);
+    await press(' ');
+    expect(placed.length).toBe(2);
+  });
+  test('with no pointer at all it starts from the middle of the view', async () => {
+    const { placed } = await mount({ kind: 'template', id: 'kanban', follow: true });
+    await press('Enter');
+    expect(placed).toEqual([
+      { x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 2) },
+    ]);
+  });
+  test('a chord (⌘Enter) is left alone', async () => {
+    const { placed } = await mount({ kind: 'stamp', stampKind: 'yes' });
+    await press('Enter', { metaKey: true });
+    expect(placed).toEqual([]);
+  });
+});
+
 describe('the small toolbar over a sticker: Replace… · Flip · Lock · Duplicate', () => {
   const sticker = (o: Partial<ImageStroke> = {}): ImageStroke => ({
     ...dropSticker({ path: 'assets/a.png', sticker: REF }, { x: 500, y: 300 }, 'img1'),
