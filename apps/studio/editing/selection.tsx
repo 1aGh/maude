@@ -168,15 +168,21 @@ const CSS_TEXT = `
   position: fixed;
   pointer-events: none;
   z-index: 6;
-  padding: 1px 6px;
-  border-radius: 3px;
+  /* P8 C5 (14 .ed-sel-tag): 20 px under the object, radius-xs, semibold; the size after the name is regular at .86 */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: var(--maude-hud-radius-xs, 3px);
   background: var(--maude-hud-accent);
   color: var(--maude-hud-accent-fg);
-  font: 500 11px/16px var(--maude-chrome-font-body, system-ui, sans-serif);
+  font: 600 var(--maude-hud-type-xs, 11px)/16px var(--maude-chrome-font-body, system-ui, sans-serif);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  transform: translateY(calc(-100% - 4px));
 }
+.ed-name-tag > .ed-tag-q { font-weight: 400; opacity: 0.86; }
 `;
 
 function place(div: HTMLElement | null, el: Element | null, asTag = false): void {
@@ -187,8 +193,9 @@ function place(div: HTMLElement | null, el: Element | null, asTag = false): void
     return;
   }
   div.style.display = 'block';
-  div.style.left = `${Math.round(r.left)}px`;
-  div.style.top = `${Math.round(r.top)}px`;
+  // the name tag hangs 6 px under the object, 1.5 px left of it (the selection ring's width); the outline is on it
+  div.style.left = `${Math.round(asTag ? r.left - 1.5 : r.left)}px`;
+  div.style.top = `${Math.round(asTag ? r.bottom + 6 : r.top)}px`;
   if (!asTag) {
     div.style.width = `${Math.round(r.width)}px`;
     div.style.height = `${Math.round(r.height)}px`;
@@ -219,7 +226,18 @@ export function EditingSelection({ readOnly = false }: { readOnly?: boolean }) {
       if (tagRef.current && el instanceof HTMLElement) {
         const label = crumbLabel(crumbNodeOf(el));
         const text = nameTag(label, el.offsetWidth, el.offsetHeight);
-        if (tagRef.current.textContent !== text) tagRef.current.textContent = text;
+        if (tagRef.current.textContent !== text) {
+          // "<name> · <w> × <h>": the name in the tag's semibold, the size after it regular (14 .ed-tag-q)
+          const at = text.lastIndexOf(' · ');
+          const tag = tagRef.current;
+          tag.textContent = at < 0 ? text : text.slice(0, at);
+          if (at >= 0) {
+            const q = tag.ownerDocument.createElement('span');
+            q.className = 'ed-tag-q';
+            q.textContent = text.slice(at);
+            tag.appendChild(q);
+          }
+        }
       }
       raf = requestAnimationFrame(tick);
     };
