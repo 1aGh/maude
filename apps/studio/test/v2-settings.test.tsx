@@ -432,6 +432,9 @@ describe('the desktop sheet renders every Settings row', () => {
       await goto(sec);
       const panel = q(`settings-panel-${sec}`) as HTMLElement;
       for (const m of SETTINGS_ROWS.filter((r) => r.section === sec)) {
+        // Check for updates and Restart now never share the screen (06: Restart only while a build is staged,
+        // Check only while none is) — the unstaged Check row has its own test above (V2-4.7c invoke)
+        if (m.testid === 'settings-check-updates') continue;
         const sel = m.testid.includes('<')
           ? `[data-testid^="${m.testid.split('<')[0]}"]`
           : `[data-testid="${m.testid}"]`;
