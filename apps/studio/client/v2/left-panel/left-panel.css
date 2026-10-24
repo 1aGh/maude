@@ -498,10 +498,19 @@
     align-items: center;
     gap: var(--space-2);
     height: 30px;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1) 0 var(--space-2);
+    border-radius: var(--radius-md);
     background: var(--bg-3);
     color: var(--fg-2);
+  }
+  /* 12 · ia-assets-find (`.k-find--on`): focused, or holding a word — bg-2, a 3 px tint round it, 1 px accent inside */
+  .lp-find:focus-within,
+  .lp-find:has(input:not(:placeholder-shown)) {
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow:
+      0 0 0 3px var(--accent-tint),
+      inset 0 0 0 1px var(--accent);
   }
   .lp-find input {
     flex: 1;
@@ -549,6 +558,11 @@
     justify-content: space-between;
     margin: var(--space-3) var(--space-1) var(--space-1);
     font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
+  }
+  .lp-group .lp-count {
+    font-weight: var(--w-regular);
     color: var(--fg-2);
   }
   .lp-grid {
@@ -584,6 +598,7 @@
     object-fit: cover;
     border-radius: var(--radius-sm);
     background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--k-chrome-edge, var(--border-default));
   }
   .lp-tile-name {
     overflow: hidden;
@@ -597,28 +612,38 @@
   }
   .lp-tile-tip {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 50%;
+    top: calc(100% + var(--space-1));
+    translate: -50% 0;
+    z-index: 30;
     display: none;
     flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-    padding: var(--space-1);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-    background: color-mix(in oklab, var(--bg-0) 82%, transparent);
-    color: var(--fg-0);
+    gap: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--fg-0);
+    color: var(--bg-2);
     font-size: var(--type-xs);
-    line-height: 1.25;
+    line-height: var(--lh-xs);
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
     pointer-events: none;
   }
-  .lp-tile-tip > * {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .lp-tile-tip strong {
+    font-weight: var(--w-semibold);
   }
   .lp-tile-tip span {
-    color: var(--fg-1);
+    color: inherit;
+  }
+  /* the outer columns align to their tile's edge so the tip never leaves the panel */
+  .lp-grid > .lp-tile:nth-child(3n + 1) .lp-tile-tip {
+    left: 0;
+    translate: 0 0;
+  }
+  .lp-grid > .lp-tile:nth-child(3n) .lp-tile-tip {
+    left: auto;
+    right: 0;
+    translate: 0 0;
   }
   .lp-tile:hover .lp-tile-tip,
   .lp-tile:focus-visible .lp-tile-tip {
@@ -816,10 +841,66 @@
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
+  .lp-dt-use {
+    min-height: 34px;
+    justify-content: flex-start;
+  }
+  .lp-dt-use > :last-child {
+    margin-left: auto;
+    color: var(--fg-2);
+  }
+  /* the canvas's cover (`UsedRow` Thumb): a small rounded picture, an empty well while it loads */
+  .lp-dt-use-th {
+    flex: none;
+    width: 28px;
+    height: 22px;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--k-chrome-edge, var(--border-default));
+  }
+  .lp-dt-use-th img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   .lp-dt-use-t {
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-width: 0;
+  }
+  .lp-dt-use-t > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lp-dt-more {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .lp-dt-more:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .lp-dt-more:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  /* a photo: a 150 px cover crop (`.ia-dt-pic--short`), not a contained thumbnail */
+  .lp-dt[data-kind="photo"] img.lp-dt-pic,
+  .lp-dt[data-kind="made"] img.lp-dt-pic {
+    height: 150px;
+    max-height: none;
+    object-fit: cover;
   }
   .lp-dt-use-b {
     color: var(--fg-2);
@@ -1039,9 +1120,40 @@
   /* ── S8.13: Not used, Move to the trash, and the wide Browse view (12 · ia-assets-browse, ia-assets-tidy) ───── */
   .lp-chips {
     flex: none;
+    position: relative;
     display: flex;
+    align-items: center;
     gap: var(--space-1);
     padding: 0 var(--space-2) var(--space-1);
+  }
+  /* 12 · ia-ap-icons: Generate and Add files… at the right end of the chip row; the spark has its own colour */
+  .lp-bar-icons {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 0;
+  }
+  .lp-bar-icons .lp-add {
+    width: 28px;
+    height: 28px;
+  }
+  .lp-gen {
+    color: var(--spark-text);
+  }
+  .lp-kinds {
+    position: relative;
+    display: inline-flex;
+  }
+  .lp-kinds-b {
+    gap: 2px;
+    cursor: pointer;
+    border: 0;
+  }
+  .lp-kinds-menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + var(--space-1));
+    z-index: 40;
+    min-width: 132px;
   }
   .lp-chip {
     display: inline-flex;
@@ -1172,6 +1284,11 @@
     font-size: var(--type-xs);
     color: var(--fg-1);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .lp-tidy-foot .btn {
+    flex: none;
+    white-space: nowrap;
   }
   .lp-note--undo {
     display: flex;
@@ -1292,7 +1409,8 @@
   .lp-browse-day {
     margin: var(--space-2) var(--space-1) var(--space-1);
     font-size: var(--type-xs);
-    color: var(--fg-2);
+    font-weight: var(--w-semibold);
+    color: var(--fg-1);
   }
   .lp-browse-grid {
     display: grid;
@@ -1331,5 +1449,53 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+  }
+
+  /* 12 · ia-assets-find: a match is two across, footed with the name that matched (`.ia-grid--2`, `.ia-tile-match`) */
+  .lp-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lp-tile {
+    position: relative;
+  }
+  .lp-tile-match {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--space-1) var(--space-1) 2px;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: linear-gradient(
+      to top,
+      color-mix(in oklch, var(--object-ink, #000) 82%, transparent),
+      transparent
+    );
+    color: var(--bg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* 12 · ia-assets-browse: a pick circle on every thumb — an empty ring, or accent with its check (`.ia-tile-pick`) */
+  .lp-tile-pick {
+    position: absolute;
+    left: var(--space-1);
+    top: var(--space-1);
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--bg-2) 70%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--bg-2);
+    color: var(--accent-fg);
+  }
+  .lp-tile-pick[data-on="true"] {
+    background: var(--accent);
+    box-shadow: 0 0 0 1.5px var(--bg-2);
   }
 }

@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { DetailsAdvanced } from './details-advanced.jsx';
 import {
   addedByLine,
@@ -94,11 +95,20 @@ export function AssetDetails({
   canPlace = false,
   onPlace,
   onBack,
+  onMore,
   onOpenBoard,
   fetchImpl,
   now,
 }) {
   const got = useAssetDetails(asset.path, { fetchImpl });
+  // 12 · UsedRow — each canvas wears its cover; the index (the Canvases panel's) knows which picture that is
+  const index = useCanvasIndex({ fetchImpl });
+  const coverOf = (canvas) => {
+    const hit = (index?.canvases ?? []).find(
+      (c) => c && (canvas === c.rel || String(canvas).endsWith(`/${c.rel}`))
+    );
+    return hit?.cover?.key || null;
+  };
   const d = got.details ?? fallbackDetails(asset);
   const [media, setMedia] = useState({});
   // biome-ignore lint/correctness/useExhaustiveDependencies: another asset starts from nothing measured
@@ -128,6 +138,19 @@ export function AssetDetails({
           <StIcon name="submenu" size={12} />
           Assets
         </button>
+        {onMore ? (
+          // the same actions as the tile's menu (Place · Copy · Move to trash): a button a keyboard reaches too
+          <button
+            type="button"
+            className="lp-dt-more"
+            data-testid="assets-details-more"
+            aria-label="More"
+            aria-haspopup="menu"
+            onClick={(e) => onMore(e, asset)}
+          >
+            <StIcon name="more" size={14} />
+          </button>
+        ) : null}
       </div>
       <div className="lp-dt-heroed">
         <Hero d={d} url={url} onMedia={setMedia} />
@@ -221,9 +244,12 @@ export function AssetDetails({
         </button>
       ) : null}
 
-      <p className="lp-dt-sec" data-testid="assets-details-used-title">
-        {used ?? kindNoun(d)}
-      </p>
+      {used || kind !== 'photo' ? (
+        // an unused picture says nothing here: a lone "Photo" over an empty list is not drawn (12 · ia-asset-details)
+        <p className="lp-dt-sec" data-testid="assets-details-used-title">
+          {used ?? kindNoun(d)}
+        </p>
+      ) : null}
       {rows.length ? (
         <div className="lp-dt-uses">
           {rows.map((r) => (
@@ -237,6 +263,19 @@ export function AssetDetails({
               aria-label={r.board ? `Open ${r.board} in ${r.name}` : `Open ${r.name}`}
               onClick={() => onOpenBoard?.(r.canvas, r.boardId)}
             >
+              <span className="lp-dt-use-th" aria-hidden="true">
+                {coverOf(r.canvas) ? (
+                  <img
+                    src={`/_api/thumb/${coverOf(r.canvas)}`}
+                    alt=""
+                    loading="lazy"
+                    draggable={false}
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = 'hidden';
+                    }}
+                  />
+                ) : null}
+              </span>
               <span className="lp-dt-use-t">
                 <span>{r.name}</span>
                 {r.board ? <span className="lp-dt-use-b">{r.board}</span> : null}

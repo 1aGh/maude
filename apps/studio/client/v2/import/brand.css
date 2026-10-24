@@ -16,7 +16,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(480px, calc(100% - 2 * var(--float-gap, 16px)));
+    width: min(420px, calc(100% - 2 * var(--float-gap, 16px)));
     max-height: calc(100% - 2 * var(--float-gap, 16px));
     display: flex;
     flex-direction: column;
@@ -40,6 +40,8 @@
   }
   .bi-title {
     font-size: var(--type-md, 15px);
+    line-height: var(--lh-md, 22px);
+    font-weight: var(--w-semibold, 600);
     color: var(--fg-0);
   }
   .bi-body {
@@ -153,6 +155,16 @@
   }
   .bi-callout-t {
     flex: 1;
+  }
+  /* the callout's glyph: a lock when Figma is not connected, a warning when the site would not answer */
+  .bi-callout-ic {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    color: var(--fg-2);
+  }
+  .bi-callout[role="alert"] .bi-callout-ic {
+    color: var(--status-warn-text, var(--fg-1));
   }
   .bi-callout strong {
     color: var(--fg-0);

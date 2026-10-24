@@ -2,19 +2,36 @@
  * relink sheet's error line (12 Import and Assets, ia-missing). Tokens only. */
 
 @layer shell {
+  /* 12 · .ia-missbox: a bg-3 well, no border; the state is a status word (a dot and the word), not a coloured frame */
   .asset-absent {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    background: var(--bg-2);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
     color: var(--fg-1);
-    font-size: var(--type-sm);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
   }
-  .asset-absent[data-state="missing"] {
-    border-color: var(--status-error);
+  .asset-absent-t strong {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .asset-absent-t strong::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--fg-3);
+  }
+  .asset-absent[data-state="missing"] .asset-absent-t strong::before {
+    background: var(--status-error);
+  }
+  .asset-absent[data-state="waiting"] .asset-absent-t strong::before {
+    background: var(--status-warn);
   }
   .asset-absent p {
     margin: 0;
@@ -23,15 +40,12 @@
     color: var(--fg-0);
     font-weight: var(--w-semibold);
   }
-  .asset-absent[data-state="waiting"] .asset-absent-t strong {
-    color: var(--status-warn-text);
-  }
+  .asset-absent[data-state="waiting"] .asset-absent-t strong,
   .asset-absent[data-state="missing"] .asset-absent-t strong {
-    color: var(--status-error-text);
+    color: var(--fg-1);
   }
   .asset-absent-d {
-    color: var(--fg-2);
-    font-size: var(--type-xs);
+    color: var(--fg-1);
   }
   .asset-absent-a {
     display: flex;

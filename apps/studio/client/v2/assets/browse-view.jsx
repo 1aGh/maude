@@ -147,6 +147,7 @@ export function BrowseView({
                     picked={view.selected.has(a.path)}
                     canDrag={!readOnly}
                     caption
+                    pickCircle
                     onPick={(path, e, isMenu) => onPick(ids, path, e, isMenu)}
                     onMenu={onMenu}
                   />

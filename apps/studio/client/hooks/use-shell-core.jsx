@@ -337,7 +337,8 @@ export function useShellCore({}) {
   // "the canvas compiled" — exactly the axis #115 is about.
   const [loadedPath, setLoadedPath] = useState(null);
   // Resizable side panels (DS components-resize-panels) + the active drag side.
-  const sbSize = usePanelSize('maude-sb-w', { min: 200, max: 420, def: 252 });
+  // 264 = the kit's 248 px panel island (`.k-cp`, _kit.css:221) + the 16 px gap the dock slot paints on its left
+  const sbSize = usePanelSize('maude-sb-w', { min: 200, max: 420, def: 264 });
   const rpSize = usePanelSize('maude-rp-w', { min: 260, max: 480, def: 304 });
   const [dragSide, setDragSide] = useState(null); // 'sb' | 'rp' | null
   const bodyRef = useRef(null);

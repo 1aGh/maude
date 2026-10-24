@@ -178,21 +178,25 @@ describe('usageWords — never a false "Not used"', () => {
 });
 
 describe('the tile menu', () => {
-  test('a picture offers Place, Show details and Move to trash; a viewer only details; a clip no Place', () => {
+  test('a picture offers Place, Show details, Copy and Move to trash; a viewer only details; a clip no Place', () => {
     expect(tileMenuItems({ kind: 'image' }, { placeLabel: 'MVP zápasu' })).toEqual([
       { id: 'place', label: 'Place in MVP zápasu', keys: '↵' },
       { id: 'details', label: 'Show details', keys: '⌘I' },
+      { id: 'copy', label: 'Copy', keys: '⌘C' },
+      { id: 'sep', separator: true },
       { id: 'trash', label: 'Move to trash' },
     ]);
     expect(tileMenuItems({ kind: 'image' }).map((i) => i.label)).toEqual([
       'Place',
       'Show details',
+      'Copy',
+      undefined,
       'Move to trash',
     ]);
     expect(tileMenuItems({ kind: 'image' }, { readOnly: true }).map((i) => i.id)).toEqual([
       'details',
     ]);
-    expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual(['details', 'trash']);
+    expect(tileMenuItems({ kind: 'video' }).map((i) => i.id)).toEqual(['details', 'sep', 'trash']);
     expect(tileMenuItems({ kind: 'video' }, { readOnly: true }).map((i) => i.id)).toEqual([
       'details',
     ]);
