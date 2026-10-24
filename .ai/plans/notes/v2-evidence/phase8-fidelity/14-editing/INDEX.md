@@ -132,3 +132,61 @@ Re-shot 50 of 52 pairs; 2 unreachable. SPEC side: `.design/ui/v2/14 Editing.*` i
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since stage A) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since stage A) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since stage A) |
+
+## After (round 3, c3-inspect) — IMPL re-shot on the page-is-the-artboard tip
+
+Re-shot 50 of 52 pairs (light + dark) with the g5 harness (`_d-harness-g5/`, round-3 notes in its README); `ed-edge-tereza` stays unreachable (stage-D pair kept). Spec side unchanged (board unchanged). What changed on screen: a click on the page selects the artboard (card: Preset · Size · Fill · Corners · Clip · Export), a click on an object selects the top object below the page, the inspector arrives with an artboard selection, an artboard drag from the page shows the lifted board + X·Y pill, crumbs fold to `Desktop › … › object`, Convert layout to absolute is in the folded Advanced, the empty inspector line is in v2 words. Harness drives changed (`s14a/b/c`: the page is no longer a rung of the double-click ladder; ⌘⇧-click for several objects; a bare right-click for the object menu). Details and open rows: `fix-c3-inspect.md`.
+
+| id | theme | after (round 3) |
+| --- | --- | --- |
+| `ed-ab-select` | dark | re-shot |
+| `ed-ab-select` | light | re-shot |
+| `ed-ab-resize` | dark | re-shot |
+| `ed-ab-resize` | light | re-shot |
+| `ed-ab-arrange` | dark | re-shot |
+| `ed-ab-arrange` | light | re-shot |
+| `ed-ab-tidy` | dark | re-shot |
+| `ed-ab-tidy` | light | re-shot |
+| `ed-ab-menu` | dark | re-shot |
+| `ed-ab-menu` | light | re-shot |
+| `ed-obj-enter` | dark | re-shot |
+| `ed-obj-enter` | light | re-shot |
+| `ed-obj-multi` | dark | re-shot |
+| `ed-obj-multi` | light | re-shot |
+| `ed-obj-order` | dark | re-shot |
+| `ed-obj-order` | light | re-shot |
+| `ed-lay-auto` | dark | re-shot |
+| `ed-lay-auto` | light | re-shot |
+| `ed-lay-reorder` | dark | re-shot |
+| `ed-lay-reorder` | light | re-shot |
+| `ed-lay-free` | dark | re-shot |
+| `ed-lay-free` | light | re-shot |
+| `ed-text-edit` | dark | re-shot |
+| `ed-text-edit` | light | re-shot |
+| `ed-text-style` | dark | re-shot |
+| `ed-text-style` | light | re-shot |
+| `ed-shape` | dark | re-shot |
+| `ed-shape` | light | re-shot |
+| `ed-pen` | dark | re-shot |
+| `ed-pen` | light | re-shot |
+| `ed-img` | dark | re-shot |
+| `ed-img` | light | re-shot |
+| `ed-comp-pick` | dark | re-shot |
+| `ed-comp-pick` | light | re-shot |
+| `ed-comp-instance` | dark | re-shot |
+| `ed-comp-instance` | light | re-shot |
+| `ed-inspector` | dark | re-shot |
+| `ed-inspector` | light | re-shot |
+| `ed-edge-ai` | dark | re-shot |
+| `ed-edge-ai` | light | re-shot |
+| `ed-edge-ask` | dark | re-shot |
+| `ed-edge-ask` | light | re-shot |
+| `ed-edge-huge` | dark | re-shot |
+| `ed-edge-huge` | light | re-shot |
+| `ed-edge-undo` | dark | re-shot |
+| `ed-edge-undo` | light | re-shot |
+| `ed-edge-paste` | dark | re-shot |
+| `ed-edge-paste` | light | re-shot |
+| `ed-edge-keys` | dark | re-shot |
+| `ed-edge-keys` | light | re-shot |
+| `ed-edge-tereza` | dark / light | unreachable (needs a second synced collaborator) |
