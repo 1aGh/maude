@@ -51,3 +51,23 @@ Harness-only changes (no product code): the "What's new" notice now has a "See a
 | co-mention-notify | unreachable | OS banner / e-mail, no template, native only |
 
 Spec-only JPEGs of the five unreachable ids are unchanged (`spec-only/`).
+
+## FINAL (stage D2, d3881fe41)
+
+Final re-shoot, IMPL side, dark + light, on the release client built from `feat/maude-v2` @ `d3881fe41` (all stage C rounds 1-4 merged; client bundle = `fae2884fa`). Every pair in this folder (`<id>-<theme>.jpg`) was overwritten with this shot, replacing every earlier round's. Spec side: **reused** — the board `.design/ui/v2/10 Share and Collaboration.tsx` has not changed since the stage-A shot (`git log` on it is empty after 2026-10-21), so the stage-A spec PNGs were reused. Full-size pairs: `full-size-path.txt` (the "final (D2)" line). No product code touched; no verdicts here (the critic judges).
+
+Harness: the committed `_d-harness-g4` scripts repointed to this worktree, plus `_d2-harness-g4/` (new scripts below). Playwright Chromium 1440x860, `window.__TAURI__` stub unless noted, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`.
+
+| id | dark · light | note |
+|---|---|---|
+| co-share-sheet, co-share-roles, co-share-advanced | re-shot | FAKED `/_api/share/*` (cloud, 4 people, 1 invite) |
+| co-browser-view, co-presence | re-shot | presence is still one local face (no peers) |
+| co-comment-thread, co-comment-video, co-comment-print | re-shot | real comment composer / Comments panel |
+| co-sync-offline, co-sync-back | re-shot | FAKED linked project + browser offline + outbox 14; co-sync-back keeps the toast (`notice`) |
+| co-conflict, co-trashed, co-local-cloud | re-shot | FAKED conflicts / trash routes; real local Share (Move to cloud) |
+| co-access-ends | re-shot | `s10c`: FAKED 401 `access-withdrawn`, notices dismissed |
+| co-ask-edit | re-shot | `s10d` frame `co-ask-edit-tip` (view-only tip after a >8 px drag on the faked read-only canvas) is the paired impl |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | need N live peers (Yjs awareness over `/_ws/collab`); no fixture, no route to fake presence |
+| co-mention-notify | unreachable | OS banner / e-mail, native only |
+
+Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). New scripts: none beyond `s10 / s10c / s10d`.

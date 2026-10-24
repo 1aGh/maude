@@ -6,3 +6,6 @@ stage D (53ceb26c5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba
 round 3: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a5f4696a9f55c2299/.scr/pairs/11-projects-and-navigation (p8-c3-shell, impl at c7f1a0efd)
 
 round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8ca0db6375bacad9/.scr/pairs/11-projects-and-navigation (p8-c4-navpanels, impl at the branch tip; spec PNGs reused from stage D)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/pairs/11-projects-and-navigation
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/spec/11-projects-and-navigation/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/impl/11-projects-and-navigation/)

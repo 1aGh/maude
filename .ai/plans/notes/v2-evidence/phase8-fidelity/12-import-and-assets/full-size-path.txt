@@ -3,3 +3,6 @@ stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bc
 
 stage D (53ceb26c5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/pairs/12-import-and-assets
 (full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/spec/12-import-and-assets/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/impl/12-import-and-assets/)
+
+final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/pairs/12-import-and-assets
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/spec/12-import-and-assets/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/impl/12-import-and-assets/)
