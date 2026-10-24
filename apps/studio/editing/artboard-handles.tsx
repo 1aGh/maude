@@ -99,6 +99,16 @@ export function savePreview(m: Measured): Saved {
   };
 }
 
+/**
+ * The size the name chip says. While a handle is being dragged it is the SAME box the pill beside the pointer reads
+ * (`computeArtboardResize`'s result) — the page may refuse to get that narrow (its own min-content), and a chip
+ * reading 1058 beside a pill reading 1052 is two answers to one question (14 ed-ab-resize). At rest it is what is
+ * measured.
+ */
+export function chipSize(drag: Pick<Box, 'w' | 'h'> | null | undefined, measured: string): string {
+  return drag ? sizeText(drag.w, drag.h) : measured;
+}
+
 /** Move the frame to `box` for the duration of the drag ("the page reflows while you drag"). */
 export function applyPreview(m: Measured, box: Box, heightTouched: boolean): void {
   m.article.style.width = `${box.w + m.extraW}px`;
@@ -271,10 +281,11 @@ export function ArtboardHandles(): React.ReactNode {
         lastSize = '';
       }
       // S7.23: a print artboard says its size on paper ("105 × 148 mm"), not in px
-      const size =
+      let size =
         videoLengthWords(m.article, id) ||
         physicalSizeWords({ attrs: attrsOf(m.article) }) ||
         sizeText(m.box.w, m.box.h);
+      size = chipSize(dragRef.current?.last?.box, size);
       if (size !== lastSize) {
         lastSize = size;
         const label = m.article.querySelector(':scope > .dc-artboard-label');
