@@ -104,3 +104,9 @@ Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (sta
 | `cf-status-words` | re-shot | re-shot |  |
 | `cf-render-error` | re-shot | re-shot |  |
 | `cf-offline-create` | re-shot | re-shot |  |
+
+## After (round 5, p8-c5-panels @ 2e203e9e6)
+IMPL re-shot light + dark on the round-5 tip with the stage-D harness (`_d-harness-g1/`, repointed; the Playwright cache was gone, so the shots ran on the system Chrome channel). SPEC reused. Every id with a pair above was overwritten. Evidence only; no match / mismatch judged here.
+
+- Changed in the product for these frames: the Canvases panel is the board island (no accent Make-a-design-system row, no empty Trash row, no foot at rest, "Search ⌘K", "N canvases" on the project row, pictures on the rows), "+ New canvas" named by its words, the comment card (04 / 10 / 01 cf-sticky-comment).
+- Harness drift handled (no product code): the Trash row is gone while the trash is empty, so the Trash frame opens it from Advanced; the Comments icon is drawn only with comments, so the Comments frame opens by ⌘K › Comments; the Layers frame re-opens the left panel first.

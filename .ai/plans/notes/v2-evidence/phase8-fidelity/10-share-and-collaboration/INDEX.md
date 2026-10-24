@@ -71,3 +71,6 @@ Harness: the committed `_d-harness-g4` scripts repointed to this worktree, plus 
 | co-mention-notify | unreachable | OS banner / e-mail, native only |
 
 Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). New scripts: none beyond `s10 / s10c / s10d`.
+
+## After (round 5, p8-c5-panels @ 2e203e9e6)
+`co-comment-thread`, `co-comment-video`, `co-comment-print` re-shot (IMPL light + dark, SPEC reused): the Comment tool docks the Comments panel by itself; the thread card is the board's (canvas · place heading, ghost Resolve, tone faces, one field with the accent send). The thread frame now shows an opened thread with a reply being typed. Other ids unchanged.

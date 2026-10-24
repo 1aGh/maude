@@ -18,3 +18,4 @@ final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9
 final (D2) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/impl-out/04-modes/
 final (D2) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a948527cf7721a4d9/.scr/spec/04/
 final (D2) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d-harness-g2/ (D2 changes under _d2-harness-g2/)
+round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b00/.scr/pairs/04-modes/ (p8-c5-panels @ 2e203e9e6; md-comment only, IMPL re-shot light + dark)

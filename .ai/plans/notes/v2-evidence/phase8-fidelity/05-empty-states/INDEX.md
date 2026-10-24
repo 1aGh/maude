@@ -101,3 +101,9 @@ Final re-shoot of the IMPL side on the merged `feat/maude-v2` tip d3881fe41 (sta
 | `es-offline-uncached` | re-shot | re-shot |  |
 | `es-all-trashed` | re-shot | re-shot | the pair shows the states the app reaches (one left, empty); the all-trashed card itself is not reached by a local route |
 | `es-edge-panels` | re-shot | re-shot |  |
+
+## After (round 5, p8-c5-panels @ 2e203e9e6)
+IMPL re-shot light + dark on the round-5 tip (stage-D harness, repointed, system Chrome channel). SPEC reused. Every id with a pair was overwritten. Evidence only.
+
+- Changed in the product for these frames: the Canvases panel island; the empty block centred on the free canvas (es-canvas-ai, es-offline-uncached); the empty-project prompt box (es-project-new); the empty-artboard hint after "New artboard" selects the board (es-artboard-new); the all-trashed card is mounted (es-all-trashed, still needs the Trash to hold the canvas's artboards); plain layer names, "a web page", "Searched 1 chat", the "New canvas" start-here row, the project named on Exports.
+- Still open: es-arriving skeleton artboards (no artboard data for a canvas on its way), es-viewer, es-timeline lanes.
