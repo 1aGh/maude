@@ -2,9 +2,9 @@
 // twisty only while it is open (hover/focus show it); the panel handle carries its chip (06 ad-pinned); the Undo ·
 // Redo · zoom island clears a pinned column; B on the Now row takes the dot's place (11 pn-compare).
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -63,7 +63,7 @@ describe('06 ad-pinned: the handle says what it does', () => {
     root = createRoot(host);
     const size = { w: 280, setW: () => {}, min: 200, max: 480, def: 280 };
     await act(async () => {
-      root?.render(<PanelGrip label="Resize" size={size} onPointerDown={() => {}} /> as never);
+      root?.render((<PanelGrip label="Resize" size={size} onPointerDown={() => {}} />) as never);
     });
     const tip = host.querySelector('.st-grip-tip');
     expect(tip?.textContent).toBe('Drag · double-click resets · ← → move 8');

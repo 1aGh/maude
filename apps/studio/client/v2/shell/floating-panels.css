@@ -215,7 +215,7 @@
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transition: opacity var(--dur-flip, 120ms) var(--ease-out, ease-out);
+    transition: opacity var(--dur-flip) var(--ease-out);
   }
   .st-grip--l .st-grip-tip {
     left: calc(100% + var(--space-2, 8px));
