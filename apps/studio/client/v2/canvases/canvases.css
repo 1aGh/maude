@@ -607,6 +607,17 @@
     outline: 2px solid var(--accent);
     outline-offset: -2px;
   }
+  /* P8 C3 (01 cf-blank, 11 pn-organise) — at rest a canvas row is thumb · name · badges and nothing else: the board
+     draws a twisty only on a row that is open (11 pn-jump `expand`). It shows on hover, focus and while open. */
+  .cv-jt[aria-expanded="false"] {
+    opacity: 0;
+  }
+  .cv-item:hover .cv-jt[aria-expanded="false"],
+  .cv-item:focus-within .cv-jt[aria-expanded="false"],
+  .cv-jt[aria-expanded="false"]:hover,
+  .cv-jt[aria-expanded="false"]:focus-visible {
+    opacity: 1;
+  }
   .cv-bk {
     display: grid;
     place-items: center;

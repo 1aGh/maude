@@ -125,6 +125,12 @@
     gap: 2px;
     padding: var(--space-1, 4px);
   }
+  /* Pinned (View › Advanced › Pin panels to the side): the island sits in the CANVAS column, clear of the docked
+     Canvases column (06 ad-pinned draws it in the centre column's bottom-left). */
+  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-zoomundo.island,
+  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-zoomonly.island {
+    left: calc(var(--sb-w, 0px) + var(--float-gap, 16px));
+  }
   .st-zoomundo-div {
     width: 1px;
     height: 20px;

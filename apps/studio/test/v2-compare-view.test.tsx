@@ -408,7 +408,8 @@ describe('Version history while comparing', () => {
     expect(s?.a).toMatchObject({ at: 'r41', title: 'Schváleno trenéry', who: 'Jonas' });
     expect(s?.b.at).toBe('now');
     expect(q('[data-testid="vh-mark-A"]')?.closest('[data-testid="vh-row-r41"]')).not.toBeNull();
-    expect(q('[data-testid="vh-now"] [data-testid="vh-mark-B"]')).not.toBeNull();
+    // P8 C3 (11 pn-compare): B on Now takes the dot's place — a child of the row, not text inside its button
+    expect(q('[data-testid="vh-now"] > [data-testid="vh-mark-B"]')).not.toBeNull();
     expect(q('[data-testid="vh-compare"]')).toBeNull(); // already comparing
     expect(compareStore.get()?.rows.length).toBe(4); // the rows name a line’s maker
   });

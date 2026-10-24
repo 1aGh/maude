@@ -143,6 +143,17 @@
     border: 0;
   }
 
+  /* P8 C3 — the Canvases panel (left) and Version history (right) are content-height islands per board (01 `k-cp`,
+     11 `pn-vh`, 06 `ad-vh`): the slot's frame is full height, the island is not. It hugs its rows and scrolls only
+     past the window; a chat docked under it does not stretch it either. */
+  .st-body--float .st-dockslot-inner:has(> .st-sidebar),
+  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:has(> .st-sidebar),
+  .st-body--float .st-dockslot-inner:has(> .vh-panel),
+  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:has(> .vh-panel) {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
   /* Pinned: the inner steps out of the box tree, so the panel is today's direct child of the slot. */
   .st-body:not(.st-body--float) .st-dockslot-inner {
     display: contents;
@@ -170,6 +181,51 @@
   .st-body--float > .st-grip--r {
     right: calc(var(--rp-w) - 4px);
     top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
+  }
+
+  /* P8 C3 (06 ad-pinned) — the handle in use: a 6 × 32 accent pill on the seam (the dots are its hover form) and the
+     chip that says what it does, on the canvas side of the seam. Shown while held, focused or hovered. */
+  .st-grip.is-active::after,
+  .st-grip:focus-visible::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 32px;
+    translate: -50% -50%;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--accent);
+  }
+  .st-grip.is-active .st-grip-dots,
+  .st-grip:focus-visible .st-grip-dots {
+    opacity: 0;
+  }
+  .st-grip-tip {
+    position: absolute;
+    top: 50%;
+    z-index: 26;
+    translate: 0 -50%;
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--fg-0);
+    color: var(--bg-2, var(--bg-1));
+    font-size: var(--type-xs, 12px);
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-flip, 120ms) var(--ease-out, ease-out);
+  }
+  .st-grip--l .st-grip-tip {
+    left: calc(100% + var(--space-2, 8px));
+  }
+  .st-grip--r .st-grip-tip {
+    right: calc(100% + var(--space-2, 8px));
+  }
+  .st-grip.is-active .st-grip-tip,
+  .st-grip:focus-visible .st-grip-tip {
+    opacity: 1;
   }
 
   /* ── folded corner icons ── */
@@ -235,6 +291,14 @@
   .st-body:not(.st-body--float) .st-corner--ai,
   .st-body:not(.st-body--float) .st-corner--ai-left {
     bottom: 16px;
+  }
+  /* 06 ad-pinned (a11y V4) — a folded panel's icon floats over the CANVAS: with a pinned column open on its side
+     (the AI chat alone keeps the right slot shown) it stands beside that column, not over its header. */
+  .st-body:not(.st-body--float):has(> .st-dockslot--right:not(.is-collapsed):not(.is-hidden)) .st-corner--right {
+    right: calc(var(--rp-w, 0px) + 16px);
+  }
+  .st-body:not(.st-body--float):has(> .st-dockslot--left:not(.is-collapsed):not(.is-hidden)) .st-corner--left {
+    left: calc(var(--sb-w, 0px) + 16px);
   }
 
   /* S3.14 (G4, 04 md-motion): a panel that stops showing shrinks toward its corner icon. The ghost is a picture

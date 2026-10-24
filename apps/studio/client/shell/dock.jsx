@@ -254,6 +254,9 @@ export function usePanelSize(storeKey, { min, max, def }) {
   return { w, setW, min, max, def };
 }
 
+/** The chip beside a panel handle while it is dragged or focused (06 ad-pinned). */
+export const GRIP_TIP = 'Drag · double-click resets · ← → move 8';
+
 export function PanelGrip({ label, size, onPointerDown, active, dir = 'ltr' }) {
   const { w, setW, min, max, def } = size;
   // `dir` is grip-relative: 'ltr' (left panel) → ArrowRight widens; 'rtl'
@@ -296,6 +299,10 @@ export function PanelGrip({ label, size, onPointerDown, active, dir = 'ltr' }) {
         <circle cx="3" cy="9" r="1.1" fill="currentColor" />
         <circle cx="3" cy="15" r="1.1" fill="currentColor" />
       </svg>
+      {/* P8 C3 (06 ad-pinned `.ad-handle-tip`) — what the handle does, beside it while it is held or focused */}
+      <span className="st-grip-tip" aria-hidden="true">
+        {GRIP_TIP}
+      </span>
     </div>
   );
 }
