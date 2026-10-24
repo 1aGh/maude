@@ -331,6 +331,22 @@ describe('a purely digital comp keeps its rows, but its beats share one Video la
     });
     expect(q('[data-testid="timeline-landing-line"]')).toBeNull();
   });
+  test('pressing a clip selects it at once — the lifted clip wears the selection while it is dragged (07 · ve-move-transition)', () => {
+    const picked: unknown[] = [];
+    mount({
+      sequences: [scene('Oslava', 0, 150), scene('Touchdown', 150, 150)],
+      extra: { onReorderMove: () => {}, onSelect: (id: unknown) => picked.push(id) },
+    });
+    act(() => {
+      (q('[data-testid="timeline-seq-1"]') as HTMLElement).dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 300 })
+      );
+    });
+    expect(picked).toEqual(['Touchdown']);
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 300 }));
+    });
+  });
   test('a beat that opens into layers keeps a lane to itself (the layer view stays)', () => {
     mount({
       sequences: [scene('beat-one', 0, 150), scene('beat-two', 150, 150, 3), scene('beat-three', 300, 150)],

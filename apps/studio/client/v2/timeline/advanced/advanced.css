@@ -34,7 +34,8 @@
     position: absolute;
     left: calc(-1 * var(--space-2));
     right: calc(-1 * var(--space-2));
-    bottom: calc(100% + var(--tla-lift, 0px) + var(--space-4));
+    /* the tools island (timeline.css `.tla-tools`) sits between the foot and the cards: 28 px + its padding + a gap */
+    bottom: calc(100% + var(--tla-lift, 0px) + var(--space-2) + 44px + var(--space-3));
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;

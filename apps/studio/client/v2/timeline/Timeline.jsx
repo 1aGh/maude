@@ -784,6 +784,9 @@ export default function TimelinePanel({
 
   const startMove = (e, index, startFrom) => {
     if (sequences[index]?.loose) return; // loose media row — read-only
+    // V2-8.5 c4-video (07 · ve-move-transition): a clip you pick up IS the selected one (its ring and its inspector
+    // come with the lift), not only after a click
+    onSelect?.(sequences[index]?.stableId ?? null);
     // A TransitionSeries/Series clip computes its own position — Remotion
     // IGNORES a `from` prop on it; its body-drag is the magnetic REORDER.
     if (sequences[index]?.series) {

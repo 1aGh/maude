@@ -1383,12 +1383,23 @@
   }
 
   /* the Advanced foot's first row: the v1 header's other tools, one disclosure down (07 · note 26) */
+  /* V2-8.5 c4-video: the row is a small island of its own above the foot (the cards sit above it, `--tla-tools`) */
   .tla-tools {
+    position: absolute;
+    right: calc(-1 * var(--space-2));
+    bottom: calc(100% + var(--tla-lift, 0px) + var(--space-2));
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--space-1);
-    padding: var(--space-1) 0 var(--space-2);
+    max-width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--island-radius, var(--radius-xl));
+    background: var(--island-bg-strong, var(--bg-1));
+    box-shadow:
+      var(--island-shadow, var(--shadow-lg)),
+      inset 0 0 0 0.5px var(--island-edge);
   }
   .tla-tools .btn {
     gap: var(--space-1);
