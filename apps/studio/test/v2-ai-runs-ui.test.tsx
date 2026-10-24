@@ -361,6 +361,68 @@ describe('the rings on the canvas', () => {
     expect(q('ai-rings')).toBeNull();
   });
 
+  test('P8 c3: a settled Made-by-AI artboard wears the label only; a run that just ended settles the ring once, then lets go', async () => {
+    const { act } = await overlay();
+    const done = { state: 'done', who: 'you', tag: 'Made by AI', waiting: 0 };
+    // opened on a canvas that already holds a Made-by-AI artboard: label mark, no finish moment
+    await act(async () => {
+      post({ dgn: 'ai-runs', artboards: { post: done } });
+    });
+    expect(q('ai-ring-post')?.getAttribute('data-state')).toBe('done');
+    expect(q('ai-ring-post')?.hasAttribute('data-fresh')).toBe(false);
+    expect(q('ai-ring-post')?.textContent).toContain('Made by AI');
+    // the CSS: no ring or glow on the settled state, only on the fresh one
+    const css = document.getElementById('dc-ai-ring-css')?.textContent ?? '';
+    expect(css).not.toMatch(/\.dc-ai-ring\[data-state="done"\]\s*\{/);
+    expect(css).toMatch(/\.dc-ai-ring\[data-state="done"\]\[data-fresh\]\s*\{/);
+    // a run on the artboard, then done: the finish moment, and it ends
+    await act(async () => {
+      post({ dgn: 'ai-runs', artboards: {} });
+      post({
+        dgn: 'ai-runs',
+        artboards: { post: { state: 'running', who: 'you', tag: 'AI is working', waiting: 0 } },
+      });
+      post({ dgn: 'ai-runs', artboards: {} });
+      post({ dgn: 'ai-runs', artboards: { post: done } });
+    });
+    expect(q('ai-ring-post')?.getAttribute('data-fresh')).toBe('true');
+    const { FRESH_DONE_MS } = await import('../artboard-activity-overlay.tsx');
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, FRESH_DONE_MS + 150));
+    });
+    expect(q('ai-ring-post')?.hasAttribute('data-fresh')).toBe(false);
+    expect(q('ai-ring-post')?.textContent).toContain('Made by AI');
+  });
+
+  test('P8 c3: an artboard the AI took before it existed reads "AI is drawing <its name>" once it lands (01 cf-ai-drafting)', async () => {
+    const { act } = await overlay();
+    const running = { state: 'running', who: 'you', tag: 'AI is working', waiting: 0 };
+    await act(async () => {
+      post({ dgn: 'ai-runs', artboards: { post: running, tablet: running } });
+    });
+    // on the canvas already: the neutral words stay
+    expect(q('ai-ring-post')?.textContent).toContain('AI is working');
+    // not drawn yet: nothing to name, and no ring box
+    expect(q('ai-ring-tablet')?.textContent).toContain('AI is working');
+    const board = document.createElement('div');
+    board.setAttribute('data-dc-screen', 'tablet');
+    board.setAttribute('data-dc-label', 'Tablet');
+    board.getBoundingClientRect = () =>
+      ({ left: 10, top: 10, width: 234, height: 334, right: 244, bottom: 344, x: 10, y: 10 }) as DOMRect;
+    document.body.append(board);
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(q('ai-ring-tablet')?.textContent).toContain('AI is drawing Tablet');
+    expect(q('ai-ring-post')?.textContent).not.toContain('drawing');
+    // when the run ends, the word goes with it
+    await act(async () => {
+      post({ dgn: 'ai-runs', artboards: { post: running } });
+    });
+    expect(q('ai-ring-tablet')).toBeNull();
+  });
+
   test('only the shell may say it: a message from anywhere else draws nothing', async () => {
     const { act } = await overlay();
     await act(async () => {

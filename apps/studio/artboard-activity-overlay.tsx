@@ -76,7 +76,11 @@ ArtboardActivityOverlay.displayName = 'ArtboardActivityOverlay';
 //
 //   running    dashed spark outline + spark-led tag ("AI is working", "Tereza's AI") + "· N waiting"
 //   needs-you  dashed azure outline + azure tag ("Waiting for you")
-//   done       solid spark outline that settles once, a sweep across the artboard, "Made by AI"
+//   done       the "Made by AI" label mark only (01 cf-ai-done draws no ring on a finished artboard). A run that
+//              JUST ended well also settles a solid spark ring once and sweeps Before / After across the
+//              artboard (`data-fresh`, ~1.8 s), then lets go of the ring - 03 `ai-ring--done` is that moment.
+//   drafting   a running ring on an artboard that was not on the canvas yet when the AI took it reads
+//              "AI is drawing <its name>" (01 cf-ai-drafting); the name is the artboard's own, read here
 //   Reduced motion collapses every animation to 1 ms.
 //
 // Data flow, one direction only: the shell (client/v2/ai/ring-relay.js) posts `{ dgn: 'ai-runs', artboards }`
@@ -120,7 +124,8 @@ const RINGS_CSS = `
 .dc-ai-ring { position: fixed; display: none; border-radius: var(--maude-hud-radius-sm, 6px); box-sizing: border-box; pointer-events: none; }
 .dc-ai-ring[data-state="running"] { border: 1.5px dashed var(--dc-ai-spark); }
 .dc-ai-ring[data-state="needs-you"] { border: 1.5px dashed var(--dc-ai-azure); box-shadow: 0 0 0 4px var(--dc-ai-azure-muted); }
-.dc-ai-ring[data-state="done"] {
+/* a settled "Made by AI" artboard wears the label mark only; the ring is the finish moment (data-fresh) */
+.dc-ai-ring[data-state="done"][data-fresh] {
   border: 2px solid var(--dc-ai-spark); box-shadow: 0 0 0 4px var(--dc-ai-spark-muted);
   animation: dc-ai-settle var(--dc-ai-dur) var(--dc-ai-ease) 1 both;
 }
@@ -149,7 +154,7 @@ const RINGS_CSS = `
   position: absolute; top: 0; bottom: 0; left: 0; width: 2px; margin-left: -1px; display: none;
   background: var(--dc-ai-spark); box-shadow: 0 0 0 1px var(--dc-ai-spark-muted);
 }
-.dc-ai-ring[data-state="done"] .dc-ai-sweep { display: block; animation: dc-ai-sweep var(--dc-ai-sweep) ease-in-out 1 both; }
+.dc-ai-ring[data-state="done"][data-fresh] .dc-ai-sweep { display: block; animation: dc-ai-sweep var(--dc-ai-sweep) ease-in-out 1 both; }
 /* 03 .ai-wipe-lab: the Before / After pills ride the sweep line - bg-2 pill, fg-0 semibold, shadow-sm */
 .dc-ai-wipe-lab {
   position: absolute; top: 8px; display: none; padding: 1px 8px; border-radius: 999px; white-space: nowrap;
@@ -159,7 +164,7 @@ const RINGS_CSS = `
 }
 .dc-ai-wipe-lab[data-side="before"] { right: calc(100% + 4px); }
 .dc-ai-wipe-lab[data-side="after"] { left: calc(100% + 4px); }
-.dc-ai-ring[data-state="done"] .dc-ai-wipe-lab { display: block; }
+.dc-ai-ring[data-state="done"][data-fresh] .dc-ai-wipe-lab { display: block; }
 @keyframes dc-ai-sweep { from { left: 0; opacity: 1; } 85% { opacity: 1; } to { left: 100%; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .dc-ai-rings { --dc-ai-dur: 1ms; --dc-ai-sweep: 1ms; }
@@ -175,6 +180,9 @@ function ensureRingStyles(): void {
   s.textContent = RINGS_CSS;
   document.head.appendChild(s);
 }
+
+/** The shell's fixed words for a run in progress (runs-model.js TAG_WORKING) - the one a drafted artboard renames. */
+const TAG_WORKING_WORDS = 'AI is working';
 
 /** The words on the tag: the fixed phrase from the shell, plus "· N waiting" when asks are in line. */
 export function ringTagText(r: AiRing): string {
@@ -202,24 +210,89 @@ function artboardEl(id: string): Element | null {
   return document.querySelector(`[data-dc-screen="${esc}"]`);
 }
 
+/** How long the finish moment (settled ring + Before / After sweep) lasts before only the label mark is left. */
+export const FRESH_DONE_MS = 1800;
+/** A "done" counts as just-finished when the artboard was a running ring this recently. */
+const FRESH_WINDOW_MS = 20_000;
+
+/** "AI is drawing Tablet" - the words for an artboard the AI is drafting (01 cf-ai-drafting). */
+export function drawingTag(label: string | null | undefined): string | null {
+  const name = (label ?? '').replace(/\s+/g, ' ').trim();
+  return name ? `AI is drawing ${name.slice(0, 60)}` : null;
+}
+
+function labelOfArtboard(id: string): string | null {
+  const el = artboardEl(id);
+  return el?.getAttribute('data-dc-label') || el?.getAttribute('aria-label') || null;
+}
+
 export function ArtboardRingsLayer() {
   ensureRingStyles();
   const [rings, setRings] = useState<AiRings>({});
+  // ids of artboards whose run just ended well: they wear the ring + sweep for FRESH_DONE_MS
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+  // artboards the AI took before they were on the canvas (it is drawing them), id -> name once known
+  const [drawing, setDrawing] = useState<Readonly<Record<string, string | null>>>({});
   const nodes = useRef(new Map<string, HTMLDivElement>());
+  const ranAt = useRef(new Map<string, number>());
   const ids = useMemo(() => Object.keys(rings), [rings]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
     const onMessage = (e: MessageEvent) => {
       // Only the shell may say it (DDR-054: the canvas is the untrusted side). The table then parses the
       // payload — state/who/tag/waiting only, capped, no `__proto__` key.
       if (e.source !== window.parent) return;
       if ((e.data as { dgn?: string } | null)?.dgn !== 'ai-runs') return;
       const m = acceptFromShell(e, window);
-      if (m && m.dgn === 'ai-runs') setRings(m.artboards as AiRings);
+      if (!m || m.dgn !== 'ai-runs') return;
+      const next = m.artboards as AiRings;
+      const now = Date.now();
+      const justDone: string[] = [];
+      const taken: string[] = [];
+      for (const [id, r] of Object.entries(next)) {
+        if (r.state === 'running') {
+          if (!ranAt.current.has(id)) {
+            ranAt.current.set(id, now);
+            if (r.who === 'you' && !artboardEl(id)) taken.push(id);
+          }
+        } else if (r.state === 'done') {
+          const at = ranAt.current.get(id);
+          if (at !== undefined && now - at <= FRESH_WINDOW_MS) {
+            justDone.push(id);
+            ranAt.current.delete(id);
+          }
+        }
+      }
+      // a ring that went away without a "done" (stopped, failed) forgets its run
+      for (const id of [...ranAt.current.keys()])
+        if (!next[id] && now - (ranAt.current.get(id) ?? 0) > FRESH_WINDOW_MS) ranAt.current.delete(id);
+      setDrawing((d) => {
+        // it is drawing only while the ring runs; any other state (or no ring) lets the word go
+        const keep = Object.entries(d).filter(([id]) => next[id]?.state === 'running');
+        if (!taken.length && keep.length === Object.keys(d).length) return d;
+        return { ...Object.fromEntries(keep), ...Object.fromEntries(taken.map((id) => [id, null])) };
+      });
+      if (justDone.length) {
+        setFresh((f) => new Set([...f, ...justDone]));
+        const t = setTimeout(() => {
+          timers.delete(t);
+          setFresh((f) => {
+            const n = new Set(f);
+            for (const id of justDone) n.delete(id);
+            return n;
+          });
+        }, FRESH_DONE_MS);
+        timers.add(t);
+      }
+      setRings(next);
     };
     window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      for (const t of timers) clearTimeout(t);
+    };
   }, []);
 
   // One animation-frame loop while any ring exists: follow each artboard's on-screen rectangle.
@@ -237,13 +310,17 @@ export function ArtboardRingsLayer() {
           div.style.display = 'none';
           continue;
         }
-        const grow = div.dataset.state === 'done' ? 6 : 5;
+        const grow = div.dataset.state === 'done' ? (div.dataset.fresh ? 6 : 0) : 5;
         div.style.display = 'block';
         div.style.left = `${Math.round(r.left - grow)}px`;
         div.style.top = `${Math.round(r.top - grow)}px`;
         div.style.width = `${Math.round(r.width + grow * 2)}px`;
         div.style.height = `${Math.round(r.height + grow * 2)}px`;
         div.dataset.at = tagPlacement(r.width);
+        if (div.dataset.drawing === 'pending') {
+          const name = labelOfArtboard(id);
+          if (name) setDrawing((d) => (d[id] ? d : { ...d, [id]: name }));
+        }
       }
       raf = requestAnimationFrame(tick);
     };
@@ -271,6 +348,10 @@ export function ArtboardRingsLayer() {
             data-state={r.state}
             data-who={r.who}
             data-at="below"
+            data-fresh={r.state === 'done' && fresh.has(id) ? 'true' : undefined}
+            data-drawing={
+              r.state === 'running' && id in drawing ? (drawing[id] ? 'true' : 'pending') : undefined
+            }
           >
             <span className="dc-ai-sweep">
               <span className="dc-ai-wipe-lab" data-side="before">
@@ -291,7 +372,11 @@ export function ArtboardRingsLayer() {
                   />
                 </svg>
               )}
-              {ringTagText(r)}
+              {ringTagText(
+                r.state === 'running' && id in drawing && r.tag === TAG_WORKING_WORDS
+                  ? { ...r, tag: drawingTag(drawing[id]) ?? r.tag }
+                  : r
+              )}
             </span>
           </div>
         );
