@@ -110,12 +110,16 @@ function paperOptions() {
   }));
 }
 
-/** "post" for a size from the Social group, "artboard" for any other: the word Change kind's toast calls the original. */
-export function sourceWord(facts) {
+/**
+ * "post" for a size from the Social group — or an artboard its own label calls a post ("Zápas · post 4:5", drawn at
+ * a scaled size) — "artboard" for any other: the word Change kind's toast calls the original (08 ak-convert-after).
+ */
+export function sourceWord(facts, label = '') {
   const hit = PRESET_GROUPS.filter((g) => g.id === 'social')
     .flatMap((g) => g.presets)
     .some((p) => p.widthPx === facts.w && p.heightPx === facts.h);
-  return hit ? 'post' : 'artboard';
+  const named = /(^|[^\p{L}\p{N}])post([^\p{L}\p{N}]|$)/iu.test(String(label ?? ''));
+  return hit || named ? 'post' : 'artboard';
 }
 
 /** The preset the artboard is, as an option value; '' = Custom. */

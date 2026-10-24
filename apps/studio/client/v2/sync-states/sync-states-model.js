@@ -17,7 +17,8 @@ const pad = (n) => String(n).padStart(2, '0');
 /** "18:20" today, "yesterday 18:20", else "3 Oct, 18:20" (local time, 24-hour — the CONTRACT §4 clock). */
 export function whenWords(ms, now = Date.now()) {
   const d = new Date(ms);
-  const t = `${d.getHours()}:${pad(d.getMinutes())}`;
+  // two-digit hour: "00:19" / "09:15" — the same 24-hour clock as the board ("Tereza changed this · 09:15")
+  const t = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const n = new Date(now);
   const diff = Math.round((day(n) - day(d)) / 86_400_000);

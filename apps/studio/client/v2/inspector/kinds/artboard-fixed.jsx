@@ -48,7 +48,7 @@ function FixedRows({ el, ctx }) {
           paper={asking.paper}
           canvas={ctx.canvasFile}
           artboardId={id}
-          sourceWord={sourceWord(f)}
+          sourceWord={sourceWord(f, el?.attrs?.['data-dc-label'])}
           onUndo={() => ctx.onUndoRedo?.('undo')}
           onDone={(r) => {
             // 08 ak-convert-after: the A6 copy is selected, the post stays as it was
