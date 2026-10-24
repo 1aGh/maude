@@ -8,3 +8,6 @@ round 4 (feat/maude-v2 b21411687 + p8-c4-kindsexport): /Users/iagh/git/personal/
 final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/pairs/09
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/spec/09/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/impl/09/)
 bugs3: (Export sheet for one element names and sizes it (the harness selects the artboard by its label); Hand off shot after the cards draw — pairs re-shot: ex-social, ex-formats, ex-handoff): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad1e7b1fa8d504037/.scr/pairs/09
+
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/pairs/09
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/spec/09/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/impl/09/)

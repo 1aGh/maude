@@ -8,3 +8,6 @@ round 4 (feat/maude-v2 b21411687 + p8-c4-kindsexport): /Users/iagh/git/personal/
 final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/pairs/08
 (final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a595be579d5cc0243/.scr/impl/08/)
 bugs3: (View › Advanced submenu on the window; mixed-boards inspector; the A6 copy beside the post and selected — pairs re-shot: ak-print-view, ak-mixed-select, ak-convert-after): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad1e7b1fa8d504037/.scr/pairs/08
+
+final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/pairs/08
+(final spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/spec/08/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae9248c4b37445c3a/.scr/impl/08/)
