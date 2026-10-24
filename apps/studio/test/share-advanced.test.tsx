@@ -305,8 +305,14 @@ describe('the link and its rules (co-share-advanced)', () => {
 describe('a project on a self-hosted hub (co-share-advanced, right)', () => {
   test('its own address, only the roles it holds, no link rules, no matrix', async () => {
     const { q } = await mount({ posture: SELF_HOSTED });
-    await openAdvanced(q);
+    // the hint names what's inside while the fold is CLOSED; open, the body says it (kit fold, 06 Advanced).
+    // The fold is remembered per panel, so an earlier test may have left it open: close it first.
+    if (q('share-other-ways-toggle')?.getAttribute('aria-expanded') === 'true')
+      await click(q('share-other-ways-toggle'));
     expect(q('share-other-ways')?.textContent).toContain('Other ways in, sync, roles');
+    await openAdvanced(q);
+    expect(q('share-other-ways')?.textContent).not.toContain('Other ways in, sync, roles');
+    expect(q('share-other-ways')?.textContent).toContain('Other ways in');
     expect((q('share-syncs-hub') as HTMLInputElement | null)?.value).toBe(
       'https://hub.studio-brno.cz'
     );

@@ -10,8 +10,13 @@ beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => {
-  GlobalRegistrator.unregister();
+afterAll(async () => {
+  // React's scheduler and the stores' timers can still be queued when the last test ends; let them run while
+  // `window` exists, or they fire into a destroyed DOM ("window is not defined", unhandled between tests)
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+  await GlobalRegistrator.unregister();
 });
 
 import { act } from 'react';

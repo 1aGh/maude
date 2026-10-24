@@ -247,12 +247,12 @@
     width: 0 !important;
     flex-basis: 0 !important;
   }
+  /* pinned layout: the inner wrapper is display:contents, so the panel is still the slot's flex item — without
+     the two `-inner` selectors, the sidebar's own `flex: 0 0 252px` meant 252 px TALL in the column and the
+     Canvases list got 6 px */
   .st-dockslot > .st-rpanel,
   .st-dockslot > .st-sidebar,
-  /* pinned layout: the inner wrapper is display:contents, so the panel is still the slot's flex item — without
-     these two, the sidebar's own `flex: 0 0 252px` meant 252 px TALL in the column and the Canvases list got 6 px */
-    .st-dockslot > .st-dockslot-inner
-    > .st-rpanel,
+  .st-dockslot > .st-dockslot-inner > .st-rpanel,
   .st-dockslot > .st-dockslot-inner > .st-sidebar {
     flex: 1 1 auto;
     width: 100%;

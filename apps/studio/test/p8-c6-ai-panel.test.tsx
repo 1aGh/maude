@@ -111,10 +111,14 @@ describe('the rest of the panel (03 `.k-dialog`, `.k-iconbtn--ai`, `ai-attach`)'
     return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
   };
   test('the quit dialog has its 24 px padding and the kit dialog material', () => {
+    // --space-5 IS 24 px on the v2 ladder (--space-6 is 32); the dialog rides `.gi-dialog`, which owns the material
+    // since P8-C1-kit (bg-2, radius-xl), so the pin reads the token's value and the shared rule.
     const r = block('client/v2/ai/quit.css', '.ai-quit-dialog');
-    expect(r).toContain('padding: var(--space-6, 24px)');
-    expect(r).toContain('var(--radius-xl)');
-    expect(r).toContain('background: var(--bg-2)');
+    expect(r).toContain('padding: var(--space-5)');
+    expect(read('client/styles/1-tokens-maude-v2.css')).toMatch(/--space-5:\s*24px/);
+    const material = block('client/styles/3-shell-maude.css', '.gi-dialog,\n  .cp-dialog');
+    expect(material).toContain('var(--radius-xl)');
+    expect(material).toContain('background: var(--bg-2)');
   });
   test('the folded AI corner is vermilion with a presence dot, and the island is 340 wide', () => {
     const css = read('client/v2/ai/panel.css');

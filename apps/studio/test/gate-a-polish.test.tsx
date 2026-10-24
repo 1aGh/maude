@@ -118,6 +118,24 @@ const ratio = (a: [number, number, number], b: [number, number, number]) => {
 
 // P8 C0: the shell ladder is maude-v2, where --fg-3 is the DISABLED grade. The v1 chrome's --fg-3 (made text-safe by
 // a11y B2) was re-pointed to --fg-2, so the text-safe pledge now sits on --fg-2 and the v1 files never say --fg-3.
+/** Rules that put `--fg-3` on something. A control that IS disabled (`:disabled`, `[disabled]`, `[aria-disabled]`)
+ *  wears the disabled grade on purpose — WCAG exempts inactive controls and the kit draws them so (03 AI panel:
+ *  the send button at rest); what the pledge bans is meta TEXT on that grade. */
+function textUsesOfDisabledGrade(css: string): string[] {
+  const out: string[] = [];
+  for (const chunk of css.split('}')) {
+    const open = chunk.lastIndexOf('{');
+    if (open < 0 || !/var\(--fg-3\b/.test(chunk.slice(open))) continue;
+    const sel = chunk
+      .slice(0, open)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .trim();
+    if (/:disabled|\[disabled|\[aria-disabled/.test(sel)) continue;
+    out.push(sel);
+  }
+  return out;
+}
+
 describe("the v1 chrome's meta text grade (--fg-2, was --fg-3) is text-safe (a11y B2)", () => {
   const css = read('client/styles/1-tokens-shell.css');
   const dark = css.slice(
@@ -146,7 +164,7 @@ describe("the v1 chrome's meta text grade (--fg-2, was --fg-3) is text-safe (a11
       '5-maude-overrides',
       '6-acp-chat',
     ])
-      expect(read(`client/styles/${f}.css`)).not.toMatch(/var\(--fg-3\b/);
+      expect(textUsesOfDisabledGrade(read(`client/styles/${f}.css`))).toEqual([]);
   });
 });
 

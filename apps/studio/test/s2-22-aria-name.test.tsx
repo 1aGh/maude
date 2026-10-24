@@ -51,11 +51,12 @@ describe('the spoken name', () => {
     expect(spokenNameOf(el('svc'))).toBe('Services and more');
   });
 
-  test('a layer name still wins; a frame with nothing to say keeps its tag', () => {
+  test('a layer name still wins; a frame with nothing to say keeps its kind word, never the tag', () => {
     page();
     el('svc').setAttribute('data-dc-element', 'Offer');
     expect(spokenNameOf(el('svc'))).toBe('Offer');
-    expect(spokenNameOf(el('hero'))).toBe('section');
+    // P8-C2 / CONTRACT: the kind word (Frame · Text · Photo …), never the code's own word ("section", "div")
+    expect(spokenNameOf(el('hero'))).toBe('Frame');
   });
 
   test('the whole sentence for the unnamed frame, with its layout and its place', () => {
