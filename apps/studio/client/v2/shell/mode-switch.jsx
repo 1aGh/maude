@@ -182,6 +182,18 @@ export function ModeSwitch({
   const [menu, setMenu] = useState(false);
   const rootRef = useRef(null);
   const firstRowRef = useRef(null);
+  // 04 md-esc: one segment is on. A segment that was clicked keeps DOM focus, so after esc stepped the mode back
+  // the old one still wore a focus ring beside the new pressed one. Focus that loses its pressed state (the mode
+  // changed under it) is given up; a keyboard press that makes ITS segment pressed keeps it.
+  useEffect(() => {
+    const at = document.activeElement;
+    const lostPressed =
+      at instanceof HTMLElement &&
+      rootRef.current?.contains(at) &&
+      at.matches('.st-mode-b, .st-mode-hit') &&
+      at.getAttribute('aria-pressed') === 'false';
+    if (lostPressed) at.blur();
+  }, [mode]);
   useEffect(() => {
     if (!menu) return undefined;
     firstRowRef.current?.focus();
@@ -323,6 +335,9 @@ export function ModeSwitch({
                   type="button"
                   role="menuitem"
                   className="st-pm-row"
+                  // 04 md-present-menu: the first row - Present from the selection, the click's own default -
+                  // wears the accent-muted highlight
+                  data-hl={row.kind === 'selection' ? 'true' : undefined}
                   data-testid={row.testid}
                   aria-keyshortcuts={row.keys ? ariaKeys(row.keys) : undefined}
                   onClick={() => {

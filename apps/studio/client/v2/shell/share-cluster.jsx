@@ -50,6 +50,7 @@ const withKey = (label, def, ctx) => {
  * @param access accessStatus() — { word, action } for a person without edit rights, else null
  * @param commentsCount open comments
  * @param commentsOpen the Comments panel is showing
+ * @param commentsShown 10 S1 - the Comments icon is drawn only where the canvas has comments (default: drawn)
  * @param exports exportsRing() — { show, ring, busy }
  * @param exportsOpen the Exports list is showing
  * @param panelsHidden ⌘\ is on
@@ -74,6 +75,7 @@ export function ShareCluster({
   commentsCount = 0,
   commentsCountKind = 'open',
   commentsOpen = false,
+  commentsShown = true,
   exports: ex = { show: false, ring: undefined, busy: 0 },
   exportsOpen = false,
   panelsHidden = false,
@@ -164,22 +166,24 @@ export function ShareCluster({
           ))}
         </>
       ) : null}
-      <button
-        type="button"
-        className={`st-share-ic${commentsOpen ? ' is-on' : ''}`}
-        data-testid="share-cluster-comments"
-        aria-label={commentsLabel}
-        aria-pressed={commentsOpen}
-        title={withKey('Comments', ACTIONS_BY_ID.get('view.comments'), ctx)}
-        onClick={() => run('view.comments')}
-      >
-        <StIcon name="comment-bubble" size={16} />
-        {commentsCount > 0 ? (
-          <span className="st-share-count" data-testid="share-cluster-comments-count">
-            {commentsCount > 99 ? '99+' : commentsCount}
-          </span>
-        ) : null}
-      </button>
+      {commentsShown ? (
+        <button
+          type="button"
+          className={`st-share-ic${commentsOpen ? ' is-on' : ''}`}
+          data-testid="share-cluster-comments"
+          aria-label={commentsLabel}
+          aria-pressed={commentsOpen}
+          title={withKey('Comments', ACTIONS_BY_ID.get('view.comments'), ctx)}
+          onClick={() => run('view.comments')}
+        >
+          <StIcon name="comment-bubble" size={16} />
+          {commentsCount > 0 ? (
+            <span className="st-share-count" data-testid="share-cluster-comments-count">
+              {commentsCount > 99 ? '99+' : commentsCount}
+            </span>
+          ) : null}
+        </button>
+      ) : null}
       {modeSlot}
       {ex.show ? (
         <button

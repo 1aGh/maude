@@ -17,7 +17,7 @@ import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { modeShows } from './bridge/mode-shows.ts';
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { resolveSelectionEl, shortText } from './dom-selection.ts';
-import { isEditableTarget } from './input-router.tsx';
+import { isAnnotationTool, isEditableTarget } from './input-router.tsx';
 import { inspectsSelection, type Neighbour, neighbourOf } from './inspect-canvas.ts';
 import { useCanvasKeys } from './use-canvas-keys.ts';
 import { useGovernedMode } from './use-governed-mode.ts';
@@ -43,6 +43,10 @@ body[data-maude-inspect="true"] .dc-cv-halo--selected .tick { display: none; }
   transition: opacity 120ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .dc-cv-inspect-tag[data-on="true"] { opacity: 1; }
+/* P8 C3 (04 X2): a Comment / annotation tool in Preview draws no Edit-style rim or size tag on the design -
+   the pin, the thread and the layer are the marks (04 md-comment, md-draw). */
+body[data-maude-annotating="true"] .dc-cv-halo,
+body[data-maude-annotating="true"] .dc-cv-inspect-tag { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .dc-cv-inspect-tag { transition-duration: 1ms; }
 }
@@ -102,6 +106,9 @@ export function InspectOverlay() {
   const world = useArtboardsContext();
   const tagRef = useRef<HTMLDivElement | null>(null);
   const inspecting = inspectsSelection(mode, tool);
+  // A governed mode without Edit's object tools, holding Comment or an annotation tool: marks only.
+  const annotating =
+    !!mode && !modeShows(mode, 'object-tools') && (tool === 'comment' || isAnnotationTool(tool));
   const one = inspecting && selected.length === 1 ? selected[0] : null;
   const zoom = world?.viewport?.zoom || 1;
   const oneRef = useRef(one);
@@ -114,6 +121,13 @@ export function InspectOverlay() {
     else document.body.removeAttribute('data-maude-inspect');
     return () => document.body.removeAttribute('data-maude-inspect');
   }, [inspecting]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    if (annotating) document.body.setAttribute('data-maude-annotating', 'true');
+    else document.body.removeAttribute('data-maude-annotating');
+    return () => document.body.removeAttribute('data-maude-annotating');
+  }, [annotating]);
 
   // the size tag follows the selected element
   useEffect(() => {

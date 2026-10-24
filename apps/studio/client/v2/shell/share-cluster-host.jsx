@@ -107,11 +107,11 @@ export function ShellShareCluster() {
     },
     keyboardShortcuts: { totalOpen },
     tabs: { openTab, shareLinksFor },
-    paletteAndPanels: { rightActive },
+    paletteAndPanels: { rightActive, activeOpenComments },
     // S9.22b — the unread @mention count (useCommentsShell); a shell without it keeps the open count
     comments,
   } = useShellStore();
-  const { hidden: panelsHidden, pinned } = usePanelLayout();
+  const { hidden: panelsHidden, userHidden: panelsUserHidden, pinned } = usePanelLayout();
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
   // S9.21b — the open canvas went to the trash: Viewing, no toolbar (the server refuses its writes anyway).
   const trashedOpen = useSyncExternalStore(subscribeTrashedOpen, getTrashedOpen, () => null);
@@ -297,9 +297,18 @@ export function ShellShareCluster() {
         commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}
         commentsCountKind={comments ? 'unread' : 'open'}
         commentsOpen={!!commentsPanelOpen}
+        // P8 C3 (10 S1) - the Comments icon is drawn only when this canvas has comments (open ones, or an
+        // unread mention), or while the panel is open so it can be closed from the same place.
+        commentsShown={
+          Number(activeOpenComments) > 0 ||
+          (comments ? Number(comments.unreadCount) > 0 : Number(totalOpen) > 0) ||
+          !!commentsPanelOpen
+        }
         exports={ex}
         exportsOpen={!!exportCenter?.panelOpen}
-        panelsHidden={panelsHidden}
+        // P8 C3 (04 X1) - pressed = the PERSON hid the panels; Preview's fold is the mode's and is not a state of
+        // this button (04 draws it unpressed in every Preview frame)
+        panelsHidden={panelsUserHidden}
         canShare={canvasOpen}
         ctx={ctx}
         run={(id) => menuRunner.run(id)}
