@@ -569,7 +569,11 @@ describe('team-project (native-desktop)', () => {
     await capture('17-resync-result');
 
     // the log line: "resync · 1 318 checked · 3 sent · 0 conflicts" under the Sync source
-    await (await $(tid('diag-tab-logs'))).click();
+    // Sync opens alone now (no tabs): the log is one menu hop away — Menu > Diagnostics > Logs.
+    await browser.keys('Escape');
+    await (await $(tid('project-pill'))).click();
+    await (await $(tid('project-menu-row-sub-diagnostics'))).click();
+    await (await $(tid('project-menu-row-diag.logs'))).click();
     await (await $(tid('diag-logs-filter-sync'))).click();
     const lines = await $(tid('diag-logs-lines'));
     await lines.waitForDisplayed({ timeout: 10_000 });

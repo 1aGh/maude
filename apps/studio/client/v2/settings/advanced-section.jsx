@@ -65,7 +65,7 @@ function UpdateRow({ update, onLater }) {
   return (
     <Row
       label="Update"
-      hint={staged ? undefined : 'Maude checks in the background and stages a new build.'}
+      hint={staged ? undefined : 'Checks in the background and stages a new build.'}
       testid="settings-update"
     >
       <span className="v2s-inline">
@@ -76,18 +76,20 @@ function UpdateRow({ update, onLater }) {
               : 'An update is ready'
             : 'Up to date'}
         </span>
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={!staged || restarting}
-          onClick={() => {
-            setRestarting(true);
-            restartToUpdate().catch(() => setRestarting(false));
-          }}
-          data-testid="settings-update-restart"
-        >
-          {restarting ? 'Restarting…' : 'Restart now'}
-        </button>
+        {staged && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={restarting}
+            onClick={() => {
+              setRestarting(true);
+              restartToUpdate().catch(() => setRestarting(false));
+            }}
+            data-testid="settings-update-restart"
+          >
+            {restarting ? 'Restarting…' : 'Restart now'}
+          </button>
+        )}
         {native && !staged && (
           <button
             type="button"
@@ -177,121 +179,130 @@ export default function AdvancedSection({ update, onUpdateLater, live }) {
   const about = useRead('/_api/settings/about');
   const kg = useRead('/_api/kg/summary');
   return (
-    <>
-      <Group title="This Mac">
-        <Row label="Version" mono testid="settings-app-version">
-          {MDCC_VERSION}
-        </Row>
-        <UpdateRow update={update} onLater={onUpdateLater} />
-        {/* C34: display only — a port you can edit is a port that fights the proxy. */}
-        <Row label="Local server port" mono testid="settings-server-port">
-          {port || '—'}
-        </Row>
-        <Row label="Runtime" mono testid="settings-runtime">
-          {runtimeLine(about)}
-        </Row>
-        <Row label="Server build" mono testid="settings-server-build">
-          MAUDE-DEV-SRV
-        </Row>
-        <Row
-          label="Keys are kept in"
-          hint="Or ~/.config/maude/keys.json (private to you) when the Keychain is off. An update you skip installs when you next quit."
-          mono
-          testid="settings-keys-store"
-        >
-          macOS Keychain
-        </Row>
-      </Group>
-
-      <Group title="Claude Code">
-        <Row label="Plugins" mono testid="settings-plugins">
-          {pluginsLine(about) ?? 'From your own install'}
-        </Row>
-        <SwitchRow
-          testid="settings-own-plugin-copy"
-          label="Use my own plugin copy"
-          note="Load the plugins you installed yourself instead of the ones Maude brings. Takes effect when the AI chat next starts."
-          checked={prefs[OWN_PLUGIN_COPY_PREF]}
-          onChange={(on) => advancedPrefs.set(OWN_PLUGIN_COPY_PREF, on)}
-        />
-        <AutoSetupRow />
-        <Row label="maude in the terminal">
-          <CopyCommand command={COMMANDS.install} label="Copy the install command" />
-        </Row>
-        <Row label="Draw a mark with the SVG agent" testid="settings-copy-draw">
-          <CopyCommand command={COMMANDS.draw} label="Copy the draw command" />
-        </Row>
-        <Row label="Import a brand from the terminal" testid="settings-copy-brand">
-          <CopyCommand command={COMMANDS.brand} label="Copy the brand import command" />
-        </Row>
-      </Group>
-
-      {/* C34: the count is the graph's own, or "Not set up". No switch: nothing in Maude turns it off. */}
-      <Group title="Decision memory">
-        <Row
-          label="In this project"
-          hint="Design decisions are kept with the project, so the AI remembers why."
-          mono
-          testid="settings-decision-memory"
-        >
-          {decisionMemoryLine(kg)}
-        </Row>
-      </Group>
-
-      <Group title="Engines — Auto picks for you">
-        <div data-testid="settings-transcription">
-          <TranscriptionEngineCard />
-          <WhisperModelCard />
-        </div>
-        <div data-testid="settings-keyframes">
-          <KeyframeEngineCard />
-          <GemmaModelCard />
-        </div>
-        <p className="v2s-hint">
-          Without a model, Auto uses ElevenLabs or Groq for subtitles and ffmpeg scene cuts for
-          keyframes.
-        </p>
-      </Group>
-
-      <Group title="Privacy">
-        <label className="v2s-row" data-testid="settings-report-logs">
-          <span className="v2s-row-t">
-            <span className="v2s-row-k">Logs in bug reports</span>
-            <span className="v2s-hint">
-              Whether a report carries the last lines of Maude’s log. You see them before anything
-              is sent.
-            </span>
-          </span>
-          <select
-            className="v2s-select"
-            data-testid="settings-report-logs-select"
-            value={prefs[REPORT_LOGS_PREF]}
-            onChange={(e) => advancedPrefs.set(REPORT_LOGS_PREF, e.target.value)}
+    <div className="v2s-cols" data-testid="settings-advanced-cols">
+      <div className="v2s-col">
+        <Group title="This Mac">
+          <Row label="Version" mono testid="settings-app-version">
+            {MDCC_VERSION}
+          </Row>
+          <UpdateRow update={update} onLater={onUpdateLater} />
+          {/* C34: display only — a port you can edit is a port that fights the proxy. */}
+          <Row label="Local server port" mono testid="settings-server-port">
+            {port || '—'}
+          </Row>
+          <Row label="Runtime" mono testid="settings-runtime">
+            {runtimeLine(about)}
+          </Row>
+          <Row label="Server build" mono testid="settings-server-build">
+            maude-dev-srv
+          </Row>
+          <Row
+            label="Keys are kept in"
+            hint="Or ~/.config/maude/keys.json (private to you) when the Keychain is off. An update you skip installs when you next quit."
+            mono
+            testid="settings-keys-store"
           >
-            {REPORT_LOGS_CHOICES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </Group>
+            macOS Keychain
+          </Row>
+        </Group>
 
-      <Group title="This project" testid="settings-this-project">
-        <ProjectSyncSettings cloud={null} />
-      </Group>
+        <Group title="Claude Code">
+          <Row label="Plugins" mono testid="settings-plugins">
+            {pluginsLine(about) ?? 'From your own install'}
+          </Row>
+          <SwitchRow
+            testid="settings-own-plugin-copy"
+            label="Use my own plugin copy"
+            note="Load the plugins you installed yourself instead of the ones Maude brings. Takes effect when the AI chat next starts."
+            checked={prefs[OWN_PLUGIN_COPY_PREF]}
+            onChange={(on) => advancedPrefs.set(OWN_PLUGIN_COPY_PREF, on)}
+          />
+          <AutoSetupRow />
+          <Row label="maude in the terminal">
+            <CopyCommand
+              ghost
+              command={COMMANDS.install}
+              label="Copy the install command"
+              text="Copy install command"
+            />
+          </Row>
+          <Row label="Draw a mark with the SVG agent" testid="settings-copy-draw">
+            <CopyCommand ghost command={COMMANDS.draw} label="Copy the draw command" />
+          </Row>
+          <Row label="Import a brand from the terminal" testid="settings-copy-brand">
+            <CopyCommand ghost command={COMMANDS.brand} label="Copy the brand import command" />
+          </Row>
+        </Group>
 
-      <Group title="Experimental">
-        <SwitchRow
-          testid="settings-experimental-teams"
-          label="AI reviews argue it out (teams)"
-          note="Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
-          checked={prefs[EXPERIMENTAL_TEAMS_PREF]}
-          onChange={(on) => advancedPrefs.set(EXPERIMENTAL_TEAMS_PREF, on)}
-        />
-      </Group>
+        {/* C34: the count is the graph's own, or "Not set up". No switch: nothing in Maude turns it off. */}
+        <Group title="Decision memory">
+          <Row
+            label="In this project"
+            hint="Design decisions are kept with the project, so AI remembers why."
+            mono
+            testid="settings-decision-memory"
+          >
+            {decisionMemoryLine(kg)}
+          </Row>
+        </Group>
+      </div>
+      <div className="v2s-col">
+        <Group title="Engines — Auto picks for you">
+          <div data-testid="settings-transcription">
+            <TranscriptionEngineCard />
+            <WhisperModelCard />
+          </div>
+          <div data-testid="settings-keyframes">
+            <KeyframeEngineCard />
+            <GemmaModelCard />
+          </div>
+          <p className="v2s-hint">
+            Without a model, Auto uses ElevenLabs or Groq for subtitles and ffmpeg scene cuts for
+            keyframes.
+          </p>
+        </Group>
 
-      <ResetSection live={live} />
-    </>
+        <Group title="Privacy">
+          <label className="v2s-row" data-testid="settings-report-logs">
+            <span className="v2s-row-t">
+              <span className="v2s-row-k">Logs in bug reports</span>
+              <span className="v2s-hint">
+                Whether a report carries the last lines of Maude’s log. You see them before anything
+                is sent.
+              </span>
+            </span>
+            <select
+              className="v2s-select"
+              data-testid="settings-report-logs-select"
+              value={prefs[REPORT_LOGS_PREF]}
+              onChange={(e) => advancedPrefs.set(REPORT_LOGS_PREF, e.target.value)}
+            >
+              {REPORT_LOGS_CHOICES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </Group>
+      </div>
+      <div className="v2s-col">
+        <Group title="This project" testid="settings-this-project">
+          <ProjectSyncSettings cloud={null} />
+        </Group>
+
+        <Group title="Experimental">
+          <SwitchRow
+            testid="settings-experimental-teams"
+            label="AI reviews argue it out (teams)"
+            note="Reviews are argued out by several AI seats that answer each other. Costs more. Takes effect when the AI chat next starts."
+            checked={prefs[EXPERIMENTAL_TEAMS_PREF]}
+            onChange={(on) => advancedPrefs.set(EXPERIMENTAL_TEAMS_PREF, on)}
+          />
+        </Group>
+
+        <ResetSection live={live} />
+      </div>
+    </div>
   );
 }

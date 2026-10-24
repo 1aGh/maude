@@ -123,11 +123,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-xs);
+    /* the DS .chip: 22 px, radius-sm, fg-1, medium (06 ad-search path chip) */
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
     background: var(--bg-3);
     font-size: var(--type-xs);
-    color: var(--fg-2);
+    font-weight: var(--w-medium);
+    color: var(--fg-1);
   }
   /* S15-A2: the project on another project's row in "Did you mean" (square · name · where it is) */
   .st-pal-proj {
@@ -137,6 +142,27 @@
   }
   .st-pal-item.is-active .st-pal-where {
     background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  /* 06 .k-pal-row / .k-pal-ic: 36 px rows, radius-md, accent-muted when selected; the glyph tile is a quiet 24 px
+     bg-3 square that does NOT turn accent when the row is active (only the Ask-AI spark tile is accent). */
+  .st-palette--search .st-pal-item {
+    min-height: 36px;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+  }
+  .st-palette--search .st-pal-item.is-active {
+    background: var(--accent-muted);
+  }
+  .st-palette--search .st-pal-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .st-palette--search .st-pal-item.is-active .st-pal-icon {
+    background: var(--bg-3);
     color: var(--fg-1);
   }
   .st-pal-item.is-dim .st-pal-ltxt {
@@ -176,7 +202,9 @@
     color: var(--fg-0);
   }
   .st-pal-icon--spark,
-  .st-pal-item.is-active .st-pal-icon--spark {
+  .st-pal-item.is-active .st-pal-icon--spark,
+  .st-palette--search .st-pal-icon--spark,
+  .st-palette--search .st-pal-item.is-active .st-pal-icon--spark {
     background: var(--accent);
     color: var(--accent-fg);
   }

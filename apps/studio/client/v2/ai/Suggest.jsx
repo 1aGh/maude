@@ -51,7 +51,8 @@ export function QuickActions({ openComments = 0 }) {
           className="btn btn--ghost btn--sm chat-qa chat-qa--comments"
           data-testid="chat-qa-implement-comments"
         >
-          {`✓ Implement ${openComments} comment${openComments === 1 ? '' : 's'}`}
+          <StIcon name="check" size={12} />
+          {`Implement ${openComments} comment${openComments === 1 ? '' : 's'}`}
         </ThreadPrimitive.Suggestion>
       ) : null}
       {QUICK_ACTIONS.map((a) => (

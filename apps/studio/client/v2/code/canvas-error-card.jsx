@@ -85,6 +85,7 @@ function CopyButton({
   testid,
   onCopy,
   className = 'btn btn--sm',
+  iconOnly = false,
 }) {
   const [done, setDone] = useState(false);
   const run = async () => {
@@ -94,9 +95,16 @@ function CopyButton({
     setTimeout(() => setDone(false), 1500);
   };
   return (
-    <button type="button" className={className} data-testid={testid} onClick={run}>
+    <button
+      type="button"
+      className={iconOnly ? 'icon-btn k-icon-sm' : className}
+      data-testid={testid}
+      aria-label={iconOnly ? (done ? copiedLabel : label) : undefined}
+      title={iconOnly ? label : undefined}
+      onClick={run}
+    >
       {done ? <Check size={12} /> : <Copy size={12} />}
-      {done ? copiedLabel : label}
+      {iconOnly ? null : done ? copiedLabel : label}
     </button>
   );
 }
@@ -212,12 +220,7 @@ export function CanvasErrorCard({
           </button>
         ) : null}
       </div>
-      <AdvancedFold
-        panel="canvas-error"
-        label="Show details"
-        open={open}
-        onToggle={() => setOpen((v) => !v)}
-      >
+      <AdvancedFold panel="canvas-error" open={open} onToggle={() => setOpen((v) => !v)}>
         {error ? (
           <>
             <div className="v2-err-row">
@@ -237,7 +240,7 @@ export function CanvasErrorCard({
                   label="Copy"
                   testid="canvas-error-copy-where"
                   onCopy={onCopy}
-                  className="btn btn--ghost btn--sm"
+                  iconOnly
                 />
               </div>
             ) : null}
@@ -256,7 +259,7 @@ export function CanvasErrorCard({
               data-testid="canvas-error-open-editor"
               onClick={() => onOpenInEditor()}
             >
-              <StIcon name="external" size={12} />
+              <StIcon name="pen" size={12} />
               Open in editor
             </button>
           ) : null}
@@ -266,6 +269,7 @@ export function CanvasErrorCard({
               label="Copy error"
               testid="canvas-error-copy"
               onCopy={onCopy}
+              className="btn btn--ghost btn--sm"
             />
           ) : null}
           {onGoBack && !primaryBack ? (

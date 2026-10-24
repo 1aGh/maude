@@ -544,7 +544,7 @@ export function HistoryAdvanced({
         <div className="vh-adv-row">
           <button
             type="button"
-            className="btn btn--sm"
+            className="btn btn--ghost btn--sm"
             data-testid="vh-compare-pictures"
             disabled={!canvas || !canView}
             onClick={() => onComparePictures({ file: canvas, beforeSha: version || 'HEAD' })}

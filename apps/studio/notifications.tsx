@@ -10,7 +10,6 @@ import {
 } from 'react';
 import { Toaster, toast } from 'sonner';
 import { StIcon } from './client/shell/icons.jsx';
-import { Spark } from './client/v2/ai/icons.jsx';
 
 export type NoticeKind = 'info' | 'success' | 'error' | 'warning' | 'undo';
 export interface Notice {
@@ -24,14 +23,13 @@ export interface Notice {
   /** Change only for a new lifecycle phase, never for a progress update. */
   timerKey?: string;
   paused?: boolean;
+  /** Where the pill lands. Default bottom (above the toolbar); restart / relaunch / link events land at the top
+   *  (06 ad-open-all, the kit `.k-toast--top`). */
+  placement?: 'top' | 'bottom';
+  /** A kit glyph name (STICONS) that overrides the kind's own. */
+  icon?: string;
   action?: { label: string; onClick: () => void };
   onDismiss?: () => void;
-  /** kit `Toast at=`: where the pill sits. A state of the project (back online) sits at the top, the rest docks
-   *  above the toolbar. Only a notice that also has an `icon` is drawn as the one-line pill. */
-  placement?: 'top' | 'dock';
-  /** kit `Toast icon=`: a glyph name (`sync`, `help`, `problem`, …) or `spark`. Having one makes the one-line
-   *  island pill (03 ai-needs-hidden, 10 co-sync-back): glyph · text · one accent-text action, no close ×. */
-  icon?: string;
 }
 type Entry = Notice & { id: string };
 let entries: Entry[] = [];
@@ -125,57 +123,36 @@ export function summarizeNoticeText(text: unknown): string {
   return compact.length > 280 ? `${compact.slice(0, 279)}…` : compact;
 }
 
+/** The kit glyph a kind carries (06 `.k-toast-ic`): done, problem; plain info has none. */
+const KIND_ICON: Partial<Record<NoticeKind, string>> = {
+  success: 'done',
+  error: 'problem',
+  warning: 'problem',
+  undo: 'reload',
+};
+
+/** The kit toast: ONE line — glyph, the sentence, one inline action in accent-text, a quiet ×. A notice that
+ *  carries a description or extra content wraps, but keeps the same pill. */
 export function NoticeCard({ entry }: { entry: Entry }) {
-  if (entry.icon) {
-    return (
-      <div
-        className="maude-notice maude-notice--pill island"
-        data-kind={entry.kind ?? 'info'}
-        data-testid={`notice-${entry.id}`}
-        data-placement={entry.placement ?? 'dock'}
-      >
-        <span className={`maude-notice-ic maude-notice-ic--${entry.icon}`} aria-hidden="true">
-          {entry.icon === 'spark' ? <Spark size={14} /> : <StIcon name={entry.icon} size={16} className="maude-notice-glyph" />}
-        </span>
-        <span className="maude-notice-title">{summarizeNoticeText(entry.title)}</span>
-        {entry.action && (
-          <button
-            type="button"
-            className="maude-notice-action"
-            onClick={(event) => {
-              event.currentTarget.blur();
-              entry.action?.onClick();
-              acknowledge(entry.id);
-            }}
-          >
-            {entry.action.label}
-          </button>
-        )}
-      </div>
-    );
-  }
+  const glyph = entry.icon ?? KIND_ICON[entry.kind ?? 'info'];
   return (
     <div
       className="maude-notice"
       data-kind={entry.kind ?? 'info'}
       data-testid={`notice-${entry.id}`}
     >
-      <button
-        type="button"
-        className="maude-notice-close"
-        aria-label="Dismiss notification"
-        onClick={(event) => {
-          event.currentTarget.blur();
-          acknowledge(entry.id);
-        }}
-      >
-        ×
-      </button>
-      <div className="maude-notice-title">{summarizeNoticeText(entry.title)}</div>
-      {entry.description && (
-        <div className="maude-notice-summary">{summarizeNoticeText(entry.description)}</div>
-      )}
-      {entry.content}
+      {glyph ? (
+        <span className={`maude-notice-ic maude-notice-ic--${glyph}`} aria-hidden="true">
+          <StIcon name={glyph} size={16} className="maude-notice-glyph" />
+        </span>
+      ) : null}
+      <div className="maude-notice-txt">
+        <div className="maude-notice-title">{summarizeNoticeText(entry.title)}</div>
+        {entry.description && (
+          <div className="maude-notice-summary">{summarizeNoticeText(entry.description)}</div>
+        )}
+        {entry.content}
+      </div>
       {entry.action && (
         <button
           type="button"
@@ -189,6 +166,17 @@ export function NoticeCard({ entry }: { entry: Entry }) {
           {entry.action.label}
         </button>
       )}
+      <button
+        type="button"
+        className="maude-notice-close"
+        aria-label="Dismiss notification"
+        onClick={(event) => {
+          event.currentTarget.blur();
+          acknowledge(entry.id);
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
@@ -229,7 +217,7 @@ function MountedNotice({
       toast.custom(() => <NoticeCard entry={entry} />, {
         id: token,
         duration: Infinity,
-        ...(entry.placement === 'top' ? { position: 'top-center' as const } : {}),
+        position: entry.placement === 'top' ? 'top-center' : 'bottom-center',
         onDismiss: () => {
           if (presentationId.current === token) acknowledge(entry.id);
         },
@@ -258,35 +246,33 @@ const NOTICE_CSS = `
   overflow: hidden; border-radius: var(--radius-md, 8px);
 }
 .maude-notifications[data-paused=true] { visibility: hidden; pointer-events: none; }
-.maude-notice { box-sizing: border-box; position: relative; width: 100%; padding: 16px;
-  border: 1px solid var(--border-default, #45454c); border-left: 3px solid var(--accent, #d63b1f);
-  border-radius: var(--radius-md, 8px); background: var(--bg-2, #26262b); color: var(--fg-0, #fafafa);
-  box-shadow: var(--shadow-md, 0 8px 28px #0004); font: 13px/1.5 var(--font-sans, system-ui, sans-serif);
-  display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
-.maude-notice[data-kind=error], .maude-notice[data-kind=warning] { border-left-color: var(--status-error, #d65b4d); }
-.maude-notice-title { font-weight: 600; padding-right: 20px; }
-.maude-notice--pill { flex-direction: row; align-items: center; gap: var(--space-2, 8px); width: auto;
-  min-height: 40px; padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) var(--space-4, 16px);
-  border: 0; border-left: 0; border-radius: var(--radius-pill, 999px); background: var(--bg-2, #26262b);
-  box-shadow: inset 0 0 0 0.5px var(--border-default, #45454c), var(--shadow-md, 0 8px 28px #0004);
-  font-size: var(--type-sm, 12px); line-height: var(--lh-sm, 1.4); white-space: nowrap; margin-inline: auto; }
-.maude-notice--pill .maude-notice-title { font-weight: var(--w-regular, 400); padding-right: var(--space-2, 8px);
-  display: block; overflow: hidden; text-overflow: ellipsis; max-width: 56ch; }
+.maude-notice { box-sizing: border-box; position: relative; width: 100%; min-height: 40px;
+  padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-1, 4px) var(--space-4, 16px);
+  border: 0; border-radius: var(--radius-lg, 12px); background: var(--bg-2, #26262b); color: var(--fg-0, #fafafa);
+  box-shadow: var(--shadow-md, 0 8px 28px #0004), inset 0 0 0 0.5px var(--island-edge, transparent);
+  font: var(--type-sm, 13px)/1.4 var(--font-body, system-ui, sans-serif);
+  display: flex; flex-direction: row; align-items: center; gap: var(--space-2, 8px); overflow-wrap: anywhere; }
 .maude-notice-ic { display: grid; flex: none; color: var(--fg-1, #ddd); }
 .maude-notice-ic--spark { color: var(--spark, #e8552d); }
-.maude-notice-ic--help, .maude-notice-ic--sync { color: var(--fg-1, #ddd); }
-.maude-notice--pill button[class~='maude-notice-action'] { align-self: center; padding: 0 var(--space-2, 8px); }
+.maude-notice[data-kind=success] .maude-notice-ic { color: var(--status-success-text, var(--status-success, #4caf7d)); }
+.maude-notice[data-kind=error] .maude-notice-ic, .maude-notice[data-kind=warning] .maude-notice-ic {
+  color: var(--status-error-text, var(--status-error, #d65b4d)); }
+.maude-notice-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding-right: var(--space-2, 8px); }
+.maude-notice-title { font-weight: 500; }
 .maude-notice-summary, .maude-notice-title, .maude-notice .st-export-degraded {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   overflow-wrap: anywhere; }
-.maude-notice-summary { color: var(--fg-1, #ddd); }
-.maude-notice-close { position: absolute; right: 8px; top: 8px; border: 0; border-radius: 4px;
-  background: transparent; color: inherit; cursor: pointer; font-size: 18px; padding: 0 6px; }
-.maude-notice-action { align-self: flex-start; border: 0; background: transparent;
+.maude-notice-summary { color: var(--fg-1, #ddd); font-size: var(--type-xs, 12px); }
+.maude-notice-close { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 0;
+  border-radius: var(--radius-sm, 6px); background: transparent; color: var(--fg-2, #aaa); cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0; }
+.maude-notice-close:hover { background: var(--bg-3, #333); color: var(--fg-0, #fff); }
+.maude-notice-action { flex: none; border: 0; border-radius: var(--radius-sm, 6px); background: transparent;
   color: var(--accent-text, var(--accent, #d63b1f)); font: inherit; font-weight: 600; text-decoration: none;
-  cursor: pointer; padding: 2px 0; }
-.maude-notice-action:hover { text-decoration: underline; }
-.maude-notice button:focus-visible { outline: 2px solid var(--accent, #d63b1f); outline-offset: 2px; }
+  cursor: pointer; padding: 4px var(--space-2, 8px); min-height: 26px; }
+.maude-notice-action:hover { background: var(--bg-3, #333); }
+.maude-notice button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent, #d63b1f)); outline-offset: 2px; }
 .maude-notice .st-toast-actions { flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) {
   .maude-notifications [data-sonner-toast], .maude-notifications [data-sonner-toaster] {
@@ -342,7 +328,7 @@ export function NotificationHost({
       <Toaster
         position="bottom-center"
         offset={{ bottom: 84, top: 16 }}
-        mobileOffset={{ left: 16, right: 16, bottom: 84 }}
+        mobileOffset={{ left: 16, right: 16, bottom: 84, top: 16 }}
         visibleToasts={3}
         expand={focused}
         style={{ '--width': 'min(360px, calc(100vw - 32px))' } as CSSProperties}

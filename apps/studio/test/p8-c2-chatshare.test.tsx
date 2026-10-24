@@ -13,24 +13,25 @@ import { NoticeCard } from '../notifications.tsx';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
 
-describe('the toast is the kit one-line island pill when it has a glyph (03 ai-needs-hidden, 10 co-sync-back)', () => {
+describe('the toast is the kit one-line pill (03 ai-needs-hidden, 10 co-sync-back, 06 .k-toast)', () => {
   const entry = (over: Record<string, unknown>) =>
     ({ id: 'n1', title: 'Back online.', kind: 'info', ...over }) as never;
 
-  test('glyph, text and one action — no close ×, no card', () => {
+  // merged with p8-c2-kitadv: EVERY notice is the kit one-line pill (06 `.k-toast`): glyph · sentence · one
+  // inline action · a quiet × (decision v2-p8-c2-toast-pill-every-notice) — the glyph-only pill rule is retired.
+  test('glyph, text, one action and the quiet ×, in one pill', () => {
     const html = renderToStaticMarkup(
       <NoticeCard entry={entry({ icon: 'sync', action: { label: 'Show', onClick() {} } })} />
     );
-    expect(html).toContain('maude-notice--pill');
     expect(html).toContain('maude-notice-ic--sync');
     expect(html).toContain('<svg');
     expect(html).toContain('Show');
-    expect(html).not.toContain('maude-notice-close');
+    expect(html).toContain('maude-notice-close');
   });
 
-  test('a notice without a glyph keeps the card', () => {
-    const html = renderToStaticMarkup(<NoticeCard entry={entry({})} />);
-    expect(html).not.toContain('maude-notice--pill');
+  test('a notice without its own glyph takes its kind\'s, and is the same pill', () => {
+    const html = renderToStaticMarkup(<NoticeCard entry={entry({ kind: 'success' })} />);
+    expect(html).toContain('maude-notice-ic--done');
     expect(html).toContain('maude-notice-close');
   });
 

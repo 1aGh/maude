@@ -60,6 +60,38 @@ export const STICONS = {
   trash: (
     <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1" />
   ),
+  // Phase 8 C1/C10 — glyphs the boards draw from the kit (_kit.tsx FAMILY, same 16 grid): the gear-ish "settings"
+  // (sliders with two knobs), "corner" (the AI mark's turn), "done" (a ringed check), "view" (an eye), "minus",
+  // and the AI "spark" (a filled four-point star, the mark of AI).
+  settings: (
+    <>
+      <path d="M2.5 5h4.5M10 5h3.5M2.5 11h1.5M7 11h6.5" />
+      <circle cx="8.5" cy="5" r="1.5" />
+      <circle cx="5.5" cy="11" r="1.5" />
+    </>
+  ),
+  corner: <path d="M3.5 12.5V8a4.5 4.5 0 0 1 4.5-4.5h4.5" />,
+  done: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M5.5 8.25l1.75 1.75 3.25-3.75" />
+    </>
+  ),
+  view: (
+    <>
+      <path d="M1.75 8S4 3.75 8 3.75 14.25 8 14.25 8 12 12.25 8 12.25 1.75 8 1.75 8z" />
+      <circle cx="8" cy="8" r="1.75" />
+    </>
+  ),
+  minus: <path d="M3 8h10" />,
+  spark: (
+    <path
+      d="M16 3L19.309 12.691L29 16L19.309 19.309L16 29L12.691 19.309L3 16L12.691 12.691Z"
+      transform="scale(0.5)"
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
   file: (
     <>
       <path d="M4 2h5l3 3v9H4z" />

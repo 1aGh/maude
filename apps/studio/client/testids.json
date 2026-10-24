@@ -12484,10 +12484,10 @@
     "v2": "new"
   },
   {
-    "hook": "diag-tab-<view>",
+    "hook": "diag-trio",
     "kind": "testid",
-    "pattern": true,
-    "meaning": "One tab of the sheet; `<view>` ∈ logs, server, ai, sync. Carries that source's status word.",
+    "pattern": false,
+    "meaning": "The Diagnostics sheet's three boxes at once: Logs · Server · AI setup (06 ad-logs).",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
       "symbol": "DiagnosticsSheet"
@@ -12497,6 +12497,35 @@
       "test:v2-diagnostics-render"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "settings-advanced-cols",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Settings › Advanced's three columns: This Mac · Engines · This project (06 ad-settings).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-tab-<view>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One tab of the sheet; `<view>` ∈ logs, server, ai, sync. Carries that source's status word.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "DiagnosticsSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired Phase 8 C10 (06 ad-logs): Logs, Server and AI setup are three boxes at once (`diag-trio`), no tabs; Sync opens alone (`data-layout=\"sync\"`). The box the person asked for carries `data-current`."
   },
   {
     "hook": "diag-logs",
@@ -13684,7 +13713,7 @@
     "hook": "settings-update-restart",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Advanced › This Mac › Update › Restart now (idle until a build is staged).",
+    "meaning": "Advanced › This Mac › Update › Restart now (only present while a build is staged; 06 ad-settings).",
     "producer": {
       "file": "apps/studio/client/v2/settings/advanced-section.jsx",
       "symbol": "AdvancedSection"

@@ -226,6 +226,13 @@ export function aiNeedsWork(report) {
 /** The Server card's mode stamp (was the menu bar's IDLE · CANVAS · SYSTEM). */
 export function modeStamp({ activePath, isSystem = false } = {}) {
   if (isSystem) return { stamp: 'System', showing: 'Design system' };
-  if (activePath) return { stamp: 'Canvas', showing: `Canvas · ${activePath}` };
+  // 06 ad-logs: "Canvas · Combine-kampan" — the canvas by name, not the path to its file
+  if (activePath) {
+    const name = String(activePath)
+      .split('/')
+      .pop()
+      .replace(/\.(tsx|jsx|html|svg)$/i, '');
+    return { stamp: 'Canvas', showing: `Canvas · ${name}` };
+  }
   return { stamp: 'Idle', showing: 'Nothing open' };
 }

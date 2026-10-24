@@ -167,12 +167,13 @@ export function CanvasesAdvanced({
             </span>
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
+              className="icon-btn k-icon-sm lp-adv-copy"
               data-testid="canvases-folder-copy"
               aria-label="Copy the project folder"
+              title="Copy the project folder"
               onClick={() => copyText(folder)}
             >
-              Copy
+              <StIcon name="duplicate" size={14} />
             </button>
           </span>
         </div>

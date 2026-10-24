@@ -493,8 +493,14 @@
   }
   .vh-adv-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
+  }
+  /* 06 ad-history: "Compare" is one line, never two */
+  .vh-adv-row > .btn {
+    flex: none;
+    white-space: nowrap;
   }
   .vh-adv-note {
     font-size: var(--type-xs);

@@ -19,6 +19,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { StIcon } from '../../shell/icons.jsx';
 import { MDCC_VERSION } from '../../shell/constants.js';
 import AdvancedSection from './advanced-section.jsx';
 import { restoreFocus, trapTab } from '../shell/modal-focus.js';
@@ -150,6 +151,7 @@ export default function SettingsSheet({
                 }}
                 onClick={() => setTab(s.id)}
               >
+                {s.icon ? <StIcon name={s.icon} size={14} className="v2s-tab-ic" /> : null}
                 {s.label}
               </button>
             ))}

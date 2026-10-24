@@ -12,13 +12,15 @@
     display: grid;
     place-items: center;
     padding: var(--space-6);
-    background: color-mix(in oklab, var(--bg-0) 62%, transparent);
+    /* the kit veil (06 Veil: --canvas-bg at 55 %): the canvas stays readable behind the sheet */
+    background: color-mix(in oklab, var(--canvas-bg, var(--bg-0)) 55%, transparent);
   }
   .v2s-sheet {
     display: grid;
-    grid-template-columns: 188px minmax(0, 1fr);
-    width: min(860px, 100%);
-    height: min(640px, 100%);
+    grid-template-columns: 176px minmax(0, 1fr);
+    /* 06 .ad-settings: 1300 x 700, three columns in Advanced */
+    width: min(1300px, 100%);
+    height: min(700px, 100%);
     overflow: hidden;
     /* the kit dialog material (06 .ad-settings; Phase 8 C1-kit, C0's left-over): bg-2, radius-xl, the island
        edge — the rail is the bg-1 column with a hairline (06 .ad-set-rail) */
@@ -40,13 +42,14 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: var(--space-3);
+    padding: var(--space-4) var(--space-2);
     background: var(--bg-1);
     border-right: 0;
     box-shadow: inset -0.5px 0 0 var(--border-default);
   }
   .v2s-title {
-    margin: var(--space-1) var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-3);
+    padding: 0 var(--space-2);
     font-size: var(--type-md);
     font-weight: var(--w-semibold);
     color: var(--fg-0);
@@ -57,6 +60,9 @@
     gap: 2px;
   }
   .v2s-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     appearance: none;
     border: 0;
     background: transparent;
@@ -75,10 +81,17 @@
     background: var(--bg-3);
     color: var(--fg-0);
   }
+  /* 06 .ad-set-tab[aria-current]: accent-muted + accent-text, the glyph follows */
+  .v2s-tab-ic {
+    color: var(--fg-2);
+  }
   .v2s-tab[aria-selected="true"] {
-    background: var(--bg-3);
-    color: var(--fg-0);
+    background: var(--accent-muted);
+    color: var(--accent-text);
     font-weight: var(--w-medium);
+  }
+  .v2s-tab[aria-selected="true"] .v2s-tab-ic {
+    color: var(--accent-text);
   }
   .v2s-tab:focus-visible,
   .v2s-close:focus-visible {
@@ -93,6 +106,18 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
     font-variant-numeric: tabular-nums;
+  }
+  /* 06 draws no Done: esc and a click on the veil close the sheet. The button stays for the keyboard and
+     assistive tech — out of sight until it takes focus (WCAG 2.4.7). */
+  .v2s-close:not(:focus-visible) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    border: 0;
+    padding: 0;
+    margin: -1px;
   }
   .v2s-close {
     appearance: none;
@@ -115,6 +140,21 @@
     overflow: auto;
     /* room under the last row, so a scrolled sheet never ends mid-row at its edge */
     padding: var(--space-4) var(--space-5) var(--space-7, 32px);
+  }
+  /* Advanced: This Mac · Engines · This project (06 .ad-sg-cols) */
+  .v2s-cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6, 24px);
+    align-items: start;
+  }
+  .v2s-col {
+    min-width: 0;
+  }
+  @media (max-width: 1100px) {
+    .v2s-cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
   .v2s-panel[hidden] {
     display: none;

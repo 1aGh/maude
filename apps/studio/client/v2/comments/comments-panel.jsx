@@ -14,6 +14,7 @@ import { StIcon } from '../../shell/icons.jsx';
 import { Spark } from '../ai/icons.jsx';
 import { Person } from '../share/person.jsx';
 import { basename, displayName } from '../../shell/util.js';
+import { rovingTabKey } from '../shell/modal-focus.js';
 import { Confetti, copy, Empty } from '../empty/index.js';
 import { fetchMentionPeople } from './comment-client.js';
 import {
@@ -234,7 +235,13 @@ export function CommentsPanel({
           </button>
         ) : null}
       </div>
-      <div className="cmp-seg" role="tablist" aria-label="Show">
+      {/* WAI-ARIA tabs: ←/→ move AND select, Home / End, one tab stop (the kit's roving pattern) */}
+      <div
+        className="cmp-seg"
+        role="tablist"
+        aria-label="Show"
+        onKeyDown={(e) => rovingTabKey(e, FILTERS, active, (id) => setFilter?.(id))}
+      >
         {FILTERS.map((id) => (
           <button
             key={id}
@@ -243,6 +250,7 @@ export function CommentsPanel({
             className={`cmp-seg-b${active === id ? ' is-active' : ''}`}
             data-testid={`comment-filter-${id}`}
             aria-selected={active === id}
+            tabIndex={active === id ? 0 : -1}
             onClick={() => setFilter?.(id)}
           >
             {FILTER_LABELS[id]} <span className="cmp-n">{counts[id]}</span>
