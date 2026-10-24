@@ -46,6 +46,9 @@ export const STICONS = {
       <circle cx="12.5" cy="8" r="1.1" />
     </g>
   ),
+  // Phase 8 C3: Undo / Redo for the bottom-left island (the kit's `undo` / `redo`, path for path).
+  undo: <path d="M6 3.5L3 6.5l3 3M3 6.5h6.25a3.75 3.75 0 0 1 0 7.5H7.5" />,
+  redo: <path d="M10 3.5l3 3-3 3M13 6.5H6.75a3.75 3.75 0 0 0 0 7.5H8.5" />,
   history: <path d="M2.75 8A5.25 5.25 0 1 0 4.3 4.3M4.3 1.8v2.5h2.5M8 5.25V8l2 1.5" />,
   pin: <path d="M6 2.5h4l-.5 4 2.5 2.5H4l2.5-2.5zM8 9v4.5" />,
   duplicate: (
