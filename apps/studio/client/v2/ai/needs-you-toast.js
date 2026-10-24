@@ -3,10 +3,14 @@
 // WHEN (the panel is folded, or the chat is not the one in front); these only decide the words.
 //
 //   needsYouNotice({ id, canvas, line, onOpen })   "AI needs you on Uniformy-2027 — replace 4 team photos?" · Open
-//   doneNotice({ id, text, onShow })               "Done — Post 1:1 is greener. The logo stays white." · Show
+//   doneNotice({ id, text, run, artboards, onShow, onUndo })
+//                                                  "Done — Post 1:1 is greener. The logo stays white." · Show
+//                                                  "Done — Desktop, Tablet and Mobile are updated." · Undo  (01 cf-ai-done)
 //
 // The question is quoted, never the answer options; the toast stays until it is answered (no auto-dismiss
 // timer shorter than the question lives — Needs you has no timeout, D7).
+
+import { changedSomething, describeResult } from './run-model.js';
 
 /** Open the AI chat panel on a chat. The shell listens (lead patch); ChatPanel switches to the chat. */
 export const OPEN_AI_EVENT = 'maude:open-ai';
@@ -64,15 +68,30 @@ export function doneLine(text) {
   return clip(first, 140);
 }
 
-export function doneNotice({ id, text, onShow }) {
-  const line = doneLine(text);
+/**
+ * The words of the done toast (P8 C3, 01 cf-ai-done / 03 ai-panel-closed). A reply that opens with "Done" names its
+ * own result and is quoted; any other reply ("Drafting the landing page — …") is the AI talking about its work, not
+ * the result, so the line comes from the WORK: the artboards the run changed ("Done — Desktop, Tablet and Mobile
+ * are updated."), the same sentence the panel's result card carries.
+ */
+export function doneToastLine(text, run, artboards) {
+  const own = doneLine(text);
+  if (own && /^done\b/i.test(own)) return own;
+  if (run && changedSomething(run)) return describeResult(run, artboards);
+  return own;
+}
+
+export function doneNotice({ id, text, run = null, artboards = [], onShow, onUndo = null }) {
+  const line = doneToastLine(text, run, artboards);
   if (!line) return null;
-  // 03 ai-panel-closed: the same pill with the spark (the kit's Toast icon spark, action Show)
+  // 01 cf-ai-done: when the run changed something the one verb is Undo (the run's whole change comes back);
+  // 03 ai-panel-closed: a run that only answered has nothing to undo, so the pill offers Show.
+  const undo = typeof onUndo === 'function' && !!run && changedSomething(run);
   return {
     id,
     title: line,
     kind: 'success',
     icon: 'spark',
-    action: { label: 'Show', onClick: onShow },
+    action: undo ? { label: 'Undo', onClick: onUndo } : { label: 'Show', onClick: onShow },
   };
 }

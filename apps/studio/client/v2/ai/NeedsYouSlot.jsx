@@ -122,15 +122,27 @@ export default function NeedsYouSlot({
     [chatRun, labels, designRel]
   );
 
+  // P8 C3 (03 ai-permission): the question is asked in the work's words - which canvas, which artboards
+  const work = useMemo(
+    () => ({
+      canvas: chatRun?.scope?.canvas ?? null,
+      boards: willChange.boards,
+      more: willChange.more,
+    }),
+    [chatRun, willChange]
+  );
   const requests = useMemo(
     () => [
-      ...pendingPermissions.map((p) => ({ id: p.id, line: needsYouLine(permissionModel(p)) })),
+      ...pendingPermissions.map((p) => ({
+        id: p.id,
+        line: needsYouLine(permissionModel(p, work)),
+      })),
       ...pendingElicitations.map((e) => ({
         id: e.id,
         line: choiceModel(e)?.question ?? e.message ?? 'Claude is asking',
       })),
     ],
-    [pendingPermissions, pendingElicitations]
+    [pendingPermissions, pendingElicitations, work]
   );
   useWaitingQuestions({ conn, chatId, away, requests });
 
@@ -207,6 +219,7 @@ export default function NeedsYouSlot({
           onRespond={onRespondPermission}
           queueLength={pendingPermissions.length}
           willChange={willChange}
+          work={work}
         />
       ) : activeElicitation ? (
         choice ? (

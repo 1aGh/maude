@@ -44,6 +44,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
+import { fetchChatRuns, undoNote, undoRun } from '../v2/ai/run-api.js';
 import { RunsCount } from '../v2/ai/RunList.jsx';
 import NeedsYouSlot from '../v2/ai/NeedsYouSlot.jsx';
 import { QuotaLine } from '../v2/ai/NotReady.jsx';
@@ -364,6 +365,10 @@ function ChatThread({
   // S5.13 (03 `ai-panel-closed`): hiding the panel never stops AI, and a toast says when the chat is done.
   const panelHiddenRef = useRef(panelHidden);
   panelHiddenRef.current = panelHidden;
+  // P8 C3 (01 cf-ai-done): the done toast names the WORK and offers Undo - it needs the artboard names + the
+  // project's design folder when the chat finishes, so they ride in a ref (the busy subscription stays put).
+  const doneCtxRef = useRef({ artboards: [], designRel });
+  doneCtxRef.current = { artboards: aiScope.artboards, designRel };
   useEffect(() => {
     let was = false;
     return conn.onBusy((busy) => {
@@ -376,12 +381,31 @@ function ChatThread({
         .filter((c) => c.type === 'text')
         .map((c) => c.text)
         .join(' ');
-      const notice = doneNotice({
-        id: `ai-done-${chatId}`,
-        text,
-        onShow: () => openAiChat(chatId),
+      const say = (run) => {
+        const { artboards, designRel: rel } = doneCtxRef.current;
+        const notice = doneNotice({
+          id: `ai-done-${chatId}`,
+          text,
+          run,
+          artboards,
+          onShow: () => openAiChat(chatId),
+          onUndo: async () => {
+            const out = await undoRun(run, { designRel: rel });
+            if (!out.ok)
+              notify({
+                id: `ai-undo-${chatId}`,
+                title: undoNote(out.reason, out.line),
+                kind: 'warning',
+              });
+          },
+        });
+        if (notice) notify(notice);
+      };
+      // the registry's newest ended run of THIS chat says what it changed; an older server has none
+      void fetchChatRuns(chatId).then((runs) => {
+        const ended = runs.filter((r) => r.state === 'ended');
+        say(ended.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0] ?? null);
       });
-      if (notice) notify(notice);
     });
   }, [conn, runtime, chatId]);
 
