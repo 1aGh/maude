@@ -43,6 +43,7 @@ import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
 import { escClearsSelection, runEscRung } from './bridge/esc-ladder.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { type Insets, revealViewBox } from './bridge/occlusion.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
@@ -3650,6 +3651,22 @@ function CanvasRouter({
           clientX,
           clientY,
         };
+        // P8 C3 (14 ed-ab-menu / ed-obj-order): the artboard or object you right-clicked is the selection under its
+        // menu (chip + handles), unless it already is part of it - then the menu acts on the whole selection.
+        if (
+          target &&
+          (kind === 'element' || kind === 'artboard-chrome') &&
+          !isReadOnlyCanvas() &&
+          modeShows(canvasModeStore(window).get().mode, 'object-tools')
+        ) {
+          const sel = hoverTargetToSelection(target);
+          const same = (a: { selector: string; index?: number }) =>
+            a.selector === sel.selector && (a.index ?? 0) === (sel.index ?? 0);
+          if (!selSet.selected.some(same)) {
+            selSet.replace(sel);
+            postLayersTree(target.artboardId);
+          }
+        }
         ctxMenu.open(ctxTarget);
       },
       onTool: ({ tool: t }) => setTool(t),

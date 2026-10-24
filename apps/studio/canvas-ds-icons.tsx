@@ -142,6 +142,41 @@ export const DS_GLYPHS: Readonly<Record<string, ReactNode>> = {
     </>
   ),
   play: <path d="M5 3.5v9l7.5-4.5z" />,
+  // P8 C3 - the context menus' icon column (14 ed-ab-menu / ed-obj-order, 01): the kit's glyphs, path for path
+  edit: (
+    <>
+      <path d="M9.5 3.5l2 2L6 11l-2.75.75L4 9z" />
+      <path d="M3 13.5h10" />
+    </>
+  ),
+  export: (
+    <>
+      <path d="M8 2.5V10M5.25 7.25L8 10l2.75-2.75" />
+      <path d="M2.75 10.5V12a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-1.5" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.75" />
+      <path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7" />
+    </>
+  ),
+  duplicate: (
+    <>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />
+      <path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" />
+    </>
+  ),
+  trash: (
+    <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.1a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8.1" />
+  ),
+  'eye-off': (
+    <>
+      <path d="M1.75 8S4 3.75 8 3.75 14.25 8 14.25 8 12 12.25 8 12.25 1.75 8 1.75 8z" />
+      <path d="M2.5 2.5l11 11" />
+    </>
+  ),
+  submenu: <path d="M6 4.5l3.5 3.5L6 11.5" />,
   // the Design system glyph: four squares and a dot (_kit.tsx `system`)
   system: (
     <>

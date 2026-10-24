@@ -394,12 +394,9 @@ describe('the artboard menu', () => {
 
   test('Duplicate at another width ▸ Laptop · Tablet · Mobile · Custom width…, each runs its width', () => {
     const sub = find('duplicate-at-width').submenu as MenuItem[];
-    expect(sub.map((s) => s.label)).toEqual([
-      'Laptop — 1280',
-      'Tablet — 834',
-      'Mobile — 390',
-      'Custom width…',
-    ]);
+    expect(sub.map((s) => s.label)).toEqual(['Laptop', 'Tablet', 'Mobile', 'Custom width…']);
+    // 14 ed-ab-menu: the width sits right-aligned beside the name
+    expect(sub.map((s) => s.shortcut)).toEqual(['1280', '834', '390', undefined]);
     calls.length = 0;
     for (const s of sub) s.onSelect(target);
     find('duplicate-artboard').onSelect(target);

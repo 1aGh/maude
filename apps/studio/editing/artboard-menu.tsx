@@ -85,6 +85,7 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
           return name ? askAboutWords(name) : null;
         },
         shortcut: '⌘/',
+        icon: 'spark',
         // S2.21 — the same bubble ⌘/ on a selection opens (ask-bubble.tsx), scoped to this artboard.
         onSelect: (t) => {
           if (t.artboardId)
@@ -95,23 +96,32 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
       },
     ],
     [
-      { id: 'duplicate-artboard', label: 'Duplicate', shortcut: '⌘D', onSelect: deps.duplicate },
+      {
+        id: 'duplicate-artboard',
+        label: 'Duplicate',
+        shortcut: '⌘D',
+        icon: 'duplicate',
+        onSelect: deps.duplicate,
+      },
       {
         id: 'duplicate-at-width',
         label: 'Duplicate at another width',
+        icon: 'web',
         onSelect: () => {},
         submenu: [
           ...DUPLICATE_WIDTHS.map(
             (w): MenuItem => ({
               id: `duplicate-at-${w.id}`,
-              label: `${w.label} — ${w.width}`,
+              // 14: "Laptop" with the width right-aligned beside it
+              label: w.label,
+              shortcut: String(w.width),
               onSelect: (t) => deps.duplicateAtWidth(t, w.width),
             })
           ),
           { id: 'duplicate-at-custom', label: 'Custom width…', onSelect: deps.customWidth },
         ],
       },
-      { id: 'rename-artboard', label: 'Rename', onSelect: deps.rename },
+      { id: 'rename-artboard', label: 'Rename', icon: 'edit', onSelect: deps.rename },
     ],
     reuse('add-comment'),
     // S4.14 — "Start a vote…" with this artboard ticked: the canvas hands the shell its artboards
@@ -123,9 +133,16 @@ export function artboardMenuSections(v1: MenuSection[], deps: ArtboardMenuDeps):
         onSelect: (t) => askVoteBoard(true, t.artboardId ?? null),
       },
     ],
-    reuse('export-artboard', { label: 'Export…', shortcut: '⇧⌘E' }),
+    reuse('export-artboard', { label: 'Export…', shortcut: '⇧⌘E', icon: 'export' }),
     [{ id: 'advanced', label: 'Advanced', onSelect: () => {}, submenu: advanced }],
-    reuse('delete-artboard', { label: 'Move to trash' }),
+    // 14 ed-ab-menu owns this menu and draws Move to trash as a plain row with the trash glyph and ⌫ (01's
+    // `danger` variant loses to the owning board): not red, and the key it really has.
+    reuse('delete-artboard', {
+      label: 'Move to trash',
+      shortcut: '⌫',
+      icon: 'trash',
+      destructive: false,
+    }),
   ];
   return sections.filter((s) => s.length > 0);
 }
