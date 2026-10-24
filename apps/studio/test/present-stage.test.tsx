@@ -207,7 +207,7 @@ describe('Present from "Post 1:1": the lift', () => {
     expect(m?.style.height).toBe('1080px');
     expect(m?.style.opacity).toBe('1');
     expect(m?.style.transition).toBe('opacity 280ms ease-out');
-    expect(m?.style.boxShadow).toContain('var(--bg-0');
+    expect(m?.style.boxShadow).toContain('var(--maude-hud-object-ink');
     expect(m?.style.pointerEvents).toBe('none');
   });
 
