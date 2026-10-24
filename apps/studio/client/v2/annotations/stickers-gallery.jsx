@@ -200,13 +200,8 @@ export default function StickersGallery({
         aria-modal="true"
         aria-label="Stickers"
       >
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title">Stickers</span>
-          <kbd className="kbd sg-key">E</kbd>
-          <button type="button" className="st-iconbtn" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={15} />
-          </button>
-        </div>
+        {/* 15 an-stk-gallery: the board's panel opens straight on the search — no header, no ×. Esc, a press outside
+            and the sticker's own pick close it. */}
         <div className="st-dialog-bd">
           <label className="sg-q">
             <Icon name="search" />
