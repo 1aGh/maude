@@ -114,6 +114,7 @@ import {
 } from './artboard-guides-overlay.tsx';
 import {
   ArtboardWarnMark,
+  ArtboardWarnOutlines,
   madeFromLabel,
   useArtboardWarnings,
   warningsAttr,
@@ -3133,6 +3134,16 @@ export function DCArtboard({
           safeZones: chrome?.safeZones ?? true,
           editChrome: artboardEditChrome,
         }}
+      />
+      <ArtboardWarnOutlines
+        warnings={warnings}
+        bodyRef={bodyRef}
+        rect={
+          surface
+            ? { x: liveX + surface.dx, y: liveY + surface.dy, w: surface.w, h: surface.h }
+            : { x: liveX, y: liveY, w: rect.w, h: rect.h }
+        }
+        show={artboardEditChrome}
       />
       <ArtboardGrowthTag
         x={liveX + rect.w}
