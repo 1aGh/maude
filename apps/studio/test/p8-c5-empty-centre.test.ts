@@ -51,6 +51,23 @@ describe('the block uses it', () => {
   });
 });
 
+// 05 es-all-trashed: the card was built (S11.5) and never mounted; the empty-canvas host mounts it and holds
+// "Your canvas is ready." back until the Trash has answered.
+describe('every artboard in the Trash', () => {
+  const host = read('client/v2/empty/empty-host.jsx');
+  test('the host mounts the card for an empty canvas and the plain block steps aside for it', () => {
+    expect(host).toContain('<AllTrashed');
+    expect(host).toContain('artboardCount={count}');
+    expect(host).toContain('onShown={onTrashShown}');
+    expect(host).toMatch(/drawEmpty = !!model && \(!trashWatch \|\| trashShown === false\)/);
+  });
+
+  test('the answer is kept with its canvas (a switch never reads the last canvas’s answer)', () => {
+    expect(host).toMatch(/setTrashAnswer\(\{ path: activePath, shown \}\)/);
+    expect(host).toContain('trashAnswer.path === activePath');
+  });
+});
+
 // 05 es-project-new: the prompt is the board's 520 px box — it was a ~140 px pill (`width: min(520px, 100%)`
 // of a shrink-to-fit parent) with the placeholder clipped to "A one-page portfolio wi", and the send read grey
 // until a word was typed (the board draws it azure).

@@ -322,6 +322,22 @@ describe('the host (a canvas with no artboards left)', () => {
     ...extra,
   });
 
+  // P8 C5: the empty-canvas host mounts this card and must not draw "Your canvas is ready." under it
+  test('tells its host when it is on screen (onShown), so the plain empty block steps aside', async () => {
+    const f = studio('edit');
+    const seen: boolean[] = [];
+    const { root } = await mount(baseProps(f, { onShown: (b: boolean) => seen.push(b) }));
+    expect(seen.at(-1)).toBe(true);
+    await act(async () => root.unmount());
+    const g = studio('edit');
+    const none: boolean[] = [];
+    const again = await mount(
+      baseProps(g, { artboardCount: 2, onShown: (b: boolean) => none.push(b) })
+    );
+    expect(none.at(-1)).toBe(false);
+    await act(async () => again.root.unmount());
+  });
+
   test('renders the card from the Trash; a canvas that still has artboards does not even ask', async () => {
     const f = studio('edit');
     const { host, root } = await mount(baseProps(f));
