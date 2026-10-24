@@ -31,13 +31,11 @@ const handlersOf = (ctx) => ctx?.artboard || {};
 
 function ArtboardFillRow({ el, ctx }) {
   const f = artboardFacts(el);
-  // 14 ed-ab-select: a web page's Fill is a section with one row, "Background"; a fixed size keeps 08's "Fill" row
-  const label = f.kind === 'web' ? 'Background' : 'Fill';
   const h = handlersOf(ctx);
   const fam = useDsFamilies(ctx);
   const value = f.bg ? colourFromCss(f.bg) : null;
   return (
-    <Row k={label} name="ab-background" dim={!value}>
+    <Row k="Fill" name="ab-background" dim={!value}>
       <ColorControl
         name="ab-background"
         label="Artboard fill"
@@ -57,7 +55,7 @@ function ArtboardFillRow({ el, ctx }) {
 }
 
 /**
- * V2-8.5 C5 (14 ed-ab-select) — the web page's Layout section is ONE row, "Content: Top to bottom". Its Padding and
+ * V2-8.5 C4 (08 ak-web-hug) — the web page's Layout is ONE row, "Layout: Top to bottom" (the board's card). Its Padding and
  * Gap are exact numbers: they sit under Advanced with the other facts (`artboard-advanced-rows.jsx`), same writes.
  */
 function ArtboardLayoutRows({ el, ctx }) {
@@ -65,7 +63,7 @@ function ArtboardLayoutRows({ el, ctx }) {
   const h = handlersOf(ctx);
   const set = (patch) => f.id && h.onSetArtboardStyle?.(f.id, patch);
   return (
-    <Row k="Content" name="ab-content">
+    <Row k="Layout" name="ab-content">
       <Select
         value={f.layout}
         ariaLabel="Artboard body layout"
@@ -136,9 +134,8 @@ export const ARTBOARD_SLOTS = Object.freeze([
       order: 10,
       kinds: ARTBOARD,
       when: ({ selection }) => hasBackground(kindOf(selection)),
-      // 08 board: "Fill" is a row of the one Artboard card, not a section of its own — except on a web page, where
-      // 14 ed-ab-select draws Fill ▸ Background as a section
-      headless: ({ selection }) => kindOf(selection) !== 'web',
+      // 08 board: "Fill" is a row of the one Artboard card, not a section of its own
+      headless: true,
       Body: ArtboardFillRow,
     },
   ],
@@ -149,8 +146,7 @@ export const ARTBOARD_SLOTS = Object.freeze([
       order: 10,
       kinds: ARTBOARD,
       when: ({ selection }) => hasPageLayout(kindOf(selection)),
-      // 14 ed-ab-select: Layout ▸ Content
-      headless: false,
+      headless: true,
       Body: ArtboardLayoutRows,
     },
   ],
