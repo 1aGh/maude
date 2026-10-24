@@ -287,6 +287,9 @@ describe('Home page in the desktop app', () => {
   test('every request carries x-maude-home: <the page secret>, fetched once', async () => {
     mount();
     await flush();
+    // the field lives in the ⌘K palette now (11 pn-home-search): open it first
+    act(() => $('home-search-open')?.click());
+    await flush();
     const input = $('home-search') as HTMLInputElement;
     act(() => input.focus());
     // type: the input's own React onChange (happy-dom's input event does not reach it here)
