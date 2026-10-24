@@ -107,3 +107,32 @@ IMPL re-shot light + dark on the round-5 tip (stage-D harness, repointed, system
 
 - Changed in the product for these frames: the Canvases panel island; the empty block centred on the free canvas (es-canvas-ai, es-offline-uncached); the empty-project prompt box (es-project-new); the empty-artboard hint after "New artboard" selects the board (es-artboard-new); the all-trashed card is mounted (es-all-trashed, still needs the Trash to hold the canvas's artboards); plain layer names, "a web page", "Searched 1 chat", the "New canvas" start-here row, the project named on Exports.
 - Still open: es-arriving skeleton artboards (no artboard data for a canvas on its way), es-viewer, es-timeline lanes.
+
+## FINAL (D3, 63592219a)
+Final re-shoot D3 of the IMPL side on the merged `feat/maude-v2` tip 63592219a (stage C rounds 1-5 + bugs3 merged); no product code changed. This section supersedes every earlier "after" / FINAL section above. 19 artboards with pairs (light + dark), 1 without a frame. Evidence only — no match / mismatch judged here.
+
+- **IMPL.** D2 harness (`_d-harness-g1-final/`, round-5 revision of the 01/02/05 scenarios) plus the bugs3 `s01ai.mjs` (waits for the run's end before ⌘Z), repointed to this worktree; kept in `_d-harness-g1-d3/`. Changes for D3: the fake agent steps every 9 s (was 7 s) so the harness's folding clicks finish before the run does; the finish moment is detected by a MutationObserver inside the canvas frame (re-armed on reload) and shot while `[data-fresh]` is on, panel folded, result toast up; the undo frame is shot while the "Undone — <label> · Redo" toast is still up. Fresh release client, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, Playwright Chromium 1600 x 1000, light + dar- **SPEC.** reused (board 05 .tsx/.css unchanged since 2026-10-18).
+- **Full-size pairs.** `full-size-path.txt` (the last line, "final (D3)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot |  |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot |  |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | harness: the Share cluster now draws the Comments icon only once the canvas has comments, so the empty Comments panel is opened by ⌘K › Comments (view.comments); the left Canvases panel is re-opened after `h.open` where the harness had folded it |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot |  |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot |  |
+| `es-viewer` | unreachable | unreachable | unreachable — a view-only / comment-only member session needs a hub / workspace cell vouching a role |
+| `es-arriving` | re-shot | re-shot |  |
+| `es-offline-uncached` | re-shot | re-shot |  |
+| `es-all-trashed` | re-shot | re-shot | the pair shows the states the app reaches (one left, empty); the all-trashed card itself is not reached by a local route |
+| `es-edge-panels` | re-shot | re-shot |  |
