@@ -8,11 +8,11 @@ Branch `p8-c2-assets` from feat/maude-v2 `5324d3aaf`. Stopped on the budget call
 |---|---|
 | 414834fae | Assets panel: All kinds chip menu, Generate (spark colour) + Add at the right end of the chip row, no ⌘K in the field, library foot "N assets · size", groups cap at two rows (the count opens Browse), search groups "In the name or tags" with a match foot on each tile, tile tip below the tile, pick circles in Browse, semibold group heads, search ring, tile hairline, tidy foot on one line, Copy ⌘C + separator in the tile menu |
 | f8b86a31a | SHARED: left panel island 248 wide (`usePanelSize` def 264 in `hooks/use-shell-core.jsx`) and stops above the bottom row (`v2/shell/floating-panels.css` slot `padding-bottom: 72px`; a docked chat keeps the bottom edge) |
-| (next) | details: "…" More button, canvas covers in Used in, 150 px cover crop, no lone "Photo" head; Missing frame fills the picture frame with a warning card; the inspector Missing box is the board's `.ia-missbox` |
-| (next) | drop: the chip names the artboard ("Drop to place 6 photos in Fotky ze zápasu"), sits above a solid accent ring with a tint halo, no fill |
-| (next) | SHARED `client/shell/icons.jsx`: the `warn` glyph. Import: Figma sheet 372, brand sheet 420, semibold title, lock in "Figma isn't connected", warning in "Couldn't read" |
-| (next) | generate ask: calm shape line (no red alert before an attempt), kit chips, spark title, the two starters |
-| (next) | placed toast "Placed N photos in X. They're in Assets too." + Undo from the panel; ContextMenu / ⇧F10 open the tile menu; offer card with hairline |
+| 94cf73e48 | details: "…" More button, canvas covers in Used in, 150 px cover crop, no lone "Photo" head; Missing frame fills the picture frame with a warning card; the inspector Missing box is the board's `.ia-missbox` |
+| 0353bbd5c | drop: the chip names the artboard ("Drop to place 6 photos in Fotky ze zápasu"), sits above a solid accent ring with a tint halo, no fill |
+| 3f45b249a, 89c1c5e22 | SHARED `client/shell/icons.jsx`: the `warn` glyph. Import: Figma sheet 372, brand sheet 420, semibold title, lock in "Figma isn't connected", warning in "Couldn't read" |
+| 34cea8bc3 | generate ask: calm shape line (no red alert before an attempt), kit chips, spark title, the two starters |
+| 7a8a691a4 | placed toast "Placed N photos in X. They're in Assets too." + Undo from the panel; ContextMenu / ⇧F10 open the tile menu; offer card with hairline |
 
 Tests (new `test/p8-c9-assets.test.tsx`, 18): foot words, kind filter, panel render (no ⌘K, chip row, 2-row cap, search groups + match foot, kind chip, ContextMenu key, pick circles), CSS pins (tip below, semibold head, search ring, 72 px stop, 264 default), `frameBox` (Missing frame), `dropHint` with a label, import sheet pins, ask render, `placedWords` = `placedLine`. Red→green: the old `assets-panel.jsx` fails 4 of the render tests (no chip row, no foot, no cap, no search groups). Updated for the board: `v2-assets-panel` and `v2-assets-browse` (tile-menu rows), `finder-drop-client` (chip words). Not touched: the p8-redtests2 files.
 
