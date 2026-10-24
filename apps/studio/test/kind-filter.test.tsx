@@ -340,16 +340,31 @@ describe('the Canvases panel', () => {
     const { host } = await mount({
       'a.tsx': [{ id: '1', kind: 'web' }],
       'b.tsx': [{ id: '1', kind: 'web' }],
+      // P8 C3: the chips come once the project mixes kinds (a one-kind project draws none)
+      'c.tsx': [{ id: '1', kind: 'video' }],
     });
     await click(q(host, 'kind-chip-print'));
     expect(q(host, 'kind-chip-print')?.getAttribute('data-zero')).toBe('true');
     const none = q(host, 'canvases-kind-none');
     expect(none?.textContent).toContain('No print canvases in Alligators brand.');
-    expect(none?.textContent).toContain('The Print filter is on. Clear it to see all 2 canvases.');
+    expect(none?.textContent).toContain('The Print filter is on. Clear it to see all 3 canvases.');
     await click(q(host, 'canvases-kind-clear'));
     expect(getKindFilter()).toBe('all');
     expect(q(host, 'canvases-kind-none')).toBeNull();
-    expect(names(host).sort()).toEqual(['a', 'b']);
+    expect(names(host).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  test('a project of one kind draws no chips; a mixed one does; a filter that is on keeps them (P8 C3)', async () => {
+    const one = await mount({
+      'a.tsx': [{ id: '1', kind: 'web' }],
+      'b.tsx': [{ id: '1', kind: 'web' }],
+    });
+    expect(q(one.host, 'kind-chips')).toBeNull();
+    const mixed = await mount({
+      'a.tsx': [{ id: '1', kind: 'web' }],
+      'c.tsx': [{ id: '1', kind: 'video' }],
+    });
+    expect(q(mixed.host, 'kind-chips')).not.toBeNull();
   });
 
   test('a search narrows inside the filter', async () => {
