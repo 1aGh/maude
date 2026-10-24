@@ -108,7 +108,13 @@
     padding-left: calc(var(--space-2) + var(--space-5));
   }
   .al-row[data-resolved] .al-name {
-    color: var(--fg-2);
+    color: var(--fg-1);
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: color-mix(in oklch, var(--fg-1) 60%, transparent);
+  }
+  .al-state--done {
+    color: var(--success, var(--fg-1));
   }
   .al-sec {
     cursor: default;

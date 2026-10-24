@@ -109,6 +109,30 @@ describe('S4.17 · AnnotationListHost', () => {
     expect(asked[0]).toContain(encodeURIComponent('.design/ui/A.tsx'));
   });
 
+  test('a resolved sticky says so beyond its colour: a tick, a word for a screen reader, a strike (a11y A3)', async () => {
+    installBoard({
+      '.design/ui/A.tsx': [
+        sticky('d1', 'Done thing', 'Jonas', { resolved: true }),
+        sticky('o1', 'Open thing', 'Jonas'),
+      ],
+    });
+    const { AnnotationListHost } = await import('../client/v2/annotations/annotation-list.jsx');
+    const host = await mount(
+      <AnnotationListHost file=".design/ui/A.tsx" post={() => {}} me={ME} />
+    );
+    const rows = all(host, 'annotation-list-row');
+    const done = rows.find((r) => r.dataset.id === 'd1') as HTMLElement;
+    const open = rows.find((r) => r.dataset.id === 'o1') as HTMLElement;
+    expect(done.querySelector('[data-testid="annotation-list-resolved"]')?.textContent).toContain(
+      'Resolved'
+    );
+    expect(open.querySelector('[data-testid="annotation-list-resolved"]')).toBeNull();
+    const css = (await Bun.file(
+      new URL('../client/v2/annotations/annotation-list.css', import.meta.url).pathname
+    ).text()) as string;
+    expect(css).toMatch(/\.al-row\[data-resolved\] \.al-name \{[^}]*line-through/);
+  });
+
   test('the Tereza chip hides the rest, posts the filter, and the foot says who is hidden', async () => {
     installBoard({ '.design/ui/A.tsx': BOARD });
     const { AnnotationListHost } = await import('../client/v2/annotations/annotation-list.jsx');
