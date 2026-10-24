@@ -182,10 +182,16 @@ describe('what an artboard shows', () => {
       'insp-row-ab-add-width',
       'insp-row-ab-background',
       'insp-row-ab-content',
-      'insp-row-ab-padding',
-      'insp-row-ab-gap',
     ])
       expect(q(host, row), row).not.toBeNull();
+    // V2-8.5 C4 (08 ak-web-hug): the card draws ONE Layout row; Padding and Gap are exact numbers under Advanced
+    for (const row of ['insp-row-ab-padding', 'insp-row-ab-gap'])
+      expect(q(host, row), row).toBeNull();
+    expect(q(host, 'insp-row-ab-background')?.querySelector('.insp-row-k')?.textContent).toBe('Fill');
+    expect(q(host, 'insp-row-ab-content')?.querySelector('.insp-row-k')?.textContent).toBe('Layout');
+    // Fill and Layout are rows of the Artboard card — no section heads of their own
+    for (const s of ['fill', 'layout'])
+      expect(q(host, `insp-sec-${s}`)?.querySelector('.insp-sec-t')?.hasAttribute('hidden'), s).toBe(true);
     expect(q(host, 'insp-sec-fill')).not.toBeNull();
     expect(q(host, 'insp-sec-layout')).not.toBeNull();
     expect(q(host, 'insp-sec-export')).not.toBeNull();
@@ -200,6 +206,8 @@ describe('what an artboard shows', () => {
   test('Size reads "1440 × 1573" (under Advanced) and the Width row names Desktop', async () => {
     const host = await frame();
     await click(q(host, 'fold-inspector-toggle'), 'Advanced');
+    expect(q(host, 'insp-row-ab-padding')).not.toBeNull();
+    expect(q(host, 'insp-row-ab-gap')).not.toBeNull();
     expect((field(host, 'insp-num-ab-w') as HTMLInputElement).value).toBe('1440');
     expect((field(host, 'insp-num-ab-h') as HTMLInputElement).value).toBe('1573');
     const sel = q(host, 'insp-ab-preset') as HTMLSelectElement;
