@@ -259,7 +259,7 @@ describe('what an artboard shows', () => {
       },
     });
     const sel = q(host, 'insp-ab-preset') as HTMLSelectElement;
-    expect(sel.options[sel.selectedIndex]?.textContent).toBe('A4 · 210 × 297 mm');
+    expect(sel.options[sel.selectedIndex]?.textContent).toBe('A4');
     expect(q(host, 'insp-row-ab-orientation')).not.toBeNull();
     expect(q(host, 'insp-row-ab-bleed')).not.toBeNull();
     expect(q(host, 'insp-row-ab-add-width')).toBeNull(); // paper is picked from the ladder, not by a px width

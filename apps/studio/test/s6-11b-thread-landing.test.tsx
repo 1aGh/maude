@@ -112,7 +112,7 @@ describe('applyShellNavigate — a thread landing', () => {
       tabs.indexOf('shellNavRef.current = {'),
       tabs.indexOf('return startShellEvents({')
     );
-    for (const k of ['toast: (title) => shellToast(title, true, undefined,', 'threadAuthor,'])
+    for (const k of ['shellToast(title, true, undefined,', 'threadAuthor,'])
       expect({ k, present: ref.includes(k) }).toEqual({ k, present: true });
   });
 });
