@@ -12,6 +12,19 @@
 // instance without new plumbing. Pure — the singleton in use-panel-layout.js injects persistence and
 // the notice.
 
+/** P8 C3 (03 ai-long-pinned): the AI chat pinned to the side is a 420 px column (floating it is 340, 420 when long). */
+export const AI_PINNED_W = 420;
+
+/**
+ * The right dock slot's width. The Inspector is a 264 card (14 `.k-insp`), Version history the 372 island of 11
+ * `.pn-vh`; the AI chat docked here (pinned layout) is the 420 column of 03 `ai-long-pinned` unless the person
+ * dragged it wider; anything else is the user's panel width.
+ */
+export function rightPanelWidth({ active, base, aiPinned = false }) {
+  if (active === 'inspector') return 264;
+  if (active === 'changes') return 372;
+  return aiPinned ? Math.max(base, AI_PINNED_W) : base;
+}
 /** The one-line hint shown when panels are hidden (CONTRACT §4 voice). */
 export const PANELS_HIDDEN_HINT = 'Panels hidden. Press ⌘\\ to bring them back.';
 export const PANELS_HINT_ID = 'panels-hidden';
