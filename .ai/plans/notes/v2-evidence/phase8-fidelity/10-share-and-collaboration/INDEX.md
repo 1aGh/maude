@@ -74,3 +74,25 @@ Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). New script
 
 ## After (round 5, p8-c5-panels @ 2e203e9e6)
 `co-comment-thread`, `co-comment-video`, `co-comment-print` re-shot (IMPL light + dark, SPEC reused): the Comment tool docks the Comments panel by itself; the thread card is the board's (canvas · place heading, ghost Resolve, tone faces, one field with the accent send). The thread frame now shows an opened thread with a reply being typed. Other ids unchanged.
+
+## FINAL (D3, 63592219a)
+
+Final re-shoot, IMPL side, dark + light, on the release client built from `feat/maude-v2` @ `63592219a` (stage C rounds 1-5 + bugs3 merged). Every `<id>-<theme>.jpg` in this folder was overwritten with this shot (supersedes D2 and the round-5 comment frames). Spec side: **reused** — `10 Share and Collaboration.tsx` last changed 2026-10-19 (S9.21), before the stage-A shot, so the stage-A spec PNGs were copied in. Full-size pairs: `full-size-path.txt` ("final (D3)" line). No product code touched; no verdicts here.
+
+Harness: `_d3-harness-g4/` on top of `_d2-harness-g4/`. Playwright Chromium 1440x860, `window.__TAURI__` stub, throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`. Same FAKED routes as before (share API, sync-status, outbox, conflicts, trash, `/_config` readOnly, 401 access-withdrawn).
+
+| id | dark · light | note |
+|---|---|---|
+| co-share-sheet, co-share-roles | re-shot | FAKED `/_api/share/*` (cloud, 4 people, 1 invite) |
+| co-share-advanced | re-shot | `s10e`: taller window (1440x1040) so the sheet shows down to "Where it syncs" (the 860 px window clipped it); sheet footer line still scrolls |
+| co-browser-view, co-presence | re-shot | presence is still one local face (no peers) |
+| co-comment-thread | re-shot | `s10cm`: Comment tool docks the Comments panel; pin opened, reply being typed |
+| co-comment-video, co-comment-print | re-shot | `s10cm`: composer on the video clip (with "at 0:00") / print artboard |
+| co-sync-offline, co-sync-back | re-shot | FAKED linked project + browser offline + outbox 14; co-sync-back keeps the toast |
+| co-conflict, co-trashed, co-local-cloud | re-shot | FAKED conflicts / trash routes; real local Share (Move to cloud) |
+| co-access-ends | re-shot | `s10c`: FAKED 401 `access-withdrawn`, plain browser, notices dismissed |
+| co-ask-edit | re-shot | `s10d` frame `co-ask-edit-tip` (view-only tip after a >8 px drag), impl cropped to the cluster + tip |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | need N live peers (Yjs awareness over `/_ws/collab`); no fixture, no route to fake presence |
+| co-mention-notify | unreachable | OS banner / e-mail, native only |
+
+Spec-only JPEGs of the five unreachable ids unchanged (`spec-only/`). Still not reachable in the lane (unchanged since D2): the @ picker (no peers), the existing Jonas/Tereza thread with Resolve, the video timeline strip, print guides.
