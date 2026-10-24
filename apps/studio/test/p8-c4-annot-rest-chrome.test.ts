@@ -47,3 +47,13 @@ describe('typing in place draws only the edit ring (14 ed-text-edit)', () => {
     expect(rule(css, '[contenteditable].dc-text-editing')).toContain('box-shadow: 0 0 0 5px');
   });
 });
+
+describe('the keyboard focus ring is not the selection (14 ed-edge-keys)', () => {
+  test('while it shows, the selection handles, tag and halo are hidden', async () => {
+    const { FOCUS_RING_CSS } = await import('../editing/focus-model.tsx');
+    const hide = FOCUS_RING_CSS.match(/([^{}]*)\{\s*display: none !important;\s*\}/);
+    expect(hide?.[1]).toContain('.dc-el-resize-handle');
+    expect(hide?.[1]).toContain('.ed-name-tag');
+    expect(hide?.[1]).toContain('.dc-cv-halo--selected');
+  });
+});
