@@ -287,7 +287,7 @@ describe('sections render from the model', () => {
     expect(html('space', m)).toContain('border-radius:var(--radius-md)');
     expect(html('space', m)).toContain('box-shadow:var(--shadow-sm)');
     expect(html('motion', m)).toContain('ds-curve-p'); // cubic-bezier → drawn
-    expect(html('motion', m)).toContain('ds-bar-d');
+    expect(html('motion', m)).toContain('Hover and press'); // a duration is a card with its curve
     const comps = html('components', m);
     expect(comps).toContain('data-ds-master="Button"');
     expect(comps).toContain('class="ds-m-sample btn btn--primary"');

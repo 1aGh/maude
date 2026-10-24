@@ -332,7 +332,7 @@ export function buildBoardModel(
     tokens,
     typeRoles: idx.reg.typeRoles
       .filter((r) => r.required)
-      .map((r) => ({ role: r.role, class: r.class })),
+      .map((r) => ({ role: r.role, class: r.class, style: r.fallback })),
     components: comps,
     stateRules,
     logos: logosOf(designRoot, sys, loaded.logos),

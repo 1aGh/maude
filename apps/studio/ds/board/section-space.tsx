@@ -3,6 +3,18 @@ import { CAP, Frame, More, type SectionProps } from './parts.tsx';
 import type { BoardToken } from './types.ts';
 
 const val = (t: BoardToken, theme: string) => t.values[theme] ?? Object.values(t.values)[0] ?? '';
+/** smallest first — the order a person reads a scale in, never the file's alphabetical one */
+const num = (t: BoardToken, theme: string): number => {
+  const n = Number.parseFloat(val(t, theme));
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+};
+const bySize = (theme: string) => (a: BoardToken, b: BoardToken) => num(a, theme) - num(b, theme);
+const dispVal = (v: string): string => (Number.parseFloat(v) >= 999 ? '∞' : v);
+/** 'Radius lg' → 'Lg' — the group says what it is */
+const short = (label: string): string => {
+  const w = label.replace(/^(radius|corner|space|spacing)\s+/i, '');
+  return w.charAt(0).toUpperCase() + w.slice(1);
+};
 
 export function SpaceSection({ model, mode }: SectionProps) {
   const all = model.tokens.filter((t) => t.section === 'space');
@@ -12,8 +24,8 @@ export function SpaceSection({ model, mode }: SectionProps) {
   const taken = new Set([...radii, ...spaces, ...shadows].map((t) => t.css));
   const rest = all.filter((t) => !taken.has(t.css));
   const theme = model.themes.default;
-  const r = radii.slice(0, 7);
-  const s = spaces.slice(0, 10);
+  const r = [...radii].sort(bySize(theme)).slice(0, 7);
+  const s = [...spaces].sort(bySize(theme)).slice(0, 10);
   const e = shadows.slice(0, 5);
   const o = rest.slice(0, Math.max(0, CAP.space - r.length - s.length - e.length));
   const shown = r.length + s.length + e.length + o.length;
@@ -33,8 +45,8 @@ export function SpaceSection({ model, mode }: SectionProps) {
               data-pending={t.pending ? 'true' : undefined}
             >
               <i style={{ borderRadius: `var(${t.css})` }} />
-              <b>{t.label}</b>
-              <em>{val(t, theme)}</em>
+              <b>{short(t.label)}</b>
+              <em>{dispVal(val(t, theme))}</em>
             </span>
           ))}
         </div>
@@ -68,7 +80,16 @@ export function SpaceSection({ model, mode }: SectionProps) {
             </span>
           ))}
         </div>
-        {o.length ? <p className="ds-k ds-k--gap">Layout</p> : null}
+        <p className="ds-k ds-k--gap">Layout</p>
+        <div className="ds-grid" aria-hidden="true">
+          {Array.from({ length: 12 }, (_, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: twelve identical columns
+            <i key={i} />
+          ))}
+        </div>
+        <p className="ds-bps">
+          <b>12 columns</b>
+        </p>
         {o.map((t) => (
           <p
             key={t.css}

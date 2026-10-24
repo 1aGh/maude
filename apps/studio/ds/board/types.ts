@@ -127,6 +127,8 @@ export interface BoardLogo {
 export interface BoardTypeRole {
   role: string;
   class: string;
+  /** the role's own look as registry fallback declarations (font-family, font-size, …) — var() references only */
+  style?: Record<string, string>;
 }
 
 /** S10.16b: one AI direction of a system being made — a draft revision, as the `ds-dir-*` tile draws it. */

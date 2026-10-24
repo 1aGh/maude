@@ -20,6 +20,7 @@ import { TypeSection } from './section-type.tsx';
 import { listenForThemePreview, useBoardMode, useBoardModel } from './state.ts';
 import type { BoardMode, BoardModel, SectionKind } from './types.ts';
 import './board.css';
+import './board-specimen.css';
 
 // the parent's `ds.set-theme-preview` message and `?dsMode=` — wired once, when the canvas loads
 listenForThemePreview();
