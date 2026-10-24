@@ -124,6 +124,12 @@ export interface RegistryOptions {
       }
     ): PublishResult | undefined | Promise<PublishResult | undefined>;
     hold?(rec: RunRecord): void | Promise<void>;
+    /**
+     * P8 (board 01 cf-undo-ai) — a turn-end / Stop starts publishing the run: `landed` settles once
+     * its publish effect is over (accepted, rejected or lost). The ⌘Z path's read of the undo stack
+     * waits on it, so a ⌘Z the moment the chat says Done undoes THIS run, never the entry before.
+     */
+    landing?(rec: RunRecord, landed: Promise<void>): void;
   };
   /** ctx.bus.emit — `ai:runs {seq}` and the derived v1 `ai-activity` */
   emit?: (event: string, payload: unknown) => void;
@@ -338,7 +344,24 @@ export function createRunRegistry(opts: RegistryOptions) {
     if ('refused' in r) return null;
     persist(r.rec);
     changed();
-    return { rec: r.rec, done: carryOut(prev, r.rec, r.effects) };
+    // Announced synchronously, with the transition: the run is "landing" from its turn's end on,
+    // before the first await of its effects (confirm), not from the publish call.
+    let landed = (): void => {};
+    const publishes = r.effects.some((e) => e === 'publish' || e === 'publish-partial');
+    if (publishes && opts.stage?.landing)
+      opts.stage.landing(
+        prev,
+        new Promise<void>((res) => {
+          landed = res;
+        })
+      );
+    const done = carryOut(prev, r.rec, r.effects, () => landed());
+    if (publishes)
+      done.then(
+        () => landed(),
+        () => landed()
+      );
+    return { rec: r.rec, done };
   }
 
   async function transition(runId: string, ev: RunEvent): Promise<RunRecord | null> {
@@ -363,7 +386,13 @@ export function createRunRegistry(opts: RegistryOptions) {
     return t.rec;
   }
 
-  async function carryOut(prev: RunRecord, rec: RunRecord, effects: RunEffect[]) {
+  async function carryOut(
+    prev: RunRecord,
+    rec: RunRecord,
+    effects: RunEffect[],
+    /** the publish effect is over (see `stage.landing`) */
+    onLanded?: () => void
+  ) {
     let lost = false;
     for (const eff of effects) {
       if (lost && eff !== 'end-leases') continue;
@@ -401,6 +430,7 @@ export function createRunRegistry(opts: RegistryOptions) {
             opts.stage?.publish?.(prev, { partial: eff === 'publish-partial', fence })
           ).catch(() => undefined);
           if (res?.code === 'lease-fenced') lost = true;
+          onLanded?.();
           break;
         }
         case 'hold':

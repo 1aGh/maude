@@ -235,6 +235,47 @@ type RunFenceLike = {
 };
 
 /**
+ * P8 (board 01 cf-undo-ai) — runs that are LANDING: their turn ended (the chat says Done) and their
+ * stage is being published. Keyed by the project runtime, so the stage hooks (which see a run end)
+ * and the undo routes (which read the stack) meet without new wiring: both hold `control()`.
+ */
+const landingRuns = new WeakMap<object, Set<Promise<unknown>>>();
+
+/** How long the ⌘Z path's read waits for a landing run before it answers with what it has. */
+export const LANDING_WAIT_MS = 5_000;
+
+function trackLanding(runtime: unknown, p: Promise<unknown>): void {
+  if (!runtime || typeof runtime !== 'object') return;
+  const own = landingRuns.get(runtime) ?? new Set<Promise<unknown>>();
+  landingRuns.set(runtime, own);
+  const settled = p.then(
+    () => {},
+    () => {}
+  );
+  own.add(settled);
+  void settled.then(() => own.delete(settled));
+}
+
+/**
+ * Resolves once every run landing on `runtime` has published (or `ms` passed). A ⌘Z the moment an
+ * AI run says Done must see that run on the stack: without this wait it read the stack a beat
+ * before the run's action existed and undid the entry before it (V2-1.5 §5.4 "Your run lands → one
+ * new entry").
+ */
+export async function runsLanded(runtime: unknown, ms = LANDING_WAIT_MS): Promise<void> {
+  const set = runtime && typeof runtime === 'object' ? landingRuns.get(runtime) : undefined;
+  if (!set?.size) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    Promise.all([...set]),
+    new Promise<void>((r) => {
+      timer = setTimeout(r, ms);
+    }),
+  ]);
+  clearTimeout(timer);
+}
+
+/**
  * S5.5b — the run registry's `stage` hooks (ai/runs.ts `RegistryOptions.stage`): THE one place a
  * registry run's stage ends. The registry decides the outcome — a turn that ended publishes, Stop
  * / Quit publishes partial (`stopped`), an error or a lost lease holds — and the stage is named by
@@ -245,18 +286,32 @@ export function runStageHooks(deps: {
   control: () => StageRuntime | null | undefined;
   emit?: (event: string, payload: unknown) => void;
 }) {
+  async function publishNow(
+    runtime: StageRuntime | null | undefined,
+    rec: { runId: string },
+    o: { partial: boolean; fence: RunFenceLike }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | undefined> {
+    const r = await runtime?.endAiAction?.(rec.runId, o.partial ? 'stopped' : 'done', {
+      fence: o.fence,
+    });
+    if (!r || r.status === 'discarded') return undefined;
+    if (r.status === 'accepted' && r.actionId)
+      await announceAction(deps, r.actionId, r.touched ?? {}).catch(() => {});
+    return { status: r.status, ...(r.code ? { code: r.code } : {}) };
+  }
   return {
-    async publish(
+    /** The registry announces a run that starts publishing (its turn ended, Stop): ⌘Z waits on it. */
+    landing(_rec: { runId: string }, landed: Promise<void>): void {
+      trackLanding(deps.control(), landed);
+    },
+    publish(
       rec: { runId: string },
       o: { partial: boolean; fence: RunFenceLike }
     ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | undefined> {
-      const r = await deps
-        .control()
-        ?.endAiAction?.(rec.runId, o.partial ? 'stopped' : 'done', { fence: o.fence });
-      if (!r || r.status === 'discarded') return undefined;
-      if (r.status === 'accepted' && r.actionId)
-        await announceAction(deps, r.actionId, r.touched ?? {}).catch(() => {});
-      return { status: r.status, ...(r.code ? { code: r.code } : {}) };
+      const runtime = deps.control();
+      const p = publishNow(runtime, rec, o);
+      trackLanding(runtime, p);
+      return p;
     },
     async hold(rec: { runId: string }): Promise<void> {
       await deps.control()?.endAiAction?.(rec.runId, 'failed');
@@ -295,6 +350,8 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         const since = Number(url.searchParams.get('since') ?? 0);
         const runtime = deps.control();
         if (!runtime?.acceptedHistory) return json(200, { ok: false, reason: 'legacy' });
+        // P8 (board 01 cf-undo-ai) — a run whose turn just ended is on the stack before ⌘Z reads it.
+        await runsLanded(runtime);
         const rows = await runtime
           .acceptedHistory({ path: repoRel, limit: 200, mine: true })
           .catch(() => undefined);
