@@ -64,11 +64,10 @@ describe('advanced-diagnostics', () => {
   });
 
   it('3 · Server shows the live connection; AI setup answers in rows', async () => {
-    await (await $(tid('diag-tab-server'))).click();
+    // Phase 8 C10 (06 ad-logs): Logs, Server and AI setup are three boxes at once — no tab to click.
     const live = await $(tid('diag-live'));
     await live.waitForDisplayed({ timeout: 5_000 });
     expect(await live.getText()).toBe('Connected');
-    await (await $(tid('diag-tab-ai'))).click();
     await (await $(tid('diag-ai'))).waitForDisplayed({ timeout: 5_000 });
     // the probe may still be running; once it answers there are four rows (or the unreachable line)
     await browser.waitUntil(

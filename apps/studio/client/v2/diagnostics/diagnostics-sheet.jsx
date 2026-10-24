@@ -11,7 +11,8 @@
 // Mono and raw words are allowed here: this is the Advanced side of the app.
 
 import { useState } from 'react';
-import { rovingTabKey, useModalFocus } from '../shell/modal-focus.js';
+import { useModalFocus } from '../shell/modal-focus.js';
+import { StIcon } from '../../shell/icons.jsx';
 import { TeamProjectsDialog } from '../../panels/TeamProjects.jsx';
 import { isNativeApp } from '../../github.js';
 import SyncDetails from './sync-details/sync-details.jsx';
@@ -45,13 +46,6 @@ const DG_FOLD_CLASSES = Object.freeze({
   body: 'dg-fold-body',
 });
 
-export const TABS = Object.freeze([
-  ['logs', 'Logs'],
-  ['server', 'Server'],
-  ['ai', 'AI setup'],
-  ['sync', 'Sync'],
-]);
-
 function Word({ w }) {
   if (!w) return null;
   return (
@@ -65,13 +59,14 @@ function CopyBtn({ id, label, value, onCopy }) {
   return (
     <button
       type="button"
-      className="dg-copy"
+      className="dg-copy icon-btn k-icon-sm"
       data-testid={`diag-copy-${id}`}
       aria-label={`Copy ${label.toLowerCase()}`}
+      title={`Copy ${label.toLowerCase()}`}
       disabled={value === '' || value == null}
       onClick={() => onCopy(String(value), label)}
     >
-      Copy
+      <StIcon name="duplicate" size={14} />
     </button>
   );
 }
@@ -88,12 +83,12 @@ function Row({ id, k, children, mono, copy, onCopy }) {
 
 // ── Logs ──────────────────────────────────────────────────────────────────────────────────────
 
-function LogsView({ data, error, onRefresh, onCopyLogs, onReveal }) {
+function LogsView({ data, error, onRefresh, onCopyLogs, onReveal, current }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const lines = logLines(data?.sources, { filter, query });
   return (
-    <div className="dg-card dg-logs" data-testid="diag-logs">
+    <div className="dg-card dg-logs" data-testid="diag-logs" data-current={current || undefined}>
       <div className="dg-logs-hd">
         <strong>Logs</strong>
         <fieldset className="dg-seg" aria-label="Source">
@@ -110,39 +105,47 @@ function LogsView({ data, error, onRefresh, onCopyLogs, onReveal }) {
             </button>
           ))}
         </fieldset>
-        <input
-          type="search"
-          className="dg-find"
-          placeholder="Filter"
-          aria-label="Filter log lines"
-          data-testid="diag-logs-search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        {/* the kit find (06 .k-find): a search glyph and the field, compact */}
+        <label className="dg-find-wrap">
+          <StIcon name="search" size={14} />
+          <input
+            type="search"
+            className="dg-find"
+            placeholder="Filter"
+            aria-label="Filter log lines"
+            data-testid="diag-logs-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
         <button
           type="button"
-          className="dg-btn"
+          className="dg-btn dg-btn--icon icon-btn k-icon-sm"
           data-testid="diag-logs-refresh"
+          aria-label="Refresh logs"
+          title="Refresh logs"
           onClick={onRefresh}
         >
-          Refresh
+          <StIcon name="reload" size={14} />
         </button>
         <button
           type="button"
-          className="dg-btn"
+          className="dg-btn btn btn--ghost btn--sm"
           data-testid="diag-logs-copy-all"
           onClick={() => onCopyLogs(lines)}
         >
+          <StIcon name="duplicate" size={14} />
           Copy all
         </button>
         {/* Native only (S11.16's command): in a browser tab there is no Finder to show it in. */}
         {onReveal ? (
           <button
             type="button"
-            className="dg-btn"
+            className="dg-btn btn btn--ghost btn--sm"
             data-testid="diag-logs-show-in-finder"
             onClick={onReveal}
           >
+            <StIcon name="folder" size={14} />
             Show in Finder
           </button>
         ) : null}
@@ -179,10 +182,19 @@ function LogsView({ data, error, onRefresh, onCopyLogs, onReveal }) {
 
 // ── Server ────────────────────────────────────────────────────────────────────────────────────
 
-function ServerView({ status, wsConnected, activePath, isSystem, info, repoChanged, onCopy }) {
+function ServerView({
+  status,
+  wsConnected,
+  activePath,
+  isSystem,
+  info,
+  repoChanged,
+  onCopy,
+  current,
+}) {
   const mode = modeStamp({ activePath, isSystem });
   return (
-    <div className="dg-card" data-testid="diag-server">
+    <div className="dg-card" data-testid="diag-server" data-current={current || undefined}>
       <div className="dg-hd">
         <strong>Server</strong>
         <Word w={status} />
@@ -228,10 +240,6 @@ function ServerView({ status, wsConnected, activePath, isSystem, info, repoChang
       <Row id="folder" k="Project folder" mono copy={info.folder} onCopy={onCopy}>
         {info.folder ? tilde(info.folder) : ''}
       </Row>
-      <p className="dg-hint">
-        Was the status bar’s live dot and version, the IDLE · CANVAS · SYSTEM stamp and the empty
-        canvas’s port line.
-      </p>
     </div>
   );
 }
@@ -242,7 +250,10 @@ function AiRow({ row }) {
   return (
     <li className="dg-ai-row" data-state={row.state} data-testid={`diag-ai-row-${row.id}`}>
       <span className="dg-ai-ic" aria-hidden="true">
-        {row.state === 'ok' ? '✓' : row.state === 'unknown' ? '?' : '!'}
+        <StIcon
+          name={row.state === 'ok' ? 'check' : row.state === 'unknown' ? 'help' : 'problem'}
+          size={12}
+        />
       </span>
       <span>
         {row.label}
@@ -260,12 +271,12 @@ function AiRow({ row }) {
   );
 }
 
-function AiView({ status, report, loading, onRecheck }) {
+function AiView({ status, report, loading, onRecheck, current }) {
   const rows = aiRows(report);
   // Anything not satisfied keeps its whole row (fix text, Set up / Sign in, the install command).
   const needs = aiNeedsWork(report);
   return (
-    <div className="dg-card" data-testid="diag-ai">
+    <div className="dg-card" data-testid="diag-ai" data-current={current || undefined}>
       <div className="dg-hd">
         <strong>AI setup</strong>
         <Word w={status} />
@@ -487,89 +498,69 @@ export default function DiagnosticsSheet({
   // V2-4 gate (a11y W3): a floating, NON-modal sheet — esc closes it, focus goes back to the opener (it
   // used to drop to BODY); Tab is not trapped (the shell stays usable beside it).
   const ref = useModalFocus({ onClose, modal: false });
+  // 06 ad-diag / ad-logs: Menu › Diagnostics is a submenu; what its rows open is Logs, Server and AI setup as
+  // THREE BOXES at once (no tabs) — and Sync, which has its own surface (ad-syncd). `view` says which box the
+  // person asked for: it is marked, and scrolled to when the sheet is narrow.
+  const trio = view !== 'sync';
   return (
     <section
       ref={ref}
       tabIndex={-1}
-      className="dg-sheet island"
+      className="dg-sheet"
       role="dialog"
       aria-label="Diagnostics"
       data-testid="diagnostics-sheet"
       data-view={view}
+      data-layout={trio ? 'trio' : 'sync'}
       data-occludes="right"
     >
       <header className="dg-top">
         <strong className="dg-title">Diagnostics</strong>
-        <div
-          className="dg-tabs"
-          role="tablist"
-          aria-label="Diagnostics"
-          tabIndex={-1}
-          onKeyDown={(e) =>
-            rovingTabKey(
-              e,
-              TABS.map(([id]) => id),
-              view,
-              onView
-            )
-          }
-        >
-          {TABS.map(([id, label]) => (
-            <button
-              type="button"
-              key={id}
-              role="tab"
-              className="dg-tab"
-              aria-selected={view === id}
-              tabIndex={view === id ? 0 : -1}
-              data-testid={`diag-tab-${id}`}
-              onClick={() => onView(id)}
-            >
-              {label}
-              {words?.[id] ? <Word w={words[id]} /> : null}
-            </button>
-          ))}
-        </div>
+        <span className="dg-top-sp" />
         <button
           type="button"
-          className="dg-x"
+          className="dg-x icon-btn"
           aria-label="Close Diagnostics"
           data-testid="diagnostics-close"
           onClick={onClose}
         >
-          ×
+          <StIcon name="x" size={12} />
         </button>
       </header>
-      <div className="dg-body" role="tabpanel">
-        {view === 'logs' ? (
-          <LogsView
-            data={data}
-            error={error}
-            onRefresh={onRefresh}
-            onCopyLogs={onCopyLogs}
-            onReveal={onReveal}
-          />
-        ) : null}
-        {view === 'server' ? (
-          <ServerView
-            status={words?.server}
-            wsConnected={wsConnected}
-            activePath={activePath}
-            isSystem={isSystem}
-            info={info}
-            repoChanged={repoChanged}
-            onCopy={onCopy}
-          />
-        ) : null}
-        {view === 'ai' ? (
-          <AiView
-            status={words?.ai}
-            report={ai.report}
-            loading={ai.loading}
-            onRecheck={ai.recheck}
-          />
-        ) : null}
-        {view === 'sync' ? <SyncView sync={sync} /> : null}
+      <div className="dg-body">
+        {trio ? (
+          <div className="dg-trio" data-testid="diag-trio">
+            <LogsView
+              data={data}
+              error={error}
+              onRefresh={onRefresh}
+              onCopyLogs={onCopyLogs}
+              onReveal={onReveal}
+              current={view === 'logs'}
+            />
+            <div className="dg-side">
+              <ServerView
+                status={words?.server}
+                wsConnected={wsConnected}
+                activePath={activePath}
+                isSystem={isSystem}
+                info={info}
+                repoChanged={repoChanged}
+                onCopy={onCopy}
+                current={view === 'server'}
+              />
+              <AiView
+                status={words?.ai}
+                report={ai.report}
+                loading={ai.loading}
+                onRecheck={ai.recheck}
+                current={view === 'ai'}
+              />
+            </div>
+          </div>
+        ) : (
+          <SyncView sync={sync} />
+        )}
       </div>
     </section>
   );

@@ -359,16 +359,39 @@ describe('the Diagnostics sheet', () => {
     expect(q('diag-logs-error')?.textContent).toContain('HTTP 403');
   });
 
-  test('tabs: Logs · Server · AI setup · Sync, each with its word; Esc and × close it', async () => {
-    const calls = await mountSheet();
-    for (const v of ['logs', 'server', 'ai', 'sync']) expect(q(`diag-tab-${v}`)).toBeTruthy();
-    expect(q('diag-tab-sync')?.textContent).toContain('Up to date');
-    await click('diag-tab-ai');
+  test('06 ad-logs: Logs, Server and AI setup are three boxes at once — no tabs; × and Esc close it', async () => {
+    const calls = await mountSheet({ view: 'server' });
+    expect(q('diag-logs')).toBeTruthy();
+    expect(q('diag-server')).toBeTruthy();
+    expect(q('diag-ai')).toBeTruthy();
+    expect(q('diag-sync')).toBeNull();
+    expect(document.querySelector('[role="tab"], [role="tablist"]')).toBeNull();
+    expect(q('diagnostics-sheet')?.getAttribute('data-layout')).toBe('trio');
+    // the box the person asked for is the marked one
+    expect(q('diag-server')?.hasAttribute('data-current')).toBe(true);
+    expect(q('diag-logs')?.hasAttribute('data-current')).toBe(false);
     await click('diagnostics-close');
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
-    expect(calls).toEqual(['view:ai', 'close', 'close']);
+    expect(calls).toEqual(['close', 'close']);
+  });
+
+  test('06 ad-syncd: Sync opens alone, without the three boxes', async () => {
+    await mountSheet({ view: 'sync' });
+    expect(q('diagnostics-sheet')?.getAttribute('data-layout')).toBe('sync');
+    expect(q('diag-logs')).toBeNull();
+    expect(q('diag-server')).toBeNull();
+  });
+
+  test('Server rows are the kit ARow: key, value, and Copy as a 24 px icon button; no v1 migration note', async () => {
+    await mountSheet({ view: 'server' });
+    const copy = q('diag-copy-address') as HTMLElement;
+    expect(copy.classList.contains('icon-btn')).toBe(true);
+    expect(copy.querySelector('svg')).toBeTruthy();
+    expect(copy.getAttribute('aria-label')).toBe('Copy address');
+    expect(q('diag-server')?.textContent).not.toMatch(/status bar|IDLE · CANVAS/);
+    expect(q('diag-mode-stamp')?.textContent).toBe('Canvas · Pricing');
   });
 
   test('Server: mode stamp, live connection, address, version, process, folder, and the repo-changed notice', async () => {
