@@ -398,6 +398,22 @@ export const HUD_TOKENS_CSS = \`${hudCss()}\`;
 // strip's own (native title-bar chrome, not a DS surface).
 const STRIP_OUT = 'apps/desktop/src/strip.html';
 const STRIP_NAMES = [
+  // P8-C8 (11 pn-tab-b, RC-4): the strip's surfaces are the board's — bg-3 titlebar, canvas-bg active pill,
+  // fg ladder, hairlines, spark-muted — not hand-picked hex.
+  '--bg-3',
+  '--bg-4',
+  '--fg-0',
+  '--fg-1',
+  '--fg-2',
+  '--border-default',
+  '--border-subtle',
+  '--shadow-sm',
+  '--x-canvas-bg',
+  '--canvas-bg',
+  '--x-spark-muted',
+  '--spark-muted',
+  '--accent-text',
+  '--accent-muted',
   '--accent',
   '--accent-soft',
   '--focus-ring',

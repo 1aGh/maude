@@ -123,3 +123,28 @@ describe('pn-deeplink: a link to an artboard says where it came from', () => {
     expect(said).toEqual(['Opened from a link — Pozvanka · story.']);
   });
 });
+
+describe('pn-tab-b: the strip wears the DS ladder and pill tabs', () => {
+  const html = readFileSync(join(import.meta.dir, '../../desktop/src/strip.html'), 'utf8');
+  const afterGen = html.slice(html.indexOf('/* gen-tokens:end */'));
+  test('the strip variables are tokens, not hand-picked hex', () => {
+    const vars = afterGen.slice(0, afterGen.indexOf('html,'));
+    expect(vars).toContain('--strip-bg: var(--bg-3)');
+    expect(vars).toContain('--tab-active-bg: var(--canvas-bg)');
+    expect(vars).not.toMatch(/--(strip|tab)[a-z-]*: #/);
+  });
+  test('a tab is a floating pill with a semibold active state and separators', () => {
+    const tab = rule(afterGen, '.tab');
+    expect(tab).toContain('var(--radius-md)');
+    expect(tab).not.toContain('7px 7px 0 0');
+    expect(rule(afterGen, '.tab[aria-selected="true"]')).toContain('font-weight: 600');
+    expect(afterGen).toContain('.tab + .tab:not([aria-selected="true"])::before');
+  });
+  test('"N more" is a 28 px chip with a chevron', () => {
+    expect(rule(afterGen, '.more')).toContain('height: 28px');
+    expect(afterGen).toContain('.more::after');
+  });
+  test('the working spark is a disc on spark-muted', () => {
+    expect(afterGen).toMatch(/\.dot\.working \{[^}]*var\(--spark-muted\)/);
+  });
+});
