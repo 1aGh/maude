@@ -62,3 +62,7 @@ Harness-only changes: dismiss selector `button.maude-notice-close` (the What's-n
 | pn-cant-open | unreachable | needs a moved project root / removed access in the Rust shell + hub |
 
 Extra unpaired frames kept in `.scr/impl`: `strip-b20-overview-*`, `pn-home-top-*`, `pn-home-search-typed-*`, `pn-k-close-2-*`.
+
+## after (stage D, round 3 — p8-c3-shell, impl c7f1a0efd)
+
+Re-shot, IMPL side only, light + dark (SPEC reused): pn-organise, pn-move, pn-jump, pn-trash, pn-k-across, pn-k-close, pn-deeplink, pn-relaunch, pn-history, pn-compare. What changed in the shell frame: the Undo · Redo · zoom % island bottom left, the Canvases panel and Version history hug their rows (no twisty at rest), B on the Now row replaces its dot, kind chips only for a mixed project. The other rows of this canvas were not re-shot this round. See `01-create-flow/fix-c3-shell.md`.
