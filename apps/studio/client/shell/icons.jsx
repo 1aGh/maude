@@ -75,6 +75,14 @@ export const STICONS = {
       <path d="M8 7.5v3.5M6.25 9.25h3.5" />
     </>
   ),
+  // 12 · the kit's `warn` triangle: the Couldn't-read callout and the Missing card wear it
+  warn: (
+    <>
+      <path d="M8 2.2 14.2 13H1.8z" />
+      <path d="M8 6.4v3.2" />
+      <path d="M8 11.3h.01" />
+    </>
+  ),
   // feature-4 T7b — Layers padlock (closed / open).
   lock: (
     <>
