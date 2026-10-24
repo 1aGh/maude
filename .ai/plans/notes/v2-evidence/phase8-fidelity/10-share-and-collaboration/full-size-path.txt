@@ -1,2 +1,5 @@
-/Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/pairs/10-share-and-collaboration
-(full-size PNG pairs: <id>-<theme>.png; spec-only full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/impl/10-share-and-collaboration/)
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a0a73ec7448623bcc/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec-only full size + raw impl frames as in the stage-A harness worktree)
+
+stage D (53ceb26c5): /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/pairs/10-share-and-collaboration
+(full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/spec/10-share-and-collaboration/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-aeba9f7af8f925f8e/.scr/impl/10-share-and-collaboration/)

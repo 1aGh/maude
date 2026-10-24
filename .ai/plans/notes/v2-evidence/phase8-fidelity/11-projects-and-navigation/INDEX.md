@@ -37,3 +37,28 @@ How to read: left = spec crop (the Stage's 1440×860 window body, 1 px inset rem
 - The tab-strip frames are the closest that can be got without the native window; the native parts (traffic lights, "+", OS menus, notifications) are not in impl frames by construction.
 - Home was shot from the project-less Home server, not a project tab: Home (`pn-home`, `pn-home-search`) is a separate page from the shell.
 - `.scr` also holds extra frames not paired (`strip-b20-overview-*`, `pn-home-top-*`, `pn-home-search-typed-*`, `pn-k-close-2-*`).
+
+## After (stage D, 53ceb26c5)
+
+Re-shot on the release client of `feat/maude-v2` @ `53ceb26c5` with the same harness: project lane (e2e fixture + 75 small canvases + `Wide` + `Uniformy-2027`, Tauri `index_search` / `take_*` stubs), the real `apps/desktop/src/strip.html` fed a stubbed `tabs_state`, and the `--home` server (re-seeded 5-project machine index, `shell_state` stub). The `*.jpg` pairs in this folder are the new ones. Spec side: **reused** — `11 Projects and Navigation.tsx` unchanged since the stage-A shot, stage-A spec PNGs copied in. Full-size pairs: `full-size-path.txt` (stage D line).
+
+Harness-only changes: dismiss selector `button.maude-notice-close` (the What's-new notice has a "See all" button first); `pn-ds` spec crop/impl crop as stage A; `pn-ds` used a copy of this tree's `.design` (system + ui only, trimmed).
+
+| id | dark · light | note |
+|---|---|---|
+| pn-tab-b, pn-tab-b20 | re-shot | `strip.html`, same stubbed states (4 tabs / 20 tabs); native window chrome still absent by construction |
+| pn-switch-ai, pn-switch-ai-strip | re-shot | `⌘K › Keyboard shortcuts`; strip with working / needs-you / done |
+| pn-relaunch, pn-relaunch-strip | re-shot | stubbed `take_tabs_restored {count: 20}`; strip with 19 resting |
+| pn-home, pn-home-search | re-shot | project-less Home server; Home's own search / ask row as built in stage C |
+| pn-ds, pn-ds-search | re-shot | copy of this repo's `.design` (two design systems, not the board's one) |
+| pn-organise, pn-move, pn-trash, pn-jump | re-shot | real panel interactions |
+| pn-k-across, pn-k-close | re-shot | `index_search` stubbed; `pn-k-close` = "unifromy 2027" as stage A |
+| pn-history, pn-compare | re-shot | file edited 3x for snapshots, second version, Compare |
+| pn-deeplink | re-shot | stubbed `take_pending_navigate` |
+| pn-tab-a, pn-tab-a20 | unreachable | variant A was not picked (decision `v2-3.7-own-tab-bar`), superseded boards |
+| pn-ab | unreachable | decision board, no UI |
+| pn-tab-menu, pn-windows | unreachable | native NSMenu / multi-window, not drawable in a browser |
+| pn-accounts | unreachable | the account card by the faces is not built (stage C round 2 did not add it; `fix-navcreate.md`) |
+| pn-cant-open | unreachable | needs a moved project root / removed access in the Rust shell + hub |
+
+Extra unpaired frames kept in `.scr/impl`: `strip-b20-overview-*`, `pn-home-top-*`, `pn-home-search-typed-*`, `pn-k-close-2-*`.

@@ -31,3 +31,23 @@ How to read: left = spec (board crop), right = impl. **Content differs by design
 - All dark-theme frames compared; see the pair for each. The impl is always the real shell; only state sources were faked, as stated per row.
 - Left-panel folded in most impl frames (to match the board's windows); the Canvases panel was open in sync frames because the foot lives there.
 - Console: the `webrtc` CSP directive warning and refused WebSockets (403 from the capture origin, spec side) are expected and unrelated.
+
+## After (stage D, 53ceb26c5)
+
+Re-shot on the release client of `feat/maude-v2` @ `53ceb26c5` (stage C rounds 1 + 2 merged), same harness and fixture as stage A (Playwright Chromium 1440x860, `window.__TAURI__` stub, e2e fixture renamed "Alligators brand", the same faked share / sync / trash / config routes). The `*.jpg` pairs in this folder are the new ones. Spec side: **reused** — `10 Share and Collaboration.tsx` has not changed since the stage-A shot (last board commit 2026-10-21, stage A 2026-10-22), so the stage-A spec PNGs were copied in. Full-size pairs: `full-size-path.txt` (stage D line).
+
+Harness-only changes (no product code): the "What's new" notice now has a "See all" button before its close, so the dismiss selector is `button.maude-notice-close`; `co-access-ends` impl crop moved (the card now sits lower, `900x620+270+240`); `co-ask-edit` uses a new frame (below).
+
+| id | dark · light | note |
+|---|---|---|
+| co-share-sheet, co-share-roles, co-share-advanced | re-shot | same faked share API |
+| co-browser-view, co-presence | re-shot | presence still one local face (no peers) |
+| co-comment-thread, co-comment-video, co-comment-print | re-shot | real comment composer / panel |
+| co-sync-offline, co-sync-back | re-shot | faked linked project + browser offline + outbox 14 |
+| co-conflict, co-trashed, co-local-cloud | re-shot | faked conflicts / trash routes; real local Share |
+| co-access-ends | re-shot (`s10c` variant: card over the canvas, whats-new dismissed) | faked 401 `access-withdrawn` |
+| co-ask-edit | re-shot, **newly reachable state**: the view-only tip ("You can look at Print, not change it. Ask to edit, top right, sends a request to its owner.") appears on a >8 px drag on the artboard of the faked read-only canvas (frame `co-ask-edit-tip`); stage A shot only the cluster | owner-side request card is still not shot |
+| co-follow, co-bring, co-spotlight, co-twelve | unreachable | not built: need N live peers (Yjs awareness over `/_ws/collab`), no fixture, and the Follow / spotlight pills have no client string (`fix-share.md`) |
+| co-mention-notify | unreachable | OS banner / e-mail, no template, native only |
+
+Spec-only JPEGs of the five unreachable ids are unchanged (`spec-only/`).
