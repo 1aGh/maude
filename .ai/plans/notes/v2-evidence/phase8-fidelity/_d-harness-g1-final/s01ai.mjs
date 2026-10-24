@@ -43,11 +43,22 @@ export async function run(h) {
   await h.tid('chat-composer').locator('textarea, [contenteditable]').first().click({ timeout: 4000 });
   await page.keyboard.type('Try a dark hero');
   await page.keyboard.press('Enter');
-  await sleep(6000);
+  // the board's moment is AFTER the run: "Done" in the chat and the dark hero on the canvas (a fixed
+  // 6 s caught a loaded machine mid-run, where ⌘Z undid the newest LANDED entry, the first draft: V2-1.5 §5.4 "⌘Z while your run is open", open question in p8-bug-aiundo)
+  await page.getByText('the hero on Desktop is dark now').first().waitFor({ timeout: 40000 }).catch((e) => console.log('NO done line', String(e.message).split('\n')[0]));
+  await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-cd-id="desktop-page"]').first()
+    .evaluate((e) => new Promise((r) => { const t0 = Date.now(); const k = () => (getComputedStyle(e).backgroundColor !== 'rgb(255, 255, 255)' || Date.now() - t0 > 20000 ? r() : setTimeout(k, 200)); k(); }))
+    .catch(() => {});
+  await sleep(1500);
   await h.step(`${D}/cf-undo-before`, 'AI went too far — the Desktop hero is dark', 'second prompt: Try a dark hero', async () => {});
   await page.mouse.click(1200, 120);
   await page.keyboard.press('Meta+z');
-  await sleep(7000);
+  await sleep(2500);
+  // the undone canvas reloads in the frame; on a loaded machine that can take longer than a fixed wait
+  await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-cd-id="desktop-page"]').first()
+    .evaluate((e) => new Promise((r) => { const t0 = Date.now(); const k = () => (getComputedStyle(e).backgroundColor === 'rgb(255, 255, 255)' || Date.now() - t0 > 20000 ? r() : setTimeout(k, 200)); k(); }))
+    .catch(() => {});
+  await sleep(300);
   const dark = await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-cd-id="desktop-page"]').first().evaluate((e) => getComputedStyle(e).backgroundColor).catch(() => 'n/a');
   console.log('after ⌘Z desktop bg:', dark);
   if (false) {
