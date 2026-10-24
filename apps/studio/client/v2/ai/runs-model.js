@@ -205,9 +205,19 @@ export function ringsFor(view, { activeCanvas, entryOf } = {}) {
     if (!isLiveRun(r)) continue;
     if (r.state === 'waiting') for (const w of r.waiting || []) addWait(w);
     if (r.state === 'waiting') continue;
+    // 03 ai-permission / ai-question: a whole-canvas ask holds every artboard, but the question is about what
+    // will change — the ring goes on what the run has touched, and on none when it has touched nothing yet.
+    const needsNow = r.state === 'needs-you';
+    const whole = r.scope?.artboards === '*';
+    const touchedNow = new Set(
+      whole && r.scope?.canvas && Array.isArray(r.touched?.[r.scope.canvas])
+        ? r.touched[r.scope.canvas]
+        : []
+    );
     for (const l of r.leases || []) {
       if (!onCanvas(l, activeCanvas, entryOf)) continue;
-      const needs = r.state === 'needs-you';
+      if (needsNow && whole && !touchedNow.has(l.artboard)) continue;
+      const needs = needsNow;
       out[l.artboard] = {
         state: needs ? 'needs-you' : 'running',
         who: 'you',

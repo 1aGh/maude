@@ -208,6 +208,28 @@ describe('the rings the canvas draws (dgn ai-runs)', () => {
     });
   });
 
+  test('needs you on a whole-canvas ask rings only what the run touched, never every artboard (03 ai-permission, ai-question)', () => {
+    const whole = (over: Record<string, unknown>) =>
+      mine({
+        state: 'needs-you',
+        scope: { canvas: 'ui/combine.tsx', artboards: '*' },
+        leases: [lease('post'), lease('poster'), lease('story')],
+        ...over,
+      });
+    // a question before anything changed: no artboard is "waiting for you"
+    expect(ringsFor(view([whole({})]), { activeCanvas: FILE })).toEqual({});
+    // a permission after the run changed one: that one carries the ring
+    const rings = ringsFor(view([whole({ touched: { 'ui/combine.tsx': ['poster'] } })]), {
+      activeCanvas: FILE,
+    });
+    expect(Object.keys(rings)).toEqual(['poster']);
+    expect(rings.poster.state).toBe('needs-you');
+    // running is unchanged: the whole canvas is held
+    expect(
+      Object.keys(ringsFor(view([whole({ state: 'running' })]), { activeCanvas: FILE })).sort()
+    ).toEqual(['post', 'poster', 'story']);
+  });
+
   test('the ring data has no prompt text: not the ask, the question or the progress line', () => {
     const secret = 'SECRET-PROMPT-TEXT';
     const v = view(

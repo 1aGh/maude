@@ -24,6 +24,8 @@ import {
 } from './chat-list-model.js';
 import { useChatUndoReady, useUndoChat } from './ChatUndo.jsx';
 import { fetchChats, searchChats, trashChat } from './chat-store-api.js';
+import { Spark } from './icons.jsx';
+import { RunIcon } from './RunList.jsx';
 
 const SEARCH_DEBOUNCE_MS = 150;
 
@@ -41,9 +43,19 @@ function Marked({ parts }) {
   );
 }
 
-/** The leading glyph: a spark that works, an azure dot that waits on you, or nothing at all. */
+/** The leading disc (03 `k-ai-sst`, 22 px): a spark that works, a help mark that waits on you, a quiet spark at rest. */
 function State({ state }) {
-  return <span className="ai-cl-state" data-state={state} aria-hidden="true" />;
+  return (
+    <span className="ai-cl-state" data-state={state} aria-hidden="true">
+      {state === 'idle' ? (
+        <span className="ai-run-ic ai-run-ic--idle">
+          <Spark size={11} />
+        </span>
+      ) : (
+        <RunIcon state={state} />
+      )}
+    </span>
+  );
 }
 
 function RowMenu({ items, anchorRef, onPick, onClose }) {

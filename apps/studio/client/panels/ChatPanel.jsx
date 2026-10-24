@@ -451,6 +451,7 @@ function ChatThread({
               turnError={turnError}
               onRetry={retryLastTurn}
               onConnected={onConnected}
+              designRel={designRel}
             />
             <QuotaLine rateLimit={usage.rateLimit} />
             <Composer
@@ -875,41 +876,44 @@ export default function ChatPanel({
     <AiChatIsland hidden={hidden} resizing={resizing} width={width}>
       {/* V2-4.4b — the 03 header (kit `AIPanel chat=…`): spark · the chat's title ⌄ (opens the chat list) ·
           "✦ N" YOUR running chats · New chat · Hide. Hide folds the island to its spark corner icon. */}
-      <ChatHeader
-        connected={connected}
-        onToggleList={() => setMenuOpen((v) => !v)}
-        onNew={() => {
-          newChat();
-          setMenuOpen(false);
-        }}
-        onHide={onClose}
-        pin={<PinButtonHost />}
-      >
-        <div className="chat-switch">
-          <button
-            type="button"
-            className="chat-switch-trigger"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-expanded={menuOpen}
-          >
-            <span className="chat-switch-title">
-              {chatOptions.find((c) => c.id === activeChatId)?.title || 'New chat'}
-            </span>
-            <span className="chat-switch-chev" aria-hidden="true">
-              <StIcon name="chevron-down" size={12} />
-            </span>
-          </button>
-        </div>
-        {/* S5.11 — "✦ N": YOUR live runs (the run registry), never anyone else's; its list jumps to the artboard. */}
-        {connected ? (
-          <RunsCount
-            activeCanvas={activeCanvas}
-            designRel={designRel}
-            currentChatId={activeChatId}
-            onOpenChat={switchTo}
-          />
-        ) : null}
-      </ChatHeader>
+      {/* 03 `ai-chat-list`: the list replaces the panel and has its own single header (`ai-cl-hd`) */}
+      {menuOpen && connected ? null : (
+        <ChatHeader
+          connected={connected}
+          onToggleList={() => setMenuOpen((v) => !v)}
+          onNew={() => {
+            newChat();
+            setMenuOpen(false);
+          }}
+          onHide={onClose}
+          pin={<PinButtonHost />}
+        >
+          <div className="chat-switch">
+            <button
+              type="button"
+              className="chat-switch-trigger"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
+            >
+              <span className="chat-switch-title">
+                {chatOptions.find((c) => c.id === activeChatId)?.title || 'New chat'}
+              </span>
+              <span className="chat-switch-chev" aria-hidden="true">
+                <StIcon name="chevron-down" size={12} />
+              </span>
+            </button>
+          </div>
+          {/* S5.11 — "✦ N": YOUR live runs (the run registry), never anyone else's; its list jumps to the artboard. */}
+          {connected ? (
+            <RunsCount
+              activeCanvas={activeCanvas}
+              designRel={designRel}
+              currentChatId={activeChatId}
+              onOpenChat={switchTo}
+            />
+          ) : null}
+        </ChatHeader>
+      )}
       {/* S5.12 — the chat list (03 `ai-chat-list`): the title ⌄ opens it in place of the thread. The threads
           stay MOUNTED underneath (hidden, never unmounted) so a running chat keeps streaming. */}
       {menuOpen && connected ? (

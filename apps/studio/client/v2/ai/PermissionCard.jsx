@@ -12,7 +12,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { permissionAnswer, permissionDecline, permissionModel } from './needs-you.js';
-import { Check, Spark } from './icons.jsx';
+import { StIcon } from '../../shell/icons.jsx';
+import { Check } from './icons.jsx';
+import { WillChange } from './WillChange.jsx';
 
 function optionClass(kind) {
   if (kind === 'reject_once' || kind === 'reject_always') return 'btn btn--sm btn--danger';
@@ -20,7 +22,7 @@ function optionClass(kind) {
   return 'btn btn--sm';
 }
 
-export default function PermissionCard({ request, onRespond, queueLength = 1 }) {
+export default function PermissionCard({ request, onRespond, queueLength = 1, willChange = [] }) {
   const ref = useRef(null);
   const model = useMemo(() => permissionModel(request), [request]);
   const [always, setAlways] = useState(false);
@@ -68,7 +70,7 @@ export default function PermissionCard({ request, onRespond, queueLength = 1 }) 
     >
       <p className="ai-nc-t">
         <span className="ai-nc-ic ai-nc-ic--ask" aria-hidden="true">
-          <Spark size={12} />
+          <StIcon name="help" size={14} />
         </span>
         <span className="ai-nc-tt" data-testid="ai-permission-title">
           {model.title}
@@ -104,6 +106,8 @@ export default function PermissionCard({ request, onRespond, queueLength = 1 }) 
           {model.detail}
         </p>
       ) : null}
+
+      {!outside ? <WillChange boards={willChange} /> : null}
 
       {model.shape === 'simple' ? (
         <span className="ai-nc-a">

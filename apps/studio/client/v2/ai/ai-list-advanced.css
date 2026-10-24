@@ -171,19 +171,10 @@
   }
   .ai-cl-state {
     flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-pill);
-  }
-  .ai-cl-state[data-state="working"] {
-    background: var(--spark);
-  }
-  .ai-cl-state[data-state="needs"] {
-    background: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-tint);
-  }
-  .ai-cl-state[data-state="idle"] {
-    background: transparent;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
   }
   .ai-cl-stxt {
     flex: 1;
