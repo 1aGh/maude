@@ -1136,14 +1136,16 @@ export interface HoverTarget {
  * artboard (then it is an object like any other and stays selectable by a plain click).
  */
 export function pageRootOf(bodyEl: Element): Element | null {
-  let root: Element | null = null;
-  for (const el of Array.from(bodyEl.querySelectorAll('[data-cd-id]'))) {
-    const above = el.parentElement?.closest('[data-cd-id]') ?? null;
-    if (above && bodyEl.contains(above)) continue; // nested: not top level
-    if (root) return null; // two top-level objects: no single page
-    root = el;
-  }
+  // The first stamped element in document order cannot sit under another stamped one (an ancestor comes first), so
+  // it is a top-level object; the body has a single page when nothing after it, on the way up to the body, holds
+  // another. Walks the path and its later siblings only — cheap enough for a hover frame on a long page.
+  const root = bodyEl.querySelector('[data-cd-id]');
   if (!root) return null;
+  for (let at: Element | null = root; at && at !== bodyEl; at = at.parentElement) {
+    for (let sib = at.nextElementSibling; sib; sib = sib.nextElementSibling) {
+      if (sib.hasAttribute('data-cd-id') || sib.querySelector('[data-cd-id]')) return null;
+    }
+  }
   const b = bodyEl.getBoundingClientRect();
   const r = root.getBoundingClientRect();
   // a hair of slack: scrollbars, sub-pixel scale. Both boxes share one transform, so the ratio is zoom-proof.
