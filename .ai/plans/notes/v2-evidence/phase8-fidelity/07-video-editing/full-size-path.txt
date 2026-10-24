@@ -1,2 +1,4 @@
-/Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/pairs/07
-(spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/spec/07/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/impl/07/)
+stage D (feat/maude-v2 6d19daa9a, branch p8-d-g3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8/.scr/pairs/07
+(spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8/.scr/spec/07/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a575d2bdac42de9c8/.scr/impl/07/)
+stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/pairs/07
+(stage A spec full size: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/spec/07/<id>-<theme>.png; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af625ef88bd36c798/.scr/impl/07/)

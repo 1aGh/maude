@@ -82,3 +82,21 @@ export (C4) are other areas. Details: `fix-timeline.md`.
 
 ## After — stage C round 2 (p8-c2-insptl)
 Pairs re-shot light + dark on branch p8-c2-insptl. Changed: ve-transition (no slab, tile pictures, tip, keyboard), ve-advanced (contained, tracks stay, quiet Copy timecode), ve-play (scrub bar only after play), ve-text (+ Title selects the clip). Unreachable (spec only, no stub): ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust, ve-render, ve-together, ve-fit-fill; ve-drop not re-shot. Details: `08-artboard-kinds/fix-insptl.md`.
+
+## After (stage D, 6d19daa9a) — p8-d-g3
+
+Re-shot on the stage C round 2 tip (feat/maude-v2 6d19daa9a), release-built client, 1440×900 Chromium, throwaway HOME/XDG, claude stubbed signed-out. No product code touched. Evidence only — match / mismatch is judged by the critic re-check. Pairs: `<id>-<theme>.jpg` here (spec left, impl right); full size: `full-size-path.txt`.
+
+**SPEC side: reused.** `.design/ui/v2/07 Video Editing.{tsx,css}` has no commit since the stage A shot, so the stage A spec PNGs were copied over unchanged.
+
+**IMPL side, per artboard id × theme (light, dark):**
+
+| artboard id | after (stage D) |
+|---|---|
+| ve-none, ve-select, ve-deselect, ve-long, ve-advanced, ve-fullscreen | re-shot, light + dark (Alligators Recruiting Trailer, 24-beat cut) |
+| ve-drop | re-shot, light + dark — the stage C shot was missing (harness step failed once the camera moved); selection now clicks inside the artboard's own box. Still synthetic dragenter/dragover, not a Finder drag |
+| ve-move-transition, ve-trim-split, ve-transition, ve-text, ve-play, ve-export, ve-music, ve-formats, ve-captions, ve-footage, ve-reframe | re-shot, light + dark. ve-play and ve-text now have the artboard selected with the timeline open (the stage C round 2 frames had lost the selection because a fixed click point missed the artboard) |
+| ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust | unreachable — need a signed-in Claude run on footage; spec only (`*-spec-only.jpg` from stage A stay) |
+| ve-render, ve-together, ve-fit-fill | unreachable — running or finished render jobs / a second peer on a linked hub / dropping a vertical clip from Finder; spec only |
+
+Harness notes: the What's New panel (pending `next` entries) opens over a fresh project and is now closed by `run.mjs` before shooting; the footage in the Matchday / Trailer fixtures is absent, so video frames are the "Missing — no device has it" tile, as in stage A. ve-fullscreen is still black in this lane (the Remotion preview does not paint). Stage A and earlier "after" tables above are history.

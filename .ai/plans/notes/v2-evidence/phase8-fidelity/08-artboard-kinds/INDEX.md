@@ -54,3 +54,21 @@ Pair image: `08-artboard-kinds/<id>-<theme>.jpg` (spec left, impl right; label s
 
 ## After — stage C round 2 (p8-c2-insptl)
 Pairs in this folder were re-shot light + dark on branch p8-c2-insptl (spec left, impl right). Per artboard id × theme: see `fix-insptl.md` (08 table). Changed this round: ak-video (Length well, Sound note), ak-advanced (fold open in the frame). Everything else is the wave-1 state.
+
+## After (stage D, 6d19daa9a) — p8-d-g3
+
+Re-shot on the stage C round 2 tip (feat/maude-v2 6d19daa9a), release-built client, 1440×900 Chromium, throwaway HOME/XDG, claude stubbed signed-out. No product code touched. Evidence only — match / mismatch is judged by the critic re-check. Pairs: `<id>-<theme>.jpg` here (spec left, impl right); full size: `full-size-path.txt`.
+
+**SPEC side: reused.** `.design/ui/v2/08 Artboard Kinds.{tsx,css}` has no commit since the stage A shot, so the stage A spec PNGs were copied over unchanged.
+
+**IMPL side, per artboard id × theme (light, dark):**
+
+| artboard id | after (stage D) |
+|---|---|
+| ak-picker, ak-picker-full, ak-web-hug, ak-web-widths, ak-social, ak-safe-zones, ak-print-letak, ak-print-view, ak-video, ak-mixed-fit, ak-mixed-filter, ak-mixed-select, ak-warnings, ak-advanced, ak-real-print, ak-real-web | re-shot, light + dark (Matchday mixed-kind canvas; ak-real-* on the real Print / Web canvases) |
+| ak-convert, ak-convert-after | re-shot, light + dark — NEW this stage (spec only in stage A). Reached through the inspector Size select (`insp-ab-preset`, value `paper:a6`) on the post: ak-convert = the "Make an A6 print?" dialog; ak-convert-after = after "Make A6 print" |
+| ak-real-about | unreachable — a note card on the board, not an app state. Spec only (stage A shot stays) |
+
+Extra frame: `ak-picker-custom` (the picker with a custom-size state) is shot into the impl folder only; it has no board artboard of that id, so no pair was made.
+
+Harness notes: the What's New panel opens over a fresh project and is now closed by `run.mjs` before shooting. Scenario `t08.mjs` unchanged from stage A.

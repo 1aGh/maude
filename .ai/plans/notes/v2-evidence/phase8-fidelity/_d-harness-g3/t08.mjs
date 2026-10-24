@@ -1,0 +1,117 @@
+import { alli } from './fx3.mjs';
+export const fixture = alli;
+export const page = { w: 1440, h: 900 };
+const D = '08';
+export async function run(h) {
+  const { page, sleep } = h;
+  const tid = (id) => page.locator(`[data-testid="${id}"]`).first();
+  const closePanel = async () => {
+    if (await page.locator('[data-testid^="canvas-row-"]').first().isVisible().catch(() => false)) {
+      await tid('panel-fold-left').click().catch(() => {});
+      await sleep(500);
+    }
+  };
+  const openC = async (slug, ms = 2500, fit = true) => { await h.open(slug, ms); await closePanel(); await sleep(900); if (fit) { await page.keyboard.press('Meta+0'); await sleep(1200); } };
+  const frame = () => page.frameLocator('[data-testid="canvas-frame"]');
+  // click an artboard by its id (the label chip of the placed artboard), through the canvas frame
+  const pick = async (id) => {
+    await closePanel();
+    const el = frame().locator(`[data-dc-screen="${id}"]`).first();
+    const b = await el.boundingBox().catch(() => null);
+    if (!b) return false;
+    await page.mouse.click(b.x + b.width / 2, b.y + Math.min(b.height / 2, 120));
+    await sleep(600);
+    const c = tid('inspector-crumb-0');
+    if (await c.count()) await c.click().catch(() => {});
+    await sleep(900);
+    return true;
+  };
+  const regionOf = async (id, pad = 24) => {
+    const b = await frame().locator(`[data-dc-screen="${id}"]`).first().boundingBox().catch(() => null);
+    if (!b) return undefined;
+    const x = Math.max(0, b.x - pad), y = Math.max(0, b.y - pad);
+    return { x, y, width: Math.min(1440 - x, b.width + 2 * pad), height: Math.min(900 - y, b.height + 2 * pad) };
+  };
+
+  // F picker on a canvas
+  await openC('ui-smoke', 1500, false);
+  await h.step(`${D}/ak-picker`, 'F — pick what you’re making', 'click the canvas, press F: the size picker', async () => {
+    await page.mouse.click(1000, 200); await sleep(400);
+    await page.keyboard.press('f'); await sleep(900);
+  });
+  await h.step(`${D}/ak-picker-full`, 'All sizes, the four kinds, a custom print size', 'size picker › Print › All', async () => {
+    await h.click('size-picker-all-print');
+  });
+  await h.step(`${D}/ak-picker-custom`, 'A custom print size, in millimetres (extra frame)', 'size picker › Print › All › Custom size…', async () => {
+    await h.click('size-picker-tile-print-custom');
+    await sleep(900);
+  });
+  await h.esc(3);
+
+  // Matchday: web hug / widths / social / safe zones / video / mixed
+  await openC('ui-matchday', 3500);
+  await h.step(`${D}/ak-web-hug`, 'A web page grows with its content', 'select the web artboard (Nábor · web)', async () => { await pick('nabor'); });
+  await h.step(`${D}/ak-web-widths`, 'Duplicate at another width', 'web artboard selected, inspector open', async () => {}, { reach: 'partial', note: 'the Add a width / Other widths row was not driven; only the selected web artboard' });
+  await h.esc(2);
+  await h.step(`${D}/ak-social`, 'Matchday post and story', 'select the story artboard', async () => { await pick('story'); });
+  await h.step(`${D}/ak-safe-zones`, 'Safe zones, close up', 'story selected, Safe zones → Instagram story', async () => {
+    const sel = page.locator('select:has(option:text-matches("Instagram", "i"))').first();
+    if (await sel.count()) { await sel.selectOption({ index: 1 }).catch(() => {}); }
+    await sleep(900);
+  }, { reach: 'partial', note: 'inspector safe-zone select driven by option index; the board shows a menu of platforms next to three overlays' });
+  await h.esc(2);
+  await h.step(`${D}/ak-print-letak`, 'A6 flyer — the inspector speaks mm', 'select the A6 print artboard', async () => { await pick('a-front'); });
+  await h.step(`${D}/ak-warnings`, 'Warnings — one place, one verb', 'print artboard selected (label mark + inspector line)', async () => {}, { reach: 'partial', note: 'same selection as ak-print-letak; whether a warning line shows depends on the fixture QR box' });
+  await h.step(`${D}/ak-advanced`, 'Advanced — exact values and the code', 'print artboard, inspector Advanced fold', async () => {
+    await tid('inspect-advanced').click().catch(async () => { await page.getByText('Advanced', { exact: true }).last().click().catch(() => {}); });
+    await sleep(900);
+  });
+  await h.esc(2);
+  await h.step(`${D}/ak-video`, 'A video artboard summons the timeline', 'select the video artboard', async () => { await pick('hype'); await sleep(1200); });
+  await h.esc(2);
+  // stage D: the convert dialog is reached through the Size select's paper option (testid insp-ab-preset, value paper:a6)
+  await h.esc(2);
+  { // the post sits half off the left edge of the camera — click inside its visible part
+    const b = await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-dc-screen="post"]').first().boundingBox().catch(() => null);
+    if (b) {
+      const x0 = Math.max(b.x, 0), x1 = Math.min(b.x + b.width, 1440);
+      await page.mouse.click((x0 + x1) / 2, b.y + Math.min(b.height / 2, 120));
+      await sleep(700);
+      const c = page.locator('[data-testid="inspector-crumb-0"]').first();
+      if (await c.count()) await c.click().catch(() => {});
+      await sleep(1000);
+    }
+  }
+  await h.step(`${D}/ak-convert`, 'Post 4:5 → A6 print', 'select the post, Size select › A6', async () => {
+    await page.screenshot({ path: 'out/conv-pre.png' });
+    await page.locator('[data-testid="insp-ab-preset"]').first().selectOption('paper:a6', { timeout: 5000 });
+    await sleep(1800);
+  });
+  await h.step(`${D}/ak-convert-after`, 'After — the post stays, the A6 copy sits beside it', 'dialog › Make A6 print', async () => {
+    const go = page.getByRole('button', { name: /make a6 print/i }).first();
+    await go.click({ timeout: 4000 });
+    await sleep(2500);
+  });
+  await page.keyboard.press('Meta+0'); await sleep(800);
+  await h.step(`${D}/ak-mixed-fit`, '⌘0 fits all — Layers filters by kind', '⌘0, Layers tab', async () => {
+    await tid('panel-icon-left').click().catch(() => {});
+    await sleep(500);
+    await h.click('panel-tab-layers').catch(() => {});
+  }, { reach: 'partial', note: 'a 7-artboard mixed canvas, not 21' });
+  await h.click('panel-tab-tree').catch(() => {});
+  await h.step(`${D}/ak-mixed-filter`, 'Canvases filtered by kind', 'Canvases panel, kind chip: Print', async () => { await h.click('kind-chip-print'); }, { reach: 'partial', note: '13 canvases not 93' });
+  await h.click('kind-chip-all').catch(() => {});
+  await h.step(`${D}/ak-mixed-select`, 'Two kinds selected', '⌘A selects every artboard', async () => {
+    await page.mouse.click(1000, 120); await sleep(300);
+    await page.keyboard.press('Meta+a'); await sleep(900);
+  });
+  await h.esc(2);
+  await h.step(`${D}/ak-real-print`, 'A · přední (FLAG) — real print artboard', 'the real print artboard in the canvas, cropped', async () => { await pick('a-front'); }, { reach: 'partial', note: 'the fixture’s print artboard, not the Alligators flyer', clip: () => regionOf('a-front') });
+  await h.step(`${D}/ak-real-web`, 'Nábor FLAG — real web artboard (hug)', 'the real web artboard in the canvas, cropped', async () => { await h.esc(2); }, { reach: 'partial', note: 'the fixture’s web artboard, not the Alligators page', clip: () => regionOf('nabor') });
+  await h.step(`${D}/ak-print-view`, 'Print guides from View, next to the web page', 'palette: print guides', async () => {
+    await page.keyboard.press('Meta+k'); await sleep(500);
+    await page.keyboard.type('print guides'); await sleep(800);
+    await page.keyboard.press('Enter'); await sleep(1200);
+  }, { reach: 'partial', note: 'toggled through the command palette; the board opens Menu › View › Advanced' });
+  h.skip(`${D}/ak-real-about`, 'a note card on the board, not an app state');
+}
