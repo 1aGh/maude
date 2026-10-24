@@ -15,7 +15,11 @@ import {
   siblingsToClose,
 } from '../client/shell/dock.jsx';
 import { DOCK_RAIL_HOMES } from '../client/v2/shell/dock-rail-homes.js';
-import { shouldCloseOnDeselect, shouldOpenOnSelect } from '../client/v2/shell/inspector-follow.js';
+import {
+  isFollowable,
+  shouldCloseOnDeselect,
+  shouldOpenOnSelect,
+} from '../client/v2/shell/inspector-follow.js';
 
 const STUDIO = join(import.meta.dir, '..');
 const read = (rel: string) => readFileSync(join(STUDIO, rel), 'utf8');
@@ -261,5 +265,19 @@ describe('every feature of the dock strip and the rail resolves to a control', (
     const app = read('client/app.jsx');
     expect(app).toContain('<CornerIcons');
     expect(app).not.toMatch(/\(floating \|\| panelsHidden\) &&\s*\(\s*<CornerIcons/);
+  });
+});
+
+// V2-8.5 c3 (01 cf-select-tweak · 14 ed-ab-select): the inspector comes with the selection — a whole artboard too
+describe('inspector follows an artboard selection', () => {
+  test('an element with an id, or a whole artboard (no id), is followable; nothing else', () => {
+    expect(isFollowable({ id: 'hero' })).toBe(true);
+    expect(isFollowable({ selector: '[data-dc-screen="desktop"]' })).toBe(true);
+    expect(isFollowable({ selector: '[data-dc-screen="desktop"] > div' })).toBe(false);
+    expect(isFollowable({})).toBe(false);
+    expect(isFollowable(null)).toBe(false);
+  });
+  test('the shell asks that rule, not a bare element id', () => {
+    expect(read('client/hooks/use-shell-core.jsx')).toContain('hasId: isFollowable(sel)');
   });
 });
