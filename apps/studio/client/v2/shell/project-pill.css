@@ -128,6 +128,8 @@
     width: 272px;
     max-height: calc(100vh - 16px);
     overflow-y: auto;
+    /* a scroll box never scrolls sideways: the panel nested in it is placed on the window (placeNested) */
+    overflow-x: hidden;
   }
   .st-pm-li {
     position: relative;

@@ -40,6 +40,27 @@ export function Mark({ size = 22 }) {
   );
 }
 
+/**
+ * p8-bugs3 #2 (08 ak-print-view, Menu › View › Advanced) — a submenu inside a submenu. The first level scrolls
+ * (`overflow-y: auto`, so a tall View never leaves the window), and a panel nested in a scroll box is clipped to it
+ * and dragged sideways by every focus: an empty panel with one row showing. So a nested panel leaves the flow:
+ * fixed on the window, at the row that opened it (its top level with the row, its left at the row's right edge,
+ * flipped to the row's left when the right has no room), kept 8px inside the window.
+ */
+function placeNested(el) {
+  const li = el.parentElement;
+  if (!li) return;
+  const row = li.getBoundingClientRect();
+  const { width, height } = el.getBoundingClientRect();
+  const gap = 8;
+  let left = row.right + gap;
+  if (left + width > window.innerWidth - gap) left = row.left - gap - width;
+  const top = Math.min(row.top - 4, window.innerHeight - gap - height);
+  el.style.position = 'fixed';
+  el.style.left = `${Math.max(gap, left)}px`;
+  el.style.top = `${Math.max(gap, top)}px`;
+}
+
 function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, label, popupTestid }) {
   const ref = useRef(null);
   // A submenu that would run off the bottom slides up to fit (the Diagnostics / Help case).
@@ -47,6 +68,10 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
     const el = ref.current;
     if (!el || depth === 0) return;
     el.style.top = '';
+    if (depth >= 2) {
+      placeNested(el);
+      return;
+    }
     const r = el.getBoundingClientRect();
     const over = r.bottom - (window.innerHeight - 8);
     if (over > 0) el.style.top = `${-4 - Math.min(over, Math.max(0, r.top - 8))}px`;

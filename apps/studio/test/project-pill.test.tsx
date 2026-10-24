@@ -4,7 +4,7 @@
 //  · ↵ on the pill opens it, esc on the root returns focus to the pill;
 //  · ⌘K finds every row for its label (the palette's own matcher over the palette's own rows);
 //  · every rendered row has a runner (no dead row), and a click runs the shell's function once.
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
@@ -305,5 +305,63 @@ describe('no dead row', () => {
     const can = runnableIds(handlers);
     const dead = modelIds(buildProjectMenu(desktop)).filter((id) => !can.has(id));
     expect(dead).toEqual([]);
+  });
+});
+
+describe('a submenu inside a submenu (View › Advanced, p8-bugs3 #2)', () => {
+  // happy-dom has no layout: the rows' boxes are stated here. The View panel scrolls (overflow-y: auto), so a
+  // panel nested INSIDE it was clipped to it and dragged sideways by every focus — "an empty panel with one row".
+  let realRect: typeof HTMLElement.prototype.getBoundingClientRect | null = null;
+  beforeEach(() => {
+    realRect = HTMLElement.prototype.getBoundingClientRect;
+  });
+  const rect = (l: number, t: number, w: number, h: number) =>
+    ({ left: l, top: t, right: l + w, bottom: t + h, width: w, height: h, x: l, y: t }) as DOMRect;
+  afterEach(() => {
+    if (realRect) HTMLElement.prototype.getBoundingClientRect = realRect;
+  });
+  async function openAdvanced() {
+    await mount();
+    await act(async () => pill().click());
+    for (const sub of ['view', 'advanced'])
+      await act(async () =>
+        (
+          document.querySelector(`[data-testid="project-menu-row-sub-${sub}"]`) as HTMLElement
+        ).click()
+      );
+  }
+  test('its panel is placed from the row that opened it, on the viewport, clear of the View panel', async () => {
+    Object.defineProperty(window, 'innerHeight', { value: 900, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      if (this.matches('[data-testid="project-menu-sub-advanced"]')) return rect(0, 0, 272, 260);
+      if (this.classList.contains('st-pm-li')) return rect(276, 574, 264, 28);
+      return rect(0, 0, 0, 0);
+    };
+    await openAdvanced();
+    const panel = document.querySelector(
+      '[data-testid="project-menu-sub-advanced"]'
+    ) as HTMLElement;
+    expect(panel).not.toBeNull();
+    expect(panel.style.position).toBe('fixed');
+    expect(panel.style.left).toBe('548px'); // right edge of the row + 8
+    expect(panel.style.top).toBe('570px'); // the row's top − 4
+    const view = document.querySelector('[data-testid="project-menu-sub-view"]') as HTMLElement;
+    expect(view.style.position).toBe(''); // the first level stays a plain absolute panel
+  });
+  test('it slides up to stay inside the window, and flips to the left of the row when the right has no room', async () => {
+    Object.defineProperty(window, 'innerHeight', { value: 700, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 700, configurable: true });
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      if (this.matches('[data-testid="project-menu-sub-advanced"]')) return rect(0, 0, 272, 260);
+      if (this.classList.contains('st-pm-li')) return rect(276, 574, 264, 28);
+      return rect(0, 0, 0, 0);
+    };
+    await openAdvanced();
+    const panel = document.querySelector(
+      '[data-testid="project-menu-sub-advanced"]'
+    ) as HTMLElement;
+    expect(panel.style.top).toBe('432px'); // 700 − 8 − 260
+    expect(panel.style.left).toBe('8px'); // 276 − 8 − 272 = −4: kept 8 from the window's edge
   });
 });
