@@ -7,7 +7,7 @@
 //   SizePairRow         W × H (testids `insp-num-ab-w` / `insp-num-ab-h`)
 //   HeightRows          Height "Fits content | Fixed" (+ the web page's "1573 now — grows as you add.")
 
-import { NumberField, Segmented, Select } from '../../../inspector-controls.jsx';
+import { NumberField, Segmented, Select, Toggle } from '../../../inspector-controls.jsx';
 import { resolveHeightCommit } from '../../../../artboard-hug-commit.ts';
 import { Quiet, Row } from '../sections/row.jsx';
 import { artboardFacts, heightMode, presetOptions, presetValue } from './artboard-model.js';
@@ -56,7 +56,7 @@ export function SizeSelectRow({ k, f, resize, onConvert }) {
     <Row k={k} name="ab-preset">
       <Select
         value={value}
-        ariaLabel={k === 'Width' ? 'Artboard width' : 'Artboard size'}
+        ariaLabel={k === 'Width' || k === 'Preset' ? 'Artboard width' : 'Artboard size'}
         testId="insp-ab-preset"
         options={value === CUSTOM ? [{ value: CUSTOM, label: 'Custom' }, ...options] : options}
         onChange={pick}
@@ -66,9 +66,9 @@ export function SizeSelectRow({ k, f, resize, onConvert }) {
 }
 
 /** W × H, in world px. */
-export function SizePairRow({ f, can, resize, commitHeight }) {
+export function SizePairRow({ k = '', f, can, resize, commitHeight }) {
   return (
-    <Row k="" name="ab-size">
+    <Row k={k} name="ab-size">
       <span className="insp-pair">
         <span data-testid="insp-num-ab-w">
           <NumberField
@@ -94,6 +94,20 @@ export function SizePairRow({ f, can, resize, commitHeight }) {
             onCommit={(n) => can && commitHeight(n)}
           />
         </span>
+      </span>
+    </Row>
+  );
+}
+
+/**
+ * Clip content — on, because an artboard always clips to its edge (DCArtboard has no prop to turn it off), so the switch
+ * shows the truth and does not pretend. On the card for a web page (14 ed-ab-select); under Advanced for the other kinds.
+ */
+export function ClipRow() {
+  return (
+    <Row k="Clip content" name="ab-clip">
+      <span data-testid="insp-ctl-ab-clip">
+        <Toggle checked ariaLabel="Clip content" onChange={() => {}} />
       </span>
     </Row>
   );

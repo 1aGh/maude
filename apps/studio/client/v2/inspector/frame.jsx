@@ -221,7 +221,8 @@ export function InspectorFrame({
         </span>
       </div>
       {/* S10.13 — the line is a door to the system's canvas (ds.go-to) when the shell can run it */}
-      {ds && isConfiguredSystem(cfg, ds) ? (
+      {/* 14 ed-ab-select / -arrange: the artboard's own card names no system — "Uses" is an object's line */}
+      {ds && kind.id !== 'artboard' && isConfiguredSystem(cfg, ds) ? (
         <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} />
       ) : null}
       {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}

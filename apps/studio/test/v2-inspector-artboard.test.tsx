@@ -184,34 +184,37 @@ describe('what an artboard shows', () => {
       'insp-row-ab-content',
     ])
       expect(q(host, row), row).not.toBeNull();
-    // V2-8.5 C4 (08 ak-web-hug): the card draws ONE Layout row; Padding and Gap are exact numbers under Advanced
+    // V2-8.5 C5 (14 ed-ab-select): the card is Preset · Size (W·H) · Height · Clip content, then Fill ▸ Background,
+    // Layout ▸ Content and Export; Padding and Gap are exact numbers under Advanced
     for (const row of ['insp-row-ab-padding', 'insp-row-ab-gap'])
       expect(q(host, row), row).toBeNull();
-    expect(q(host, 'insp-row-ab-background')?.querySelector('.insp-row-k')?.textContent).toBe(
-      'Fill'
-    );
-    expect(q(host, 'insp-row-ab-content')?.querySelector('.insp-row-k')?.textContent).toBe(
-      'Layout'
-    );
-    // Fill and Layout are rows of the Artboard card — no section heads of their own
+    const key = (id: string) => q(host, id)?.querySelector('.insp-row-k')?.textContent;
+    expect(key('insp-row-ab-preset')).toBe('Preset');
+    expect(key('insp-row-ab-size')).toBe('Size');
+    expect(key('insp-row-ab-background')).toBe('Background');
+    expect(key('insp-row-ab-content')).toBe('Content');
+    expect(key('insp-row-ab-clip')).toBe('Clip content');
+    // Fill and Layout are sections with their own heads, as the board draws them
     for (const s of ['fill', 'layout'])
       expect(
         q(host, `insp-sec-${s}`)?.querySelector('.insp-sec-t')?.hasAttribute('hidden'),
         s
-      ).toBe(true);
-    expect(q(host, 'insp-sec-fill')).not.toBeNull();
-    expect(q(host, 'insp-sec-layout')).not.toBeNull();
+      ).toBeFalsy();
+    expect(q(host, 'insp-sec-fill')?.getAttribute('aria-label')).toBe('Fill');
+    expect(q(host, 'insp-sec-layout')?.getAttribute('aria-label')).toBe('Layout');
     expect(q(host, 'insp-sec-export')).not.toBeNull();
-    // S7.21 — the exact W × H, Clip content and Kind are under Advanced ("Every number, under Advanced.")
-    for (const row of ['insp-row-ab-size', 'insp-row-ab-clip', 'insp-row-ab-kind'])
-      expect(q(host, row), row).toBeNull();
+    // the exact numbers are on the card; Kind stays under Advanced
+    expect(q(host, 'insp-row-ab-kind')).toBeNull();
+    // an artboard names no design system on its card (14 ed-ab-select draws no "Uses" row)
+    expect(q(host, 'inspector-uses')).toBeNull();
     // an artboard is no object: no Position / Corners / Border / Effects / Type / Interaction
     for (const s of ['position', 'corners', 'border', 'effects', 'type', 'interaction'])
       expect(q(host, `insp-sec-${s}`), s).toBeNull();
   });
 
-  test('Size reads "1440 × 1573" (under Advanced) and the Width row names Desktop', async () => {
+  test('Size reads "1440 × 1573" on the card and the Preset row names Desktop', async () => {
     const host = await frame();
+    expect((field(host, 'insp-num-ab-w') as HTMLInputElement).value).toBe('1440');
     await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     expect(q(host, 'insp-row-ab-padding')).not.toBeNull();
     expect(q(host, 'insp-row-ab-gap')).not.toBeNull();
@@ -288,7 +291,6 @@ describe('what an artboard shows', () => {
 
   test('Clip content is honest: on, because an artboard always clips (no prop to turn it off)', async () => {
     const host = await frame();
-    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     const input = must(q(host, 'insp-ctl-ab-clip')?.querySelector('input') ?? null, 'clip switch');
     expect((input as HTMLInputElement).checked).toBe(true);
   });
@@ -309,21 +311,18 @@ describe('what an edit sends', () => {
 
   test('W commits the width only', async () => {
     const host = await frame();
-    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await enter(field(host, 'insp-num-ab-w'), '1300');
     expect(calls).toEqual([['resize', 'desktop', 1300, undefined]]);
   });
 
   test('H on a hugging page pins it: Fixed at that number (issue #79 stays fixed)', async () => {
     const host = await frame();
-    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await enter(field(host, 'insp-num-ab-h'), '1200');
     expect(calls).toEqual([['hug', 'desktop', true, 1200]]);
   });
 
   test('H on a fixed page is an ordinary resize', async () => {
     const host = await frame({ attrs: { ...DESKTOP.attrs, 'data-dc-fixed': 'true' } });
-    await click(q(host, 'fold-inspector-toggle'), 'Advanced');
     await enter(field(host, 'insp-num-ab-h'), '1200');
     expect(calls).toEqual([['resize', 'desktop', undefined, 1200]]);
   });
@@ -424,9 +423,15 @@ describe('S2.22 G1 — the artboard inspector says what the canvas says', () => 
     expect(q(host, 'inspector-title')?.textContent).toBe('desktop');
   });
 
-  test('Fill comes before Layout (Artboard, Fill, Layout, Export)', async () => {
+  test('Fill comes before Layout (Artboard, Fill, Layout, Export, Other widths)', async () => {
     const host = await frame();
-    const order = ['insp-sec-size', 'insp-sec-fill', 'insp-sec-layout', 'insp-sec-export'].map(
+    const order = [
+      'insp-sec-size',
+      'insp-sec-fill',
+      'insp-sec-layout',
+      'insp-sec-export',
+      'insp-row-ab-add-width',
+    ].map(
       (id) => must(q(host, id), id)
     );
     for (let i = 1; i < order.length; i++)
