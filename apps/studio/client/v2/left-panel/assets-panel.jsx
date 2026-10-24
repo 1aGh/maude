@@ -26,16 +26,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { uploadAsset } from '../../../asset-upload.ts';
 import { mimeFromExt } from '../../dialogs/asset-picker.jsx';
 import { isNativeApp, pickMediaFiles, pickedMediaSource } from '../../github.js';
-import { Kbd, StIcon } from '../../shell/icons.jsx';
+import { StIcon } from '../../shell/icons.jsx';
 import { assetUploadOf, useAssetAnswers } from '../assets/asset-state-lane.js';
 import { bindAssetsPanel, takeDescribeRequest, takeGenerateRequest } from '../assets/assets-bus.js';
 import { filterAssets } from '../assets/browse-model.js';
 import { BrowseView, browseOrder, MAX_PLACE } from '../assets/browse-view.jsx';
 import { NOTHING_PICKED, pick as pickTile, pickAll } from '../assets/multi-select.js';
-import { offerOf, searchFootWords, useDescribe } from '../assets/describe-client.js';
+import { offerOf, progressWords, searchFootWords, useDescribe } from '../assets/describe-client.js';
 import { DescribeOffer, DescribeProgress, DescribeSheet } from '../assets/describe-consent.jsx';
 import { AssetDetails } from '../assets/details.jsx';
 import { GenerateAsk } from '../assets/generate-ask.jsx';
+import { COPY_FAILED_LINE, copyAssetImage } from '../assets/copy-asset.js';
+import { KindsChip } from '../assets/kinds-chip.jsx';
+import { filterKind, GROUP_CAP, libraryFootWords } from '../assets/library-foot.js';
 import { runMeta, runTitle, splitGenerated, useGenerated } from '../assets/generated.js';
 import { splitJustAdded } from '../assets/just-added.js';
 import { placeAsset, SELECT_ARTBOARD_LINE } from '../assets/place-asset.js';
@@ -152,6 +155,8 @@ export function AssetsPanel({
   // S8.13 — the wide Browse view (null = the narrow tab), the Not used filter, the confirm sheet and the Undo line
   const [browse, setBrowse] = useState(null);
   const [notUsedOnly, setNotUsedOnly] = useState(false);
+  // 12 · ia-assets-panel — "All kinds ▾": narrows the list to Photos, Video or Sound
+  const [kindFilter, setKindFilter] = useState('all');
   const [confirm, setConfirm] = useState(null);
   const [trashed, setTrashed] = useState(null);
   const [box, setBox] = useState(null);
@@ -216,15 +221,24 @@ export function AssetsPanel({
   const hasUsage = useMemo(() => (assets || []).some((a) => a.usedIn != null), [assets]);
   const tidy = useMemo(() => tidyModel(assets || [], history), [assets, history]);
   const pool = notUsedOnly && hasUsage ? tidy.list : assets || [];
-  const shown = useMemo(() => filterAssets(pool, query), [pool, query]);
+  const shown = useMemo(
+    () => filterKind(filterAssets(pool, query), kindFilter),
+    [pool, query, kindFilter]
+  );
   // S8.14 — Just added on top; not in the Not used view, which lists what to tidy (its own order)
+  const searching = query.trim().length > 0;
   const groups = useMemo(
     () =>
-      groupAssets(shown, {
-        justAdded: !(notUsedOnly && hasUsage),
-        generated: notUsedOnly && hasUsage ? [] : generated.groups,
-      }),
-    [shown, notUsedOnly, hasUsage, generated.groups]
+      searching
+        ? // 12 · ia-assets-find — a search names HOW a picture matched, not its kind: "In the name or tags", then "Seen in the picture"
+          shown.length
+          ? [{ kind: 'found', title: 'In the name or tags', items: shown }]
+          : []
+        : groupAssets(shown, {
+            justAdded: !(notUsedOnly && hasUsage),
+            generated: notUsedOnly && hasUsage ? [] : generated.groups,
+          }),
+    [shown, searching, notUsedOnly, hasUsage, generated.groups]
   );
   // S8.20 — "Seen in the picture": what a word was found in ONLY by what AI saw (never a picture already named above)
   const seen = useMemo(() => {
@@ -237,10 +251,11 @@ export function AssetsPanel({
   }, [query, describe.hits, shown, byPath, notUsedOnly, hasUsage]);
   useAssetAnswers(); // the bars on tiles follow what the studio last said about each open canvas
   const url = (p) => `/${designRel}/${p}`;
-  const renderTile = (a) => (
+  const renderTile = (a, o = undefined) => (
     <AssetTile
       key={a.path}
       asset={a}
+      match={o?.match}
       url={url(a.path)}
       picked={picked === a.path}
       canDrag={!readOnly}
@@ -317,7 +332,10 @@ export function AssetsPanel({
       return undefined;
     }
     const measure = () => {
-      const r = rootRef.current?.getBoundingClientRect?.();
+      // 12 · ia-assets-browse — the wide view IS the panel widened: it takes the island's box (tabs row included), so it
+      // stops where the island stops (above the bottom row) and not at the window foot
+      const island = rootRef.current?.closest?.('.st-dockslot-inner');
+      const r = (island ?? rootRef.current)?.getBoundingClientRect?.();
       if (!r || !r.width) return;
       const width = Math.max(r.width, Math.min(820, window.innerWidth - 48));
       const fromRight = r.left > window.innerWidth / 2;
@@ -487,6 +505,10 @@ export function AssetsPanel({
     } else if (id === 'details') {
       setBrowse(null);
       showDetails(path);
+    } else if (id === 'copy') {
+      void copyAssetImage(url(path)).then((ok) => {
+        if (!ok && alive.current) setErr(COPY_FAILED_LINE);
+      });
     } else if (id === 'trash') trashSelection(path);
   };
 
@@ -580,7 +602,7 @@ export function AssetsPanel({
       {detailed ? null : (
         <div className="lp-head-row">
           <label className="lp-find">
-            <StIcon name="search" size={13} />
+            <StIcon name="search" size={14} />
             <input
               type="search"
               data-testid="assets-search"
@@ -589,50 +611,53 @@ export function AssetsPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            {query ? null : <Kbd>⌘K</Kbd>}
           </label>
-          {readOnly ? null : (
+        </div>
+      )}
+      {detailed ? null : (
+        // 12 · ia-ap-bar: the kind filter, Not used, and at the right end Generate (the spark's colour) and Add files…
+        <div className="lp-chips" data-testid="assets-bar">
+          <KindsChip value={kindFilter} onChange={setKindFilter} />
+          {hasUsage ? (
             <button
               type="button"
-              className="st-iconbtn lp-add"
-              data-testid="assets-generate"
-              aria-label="Generate an image"
-              data-tip="Generate an image"
-              aria-pressed={asking}
-              onClick={() => setAsking((v) => !v)}
+              className="chip lp-chip"
+              data-testid="assets-chip-notused"
+              aria-pressed={notUsedOnly}
+              onClick={() => setNotUsedOnly((v) => !v)}
             >
-              <StIcon name="sparkle" size={14} />
+              {notUsedOnly ? <StIcon name="check" size={11} /> : null}
+              Not used
             </button>
-          )}
+          ) : null}
           {readOnly ? null : (
-            <button
-              type="button"
-              className="st-iconbtn lp-add"
-              data-testid="assets-add"
-              aria-label="Add files…"
-              data-tip="Add files…"
-              disabled={busy}
-              onClick={add}
-            >
-              <StIcon name="plus" size={15} />
-            </button>
+            <span className="lp-bar-icons">
+              <button
+                type="button"
+                className="st-iconbtn lp-add lp-gen"
+                data-testid="assets-generate"
+                aria-label="Generate an image"
+                data-tip="Generate an image"
+                aria-pressed={asking}
+                onClick={() => setAsking((v) => !v)}
+              >
+                <StIcon name="sparkle" size={13} />
+              </button>
+              <button
+                type="button"
+                className="st-iconbtn lp-add"
+                data-testid="assets-add"
+                aria-label="Add files…"
+                data-tip="Add files…"
+                disabled={busy}
+                onClick={add}
+              >
+                <StIcon name="plus" size={14} />
+              </button>
+            </span>
           )}
         </div>
       )}
-      {hasUsage && !detailed ? (
-        <div className="lp-chips">
-          <button
-            type="button"
-            className="lp-chip"
-            data-testid="assets-chip-notused"
-            aria-pressed={notUsedOnly}
-            onClick={() => setNotUsedOnly((v) => !v)}
-          >
-            {notUsedOnly ? <StIcon name="check" size={11} /> : null}
-            Not used
-          </button>
-        </div>
-      ) : null}
       {busy ? (
         <p className="lp-note" role="status">
           {progress == null ? 'Adding…' : `Adding… ${Math.round(progress * 100)}%`}
@@ -747,7 +772,7 @@ export function AssetsPanel({
             ...groups.map((g) => (
               <section key={g.kind} aria-label={g.title}>
                 <p className="lp-group">
-                  {g.kind === 'added' || g.kind === 'generated' ? (
+                  {g.kind === 'added' || g.kind === 'generated' || g.kind === 'found' ? (
                     <span className="lp-group-s" data-testid={`assets-group-${g.kind}`}>
                       <span>{g.title}</span>
                       <span className="lp-count">{g.items.length}</span>
@@ -784,8 +809,18 @@ export function AssetsPanel({
                       <div className="lp-grid">{r.items.map(renderTile)}</div>
                     </div>
                   ))
+                ) : g.kind === 'found' ? (
+                  // the matches are two across, each tile footed with the name that matched
+                  <div className="lp-grid lp-grid--2">
+                    {g.items.map((a) => renderTile(a, { match: a.name }))}
+                  </div>
                 ) : (
-                  <div className="lp-grid">{g.items.map(renderTile)}</div>
+                  <div className="lp-grid">
+                    {(g.kind === 'added' || (notUsedOnly && hasUsage)
+                      ? g.items
+                      : g.items.slice(0, GROUP_CAP)
+                    ).map(renderTile)}
+                  </div>
                 )}
               </section>
             )),
@@ -833,12 +868,17 @@ export function AssetsPanel({
             canAsk: aiOn,
           })}
         </p>
-      ) : (
+      ) : progressWords(describe.status) ? (
         <DescribeProgress
           status={describe.status}
           onStop={(stopped) => void describe.stop(stopped)}
         />
-      )}
+      ) : libraryFootWords(assets) ? (
+        // 12 · ia-assets-panel — the whole library's count and weight, always under the list
+        <p className="lp-foot" data-testid="assets-foot">
+          {libraryFootWords(assets)}
+        </p>
+      ) : null}
       {describeAsk ? (
         <DescribeSheet
           project={env.projectName}

@@ -1,7 +1,7 @@
 // client/v2/assets/tile.jsx — one tile of the Assets tab (S8.12; 12 · ia-assets-panel, ia-assets-keys).
 //
 // The picture comes first and nothing else is drawn on it. The name and where it is used show on hover AND on keyboard
-// focus (a tip over the foot of the tile), and a screen reader hears the same two lines as the tile's name. A picture drags
+// focus (a tip BELOW the tile, never truncated — 12 `.ia-tile-tip`), and a screen reader hears the same two lines as the tile's name. A picture drags
 // onto a frame (tile-drag.js); a right-click opens the tile menu. Video shows its first frame, sound a glyph.
 
 import { StIcon } from '../../shell/icons.jsx';
@@ -42,6 +42,10 @@ export function AssetTile({
   onMenu,
   caption = false,
   uploading = null,
+  // 12 · ia-assets-find — the name (or tag) a search matched, on a gradient foot
+  match = undefined,
+  // 12 · ia-assets-browse — the wide view draws a pick circle on every thumb (empty ring, or accent with a check)
+  pickCircle = false,
 }) {
   const used = usageWords(asset);
   const isImage = asset.kind === 'image';
@@ -72,6 +76,21 @@ export function AssetTile({
       ) : (
         <img className="lp-thumb" src={url} alt="" loading="lazy" draggable={false} />
       )}
+      {pickCircle ? (
+        <span
+          className="lp-tile-pick"
+          data-testid="assets-tile-pick"
+          data-on={picked ? 'true' : undefined}
+          aria-hidden="true"
+        >
+          {picked ? <StIcon name="check" size={11} /> : null}
+        </span>
+      ) : null}
+      {match ? (
+        <span className="lp-tile-match" data-testid="assets-tile-match" aria-hidden="true">
+          {match}
+        </span>
+      ) : null}
       {uploading && !caption ? (
         <span
           className="lp-tile-up"
@@ -93,7 +112,7 @@ export function AssetTile({
         <span className="lp-tile-cap" aria-hidden="true">
           {asset.name}
         </span>
-      ) : (
+      ) : match ? null : (
         <span className="lp-tile-tip" aria-hidden="true">
           <strong>{asset.name}</strong>
           {used ? <span>{used}</span> : null}
