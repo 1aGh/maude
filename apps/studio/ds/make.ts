@@ -414,6 +414,16 @@ export function createDsMake(engine: DsEngine, opts: MakeOptions = {}) {
           rootClass: inp.ds,
         });
         setOwn(fresh, 'designSystems', entries);
+        // the canvas lives in `system/<ds>/`: a project whose canvas groups never named `system/` would
+        // never list it — no pinned row, ds.go-to finds nothing, and the folder view opens instead
+        const groups = Array.isArray(fresh.canvasGroups) ? (fresh.canvasGroups as unknown[]) : null;
+        if (
+          groups &&
+          !groups.some(
+            (g) => isObj(g) && typeof g.path === 'string' && /^system(\/|$)/.test(g.path)
+          )
+        )
+          setOwn(fresh, 'canvasGroups', [{ label: 'Design system', path: 'system' }, ...groups]);
         atomicWrite(configAbs, configText(fresh));
       });
       put('colors_and_type.css', `/* ${label.replace(/[*/]/g, ' ')} — being made */\n`);

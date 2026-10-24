@@ -152,3 +152,7 @@ Re-shot 52 of 60 pairs; 8 unreachable. SPEC side: `.design/ui/v2/13 Design Syste
 | `ds-where-gator` | light | re-shot | spec reused (board unchanged since stage A) |
 | `ds-where-studio` | dark | re-shot | spec reused (board unchanged since stage A) |
 | `ds-where-studio` | light | re-shot | spec reused (board unchanged since stage A) |
+
+## Round 3 (p8-c3-dsboard) — IMPL re-shot on the round-3 branch
+
+Re-shot (light + dark pairs overwritten, same harness `_d-harness-g5`, same fixtures): `ds-where-studio`, `ds-where-gator`, `ds-board-studio`, `ds-board-dark`, `ds-board-gator` (whole-board crop), `ds-edit-colour`, `ds-edit-reach`, `ds-edit-review`, `ds-edit-master`, `ds-make-inputs`, `ds-make-directions`, `ds-make-mix`, `ds-make-filling`, `ds-make-done`, `ds-many-switch`, `ds-multi-panel`, `ds-multi-menu`, `ds-multi-switch`, `ds-edge-contrast`, `ds-edge-trash`, `ds-advanced`. Not re-shot (unchanged since stage D): `ds-edit-instance`, `ds-truth-outside`, `ds-truth-conflict`, `ds-edge-migrate`, `ds-multi-migrate`, and the unreachable ids. What changed: see `fix-c3-dsboard.md`. The `ds-make-*` frames now show the Design system CANVAS (directions, mix, sections filling, done) instead of the legacy folder view.

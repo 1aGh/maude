@@ -29,6 +29,7 @@ import { StIcon } from '../../../shell/icons.jsx';
 import { registerBlock } from '../../inspector/blocks.js';
 import { registerKind, singleOf } from '../../inspector/kinds/index.js';
 import { Quiet, Row } from '../../inspector/sections/row.jsx';
+import { ColourPicker } from '../colour-picker.jsx';
 import { contrastLine } from '../contrast.js';
 import { ContrastWarning } from '../contrast-warning.jsx';
 import { EDGE_WORDS, fixOffer } from '../edge-model.js';
@@ -283,61 +284,46 @@ export function TokenPanel({
       ) : null}
       {locked ? (
         <Quiet testid="ds-token-locked-line">{TOKEN_WORDS.locked}</Quiet>
+      ) : isColour ? (
+        <>
+          <ColourPicker
+            value={valueIn(theme)}
+            label={token.label}
+            onChange={drag}
+            onEnd={() => {
+              const p = liveRef.current;
+              if (p) commit(p.edit);
+            }}
+          />
+          {/* the native control stays for the keyboard and a screen reader (an exact colour), out of sight */}
+          <input
+            ref={setColourEl}
+            type="color"
+            className="ds-tk-picker ds-tk-picker--native"
+            data-testid="ds-token-picker"
+            aria-label={`${token.label} — pick an exact colour`}
+            value={swatchHex(valueIn(theme))}
+            onChange={(e) => drag(e.target.value)}
+          />
+        </>
       ) : (
-        <Row
-          k={hasDark ? (theme === themes.dark ? 'Dark value' : 'Light value') : 'Value'}
-          name="ds-value"
-        >
-          {isColour ? (
-            <input
-              ref={setColourEl}
-              type="color"
-              className="ds-tk-picker"
-              data-testid="ds-token-picker"
-              aria-label={`${token.label} — pick a colour`}
-              value={swatchHex(valueIn(theme))}
-              onChange={(e) => drag(e.target.value)}
-            />
-          ) : null}
-          {isColour ? null : (
-            <input
-              type="text"
-              className="ds-tk-text"
-              data-testid="ds-token-value"
-              aria-label={`${token.label} — value`}
-              spellCheck={false}
-              value={shown}
-              onChange={(e) => setTyped(e.target.value)}
-              onBlur={submitText}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-                if (e.key === 'Escape') setTyped(null);
-              }}
-            />
-          )}
-        </Row>
-      )}
-      {!locked && isColour ? (
-        <Row k="Name" name="ds-name">
+        <Row k="Value" name="ds-value">
           <input
             type="text"
             className="ds-tk-text"
-            data-testid="ds-token-name"
-            aria-label={`${token.label} — name of this colour`}
-            placeholder="Name this colour"
-            defaultValue={valueName(theme)}
-            key={`${css}:${theme}:${valueName(theme)}`}
-            maxLength={64}
-            onBlur={(e) => {
-              if (e.target.value.trim() !== valueName(theme))
-                commit({ theme, name: e.target.value });
-            }}
+            data-testid="ds-token-value"
+            aria-label={`${token.label} — value`}
+            spellCheck={false}
+            value={shown}
+            onChange={(e) => setTyped(e.target.value)}
+            onBlur={submitText}
             onKeyDown={(e) => {
               if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') setTyped(null);
             }}
           />
         </Row>
-      ) : null}
+      )}
       {hasDark && isColour ? (
         <Row k="Dark follows automatically" name="ds-follows">
           <Toggle
@@ -415,6 +401,27 @@ export function TokenPanel({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') e.currentTarget.blur();
                 if (e.key === 'Escape') setTyped(null);
+              }}
+            />
+          </Row>
+        ) : null}
+        {!locked && isColour ? (
+          <Row k="Name" name="ds-name">
+            <input
+              type="text"
+              className="ds-tk-text"
+              data-testid="ds-token-name"
+              aria-label={`${token.label} — name of this colour`}
+              placeholder="Name this colour"
+              defaultValue={valueName(theme)}
+              key={`${css}:${theme}:${valueName(theme)}`}
+              maxLength={64}
+              onBlur={(e) => {
+                if (e.target.value.trim() !== valueName(theme))
+                  commit({ theme, name: e.target.value });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
               }}
             />
           </Row>

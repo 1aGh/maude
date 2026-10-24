@@ -1,7 +1,7 @@
 // hmr-broadcast — Phase 3.6.1 Task 8. fs:any → canvas-hmr WS message classifier.
 
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -293,5 +293,36 @@ describe('sync writes reach an open canvas even right after an own edit', () => 
     );
     const skip = shell.split('\n').find((l) => l.includes('lastCssOptimisticAt < 1500'));
     expect(skip).toContain('!msg.remote');
+  });
+});
+
+describe('hmr-broadcast / the Design system board follows its system (p8-c3-dsboard)', () => {
+  test('a working-file change in system/<ds>/ also reloads that system’s board canvas', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'hmr-ds-'));
+    try {
+      mkdirSync(join(root, 'system', 'club', 'revisions'), { recursive: true });
+      writeFileSync(join(root, 'system', 'club', 'design-system.tsx'), '// board');
+      const ctx = mkCtx();
+      ctx.paths = { designRoot: root } as Context['paths'];
+      const got: HmrMessage[] = [];
+      const h = createHmrBroadcaster(ctx, (m) => got.push(m));
+      const seen = () => got.map((m) => `${m.mode}:${m.file}`);
+      ctx.bus.emit('fs:any', 'system/club/revisions/head.json');
+      await awaitNextFlush();
+      expect(seen()).toContain('module:system/club/design-system.tsx');
+      got.length = 0;
+      ctx.bus.emit('fs:any', 'system/club/colors_and_type.css');
+      await awaitNextFlush();
+      expect(seen()).toContain('module:system/club/design-system.tsx');
+      // a system with no board canvas, or an unrelated json, adds nothing
+      got.length = 0;
+      ctx.bus.emit('fs:any', 'system/other/revisions/head.json');
+      ctx.bus.emit('fs:any', 'system/club/assets/x.json');
+      await awaitNextFlush();
+      expect(got).toHaveLength(0);
+      h.stop();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

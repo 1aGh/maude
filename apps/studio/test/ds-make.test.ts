@@ -135,6 +135,28 @@ describe('make — a system with nothing in it yet', () => {
     }
   });
 
+  test('the made system is listed: a project that groups no system folder gets the Design system group (p8-c3-dsboard)', async () => {
+    const { p, mk } = await fresh();
+    const before = JSON.parse(p.read('config.json') as string);
+    before.canvasGroups = [{ label: 'UI kit', path: 'ui' }];
+    writeFileSync(path.join(p.designRoot, 'config.json'), JSON.stringify(before));
+    await mk.make({ ds: NEW, label: 'Forge', by: AI });
+    const after = JSON.parse(p.read('config.json') as string);
+    expect(after.canvasGroups).toEqual([
+      { label: 'Design system', path: 'system' },
+      { label: 'UI kit', path: 'ui' },
+    ]);
+    // a project that already groups system/ is left alone
+    const p2 = await fresh();
+    const c2 = JSON.parse(p2.p.read('config.json') as string);
+    c2.canvasGroups = [{ label: 'Systems', path: 'system' }];
+    writeFileSync(path.join(p2.p.designRoot, 'config.json'), JSON.stringify(c2));
+    await p2.mk.make({ ds: NEW, label: 'Forge', by: AI });
+    expect(JSON.parse(p2.p.read('config.json') as string).canvasGroups).toEqual([
+      { label: 'Systems', path: 'system' },
+    ]);
+  });
+
   test('refuses a name in use and a bad name, and a failed make leaves nothing behind', async () => {
     const { p, mk } = await fresh();
     await rejects(mk.make({ ds: 'acme', label: 'x', by: AI }), 'ds-exists');

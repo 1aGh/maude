@@ -6,16 +6,25 @@
 // request. Words follow CONTRACT §3–§4: the title asks with the verb the button repeats ("Switch canvases to
 // Alligators brand?" → "Switch 5 canvases"), the other button is Cancel, a count names the noun for 1 and for many.
 
-import { rowsOf } from './review-model.js';
+import { headWords as reviewHeadWords, rowsOf } from './review-model.js';
 
 export {
   defaultTicks,
   folderNote,
   groupByFolder,
-  headWords,
   tickState,
   withTicks,
 } from './review-model.js';
+
+/**
+ * "4 of 5 canvases in Studio site" — but when no canvas CAN switch (every one is pinned or made before the schema)
+ * "0 of 0 canvases" above four unticked rows reads as a bug; say what is true instead (13 · ds-multi-switch).
+ */
+export function headWords(rows, scope) {
+  if (rows.length > 0 && rows.every((r) => r.locked))
+    return `None of the ${canvasCount(rows.length)}${scope ? ` in ${scope}` : ''} can switch`;
+  return reviewHeadWords(rows, scope);
+}
 
 export const SWITCH_WORDS = Object.freeze({
   cancel: 'Cancel',
