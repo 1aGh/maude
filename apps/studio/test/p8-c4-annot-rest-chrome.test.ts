@@ -34,3 +34,16 @@ describe('spacing grips are not drawn at rest', () => {
     expect(rest).not.toContain('var(--maude-hud-accent');
   });
 });
+
+describe('typing in place draws only the edit ring (14 ed-text-edit)', () => {
+  test('no handles, size tag, bands or badges while a text is edited; the ring has its halo', async () => {
+    const css = await src('../canvas-shell.tsx');
+    const hide = css.match(
+      /body:has\(\[contenteditable\]\.dc-text-editing\) :is\(([^)]*)\) \{\s*display: none !important;/
+    );
+    expect(hide?.[1]).toContain('.dc-el-resize-handle');
+    expect(hide?.[1]).toContain('.ed-name-tag');
+    expect(hide?.[1]).toContain('.ed-order');
+    expect(rule(css, '[contenteditable].dc-text-editing')).toContain('box-shadow: 0 0 0 5px');
+  });
+});

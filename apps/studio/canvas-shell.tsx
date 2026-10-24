@@ -322,6 +322,8 @@ const HALO_CSS = `
 [contenteditable].dc-text-editing {
   outline: 2px solid var(--maude-hud-accent, #0d99ff);
   outline-offset: 1px;
+  /* 14 ed-text-edit: the ring wears an accent-tint halo */
+  box-shadow: 0 0 0 5px color-mix(in oklch, var(--maude-hud-accent, #0d99ff) 18%, transparent);
   border-radius: 1px;
   cursor: text;
   /* Unify the caret with the annotation editors (CARET_FIX_STYLE in
@@ -329,6 +331,11 @@ const HALO_CSS = `
      No compositing trigger here (no translateZ/will-change) so WebKit keeps
      blinking the native caret. */
   caret-color: var(--maude-hud-accent, #4a63e7);
+}
+/* 14 ed-text-edit - while a text is typed in place the board draws ONLY the edit ring: no resize handles, no size
+   tag, no bands or badges over it. */
+body:has([contenteditable].dc-text-editing) :is(.dc-el-resize-handle, .dc-el-resize-readout, .ed-name-tag, .ed-parent-outline, .dc-spacing-handle, .ed-band, .ed-order, .ed-focus-ring) {
+  display: none !important;
 }
 /* Dogfood fix — hover affordance for the same leaf-text elements the dblclick
    handler above enters edit mode on. The :not(:empty):not(:has(> *)) selector
