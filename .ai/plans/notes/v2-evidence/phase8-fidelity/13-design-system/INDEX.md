@@ -227,3 +227,7 @@ Re-shot 52 of 60 pairs; 8 unreachable. Supersedes the per-round "after" sections
 | `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## Round 5 (p8-c5-dsfix) — IMPL re-shot on the round-5 branch
+
+Re-shot (light + dark pairs overwritten, harness `_d-harness-g5` + `_d2-harness-g5`, same fixtures, nothing judged): every id except the three whole-board crops `ds-board-studio` / `-dark` / `-gator` (the board did not change this round, the D2 pairs stay) and the unreachable ones. Product changes this round: ⌘K "design system" (`ds-where-gator`: the system, "In the Design system", Actions with `where`; the board is no longer listed twice), the "Uses <system>" door after the fields (`ds-where-studio`, `ds-multi-panel`), a colour opens with Advanced open (`ds-edit-colour`, `ds-edge-contrast`). Harness: `ds-truth-outside` / `ds-truth-conflict` wait for the tree before opening the board (the D2 frames fell back to the old folder view), `ds-edge-trash` drives the real "Move to the trash?" sheet (token `--palette-4`), `ds-make-mix` selects Direction A so "Use A · Mix with…" can show. `ds-multi-migrate` still shows the "No canvas open" empty state (the convert sheet opens only from the unconverted folder view). See `fix-c5-dsfix.md`.
