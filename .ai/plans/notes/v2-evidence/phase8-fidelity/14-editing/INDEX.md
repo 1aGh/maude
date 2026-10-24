@@ -132,3 +132,7 @@ Re-shot 50 of 52 pairs; 2 unreachable. SPEC side: `.design/ui/v2/14 Editing.*` i
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since stage A) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since stage A) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since stage A) |
+
+## Round 3 re-shoot (p8-c3-modes)
+
+IMPL re-shot after the round-3 modes / menus fixes; the committed <id>-<theme>.jpg pairs are overwritten for: ed-ab-menu. No match is judged here. Shot on the 04 fixture (Homepage, Desktop artboard) with the left panel folded; the SPEC image is the stage-A one.

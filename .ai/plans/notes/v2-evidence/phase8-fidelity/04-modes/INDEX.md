@@ -104,3 +104,7 @@ Re-shoot of the IMPL side on tip 6d19daa9a (stage C round 2 merged), both themes
 | `md-edge-mixed` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
 | `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (same) |
 | `md-esc` | IMPL re-shot, SPEC reused | IMPL re-shot, SPEC reused |
+
+## Round 3 re-shoot (p8-c3-modes)
+
+IMPL re-shot after the round-3 modes / menus fixes; the committed <id>-<theme>.jpg pairs are overwritten for: md-model, md-annotate, md-preview, md-preview-follow, md-preview-combine, md-inspect, md-comment, md-draw, md-present-menu, md-edge-ai, md-esc. No match is judged here. md-edge-ai is shot in the board's own state (the prompt asked in Edit, then Preview folds the panels); md-draw-dark is the stage-D frame of the same code (its click timed out on the second run).

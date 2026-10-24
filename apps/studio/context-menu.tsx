@@ -209,7 +209,8 @@ const MENU_CSS = `
   border-radius: 14px;
   box-shadow: 0 8px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent)), inset 0 0 0 0.5px var(--maude-chrome-border, rgba(0,0,0,0.08));
   padding: 4px;
-  min-width: 220px;
+  /* 14: the artboard menu is drawn 268 wide, the object menu 292 */
+  min-width: 268px;
   font-family: var(--maude-chrome-font-body, system-ui, sans-serif);
   font-size: 12px;
   line-height: 1.42;
@@ -245,6 +246,7 @@ const MENU_CSS = `
 .dc-context-menu .dc-menu-item[aria-expanded="true"] {
   background: var(--maude-hud-accent-muted, color-mix(in oklab, var(--maude-chrome-fg-0, #1c1917) 8%, transparent));
 }
+.dc-context-menu[data-target="element"] { min-width: 292px; }
 .dc-context-menu:focus { outline: none; }
 .dc-context-menu .dc-menu-item:focus-visible {
   /* fix-photo-editor-followup-debt Task 16 — was outline: none (an
@@ -456,6 +458,7 @@ export function ContextMenuView({
             : 'Canvas actions'
       }
       data-esc-owner=""
+      data-target={target.kind}
       style={{ left: pos.x, top: pos.y }}
     >
       {visibleSections.map((section, si) => {

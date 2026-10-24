@@ -1,2 +1,5 @@
 stage A: undefined
 stage D: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1266e1495ea7588d/.scr/pairs/01
+
+round 3 (p8-c3-modes): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/pairs/01-create-flow/
+(pairs re-shot: cf-duplicate-width; IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a79ab1936d7f7e854/.scr/impl-out/01-create-flow/; harness: _d-harness-g2 plus s-menus.mjs / s04c.mjs kept in the worktree .scr/impl/)
