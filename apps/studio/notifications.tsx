@@ -275,7 +275,7 @@ const NOTICE_CSS = `
 .maude-notice-ic { display: grid; flex: none; color: var(--fg-1, #ddd); }
 .maude-notice-ic--spark { color: var(--spark, #e8552d); }
 .maude-notice-ic--help, .maude-notice-ic--sync { color: var(--fg-1, #ddd); }
-.maude-notice--pill .maude-notice-action { align-self: center; padding: 0 var(--space-2, 8px); }
+.maude-notice--pill button.maude-notice-action { align-self: center; padding: 0 var(--space-2, 8px); }
 .maude-notice-summary, .maude-notice-title, .maude-notice .st-export-degraded {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   overflow-wrap: anywhere; }
