@@ -46,7 +46,7 @@ export async function createBlankCanvas(deps = {}) {
 export function openBriefBoardComposer(d) {
   d.openPanelExclusive('tree');
   setTimeout(
-    () => globalThis.document?.querySelector('[aria-label="New blank brief board"]')?.click(),
+    () => globalThis.document?.querySelector('[aria-label="New canvas"]')?.click(),
     60
   );
 }

@@ -402,7 +402,8 @@ describe('the Canvases panel reads the slots', () => {
 
   test('the foot: default → access → sync, with data-slot saying which', async () => {
     const { host, slots } = await mount();
-    expect(q(host, 'canvases-foot')?.getAttribute('data-slot')).toBe('default');
+    // P8 C5: at rest the foot is not drawn (the board draws none); the slots below still are
+    expect(q(host, 'canvases-foot')).toBeNull();
     await run(() =>
       slots.setFootSlot('access', { text: 'Only Combine-kampan was shared with you.' })
     );
@@ -417,8 +418,7 @@ describe('the Canvases panel reads the slots', () => {
       slots.setFootSlot('sync', null);
       slots.setFootSlot('access', null);
     });
-    expect(q(host, 'canvases-foot')?.textContent).toBe('93 canvases · ⌘K searches every project');
-    expect(q(host, 'canvases-foot')?.getAttribute('data-slot')).toBe('default');
+    expect(q(host, 'canvases-foot')).toBeNull();
   });
 
   test('a ghost row draws at its path with its words, opens its tab, and is not counted', async () => {
@@ -443,7 +443,7 @@ describe('the Canvases panel reads the slots', () => {
     expect(ghost?.textContent).toContain('Gone');
     expect(ghost?.textContent).toContain('In the trash · open here');
     expect(ghost?.closest('.cv-row')?.classList.contains('is-dim')).toBe(true);
-    expect(q(host, 'canvases-foot')?.textContent).toBe('93 canvases · ⌘K searches every project');
+    expect(q(host, 'canvases-foot')).toBeNull(); // not counted: and no foot at rest to count it in
     await act(async () => {
       ghost?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });

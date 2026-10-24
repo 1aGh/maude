@@ -8028,10 +8028,10 @@
     "v2": "stable"
   },
   {
-    "hook": "[aria-label=\"New blank brief board\"]",
+    "hook": "[aria-label=\"New canvas\"]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "The \"+ New canvas\" row at the end of the Canvases list; it opens the composer (P8 C4: it left the Canvases header).",
+    "meaning": "The \"+ New canvas\" row at the end of the Canvases list; it opens the composer (P8 C4: it left the Canvases header; P8 C5: its accessible name is its visible words, WCAG 2.5.3).",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
       "symbol": "NewCanvasRow"
@@ -11285,13 +11285,13 @@
     "hook": "canvases-ds-make",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The empty row of a project with no design system: \"Make a design system\" (runs ds.make).",
+    "meaning": "A project with no design system: the \"Make a design system\" row in Canvases › Advanced (runs ds.make). P8 C5: it left the top of the list (the board draws no accent row there).",
     "producer": {
-      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
-      "symbol": "DsPinnedRows"
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
     },
     "region": "sidebar/tree",
-    "consumers": [],
+    "consumers": ["apps/desktop/e2e/scenarios/ds-review.e2e.ts"],
     "v2": "new"
   },
   {

@@ -106,7 +106,7 @@ export const CAPABILITY_HOMES = [
     feature: 'New canvas',
     home: '⌘N, Menu › File › New canvas, the + New canvas row at the end of the list',
     file: 'client/v2/left-panel/canvases-pinned.jsx',
-    label: 'New blank brief board',
+    label: 'New canvas',
     actionId: 'canvas.new',
   },
   // ── D5: the Files panel ──

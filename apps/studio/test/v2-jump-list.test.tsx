@@ -186,9 +186,9 @@ describe('the jump list rendered (11 · pn-jump)', () => {
     expect(rows).toHaveLength(21);
     expect(rows.filter((r) => r.dataset.kind === 'print')).toHaveLength(2);
     expect(q(host, 'canvases-foot')?.textContent).toBe('21 artboards · 19 digital, 2 print');
-    // closing it gives the old foot back
+    // closing it takes the foot away (P8 C5: no foot line at rest)
     await click(q(host, 'canvas-jump-toggle-ui-combine-kampan'));
-    expect(q(host, 'canvases-foot')?.textContent).toBe('3 canvases · ⌘K searches every project');
+    expect(q(host, 'canvases-foot')).toBeNull();
   });
 
   test('the artboard in view is highlighted (aria-current); a click jumps to it', async () => {

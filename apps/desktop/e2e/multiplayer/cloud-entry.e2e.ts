@@ -111,7 +111,7 @@ describe('S01 cloud entry on a clean Linux native profile', () => {
     expect(session.url).toBe(run.controlUrl.replace(/\/$/, ''));
     expect(session.email).toBe('designer-a@maude-f3.invalid');
 
-    await (await $('button[aria-label="New blank brief board"]')).click();
+    await (await $('button[aria-label="New canvas"]')).click();
     await (await $('input[aria-label="New brief board name"]')).setValue(canvasName);
     await (await $('button[aria-label="Create brief board"]')).click();
     const row = `canvas-row-ui-${canvasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;

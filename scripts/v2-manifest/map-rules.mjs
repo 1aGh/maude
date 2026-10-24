@@ -62,6 +62,10 @@ export const HAND = {
     'A-readiness-list-claude-code',
   'testid:studio/client/panels/SettingsPanel.jsx#settings/settings-inspector-vocabulary':
     'A-inspector-vocabulary-advanced-designer',
+  // P8 C5 (WCAG 2.5.3): the "+ New canvas" row's accessible name is its visible words; the v1 hook's
+  // accessible name ("New blank brief board") is renamed, the control is the same one
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-new-blank-brief-board':
+    'testid:[aria-label="New canvas"]',
   'button:studio/client/app.jsx#App/reload': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss': 'A-repo-state-changed-reload',
   'button:studio/client/app.jsx#App/dismiss~2': 'D13', // usage-tour nudge

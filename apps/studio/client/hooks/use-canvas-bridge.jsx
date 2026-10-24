@@ -59,6 +59,10 @@ import {
   handleCommentBridgeMessage,
   isCommentBridgeMessage,
 } from '../v2/comments/comment-bridge.js';
+import { createCommentToolWatch } from '../v2/comments/comment-tool.js';
+
+// one shell, one watch: the Comment tool's arming edge (P8 C5)
+const commentToolWatch = createCommentToolWatch();
 
 export function useCanvasBridge({
   activePath,
@@ -239,6 +243,8 @@ export function useCanvasBridge({
         // global shell cursor, so the shell chrome keeps its own affordance
         // cursors (pointer over buttons). Also fire the one-time "press V" hint
         // — a live canvas booting in browse is exactly when it's teachable.
+        // P8 C5 (04 md-comment): the Comment tool in hand docks the Comments panel (on the arming edge only).
+        if (commentToolWatch.armed(m.tool)) openRightPanel('comments');
         if (m.tool === 'browse') {
           document.body.style.cursor = '';
           const el = document.getElementById('dc-app-cursor');

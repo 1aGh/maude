@@ -205,7 +205,7 @@ describe('the Canvases panel', () => {
     const { host } = await mount();
     expect(host.querySelector('[data-testid^="canvas-row-arriving-"]')).toBeNull();
     expect(host.querySelector('[data-testid^="canvas-row-not-local-"]')).toBeNull();
-    expect(q(host, 'canvases-foot')?.getAttribute('data-slot')).toBe('default');
+    expect(q(host, 'canvases-foot')).toBeNull(); // P8 C5: the default foot is not drawn at rest
   });
 
   test('arriving rows are named, dimmed and pulsing; the foot says how far it has got', async () => {
@@ -266,7 +266,7 @@ describe('the Canvases panel', () => {
     expect(row?.closest('[role="treeitem"]')?.getAttribute('aria-label')).toBe(
       "Combine-video-AI isn't on this Mac yet."
     );
-    expect(q(host, 'canvases-foot')?.getAttribute('data-slot')).toBe('default');
+    expect(q(host, 'canvases-foot')).toBeNull();
     const { setShowLocalOnly } = await import('../client/v2/empty/arriving.jsx');
     await act(async () => setShowLocalOnly(true));
     expect(q(host, 'canvas-row-not-local-ui-2026-combine-video-ai')).toBeNull();

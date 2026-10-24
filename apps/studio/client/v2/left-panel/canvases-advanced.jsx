@@ -103,6 +103,8 @@ export function CanvasesAdvanced({
   isSystem = false,
   dsName = null,
   onOpenDs,
+  makeDs = null, // { label } | null — a project with no system and a person who can make one
+  onMakeDs,
   fetchImpl,
   children,
 }) {
@@ -192,6 +194,22 @@ export function CanvasesAdvanced({
               onClick={() => onOpenDs?.(dsName)}
             >
               Open
+            </button>
+          </span>
+        </div>
+      ) : makeDs ? (
+        // P8 C5: a project with no design system draws no accent row above its canvases (boards 01 / 02 / 05);
+        // the door is this one row (the same hook, the same ds.make) and Home's starter / ⌘K.
+        <div className="lp-adv-row">
+          <span className="lp-adv-k">Design system</span>
+          <span className="lp-adv-v">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              data-testid="canvases-ds-make"
+              onClick={() => onMakeDs?.()}
+            >
+              {makeDs.label}
             </button>
           </span>
         </div>
