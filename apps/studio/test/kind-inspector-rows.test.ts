@@ -167,14 +167,19 @@ async function frame(el: Record<string, unknown>, over: Record<string, unknown> 
 }
 
 describe('Web page (ak-web-hug, ak-web-widths)', () => {
-  test('chip, then Width · Height · Other widths — and the page says how tall it is now', async () => {
+  test('chip, then Preset · Size · Height · Clip content, Other widths after Export — and the page says how tall it is now', async () => {
     const host = await frame(WEB);
     expect(q(host, 'inspector-kind')?.textContent).toBe('Web page');
+    // V2-8.5 C5 — 14 ed-ab-select draws the web page's card with a Preset, the W · H pair and Clip content
     expect(rowsOf(host)).toEqual([
-      'ab-preset = Width',
+      'ab-preset = Preset',
+      'ab-size = Size',
       'ab-height = Height',
-      'ab-add-width = Other widths',
+      'ab-clip = Clip content',
     ]);
+    expect(q(host, 'insp-row-ab-add-width')?.querySelector('.insp-row-k')?.textContent).toBe(
+      'Other widths'
+    );
     expect(shown(host)).toBe('Desktop · 1440');
     expect(q(host, 'insp-ab-height')?.querySelector('[aria-checked="true"]')?.textContent).toBe(
       'Fits content'

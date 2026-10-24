@@ -10,13 +10,21 @@
 
 import { Copy } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { registerBlock } from '../blocks.js';
 import { registerSlot } from '../slots.js';
 import { Row } from '../sections/row.jsx';
 import { useDismiss } from '../token-chip.jsx';
 import { expectAddedWidths } from './add-width.js';
 import { ADD_PAIR, canAddPair, widthWord } from './artboard-kinds-model.js';
 import { otherWidths } from './artboard-model.js';
-import { HeightRows, SizeSelectRow, handlersOf, useArtboardWrites } from './artboard-rows.jsx';
+import {
+  ClipRow,
+  HeightRows,
+  SizePairRow,
+  SizeSelectRow,
+  handlersOf,
+  useArtboardWrites,
+} from './artboard-rows.jsx';
 
 /** Ask for copies of this board at `widths`: the canvas places them; the legacy single-width write is the fallback. */
 export function addWidths({ f, id, ctx, widths }) {
@@ -113,21 +121,38 @@ export function AddWidthRow({ f, id, ctx }) {
   );
 }
 
+/**
+ * V2-8.5 C5 (14 ed-ab-select) — the web page's card: Preset · Size (W · H) · Height · Clip content. Fill, Layout and
+ * Export are sections after it, and Other widths closes the card (`OtherWidths`, below).
+ */
 function WebRows({ el, ctx }) {
-  const { f, id, resize, setHug } = useArtboardWrites(el, ctx);
+  const { f, can, resize, setHug, commitHeight } = useArtboardWrites(el, ctx);
   return (
     <>
-      <SizeSelectRow k="Width" f={f} resize={resize} />
+      <SizeSelectRow k="Preset" f={f} resize={resize} />
+      <SizePairRow k="Size" f={f} can={can} resize={resize} commitHeight={commitHeight} />
       <HeightRows f={f} setHug={setHug} />
-      <AddWidthRow f={f} id={id} ctx={ctx} />
+      <ClipRow />
     </>
   );
 }
 
-const kindOf = (selection) => {
+/** Other widths — after Export, the card's last row (14 ed-ab-select). */
+function OtherWidths({ el, selection, ctx }) {
+  const one = Array.isArray(selection) ? selection[0] : selection;
+  const { f, id } = useArtboardWrites(el, ctx);
+  if (kindOf(one) !== 'web') return null;
+  return (
+    <section className="insp-sec" data-testid="insp-sec-other-widths" aria-label="Other widths">
+      <AddWidthRow f={f} id={id} ctx={ctx} />
+    </section>
+  );
+}
+
+function kindOf(selection) {
   const el = Array.isArray(selection) ? selection[0] : selection;
   return el?.attrs?.['data-dc-kind'] || 'digital';
-};
+}
 
 export const ARTBOARD_WEB_SLOTS = Object.freeze([
   [
@@ -146,6 +171,15 @@ export const ARTBOARD_WEB_SLOTS = Object.freeze([
 /** @returns {() => void} take the Web page rows back out of the registry */
 export function registerArtboardWebSlots() {
   const offs = ARTBOARD_WEB_SLOTS.map(([section, entry]) => registerSlot(section, entry));
+  offs.push(
+    registerBlock({
+      id: 'artboard.other-widths',
+      kinds: ['artboard'],
+      at: 'bottom',
+      order: 10,
+      Body: OtherWidths,
+    })
+  );
   return () => {
     for (const off of offs) off();
   };

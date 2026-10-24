@@ -1,21 +1,21 @@
 // client/v2/inspector/kinds/artboard-advanced-rows.jsx — S7.21: what a web page, a fixed size and a video keep under
 // Advanced ("Every number, under Advanced." — 08).
 //
-//   Exact size     W × H, for a web page and a video (a fixed size shows them above; paper has its own, S7.23:
+//   Exact size     W × H, for a video (a web page and a fixed size show them on the card; paper has its own, S7.23:
 //                  artboard-print-advanced.jsx)
-//   Clip content   on — an artboard always clips to its edge
+//   Clip content   on — an artboard always clips to its edge (a web page shows it on the card)
 //   Kind           the same four words as the chip; switching still writes the kind prop (S7.25 asks first when it
 //                  converts something)
 //   the facts      `kind web · width 1440px · height auto · min 900px · display flex · column`
 //
 // Rendered by ArtboardAdvanced (artboard-advanced.jsx); testids are the ones the rows had in the Artboard section.
 
-import { Select, Toggle } from '../../../inspector-controls.jsx';
+import { Select } from '../../../inspector-controls.jsx';
 import { resolvePrintArtboard } from '../../../../print/units.ts';
 import { Row } from '../sections/row.jsx';
 import { advancedFacts } from './artboard-kinds-model.js';
 import { KIND_OPTIONS } from './artboard-model.js';
-import { SizePairRow, handlersOf, useArtboardWrites } from './artboard-rows.jsx';
+import { ClipRow, SizePairRow, handlersOf, useArtboardWrites } from './artboard-rows.jsx';
 import { useCompMedia } from '../../transcript/comp-media-store.js';
 import { useVideoFacts } from './video-facts.js';
 import { ArtboardSpacingRows } from './artboard.jsx';
@@ -54,17 +54,12 @@ export function ArtboardAdvancedRows({ el, ctx }) {
 
   return (
     <div className="insp-adv-kind" data-testid="insp-adv-kind">
-      {f.kind !== 'digital' && f.kind !== 'print' ? (
+      {/* V2-8.5 C5 (14 ed-ab-select): a web page draws its W · H and Clip content on the card itself */}
+      {f.kind !== 'digital' && f.kind !== 'print' && f.kind !== 'web' ? (
         <SizePairRow f={f} can={can} resize={resize} commitHeight={commitHeight} />
       ) : null}
       {f.kind === 'web' ? <ArtboardSpacingRows el={el} ctx={ctx} /> : null}
-      <Row k="Clip content" name="ab-clip">
-        <span data-testid="insp-ctl-ab-clip">
-          {/* An artboard always clips to its edge (DCArtboard); there is no prop to turn it off, so the switch shows
-              the truth and does not pretend. */}
-          <Toggle checked ariaLabel="Clip content" onChange={() => {}} />
-        </span>
-      </Row>
+      {f.kind === 'web' ? null : <ClipRow />}
       <Row k="Kind" name="ab-kind">
         <Select
           value={f.kind}

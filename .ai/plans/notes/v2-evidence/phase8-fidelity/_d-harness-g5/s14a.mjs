@@ -9,7 +9,7 @@ export async function run(h) {
   const fr = page.frameLocator('[data-testid="canvas-frame"]');
   const fold = async () => { await h.click('panel-fold-left').catch(() => {}); await sleep(600); };
   const box = async (id) => fr.locator(`[data-dc-screen="${id}"]`).first().boundingBox();
-  const label = async (id) => { await fr.locator(`[data-dc-screen="${id}"] .dc-artboard-label`).first().click(); await sleep(900); };
+  const label = async (id) => { const c = await k.ctr(`[data-dc-screen="${id}"] .dc-artboard-label`); await page.mouse.click(c.x - c.b.width / 2 + 12, c.y); await sleep(900); };
   if (process.env.FX !== 'gators') {
     await h.open('ui-homepage', 3000);
     await fold();
@@ -21,8 +21,10 @@ export async function run(h) {
       const x = b.x + b.width, y = b.y + b.height / 2;
       await page.mouse.move(x, y);
       await page.mouse.down();
-      await page.mouse.move(x - 60, y, { steps: 6 });
-      await page.mouse.move(x - 120, y, { steps: 6 });
+      // 1440 -> 1280: the preset the width clicks onto (the board's "Laptop · 1280")
+      const land = (160 * b.width) / 1440;
+      await page.mouse.move(x - land / 2, y, { steps: 6 });
+      await page.mouse.move(x - land, y, { steps: 8 });
       await sleep(500);
     });
     await page.mouse.up();
