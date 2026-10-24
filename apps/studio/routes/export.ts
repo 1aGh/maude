@@ -46,10 +46,13 @@ import {
   type VideoFactsReader,
 } from '../exporters/video-cap.ts';
 import { sessionFromRequest } from '../session-scope.ts';
+import type { ThumbRequest, ThumbResult } from '../thumbs/service.ts';
 import type { RouteSpec } from './table.ts';
 
 const MAX_BODY = 64 * 1024;
 const MAX_RETRY_ITEMS = 256;
+/** one answer never fans out into more pictures than a sheet draws (a stack of 3 × 4 rows, the format tiles) */
+const MAX_PREVIEW_PICTURES = 24;
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -70,6 +73,8 @@ export interface ExportRouteDeps {
   videoFacts?: VideoFactsReader;
   /** THIS request's session (access/request.ts `currentAccess`) */
   access(req?: Request): Access;
+  /** the project's picture service (`thumbs/service.ts` `thumb`), read lazily; absent = no pictures (`no-engine`) */
+  thumb?: (req: ThumbRequest) => Promise<ThumbResult>;
   /** this session's finished exports (throughput history) */
   history(): readonly ExportHistoryEntry[];
   /** where `lane: 'auto'` renders (workspace-mode.ts `resolveRenderLane`) */
@@ -384,6 +389,69 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
             ...(deps.preflight.rects && b.measure !== false ? { rects: deps.preflight.rects } : {}),
           })
         );
+      },
+    },
+    {
+      // P8 stage C round 2 (09 export) — the pictures the sheet draws for what it is about to export: one small
+      // still per artboard the spec reaches (a batch row's thumbnail stack, a format tile's picture). The spec goes
+      // through the SAME gate as the estimate, so a canvas the session cannot see is simply not in the answer; the
+      // pictures come from the project's thumbnail service (capture origin, no new render path) and are fetched
+      // with GET /_api/thumb/<key> like every other row picture. Names, keys and sizes only; the EXPORT class.
+      method: 'POST',
+      path: '/_api/export-preview',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async (req) => {
+        const a = deps.access(req);
+        if (!a.can('export', null) && a.grants.length === 0) return capabilityRefusal();
+        if (Number(req.headers.get('content-length')) > MAX_BODY)
+          return json(413, { error: 'too-large' });
+        const text = await req.text();
+        if (text.length > MAX_BODY) return json(413, { error: 'too-large' });
+        let body: unknown;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          return json(400, { error: 'bad-json' });
+        }
+        const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+        if (!b || Object.keys(b).some((k) => k !== 'spec'))
+          return json(400, { error: 'bad-spec', field: 'body', message: 'body must be {spec}' });
+        const g = gateSpecV2(b.spec, deps, req);
+        if (!g.ok) return g.response;
+        const ask = deps.thumb;
+        const byRel = new Map(g.visible.map((c) => [c.rel, c]));
+        const seen = new Set<string>();
+        const wanted: { canvas: string; artboard: string; label: string; kind: string }[] = [];
+        for (const u of g.units) {
+          const c = u.canvas ? byRel.get(u.canvas) : null;
+          if (!c) continue;
+          for (const board of u.artboards) {
+            const key = `${c.rel}\u0000${board.id}`;
+            if (seen.has(key) || wanted.length >= MAX_PREVIEW_PICTURES) continue;
+            seen.add(key);
+            wanted.push({
+              canvas: c.rel,
+              artboard: board.id,
+              label: board.label ?? board.id,
+              kind: board.kind ?? 'digital',
+            });
+          }
+        }
+        const items = await Promise.all(
+          wanted.map(async (w) => {
+            const picture = ask
+              ? await ask({
+                  canvas: w.canvas,
+                  artboard: w.artboard,
+                  size: 'card',
+                  priority: 'visible',
+                }).catch(() => ({ status: 'unavailable', reason: 'failed' }) as const)
+              : ({ status: 'unavailable', reason: 'no-engine' } as const);
+            return { ...w, picture };
+          })
+        );
+        return json(200, { items });
       },
     },
     {
