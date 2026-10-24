@@ -80,3 +80,15 @@ Re-shot on the stage C round 2 tip (feat/maude-v2 6d19daa9a), release-built clie
 | ex-edges | unreachable — needs a viewer-role session / a live AI edit on the artboard. Spec only |
 
 Harness notes: the What's New panel opens over a fresh project and is now closed by `run.mjs` before shooting.
+
+## After (round 4, p8-c4-kindsexport) — batch kind rows, print strip, toast, titles
+
+Re-shot light + dark with the committed stage-D harness (`_d-harness-g3`, t09). Pairs overwritten in this folder.
+
+| artboard id | after (round 4) |
+|---|---|
+| ex-canvas, ex-batch-pick, ex-batch, ex-huge | each kind row = icon tile · title + names · artboard stills (right) · format select with its small note ("Bleed + crop marks" / "In the cloud") under it; no "Other format" / "Annotations" rows (under Advanced); Folders is a select with the path under it; Print counts pages ("Print · 2 pages"); the whole-project title names the project like the project pill ("Export everything in <project>") |
+| ex-print, ex-print-warn | title "Export “…” + its back", summary "1 PDF · 2 pages · …", the page strip is 34 × 47 thumbnails between ‹ › |
+| ex-inspector | the "Copied … as a PNG" pill is one line (fit-content), still bottom-docked |
+| ex-video, ex-offline | unchanged: the filmstrip's clip stills / names / music bed and the cloud / this-Mac render cards are open (see fix-c4-kindsexport.md) |
+| ex-advanced, ex-formats, ex-history, ex-share-vs | unchanged this round (open) |

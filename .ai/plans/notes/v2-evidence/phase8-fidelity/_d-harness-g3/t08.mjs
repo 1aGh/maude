@@ -85,7 +85,9 @@ export async function run(h) {
   await h.step(`${D}/ak-convert`, 'Post 4:5 → A6 print', 'select the post, Size select › A6', async () => {
     await page.screenshot({ path: 'out/conv-pre.png' });
     await page.locator('[data-testid="insp-ab-preset"]').first().selectOption('paper:a6', { timeout: 5000 });
-    await sleep(1800);
+    // round 4: the "Check after" list resolves in ~3 s (a headless render) — wait for it, a shot at 1.8 s caught "Checking…"
+    for (let i = 0; i < 12; i++) { await sleep(1000); const t = await page.locator('[data-testid="convert-check"]').first().innerText().catch(() => ''); if (t && !/Checking/.test(t)) break; }
+    await sleep(400);
   });
   await h.step(`${D}/ak-convert-after`, 'After — the post stays, the A6 copy sits beside it', 'dialog › Make A6 print', async () => {
     const go = page.getByRole('button', { name: /make a6 print/i }).first();
