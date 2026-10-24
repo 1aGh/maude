@@ -103,29 +103,21 @@ export type AiRings = Record<string, AiRing>;
 
 const RINGS_CSS = `
 .dc-ai-rings {
-  --dc-ai-spark: oklch(0.66 0.2 36);
-  --dc-ai-spark-fg: oklch(0.2 0.03 36);
-  --dc-ai-spark-text: oklch(0.5 0.17 36);
-  --dc-ai-spark-muted: oklch(0.66 0.2 36 / 0.12);
-  --dc-ai-azure: oklch(0.53 0.175 238);
-  --dc-ai-azure-fg: oklch(0.99 0.004 238);
-  --dc-ai-azure-muted: oklch(0.53 0.175 238 / 0.12);
-  --dc-ai-ink: oklch(0.99 0.004 250);
+  /* P8 C5 (C0 rule): the AI's rim and tags read ONLY the HUD tokens - spark for the AI, accent for "needs you" */
+  --dc-ai-spark: var(--maude-hud-spark, oklch(0.66 0.2 36));
+  --dc-ai-spark-fg: var(--maude-hud-spark-fg, oklch(0.2 0.03 36));
+  --dc-ai-spark-text: var(--maude-hud-spark-text, oklch(0.5 0.17 36));
+  --dc-ai-spark-muted: var(--maude-hud-spark-muted, oklch(0.66 0.2 36 / 0.12));
+  --dc-ai-azure: var(--maude-hud-accent, oklch(0.53 0.175 238));
+  --dc-ai-azure-fg: var(--maude-hud-accent-fg, oklch(0.99 0.004 238));
+  --dc-ai-azure-muted: var(--maude-hud-accent-muted, oklch(0.53 0.175 238 / 0.12));
+  --dc-ai-ink: var(--maude-chrome-bg-2, oklch(0.99 0.004 250));
   --dc-ai-dur: 320ms;
   --dc-ai-sweep: 1100ms;
   --dc-ai-ease: cubic-bezier(0.34, 1.4, 0.5, 1);
   position: fixed; inset: 0; z-index: 7; pointer-events: none;
 }
-:root[data-maude-theme="dark"] .dc-ai-rings {
-  --dc-ai-spark: oklch(0.7 0.185 38);
-  --dc-ai-spark-fg: oklch(0.2 0.03 38);
-  --dc-ai-spark-text: oklch(0.74 0.15 38);
-  --dc-ai-spark-muted: oklch(0.7 0.185 38 / 0.18);
-  --dc-ai-azure: oklch(0.64 0.165 238);
-  --dc-ai-azure-fg: oklch(0.18 0.03 238);
-  --dc-ai-azure-muted: oklch(0.64 0.165 238 / 0.18);
-}
-.dc-ai-ring { position: fixed; display: none; border-radius: 6px; box-sizing: border-box; pointer-events: none; }
+.dc-ai-ring { position: fixed; display: none; border-radius: var(--maude-hud-radius-sm, 6px); box-sizing: border-box; pointer-events: none; }
 .dc-ai-ring[data-state="running"] { border: 1.5px dashed var(--dc-ai-spark); }
 .dc-ai-ring[data-state="needs-you"] { border: 1.5px dashed var(--dc-ai-azure); box-shadow: 0 0 0 4px var(--dc-ai-azure-muted); }
 .dc-ai-ring[data-state="done"] {
@@ -136,7 +128,7 @@ const RINGS_CSS = `
 .dc-ai-tag {
   position: absolute; right: -2px; display: inline-flex; align-items: center; gap: 4px; max-width: 320px;
   padding: 2px 8px 2px 4px; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font: 600 11px/16px ui-rounded, system-ui, -apple-system, sans-serif; letter-spacing: 0;
+  font: 600 var(--maude-hud-type-xs, 11px)/16px var(--maude-hud-font-rounded, ui-rounded, system-ui, sans-serif); letter-spacing: 0;
 }
 .dc-ai-ring[data-at="above"] .dc-ai-tag { bottom: calc(100% + 2px); }
 .dc-ai-ring[data-at="below"] .dc-ai-tag { top: calc(100% + 8px); }
@@ -158,6 +150,16 @@ const RINGS_CSS = `
   background: var(--dc-ai-spark); box-shadow: 0 0 0 1px var(--dc-ai-spark-muted);
 }
 .dc-ai-ring[data-state="done"] .dc-ai-sweep { display: block; animation: dc-ai-sweep var(--dc-ai-sweep) ease-in-out 1 both; }
+/* 03 .ai-wipe-lab: the Before / After pills ride the sweep line - bg-2 pill, fg-0 semibold, shadow-sm */
+.dc-ai-wipe-lab {
+  position: absolute; top: 8px; display: none; padding: 1px 8px; border-radius: 999px; white-space: nowrap;
+  background: var(--maude-chrome-bg-2, #fff); color: var(--maude-chrome-fg-0, #111);
+  font: 600 var(--maude-hud-type-xs, 11px)/16px var(--maude-chrome-font-body, system-ui, sans-serif);
+  box-shadow: var(--maude-hud-shadow-md, 0 1px 3px rgb(0 0 0 / 0.2));
+}
+.dc-ai-wipe-lab[data-side="before"] { right: calc(100% + 4px); }
+.dc-ai-wipe-lab[data-side="after"] { left: calc(100% + 4px); }
+.dc-ai-ring[data-state="done"] .dc-ai-wipe-lab { display: block; }
 @keyframes dc-ai-sweep { from { left: 0; opacity: 1; } 85% { opacity: 1; } to { left: 100%; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .dc-ai-rings { --dc-ai-dur: 1ms; --dc-ai-sweep: 1ms; }
@@ -270,7 +272,14 @@ export function ArtboardRingsLayer() {
             data-who={r.who}
             data-at="below"
           >
-            <span className="dc-ai-sweep" />
+            <span className="dc-ai-sweep">
+              <span className="dc-ai-wipe-lab" data-side="before">
+                Before
+              </span>
+              <span className="dc-ai-wipe-lab" data-side="after">
+                After
+              </span>
+            </span>
             <span className="dc-ai-tag">
               {r.who !== 'you' && r.state !== 'done' ? (
                 <span className="dc-ai-face">{faceLetter(r.who)}</span>

@@ -248,6 +248,25 @@ export function doneRings(ids) {
   return out;
 }
 
+/**
+ * P8 C5 (03 ai-hero / 04 md-edge-ai): the artboards whose run just finished well between two reads - the ones the
+ * canvas settles a solid spark ring on for a moment (`runs-store.markDone`) before "Made by AI" takes over. A run
+ * counts when it was live and holding artboards in `prev`, and now reads `ended` with outcome `done`. A stopped,
+ * failed or vanished run leaves no ring (it did not make anything).
+ */
+export function finishedArtboards(prev, next) {
+  const out = [];
+  const now = new Map((next?.mine || []).map((r) => [r.runId ?? r.id, r]));
+  for (const r of prev?.mine || []) {
+    if (!isLiveRun(r)) continue;
+    const after = now.get(r.runId ?? r.id);
+    if (!after || after.state !== 'ended' || after.outcome !== 'done') continue;
+    for (const l of r.leases || [])
+      if (l?.artboard && !out.includes(l.artboard)) out.push(l.artboard);
+  }
+  return out;
+}
+
 /** What the canvas gets: the live rings with the done ones under them (a live ring wins its artboard). */
 export function mergeRings(live, done) {
   return { ...(done || {}), ...(live || {}) };
