@@ -1,0 +1,137 @@
+{
+ "03-ai-chat": {
+  "nn": "03",
+  "dir": "03-ai-chat",
+  "ids": {
+   "ai-hero": {
+    "impl": "ai-hero"
+   },
+   "ai-open": {
+    "impl": "ai-open"
+   },
+   "ai-suggest": {
+    "impl": "ai-suggest",
+    "crop": [
+     1075,
+     590,
+     355,
+     300
+    ]
+   },
+   "ai-scope": {
+    "impl": "ai-scope",
+    "crop": [
+     1050,
+     280,
+     390,
+     620
+    ]
+   },
+   "ai-working": {
+    "impl": "ai-working"
+   },
+   "ai-done": {
+    "impl": "ai-done"
+   },
+   "ai-attach": {
+    "impl": "ai-attach-drop"
+   },
+   "ai-attach-menu": {
+    "impl": "ai-attach-menu",
+    "crop": [
+     1050,
+     280,
+     390,
+     620
+    ]
+   },
+   "ai-question": {
+    "impl": "ai-question"
+   },
+   "ai-long": {
+    "impl": "ai-long"
+   },
+   "ai-long-pinned": {
+    "impl": "ai-long-pinned"
+   },
+   "ai-two-artboards": {
+    "impl": "ai-two-artboards"
+   },
+   "ai-same-artboard": {
+    "impl": "ai-same-artboard"
+   },
+   "ai-copy": {
+    "impl": "ai-copy"
+   },
+   "ai-queue-rule": {
+    "reason": "A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy."
+   },
+   "ai-other-tab": {
+    "reason": "Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project."
+   },
+   "ai-tereza": {
+    "reason": "Needs a second person's AI on the same canvas (hub / cloud project)."
+   },
+   "ai-chat-list": {
+    "impl": "ai-chat-list",
+    "crop": [
+     1075,
+     95,
+     360,
+     795
+    ]
+   },
+   "ai-panel-closed": {
+    "impl": "ai-panel-closed"
+   },
+   "ai-quit": {
+    "impl": "ai-quit"
+   },
+   "ai-needs-hidden": {
+    "impl": "ai-needs-hidden"
+   },
+   "ai-needs-tab": {
+    "reason": "Needs a second project tab (desktop shell tabs)."
+   },
+   "ai-needs-away": {
+    "reason": "The app in the background: an OS notification and Dock badge, native only."
+   },
+   "ai-permission": {
+    "impl": "ai-permission"
+   },
+   "ai-choice-fail": {
+    "impl": "ai-choice-fail",
+    "crop": [
+     1050,
+     280,
+     390,
+     620
+    ]
+   },
+   "ai-not-ready": {
+    "impl": "ai-not-ready"
+   },
+   "ai-advanced": {
+    "impl": "ai-advanced",
+    "crop": [
+     1050,
+     60,
+     390,
+     830
+    ]
+   },
+   "ai-adv-edges": {
+    "impl": "ai-adv-edges",
+    "crop": [
+     1050,
+     60,
+     390,
+     830
+    ]
+   },
+   "ai-history": {
+    "impl": "ai-history"
+   }
+  }
+ }
+}
