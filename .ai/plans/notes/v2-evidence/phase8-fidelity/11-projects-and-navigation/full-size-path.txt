@@ -16,3 +16,6 @@ final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a1
 
 round 8 (p8-c8-misc2, tip ce5531151 + this round's commits): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/pairs/11-projects-and-navigation
 (full-size PNG pairs <id>-<theme>.png, spec | impl; spec reused from stage A / D5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/spec/11-projects-and-navigation/; impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a4b2de463af638d6e/.scr/impl/11-projects-and-navigation/; ids pn-tab-b pn-tab-b20 pn-switch-ai-strip pn-relaunch-strip pn-move pn-deeplink; harness _c8m2-harness-g4, local Google Chrome)
+
+final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/pairs/11-projects-and-navigation
+(full-size PNG pairs: <id>-<theme>.png, spec | impl; spec PNGs reused from stage A (boards unchanged since): /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/spec/11-projects-and-navigation/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afe06393dccec2837/.scr/impl/11-projects-and-navigation/; merged tip of feat/maude-v2 after stage C round 8, release-built client, Mac mini slot 2 with Google Chrome, harness _d6-harness-g4)
