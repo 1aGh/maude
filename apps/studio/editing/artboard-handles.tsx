@@ -209,7 +209,7 @@ const CSS_TEXT = `
   opacity: 0.86;
   white-space: pre;
 }
-/* 07 M1 - a video's tail ("\00a0· Reels · 0:14", then the size chip) already starts with its own gap and its
+/* 07 M1 - a video's tail (a no-break space, "· Reels · 0:14", then the size chip) already starts with its own gap and its
    separator; the rest label carries the same words (no chip) so the name never changes under the pointer. */
 .dc-canvas .dc-artboard[data-dc-kind='video'][data-ed-selected] > .dc-artboard-label[data-dc-vtail]::after {
   content: attr(data-ed-size);
