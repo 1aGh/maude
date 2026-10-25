@@ -4,13 +4,13 @@
 # Release-builds the client, assembles .scr, shoots every reachable id of the canvas for ONE theme into .scr/impl/<NN-dir>/.
 cd "$(dirname "$0")/../../../../../.." || exit 1
 N=$1; T=$2
-bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d6f-harness-g5/setup.sh "${N%p}" || exit 1
+bash .ai/plans/notes/v2-evidence/phase8-fidelity/_d6f-harness-g5/setup.sh "${N:0:2}" || exit 1
 (cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release) 2>&1 | tail -3
 export SHOTS_OUT=.scr/impl
 export SHOT_CHANNEL="${SHOT_CHANNEL-chrome}"
 mkdir -p .scr/impl
 # a slot's .scr survives between runs: drop this canvas's earlier shots of this theme so only fresh ones are fetched
-case "${N%p}" in 13) DIR=13-design-system;; 14) DIR=14-editing;; 15) DIR=15-annotations;; esac
+case "${N:0:2}" in 13) DIR=13-design-system;; 14) DIR=14-editing;; 15) DIR=15-annotations;; esac
 rm -f .scr/impl/$DIR/*-$T.png .scr/impl/$DIR/*-$T.*.png
 run() {
   local out
@@ -41,6 +41,9 @@ case "$N" in
   for s in s14h s14i s14j; do echo "== $s $T"; run .scr/$s.mjs $T; done
   echo "== s14e (c8) $T"; FX= run .scr/s14e.mjs $T
   echo "== s14g (c8) $T"; run .scr/s14g.mjs $T
+  ;;
+14h) # re-run of s14h alone (ONLY=<ids> DBGSHOT=1 pass through the environment)
+  echo "== s14h $T"; run .scr/s14h.mjs $T
   ;;
 15)
   for g in a b c d e f; do echo "== s15 G=$g $T"; G=$g run .scr/s15.mjs $T; done
