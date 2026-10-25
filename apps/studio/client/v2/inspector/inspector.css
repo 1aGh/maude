@@ -94,6 +94,10 @@
     flex: none;
     margin-left: auto;
   }
+  /* 14 · ed-inspector: the object's "Uses <system>" row right under the name (no hairline) */
+  .insp-uses-top {
+    margin: var(--space-1) 0 var(--space-2);
+  }
   /* 13 · ds-where-studio: a hairline, then the door (`.ds-insp-sep` + `.ds-uses`) */
   .insp-uses-wrap {
     margin-top: var(--space-2);

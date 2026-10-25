@@ -48,7 +48,12 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
 
 const oneLine = (v: unknown, fallback: string): string => {
   if (typeof v !== 'string') return fallback;
-  const t = v.replace(/\p{Cc}+/gu, ' ').trim();
+  // a description a system writes after the name — "Tabs (this system switches views with …)" — is not the row's
+  // name: 14 ed-comp-pick draws "Tabs" and nothing after it
+  const t = v
+    .replace(/\p{Cc}+/gu, ' ')
+    .replace(/\s*\([^)]*\)\s*$/u, '')
+    .trim();
   return t && t.length <= LABEL_MAX ? t : fallback;
 };
 

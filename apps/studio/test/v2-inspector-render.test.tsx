@@ -158,8 +158,25 @@ describe('the header', () => {
     expect(q(host, 'inspector-uses')?.textContent).toContain('Uses Studio');
   });
 
-  test('the “Uses <system>” door sits among the fields, under a hairline — not right under the title (13 · ds-where-studio, P8 C5)', async () => {
+  test('an object’s “Uses <system>” row sits right under the title (14 · ed-inspector, P8 C7)', async () => {
     const host = await frame();
+    const uses = q(host, 'inspector-uses') as HTMLElement;
+    const hd = host.querySelector('.insp-hd') as HTMLElement;
+    expect(hd.nextElementSibling?.contains(uses) || hd.nextElementSibling === uses).toBe(true);
+    expect(uses.closest('.insp-uses-wrap')).toBeNull();
+  });
+
+  test('an artboard’s “Uses <system>” door sits among the fields, under a hairline (13 · ds-where-studio, P8 C5)', async () => {
+    const host = await frame({
+      selected: {
+        selector: '[data-dc-screen="desktop"]',
+        tag: 'div',
+        artboardId: 'desktop',
+        attrs: { 'data-dc-kind': 'web' },
+        bounds: { x: 0, y: 0, w: 1440, h: 900 },
+      },
+      layersTree: null,
+    });
     const uses = q(host, 'inspector-uses') as HTMLElement;
     const fields = host.querySelector('fieldset.ed-insp-fields') as HTMLElement;
     expect(fields.contains(uses)).toBe(true);

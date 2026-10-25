@@ -174,6 +174,13 @@ export function InspectorFrame({
   const chip = kindChipOf(selected);
   const crumbs = crumbsOf(layersTree, Array.isArray(selected) ? null : el);
   const ds = activeDsNameFor(canvasFile, cfg);
+  const usesOnTop =
+    !kind.bare &&
+    kind.id !== 'artboard' &&
+    kind.id !== 'multi-artboard' &&
+    kind.id !== 'multi' &&
+    !!ds &&
+    isConfiguredSystem(cfg, ds);
   // S2.8 — the artboard's handlers ride on ctx too: kinds/artboard.jsx's section bodies write through them
   const artboard = {
     onResizeArtboard,
@@ -226,6 +233,13 @@ export function InspectorFrame({
           {chip}
         </span>
       </div>
+      {/* 14 · ed-inspector (P8 C7): an OBJECT's "Uses <system>" row is the first thing under the name, as the
+          board draws it; an artboard keeps the door at the foot (13 · ds-where-studio) */}
+      {usesOnTop ? (
+        <div className="insp-uses-top">
+          <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} />
+        </div>
+      ) : null}
       {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
       <AssetAbsentBox el={el1} canvas={canvasFile} />
       <HoldLine line={hold.line} />
@@ -257,7 +271,7 @@ export function InspectorFrame({
         ))}
         {/* S10.13 — the line is a door to the system's canvas (ds.go-to) when the shell can run it. 13 ·
             ds-where-studio draws it as the last thing before Advanced, under a hairline (P8 C5) */}
-        {!kind.bare && ds && isConfiguredSystem(cfg, ds) ? (
+        {!kind.bare && !usesOnTop && ds && isConfiguredSystem(cfg, ds) ? (
           <div className="insp-uses-wrap">
             <UsesLink ds={ds} cfg={cfg} onShellAction={onShellAction} />
           </div>

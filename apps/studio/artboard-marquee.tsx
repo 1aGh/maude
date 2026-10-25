@@ -18,9 +18,23 @@
 import { useEffect, useRef } from 'react';
 
 import { useArtboardsContext } from './canvas-lib.tsx';
+import { hoverTargetToSelection } from './dom-selection.ts';
 import { DRAG_THRESHOLD_PX } from './input-router.tsx';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 import { useToolMode } from './use-tool-mode.tsx';
+
+/**
+ * The whole-artboard selection a marquee hit makes. P8 C7 (14 ed-ab-tidy): the SAME snapshot a click on the
+ * artboard makes — its attrs (kind, print, bg), world size and geometry — because the inspector's multi-artboard
+ * card compares them (a slim `{selector, artboardId}` read "Size — × —" where the board says a shared size or Mixed).
+ */
+export function artboardHit(el: Element, id: string): Selection {
+  return {
+    ...hoverTargetToSelection({ el, cdId: null, artboardId: id } as never),
+    selector: `[data-dc-screen="${id}"]`,
+    artboardId: id,
+  };
+}
 
 const MARQUEE_CSS = `
 .dc-cv-marquee {
@@ -148,10 +162,7 @@ export function ArtboardMarqueeOverlay() {
         // AABB intersection test — any overlap counts as a hit.
         if (b.right < left || b.left > right) continue;
         if (b.bottom < top || b.top > bottom) continue;
-        hits.push({
-          selector: `[data-dc-screen="${r.id}"]`,
-          artboardId: r.id,
-        });
+        hits.push(artboardHit(el, r.id));
       }
       if (hits.length === 0) return;
       if (s.shift) selSet.add(hits);

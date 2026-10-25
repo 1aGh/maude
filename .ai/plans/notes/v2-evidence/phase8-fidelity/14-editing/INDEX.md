@@ -425,3 +425,59 @@ Re-shot 52 of 52 pairs; 0 unreachable. Supersedes every earlier "after" / "FINAL
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 7, c7-edit2) - IMPL re-shot on the p8-c7-edit2 tip, both themes
+Re-shot: every 14 id except ed-edge-tereza (needs a second browser; kept from D4). Harness (`_c7e2-harness-g5/`): Layers open beside the object (obj-enter / -multi / -order / lay-*), the Desktop board framed at ~60 %, ed-inspector = "Book a call" on an 1800 px page (the whole card incl. folded Advanced, Interaction "Open cal.com/studio" / "Lift to Floating"), ed-text-edit on the Alligators post, ed-img with Assets, edge-paste / edge-keys before the AI + Undo steps (no popover or panel left open). Product: the object inspector's "Uses <system>" row sits right under the name (an artboard keeps it at the foot, 13); several artboards caught by a marquee carry size/attrs/geometry so the card reads "Preset Mixed - Size 1080 x Mixed - Position Mixed - Mixed" and both themes shoot the same 3-board state; the component picker drops a system's own description after a row's name; the Tidy bar clears the name labels in both themes.
+
+| id | theme | status | spec |
+|---|---|---|---|
+| `ed-ab-arrange` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-arrange` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-menu` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-menu` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-instance` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-pick` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-comp-pick` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ai` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ai` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-huge` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-huge` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-keys` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-paste` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-img` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-img` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-inspector` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-auto` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-free` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-free` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-enter` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-multi` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-multi` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-obj-order` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-pen` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-pen` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-shape` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-shape` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |

@@ -42,6 +42,7 @@ import {
 } from '../element-ids.ts';
 import { artboardLabels, copyId, copyName } from './duplicate-at-width.ts';
 import { isCoord } from './layout-patch.ts';
+import { needsOf, scopeAt } from './scope-names.ts';
 import { lineIndent, reindent } from './siblings.ts';
 import type { EditOp, ElementRef, LayoutPatch, ResolvedEditOp } from './types.ts';
 
@@ -63,6 +64,9 @@ interface Clip extends ClipHandle {
   names: Array<{ id: string; label: string; width: number | null }>;
   /** objects: the artboard they came from (a paste with nowhere else to go lands there) */
   artboard: string | null;
+  /** objects: the names the copied code reads from around it (a component's values, a helper) — a paste where
+   *  they are not visible is refused (P8 C7), never landed as an error card */
+  needs?: string[];
   bytes: number;
 }
 
@@ -187,6 +191,7 @@ function readObjects(source: string, req: ResolvedEditOp) {
       items: els.map((el) => itemOf(source, all, el)),
       names: [],
       artboard: req.targets[0]?.artboard ?? null,
+      needs: [...new Set(els.flatMap((el) => needsOf(source, el.start, el.end) ?? []))].sort(),
     },
   };
 }
@@ -317,6 +322,15 @@ function pasteObjects(source: string, req: ResolvedEditOp, clip: Clip) {
     artboard = board.artboard as string;
   }
 
+  if (clip.needs?.length) {
+    const seen = scopeAt(source, at);
+    const missing = seen ? clip.needs.filter((n) => !seen.has(n)) : [];
+    if (missing.length)
+      return fail(
+        req.file,
+        `That object reads ${missing.slice(0, 3).join(', ')} from where it was copied; it can’t be pasted here. Copy the whole component instead.`
+      );
+  }
   const created: ElementRef[] = [];
   let block = '';
   for (const raw of clip.items) {

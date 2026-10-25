@@ -38,6 +38,7 @@ const COMPONENTS = {
     },
     Badge: { class: 'badge', label: 'Štítek', variants: {} },
     Chip: { class: 'chip' },
+    Tabs: { class: 'tabs', label: 'Tabs (this system switches views with its segmented control)' },
     Wizard: { class: 'x-wizard' }, // not placeable from here: never listed
   },
   icons: { map: { home: 'h', star: 's', gap: null } },
@@ -119,7 +120,7 @@ describe('the list', () => {
     expect(body.system.name).toBe('alligators');
     expect(body.brand.map((b) => b.name)).toEqual(['Logo', 'Icon']);
     expect(body.brand[1]).toMatchObject({ glyph: 'star', glyphs: 2 });
-    expect(body.components.map((c) => c.name)).toEqual(['Button', 'Badge', 'Chip']);
+    expect(body.components.map((c) => c.name)).toEqual(['Button', 'Badge', 'Chip', 'Tabs']);
     expect(body.components[0]).toMatchObject({
       label: 'Tlačítko',
       variants: [
@@ -130,6 +131,8 @@ describe('the list', () => {
     expect(body.components[1]?.variants).toEqual([]);
     // a component the manifest does not label falls back to its name; its default variants are offered
     expect(body.components[2]).toMatchObject({ label: 'Chip' });
+    // a description the system wrote after its name ("Tabs (this system …)") is not part of the row's name
+    expect(body.components[3]).toMatchObject({ label: 'Tabs' });
     expect(body.patterns).toEqual([]);
   });
 
