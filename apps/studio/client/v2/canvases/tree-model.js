@@ -10,11 +10,16 @@
 // last touched — is the project index (`/_api/index`, V2-1.17), joined on the designRoot-relative path.
 // A canvas the index has not seen yet is still a row; it just has no badges.
 
+import { relativeTime } from '../../home/home-model.js';
 import { copy } from '../empty/empty-copy.js';
 import { DYNAMIC_NOTE, hasJumpList, jumpFoot, jumpIsOpen, normaliseKind } from './jump-model.js';
 import { hasKind, hitCount, isFilterKind, kindFilterFoot } from '../kinds/kind-filter-model.js';
 import { searchCanvases } from './panel-search.js';
 import { DEFAULT_SORT, fold, normaliseSort, sortItems } from './sort.js';
+
+/** 01 cf-big-tree — a project this big keeps a Recent block (the last few canvases, newest first). */
+export const RECENT_MIN_CANVASES = 8;
+export const RECENT_LIMIT = 3;
 
 const CANVAS_EXT = /\.(tsx|html?)$/i;
 const TSX_EXT = /\.tsx$/i;
@@ -387,6 +392,31 @@ export function visibleRows(
       );
     });
   }
+  // 01 cf-big-tree — Recent: the last few canvases opened here (per Mac), newest first, under the Pinned group.
+  // The open canvas is the selected row below, a pinned one is already above: neither repeats.
+  const recent =
+    tree.total >= RECENT_MIN_CANVASES
+      ? allCanvases(tree)
+          .filter((c) => c.openedAt && c.path !== activePath && !pins.has(c.rel))
+          .sort((a, b) => b.openedAt - a.openedAt)
+          .slice(0, RECENT_LIMIT)
+      : [];
+  if (recent.length) {
+    rows.push({ key: 'head:recent', type: 'head', id: 'recent', label: 'Recent' });
+    recent.forEach((c, i) => {
+      rows.push(
+        decorate(c, {
+          key: `rec:${c.path}`,
+          depth: 0,
+          level: 1,
+          posinset: i + 1,
+          setsize: recent.length,
+          inRecent: true,
+          recentWord: relativeTime(c.openedAt),
+        })
+      );
+    });
+  }
   rows.push({
     key: 'head:project',
     type: 'head',
@@ -664,18 +694,18 @@ export function navigate(rows, index, key) {
         return isItem(next) && next.depth > cur.depth ? { focus: index + 1 } : null;
       }
       // S1.3 — → opens a canvas's artboard list, then steps into it
-      if (cur?.type === 'canvas' && cur.jumpable && !cur.inPinned) {
+      if (cur?.type === 'canvas' && cur.jumpable && !cur.inPinned && !cur.inRecent) {
         if (!cur.jumpOpen) return { toggleJump: index };
         return rows[index + 1]?.type === 'board' ? { focus: index + 1 } : null;
       }
       return null;
     case 'ArrowLeft': {
       if (cur?.type === 'folder' && cur.open) return { toggle: index };
-      if (cur?.type === 'canvas' && cur.jumpOpen && !cur.inPinned) return { toggleJump: index };
+      if (cur?.type === 'canvas' && cur.jumpOpen && !cur.inPinned && !cur.inRecent) return { toggleJump: index };
       if (cur?.type === 'board') {
         for (let i = index - 1; i >= 0; i--) if (rows[i].type === 'canvas') return { focus: i };
       }
-      if (cur?.inPinned) return null;
+      if (cur?.inPinned || cur?.inRecent) return null;
       for (let i = index - 1; i >= 0; i--) {
         if (rows[i].type === 'folder' && rows[i].depth < (cur?.depth ?? 0)) return { focus: i };
       }

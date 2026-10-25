@@ -219,7 +219,7 @@ export function CanvasesPanel({
   const wantFocus = useRef(false);
   let focusIndex = focusKey ? rows.findIndex((r) => r.key === focusKey) : -1;
   if (focusIndex < 0) {
-    const cur = rows.findIndex((r) => r.current && !r.inPinned);
+    const cur = rows.findIndex((r) => r.current && !r.inPinned && !r.inRecent);
     focusIndex = cur >= 0 ? cur : firstItem;
   }
   const focusRow = useCallback(
@@ -249,7 +249,7 @@ export function CanvasesPanel({
   const lastActive = useRef(null);
   useEffect(() => {
     if (!activePath || lastActive.current === activePath) return;
-    const i = rows.findIndex((r) => r.current && !r.inPinned);
+    const i = rows.findIndex((r) => r.current && !r.inPinned && !r.inRecent);
     if (i < 0) return;
     lastActive.current = activePath;
     const el = treeRef.current;
@@ -423,7 +423,7 @@ export function CanvasesPanel({
   // biome-ignore lint/correctness/useExhaustiveDependencies: `rowOps.startRename` is stable
   useEffect(() => {
     if (!pendingRename) return;
-    const i = rows.findIndex((r) => r.type === 'canvas' && r.path === pendingRename && !r.inPinned);
+    const i = rows.findIndex((r) => r.type === 'canvas' && r.path === pendingRename && !r.inPinned && !r.inRecent);
     if (i < 0) {
       if (searching) setPendingRename(null); // the row is not in the search's answer: nothing to edit
       return;
@@ -533,6 +533,7 @@ export function CanvasesPanel({
       r.type === 'canvas' &&
       r.jumpOpen &&
       !r.inPinned &&
+      !r.inRecent &&
       (!searching || jumpOpen.get(r.path) === true)
   );
   const jumpFootArgs = listed.length
@@ -1002,7 +1003,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
   const { drag, rowOps } = ctx;
   const slug = pathTestIdSlug(row.path);
   const renaming = rowOps.renaming === row.key;
-  const pinnedCopy = !!row.inPinned;
+  const pinnedCopy = !!row.inPinned || !!row.inRecent; // a second listing of a canvas: no artboard twisty, own testids
   const dirty = ctx.dirtyByPath?.get?.(row.path);
   const oc = (ctx.commentsByFile?.[row.path] || []).filter((c) => c.status !== 'resolved').length;
   const experimental = ctx.canvasKinds?.[row.path];
@@ -1025,8 +1026,9 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
       ) : null}
     </span>
   );
-  const mainId = pinnedCopy ? `canvas-pinned-${slug}` : `canvas-row-${slug}`;
-  const idPrefix = pinnedCopy ? 'canvas-pinned' : 'canvas-row';
+  const copyId = row.inRecent ? 'canvas-recent' : 'canvas-pinned';
+  const mainId = pinnedCopy ? `${copyId}-${slug}` : `canvas-row-${slug}`;
+  const idPrefix = pinnedCopy ? copyId : 'canvas-row';
   const slot = ctx.slotFor?.(row.rel) ?? null; // T-S1a — words other slices publish for this canvas
   const label = row.name;
   const tip = `${row.path}${oc ? ` — ${oc} open` : ''}`;
@@ -1113,6 +1115,11 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
                 title={slot.meta.title || undefined}
               >
                 {slot.meta.word}
+              </span>
+            ) : null}
+            {row.recentWord ? (
+              <span className="cv-meta" data-testid={`${idPrefix}-when-${slug}`}>
+                {row.recentWord}
               </span>
             ) : null}
             {row.kindCount ? (
