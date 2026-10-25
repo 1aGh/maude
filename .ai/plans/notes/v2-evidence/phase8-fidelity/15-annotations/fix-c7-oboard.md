@@ -30,3 +30,40 @@ Branch `p8-c7-g15` (from feat/maude-v2 86eb0eb33). Checklist: `critic-bar2.md` M
 - `decision:maude/v2-c7-g15-marker-popover-one-row`: the Marker / Sticky colour popovers are one flex row with divider elements — rejected: a new component (the data/gestures are unchanged; only the layout differs), 3 widths (the board's `.an-thick--2` draws two).
 - `decision:maude/v2-c7-g15-connection-dots-on-hover`: keep the four magnets as a transparent hit circle, show the dot under the pointer — rejected: removing the dots (the only way to start a bound connector from a shape), showing them while hovering the whole element (the layer has no per-stroke hover state).
 - `decision:maude/v2-c7-g15-first-result-lit`: the first search result is `data-on` and ↵ places it (the board's lit first cell is the ↵ target) — rejected: a roving arrow-key grid (larger than this round; the gallery has no list keyboard model yet).
+
+
+---
+
+# Round 8 · p8-c8-ann — 15 Annotations (done vs open)
+
+Branch `p8-c8-ann` (from feat/maude-v2 0c3654abf). Checklist: `critic-bar3.md` MUST rows. Harness `_c8ann-harness-g5` (copy of `_d5`, s15 / s15g edited); re-shot light + dark on the branch tip.
+
+## Done — product (each with a fail-first test, reverted once)
+
+| change | ids | files | test |
+| --- | --- | --- | --- |
+| Showing the layer again takes the "Annotations hidden. Press ⇧P…" toast down (it sat out its 10 s clock over the next scenes) | an-vs · an-layers | `client/hooks/annotations-hidden-toast.js`, `use-photo-and-timeline.jsx` | `p8-c8-ann-hidden-toast.test.tsx` |
+| Every selection toolbar ends in "…" (word menu; Delete is its "Move to trash" row) — LEAD decision `maude/v2-p8-c8-annot-toolbar-overflow` | an-sticky · an-section · an-stk-drop · an-arrow-kinds | `annotations-context-toolbar.tsx` (`ToolbarMore`) | `annotations-convert-ui` · `annotations-arrow-toolbar` · `annotations-sticker-drop` · `s4-19-fidelity` |
+| Sticky bar: colours · size · list · Lock · Turn into a comment (icon) · "…" (Resolve in the "…") | an-sticky · an-convert | same | `annotations-convert-ui.test.tsx` |
+| Arrow bar: kind · head · inks · Lock · "…"; widths, Two-way and Dashed moved into the "…" (shapes keep Dashed / widths on the bar) | an-arrow-kinds · an-arrow-bind · an-follow · an-dangling | same | `annotations-arrow-toolbar.test.tsx` |
+| The zoomed-out crowd: each section is its own tone (washed block, solid count chip, ink readable on dark) | an-crowd | `annotations/ui/lod.tsx` | `annotations-lod.test.ts` |
+| A note over a print artboard is ghosted at .88 | an-print | `annotations/ui/time-pins.tsx` | `annotations-pin-tags.test.tsx` |
+
+Testids: `annot-ctx-more` / `-delete` / `-dashed` / `-thin` / `-thick` added; `annot-arrow-two-way` and `annot-ctx-resolve` now live in the "…" (testids.json + TESTIDS.md, openers.mjs `annot-arrow-sel` / `annot-sticky-sel` open it, desktop e2e `surface.e2e.ts` deletes through it).
+
+## Done — harness (the board state is now the one shot)
+
+an-section (lilac section, framed whole) · an-today (the whole catalogue seeded, size menu open) · an-sticky (toolbar above the sticky) · an-follow (Elbow set before the drag) · an-dangling (the dangling arrow selected → card + Point to…) · an-convert (thread card + menu on one canvas, the menu on the upper note) · an-plan (toned columns, coloured cards, free space) · an-stamps (stamps + folded tray) · an-crowd (five coloured sections, panel shut, below 25 %) · an-layers (a locked sticky selected).
+
+## Open
+
+- an-follow: the "Let go — the shortest clean path, over Mobile" bubble and the "straight line would cross Mobile" tag are not drawn by the product (elbow routing itself is). Needs a transient tag while an artboard with a bound elbow arrow is dragged.
+- an-stk-drop: after the drop the dock presses Hand; the board keeps Stickers pressed while the placed sticker is selected (the palette lives outside the selection context).
+- an-print: the dashed print-area / bleed outline on the artboards is canvas-lib's print guides (08 kinds), not drawn in Preview.
+- an-plan: legend, stamps on cards and arrows to the artboards are AI-run output; an-video: timeline marks need footage; an-vote / an-stamps count popover need a second person.
+- Unreachable (unchanged): an-ai-*, an-rebind, an-viewer, an-figjam.
+
+## Decisions
+- `decision:maude/v2-p8-c8-ann-toolbar-more-menu`: one `ToolbarMore` "…" word menu ends every selection toolbar; an arrow's widths / Two-way / Dashed live in it (the board draws none of them on the bar) while shapes keep Dashed and widths — rejected: dropping them (nothing-deleted), a separate arrow-options popover.
+- `decision:maude/v2-p8-c8-ann-hidden-toast-follows-layer`: the shell dismisses the toast whenever the layer is visible again — rejected: a harness-only fix (a real person sees the stale sentence for 10 s).
+- `decision:maude/v2-p8-c8-ann-lod-section-tone`: the crowd's section block and count chip use the section's own colour — rejected: neutral rgba blocks (invisible on dark).
