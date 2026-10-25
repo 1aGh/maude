@@ -12,6 +12,7 @@
 // Cards draw what they are given; the host (truth-host.jsx) runs the pick.
 
 import { StIcon } from '../../shell/icons.jsx';
+import { valueWords } from './colour-words.js';
 import { safeColour, TRUTH_WORDS, whoWords } from './truth-model.js';
 import { agoWords } from './update-model.js';
 
@@ -23,7 +24,7 @@ function Side({ label, value, name, who, ago, testid, busy, onUse }) {
       {colour ? (
         <i className="dst-cf-chip" style={{ background: colour }} aria-hidden="true" />
       ) : null}
-      <b>{name ?? value ?? '—'}</b>
+      <b>{valueWords(name, value)}</b>
       <span className="dst-cf-who">{[who, ago].filter(Boolean).join(' · ')}</span>
       <button
         type="button"

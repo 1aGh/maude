@@ -698,10 +698,9 @@ export function InspectorPanel({
         ) : effTab === 'layers' && layersBoards?.length && !el && !layersTree?.nodes?.length ? (
           byArtboard(null)
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) && (dsTruth || dsSystem) ? (
-          <>
-            {dsTruth}
-            {dsSystem}
-          </>
+          // c7 · 13 truth shots: a waiting review is the whole empty place — the system block (Which way changes flow,
+          // Advanced) is what it shows when nothing else is waiting (advanced.jsx header)
+          <>{dsTruth || dsSystem}</>
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
           <div className="st-rp-empty">
             {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +

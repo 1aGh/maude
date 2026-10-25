@@ -527,6 +527,19 @@ describe('13 · ds-truth-conflict — the pick', () => {
     );
   });
 
+  test('a side with no name of its own says the colour in words, never a raw oklch (CONTRACT, p8 c7)', async () => {
+    const bare = {
+      ...card,
+      canvas: { ...card.canvas, name: null },
+      file: { ...card.file, name: null },
+    };
+    const host = await render(<ConflictPick card={bare} fileName="x.css" onPick={() => {}} />);
+    const text = host.textContent ?? '';
+    expect(text).not.toContain('oklch');
+    expect(q(host, 'ds-conflict-canvas')?.textContent).toContain('Deep blue');
+    expect(q(host, 'ds-conflict-file')?.textContent).toContain('Bright blue');
+  });
+
   test('"Use this" on each side sends that side', async () => {
     const picks: unknown[][] = [];
     const host = await render(
@@ -918,5 +931,13 @@ describe('the inspector’s empty place', () => {
     );
     const host = readFileSync(new URL('../client/v2/ds/review-host.jsx', import.meta.url), 'utf8');
     expect(host).toContain('<DsTruthHost');
+  });
+  test('a waiting review is the whole place — the system block never rides under it (p8 c7)', () => {
+    const panel = readFileSync(
+      new URL('../client/inspector/inspector-panel.jsx', import.meta.url),
+      'utf8'
+    );
+    expect(panel).toContain('<>{dsTruth || dsSystem}</>');
+    expect(panel).not.toMatch(/\{dsTruth\}\s*\{dsSystem\}/);
   });
 });
