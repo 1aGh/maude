@@ -698,10 +698,7 @@ describe('the host', () => {
       )
     ).toBe(true);
     expect(posted).toEqual([
-      [
-        { dgn: 'ds-marks', outside: ['--fg-3'], conflicts: ['--accent'] },
-        'http://canvas.test',
-      ],
+      [{ dgn: 'ds-marks', outside: ['--fg-3'], conflicts: ['--accent'] }, 'http://canvas.test'],
     ]);
     expect(truth.postDsMarks(null, { outside: [], conflicts: [] }, 'http://canvas.test')).toBe(
       false

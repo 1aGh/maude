@@ -52,7 +52,7 @@ describe('is this canvas left out?', () => {
     expect(leftOutOf('ui/2026/combine.tsx', { ...CFG, dsConverted: {} })).toBeNull(); // not converted
     expect(leftOutOf('ui/2026/combine.png', CFG)).toBeNull();
   });
-  test('p8 c7: a design-root-relative path finds the real index\'s tree-path key (the inspector block never mounted)', () => {
+  test("p8 c7: a design-root-relative path finds the real index's tree-path key (the inspector block never mounted)", () => {
     const real = { ...CFG, canvasDsRevs: { '.design/ui/2026/combine.tsx': OLD } };
     expect(leftOutOf('ui/2026/combine.tsx', real)?.dsRev).toBe(OLD);
     expect(leftOutOf('.design/ui/2026/combine.tsx', real)?.dsRev).toBe(OLD);

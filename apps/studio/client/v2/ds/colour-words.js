@@ -31,11 +31,13 @@ export function colourWords(value) {
   if (![l, c, h].every(Number.isFinite)) return null;
   const tone =
     l > 0.93 ? 'Very light' : l > 0.8 ? 'Light' : l > 0.55 ? 'Bright' : l > 0.38 ? 'Deep' : 'Dark';
-  if (c < 0.03) return l > 0.97 ? 'White' : l < 0.18 ? 'Black' : `${tone === 'Bright' ? 'Mid' : tone} grey`;
+  if (c < 0.03)
+    return l > 0.97 ? 'White' : l < 0.18 ? 'Black' : `${tone === 'Bright' ? 'Mid' : tone} grey`;
   return `${tone} ${(HUES.find(([to]) => h < to) ?? HUES[0])[1]}`;
 }
 
-const PLAIN_COLOUR = /^(?:#[0-9a-f]{3,8}|(?:oklch|oklab|rgba?|hsla?|lab|lch|color|color-mix)\([^;{}]*\))$/i;
+const PLAIN_COLOUR =
+  /^(?:#[0-9a-f]{3,8}|(?:oklch|oklab|rgba?|hsla?|lab|lch|color|color-mix)\([^;{}]*\))$/i;
 
 /** What a side calls its value: the person's name for it, else the colour in words, else the plain value. */
 export function valueWords(name, value) {
