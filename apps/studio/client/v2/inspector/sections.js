@@ -110,6 +110,8 @@ export const SECTIONS = Object.freeze(
       n: 27,
       id: 'formats',
       title: 'Formats',
+      // 07 ve-formats: the board draws the "Formats" row and no heading above it
+      headless: true,
       explain:
         'Videos that play this same cut at another size. Trim or retitle once and all of them follow; each keeps its own framing. Make an unlinked copy when one needs its own cut.',
     },
