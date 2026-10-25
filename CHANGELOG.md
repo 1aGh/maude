@@ -1,5 +1,13 @@
 # @1agh/maude
 
+## 1.10.0
+
+### Minor Changes
+
+- a837fe9: Flow: plans run cheaper by default. `/flow:execute` now hands each task to a fresh `flow:worker` agent with only that task's slice of the plan, instead of growing one huge context (measured: the lead was 84–100 % of spend, with contexts near 1M). New role agents `flow:worker`, `flow:spike` and `flow:scout` pick a model tier, and design and flow critics run on the fast tier. A new `run` block in `.ai/workflows.config.json` sets tiers, risk classes, a budget preset (`small` / `default` / `monorepo`), gate cadence and a test lane — all optional. `maude flow usage [sessionId]` shows tokens, turns and peak context per agent and flags agents over budget.
+- a837fe9: Flow: ten commands instead of 31. `plan` (`--prd`), `execute` (`--quick`), `validate` (`--fast`, `--security`, `--a11y`, `--visual`, `--review`, `--scenario`), `done` (now writes the implementation report and retro itself), `bug-rca`, `bug-fix`, `release` (`--changelog`), `record-ddr`, `init` (`--context`, `--map`, `--kgai`) and `run` (`--status`, `--pause`, `--resume`). The old command names are removed — use the new forms (the migration page maps every one). `/flow:help` gives way to Claude Code's own `/help`; the `maintain-*` commands are retired. The a11y, responsive and motion rule skills are merged into one `ui-rules` skill. See the migration page: https://maude.sh/docs/flow-migration
+- a837fe9: Flow: new `/flow:run <plan>` runs a plan unattended as a goal. It arms the run and prints the `/goal` line to paste; while the plan's acceptance criteria are open or the done check is red, an opt-in Stop hook keeps the session working. It is capped: off unless `run.hooks: true`, tied to the arming session, expires after 24 h (72 h at most), keeps its record outside the project so a cloned repo cannot arm it, pauses itself after 3 reds of the same shape or 30 blocks or at `run.budget.maxRunTokens`, and every block message names the kill switch (`/flow:run --pause`, `--stop`, or `FLOW_RUN_HOOKS=0`). Sub-agents get the context-budget rules injected and are asked once for a `## Decisions` section. `--status`, `--pause` and `--resume` cover a run in progress.
+
 ## 1.9.1
 
 ### Patch Changes
