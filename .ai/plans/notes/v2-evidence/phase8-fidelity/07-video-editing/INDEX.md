@@ -219,3 +219,16 @@ Harness `_c9v-harness-g3/` (`chain.sh 07` = `t07`, `t07c`, then `t07v` on three 
 | ve-ai-*, ve-together, ve-fit-fill | unreachable, as before |
 
 Still open: the "Title · Slide up" tag on the artboard and the captions "Also as a file" row (no file writer) — see `fix-c9-video.md`.
+
+## FINAL (D7, 6d062a4d3)
+
+Final merged-tip re-shoot after stage C round 10 (p8-d7-g2), IMPL side only, Mac mini + Google Chrome, light + dark. Shot on `ccf36b5a0` + the harness commit `6d062a4d3` (the tip has since moved by merges outside the video surfaces). Harness `_d7-harness-g2/g3` (`run.sh 07` = `t07` all ids, `t07c` ve-captions + ve-music, `t07v` the round-9 fixtures HypeFormats / ZapasLong / NaborKeyframes for ve-formats, ve-reframe, ve-export, ve-long, ve-advanced, ve-play, ve-music). Spec reused unchanged. Committed `<id>-<theme>.jpg` pairs overwritten. No match judged here.
+
+| artboard id | light | dark |
+|---|---|---|
+| ve-none, ve-select, ve-deselect, ve-drop, ve-trim-split, ve-move-transition, ve-text, ve-captions, ve-music, ve-transition, ve-render, ve-fullscreen, ve-footage, ve-play, ve-formats, ve-reframe, ve-export, ve-long, ve-advanced | re-shot (ve-drop light: a second run of `t07 light`, the first missed its drop target) | re-shot |
+| ve-ai-cut, ve-ai-watch, ve-ai-scrub, ve-ai-proposal, ve-ai-adjust | unreachable (needs a live signed-in AI cut run; claude is stubbed signed-out) | unreachable (same) |
+| ve-together | unreachable (a second peer on a linked hub) | unreachable (same) |
+| ve-fit-fill | unreachable (needs a real vertical file dropped) | unreachable (same) |
+
+Totals: 38 id×theme re-shot (19 ids), 14 unreachable (7 ids).

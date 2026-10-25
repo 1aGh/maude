@@ -307,3 +307,17 @@ Final verification shoot on the merged tip after stage C round 8 (harness `_d6b-
 | `ad-edge-hub` | unreachable (A self-hosted hub project (hub).) | unreachable (A self-hosted hub project (hub).) |
 | `ad-edge-where` | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) | unreachable (A table of where Advanced rows hide in browser / comment-only / local / offline; needs those contexts.) |
 | `ad-edge-remember` | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) | unreachable (The remembered fold across days and canvases; a per-Mac preference story, no single state.) |
+
+## FINAL (D7, 6d062a4d3)
+
+Final merged-tip re-shoot after stage C round 10 (p8-d7-g2), IMPL side only, Mac mini + Google Chrome, light + dark. Shot on `ccf36b5a0` (feat/maude-v2 tip when the task started) + the harness commit `6d062a4d3`; the tip has since moved by merges that touch no 06 surface (only `ai-may.js` / `ai-run.css` in the client). Harness `_d7-harness-g2/` (`run.sh 06` = `g2/chain.sh 06`, the D6b chain with `s06j` LAST, then `g3/chain.sh 06-advanced` = `t06v`, which overwrites `ad-timeline` on the keyframed NaborKeyframes fixture). Spec reused unchanged (boards `03|04|06` unchanged). Committed `<id>-<theme>.jpg` pairs overwritten. No match judged here.
+
+| id | light | dark |
+|---|---|---|
+| ad-inspector, ad-left, ad-ai, ad-share, ad-timeline (t06v), ad-export, ad-history, ad-ds, ad-diag, ad-logs, ad-syncd, ad-settings, ad-pinned, ad-search, ad-open-all, ad-code, ad-edge-syntax | re-shot | re-shot |
+| ad-map, ad-why, ad-trace | unreachable (reference / explanation boards, not app surfaces) | unreachable (same) |
+| ad-menus | unreachable (native menu-bar menus; not in the browser lane) | unreachable (same) |
+| ad-edge-sync, ad-edge-hub | unreachable (need a cloud project in trouble / a self-hosted hub) | unreachable (same) |
+| ad-edge-where, ad-edge-remember | unreachable (a table of contexts / a per-Mac preference story, no single state) | unreachable (same) |
+
+Totals: 34 id×theme re-shot (17 ids), 16 unreachable (8 ids). Extra impl frames shot with no board artboard: ad-ai-diag, ad-ds-pre, ad-left-layers.
