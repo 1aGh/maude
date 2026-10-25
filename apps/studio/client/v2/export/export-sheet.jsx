@@ -39,6 +39,7 @@ import {
   SCOPE_LABEL,
   sheetSub,
   sheetTitle,
+  estimateForLane,
   summaryWords,
 } from './export-copy.js';
 import { AdvancedSection, AdvancedToggle } from './advanced/advanced.jsx';
@@ -334,7 +335,7 @@ export function ExportSheet({
   const summary =
     mode === 'export'
       ? summaryWords(
-          est,
+          estimateForLane(est, render),
           printChoice.printPdf ? { pdfPages: printChoice.withBack ? 2 : 1 } : undefined
         )
       : null;
