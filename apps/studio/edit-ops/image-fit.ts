@@ -158,6 +158,8 @@ interface PlaceParams {
   /** fill-in-order takes only the EMPTY pictures (no src) and reports every slot it filled in `created` */
   emptyOnly: boolean;
   natural: { w: number; h: number } | null;
+  /** P8 c8 (14 ed-edge-paste): loose on an artboard — ON its page at this artboard-local point, absolute */
+  at: { x: number; y: number } | null;
   alt: string;
   from: string | null;
 }
@@ -188,6 +190,21 @@ function placeParams(req: ResolvedEditOp): PlaceParams {
       return refuse(req, 'The size of that picture is not a number.');
     natural = { w: Math.round(n.w), h: Math.round(n.h) };
   }
+  let at: PlaceParams['at'] = null;
+  if (p.at !== undefined) {
+    const a = p.at;
+    if (
+      !isRec(a) ||
+      typeof a.x !== 'number' ||
+      typeof a.y !== 'number' ||
+      !Number.isFinite(a.x) ||
+      !Number.isFinite(a.y) ||
+      Math.abs(a.x) > MAX_NATURAL ||
+      Math.abs(a.y) > MAX_NATURAL
+    )
+      return refuse(req, 'Where to put that picture is not a point.');
+    at = { x: Math.round(a.x), y: Math.round(a.y) };
+  }
   const alt = typeof p.alt === 'string' ? p.alt.slice(0, MAX_ALT) : '';
   let from: string | null = null;
   if (p.from !== undefined) {
@@ -202,6 +219,7 @@ function placeParams(req: ResolvedEditOp): PlaceParams {
     mode: mode as PlaceMode,
     emptyOnly: p.emptyOnly === true,
     natural,
+    at,
     alt,
     from,
   };
@@ -230,6 +248,18 @@ function looseStyle(natural: PlaceParams['natural']): Style {
   const s: Style = [['display', 'block']];
   if (natural) s.push(['width', `${natural.w}px`]);
   s.push(['maxWidth', '100%'], ['height', 'auto']);
+  return s;
+}
+
+/** A picture placed at a point: absolute, at its natural width (a page cannot be wider than itself, so no cap). */
+function atStyle(at: { x: number; y: number }, natural: PlaceParams['natural']): Style {
+  const s: Style = [
+    ['position', 'absolute'],
+    ['left', `${at.x}px`],
+    ['top', `${at.y}px`],
+  ];
+  if (natural) s.push(['width', `${natural.w}px`]);
+  s.push(['height', 'auto']);
   return s;
 }
 
@@ -374,7 +404,14 @@ export const imagePlace: EditOp = {
       if (target.tag === 'DCArtboard') put(first, BEHIND_STYLE, 'start');
       else put(first, FILL_STYLE, 'end');
     } else if (p.mode === 'loose') {
-      for (const a of p.assets) put(a, looseStyle(p.assets.length === 1 ? p.natural : null), 'end');
+      // a picture pasted onto an artboard with a point goes ON its page (the artboard's one element child), absolute
+      const page = kidsOf(walk, target);
+      const onBoard = !!p.at && p.assets.length === 1 && target.tag === 'DCArtboard';
+      const host = onBoard && page.length === 1 && page[0] ? page[0] : target;
+      if (onBoard && p.at) put(first, atStyle(p.at, p.natural), 'end', host);
+      else
+        for (const a of p.assets)
+          put(a, looseStyle(p.assets.length === 1 ? p.natural : null), 'end');
     } else if (p.mode === 'fill-in-order') {
       // swapSource may stamp an id: re-walk so each slot is read from the current bytes
       const find = (w: Walked): IdElement =>

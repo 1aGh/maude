@@ -158,6 +158,53 @@ describe('image.place — loose, in order, grid', () => {
     expect(h.src().indexOf(img)).toBeGreaterThan(h.src().indexOf('data-cd-id="row"'));
   });
 
+  test('P8 c8 loose + at: a picture pasted onto an artboard sits ON its page at the point, absolute (14 ed-edge-paste)', async () => {
+    const SRC1 = `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+export default function Post() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="post" label="Post 1:1" width={1080} height={1080}>
+        <div data-cd-id="page" style={{ position: 'relative', width: 1080, height: 1080 }}>
+          <div data-cd-id="hero" style={{ height: 300 }} />
+        </div>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`;
+    const h = harness(SRC1);
+    const r = good(
+      await h.run('image.place', {
+        asset: 'assets/deadbeef.jpg',
+        mode: 'loose',
+        artboard: 'post',
+        natural: { w: 720, h: 400 },
+        at: { x: 120.4, y: 90 },
+      })
+    );
+    const img = tagOf(h.src(), r.created?.[0]?.element as string);
+    expect(img).toContain('position: "absolute"');
+    expect(img).toContain('left: "120px"');
+    expect(img).toContain('top: "90px"');
+    expect(img).toContain('width: "720px"');
+    // inside the page (the artboard's one child), after the hero — not a new section below it
+    const src = h.src();
+    expect(src.indexOf(img)).toBeGreaterThan(src.indexOf('data-cd-id="hero"'));
+    expect(src.indexOf(img)).toBeLessThan(src.indexOf('</div>\n      </DCArtboard>'));
+  });
+
+  test('an `at` that is not a point is refused; without `at` nothing changes', async () => {
+    const h = harness();
+    const r = await h.run('image.place', {
+      asset: 'assets/deadbeef.jpg',
+      mode: 'loose',
+      artboard: 'post',
+      at: { x: 'left', y: 4 },
+    });
+    expect(r.ok).toBe(false);
+    expect(h.writes()).toBe(0);
+  });
+
   test('fill-in-order: the n-th picture of the frame takes the n-th asset; extras are placed after', async () => {
     const h = harness();
     const r = good(
