@@ -49,7 +49,7 @@ Skills:
 Treats a plan as a goal and drives it to completion across turns. The Stop hook that keeps it going is opt-in and capped:
 
 - Off unless `run.hooks: true` is set in `.ai/workflows.config.json`.
-- Tied to the session that armed it (`.ai/state/run.json`); another session is never blocked.
+- Tied to the session that armed it; another session is never blocked. The run record lives outside the project (`~/.claude/flow-runs/`), so a cloned repo can never arm a run or choose the command the gate runs.
 - Expires after 24 hours (`run.expiresHours`).
 - Pauses itself after 3 identical red done-checks in a row (`run.maxStopBlocks`).
 - Optional token ceiling: `run.budget.maxRunTokens`.

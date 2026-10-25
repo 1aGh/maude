@@ -80,3 +80,10 @@ test('findTranscript + sessionUsage + formatUsage on an isolated HOME', () => {
   assert.match(out, /flow:worker\s+Task 1\s+! peak>300k/);
   assert.doesNotMatch(formatUsage(u, { contextK: 400 }), /!/);
 });
+
+test('findTranscript refuses a session id that is not a plain id (no path traversal)', () => {
+  assert.equal(
+    findTranscript('../../etc/x', { root: '/work/repo', home: '/nonexistent', configDir: '' }),
+    null
+  );
+});

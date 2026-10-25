@@ -2,11 +2,17 @@
 //
 //   maude flow usage [sessionId] [--top N] [--json] [--root <dir>]
 //
-// sessionId defaults to the /flow:run marker (.ai/state/run.json). The over-budget flag uses
+// sessionId defaults to the /flow:run record of this project (~/.claude/flow-runs/). The over-budget flag uses
 // run.budget.agentContextK (or its preset) from .ai/workflows.config.json.
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { findTranscript, formatUsage, resolveBudget, sessionUsage } from '../lib/flow-usage.mjs';
+import {
+  findTranscript,
+  formatUsage,
+  resolveBudget,
+  runRecordPath,
+  sessionUsage,
+} from '../lib/flow-usage.mjs';
 
 const readJson = (p) => {
   try {
@@ -31,9 +37,11 @@ export async function run({ args }) {
   const valued = new Set(['--top', '--root']);
   const sid =
     rest.find((a, i) => !a.startsWith('--') && !valued.has(rest[i - 1])) ??
-    readJson(join(root, '.ai/state/run.json'))?.sessionId;
+    readJson(runRecordPath(root))?.sessionId;
   if (!sid) {
-    process.stderr.write('maude flow usage: no sessionId given and no .ai/state/run.json marker\n');
+    process.stderr.write(
+      'maude flow usage: no sessionId given and no /flow:run record for this project\n'
+    );
     process.exitCode = 1;
     return;
   }

@@ -3,7 +3,8 @@
 // and reports, per agent: model, turns, peak context, cache read / write. Read-only; the numbers
 // are the API usage blocks Claude Code already stores. Codex keeps no such transcript, so a missing
 // transcript is reported as "unavailable" and never fails a gate.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -22,6 +23,18 @@ export function resolveBudget(config) {
   if (Number.isFinite(b.maxRunTokens)) out.maxRunTokens = b.maxRunTokens;
   return out;
 }
+
+/** The /flow:run record of a project — mirrors recordPath() in plugins/flow/hooks/run-hook.mjs. */
+export function runRecordPath(root, env = process.env) {
+  let real = root;
+  try {
+    real = realpathSync(root);
+  } catch {}
+  const dir = env.FLOW_RUN_HOME || join(homedir(), '.claude', 'flow-runs');
+  return join(dir, `${createHash('sha256').update(real).digest('hex').slice(0, 24)}.json`);
+}
+
+export const SESSION_ID = /^[A-Za-z0-9-]{1,64}$/;
 
 /** Claude Code's project folder name for a cwd. */
 export const projectSlug = (dir) => dir.replace(/[^A-Za-z0-9]/g, '-');
@@ -61,6 +74,7 @@ export function findTranscript(
   sid,
   { root, home = homedir(), configDir = process.env.CLAUDE_CONFIG_DIR } = {}
 ) {
+  if (!SESSION_ID.test(sid ?? '')) return null; // a session id is a path segment — no `../`
   const bases = [configDir, join(home, '.claude')].filter(Boolean).map((b) => join(b, 'projects'));
   for (const base of bases) {
     if (!existsSync(base)) continue;

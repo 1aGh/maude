@@ -443,7 +443,7 @@
         "hooks": {
           "type": "boolean",
           "default": false,
-          "description": "/flow:run hooks (SubagentStart rules, SubagentStop Decisions check, Stop gate). OFF by default; every hook is a no-op unless this is true AND a run marker for this session exists. Kill switch for one shell: FLOW_RUN_HOOKS=0."
+          "description": "/flow:run hooks (SubagentStart rules, SubagentStop Decisions check, Stop gate). OFF by default; every hook is a no-op unless this is true AND /flow:run armed this session (record in ~/.claude/flow-runs/, outside the project). Kill switch for one shell: FLOW_RUN_HOOKS=0."
         },
         "maxStopBlocks": {
           "type": "integer",
@@ -455,8 +455,9 @@
         "expiresHours": {
           "type": "integer",
           "minimum": 1,
+          "maximum": 72,
           "default": 24,
-          "description": "/flow:run: hours after arming when the marker expires and every hook becomes a no-op."
+          "description": "/flow:run: hours after arming when the run expires and every hook becomes a no-op (clamped to 1–72)."
         }
       }
     },
