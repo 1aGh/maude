@@ -20591,7 +20591,7 @@
     "hook": "ed-ab-hint",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Canvas iframe: \"⌘ ignores presets · ⌥ from the centre\" beside the bubble.",
+    "meaning": "Canvas iframe: two pills, \"⌘ ignores presets\" and \"⌥ from the centre\", beside the bubble.",
     "producer": {
       "file": "apps/studio/editing/preset-ruler.tsx",
       "symbol": "PresetRuler"
