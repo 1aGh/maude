@@ -73,6 +73,10 @@ export async function run(h) {
     await page.keyboard.up('Control');
     await sleep(900);
   }
+  // pan the board left so "Book a call" and its spec tags (size, gap) clear the Inspect island on the right
+  await page.mouse.move(520, 520);
+  await page.mouse.wheel(260, 0);
+  await sleep(900);
   await h.step(`${D}/md-inspect`, 'Inspect "Book a call"', '⌘-click in Preview, Advanced open', async () => {
     await mc('book', true);
     await sleep(2200);
