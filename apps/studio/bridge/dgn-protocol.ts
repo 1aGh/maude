@@ -148,8 +148,10 @@ export interface CanvasToShell {
   // S4.12 — ⌘/ (or Ask AI about it) with annotations selected: open the AI chat with that scope.
   'annotation-ask-ai': { v: 1 };
   // S9.21b (10 co-ask-edit) — a read-only canvas saw a drag on the design go nowhere; the shell shows its own
-  // "You can look at …, not change it." tip. No text, no element, no position (DDR-054).
-  'view-only-gesture': { v: 1 };
+  // "You can look at …, not change it." tip. No text, no element (DDR-054). Round 7: `x`/`y` — the pointer's
+  // position inside the canvas frame (whole CSS px, 0–16384; numbers only) — so the tip sits beside the pointer
+  // like the board's callout. Both optional: an older frame posts the bare message and the tip stays under the cluster.
+  'view-only-gesture': { v: 1; x?: number; y?: number };
   // S4.14 (S4-S9 §2.6) — a formal vote. The canvas holds no vote: it names an artboard for one dot more or
   // less (`remove`), and the SHELL posts the ballot to /_api/votes/ballot as the session.
   'vote-cast': { artboard: string; remove?: boolean };
@@ -1273,7 +1275,7 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: 'view-only-gesture (S9.21b) → shell access host tip',
-    parse: p({ v: lit(1) }),
+    parse: p({ v: lit(1), x: opt(intIn(0, 16384)), y: opt(intIn(0, 16384)) }),
   },
   'vote-cast': {
     gate: 'active',
