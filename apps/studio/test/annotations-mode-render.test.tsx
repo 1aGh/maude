@@ -127,3 +127,16 @@ describe('a section title stays at full ink in Edit (a11y, 15 an-section)', () =
     expect(rule?.[1]).toContain('[data-type="section"]');
   });
 });
+
+describe('P8 C7 an-stk-drop: connection dots are not drawn at rest, they appear under the pointer', () => {
+  test('a transparent hit circle carries the gesture, the visible dot shows only on hover', async () => {
+    const src = (await Bun.file(
+      new URL('../annotations-layer.tsx', import.meta.url).pathname
+    ).text()) as string;
+    expect(src).toMatch(/\.dc-annot-conn-vis \{[^}]*opacity: 0;/);
+    expect(src).toMatch(/\.dc-annot-conn:hover \.dc-annot-conn-vis \{[^}]*opacity: 1;/);
+    // the gesture still reads data-host / data-nx / data-ny off the .dc-annot-conn-dot circle
+    expect(src).toMatch(/className="dc-annot-conn-dot"[\s\S]{0,200}data-nx=\{nx\}/);
+    expect(src).toMatch(/className="dc-annot-conn-vis"/);
+  });
+});

@@ -423,7 +423,12 @@ describe('the small toolbar over a sticker: Replace… · Flip · Lock · Duplic
     expect(q(host, 'annot-ctx-replace')?.textContent).toBe('Replace…');
     expect(q(host, 'annot-ctx-flip')?.textContent).toBe('Flip');
     expect(q(host, 'annot-ctx-lock')).not.toBeNull();
-    expect(q(host, 'annot-ctx-duplicate')?.textContent).toBe('Duplicate');
+    // P8 C7 an-stk-drop: the board draws Replace… / Flip with a glyph and Duplicate as an icon button
+    expect(q(host, 'annot-ctx-duplicate')?.textContent).toBe('');
+    expect(q(host, 'annot-ctx-duplicate')?.getAttribute('aria-label')).toBe('Duplicate');
+    expect(q(host, 'annot-ctx-duplicate')?.querySelector('svg')).not.toBeNull();
+    expect(q(host, 'annot-ctx-replace')?.querySelector('svg')).not.toBeNull();
+    expect(q(host, 'annot-ctx-flip')?.querySelector('svg')).not.toBeNull();
   });
   test('Flip mirrors through the store; Duplicate and Lock go through it too', async () => {
     const { host, ran, updates, locks } = await mountToolbar([sticker()]);

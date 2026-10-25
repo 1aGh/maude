@@ -61,7 +61,7 @@ function rowStyle(a) {
   return pos;
 }
 
-function Cell({ sticker, label, onPick }) {
+function Cell({ sticker, label, onPick, on = false }) {
   const word = sticker.keywords?.[0] || sticker.file;
   return (
     <button
@@ -69,6 +69,7 @@ function Cell({ sticker, label, onPick }) {
       className={label ? 'st-sp-cell sg-cell sg-cell--kw' : 'st-sp-cell sg-cell'}
       title={word}
       data-testid={`sticker-${sticker.pack}-${sticker.file}`}
+      data-on={on ? 'true' : undefined}
       onClick={() => onPick(sticker)}
     >
       <img className="st-sp-thumb" src={sticker.url} alt={word} loading="lazy" />
@@ -211,6 +212,14 @@ export default function StickersGallery({
               type="text"
               value={query}
               onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                // the first result is lit (an-stk-search): ↵ puts it down
+                const first = result?.packs?.[0]?.stickers?.[0];
+                if (e.key === 'Enter' && first) {
+                  e.preventDefault();
+                  pick(first);
+                }
+              }}
               placeholder="Search stickers…"
               aria-label="Search stickers"
               ref={searchRef}
@@ -403,7 +412,13 @@ function SearchView({ result, chip, onChip, onWord, onPick, onPickStamp }) {
           </p>
           <div className="sg-grid sg-grid--3">
             {p.stickers.map((s) => (
-              <Cell key={s.file} sticker={s} label={s.word} onPick={onPick} />
+              <Cell
+                key={s.file}
+                sticker={s}
+                label={s.word}
+                onPick={onPick}
+                on={s === result.packs[0]?.stickers[0]}
+              />
             ))}
           </div>
         </section>

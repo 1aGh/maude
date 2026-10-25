@@ -307,6 +307,33 @@ export function IconTrash(props: IconProps) {
   );
 }
 
+// Duplicate / Flip / Stamp-disc — the sticker toolbar's glyphs (the board's kit `duplicate`, `FlipGlyph`, `stamp`).
+export function IconDuplicate(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="8" y="8" width="12" height="12" rx="2.5" />
+      <path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2" />
+    </Svg>
+  );
+}
+export function IconFlip(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3v18" strokeDasharray="2 3" />
+      <path d="M8 6.5L3.5 17.5H8zM16 6.5l4.5 11H16z" />
+    </Svg>
+  );
+}
+export function IconStampDisc(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.4 13.9a4.4 4.4 0 007.2 0" />
+      <path d="M9.2 9.6h.01M14.8 9.6h.01" strokeWidth={3} />
+    </Svg>
+  );
+}
+
 // ── Phase 24 shape-tool icons ────────────────────────────────────────────────
 // IconShape — the Shape tool button: a square + circle composite (FigJam-style).
 export function IconShape(props: IconProps) {
