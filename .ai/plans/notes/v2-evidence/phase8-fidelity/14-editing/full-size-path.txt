@@ -8,3 +8,4 @@ round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdefb8ca3c77c0e
 final (D2): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ae0b93df010d6d2f4/.scr/pairs/14-editing
 round 5 (p8-c5-inspector): /Users/iagh/git/personal/maude/.claude/worktrees/agent-ad8cd4d7eb545f8ab/.scr/pairs/14-editing (14 Editing re-shot on the c5-inspector tip: ed-ab-select/-resize/-menu, ed-obj-*, ed-lay-auto/-reorder, ed-text-edit, ed-inspector, ed-comp-pick, ed-pen; the other ids kept from round 4 / D2)
 final (D3): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6c55c2a9eae9f5e5/.scr/pairs/14-editing
+round 6 (p8-c6-objinsp): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a27635b895a511f48/.scr/pairs/14-editing (re-shot: ed-obj-enter, ed-lay-auto, ed-text-edit, ed-inspector, ed-comp-instance; IMPL frames alone: .scr/impl/14-editing; harness: _d-harness-g5 + c6.mjs / chain-c6.sh)
