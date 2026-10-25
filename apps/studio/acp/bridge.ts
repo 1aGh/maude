@@ -52,6 +52,7 @@ import {
   MAY_ALL,
   mayAllowedTools,
   mayDenyRules,
+  mayEnv,
   mayKey,
   mayRefusal,
 } from './may-scope.ts';
@@ -631,6 +632,11 @@ export function newSessionParams(
     ...mayDenyRules(scope.may ?? MAY_ALL, scope.assetsRoots ?? []),
   ];
   if (deny.length) options.disallowedTools = deny;
+  // V2-8.9 M1 — web off: the session (its `claude`, every helper it runs) carries MAUDE_NO_EGRESS=1, so a
+  // headless browser a `maude design` helper starts resolves only loopback. A switch change re-establishes
+  // the session (sessionFor), so the env follows the switch like the deny rules do.
+  const sessionEnv = mayEnv(scope.may ?? MAY_ALL);
+  if (Object.keys(sessionEnv).length) options.env = sessionEnv;
   if (plugins && plugins.length > 0) {
     options.plugins = plugins;
     // DDR-168 — the bundled `design` plugin is now injected UNCONDITIONALLY

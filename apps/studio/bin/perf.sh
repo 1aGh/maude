@@ -250,6 +250,12 @@ if [ -z "$ENGINE_TAG" ]; then
 fi
 
 if [ "$PROBE_ENGINE" = "safari" ]; then
+  # V2-8.9 M1: Safari takes no per-run proxy or resolver rule, so with AI may › Search the web off
+  # (MAUDE_NO_EGRESS=1) the WebKit lane is refused rather than run with the web on.
+  if [ "${MAUDE_NO_EGRESS:-}" = "1" ]; then
+    echo "perf.sh: the Safari lane can't be kept off the web while AI may › Search the web is off — use the Chromium lane" >&2
+    exit 1
+  fi
   command -v safaridriver >/dev/null 2>&1 || {
     echo "perf.sh: safaridriver not found (macOS only)" >&2
     exit 1
@@ -279,6 +285,8 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
 fi
 
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
+# V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
+. "$(dirname "$0")/_no-egress.sh"
 command -v "$AB" >/dev/null 2>&1 || {
   echo "perf.sh: agent-browser not on PATH (required — the probe needs scripted gestures + rAF timing)" >&2
   exit 1

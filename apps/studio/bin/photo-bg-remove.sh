@@ -132,6 +132,8 @@ fi
 # explicit single-binary pointer, never a PATH prepend a same-user attacker
 # could shadow) and its ensure-browser.sh chrome resolution.
 AB="${MAUDE_AGENT_BROWSER:-agent-browser}"
+# V2-8.9 M1: AI may › Search the web off (MAUDE_NO_EGRESS=1) → this browser reaches loopback only.
+. "$(dirname "$0")/_no-egress.sh"
 command -v "$AB" >/dev/null 2>&1 || {
   echo "photo-bg-remove.sh: agent-browser not found (required — the ML pass needs a real WASM/WebGPU browser, there is no non-browser fallback here)" >&2
   exit 1

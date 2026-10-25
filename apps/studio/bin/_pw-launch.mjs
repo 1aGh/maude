@@ -83,12 +83,35 @@ export function isMissingBrowserError(message) {
 }
 
 /**
+ * V2-8.9 M1 (decision maude/v2-8.9-lead-m1-canvas-navigation-gate): the Chromium
+ * flags a launch gets while the AI chat's "Search the web" is off — the agent's
+ * session carries MAUDE_NO_EGRESS=1 (acp/may-scope.ts `mayEnv`) and every shim a
+ * `maude design` helper runs for it inherits it. Resolve only loopback (no DNS
+ * lookup leaves the machine), send everything else to a dead loopback proxy, and
+ * keep WebRTC off unproxied UDP (a STUN server at an IP literal skips both).
+ * The agent-browser lane gets the same effect from bin/_no-egress.sh.
+ */
+export const NO_EGRESS_CHROMIUM_ARGS = Object.freeze([
+  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost',
+  '--proxy-server=http://127.0.0.1:9',
+  '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+]);
+
+/** `opts` with the no-egress flags appended when `env.MAUDE_NO_EGRESS === '1'`. Pure. */
+export function noEgressLaunchOptions(opts, env = process.env) {
+  const base = opts ?? {};
+  if (env?.MAUDE_NO_EGRESS !== '1') return base;
+  return { ...base, args: [...(base.args ?? []), ...NO_EGRESS_CHROMIUM_ARGS] };
+}
+
+/**
  * Launch Chromium, mapping the missing-binary failure to a clean exit. Drop-in
  * for `chromium.launch(opts)` — same signature, same resolved Browser.
  */
 export async function launchChromium(opts) {
+  const safe = noEgressLaunchOptions(opts);
   try {
-    return await chromium.launch(opts);
+    return await chromium.launch(safe);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (isMissingBrowserError(msg)) {
@@ -100,7 +123,7 @@ export async function launchChromium(opts) {
       const executablePath = resolveBrowserExecutable();
       if (executablePath) {
         try {
-          return await chromium.launch({ ...opts, executablePath });
+          return await chromium.launch({ ...safe, executablePath });
         } catch {
           /* fall through to the install hint */
         }

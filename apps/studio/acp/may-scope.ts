@@ -31,10 +31,18 @@
 // a shell command without asking, so only the Bash deny rules for the verbs hold there, not an
 // arbitrary `cat`. Grep/Glob over a folder that CONTAINS the assets folder are covered by Claude Code's
 // own best-effort application of Read deny rules, not by this gate. A connected MCP server's own web
-// tools are not classified. V2-8.9 M1 (open, decision maude/v2-8.9-lead-m1-canvas-navigation-gate):
-// "Search the web: off" does not yet hold a canvas the agent wrote — a project tab's subframe may still
-// navigate to any https origin (windows.rs `navigation_allowed`), and the headless helpers the agent
-// runs (`screenshot`, `canvas-rects`, agent-browser lanes) start without host-resolver rules.
+// tools are not classified.
+//
+// V2-8.9 M1 (decisions maude/v2-8.9-lead-m1-canvas-navigation-gate, maude/v2-8.9-m1-tab-web-flag-tauri-command)
+// — "Search the web: off" also holds a canvas the agent wrote: in the desktop app the studio page tells
+// the shell (`set_tab_web`, client ai-may.js) and windows.rs `navigation_allowed_for` keeps every frame of
+// that tab on loopback; and the session carries MAUDE_NO_EGRESS=1 (`mayEnv`), so the headless browsers the
+// `maude design` helpers start resolve only loopback (bin/_no-egress.sh for agent-browser, bin/_pw-launch.mjs
+// for Playwright; perf's Safari lane is refused). Residual, named: a canvas opened in a plain BROWSER tab
+// (`maude design serve`, a cloud cell) has no shell gate — there the canvas CSP holds fetch/img/media but
+// not navigation; renders the SERVER starts (export, thumbnails) do not carry the session's env; and the
+// shell's flag is per tab as the page last told it, so a page that never loads its bundle (an older client)
+// leaves the default (on).
 //
 // V2-8.9 M2 adds a third, switch-independent part at the bottom of this file: the credential-store
 // deny rules + their live refusal (`credentialDenyRules` / `credentialRefusal`).
@@ -113,6 +121,20 @@ export function assetsRootsFor(repoRoot: string, designRoot: string): string[] {
 }
 
 const verbRule = (v: string) => `Bash(maude design ${v}:*)`;
+
+/**
+ * V2-8.9 M1 (decision maude/v2-8.9-lead-m1-canvas-navigation-gate) — the env var a web-off session's
+ * `claude` (and every command it runs) carries. The `maude design` helpers that start a headless browser
+ * read it: agent-browser goes through a dead loopback proxy (bin/_no-egress.sh), Playwright gets
+ * host-resolver rules (bin/_pw-launch.mjs), so a canvas the agent wrote cannot reach a website from a
+ * screenshot / canvas-rects / perf render.
+ */
+export const NO_EGRESS_ENV = 'MAUDE_NO_EGRESS';
+
+/** The session env for `may` (the SDK's `options.env`, merged over the adapter's process env). */
+export function mayEnv(may: AiMay): Record<string, string> {
+  return may.web ? {} : { [NO_EGRESS_ENV]: '1' };
+}
 
 /** The `disallowedTools` a session is spawned with. Empty when everything is on. */
 export function mayDenyRules(may: AiMay, assetsRoots: readonly string[]): string[] {
