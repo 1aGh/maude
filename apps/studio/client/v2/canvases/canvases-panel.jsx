@@ -626,7 +626,9 @@ export function CanvasesPanel({
             (axe aria-required-children, the wave-A B1 class). */}
         {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
-      {children}
+      {/* 05 es-project-new: the panel's own "New canvas" is the one row of an empty project; the host's row (and its
+          folder button) wait for the first canvas. `children` may be a function of that state. */}
+      {typeof children === 'function' ? children({ emptyProject }) : children}
       {/* P8 C5: the board draws no foot line at rest (01 / 02 / 05 / 11) — a foot is a state's words (a
           search, a kind filter, sync, arriving, an empty project). */}
       {foot.source === 'default' && !searching && !emptyProject ? null : (
@@ -1271,10 +1273,11 @@ function KindNone({ kind, project, total }) {
       actions={
         <button
           type="button"
-          className="cv-empty-action"
+          className="btn btn--ghost btn--sm"
           data-testid="canvases-kind-clear"
           onClick={clearKindFilter}
         >
+          <StIcon name="x" size={12} />
           {words.action}
         </button>
       }

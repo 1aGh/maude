@@ -195,6 +195,13 @@ describe('the Layers chips', () => {
     const none = q('layers-kind-none');
     expect(none?.textContent).toContain('No print artboards in Combine-invite.');
     expect(none?.textContent).toContain('All 5 artboards here are fixed size or web page.');
+    // 05 es-filter: the chip that is on shows its whole word + count + ×; "Clear filter" has its × glyph; the
+    // "N other artboards are dimmed" foot is not stacked under the block (the block already says it)
+    expect(q('layers-kind-chip-print')?.textContent).toContain('Print');
+    expect(q('layers-kind-chip-print-x')).not.toBeNull();
+    expect(q('layers-kind-chip-web-x')).toBeNull();
+    expect(q('layers-kind-clear')?.querySelector('svg')).not.toBeNull();
+    expect(q('layers-kind-foot')).toBeNull();
     await click(q('layers-kind-clear'));
     expect(getKindFilter()).toBe('all');
     expect(q('layers-kind-none')).toBeNull();

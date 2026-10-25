@@ -1,6 +1,6 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { canvasFrameCfg, canvasImportsOf, canvasUrl } from '../canvas-url.js';
 import { CompareHost } from '../v2/history/compare-view.jsx';
 import { useDsPreviewTarget, withDsPreview } from '../v2/ds/preview-mode.js';
@@ -21,7 +21,9 @@ import { nativeDoors } from '../v2/shell/native-doors.js';
 import { EmptyProjectSlot } from '../v2/create/empty-project.jsx';
 import { RenderErrorHost } from '../v2/create/render-error.jsx';
 import { useRenderSignal } from '../v2/create/use-render-error.js';
+import { freeCentre } from '../v2/empty/free-centre.js';
 import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
+import { insetsNow } from './insets-now.js';
 
 export function Viewport({
   tabs,
@@ -98,6 +100,9 @@ export function Viewport({
   // S10.14 — "Preview in …": every open canvas is framed through `?dsPreview=<ds>` while the person steps
   // through the systems; a session-only override (preview-mode.js), never stored.
   const dsPreview = useDsPreviewTarget();
+  // 05 es-offline-uncached / es-arriving: the card centres on what the panels leave free, like the empty canvas
+  const insets = useSyncExternalStore(insetsNow.subscribe, insetsNow.get, insetsNow.get);
+  const freeCx = `${freeCentre(insets, window.innerWidth, window.innerHeight)}px`;
   // S6.12 (C5) — what the open canvases say about drawing: one listener for every frame. The card is below.
   const wsSend = useContext(ShellStoreContext)?.local?.wsSend;
   const renderSignal = useRenderSignal({ cfg, wsSend, viewingPath: viewing?.path ?? null });
@@ -196,13 +201,21 @@ export function Viewport({
         }
         if (notLocal && t.path === activePath)
           return (
-            <div key={`${t.path}#not-local`} className="st-not-local active">
+            <div
+              key={`${t.path}#not-local`}
+              className="st-not-local active"
+              style={{ '--es-cx': freeCx }}
+            >
               <NotLocalCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
             </div>
           );
         if (arriving && t.path === activePath)
           return (
-            <div key={`${t.path}#arriving`} className="st-not-local active">
+            <div
+              key={`${t.path}#arriving`}
+              className="st-not-local active"
+              style={{ '--es-cx': freeCx }}
+            >
               <ArrivingCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
             </div>
           );

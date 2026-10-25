@@ -327,6 +327,25 @@ describe('the Canvases panel line', () => {
     expect(f.bodies.at(-1)).toEqual({ kind: 'blank' });
   });
 
+  test('05 es-project-new: ONE New canvas row — the host row waits for the first canvas — under the project row', async () => {
+    const { React } = await import('react').then((m) => ({ React: m }));
+    const seen: boolean[] = [];
+    const { host } = await mountPanel({
+      children: (st: { emptyProject: boolean }) => {
+        seen.push(st.emptyProject);
+        return st.emptyProject
+          ? null
+          : React.createElement('div', { 'data-testid': 'canvases-new-row' });
+      },
+    });
+    expect(seen.at(-1)).toBe(true);
+    expect(q(host, 'canvases-new-row')).toBeNull();
+    expect(q(host, 'canvases-none-new')).not.toBeNull();
+    // the project row (name + count) leads; the block and its one row follow (no `order: -1` pulling it above)
+    const css = src('client/v2/create/empty-project.css');
+    expect(css).not.toMatch(/\.ep-panel-none\s*\{[^}]*order:\s*-1/);
+  });
+
   test('Can view: the line is there, the New canvas row is not', async () => {
     const { host } = await mountPanel({ readOnly: true });
     expect(text(q(host, 'canvases-none')?.querySelector('.es-sit') ?? null)).toBe(

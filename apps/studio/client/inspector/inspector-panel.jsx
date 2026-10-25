@@ -16,6 +16,9 @@ import { useDsTruthCards } from '../v2/ds/truth-card.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
 import { isArtboardSelection, kindChipOf } from '../v2/inspector/kinds/index.js';
 import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
+import { isFilterKind } from '../v2/kinds/kind-filter-model.js';
+import { useKindFilter } from '../v2/kinds/kind-filter-store.js';
+import { artboardCounts } from '../v2/kinds/layers-kind-model.js';
 import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
 import { ArtboardLayers, currentBoard } from '../v2/layers/artboard-layers.jsx';
 import { timelineSelectionElement, useTimelineSelection } from '../v2/timeline/selection.js';
@@ -590,6 +593,15 @@ export function InspectorPanel({
   // (the seg below) holds for that selection only.
   const selKey = `${el?.id ?? ''}:${el?.index ?? 0}:${el?.selector ?? ''}`;
   const [picked, setPicked] = useState(null);
+  // 05 es-filter: a kind filter that matches no artboard of this canvas leaves the kit's block alone under the chips —
+  // the layer tree waits until the filter is cleared (the artboards are only dimmed, never hidden, on the canvas).
+  const [kindFilter] = useKindFilter();
+  const layersKindNone = useMemo(() => {
+    const counts = artboardCounts(layersBoards);
+    return (
+      counts.all > 0 && isFilterKind(kindFilter) && kindFilter !== 'all' && counts[kindFilter] === 0
+    );
+  }, [layersBoards, kindFilter]);
   const opensOnPhoto =
     !layersOnly && photoPerUse && (el?.tag || '').toLowerCase() === 'img' && picked !== selKey;
   const effTab = photoOnly
@@ -661,7 +673,9 @@ export function InspectorPanel({
           `adv-used-in`, `adv-detach`); `editScope` and `onDetachInstance` still reach it through the frame below. */}
       <div className="st-rp-body">
         {effTab === 'layers' ? layersHeader : null}
-        {effTab === 'photo' && photoTarget && photoPerUse ? (
+        {effTab === 'layers' && layersKindNone ? null : effTab === 'photo' &&
+          photoTarget &&
+          photoPerUse ? (
           <PhotoSection
             key={`${photoTarget.asset}:${el.id}:${el.index ?? 0}`}
             asset={photoTarget.asset}

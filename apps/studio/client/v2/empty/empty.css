@@ -355,6 +355,9 @@
     inset: 0;
     display: grid;
     place-items: center;
+    /* the middle of the free canvas (--es-cx, px from the window's left), not of the window: the grid's centre
+       moves right by half of the left inset. 50% (no var) leaves it centred on the window. */
+    padding-left: max(0px, calc(2 * var(--es-cx, 50%) - 100%));
     background: var(--bg-0);
   }
 
