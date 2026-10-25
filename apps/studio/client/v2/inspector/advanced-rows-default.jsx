@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CssKnobs } from '../../inspector/css-knobs.jsx';
+import { StIcon } from '../../shell/icons.jsx';
 import { InspectComputed } from '../../inspector/inspect-computed.jsx';
 import { registerAdvancedRow } from './advanced-rows.js';
 import { applyAttr, applyCssPatch, currentDecls, patchFromText } from './css-text.js';
@@ -36,15 +37,17 @@ export async function copyText(text) {
 }
 
 /** A button that runs `produce()` (text, or a promise of `{ok, code|message}`), copies, and says so. */
-function CopyButton({ testid, label, text, done = 'Copied', primary = false, onNote }) {
+function CopyButton({ testid, label, text, done = 'Copied', primary = false, icon = false, onNote }) {
   const [state, setState] = useState('idle');
   const timer = useRef(0);
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <button
       type="button"
-      className={`btn btn--sm insp-btn${primary ? ' btn--primary' : ''}`}
+      className={icon ? 'icon-btn k-icon-sm' : `btn btn--sm insp-btn${primary ? ' btn--primary' : ''}`}
       data-testid={testid}
+      // 06 ad-inspector: the board's Element id row ends in the quiet copy glyph, not a "Copy id" button
+      {...(icon ? { 'aria-label': label, title: state === 'done' ? done : label } : {})}
       disabled={state === 'busy'}
       onClick={async () => {
         setState('busy');
@@ -62,7 +65,7 @@ function CopyButton({ testid, label, text, done = 'Copied', primary = false, onN
         timer.current = setTimeout(() => setState('idle'), 1600);
       }}
     >
-      {state === 'done' ? done : state === 'failed' ? 'Not copied' : label}
+      {icon ? <StIcon name={state === 'done' ? 'done' : 'duplicate'} size={14} /> : state === 'done' ? done : state === 'failed' ? 'Not copied' : label}
     </button>
   );
 }
@@ -185,7 +188,7 @@ function ElementId({ el, layersTree, canvasFile, onRename }) {
             }
           }}
         />
-        {usable ? <CopyButton testid="inspector-copy-id" label="Copy id" text={el.id} /> : null}
+        {usable ? <CopyButton testid="inspector-copy-id" label="Copy id" text={el.id} icon /> : null}
       </div>
       {error ? (
         <p
