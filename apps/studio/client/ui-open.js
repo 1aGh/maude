@@ -45,6 +45,14 @@ export function uiOpenPlan(open) {
   const posts = [];
   if (typeof open.artboard === 'string' && open.artboard)
     posts.push(runAction('view.zoom-to-artboard', { id: open.artboard }));
+  // a link that lands ON an artboard selects it too (11 pn-deeplink); `maude design open file#artboard` only shows it
+  if (
+    open.selectArtboard === true &&
+    typeof open.artboard === 'string' &&
+    open.artboard &&
+    !open.element
+  )
+    posts.push({ dgn: 'select-by-id', artboardId: open.artboard, index: 0 });
   if (typeof open.element === 'string' && open.element)
     posts.push({
       dgn: 'select-by-id',

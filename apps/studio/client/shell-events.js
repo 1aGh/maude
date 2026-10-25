@@ -93,12 +93,20 @@ export function applyShellNavigate(payload, deps) {
   const plan = navigatePlan(payload, deps);
   if (!plan) return null;
   if (plan.artboard && plan.file && CANVAS_RE.test(plan.file)) {
-    applyUiOpen({ file: plan.file, artboard: plan.artboard }, deps);
-    // 11 pn-deeplink: a link to an artboard says where it came from ("Opened from a link — Pozvánka · story.").
+    // the link's artboard is SELECTED as well as shown (11 pn-deeplink: the board's frame wears the ring)
+    applyUiOpen({ file: plan.file, artboard: plan.artboard, selectArtboard: true }, deps);
+    // 11 pn-deeplink: a link to an artboard says where it came from ("Opened from a link — Pozvánka · story."),
+    // by the artboard's NAME as the canvas shows it; the id is only the fallback when the index has no label.
     // A thread landing has its own, better-informed line below (it knows who wrote the comment).
     if (!plan.thread) {
       const canvas = String(plan.file).split('/').pop().replace(CANVAS_RE, '');
-      deps.toast?.(openedFromWords({ who: null, canvas, artboard: plan.artboard }));
+      const say = (name) =>
+        deps.toast?.(openedFromWords({ who: null, canvas, artboard: name || plan.artboard }));
+      if (typeof deps.artboardLabel === 'function')
+        Promise.resolve(deps.artboardLabel(plan.file, plan.artboard))
+          .catch(() => null)
+          .then(say);
+      else say(null);
     }
   } else if (plan.rel) deps.openLinkedFile(plan.rel);
   // S9.17 — then the thread: `comments.open-thread` (its tab, its pin, the Comments panel, read marks).
@@ -129,6 +137,8 @@ export function applyShellNavigate(payload, deps) {
  *  just did: the one-line pill at the top, no success/error colouring (06 ad-open-all, kit `.k-toast--top`). */
 const TOP_PILL = Object.freeze({ kind: 'info', placement: 'top' });
 const LINK_PILL = Object.freeze({ ...TOP_PILL, icon: 'link' });
+/** 11 pn-relaunch (06 ad-open-all): the restore pill wears the tabs glyph. */
+const TABS_PILL = Object.freeze({ ...TOP_PILL, icon: 'tab' });
 
 export function startShellEvents({ invoke, listen, toast, onNavigate }) {
   let alive = true;
@@ -138,7 +148,7 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
     const count = cleanCount(p?.count);
     if (!alive || restoredShown || !count) return;
     restoredShown = true;
-    toast(tabsRestoredWords(count), true, undefined, TOP_PILL);
+    toast(tabsRestoredWords(count), true, undefined, TABS_PILL);
   };
   const navigate = (p) => {
     if (alive && p) onNavigate(p);

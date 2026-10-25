@@ -9,14 +9,19 @@ import { join } from 'node:path';
 import { trashCanvas, trashFolderOf } from '../client/v2/canvases/trash-canvas.js';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
-type Toast = { message: string; ok: boolean; action?: { label: string; onClick: () => unknown } };
+type Toast = {
+  message: string;
+  ok: boolean;
+  action?: { label: string; onClick: () => unknown };
+  extra?: { icon?: string };
+};
 
 function recorder() {
   const toasts: Toast[] = [];
   return {
     toasts,
-    toast: (message: string, ok = false, action?: Toast['action']) =>
-      toasts.push({ message, ok, action }),
+    toast: (message: string, ok = false, action?: Toast['action'], extra?: Toast['extra']) =>
+      toasts.push({ message, ok, action, extra }),
   };
 }
 
@@ -63,6 +68,8 @@ describe('trashCanvas — the words and the refusal', () => {
     expect(rec.toasts[0].message).toBe('“ahoj” moved to the trash.');
     expect(rec.toasts[0].ok).toBe(true);
     expect(rec.toasts[0].action?.label).toBe('Undo');
+    // 11 pn-trash: the toast wears the trash glyph, not a check
+    expect(rec.toasts[0].extra?.icon).toBe('trash');
   });
 
   test('trashFolderOf keeps the design-root-relative part', () => {

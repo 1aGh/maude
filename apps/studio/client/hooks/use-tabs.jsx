@@ -131,6 +131,18 @@ export function useTabs({
     toast: (title) =>
       shellToast(title, true, undefined, { kind: 'info', placement: 'top', icon: 'link' }),
     threadAuthor,
+    // 11 pn-deeplink: the artboard's name as the canvas shows it (the project index), not its id
+    artboardLabel: async (file, id) => {
+      try {
+        const r = await fetch('/_api/index', { cache: 'no-store' });
+        const j = r.ok ? await r.json() : null;
+        const root = j?.project?.designRel || cfg.designRel;
+        const c = (j?.canvases ?? []).find((x) => (root ? `${root}/${x.rel}` : x.rel) === file);
+        return c?.artboards?.find((a) => a?.id === id)?.label ?? null;
+      } catch {
+        return null;
+      }
+    },
   };
   useEffect(() => {
     if (!treeLoaded || cfg.cloud === undefined || !isNativeApp()) return undefined;
