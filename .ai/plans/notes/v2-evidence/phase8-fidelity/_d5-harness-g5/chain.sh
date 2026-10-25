@@ -25,6 +25,10 @@ case "$N" in
   echo "== s13u"; run .scr/s13u.mjs $T
   if [ "$T" = light ]; then bun .scr/dsboard.mjs 2>&1 | tail -8; fi
   ;;
+13p) # re-run of s13p alone (a random port can collide: EADDRINUSE)
+  bun .scr/mk-dsconv.mjs 2>&1 | tail -2
+  echo "== s13p"; run .scr/s13p.mjs $T
+  ;;
 14)
   for s in s14a s14b s14c; do
     echo "== $s studio $T"; run .scr/$s.mjs $T
