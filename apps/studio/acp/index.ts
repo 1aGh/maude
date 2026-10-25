@@ -30,6 +30,7 @@ import type { WsData } from '../ws.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
 import { AcpBridge, type BridgeUsage } from './bridge.ts';
+import { type AiMay, parseMay } from './may-scope.ts';
 import { isNativePluginContext, resolveSessionPlugins } from './plugin-bootstrap.ts';
 import { probeAcpAvailability } from './probe.ts';
 import { registerActivityProbe, registerRunningChatsProbe } from './running.ts';
@@ -39,15 +40,16 @@ import { linkChatCanvas, noteChatArtboards, readChatLinesAfter } from './transcr
  * Browser → server frames: `{ t: 'attach', chat, seq }` (Addendum Task 8 — bind
  * this socket to the chat's possibly-already-running bridge and replay the
  * transcript lines after `seq`, which is what the client hydrated over HTTP),
- * `{ t: 'prompt', text, chat?, model?, effort?, mode? }`,
- * `{ t: 'cancel', chat? }`, `{ t: 'warm', chat?, model?, effort?, mode? }` (spawn +
+ * `{ t: 'prompt', text, chat?, model?, effort?, mode?, may? }`,
+ * `{ t: 'cancel', chat? }`, `{ t: 'warm', chat?, model?, effort?, mode?, may? }` (spawn +
  * create the session so the agent publishes its slash-command catalogue — no
  * prompt sent), `{ t: 'set-mode', chat?, modeId }`, `{ t: 'set-config', chat?,
  * configId, value }` (live change on an already-established session —
  * feature-acp-panel-dynamic-claude-code-capabilities), `{ t: 'permission-response',
  * id, decision }` (Milestone B), `{ t: 'elicitation-response', id, action,
  * content? }` (feature-acp-ask-user-question — `action` is `accept`/`decline`/
- * `cancel`; `content` only meaningful alongside `accept`).
+ * `cancel`; `content` only meaningful alongside `accept`). `may` is Advanced › AI may
+ * (`{assets, web}`, P8 c7 — acp/may-scope.ts): the bridge HOLDS an off switch (deny rules + its gate).
  * Server → browser frames: `ready` (availability on open), `connected` (session
  * live), `update` (each streamed session/update), `commands` (the agent's
  * `available_commands_update` catalogue — cached + replayed on open), `caps`
@@ -598,6 +600,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
       writeOnlyRoots: () => runWriteScope(chatId),
       repoRoot: ctx.paths.repoRoot,
+      // P8 c7 — "Use Assets and footage" covers `<designRoot>/assets/` (acp/may-scope.ts).
+      designRoot: ctx.paths.designRoot,
       // Static, config-derived environment brief for every new session
       // (feature-acp-context-hardening; see bootstrap-brief.ts guardrails).
       studioBrief: buildStudioBrief({
@@ -902,7 +906,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     model: string | null,
     effort: string | null,
     modeId: string | null,
-    ask: { askId?: unknown; scope?: unknown } = {}
+    ask: { askId?: unknown; scope?: unknown } = {},
+    may: AiMay | null = null
   ): Promise<void> {
     const safeChat = sanitizeChatId(chatId);
     // S5.17 G1 — a scope that was sent but names nothing inside the design root (`..`, absolute, a
@@ -924,6 +929,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     }
     bindChatFiles(entry);
     entry.bridge.setConfig(model, effort, modeId);
+    // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — Advanced › AI may, from this main-origin frame's
+    // `may` field only (never the ask text). Before the turn, so its session is spawned with the rules.
+    entry.bridge.setMay(may);
     // S5.17 G5 — the chat list groups a chat under the canvas it asked about (design-relative)
     const asked = ask.scope != null ? parseRunScope(ask.scope, ctx.paths.designRel) : null;
     if (asked) {
@@ -1027,13 +1035,15 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     chatId: string,
     model: string | null,
     effort: string | null,
-    modeId: string | null
+    modeId: string | null,
+    may: AiMay | null = null
   ): Promise<void> {
     const entry = attach(ws, sanitizeChatId(chatId));
     if (!entry) return; // at the ceiling — warm-up is best-effort, stay silent
     const { bridge } = entry;
     bridge.setSessionStorePath(sessionStorePathFor(chatId));
     bridge.setConfig(model, effort, modeId);
+    bridge.setMay(may); // P8 c7 — a warmed session is spawned with the person's "AI may" rules
     try {
       await bridge.warmUp(sanitizeChatId(chatId));
     } catch {
@@ -1158,6 +1168,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         seq?: unknown;
         askId?: unknown;
         scope?: unknown;
+        may?: unknown;
       };
 
       const chatId = typeof frame.chat === 'string' && frame.chat ? frame.chat : 'default';
@@ -1186,6 +1197,9 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       const model = typeof frame.model === 'string' && frame.model ? frame.model : null;
       const effort = typeof frame.effort === 'string' && frame.effort ? frame.effort : null;
       const modeId = typeof frame.mode === 'string' && frame.mode ? frame.mode : null;
+      // P8 c7 — Advanced › AI may (`{assets, web}`; only an explicit false is off; no field = no news).
+      // A read-only socket's `may` is no news: its (open) warm frame must not loosen a member's switch.
+      const may = readOnlyNow() ? null : parseMay(frame.may);
 
       if (frame.t === 'attach') {
         // Addendum Task 8 — bind this socket to the chat's (possibly still
@@ -1215,12 +1229,18 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
         entry.sentRuns.clear(); // a re-attached client gets the chat's live runs again
         pushRunFrames(entry);
       } else if (frame.t === 'prompt' && typeof frame.text === 'string') {
-        void handlePrompt(ws, frame.text, chatId, model, effort, modeId, {
-          askId: frame.askId,
-          scope: frame.scope,
-        });
+        void handlePrompt(
+          ws,
+          frame.text,
+          chatId,
+          model,
+          effort,
+          modeId,
+          { askId: frame.askId, scope: frame.scope },
+          may
+        );
       } else if (frame.t === 'warm') {
-        void handleWarm(ws, chatId, model, effort, modeId);
+        void handleWarm(ws, chatId, model, effort, modeId, may);
       } else if (frame.t === 'cancel') {
         // RC5 — a cancelled turn may never resolve prompt(); clear banners now.
         const entry = entryForSocket(ws, typeof frame.chat === 'string' ? frame.chat : undefined);
