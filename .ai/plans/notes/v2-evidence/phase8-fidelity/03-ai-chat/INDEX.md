@@ -254,3 +254,46 @@ Re-shot on the p8-c6-aisurf worktree tip, both themes, committed pairs overwritt
 | `ai-advanced` | re-shot (round 6) | re-shot (round 6) |
 | `ai-adv-edges` | re-shot (round 6) | re-shot (round 6) |
 | `ai-history` | re-shot (round 6) | re-shot (round 6) |
+
+
+## FINAL (D4, 21c9714cf)
+
+Final re-shoot of the IMPL side on the merged tip 21c9714cf (stage C rounds 1-6), both themes, committed pairs overwritten (spec left | impl right). SPEC images reused (stage A: `.design/ui/v2/03 AI Chat.tsx` last changed 2026-10-08, before the stage-A shot, so no spec re-render). The critic judges; this builder does not. Harness: `_c6-harness-g2/` (round-6 builders adapted to the product) unchanged, repointed to this worktree (`_d4-harness-g2/README.md`).
+
+- Run order: `s03a`, `s03e`, `s03d`, `s03c`, `s03n` (later scripts win where two shoot the same id: `s03c` after `s03a` / `s03e`). Chromium 1440x900, Tauri stub, release client, fake ACP agent through the design plugin hooks, throwaway HOME/XDG + stubbed claude, NO_OPEN=1 MAUDE_NO_AUTOBUILD=1.
+- Finish-moment ids (ai-hero, ai-done, ai-copy, ai-history) are captured inside the 1.8 s `data-fresh` window (wait for `[data-fresh]`, then shoot). The first light pass of `s03a` missed the window for ai-copy ("NO FRESH WINDOW"), so `s03a` was run again for light and the second pass caught it; every s03a light frame is from that second pass.
+- Menus / popovers (ai-scope, ai-attach-menu) keep the panel crop of the round-6 map; the `position:fixed` scope menu shows whole.
+- Extra frames (not board ids): `ai-open-cmdslash`, `ai-choice-q`, `ai-not-ready-after` re-shot in `.scr/impl-out/03-ai-chat/` only (the committed extras from stage A stay).
+- Harness note: s03c logs a page error `ENOENT /Assets/Footage/trenink-0412.mov` (the attach-chip footage preview of the fixture path); the frames are not affected.
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot (D4) | re-shot (D4) |
+| `ai-open` | re-shot (D4) | re-shot (D4) |
+| `ai-suggest` | re-shot (D4) | re-shot (D4) |
+| `ai-scope` | re-shot (D4) | re-shot (D4) |
+| `ai-working` | re-shot (D4) | re-shot (D4) |
+| `ai-done` | re-shot (D4) | re-shot (D4) |
+| `ai-attach` | re-shot (D4) | re-shot (D4) |
+| `ai-attach-menu` | re-shot (D4) | re-shot (D4) |
+| `ai-question` | re-shot (D4) | re-shot (D4) |
+| `ai-long` | re-shot (D4) | re-shot (D4) |
+| `ai-long-pinned` | re-shot (D4) | re-shot (D4) |
+| `ai-two-artboards` | re-shot (D4) | re-shot (D4) |
+| `ai-same-artboard` | re-shot (D4) | re-shot (D4) |
+| `ai-copy` | re-shot (D4) | re-shot (D4) |
+| `ai-chat-list` | re-shot (D4) | re-shot (D4) |
+| `ai-panel-closed` | re-shot (D4) | re-shot (D4) |
+| `ai-quit` | re-shot (D4) | re-shot (D4) |
+| `ai-needs-hidden` | re-shot (D4) | re-shot (D4) |
+| `ai-permission` | re-shot (D4) | re-shot (D4) |
+| `ai-choice-fail` | re-shot (D4) | re-shot (D4) |
+| `ai-not-ready` | re-shot (D4) | re-shot (D4) |
+| `ai-advanced` | re-shot (D4) | re-shot (D4) |
+| `ai-adv-edges` | re-shot (D4) | re-shot (D4) |
+| `ai-history` | re-shot (D4) | re-shot (D4) |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy) | unreachable (same) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project) | unreachable (same) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project)) | unreachable (same) |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs)) | unreachable (same) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only) | unreachable (same) |
