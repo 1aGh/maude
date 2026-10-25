@@ -724,7 +724,8 @@ export function createExportJobQueue(
     if (!(await file.exists())) return [];
     const bytes = new Uint8Array(await file.arrayBuffer());
     const named = keep.flatMap((i) => i.files ?? []);
-    if (named.length === 1 && named[0] === job.filename) return [{ name: job.filename, bytes }];
+    if (named.length === 1 && named[0]?.replace(/^.*\//, '') === job.filename)
+      return [{ name: named[0] as string, bytes }];
     const zip = await JSZip.loadAsync(bytes);
     const out: GroupFile[] = [];
     for (const entry of Object.values(zip.files)) {

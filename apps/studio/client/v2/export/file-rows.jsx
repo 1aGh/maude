@@ -25,6 +25,12 @@ export const FILE_NAMES_TEMPLATE = { 'canvas-artboard': undefined, artboard: '{a
 export const fileNamesPick = (template) =>
   template === '{artboard}' ? 'artboard' : 'canvas-artboard';
 
+/** 09 ex-batch — the Folders row of a canvas / folder / project export: where each canvas's files go inside the result. */
+export const FOLDERS_OPTIONS = [
+  ['one', 'One folder'],
+  ['per-canvas', 'One per canvas'],
+];
+
 /** `name.png` → `name`: the extension is the format's, the person only types the stem. */
 export const stemOf = (file) => String(file ?? '').replace(/\.[A-Za-z0-9]{2,5}$/, '');
 const extOf = (file) => /(\.[A-Za-z0-9]{2,5})$/.exec(String(file ?? ''))?.[1] ?? '';

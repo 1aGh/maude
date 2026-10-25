@@ -147,6 +147,7 @@ export function applyAdvanced(spec, adv) {
   if (adv.lane && adv.lane !== 'auto') global.lane = adv.lane;
   const name = typeof adv.nameTemplate === 'string' ? adv.nameTemplate.trim() : '';
   if (name && name !== DEFAULT_NAME_TEMPLATE) global.nameTemplate = name;
+  if (adv.folders === 'per-canvas' && spec.scope !== 'selection') global.folders = 'per-canvas'; // 09 ex-batch › Folders; 'one' is the default and sends nothing
   if (Object.keys(global).length) next.options = { ...(next.options ?? {}), ...global };
   return next;
 }

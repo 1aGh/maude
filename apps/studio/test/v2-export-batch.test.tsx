@@ -572,6 +572,30 @@ describe('the sheet: many at once', () => {
     expect(posted().options.nameTemplate).toBe('{artboard}');
   });
 
+  test('P8 c8 (09 ex-batch): Folders offers One folder / One per canvas; the pick is the spec’s folders and the hint shows the path', async () => {
+    await mountSheet({ hasSelection: false, selectedArtboards: [] });
+    await click('[data-testid="export-scope-folder"]');
+    const sel = $('[data-testid="export-folders"]') as HTMLSelectElement;
+    expect([...sel.options].map((o) => [o.value, o.textContent])).toEqual([
+      ['one', 'One folder'],
+      ['per-canvas', 'One per canvas'],
+    ]);
+    expect(sel.value).toBe('one');
+    expect(text('[data-testid="export-folders-note"]')).not.toContain(' · ');
+    await choose('[data-testid="export-folders"]', 'per-canvas');
+    // the path the files go under (the canvas's own, no .tsx), then the first file's name
+    expect(text('[data-testid="export-folders-note"]')).toMatch(/^combine · .+\.png$/);
+    await click('[data-testid="export-submit"]');
+    expect(posted().options.folders).toBe('per-canvas');
+  });
+
+  test('One folder (the default) sends no folders key at all', async () => {
+    await mountSheet({ hasSelection: false, selectedArtboards: [] });
+    await click('[data-testid="export-scope-folder"]');
+    await click('[data-testid="export-submit"]');
+    expect(posted().options?.folders).toBeUndefined();
+  });
+
   test('changing one group leaves the other alone — in the select and in the posted spec', async () => {
     await mountSheet();
     await choose('[data-testid="export-group-digital-format"]', 'jpg-2');
