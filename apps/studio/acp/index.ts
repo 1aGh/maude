@@ -12,6 +12,8 @@ import type {
   SessionUpdate,
 } from '@agentclientprotocol/sdk';
 import type { ServerWebSocket } from 'bun';
+import { projectVisibility } from '../access/filters.ts';
+import { resolveAccess } from '../access/scope.ts';
 import { isCanvasFile } from '../activity.ts';
 import { readOnlyRootsFor } from '../ai/attach-grants.ts';
 import {
@@ -25,9 +27,13 @@ import type { RunRegistry } from '../ai/runs.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
 import { runWriteScope } from '../handoff/write-scopes.ts';
+import { listCanvases } from '../routes/canvas-source.ts';
+import { isCanvasSource } from '../skip-dirs.ts';
 import { hashBytes } from '../sync/echo-guard.ts';
+import { getHubRecord } from '../sync/hubs-config.ts';
 import type { WsData } from '../ws.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
+import { createHubWriteAudience, type WriteAudienceSource } from './audience.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
 import { AcpBridge, type BridgeUsage } from './bridge.ts';
 import { type AiMay, parseMay } from './may-scope.ts';
@@ -124,6 +130,38 @@ export interface AcpOptions {
    * bridge's write gate. Default: this project's `_state/ai-grants.json`.
    */
   readOnlyRoots?: () => readonly string[];
+  /**
+   * V2-8.9 H1 — who besides the project's people sees a write target (acp/audience.ts). Default:
+   * the linked hub's canvas grants over this project's closure (`projectWriteAudience`).
+   */
+  writeAudience?: WriteAudienceSource;
+}
+
+/**
+ * V2-8.9 H1 (decision maude/v2-8.9-lead-h1-audience-aware-write-gate) — the default audience source:
+ * the linked hub this Mac holds a credential for (the Share sheet's hub, http.ts `shareDeps`) and
+ * the project's own closure (the one the read filters use, `projectVisibility`). Lazy: a project
+ * with no linked hub never builds a closure or makes a call — every audience is "only you".
+ */
+export function projectWriteAudience(ctx: Context): WriteAudienceSource {
+  const canvasAccess = (c: string) =>
+    resolveAccess({ v: 1, role: null, grants: [{ c, r: 'viewer' }] });
+  return createHubWriteAudience({
+    hub: () => {
+      const url = ctx.cfg?.linkedHub?.url;
+      const rec = url ? getHubRecord(url) : null;
+      return url && rec?.token ? { url, token: rec.token } : null;
+    },
+    canvases: () => listCanvases(ctx.paths.designRoot),
+    closureOf: (canvas) => projectVisibility(ctx).closureOf(canvasAccess(canvas))?.read ?? null,
+    isCanvas: (rel) => {
+      try {
+        return isCanvasSource(readFileSync(join(ctx.paths.designRoot, rel), 'utf8'));
+      } catch {
+        return false;
+      }
+    },
+  });
 }
 
 /** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */
@@ -460,6 +498,8 @@ interface BridgeEntry {
 
 export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOptions = {}): Acp {
   const runs = options.runs ?? null;
+  // V2-8.9 H1 — one audience source (and its hub-answer cache) for every chat's bridge.
+  const writeAudience = options.writeAudience ?? projectWriteAudience(ctx);
   /** D3 — read per frame; a throw is read-only (fail closed). */
   function readOnlyNow(): boolean {
     if (!options.readOnly) return false;
@@ -599,6 +639,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
       readOnlyRoots: options.readOnlyRoots ?? (() => readOnlyRootsFor(ctx.paths.designRoot)),
       // S8.10 — a Handoff to production chat writes its target file only (handoff/write-scopes.ts).
       writeOnlyRoots: () => runWriteScope(chatId),
+      // V2-8.9 H1 — a write that carries a file this chat read to someone who cannot see it asks.
+      writeAudience,
       repoRoot: ctx.paths.repoRoot,
       // P8 c7 — "Use Assets and footage" covers `<designRoot>/assets/` (acp/may-scope.ts).
       designRoot: ctx.paths.designRoot,

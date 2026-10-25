@@ -263,10 +263,36 @@ const HUBS_PATH_MATRIX = [
     env: { HUBS_CONFIG_PATH: '/p/b/hubs.json', XDG_CONFIG_HOME: '/x/cfg' },
     want: '/p/b/hubs.json',
   },
+  // V2-8.9 M2 — an AI session has the profile id but no HUBS_CONFIG_PATH (acp/env.ts scrubs it).
+  {
+    name: 'MAUDE_PROFILE_ID only',
+    env: { MAUDE_PROFILE_ID: 'work' },
+    want: `${HOME}/.config/maude/profiles/work/hubs.json`,
+  },
+  {
+    name: 'MAUDE_PROFILE_ID + XDG_CONFIG_HOME',
+    env: { MAUDE_PROFILE_ID: 'work', XDG_CONFIG_HOME: '/x/cfg' },
+    want: '/x/cfg/maude/profiles/work/hubs.json',
+  },
+  {
+    name: 'MAUDE_PROFILE_ID default',
+    env: { MAUDE_PROFILE_ID: 'default' },
+    want: `${HOME}/.config/maude/hubs.json`,
+  },
+  {
+    name: 'MAUDE_PROFILE_ID not an id',
+    env: { MAUDE_PROFILE_ID: '../x' },
+    want: `${HOME}/.config/maude/hubs.json`,
+  },
+  {
+    name: 'HUBS_CONFIG_PATH wins over MAUDE_PROFILE_ID',
+    env: { MAUDE_PROFILE_ID: 'work', HUBS_CONFIG_PATH: '/p/b/hubs.json' },
+    want: '/p/b/hubs.json',
+  },
 ];
 
 function withEnv(env, fn) {
-  const keys = ['HOME', 'HUBS_CONFIG_PATH', 'XDG_CONFIG_HOME'];
+  const keys = ['HOME', 'HUBS_CONFIG_PATH', 'XDG_CONFIG_HOME', 'MAUDE_PROFILE_ID'];
   const prior = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   try {
     for (const k of keys) delete process.env[k];

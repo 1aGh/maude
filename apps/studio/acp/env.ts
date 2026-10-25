@@ -72,6 +72,12 @@ const GENERATION_KEY_CUSTODY_RE = /^MAUDE_GEN_KEY/i;
  */
 const SHELL_SECRET_RE = /^MAUDE_(TOKEN|SHELL|HOME)_/i;
 
+/** V2-8.9 M2 — the profile's credential-file pointers (sidecar::profile_env), never the agent's. */
+const PROFILE_POINTER_KEYS: ReadonlySet<string> = new Set([
+  'MAUDE_CLOUD_CONFIG',
+  'HUBS_CONFIG_PATH',
+]);
+
 /**
  * V2-1.15 §5.4 — the per-chat run binding. `MAUDE_CHAT_ID` names the chat whose `claude` this
  * is; `maude design hook` sends it as `chat`, so the hook's run is that chat's run. An inherited
@@ -132,9 +138,13 @@ export function scrubAgentEnv(
     // agent it spawns has no business filling the cache (Phase 1 review L3).
     if (key === 'MAUDE_MATERIALIZE_TOKEN') continue;
     // V2-3.4 / V2-3.6 M4 — the desktop shell's per-spawn secrets belong to this server alone.
-    // The profile env (MAUDE_PROFILE_ID, MAUDE_CLOUD_CONFIG, HUBS_CONFIG_PATH) deliberately
-    // passes: a tab's agent runs as the tab.
     if (SHELL_SECRET_RE.test(key)) continue;
+    // V2-8.9 M2 — the profile's credential-file POINTERS stay with the server: the agent has no
+    // business reading cloud.json / hubs.json (their folders are Read-denied too, may-scope.ts).
+    // MAUDE_PROFILE_ID / MAUDE_PROFILE_LABEL pass — a tab's agent runs as the tab, and the one
+    // verb that resolves hubs.json from the agent (`maude doctor`, cli/lib/hubs-config.mjs) finds
+    // the profile's file from the id.
+    if (PROFILE_POINTER_KEYS.has(key)) continue;
     // V2-1.15 §5.4 — a run binding is the bridge's to set, per chat (chatSpawnEnv)
     if (RUN_BINDING_KEYS.has(key)) continue;
     out[key] = value;

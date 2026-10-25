@@ -117,9 +117,14 @@ export function describeOutOfProject(scope) {
             : // S8.10 — a Handoff to production run writes its target file only; this is another file.
               scope.reason === 'outside-run-scope'
               ? 'This handoff may write its one file only. Nothing else changes unless you allow it now.'
-              : paths.length > 1
-                ? 'Claude wants to write files outside this project.'
-                : 'Claude wants to write a file outside this project.';
+              : // V2-8.9 H1 — inside the project; what matters is who will see what AI copied in.
+                scope.reason === 'audience'
+                ? audienceLead(scope.audience)
+                : scope.reason === 'audience-unknown'
+                  ? 'Maude couldn’t check who can see this canvas, and AI read other files in this chat.'
+                  : paths.length > 1
+                    ? 'Claude wants to write files outside this project.'
+                    : 'Claude wants to write a file outside this project.';
   return {
     lead,
     paths,
@@ -132,7 +137,41 @@ export function describeOutOfProject(scope) {
      *  must not claim "outside". */
     inProjectDenied: scope.reason === 'in-project-denied',
     readOnlyGrant: scope.reason === 'read-only-grant',
+    /** V2-8.9 H1 — a write others can see; the copy must not claim "outside". */
+    audience: scope.reason === 'audience' || scope.reason === 'audience-unknown',
   };
+}
+
+const plainName = (p) => sanitizePathForDisplay(String(p)).split('/').pop() || '';
+const listOf = (names) =>
+  names.length <= 1
+    ? names.join('')
+    : names.length === 2
+      ? `${names[0]} and ${names[1]}`
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/**
+ * V2-8.9 H1 — "This puts text from Pricing-internal into Campaign, which Grace can also see." Names
+ * are the server's (the hub's display names, the files this chat read), shown sanitised, at most a
+ * few of each — the card is read, not scrolled.
+ */
+export function audienceLead(audience) {
+  const sources = Array.isArray(audience?.sources)
+    ? audience.sources.map(plainName).filter(Boolean)
+    : [];
+  const who = Array.isArray(audience?.who)
+    ? audience.who.map((n) => sanitizePathForDisplay(String(n))).filter(Boolean)
+    : [];
+  const canvas = plainName(audience?.canvas ?? '');
+  const from =
+    sources.length > 3 ? `${sources.slice(0, 3).join(', ')} and other files` : listOf(sources);
+  const people =
+    who.length === 0
+      ? 'people you invited'
+      : who.length > 3
+        ? `${who.slice(0, 3).join(', ')} and others`
+        : listOf(who);
+  return `This may put text from ${from || 'other files'} into ${canvas || 'this canvas'}, which ${people} can also see.`;
 }
 
 // Decision D is enforced SERVER-side (bridge.ts filters `allow_always` out of
@@ -160,7 +199,9 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
         ? 'Write to a folder AI may only read'
         : request.scope?.reason === 'outside-run-scope'
           ? 'Write outside this handoff'
-          : 'Write outside this project';
+          : request.scope?.reason === 'audience' || request.scope?.reason === 'audience-unknown'
+            ? 'Write to a canvas others can see'
+            : 'Write outside this project';
   const headerTarget = outOfProject
     ? outOfProject.paths.length === 1
       ? String(outOfProject.paths[0]).split('/').pop()
@@ -197,7 +238,9 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
             ? 'Permission request — file that runs code'
             : outOfProject.readOnlyGrant
               ? 'Permission request — folder AI may only read'
-              : 'Permission request — file outside this project'
+              : outOfProject.audience
+                ? 'Permission request — canvas others can see'
+                : 'Permission request — file outside this project'
           : 'Permission request'
       }
       tabIndex={-1}
@@ -249,6 +292,8 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
                 </>
               ) : outOfProject.readOnlyGrant ? (
                 <>You attached this folder for AI to read. Folders AI may read are in Advanced.</>
+              ) : outOfProject.audience ? (
+                <>Edits that use only what they can see never ask.</>
               ) : (
                 <>
                   This project is <span className="chat-perm-root">{outOfProject.scopeRoot}</span>.

@@ -31,11 +31,18 @@
 // a shell command without asking, so only the Bash deny rules for the verbs hold there, not an
 // arbitrary `cat`. Grep/Glob over a folder that CONTAINS the assets folder are covered by Claude Code's
 // own best-effort application of Read deny rules, not by this gate. A connected MCP server's own web
-// tools are not classified.
+// tools are not classified. V2-8.9 M1 (open, decision maude/v2-8.9-lead-m1-canvas-navigation-gate):
+// "Search the web: off" does not yet hold a canvas the agent wrote — a project tab's subframe may still
+// navigate to any https origin (windows.rs `navigation_allowed`), and the headless helpers the agent
+// runs (`screenshot`, `canvas-rects`, agent-browser lanes) start without host-resolver rules.
+//
+// V2-8.9 M2 adds a third, switch-independent part at the bottom of this file: the credential-store
+// deny rules + their live refusal (`credentialDenyRules` / `credentialRefusal`).
 //
 // Pure + dependency-free (bar node:path and write-scope's path helpers): unit-tested without a session
 // (test/acp-may-scope.test.ts); end to end in test/acp-may-gate.test.ts.
 
+import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { isInsideRoot, resolveRealPath } from './write-scope.ts';
@@ -221,4 +228,113 @@ export function mayRefusal(
     }
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// V2-8.9 M2 (decision maude/v2-8.9-lead-m2-deny-credential-reads-only) — credential stores are never
+// read by the agent. Reads otherwise stay Claude Code's default (Gate 0 P3, decision
+// maude/v2-lead-ai-reads-stay-claude-code-default): only these folders get a deny rule, on EVERY
+// session whatever the "AI may" switches say, because normal design work never reads them — so no
+// new prompts.
+//
+//   • Maude's own config: `~/.config/maude/**` AND `$XDG_CONFIG_HOME/maude/**` — every profile's
+//     cloud.json / hubs.json / keys.json / project-links.json (`profiles/<id>/…` sit under it), plus
+//     the two files this server's own profile env names (MAUDE_CLOUD_CONFIG / HUBS_CONFIG_PATH)
+//     wherever they are. The agent's env no longer carries those two pointers (acp/env.ts).
+//   • ~/.ssh, ~/.aws, ~/.gnupg, ~/Library/Keychains.
+//
+// Two layers, as above: the deny rules (Read — Claude Code applies Read rules to Grep/Glob
+// best-effort) and the live gate (`credentialRefusal`) for a request that does reach the bridge — a
+// shell command that NAMES one of these paths is refused without a card. Residual, named: under
+// bypassPermissions (or the person's own Bash allow rules) a shell command that reaches a credential
+// file WITHOUT naming its path (a glob, a variable, `cd ~ && cat .ssh/*`) is approved by the CLI
+// itself and reaches neither layer.
+
+export interface CredentialPaths {
+  /** Folders — every file under them is a credential store. */
+  dirs: string[];
+  /** Single files (the profile pointers of this server's own env). */
+  files: string[];
+}
+
+/** The credential folders/files for an env (absolute; the real path too when it differs). */
+export function credentialPathsFor(
+  env: Record<string, string | undefined> = process.env,
+  home: string = env.HOME || homedir()
+): CredentialPaths {
+  const dirs = new Set<string>();
+  const files = new Set<string>();
+  const addDir = (p: string) => {
+    const abs = resolve(p);
+    dirs.add(abs);
+    const real = resolveRealPath(abs, abs);
+    if (real !== abs) dirs.add(real);
+  };
+  addDir(join(home, '.config', 'maude'));
+  const xdg = env.XDG_CONFIG_HOME;
+  if (xdg && xdg.length > 0 && isAbsolute(xdg)) addDir(join(xdg, 'maude'));
+  for (const d of ['.ssh', '.aws', '.gnupg', join('Library', 'Keychains')]) addDir(join(home, d));
+  for (const k of ['MAUDE_CLOUD_CONFIG', 'HUBS_CONFIG_PATH']) {
+    const f = env[k];
+    if (!f || !isAbsolute(f)) continue;
+    const abs = resolve(f);
+    if (![...dirs].some((d) => abs === d || isInsideRoot(abs, d))) files.add(abs);
+  }
+  return { dirs: [...dirs], files: [...files] };
+}
+
+const posixAbs = (p: string) => p.split(sep).join('/');
+
+/** The deny rules every session is spawned with (`Read(//abs/**)`, Claude Code's absolute form). */
+export function credentialDenyRules(paths: CredentialPaths): string[] {
+  return [
+    ...paths.dirs.map((d) => `Read(/${posixAbs(d)}/**)`),
+    ...paths.files.map((f) => `Read(/${posixAbs(f)})`),
+  ];
+}
+
+/** How a credential path can be spelled in a shell command: absolute, and `~/…` / `$HOME/…`. */
+function credentialSpellings(paths: CredentialPaths, home: string): string[] {
+  const out = new Set<string>();
+  for (const p of [...paths.dirs, ...paths.files]) {
+    out.add(posixAbs(p));
+    const rel = relative(home, p);
+    if (rel && !rel.startsWith('..') && !isAbsolute(rel)) {
+      const r = posixAbs(rel);
+      out.add(`~/${r}`);
+      out.add(`$HOME/${r}`);
+      out.add(`\${HOME}/${r}`);
+    }
+  }
+  return [...out];
+}
+
+/**
+ * The live gate's credential half: a request whose path (rawInput / locations / an absolute glob's
+ * base) lies in a credential store, or a shell command that names one, is refused without a card.
+ */
+export function credentialRefusal(
+  toolCall: ToolCallLike | null | undefined,
+  paths: CredentialPaths,
+  repoRoot: string,
+  home: string = process.env.HOME || homedir()
+): 'credentials' | null {
+  const raw = (toolCall?.rawInput ?? {}) as Record<string, unknown>;
+  const command = typeof raw.command === 'string' ? raw.command : '';
+  if (command && credentialSpellings(paths, home).some((s) => command.includes(s)))
+    return 'credentials';
+  const roots = [...paths.dirs, ...paths.files];
+  const candidates: string[] = [];
+  for (const k of PATH_KEYS)
+    if (typeof raw[k] === 'string' && raw[k]) candidates.push(raw[k] as string);
+  if (Array.isArray(toolCall?.locations)) {
+    for (const l of toolCall.locations as Array<{ path?: unknown }>) {
+      if (typeof l?.path === 'string' && l.path) candidates.push(l.path);
+    }
+  }
+  for (const g of [raw.pattern, raw.glob]) {
+    if (typeof g === 'string' && isAbsolute(g)) candidates.push(g.split(/[*?[{]/)[0] ?? '');
+  }
+  const expand = (p: string) => (p.startsWith('~/') ? join(home, p.slice(2)) : p);
+  return candidates.some((p) => p && insideAny(expand(p), repoRoot, roots)) ? 'credentials' : null;
 }

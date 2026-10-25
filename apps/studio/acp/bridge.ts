@@ -8,8 +8,9 @@
 // (env.ts): the child inherits the environment MINUS `ANTHROPIC_API_KEY`, so
 // auth precedence falls through to the user's Pro/Max subscription.
 
+import { statSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import {
   type AvailableCommand,
@@ -31,10 +32,23 @@ import {
 import { autoAllowRules } from '../actions/verbs.ts';
 import { HANDOFF_RUN_VERBS } from '../handoff/write-scopes.ts';
 import { readUiPrefs } from '../ui-prefs.ts';
+import {
+  type AudienceLeak,
+  audienceLeak,
+  designRelOf,
+  readPathsOf,
+  readsBeyond,
+  type TrackedRead,
+  type WriteAudienceSource,
+} from './audience.ts';
 import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
 import {
   type AiMay,
   assetsRootsFor,
+  type CredentialPaths,
+  credentialDenyRules,
+  credentialPathsFor,
+  credentialRefusal,
   MAY_ALL,
   mayAllowedTools,
   mayDenyRules,
@@ -53,6 +67,7 @@ import {
   isWriteToolName,
   looksLikeWriteToolCall,
   pinScopeRoot,
+  resolveRealPath,
   resolveWriteTargets,
   type WriteScopeVerdict,
   writeTargetsInsideProject,
@@ -90,6 +105,13 @@ export interface AcpBridgeOptions {
    * allows nothing (fail closed: every write goes to the prompt).
    */
   writeOnlyRoots?: () => readonly string[] | null;
+  /**
+   * V2-8.9 H1 — who besides the project's people can see a write target (hub canvas grants;
+   * acp/audience.ts). An in-project write that would carry a design-root file this chat read to
+   * someone who cannot see that file loses auto-approve. Absent → no audience check (tests,
+   * embedders, a desktop-only project's wiring answers [] anyway).
+   */
+  writeAudience?: WriteAudienceSource;
   /**
    * Session-scoped local plugins auto-loaded into every new session via
    * `_meta.claudeCode.options.plugins` (DDR-143; resolved by
@@ -217,7 +239,11 @@ export interface PermissionScopeInfo {
   /** The pinned project root the paths were judged against — so the prompt can
    *  say what "outside" means instead of asserting it. */
   scopeRoot: string;
-  reason: WriteScopeVerdict['reason'];
+  /** `audience` / `audience-unknown` (V2-8.9 H1): inside the project, but the target is seen by
+   *  someone who cannot see a file this chat read — or the hub could not say who sees it. */
+  reason: WriteScopeVerdict['reason'] | 'audience' | 'audience-unknown';
+  /** V2-8.9 H1 — the granted canvas, who holds it, and the files read this chat they cannot see. */
+  audience?: AudienceLeak;
 }
 
 /** The bridge's normalized shape of a `usage_update` notification. `rateLimit`
@@ -564,6 +590,8 @@ export function newSessionParams(
     /** P8 c7 — Advanced › AI may. Off switches become deny rules + leave the allow-list (may-scope.ts). */
     may?: AiMay;
     assetsRoots?: readonly string[];
+    /** V2-8.9 M2 — the credential stores (default: this process's env, may-scope.ts). */
+    credentials?: CredentialPaths;
   } = {}
 ): { cwd: string; mcpServers: never[]; _meta?: Record<string, unknown> } {
   const meta: Record<string, unknown> = {};
@@ -593,9 +621,15 @@ export function newSessionParams(
   // P8 c7 (decision maude/v2-p8-c7-ai-may-enforced) — an "AI may" switch the person turned off is a
   // DENY rule: it wins over every allow rule (ours and the person's own ~/.claude) and every mode,
   // bypassPermissions included, and it is the only thing that holds a Read inside the project (Claude
-  // Code approves those itself; the bridge never sees them). Absent when everything is on, so such a
-  // session is byte-for-byte what it was. The adapter appends its own entries (acp-agent.js:2855).
-  const deny = mayDenyRules(scope.may ?? MAY_ALL, scope.assetsRoots ?? []);
+  // Code approves those itself; the bridge never sees them). The adapter appends its own entries
+  // (acp-agent.js:2855).
+  // V2-8.9 M2 (decision maude/v2-8.9-lead-m2-deny-credential-reads-only) — plus, on EVERY session, a
+  // Read deny for the credential stores (every profile's ~/.config/maude, ~/.ssh, ~/.aws, ~/.gnupg,
+  // the keychains). Reads otherwise stay Claude Code's default (Gate 0 P3).
+  const deny = [
+    ...credentialDenyRules(scope.credentials ?? credentialPathsFor()),
+    ...mayDenyRules(scope.may ?? MAY_ALL, scope.assetsRoots ?? []),
+  ];
   if (deny.length) options.disallowedTools = deny;
   if (plugins && plugins.length > 0) {
     options.plugins = plugins;
@@ -663,6 +697,8 @@ export const MAX_PENDING_PERMISSIONS = 10;
 // the write gate reads. See `rememberToolName` for the eviction policy and why
 // an eviction degrades safely.
 export const MAX_TRACKED_TOOL_NAMES = 256;
+/** V2-8.9 H1 — design-root reads remembered per chat; past it the chat read "everything". */
+export const MAX_TRACKED_READS = 1024;
 
 // feature-acp-ask-user-question, SECURITY (ethical-hacker finding) — unlike a
 // permission request (one per tool call, rate-limited by how fast a model can
@@ -828,6 +864,15 @@ export class AcpBridge {
   private may: AiMay = MAY_ALL;
   private readonly assetsRoots: string[];
   private sessionMay = new Map<string, string>(); // sessionId → mayKey it was spawned with
+  /** V2-8.9 M2 — the credential stores, from the server's own env (before the agent's scrub). */
+  private readonly credentialPaths: CredentialPaths = credentialPathsFor();
+  /**
+   * V2-8.9 H1 — the design-root files/folders this CHAT has read (acp/audience.ts). Per bridge, not
+   * per ACP session: a session re-established with its history kept (`reestablishForMay`) still holds
+   * what it read. Bounded; past the cap the chat counts as having read the whole design folder.
+   */
+  private reads = new Map<string, TrackedRead>();
+  private readonly designRoots: string[];
 
   constructor(private readonly opts: AcpBridgeOptions) {
     this.scopeRoot = pinScopeRoot(opts.repoRoot);
@@ -835,6 +880,9 @@ export class AcpBridge {
       opts.repoRoot,
       opts.designRoot ?? join(opts.repoRoot, '.design')
     );
+    const design = resolve(opts.repoRoot, opts.designRoot ?? '.design');
+    const designReal = resolveRealPath(design, opts.repoRoot);
+    this.designRoots = designReal === design ? [design] : [design, designReal];
   }
 
   /**
@@ -1112,6 +1160,7 @@ export class AcpBridge {
       onlyVerbs: scoped === null ? null : HANDOFF_RUN_VERBS,
       may,
       assetsRoots: this.assetsRoots,
+      credentials: this.credentialPaths,
     });
     const persistedId = resume === undefined ? await this.readPersistedSessionId() : resume;
     let sessionId: string | undefined;
@@ -1295,6 +1344,8 @@ export class AcpBridge {
         // this is the write gate's only source for the tool name, and it must
         // never be skipped for a reason unrelated to permissions.
         this.rememberToolName(u);
+        // V2-8.9 H1 — and what it READ, replayed history included: a resumed session holds it too.
+        this.rememberRead(u);
         // The command catalogue is chrome, not chat — surface it to the UI but
         // keep it out of the rendered turn + the persisted transcript.
         if (u.sessionUpdate === 'available_commands_update') {
@@ -1382,7 +1433,11 @@ export class AcpBridge {
         {
           const toolCallId = params.toolCall?.toolCallId;
           const name = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
-          if (mayRefusal(name, params.toolCall, this.may, this.scopeRoot, this.assetsRoots)) {
+          // V2-8.9 M2 — a credential store, named in a path or a shell command: refused the same way.
+          if (
+            credentialRefusal(params.toolCall, this.credentialPaths, this.scopeRoot) ||
+            mayRefusal(name, params.toolCall, this.may, this.scopeRoot, this.assetsRoots)
+          ) {
             const reject = (params.options ?? []).find((o) => o.kind === 'reject_once');
             return Promise.resolve({
               outcome: reject
@@ -1399,44 +1454,20 @@ export class AcpBridge {
         // that already exists; this deliberately does NOT build a parallel path.
         const scope = this.classifyWrite(params);
         if (scope.autoApprove) {
-          return Promise.resolve({
+          const auto: RequestPermissionResponse = {
             outcome: { outcome: 'selected', optionId: scope.autoApprove },
+          };
+          // V2-8.9 H1 (decision maude/v2-8.9-lead-h1-audience-aware-write-gate) — an in-project
+          // write that would carry a design-root file this chat read to someone who cannot see it
+          // (a canvas-scoped hub grantee) is not auto-approved: it becomes the person's card.
+          const held = this.audienceHold(scope.targets ?? []);
+          if (!held) return Promise.resolve(auto);
+          return held.then((info) => {
+            if (this.stopped) return { outcome: { outcome: 'cancelled' } };
+            return info ? this.askPerson(params, { stripAlways: true, info }) : auto;
           });
         }
-        // SECURITY (ethical-hacker finding) — bound queue depth before
-        // registering a pending entry, mirroring the elicitation channel's
-        // MAX_PENDING_ELICITATIONS cap. Deny immediately past the cap — safe
-        // by construction, since deny is this gate's own fail-closed default.
-        if (this.pendingPermissions.size >= MAX_PENDING_PERMISSIONS) {
-          return Promise.resolve({ outcome: { outcome: 'cancelled' } });
-        }
-        const id = crypto.randomUUID();
-        // Decision D — an out-of-project write cannot be made permanent by one
-        // click. Strip every `allow_always` option BEFORE it is offered, so
-        // consent is per-call. Filtering here rather than client-side is what
-        // makes it a gate instead of a speed bump: `optionIds` below is built
-        // from the SAME filtered array, so a hand-crafted `permission-response`
-        // naming `allow_always` fails closed to `cancelled` (resolvePermission's
-        // existing DDR-125 F1 posture) rather than being honored.
-        // `reject_always` is deliberately left in place — it is the safe
-        // direction, and stripping it could remove the only reject option.
-        const offered = scope.stripAlways
-          ? (params.options ?? []).filter((o) => o.kind !== 'allow_always')
-          : (params.options ?? []);
-        const outgoing: RequestPermissionRequest = scope.stripAlways
-          ? { ...params, options: offered }
-          : params;
-        const optionIds = new Set(offered.map((o) => o.optionId));
-        return new Promise<RequestPermissionResponse>((resolve) => {
-          const slot = {
-            resolve,
-            timer: undefined as unknown as ReturnType<typeof setTimeout>,
-            optionIds,
-          };
-          this.armDecisionDeadline(slot, () => this.resolvePermission(id, 'cancelled'));
-          this.pendingPermissions.set(id, slot);
-          this.opts.onPermissionRequest?.(id, outgoing, scope.info);
-        });
+        return this.askPerson(params, scope);
       },
       unstable_createElicitation: (
         params: CreateElicitationRequest
@@ -1616,6 +1647,47 @@ export class AcpBridge {
     await this.sessionFor(chatId);
   }
 
+  /** The permission card: register a pending decision and hand the request to the person. */
+  private askPerson(
+    params: RequestPermissionRequest,
+    scope: { info?: PermissionScopeInfo; stripAlways?: boolean }
+  ): Promise<RequestPermissionResponse> {
+    // SECURITY (ethical-hacker finding) — bound queue depth before
+    // registering a pending entry, mirroring the elicitation channel's
+    // MAX_PENDING_ELICITATIONS cap. Deny immediately past the cap — safe
+    // by construction, since deny is this gate's own fail-closed default.
+    if (this.pendingPermissions.size >= MAX_PENDING_PERMISSIONS) {
+      return Promise.resolve({ outcome: { outcome: 'cancelled' } });
+    }
+    const id = crypto.randomUUID();
+    // Decision D — an out-of-project write cannot be made permanent by one
+    // click. Strip every `allow_always` option BEFORE it is offered, so
+    // consent is per-call. Filtering here rather than client-side is what
+    // makes it a gate instead of a speed bump: `optionIds` below is built
+    // from the SAME filtered array, so a hand-crafted `permission-response`
+    // naming `allow_always` fails closed to `cancelled` (resolvePermission's
+    // existing DDR-125 F1 posture) rather than being honored.
+    // `reject_always` is deliberately left in place — it is the safe
+    // direction, and stripping it could remove the only reject option.
+    const offered = scope.stripAlways
+      ? (params.options ?? []).filter((o) => o.kind !== 'allow_always')
+      : (params.options ?? []);
+    const outgoing: RequestPermissionRequest = scope.stripAlways
+      ? { ...params, options: offered }
+      : params;
+    const optionIds = new Set(offered.map((o) => o.optionId));
+    return new Promise<RequestPermissionResponse>((resolve) => {
+      const slot = {
+        resolve,
+        timer: undefined as unknown as ReturnType<typeof setTimeout>,
+        optionIds,
+      };
+      this.armDecisionDeadline(slot, () => this.resolvePermission(id, 'cancelled'));
+      this.pendingPermissions.set(id, slot);
+      this.opts.onPermissionRequest?.(id, outgoing, scope.info);
+    });
+  }
+
   /**
    * Record `toolCallId → toolName` from a streamed tool-call notification.
    * See the `toolNames` field comment for why this is the only available source.
@@ -1642,6 +1714,72 @@ export class AcpBridge {
       if (oldest !== undefined) this.toolNames.delete(oldest);
     }
     this.toolNames.set(id, name);
+  }
+
+  /** V2-8.9 H1 — record the design-root files a streamed Read / Grep / shell command reads. */
+  private rememberRead(u: SessionUpdate): void {
+    if (u.sessionUpdate !== 'tool_call' && u.sessionUpdate !== 'tool_call_update') return;
+    const view = u as { toolCallId?: unknown; rawInput?: unknown; locations?: unknown };
+    const name =
+      typeof view.toolCallId === 'string' ? this.toolNames.get(view.toolCallId) : undefined;
+    if (!name || !view.rawInput) return;
+    let found: TrackedRead[];
+    try {
+      found = readPathsOf(name, view, this.opts.repoRoot, this.designRoots, (abs) => {
+        try {
+          const st = statSync(abs);
+          return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : null;
+        } catch {
+          return null;
+        }
+      });
+    } catch {
+      found = [];
+    }
+    for (const r of found) {
+      const key = `${r.dir ? 'd' : 'f'}:${r.rel}`;
+      if (this.reads.has(key)) continue;
+      if (this.reads.size >= MAX_TRACKED_READS) {
+        // Past the cap: as if the whole design folder was read (fail toward the card).
+        this.reads.set('d:', { rel: '', dir: true });
+        return;
+      }
+      this.reads.set(key, r);
+    }
+  }
+
+  /**
+   * V2-8.9 H1 — the audience check of an in-project write the path gate would auto-approve. null =
+   * nothing to check (no source, no design-root target, or this chat read nothing beyond the targets
+   * — no hub call). Otherwise resolves to the card's `info`, or null when the write may go.
+   */
+  private audienceHold(targets: readonly string[]): Promise<PermissionScopeInfo | null> | null {
+    const source = this.opts.writeAudience;
+    if (!source || this.reads.size === 0) return null;
+    const rels: string[] = [];
+    for (const t of targets) {
+      const rel = designRelOf(t, this.opts.repoRoot, this.designRoots);
+      if (rel && !rel.split('/')[0]?.startsWith('_')) rels.push(rel);
+    }
+    if (!rels.length || !readsBeyond(this.reads.values(), rels)) return null;
+    const card = (
+      reason: 'audience' | 'audience-unknown',
+      leak?: AudienceLeak
+    ): PermissionScopeInfo => ({
+      outOfProjectWrite: true,
+      resolvedPaths: [...targets],
+      scopeRoot: this.scopeRoot,
+      reason,
+      ...(leak ? { audience: leak } : {}),
+    });
+    return source.audienceOf(rels).then(
+      (audiences) => {
+        if (audiences === null) return card('audience-unknown');
+        const leak = audienceLeak(this.reads.values(), rels, audiences);
+        return leak ? card('audience', leak) : null;
+      },
+      () => card('audience-unknown')
+    );
   }
 
   /**
@@ -1674,6 +1812,8 @@ export class AcpBridge {
     autoApprove?: string;
     info?: PermissionScopeInfo;
     stripAlways?: boolean;
+    /** V2-8.9 H1 — the resolved targets of an auto-approved write (its audience check). */
+    targets?: string[];
   } {
     const toolCallId = params.toolCall?.toolCallId;
     const toolName = typeof toolCallId === 'string' ? this.toolNames.get(toolCallId) : undefined;
@@ -1742,7 +1882,7 @@ export class AcpBridge {
     // still `stripAlways` — see F6 above: a name-keyed standing rule is unscoped
     // no matter which card it was clicked from.
     if (!allowOnce) return { stripAlways: true };
-    return { autoApprove: allowOnce.optionId };
+    return { autoApprove: allowOnce.optionId, targets: verdict.resolved };
   }
 
   /**

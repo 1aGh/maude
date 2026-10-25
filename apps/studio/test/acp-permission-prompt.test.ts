@@ -249,3 +249,60 @@ describe('sanitizePathForDisplay (F3)', () => {
     expect(d.scopeRoot).not.toContain(RLO);
   });
 });
+
+// V2-8.9 H1 — the audience card: inside the project, so never "outside"; it names the file AI read,
+// the canvas it writes and who can see that canvas.
+describe('the audience card (V2-8.9 H1)', () => {
+  const AUDIENCE = {
+    outOfProjectWrite: true,
+    resolvedPaths: ['/Users/x/p/.design/ui/Campaign.tsx'],
+    scopeRoot: '/Users/x/p',
+    reason: 'audience',
+    audience: { canvas: 'ui/Campaign.tsx', who: ['Grace'], sources: ['ui/Pricing-internal.tsx'] },
+  };
+  test('the lead names source, canvas and who — and never says "outside"', () => {
+    const d = describeOutOfProject(AUDIENCE);
+    expect(d?.lead).toBe(
+      'This may put text from Pricing-internal.tsx into Campaign.tsx, which Grace can also see.'
+    );
+    expect(d?.lead).not.toContain('outside');
+    expect(d?.audience).toBe(true);
+  });
+  test('the rendered card: its own headline, no "always allow"', () => {
+    const html = renderToStaticMarkup(
+      createElement(PermissionPrompt, {
+        request: {
+          id: 'p1',
+          toolCall: { title: 'Edit ui/Campaign.tsx' },
+          options: [
+            { optionId: 'allow_always', name: 'Always Allow', kind: 'allow_always' },
+            { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
+          ],
+          scope: AUDIENCE,
+        },
+        onRespond: () => {},
+      })
+    );
+    expect(html).toContain('Write to a canvas others can see');
+    expect(html).not.toContain('Always Allow');
+    expect(html).not.toContain('outside this project');
+  });
+  test('names are sanitised; a long list is cut', () => {
+    const d = describeOutOfProject({
+      ...AUDIENCE,
+      audience: {
+        canvas: `ui/${RLO}x.tsx`,
+        who: ['A', 'B', 'C', 'D'],
+        sources: ['a', 'b', 'c', 'd'],
+      },
+    });
+    expect(d?.lead).not.toContain(RLO);
+    expect(d?.lead).toContain('and other files');
+    expect(d?.lead).toContain('and others');
+  });
+  test('audience-unknown has its own words', () => {
+    expect(describeOutOfProject({ ...AUDIENCE, reason: 'audience-unknown' })?.lead).toContain(
+      'couldn’t check who can see'
+    );
+  });
+});
