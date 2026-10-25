@@ -760,6 +760,7 @@ export function InspectorPanel({
                       depth={0}
                       selectedId={el?.id}
                       selectedIndex={el?.index}
+                      selectedAlso={Array.isArray(selected) ? selected.slice(1) : undefined}
                       collapsed={collapsed}
                       hiddenOverride={hiddenOverride}
                       onToggle={toggleCollapse}

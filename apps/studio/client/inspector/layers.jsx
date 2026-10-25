@@ -99,6 +99,7 @@ export function LayerRow({
   depth,
   selectedId,
   selectedIndex,
+  selectedAlso,
   collapsed,
   hiddenOverride,
   onToggle,
@@ -139,8 +140,12 @@ export function LayerRow({
   // clones at once. Fall back to id-only when the selection carries no index.
   const isSel =
     !isSynthetic &&
-    node.id === selectedId &&
-    (selectedIndex == null || node.index === selectedIndex);
+    ((node.id === selectedId && (selectedIndex == null || node.index === selectedIndex)) ||
+      // P8 c8 (14 ed-obj-multi): "Layers shows the same selection" — every object of a multi-selection is lit
+      (selectedAlso?.some(
+        (s) => s?.id === node.id && (s.index == null || node.index === s.index)
+      ) ??
+        false));
   const isHidden = hiddenOverride?.has(key) ? hiddenOverride.get(key) : !!node.hidden;
   // A shared data-cd-id (reused component instance) IS reorderable now — the
   // server maps the occurrence index to the parent <Component> usage — so these
@@ -318,6 +323,7 @@ export function LayerRow({
                 depth={depth + 1}
                 selectedId={selectedId}
                 selectedIndex={selectedIndex}
+                selectedAlso={selectedAlso}
                 collapsed={collapsed}
                 hiddenOverride={hiddenOverride}
                 onToggle={onToggle}
