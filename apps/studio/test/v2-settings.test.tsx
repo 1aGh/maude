@@ -445,9 +445,21 @@ describe('the desktop sheet renders every Settings row', () => {
     expect(base.textContent).toContain('142 MB');
     expect(base.textContent).toContain('On this Mac');
     expect([...base.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Remove']);
+    // one model at a time: the picker lists them all, the box is the picked one (already-here first)
+    const pick = q('settings-whisper-model-pick') as HTMLSelectElement;
+    expect([...pick.options].map((o) => o.textContent)).toEqual([
+      'Base (multilingual) · on this Mac',
+      'Tiny (multilingual)',
+    ]);
+    expect(q('settings-whisper-model-tiny')).toBeNull();
+    await act(async () => {
+      pick.value = 'tiny';
+      pick.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
     const tiny = q('settings-whisper-model-tiny') as HTMLElement;
     expect(tiny.textContent).toContain('Not downloaded');
     expect([...tiny.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Download']);
+    expect(q('settings-whisper-model-base')).toBeNull();
     expect(q('settings-gemma-model-ollama:gemma3:4b')?.textContent).toContain('3.3 GB');
   });
 

@@ -40700,5 +40700,41 @@
       "apps/studio/test/kind-inspector-rows.test.ts"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "settings-whisper-model-pick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The whisper.cpp model select (every model, with its size and whether it is here); the box below is the picked one.",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "ModelPicker"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-settings.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-gemma-model-pick",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Gemma scout model select; the box below is the picked one.",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "ModelPicker"
+    },
+    "region": "settings",
+    "consumers": [
+      "test:v2-settings"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-settings.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

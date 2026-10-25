@@ -52,12 +52,8 @@ const H = ({ children }) => (
 
 /** The DCArtboard as the file carries it, for a Fixed size (06 ad-pinned › In code). */
 export function digitalCodeOf(f) {
-  const attrs = [];
-  if (f.id) attrs.push(`id="${f.id}"`);
-  attrs.push(
-    `width={${Math.round(f.w ?? 0)}} height={${Math.round(f.h ?? 0)}}${f.fixed ? ' fixed' : ''}`
-  );
-  return `<DCArtboard ${attrs.join(' ')}>`;
+  const size = `width={${Math.round(f.w ?? 0)}} height={${Math.round(f.h ?? 0)}}${f.fixed ? ' fixed' : ''}`;
+  return f.id ? `<DCArtboard id="${f.id}"\n  ${size}>` : `<DCArtboard ${size}>`;
 }
 
 /**

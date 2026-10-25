@@ -304,6 +304,45 @@ function ModelBox({ name, size, tone, word, action, title, testid }) {
   );
 }
 
+// One model at a time, as 06 ad-settings draws a model card: a quiet "Model" select (every model the engine offers,
+// with its size and whether it is already here) and the box of the picked one. The default pick is the model that is
+// already on this Mac, else the one being downloaded, else `preferred`, else the first.
+function ModelPicker({ models, downloadingId, preferred, label = 'Model', testid, children }) {
+  const [picked, setPicked] = useState(null);
+  const list = models || [];
+  if (list.length === 0) return null;
+  const cur =
+    list.find((m) => m.id === picked) ??
+    list.find((m) => m.id === downloadingId) ??
+    list.find((m) => m.downloaded) ??
+    list.find((m) => m.id === preferred) ??
+    list[0];
+  return (
+    <>
+      <label className="v2s-row">
+        <span className="v2s-row-t">
+          <span className="v2s-row-k">{label}</span>
+        </span>
+        <select
+          className="v2s-select"
+          aria-label={label}
+          data-testid={testid}
+          value={cur.id}
+          onChange={(e) => setPicked(e.target.value)}
+        >
+          {list.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+              {m.downloaded ? ' · on this Mac' : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      {children(cur)}
+    </>
+  );
+}
+
 // Task 2.7 (approach A) — one-click local whisper.cpp models. The engine binary
 // is still a soft dep, but the MODEL half is one click: download a ggml model
 // into a Maude-managed cache and `--provider whisper` auto-resolves it. Polls
@@ -377,46 +416,53 @@ export function WhisperModelCard() {
           Download of {dl.id} failed: {dl.error}
         </p>
       )}
-      {(state?.models || []).map((m) => {
-        const busy = dl && !dl.error && dl.id === m.id;
-        return (
-          <ModelBox
-            key={m.id}
-            testid={`settings-whisper-model-${m.id}`}
-            name={`whisper.cpp · ${m.label}`}
-            size={`${m.sizeMB} MB`}
-            title={m.note}
-            tone={m.downloaded ? 'ok' : busy ? 'info' : 'off'}
-            word={
-              m.downloaded
-                ? 'On this Mac'
-                : busy
-                  ? `Downloading… ${pctOf(dl.received, dl.total)}%`
-                  : 'Not downloaded'
-            }
-            action={
-              m.downloaded ? (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => remove(m.id)}
-                >
-                  Remove
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  disabled={!!(dl && !dl.error)}
-                  onClick={() => download(m.id)}
-                >
-                  {busy ? 'Downloading…' : 'Download'}
-                </button>
-              )
-            }
-          />
-        );
-      })}
+      <ModelPicker
+        models={state?.models}
+        downloadingId={dl && !dl.error ? dl.id : null}
+        preferred="base"
+        testid="settings-whisper-model-pick"
+      >
+        {(m) => {
+          const busy = dl && !dl.error && dl.id === m.id;
+          return (
+            <ModelBox
+              key={m.id}
+              testid={`settings-whisper-model-${m.id}`}
+              name={`whisper.cpp · ${m.label}`}
+              size={`${m.sizeMB} MB`}
+              title={m.note}
+              tone={m.downloaded ? 'ok' : busy ? 'info' : 'off'}
+              word={
+                m.downloaded
+                  ? 'On this Mac'
+                  : busy
+                    ? `Downloading… ${pctOf(dl.received, dl.total)}%`
+                    : 'Not downloaded'
+              }
+              action={
+                m.downloaded ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => remove(m.id)}
+                  >
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    disabled={!!(dl && !dl.error)}
+                    onClick={() => download(m.id)}
+                  >
+                    {busy ? 'Downloading…' : 'Download'}
+                  </button>
+                )
+              }
+            />
+          );
+        }}
+      </ModelPicker>
       {state && (
         <div className="st-setup">
           <div className={`st-step${state.setup?.installed ? ' is-done' : ''}`}>
@@ -758,49 +804,55 @@ export function GemmaModelCard() {
         </p>
       )}
       {state === null && !err && <p className="v2s-hint">Loading…</p>}
-      {(state?.models || []).map((m) => {
-        const busy = dl && !dl.error && dl.id === m.id;
-        const runtimeReady = m.runtime === 'ollama' ? Boolean(ollama?.available) : Boolean(mlx);
-        const blockedNote =
-          m.runtime === 'ollama'
-            ? ollama?.installed
-              ? 'start Ollama first'
-              : 'needs Ollama'
-            : 'needs mlx-vlm';
-        return (
-          <ModelBox
-            key={m.id}
-            testid={`settings-gemma-model-${m.id}`}
-            name={m.label}
-            size={`${Math.round(m.sizeMB / 100) / 10} GB`}
-            title={m.note}
-            tone={m.downloaded ? 'ok' : busy ? 'info' : 'off'}
-            word={
-              m.downloaded
-                ? 'On this Mac'
-                : busy
-                  ? `${m.runtime === 'ollama' ? 'Pulling' : 'Downloading'}… ${pctOf(dl.received, dl.total)}%`
-                  : runtimeReady
-                    ? 'Not downloaded'
-                    : blockedNote
-            }
-            action={
-              m.downloaded ? null : (
-                // Each row is enabled by ITS OWN runtime — an Ollama model is one click whenever Ollama is
-                // running (the server pulls it through /api/pull); an mlx snapshot needs mlx-vlm.
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  disabled={!runtimeReady || !!(dl && !dl.error)}
-                  onClick={() => download(m.id)}
-                >
-                  {busy ? 'Downloading…' : 'Download'}
-                </button>
-              )
-            }
-          />
-        );
-      })}
+      <ModelPicker
+        models={state?.models}
+        downloadingId={dl && !dl.error ? dl.id : null}
+        testid="settings-gemma-model-pick"
+      >
+        {(m) => {
+          const busy = dl && !dl.error && dl.id === m.id;
+          const runtimeReady = m.runtime === 'ollama' ? Boolean(ollama?.available) : Boolean(mlx);
+          const blockedNote =
+            m.runtime === 'ollama'
+              ? ollama?.installed
+                ? 'start Ollama first'
+                : 'needs Ollama'
+              : 'needs mlx-vlm';
+          return (
+            <ModelBox
+              key={m.id}
+              testid={`settings-gemma-model-${m.id}`}
+              name={m.label}
+              size={`${Math.round(m.sizeMB / 100) / 10} GB`}
+              title={m.note}
+              tone={m.downloaded ? 'ok' : busy ? 'info' : 'off'}
+              word={
+                m.downloaded
+                  ? 'On this Mac'
+                  : busy
+                    ? `${m.runtime === 'ollama' ? 'Pulling' : 'Downloading'}… ${pctOf(dl.received, dl.total)}%`
+                    : runtimeReady
+                      ? 'Not downloaded'
+                      : blockedNote
+              }
+              action={
+                m.downloaded ? null : (
+                  // Each row is enabled by ITS OWN runtime — an Ollama model is one click whenever Ollama is
+                  // running (the server pulls it through /api/pull); an mlx snapshot needs mlx-vlm.
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    disabled={!runtimeReady || !!(dl && !dl.error)}
+                    onClick={() => download(m.id)}
+                  >
+                    {busy ? 'Downloading…' : 'Download'}
+                  </button>
+                )
+              }
+            />
+          );
+        }}
+      </ModelPicker>
     </div>
   );
 }
