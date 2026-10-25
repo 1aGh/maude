@@ -350,11 +350,11 @@ export function ReframeIsland({
           Done
         </button>
       </div>
-      <p className="ve-reframe-note" data-testid="reframe-note">
-        {canEdit
-          ? 'Drag the window to frame it. Each format keeps its own.'
-          : 'Ask the owner to change this.'}
-      </p>
+      {canEdit ? null : (
+        <p className="ve-reframe-note" data-testid="reframe-note">
+          Ask the owner to change this.
+        </p>
+      )}
     </div>
   );
 }
@@ -480,5 +480,6 @@ export function ReframeHost({
       onDrop={onDrop}
       onReset={onReset}
       onDone={onDone}
-    />);
+    />
+  );
 }

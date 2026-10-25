@@ -140,42 +140,46 @@ function VolumeRow({ t }) {
 function FramingRow({ t, ctx }) {
   return (
     <Row k="Framing" name="clip-framing">
-      <Select
-        value={framingValue(t.seq.fit)}
-        options={FRAMING_OPTIONS}
-        ariaLabel="How the picture sits"
-        testId="insp-clip-framing"
-        onChange={(fit) => t.onOp('fit', { fit })}
-      />
-      {/* S7.13 (07 · ve-reframe): where each format looks inside the picture — the Re-frame island */}
-      <button
-        type="button"
-        className="insp-quietlink"
-        data-testid="insp-clip-reframe"
-        onClick={() =>
-          typeof ctx?.onShellAction === 'function'
-            ? ctx.onShellAction('video.reframe')
-            : reframeUi.open()
-        }
-      >
-        Re-frame…
-      </button>
-      {/* S7.15 (07 · ve-ai-adjust): the clip's other good moments, swapped in at the same length */}
-      {['Video', 'OffthreadVideo', 'MaudeVideo'].includes(t.seq.mediaTag ?? '') &&
-      t.seq.mediaSrc ? (
-        <button
-          type="button"
-          className="insp-quietlink"
-          data-testid="insp-clip-takes"
-          onClick={() =>
-            typeof ctx?.onShellAction === 'function'
-              ? ctx.onShellAction('video.take.swap')
-              : otherTakesUi.open()
-          }
-        >
-          Other takes…
-        </button>
-      ) : null}
+      <span className="insp-framing">
+        <Select
+          value={framingValue(t.seq.fit)}
+          options={FRAMING_OPTIONS}
+          ariaLabel="How the picture sits"
+          testId="insp-clip-framing"
+          onChange={(fit) => t.onOp('fit', { fit })}
+        />
+        <span className="insp-framing-links">
+          {/* S7.13 (07 · ve-reframe): where each format looks inside the picture — the Re-frame island */}
+          <button
+            type="button"
+            className="insp-quietlink"
+            data-testid="insp-clip-reframe"
+            onClick={() =>
+              typeof ctx?.onShellAction === 'function'
+                ? ctx.onShellAction('video.reframe')
+                : reframeUi.open()
+            }
+          >
+            Re-frame…
+          </button>
+          {/* S7.15 (07 · ve-ai-adjust): the clip's other good moments, swapped in at the same length */}
+          {['Video', 'OffthreadVideo', 'MaudeVideo'].includes(t.seq.mediaTag ?? '') &&
+          t.seq.mediaSrc ? (
+            <button
+              type="button"
+              className="insp-quietlink"
+              data-testid="insp-clip-takes"
+              onClick={() =>
+                typeof ctx?.onShellAction === 'function'
+                  ? ctx.onShellAction('video.take.swap')
+                  : otherTakesUi.open()
+              }
+            >
+              Other takes…
+            </button>
+          ) : null}
+        </span>
+      </span>
     </Row>
   );
 }

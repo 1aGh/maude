@@ -952,7 +952,9 @@ export default function TimelinePanel({
     const t = drawnTracks.find((d) => d.id === id);
     const tt = trackToggle(id, label, {
       seqs: (t?.members ?? []).filter((m) => m.kind === 'seq').map((m) => sequences[m.index]),
-      beds: (t?.members ?? []).filter((m) => m.kind === 'audio').map((m) => musicLane.forBed(m.index)),
+      beds: (t?.members ?? [])
+        .filter((m) => m.kind === 'audio')
+        .map((m) => musicLane.forBed(m.index)),
     });
     const can = canEditHere && !!onClipVerb && tt.ids.length > 0;
     return (
@@ -2926,7 +2928,8 @@ export default function TimelinePanel({
                   </button>
                 </div>
               </div>
-            </div>)
+            </div>
+          )
         : null}
       {commentPopover
         ? portalToBody(
@@ -2990,7 +2993,8 @@ export default function TimelinePanel({
                   </div>
                 </div>
               );
-            })())
+            })()
+          )
         : null}
       {joinPicker && picker
         ? portalToBody(
@@ -3012,7 +3016,8 @@ export default function TimelinePanel({
                 setJoinPicker(null);
                 if (from?.isConnected) from.focus?.();
               }}
-            />)
+            />
+          )
         : null}
       {/* S7.13 — Re-frame: the selected clip's window per format (drawn only while opened) */}
       <ReframeHost
@@ -3040,7 +3045,8 @@ export default function TimelinePanel({
       />
       {fitFill.ask
         ? portalToBody(
-            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />)
+            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />
+          )
         : null}
       {ctxMenu && sequences[ctxMenu.index]
         ? portalToBody(
@@ -3122,7 +3128,8 @@ export default function TimelinePanel({
                   }}
                 />
               );
-            })())
+            })()
+          )
         : null}
       {island?.fileDrag && island.dropRect && onDropMedia ? (
         <ArtboardDropCatcher rect={island.dropRect} onFiles={(files) => onDropMedia(files, null)} />

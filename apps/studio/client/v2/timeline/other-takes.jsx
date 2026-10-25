@@ -262,5 +262,6 @@ export function OtherTakesHost({ seq, fps, name, canEdit, url = null, run }) {
       url={url}
       onPick={onPick}
       onClose={() => otherTakesUi.close()}
-    />);
+    />
+  );
 }

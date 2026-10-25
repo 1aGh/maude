@@ -95,5 +95,6 @@ export function ArtboardDropCatcher({ rect, onFiles }) {
         const files = Array.from(e.dataTransfer.files || []);
         if (files.length) onFiles(files);
       }}
-    />);
+    />
+  );
 }

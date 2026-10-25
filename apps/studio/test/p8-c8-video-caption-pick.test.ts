@@ -12,7 +12,13 @@ describe('pickCaption', () => {
   test('selects the caption and survives the canvas select echo', () => {
     let released = 0;
     timelineSelection.set({ kind: 'clip', canvas: 'c', stableId: 'x', deselect: () => released++ });
-    pickCaption({ canvas: 'c', artboardId: 'a', fps: 30, media: { captions: {}, words: [] }, key: 'k' });
+    pickCaption({
+      canvas: 'c',
+      artboardId: 'a',
+      fps: 30,
+      media: { captions: {}, words: [] },
+      key: 'k',
+    });
     expect(released).toBe(1); // the clip's highlight let go
     expect(timelineSelection.get()?.kind).toBe('caption');
     timelineSelection.release(); // the canvas echo
