@@ -162,8 +162,23 @@
   }
   .ex-job:hover .ex-job-acts,
   .ex-job:focus-within .ex-job-acts,
-  .ex-job--warn .ex-job-acts {
+  .ex-job--warn .ex-job-acts,
+  .ex-job-acts:has(.ex-on) {
     opacity: 1;
+  }
+  /* 09 ex-history: the More button reads pressed while its menu is open */
+  .ex-job-acts .icon-btn.ex-on {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  /* the row menu (the board's Menu, 260 wide) sits above the panel */
+  .ex-job-menu {
+    z-index: 9100;
+    width: 260px;
+  }
+  .ex-job-menu .st-dd-item:disabled {
+    color: var(--fg-3, var(--fg-2));
+    cursor: default;
   }
   .ex-job .st-export-progress {
     margin: 0;

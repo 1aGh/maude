@@ -18,6 +18,26 @@ import { replayBody } from './v2/export/run-export.js';
 import { retryItems } from './v2/export/exports-model.js';
 import { isNativeApp } from './github.js';
 
+// 09 ex-history — "Remove from list" is remembered on this Mac (never sent anywhere): the ids the person put away.
+const HIDDEN_KEY = 'maude-exports-hidden';
+const HIDDEN_MAX = 200;
+function readHidden() {
+  try {
+    const v = JSON.parse(globalThis.localStorage?.getItem(HIDDEN_KEY) || '[]');
+    return new Set(Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+function writeHidden(id) {
+  try {
+    const next = [...readHidden().add(id)].slice(-HIDDEN_MAX);
+    globalThis.localStorage?.setItem(HIDDEN_KEY, JSON.stringify(next));
+  } catch {
+    /* private window: the row still leaves this session's list */
+  }
+}
+
 async function fetchJobBytes(id) {
   const r = await fetch(`/_api/export-jobs/download?id=${encodeURIComponent(id)}`);
   if (!r.ok) return null;
@@ -72,7 +92,9 @@ export function useExportCenter({ enabled = true } = {}) {
       .then((j) => {
         if (!alive) return;
         const m = new Map();
+        const hidden = readHidden();
         for (const job of Array.isArray(j?.jobs) ? j.jobs : []) {
+          if (hidden.has(job.id)) continue; // "Remove from list" — this Mac's list only, the file stays
           m.set(job.id, job);
           // Hydration is a SNAPSHOT, not a live transition — seed both guards
           // so a page (re)load never replays a toast / auto-download for a
@@ -259,6 +281,16 @@ export function useExportCenter({ enabled = true } = {}) {
     },
     [fail]
   );
+  // 09 ex-history — "Remove from list": the row leaves the Exports panel on this Mac (remembered, so a reload
+  // does not bring it back); the file it made and the server's own history are untouched.
+  const removeFromList = useCallback(
+    (job) => {
+      if (!job || typeof job.id !== 'string') return;
+      writeHidden(job.id);
+      upsert({ id: job.id, gone: true });
+    },
+    [upsert]
+  );
   // S8.5 — "Render on this Mac now" on a cloud row still waiting: withdraw it and run it here. The
   // queued row leaves the list; the this-Mac job arrives as its own row over the socket.
   const renderHere = useCallback(
@@ -333,6 +365,7 @@ export function useExportCenter({ enabled = true } = {}) {
     again,
     retry,
     renderHere,
+    removeFromList,
     savedPaths,
     savingIds,
   };

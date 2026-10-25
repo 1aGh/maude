@@ -7,14 +7,16 @@
 // toast's "Open Exports" lands on it), `export-degraded-note` the problem line, and a failed row keeps
 // its error behind a "Show error details" fold.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { summarizeNoticeText } from '../../../notifications.tsx';
 import { StIcon } from '../../shell/icons.jsx';
 import {
   DOWNLOAD,
   EXPORT_AGAIN,
+  jobMenuItems,
   jobMeta,
   jobTitle,
+  MORE,
   progressPct,
   retryLabel,
   SHOW_IN_FINDER,
@@ -94,6 +96,99 @@ export function DegradedNote({ degraded, compact = false }) {
   );
 }
 
+/**
+ * 09 ex-history — the finished row's menu (the board's `Menu`): fixed under the "More" button so the panel's own
+ * scroll never clips it; ↑ ↓ move, Esc or a click outside closes it (Esc stops there, the panel stays open).
+ */
+function RowMenu({ job, native, on, anchorRef, onClose }) {
+  const ref = useRef(null);
+  const [at, setAt] = useState(null);
+  const items = jobMenuItems(job, { native });
+  useLayoutEffect(() => {
+    const a = anchorRef.current?.getBoundingClientRect?.();
+    const w = ref.current?.offsetWidth || 260;
+    if (!a) return;
+    const left = Math.max(8, Math.min(a.right - w, window.innerWidth - w - 8));
+    const h = ref.current?.scrollHeight || 200;
+    const below = a.bottom + 4;
+    const top = below + h > window.innerHeight - 8 ? Math.max(8, a.top - 4 - h) : below;
+    setAt({ left, top });
+  }, [anchorRef]);
+  useEffect(() => {
+    const el = ref.current;
+    el?.querySelector('button:not([disabled])')?.focus();
+    const onPointer = (e) => {
+      if (el && !el.contains(e.target) && !anchorRef.current?.contains(e.target)) onClose();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        anchorRef.current?.focus?.();
+        return;
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const btns = Array.from(el?.querySelectorAll('button:not([disabled])') ?? []);
+      if (!btns.length) return;
+      const i = btns.indexOf(document.activeElement);
+      const n = e.key === 'ArrowDown' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length;
+      btns[n]?.focus();
+    };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [anchorRef, onClose]);
+  const run = (id) => {
+    onClose();
+    if (id === 'reveal') (native ? on?.reveal : on?.download)?.(job);
+    else if (id === 'again') on?.again?.(job);
+    else if (id === 'again-with') on?.againWith?.(job);
+    else if (id === 'copy-names') on?.copyNames?.(job);
+    else if (id === 'remove') on?.remove?.(job);
+  };
+  return (
+    <div
+      ref={ref}
+      className="st-dropdown ex-job-menu"
+      role="menu"
+      aria-label={`Actions for ${jobTitle(job)}`}
+      data-testid={`export-job-menu-${job.id}`}
+      style={{
+        position: 'fixed',
+        left: at?.left ?? 0,
+        top: at?.top ?? 0,
+        visibility: at ? 'visible' : 'hidden',
+      }}
+    >
+      {items.map((it) =>
+        it.separator ? (
+          <hr key={it.id} className="st-dd-sep" style={{ border: 0 }} />
+        ) : (
+          <button
+            key={it.id}
+            type="button"
+            role="menuitem"
+            className="st-dd-item"
+            disabled={it.disabled}
+            data-testid={`export-job-menu-${it.id}-${job.id}`}
+            onClick={() => run(it.id)}
+          >
+            <span className="st-dd-lead">
+              {it.icon ? <StIcon name={it.icon} size={14} /> : null}
+              {it.label}
+            </span>
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
 function StateWord({ job }) {
   const word = stateWord(job);
   if (!word) return null;
@@ -130,6 +225,8 @@ export function JobRow({
   cover = null,
 }) {
   const ref = useRef(null);
+  const moreRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!selected) return;
     ref.current?.scrollIntoView?.({ block: 'nearest' });
@@ -224,7 +321,29 @@ export function JobRow({
             >
               <StIcon name="sync" size={14} />
             </button>
+            <button
+              ref={moreRef}
+              type="button"
+              className={`icon-btn k-icon-sm${menuOpen ? ' ex-on' : ''}`}
+              data-testid={`export-job-more-${job.id}`}
+              title={MORE}
+              aria-label={MORE}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <StIcon name="more" size={14} />
+            </button>
           </span>
+        ) : null}
+        {finished && menuOpen ? (
+          <RowMenu
+            job={job}
+            native={native}
+            on={on}
+            anchorRef={moreRef}
+            onClose={() => setMenuOpen(false)}
+          />
         ) : null}
       </div>
       {job.status === 'done' ? <DegradedNote degraded={job.degraded} /> : null}
