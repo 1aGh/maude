@@ -2,9 +2,9 @@
 // one current tool (canvas side, `view-chrome {zen}`), the project pill folds to its mark, the share cluster is zen
 // (the panels button alone), and the "Panels hidden" notice sits at the TOP (kg v2-p8-c4-toast-dock-or-top).
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
   if (typeof window === 'undefined') GlobalRegistrator.register();
@@ -17,9 +17,9 @@ afterAll(async () => {
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { createPanelLayout } from '../client/v2/shell/panel-layout.js';
 import { ToolPalette } from '../tool-palette.tsx';
 import { ChromeVisibilityProvider } from '../use-chrome-visibility.tsx';
-import { createPanelLayout } from '../client/v2/shell/panel-layout.js';
 import { ToolProvider } from '../use-tool-mode.tsx';
 
 let root: Root | null = null;
@@ -97,6 +97,8 @@ describe('the shell side of the fold', () => {
     const cluster = readFileSync(join(client, 'v2/shell/share-cluster.jsx'), 'utf8');
     expect(cluster).toContain("data-zen={panelsHidden ? 'true' : undefined}");
     const css = readFileSync(join(client, 'v2/shell/share-cluster.css'), 'utf8');
-    expect(css).toContain('.st-share[data-zen="true"] > :not([data-testid="share-cluster-panels"])');
+    expect(css).toContain(
+      '.st-share[data-zen="true"] > :not([data-testid="share-cluster-panels"])'
+    );
   });
 });

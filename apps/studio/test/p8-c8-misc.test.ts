@@ -83,11 +83,9 @@ describe('04 md-draw — panelOpenDecision aiInFold', () => {
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 describe('04 md-draw — the spark does not unfold both panels', () => {
-  const corner = readFileSync(
-    join(import.meta.dir, '../client/v2/shell/corner-icons.jsx'),
-    'utf8'
-  );
+  const corner = readFileSync(join(import.meta.dir, '../client/v2/shell/corner-icons.jsx'), 'utf8');
   test('under Preview fold alone the AI corner icon does not call onShow', () => {
     expect(corner).toContain('if (hidden && !folded) onShow();');
   });
