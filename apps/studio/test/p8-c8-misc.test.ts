@@ -92,3 +92,21 @@ describe('04 md-draw — the spark does not unfold both panels', () => {
     expect(corner).toContain('if (hidden && !folded) onShow();');
   });
 });
+
+// ── 04 md-edit-component — the Components slot presses while the picker is up ──
+import { openPanel } from '../client/v2/shell/shell-panels-relay.js';
+import { isShellPanelOpen } from '../toolbars/shell-panels.ts';
+
+describe('04 md-edit-component — shell-panels carries the Component picker', () => {
+  test('the picker is reported; Stickers still wins, then the picker, then Assets', () => {
+    expect(openPanel({ stickers: false, assets: false, components: true })).toBe('components');
+    expect(openPanel({ stickers: true, assets: false, components: true })).toBe('stickers');
+    expect(openPanel({ stickers: false, assets: true, components: true })).toBe('components');
+    expect(openPanel({ stickers: false, assets: false })).toBeNull();
+  });
+  test('the Components slot is pressed while the shell says components, no other slot is', () => {
+    expect(isShellPanelOpen('components', 'components')).toBe(true);
+    expect(isShellPanelOpen('stickers', 'components')).toBe(false);
+    expect(isShellPanelOpen('components', 'stickers')).toBe(false);
+  });
+});

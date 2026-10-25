@@ -3114,7 +3114,9 @@ function CanvasRouter({
       if (m.dgn === 'shell-panels') {
         if (e.source !== window.parent) return;
         const open = (m as { open?: unknown }).open;
-        setShellPanelOpen(open === 'stickers' || open === 'assets' ? open : null);
+        setShellPanelOpen(
+          open === 'stickers' || open === 'assets' || open === 'components' ? open : null
+        );
         return;
       }
       // V2-8.5 c7 (08 ak-convert-after) — the two marks after "Make A6 print". Parent-only, like the rest of this block:

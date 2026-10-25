@@ -3017,7 +3017,11 @@ function ShellTree() {
     },
   });
   // V2-8.5 c7 - the open panel reaches the canvas dock (Stickers · E, Image · I press while theirs is up)
-  useShellPanelsRelay({ stickersOpen: !!stickerPickerReq, assetsOpen });
+  useShellPanelsRelay({
+    stickersOpen: !!stickerPickerReq,
+    assetsOpen,
+    componentsOpen: !!componentsReq,
+  });
   // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
   // (dgn `asset-state`); a Missing frame's Relink… (and the Inspector's box) opens the relink sheet (S8.19c).
   const relink = useRelinkSheet({ canEdit: !viewerMode });

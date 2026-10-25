@@ -221,9 +221,10 @@ describe('shell-panels (V2-8.5 c7, 15 an-stk-gallery / 04 md-edit-image)', () =>
     expect(acceptFromShell(ev(msg, win), win)).toBeNull();
   });
 
-  test('open is an enum (stickers · assets · null) and nothing else', () => {
+  test('open is an enum (stickers · assets · components · null) and nothing else', () => {
     const ok = (o: Record<string, unknown>) => acceptFromShell(ev({ ...msg, ...o }, shell), win);
     expect(ok({ open: 'assets' })).not.toBeNull();
+    expect(ok({ open: 'components' })).not.toBeNull();
     expect(ok({ open: null })).not.toBeNull();
     expect(ok({ open: 'templates' })).toBeNull();
     expect(ok({ open: '<img src=x>' })).toBeNull();
