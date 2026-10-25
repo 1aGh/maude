@@ -104,3 +104,19 @@ Harness: the committed `_d-harness-g4` scripts repointed to this worktree, plus 
 | pn-cant-open | unreachable | needs a moved project root / removed access in the Rust shell + hub |
 
 Extra unpaired frames in the worktree `.scr/impl`: `strip-b20-overview-*`, `pn-home-top-*`, `pn-home-search-typed-*`, `pn-k-close-2-*`.
+
+## After (round 7, p8-c7-g1112b)
+
+All reachable ids re-shot dark + light on the release client of branch `p8-c7-g1112b` (the `*.jpg` pairs above are the new ones); the scripts are `_c7-harness-g1112b/` (`chain7.sh`, `chain7b.sh`). Changes to the product and the harness are in [`fix-c7-oboard.md`](fix-c7-oboard.md).
+
+| id | state | what changed in the frame |
+|---|---|---|
+| pn-tab-b20, pn-relaunch-strip | re-shot | `strip-shoot.mjs`: 10 tabs at ~110 px + "10 more" (C4's strip fix) |
+| pn-home | re-shot | `home11.mjs`: the slim ask bar docks as soon as the composer card is under the header; the header fades what scrolls under it |
+| pn-ds, pn-ds-search | re-shot | `s11ds7.mjs`: ONE design system (copy of the v2 system + boards), the system open: the pinned row is the two-line "Design system / <name> / N canvases" card; ⌘K groups "Canvases and artboards" |
+| pn-trash, pn-relaunch, pn-deeplink | re-shot | trash glyph on the trash toast, tabs glyph on the restore pill, no check/×; the link toast names the artboard ("Uniformy-2027 · Pozvánka · story") and the artboard is selected (`s11dl.mjs`) |
+| pn-jump | re-shot | `s11c7.mjs`: artboard 4 selected, the list opened and scrolled to the canvas row: all 21 rows, "21" on the row, current row marked, foot "21 artboards · 21 web" |
+| pn-k-close | re-shot | one list "Canvases and artboards" |
+| pn-compare | re-shot | the two frames follow the theme (they were dark in light), borderless stage |
+| pn-move | re-shot | `s11c7.mjs`: a canvas held over the folder club-web → the drop tag "Move here" on the folder |
+

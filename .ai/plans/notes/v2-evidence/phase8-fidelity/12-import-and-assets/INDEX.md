@@ -81,3 +81,19 @@ Harness: the committed `_d-harness-g4` scripts repointed to this worktree, plus 
 | ia-brand-steps | re-shot | ⌘K › Import a brand, just opened (`s12`) |
 | ia-brand-steps-1, -2, -3 | re-shot | `s12g` in a plain browser (the Tauri stub made the logo pick a native dialog): logo chosen via the file chooser + website typed → Import → Reading… → the site does not answer. `AGENT_BROWSER_SOCKET_DIR=/tmp/abg4` is set because the logo read shells out to agent-browser and a throwaway-HOME session name was too long for the socket path (earlier shots of this id showed "Couldn't read the logo" for that reason — harness, not product) |
 | ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges | unreachable | stubs not built (network, hub peer, providers, nine conditions) |
+
+## After (round 7, p8-c7-g1112b)
+
+All reachable ids re-shot dark + light on the release client of branch `p8-c7-g1112b`; scripts in `_c7-harness-g1112b/` (`chain7.sh`; `s12c7.mjs` is the new one). Product and harness changes: [`fix-c7-oboard.md`](fix-c7-oboard.md).
+
+| id | state | what changed in the frame |
+|---|---|---|
+| ia-assets-keys | re-shot | an artboard is selected and the tile menu is open (right-click): Place in Hero ↵ · Show details · Rename… · Copy · Move to trash |
+| ia-assets-browse | re-shot | one tile clicked, the sixth ⇧-clicked: six picked, "6 selected · size · Clear · Place 6 in Hero ↵" |
+| ia-assets-tidy | re-shot | the foot is one line inside the panel (count + "Move N to the trash…") |
+| ia-photo-inspector | re-shot | Photo tab: Placement Fill · Fit · Crop under the name; Light / Colour are a track and a value (no number boxes) |
+| ia-photo-steps | re-shot | Placement › Crop, then a double-click: crop mode on the canvas (tag "photo · crop", ↵ done · esc cancel) and "The whole photo stays — only the frame moves." |
+| ia-placed | re-shot | the six photos are one selection with the "6 photos" tag; the inspector is the Photo one, not the Frame's |
+| ia-missing-gone | re-shot | the picture inside the missing frame is selected: the inspector's Missing box with Relink… and Replace… |
+| ia-brand-steps-3 | re-shot | the failed site is said once (callout), no second amber row; "1 colour" is singular (the fixture logo reads 2) |
+

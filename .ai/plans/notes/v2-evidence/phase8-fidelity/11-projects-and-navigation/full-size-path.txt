@@ -9,3 +9,4 @@ round 4: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8ca0db6375bacad
 
 final (D2, d3881fe41): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/pairs/11-projects-and-navigation
 (full-size PNG pairs: <id>-<theme>.png; spec PNGs, reused from stage A: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/spec/11-projects-and-navigation/<id>-<theme>.png; raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a88fc0565d3f0bdf8/.scr/impl/11-projects-and-navigation/)
+round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e7c0c42105bd43c/.scr/pairs/11-projects-and-navigation (p8-c7-g1112b; raw impl /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e7c0c42105bd43c/.scr/impl/11-projects-and-navigation; spec PNGs from the stage-A tree)
