@@ -1,16 +1,17 @@
 // client/v2/export/advanced/print.jsx — S8.3: Advanced › Print PDF.
 //
 // What the spec carries for a print PDF: the resolution of the images inside, the bleed and the crop
-// marks. (Text handling, registration marks and paper are not spec fields yet — the Print section,
-// S8.7, owns the paper preview and the rest.)
+// marks, the text and registration marks. Paper is drawn as a choice with the one answer there is (the page
+// keeps the artboard's own size); the Print section, S8.7, owns the paper preview.
 
 import { Row } from '../parts.jsx';
 import {
   BLEED,
+  BLEED_AMOUNT,
   CROP_MARKS,
   IMAGES_INSIDE,
   PAPER,
-  PAPER_WORDS,
+  PAPER_OPTIONS,
   PRINT_COLOUR_NOTE,
   PRINT_TITLE,
   REGISTRATION_MARKS,
@@ -18,7 +19,7 @@ import {
   TEXT_NOTE,
   TEXT_OPTIONS,
 } from './advanced-copy.js';
-import { Note, Select, Switch } from './fields.jsx';
+import { Note, ReadField, Select, Switch } from './fields.jsx';
 import { DPI_PRESETS } from './model.js';
 
 /** The print options the spec holds right now, wherever they sit (a kind's own, else the top level). */
@@ -28,7 +29,8 @@ export const printDpiOf = (spec) => {
   return size && 'dpi' in size ? size.dpi : null;
 };
 
-export function PrintPart({ spec, setAdv }) {
+/** @param bleedMm the bleed the print artboard was authored with (3 mm when the paper is not known yet) */
+export function PrintPart({ spec, setAdv, bleedMm = 3 }) {
   const print = printOf(spec);
   const dpi = printDpiOf(spec) ?? 300;
   const text = print.text ?? 'keep';
@@ -60,6 +62,11 @@ export function PrintPart({ spec, setAdv }) {
           checked={print.bleed === true}
           onChange={(bleed) => setAdv({ bleed })}
         />
+        <ReadField
+          label={BLEED_AMOUNT}
+          testid="export-adv-bleed-mm"
+          value={`${Number(bleedMm.toFixed(2))} mm`}
+        />
       </Row>
       <Row k={CROP_MARKS}>
         <Switch
@@ -78,9 +85,13 @@ export function PrintPart({ spec, setAdv }) {
         />
       </Row>
       <Row k={PAPER}>
-        <span className="ex-val" data-testid="export-adv-paper">
-          {PAPER_WORDS}
-        </span>
+        <Select
+          label={PAPER}
+          testid="export-adv-paper"
+          value="same"
+          options={PAPER_OPTIONS}
+          onChange={() => {}}
+        />
       </Row>
       <Note>{PRINT_COLOUR_NOTE}</Note>
     </section>

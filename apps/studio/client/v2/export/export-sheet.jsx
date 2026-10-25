@@ -657,6 +657,7 @@ export function ExportSheet({
             exportLane={exportLane}
             facts={nameFacts}
             sheetScale={effectiveScale(state, kind)}
+            bleedMm={preflight?.boards?.[0]?.paper?.bleedMm ?? 3}
             extra={
               batch ? (
                 <BatchAdvancedRows

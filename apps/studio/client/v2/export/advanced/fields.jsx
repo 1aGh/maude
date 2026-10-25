@@ -81,6 +81,23 @@ export function NumberField({ value, onCommit, range, unit, label, testid, integ
   );
 }
 
+/**
+ * A value drawn as the sheet's field but not typed into: the bleed an artboard was authored with (the page is
+ * trim + 2 × bleed, so an export cannot change it — only whether the strip is kept). Focusable, read aloud.
+ */
+export function ReadField({ value, label, testid }) {
+  return (
+    <input
+      type="text"
+      readOnly
+      className="ex-field ex-field--ro"
+      aria-label={label}
+      data-testid={testid}
+      value={value}
+    />
+  );
+}
+
 /** An on/off switch — a button with `role="switch"`. */
 export function Switch({ checked, onChange, label, testid, disabled = false }) {
   const id = useId();

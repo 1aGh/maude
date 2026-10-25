@@ -744,6 +744,37 @@ describe('the sheet: Advanced', () => {
     expect($('[data-testid="export-adv-render"]')).not.toBeNull();
   });
 
+  test('P8 c8 (09 ex-advanced): each part has its visible heading; JPG quality, Bleed mm and Paper are drawn', async () => {
+    estimate = {
+      ...EST_BATCH,
+      byKind: {
+        digital: { artboards: 2, files: 2, format: 'png' },
+        print: { artboards: 1, files: 1, format: 'pdf' },
+        video: { artboards: 1, files: 1, format: 'mp4' },
+      },
+    };
+    await mountSheet();
+    await click('[data-testid="export-advanced-toggle"]');
+    expect(text('[data-testid="export-adv-image-title"]')).toBe('Image — PNG · JPG');
+    expect(text('[data-testid="export-adv-print-title"]')).toBe('Print PDF');
+    expect(text('[data-testid="export-adv-video-title"]')).toBe('Video — MP4 · GIF · WebM');
+    expect(text('[data-testid="export-adv-render-title"]')).toBe('Where it renders');
+    // each part sits inside its titled column
+    expect(
+      $('[data-testid="export-adv-image-col"] [data-testid="export-adv-image"]')
+    ).not.toBeNull();
+    // JPG quality is on the Image part even for a PNG-only export (the fold is the sheet's: a JPG picked next uses it)
+    expect(($('[data-testid="export-adv-jpg-quality"]') as HTMLInputElement).value).toBe('85');
+    // Bleed: the switch keeps its job, the field beside it reads the artboard's own bleed in mm
+    expect(($('[data-testid="export-adv-bleed-mm"]') as HTMLInputElement).value).toBe('3 mm');
+    expect(($('[data-testid="export-adv-bleed-mm"]') as HTMLInputElement).readOnly).toBe(true);
+    // Paper is a select (the board's), enabled, with the one answer there is
+    const paper = $('[data-testid="export-adv-paper"]') as HTMLSelectElement;
+    expect(paper.tagName).toBe('SELECT');
+    expect(paper.disabled).toBe(false);
+    expect([...paper.options].map((o) => o.textContent)).toEqual(['Same as artboard']);
+  });
+
   test('an Advanced change reaches the spec: exact scale', async () => {
     estimate = { ...EST_BATCH, byKind: { digital: { artboards: 1, files: 1, format: 'png' } } };
     await mountSheet({ selectedArtboards: ['a1'] });

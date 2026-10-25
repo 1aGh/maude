@@ -141,6 +141,16 @@
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: var(--space-3, 12px);
   }
+  /* 09 ex-advanced: a visible heading over each part (the board's `Col label`), the part fills the rest */
+  .ex-adv-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+  }
+  .ex-adv-col > .ex-advp {
+    flex: 1;
+  }
   .ex-advp {
     display: flex;
     flex-direction: column;
@@ -152,6 +162,20 @@
   }
   .ex-advp .ex-row-k {
     width: 96px;
+  }
+  /* a native select is as wide as its longest option ("Turn text into shapes (print-safe)"): it must not outgrow the part */
+  .ex-advp .ex-select {
+    max-width: 100%;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+  .ex-advp .ex-row-v {
+    min-width: 0;
+  }
+  .ex-field--ro {
+    width: 72px;
+    cursor: default;
+    color: var(--fg-1);
   }
   .ex-advp-h {
     margin: 0;
