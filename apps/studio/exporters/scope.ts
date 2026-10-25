@@ -613,6 +613,7 @@ export function engineOptionsFor(
   if (format === 'jpg') out.quality = o.jpgQuality ?? 85;
   if (o.background) out.background = o.background;
   if (o.video?.fps) out.fps = o.video.fps;
+  if (format === 'gif' && o.video?.gifColors) out.gifColors = o.video.gifColors;
   // S8.6 — Sound only: m4a (the video's own sound, re-wrapped) or wav
   if (format === 'audio') out.audioCodec = o.audio?.codec ?? 'm4a';
   if (o.colorProfile) out.colorProfile = o.colorProfile;

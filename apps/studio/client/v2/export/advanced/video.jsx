@@ -11,11 +11,14 @@ import {
   CODEC_WORDS,
   FRAME_RATE,
   FRAME_RATE_MADE,
+  GIF_COLOURS as GIF_COLOURS_LABEL,
+  LONG_VIDEOS,
+  LONG_VIDEOS_WORDS,
   VIDEO_NOTE,
   VIDEO_TITLE,
 } from './advanced-copy.js';
 import { Note, Select } from './fields.jsx';
-import { FPS_CHOICES, VIDEO_QUALITY } from './model.js';
+import { FPS_CHOICES, GIF_COLOURS, VIDEO_QUALITY } from './model.js';
 
 const videoOf = (spec) => {
   const hit = Object.values(spec.byKind ?? {}).find((e) => e.options?.video)?.options.video;
@@ -23,7 +26,7 @@ const videoOf = (spec) => {
 };
 
 /** @param formats the video formats in this export (mp4 · webm · gif) */
-export function VideoPart({ spec, formats, setAdv }) {
+export function VideoPart({ spec, formats, setAdv, cap = 3600 }) {
   const video = videoOf(spec);
   return (
     <section className="ex-advp" data-testid="export-adv-video" aria-label={VIDEO_TITLE}>
@@ -49,6 +52,21 @@ export function VideoPart({ spec, formats, setAdv }) {
           options={[['', BITRATE_AUTO], ...VIDEO_QUALITY]}
           onChange={(v) => setAdv({ vquality: v === '' ? null : v })}
         />
+      </Row>
+      <Row k={GIF_COLOURS_LABEL}>
+        <Select
+          label={GIF_COLOURS_LABEL}
+          testid="export-adv-gif-colours"
+          value={video.gifColors ?? 256}
+          disabled={!formats.includes('gif')}
+          options={GIF_COLOURS.map((n) => [n, String(n)])}
+          onChange={(v) => setAdv({ gifColors: Number(v) })}
+        />
+      </Row>
+      <Row k={LONG_VIDEOS}>
+        <span className="ex-val" data-testid="export-adv-long-videos">
+          {LONG_VIDEOS_WORDS(cap)}
+        </span>
       </Row>
       <Note>{VIDEO_NOTE}</Note>
     </section>
