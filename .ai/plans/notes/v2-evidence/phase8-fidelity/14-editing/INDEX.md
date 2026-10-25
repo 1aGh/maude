@@ -327,3 +327,24 @@ Re-shot 50 of 52 pairs; 2 unreachable. Supersedes every earlier "after" / "FINAL
 | `ed-text-edit` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ed-text-style` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+
+## After (round 6, c6-drag) — IMPL re-shot on the p8-c6-drag tip, both themes
+Re-shot: ed-ab-select, ed-ab-resize, ed-ab-arrange, ed-ab-tidy, ed-lay-reorder, ed-edge-ask, ed-edge-undo (the other pairs are D3's, untouched). Changed in the product: the inspector follows an artboard edge drag (Width reads "Laptop · 1280" as the edge clicks onto the preset; new canvas → shell message `artboard-live-size`), the two resize hints are two pills, the reorder card is lifted (tilted, accent ring, deep shadow) with a card-sized slot, the Tidy-up bar clears the artboard name labels, no "Δ0" snap pill, and the tab-order pills / focus ring follow Tab and F6 only (a tool letter, Esc, a chord or an arrow no longer paints `1.2.1.1` over a pointer selection). Changed in the harness (`_d6-harness-g5/`): the drag states are now actually on screen — arrange lands exactly in the row (guide, three "80" chips, X · Y pill), Tidy up is hovered (dashed one-row preview + "One row, even gaps"), reorder zooms on Services and lifts a card. See `fix-c6-drag.md` for done / open.
+
+| id | theme | round 6 | spec |
+| --- | --- | --- | --- |
+| `ed-ab-arrange` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-arrange` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-resize` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-select` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-ab-tidy` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-ask` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-edge-undo` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
+| `ed-lay-reorder` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
