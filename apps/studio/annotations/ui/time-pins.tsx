@@ -29,8 +29,9 @@ export const TIME_PIN_CSS = `
 }
 .dc-annot-pintag[data-pin-tag="time"] { left: 4px; }
 .dc-annot-pintag[data-pin-tag="print"] {
-  /* 15 an-print (.an-noprint): a DARK pill INSIDE the note's top edge, at the board's small radius */
-  right: 6px; bottom: auto; top: 6px; margin: 0; padding: 2px 8px; border-radius: 4px; font-weight: 500;
+  /* 15 an-print (.an-noprint): a DARK pill just BELOW the note's bottom edge (the board puts it at the note's left + 12,
+     4 px under it), at the board's small radius - inside the note it sat on the text */
+  left: 12px; right: auto; bottom: auto; top: 100%; margin: 4px 0 0; padding: 2px 8px; border-radius: 4px; font-weight: 500;
   background: var(--maude-chrome-fg-1, #1a1a1a); color: var(--maude-chrome-bg-1, #fff); box-shadow: none;
 }
 .dc-annot-pintag svg { width: 11px; height: 11px; flex: none; }
