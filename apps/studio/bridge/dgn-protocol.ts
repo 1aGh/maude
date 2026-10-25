@@ -443,6 +443,8 @@ export interface ShellToCanvas {
     guides: boolean;
     print: boolean;
     safeZones: boolean;
+    /** P8 C8 (01 cf-open-big): ⌘\ hid the panels - the toolbar folds to its one current tool. */
+    zen: boolean;
   }>;
   'view-annotations': { visible: boolean };
   'canvas-cap': { t: string };
@@ -1867,6 +1869,7 @@ const s2c: S2C = {
       guides: opt(bool),
       print: opt(bool),
       safeZones: opt(bool),
+      zen: opt(bool),
     }),
   },
   'view-annotations': {

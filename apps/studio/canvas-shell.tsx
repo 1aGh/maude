@@ -3302,6 +3302,7 @@ function CanvasRouter({
           guides?: boolean;
           print?: boolean;
           safeZones?: boolean;
+          zen?: boolean;
         };
         const patch: {
           minimap?: boolean;
@@ -3310,7 +3311,10 @@ function CanvasRouter({
           guides?: boolean;
           print?: boolean;
           safeZones?: boolean;
+          zen?: boolean;
         } = {};
+        // P8 C8 (01 cf-open-big) - the panels are hidden: the toolbar folds to its current tool. Shell-driven.
+        if (typeof mm.zen === 'boolean') patch.zen = mm.zen;
         if (typeof mm.minimap === 'boolean') patch.minimap = mm.minimap;
         if (typeof mm.zoom === 'boolean') patch.zoom = mm.zoom;
         if (typeof mm.present === 'boolean') patch.present = mm.present;

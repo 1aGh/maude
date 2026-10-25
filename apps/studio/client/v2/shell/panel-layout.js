@@ -106,7 +106,8 @@ export function createPanelLayout({ persist = () => {}, say = () => {}, unsay = 
     hide() {
       if (user.hidden) return;
       set({ hidden: true });
-      say({ id: PANELS_HINT_ID, title: PANELS_HIDDEN_HINT, kind: 'info' });
+      // P8 C8 (01 cf-open-big, kg v2-p8-c4-toast-dock-or-top): an app-state notice sits at the TOP, as board 01 draws it
+      say({ id: PANELS_HINT_ID, title: PANELS_HIDDEN_HINT, kind: 'info', placement: 'top' });
     },
     show() {
       if (!snap.hidden) return;

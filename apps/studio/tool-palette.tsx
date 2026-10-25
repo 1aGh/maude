@@ -805,6 +805,27 @@ export function ToolPalette() {
     body.push(renderSlot(s));
   });
 
+  // P8 C8 (01 cf-open-big): the panels are hidden (the shell's cmd-backslash) - the board folds the toolbar to its
+  // one current tool (`Toolbar folded`). A drawn state, not a control: the way back is the same key or the
+  // Share cluster's panels button.
+  if (chrome?.zen && barMode !== 'present') {
+    const ZenIcon = glyphFor(tool as string) ?? glyphFor('select');
+    return (
+      <div
+        ref={setRoot}
+        className="dc-tool-palette dc-tool-palette--zen"
+        data-testid="toolbar-zen"
+        aria-hidden="true"
+      >
+        <div className="dc-tb-body">
+          <span className="dc-tp-b" data-lit="true">
+            {ZenIcon ? <ZenIcon /> : null}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={setRoot}

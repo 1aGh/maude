@@ -1694,7 +1694,7 @@ function ShellProjectPill() {
     paletteAndPanels: { leftActive },
     comments,
   } = useShellStore();
-  const { hidden: panelsHidden, pinned } = usePanelLayout();
+  const { hidden: panelsHidden, pinned, userHidden: panelsUserHiddenLayout } = usePanelLayout();
   const native = isNativeApp();
   const online = useOnline();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
@@ -1977,7 +1977,7 @@ function ShellProjectPill() {
         switcher={switcher}
         docked={pinned && !panelsHidden && !!leftActive}
         // S3.9 — Preview folds the pill to its mark (04 md-preview).
-        folded={previewing}
+        folded={previewing || panelsUserHiddenLayout}
         onOpen={(el) => {
           openerRef.current = el;
           diag.onMenuOpen();
@@ -2972,6 +2972,15 @@ function ShellTree() {
     rightInFold,
     aiInFold,
   ]);
+  // P8 C8 (01 cf-open-big): the panels' hide key folds the canvas toolbar too (the project pill and the share
+  // cluster follow it); every open frame hears it, a frame opened later is seeded on load.
+  useEffect(() => {
+    for (const el of iframesRef.current.values()) {
+      try {
+        el.contentWindow.postMessage({ dgn: 'view-chrome', zen: panelsUserHidden }, '*');
+      } catch {}
+    }
+  }, [panelsUserHidden, iframesRef]);
   const rightMainHidden = panelsHidden && !(rightInFold && !panelsUserHidden);
   const aiFoldShown = aiInFold && !panelsUserHidden && rightHostsAssistant && assistantOpen;
   const rightHidden = rightMainHidden && !aiFoldShown;
