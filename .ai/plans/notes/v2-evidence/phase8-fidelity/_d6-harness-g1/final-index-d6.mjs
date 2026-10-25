@@ -1,4 +1,4 @@
-// node final-index-d5.mjs <tip> — appends "## FINAL (D5, <tip>)" to the 01/02/05 INDEX.md and a "final (D5, <tip>):" line to full-size-path.txt.
+// node final-index-d6.mjs <tip> — appends "## FINAL (D6, <tip>)" to the 01/02/05 INDEX.md and a "final (D6, <tip>):" line to full-size-path.txt.
 // Run from the repo root (worktree); re-shot = the pair PNG exists in .scr/pairs/<NN>.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -30,7 +30,7 @@ const NOTES = {
     'ob-sig-draw': 'the motion study has no app counterpart; the pair shows the same fake-agent frames as ob-first-draw',
   },
   '05': {
-    'es-home-local': 'Home with NO project registered, signed out; the frame shows the first-run Home (the board\'s "No projects on this Mac yet." card does not appear in it)',
+    'es-home-local': 'Home with NO project registered, signed out, first-run flag ALREADY set (home.json firstRunSeen:true): the empty shelf "No projects on this Mac yet." + the quiet sign-in pill (round 8)',
     'es-panels-canvas': 'four frames; the Comments panel is opened via ⌘K › Comments (s05f) and the one thread resolved for "All done."',
     'es-project-new': 'ONE "New canvas" row (round 7)',
     'es-timeline': 'empty comp keeps the timeline anatomy (round 7)',
@@ -42,7 +42,7 @@ const NOTES = {
 };
 for (const [nn, dir] of Object.entries(dirs)) {
   const idx = join(FID, dir, 'INDEX.md');
-  let md = readFileSync(idx, 'utf8').replace(/\n## FINAL \(D5[\s\S]*$/, '\n');
+  let md = readFileSync(idx, 'utf8').replace(/\n## FINAL \(D6[\s\S]*$/, '\n');
   const ids = [...new Set([...md.matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map((m) => m[1]))];
   const rows = [];
   let shot = 0;
@@ -54,13 +54,13 @@ for (const [nn, dir] of Object.entries(dirs)) {
     const note = [UNREACH[nn][id] ? `unreachable: ${UNREACH[nn][id]}` : '', NOTES[nn][id] || ''].filter(Boolean).join(' · ');
     rows.push(`| \`${id}\` | ${st(l)} | ${st(d)} | ${note} |`);
   }
-  md += `\n## FINAL (D5, ${TIP})\n`;
-  md += `Final verification re-shoot of the IMPL side on the merged \`feat/maude-v2\` tip ${TIP} (stage C rounds 1-7 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL section. ${shot} of ${ids.length} artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.\n\n`;
-  md += `- **IMPL.** \`_d5-harness-g1/\` (= _d-harness-g1-d4 + the round-7 / 7b scenario files, repo-relative), shot on the Mac mini through \`scripts/remote-lane.sh\` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, \`NO_OPEN=1 MAUDE_NO_AUTOBUILD=1\`, release-built client. Harness deltas this round: es-home-local registers no project; s05f opens the Comments panel through ⌘K (the share-cluster icon no longer opened it); home thumbnails are committed flat JPEGs (no ImageMagick on the mini).\n`;
-  md += `- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed since the D3 shoot (git log 63592219a..tip empty); the spec PNGs are the D3 set (02 re-rendered then).\n`;
-  md += `- **Full-size pairs.** \`full-size-path.txt\` (last line, "final (D5)"); committed \`<id>-<theme>.jpg\` overwritten (JPEG q55, <= 1100 px).\n\n`;
+  md += `\n## FINAL (D6, ${TIP})\n`;
+  md += `Final verification re-shoot of the IMPL side on the merged \`feat/maude-v2\` tip ${TIP} (stage C rounds 1-8 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL (incl. D5) section. ${shot} of ${ids.length} artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.\n\n`;
+  md += `- **IMPL.** \`_d6-harness-g1/\` (= _c8-harness-g1, the round-8 harness, + the Home first-run flag per scene; repo-relative), shot on the Mac mini through \`scripts/remote-lane.sh\` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, \`NO_OPEN=1 MAUDE_NO_AUTOBUILD=1\`, release-built client. Harness deltas this round: round-8 s01b (folds before the select pick, two filled stickies, Comments closed); home2.mjs writes home.json firstRunSeen:true for es-home-local ONLY (the Mac has seen the first-run card: the quiet sign-in pill and the empty shelf) and removes it for every other scene (ob-first-launch and siblings keep the card).\n`;
+  md += `- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed after the D3 shoot (the last board edit, 3840271a0 = 02 chip words, precedes D3; the spec ob-first-launch frame was checked: its chip reads "a project on this Mac"); the spec PNGs are the D3 set.\n`;
+  md += `- **Full-size pairs.** \`full-size-path.txt\` (last line, "final (D6)"); committed \`<id>-<theme>.jpg\` overwritten (JPEG q55, <= 1100 px).\n\n`;
   md += `| id | light | dark | note |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`;
   writeFileSync(idx, md);
-  appendFileSync(join(FID, dir, 'full-size-path.txt'), `final (D5, ${TIP}): ${join(R, '.scr/pairs', nn)} (raw impl frames: ${join(R, '.scr/impl-raw', nn)})\n`);
+  appendFileSync(join(FID, dir, 'full-size-path.txt'), `final (D6, ${TIP}): ${join(R, '.scr/pairs', nn)} (raw impl frames: ${join(R, '.scr/impl-raw', nn)})\n`);
   console.log(nn, shot, ids.length);
 }

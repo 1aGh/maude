@@ -171,3 +171,34 @@ Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip e
 | `es-offline-uncached` | re-shot | re-shot | card centred on the free canvas (round 7) |
 | `es-all-trashed` | re-shot | re-shot | two frames: one artboard trashed, then every artboard trashed |
 | `es-edge-panels` | re-shot | re-shot |  |
+
+
+## FINAL (D6, 3d58f57df)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip 3d58f57df (stage C rounds 1-8 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL (incl. D5) section. 19 of 20 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d6-harness-g1/` (= _c8-harness-g1, the round-8 harness, + the Home first-run flag per scene; repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: round-8 s01b (folds before the select pick, two filled stickies, Comments closed); home2.mjs writes home.json firstRunSeen:true for es-home-local ONLY (the Mac has seen the first-run card: the quiet sign-in pill and the empty shelf) and removes it for every other scene (ob-first-launch and siblings keep the card).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed after the D3 shoot (the last board edit, 3840271a0 = 02 chip words, precedes D3; the spec ob-first-launch frame was checked: its chip reads "a project on this Mac"); the spec PNGs are the D3 set.
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D6)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `es-home-cloud` | re-shot | re-shot |  |
+| `es-home-local` | re-shot | re-shot | Home with NO project registered, signed out, first-run flag ALREADY set (home.json firstRunSeen:true): the empty shelf "No projects on this Mac yet." + the quiet sign-in pill (round 8) |
+| `es-home-shared` | re-shot | re-shot |  |
+| `es-project-new` | re-shot | re-shot | ONE "New canvas" row (round 7) |
+| `es-canvas-ai` | re-shot | re-shot |  |
+| `es-landing` | re-shot | re-shot |  |
+| `es-canvas-three` | re-shot | re-shot |  |
+| `es-artboard-new` | re-shot | re-shot |  |
+| `es-panels-canvas` | re-shot | re-shot | four frames; the Comments panel is opened via ⌘K › Comments (s05f) and the one thread resolved for "All done." |
+| `es-panels-make` | re-shot | re-shot |  |
+| `es-timeline` | re-shot | re-shot | empty comp keeps the timeline anatomy (round 7) |
+| `es-search-k` | re-shot | re-shot |  |
+| `es-search-more` | re-shot | re-shot |  |
+| `es-search-panel` | re-shot | re-shot |  |
+| `es-filter` | re-shot | re-shot | chip on keeps word + count + ×, "Clear filter" ghost button (round 7) |
+| `es-viewer` | unreachable | unreachable | unreachable: a view-only / comment-only member session needs a hub / workspace cell vouching a role; no local route |
+| `es-arriving` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-offline-uncached` | re-shot | re-shot | card centred on the free canvas (round 7) |
+| `es-all-trashed` | re-shot | re-shot | two frames: one artboard trashed, then every artboard trashed |
+| `es-edge-panels` | re-shot | re-shot |  |

@@ -7,3 +7,4 @@ round 5: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a6978930be4932b0
 final (D3, 63592219a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a81ec5fb665864bd9/.scr/pairs/05
 round 7: /Users/iagh/git/personal/maude/.claude/worktrees/agent-afdb592ad78b001dc/.scr/pairs/05 (p8-c7-oboard; IMPL re-shot light + dark, SPEC reused from round 5)
 final (D5, e37e7d82a): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/pairs/05 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a47304d95ce1393d6/.scr/impl-raw/05)
+final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/pairs/05 (raw impl frames: /Users/iagh/git/personal/maude/.claude/worktrees/agent-af2cca2becd40770b/.scr/impl-raw/05)

@@ -181,3 +181,36 @@ Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip e
 | `ob-edge-accounts` | re-shot | re-shot |  |
 | `ob-edge-ai-missing` | re-shot | re-shot |  |
 | `ob-edge-whats-new` | re-shot | re-shot |  |
+
+
+## FINAL (D6, 3d58f57df)
+Final verification re-shoot of the IMPL side on the merged `feat/maude-v2` tip 3d58f57df (stage C rounds 1-8 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL (incl. D5) section. 20 of 22 artboards with pairs (light + dark). Evidence only — no match / mismatch judged here.
+
+- **IMPL.** `_d6-harness-g1/` (= _c8-harness-g1, the round-8 harness, + the Home first-run flag per scene; repo-relative), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (the mini has no Playwright chromium build; viewport 1600 × 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client. Harness deltas this round: round-8 s01b (folds before the select pick, two filled stickies, Comments closed); home2.mjs writes home.json firstRunSeen:true for es-home-local ONLY (the Mac has seen the first-run card: the quiet sign-in pill and the empty shelf) and removes it for every other scene (ob-first-launch and siblings keep the card).
+- **SPEC.** reused — no board 01 / 02 / 05 file (.tsx / .css / .meta.json) changed after the D3 shoot (the last board edit, 3840271a0 = 02 chip words, precedes D3; the spec ob-first-launch frame was checked: its chip reads "a project on this Mac"); the spec PNGs are the D3 set.
+- **Full-size pairs.** `full-size-path.txt` (last line, "final (D6)"); committed `<id>-<theme>.jpg` overwritten (JPEG q55, <= 1100 px).
+
+| id | light | dark | note |
+| --- | --- | --- | --- |
+| `ob-first-launch` | re-shot | re-shot |  |
+| `ob-signin-browser` | re-shot | re-shot |  |
+| `ob-home-new` | re-shot | re-shot |  |
+| `ob-ai-connect` | re-shot | re-shot |  |
+| `ob-first-draw` | re-shot | re-shot | IMPL = the 01 fake-agent frames (drafting, tablet landed, done) |
+| `ob-sig-draw` | re-shot | re-shot | the motion study has no app counterpart; the pair shows the same fake-agent frames as ob-first-draw |
+| `ob-invite-page` | unreachable | unreachable | unreachable: a web page on cloud.maude.sh, not part of the app |
+| `ob-invite-landed` | re-shot | re-shot |  |
+| `ob-home-team` | re-shot | re-shot |  |
+| `ob-local-name` | re-shot | re-shot |  |
+| `ob-local-first` | re-shot | re-shot |  |
+| `ob-local-share` | re-shot | re-shot |  |
+| `ob-local-moved` | unreachable | unreachable | unreachable: needs a local project actually moved to a hub; no local route |
+| `ob-adv-open` | re-shot | re-shot |  |
+| `ob-adv-sheets` | re-shot | re-shot | five sheets; Import from Figma is the round-7 link sheet (Advanced · Access token fold) |
+| `ob-settings` | re-shot | re-shot | two frames; Connections carries the round-7 AI — your Claude account row |
+| `ob-edge-offline` | re-shot | re-shot |  |
+| `ob-edge-timeout` | re-shot | re-shot |  |
+| `ob-edge-other-mac` | re-shot | re-shot |  |
+| `ob-edge-accounts` | re-shot | re-shot |  |
+| `ob-edge-ai-missing` | re-shot | re-shot |  |
+| `ob-edge-whats-new` | re-shot | re-shot |  |
