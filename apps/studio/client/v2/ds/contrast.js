@@ -98,9 +98,11 @@ export function contrastLine(model, css, edited = {}, editing) {
     const line = themes.map(part).filter(Boolean).join(' · ');
     return { ok: true, line, fails, light: worst[light], dark: dark ? worst[dark] : null };
   }
-  // the lowest ratio leads; the (up to two) surfaces or texts it fell short on in that mode are named
+  // the lowest ratio leads — among the fails of the mode being edited when it has any (that is the one the person is
+  // looking at); the (up to two) surfaces or texts it fell short on in that mode are named
   fails.sort((a, b) => a.ratio - b.ratio);
-  const first = fails[0];
+  const mine = editing !== undefined ? fails.filter((f) => f.theme === editing) : [];
+  const first = (mine.length ? mine : fails)[0];
   const on = joinWords(
     [
       ...new Set(

@@ -368,9 +368,11 @@ describe('typing, naming, Dark', () => {
   test('the row of the mode being edited comes first, the picker under it, the other mode last (the board)', async () => {
     const { host } = await panel();
     const order = () =>
-      [...host.querySelectorAll('[data-testid="insp-row-ds-light"], [data-testid="insp-row-ds-dark"], [data-testid="ds-token-picker"]')].map(
-        (el) => el.getAttribute('data-testid')
-      );
+      [
+        ...host.querySelectorAll(
+          '[data-testid="insp-row-ds-light"], [data-testid="insp-row-ds-dark"], [data-testid="ds-token-picker"]'
+        ),
+      ].map((el) => el.getAttribute('data-testid'));
     expect(order()).toEqual(['insp-row-ds-light', 'ds-token-picker', 'insp-row-ds-dark']);
     await click(host.querySelectorAll('.st-cp-segbtn')[1], 'Dark');
     expect(order()).toEqual(['insp-row-ds-dark', 'ds-token-picker', 'insp-row-ds-light']);

@@ -38,7 +38,7 @@ describe('the pass line names the surface in each mode', () => {
     expect(line?.line).not.toMatch(/Light|Dark/);
   });
 
-  test('the accent on its own text: white in Light, the text token\'s name in Dark', () => {
+  test("the accent on its own text: white in Light, the text token's name in Dark", () => {
     const line = contrastLine(model(), '--accent', {});
     expect(line?.ok).toBe(true);
     expect(line?.line).toMatch(/^\d+(\.\d)?:1 on white · \d+(\.\d)?:1 on Text on accent$/);
@@ -65,6 +65,18 @@ describe('the fail line names two surfaces, in the mode being edited', () => {
     expect(line?.line).toMatch(/^\d+(\.\d)?:1 on [^,]+ and [^,]+$/);
     expect(line?.line).not.toContain(' in ');
     expect(line?.line).not.toContain(',');
+  });
+
+  test('both modes fall short: the mode being edited leads, whichever is worse', () => {
+    // Light is the worse mode (pale on white), Dark is bad too — the person is editing Dark
+    const m = model({ '--fg-1': ['#eeeeee', '#555555'] });
+    const dark = contrastLine(m, '--fg-1', {}, 'dark');
+    expect(dark?.ok).toBe(false);
+    expect(dark?.line).not.toContain(' in ');
+    const light = contrastLine(m, '--fg-1', {}, 'light');
+    expect(light?.line).not.toContain(' in ');
+    // the two read differently: each names its own mode's surfaces and ratio
+    expect(dark?.line).not.toBe(light?.line);
   });
 
   test('a fail in the OTHER mode says which', () => {

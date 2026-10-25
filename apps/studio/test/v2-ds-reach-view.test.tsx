@@ -164,7 +164,7 @@ describe('the reach view', () => {
     );
     // the board's header: the way back to "Show", and what the view draws
     expect(host.querySelector('[data-testid="ds-reach-sub"]')?.textContent).toContain(
-      '“Used in 3 canvases › Show” draws where it goes — the system\'s own Patterns and every canvas — before anything is updated.'
+      "“Used in 3 canvases › Show” draws where it goes — the system's own Patterns and every canvas — before anything is updated."
     );
     // the token card: "Colour › Accent", the change in words, the contrast line the inspector said
     expect(host.querySelector('[data-testid="ds-reach-key"]')?.textContent).toBe('Colour › Accent');

@@ -260,7 +260,11 @@ export function DsReachView({
             {swatch?.beforeName && swatch?.afterName ? <b>{swatch.afterName}</b> : null}
           </p>
           {swatch?.contrast ? (
-            <p className="insp-quiet dsx-contrast" data-testid="ds-reach-contrast" data-tone={swatch.contrastOk ? 'ok' : 'warn'}>
+            <p
+              className="insp-quiet dsx-contrast"
+              data-testid="ds-reach-contrast"
+              data-tone={swatch.contrastOk ? 'ok' : 'warn'}
+            >
               <StIcon name={swatch.contrastOk ? 'check' : 'problem'} size={12} />
               <span>{swatch.contrast}</span>
             </p>

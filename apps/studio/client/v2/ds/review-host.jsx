@@ -278,7 +278,13 @@ export function DsReviewHost({ cfg, activePath, toast, scope = '', frameFor, fet
         fetchImpl={fetchImpl}
       />
       <DsConvertHost toast={toast} fetchImpl={fetchImpl} />
-      <DsAdvancedHost cfg={cfg} activePath={activePath} toast={toast} fetchImpl={fetchImpl} />
+      <DsAdvancedHost
+        cfg={cfg}
+        activePath={activePath}
+        toast={toast}
+        project={scope}
+        fetchImpl={fetchImpl}
+      />
       {/* S10.18c — a linked team library: its card, "Update from …?", the banner and the 30-min check */}
       <DsLibraryHost
         cfg={cfg}

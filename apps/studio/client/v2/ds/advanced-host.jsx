@@ -109,10 +109,17 @@ export async function revealSystem(cfg, ds, doors = nativeDoors()) {
  * @param {{ cfg: any, activePath: string | null, toast?: (m: string) => void,
  *           fetchImpl?: typeof fetch, pollMs?: number }} props
  */
-export function DsAdvancedHost({ cfg, activePath, toast, fetchImpl, pollMs = ADVANCED_POLL_MS }) {
+export function DsAdvancedHost({
+  cfg,
+  activePath,
+  toast,
+  project = '',
+  fetchImpl,
+  pollMs = ADVANCED_POLL_MS,
+}) {
   const ds = ownSystemOf(activePath, cfg);
-  const live = useRef({ cfg, activePath, toast, fetchImpl });
-  live.current = { cfg, activePath, toast, fetchImpl };
+  const live = useRef({ cfg, activePath, toast, fetchImpl, project });
+  live.current = { cfg, activePath, toast, fetchImpl, project };
   const f = () => live.current.fetchImpl ?? globalThis.fetch;
   const say = (m) => live.current.toast?.(m);
   const board = useRef(null);
@@ -163,7 +170,11 @@ export function DsAdvancedHost({ cfg, activePath, toast, fetchImpl, pollMs = ADV
       const { board: _b, ...rest } = got;
       setAdvanced((was) => ({
         ...rest,
-        project: live.current.cfg?.cloud?.projectName || live.current.cfg?.name || '',
+        project:
+          live.current.project ||
+          live.current.cfg?.cloud?.projectName ||
+          live.current.cfg?.name ||
+          '',
         native,
         busy: was?.ds === ds ? was.busy : false,
         note: was?.ds === ds ? was.note : null,
