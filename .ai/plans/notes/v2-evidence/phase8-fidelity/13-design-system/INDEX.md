@@ -496,3 +496,17 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## After (round 8, p8-c8-ds) — IMPL re-shot on the p8-c8-ds tip (light + dark, every reachable id)
+
+Harness `_c8ds-harness-g5/` (the D5 harness plus an `s13.mjs` overlay), shot on the Mac mini. Full-size pairs: last line of `full-size-path.txt` ("round 8:"). Fixes: `fix-c8-ds.md`. The `<id>-<theme>.jpg` pairs in this folder show this tip; `ds-many-library` / `ds-many-linked` (hub) keep their earlier pair.
+
+| id | what changed |
+| --- | --- |
+| `ds-board-studio` · `ds-board-dark` · `ds-board-gator` | Brand logo row: the lockup painted from the system's colours, again on the ink ground, then the marks |
+| `ds-edit-colour` · `ds-edge-contrast` | the pass line judges a fill on the page ("… on white · … on the dark page") |
+| `ds-edit-reach` | the Patterns strip leads, Light \| Dark halves on the token card, review rows with pictures, pass line (the harness edit passes in Dark) |
+| `ds-edit-instance` | Canvases panel open: the update tag on the left-out row is on screen |
+| `ds-many-switch` | the menu hangs beside the Design systems row (the empty inspector card still shows — open) |
+| `ds-edge-suggest` | the question is a chat card, bottom right |
+| `ds-edge-trash` | re-shot (buttons fixed on feat) |
