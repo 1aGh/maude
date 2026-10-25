@@ -486,3 +486,45 @@ Final verification shoot on the merged tip after stage C round 8 (harness `_c10-
 | `ai-advanced` | re-shot | re-shot |
 | `ai-adv-edges` | re-shot | re-shot |
 | `ai-history` | re-shot | re-shot |
+
+## FINAL (D7, 98ed9c011)
+
+Final verification re-shoot of the IMPL side (every artboard id x light + dark) on the merged `feat/maude-v2` tip 98ed9c011 (stage C rounds 1-10 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL / ROUND section, round 10 included. 24 of 29 artboards with pairs. Evidence only: no match / mismatch judged here.
+
+- **IMPL.** `_d7-harness-g1/g2/` (the D6 G2 harness + the round-10 03 deltas (s03c s03e s03h s03z, fake-agent)), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (viewport 1600 x 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client.
+- **SPEC.** reused: the boards `.design/ui/v2/03*` (.tsx / .css / .meta.json) have not changed since the D3 shoot (last board edits on 2026-10-19 / 10-24 touch other canvases); the spec PNGs are the D3 set.
+- **Pairs.** full-size: `.scr/pairs/03-ai-chat/<id>-<theme>.png` in the p8-d7-g1 worktree (spec left | impl right); the committed `<id>-<theme>.jpg` here were overwritten (<= 1100 px, q55).
+
+| id | dark | light |
+|---|---|---|
+| `ai-hero` | re-shot | re-shot |
+| `ai-open` | re-shot | re-shot |
+| `ai-suggest` | re-shot | re-shot |
+| `ai-scope` | re-shot | re-shot |
+| `ai-working` | re-shot | re-shot |
+| `ai-done` | re-shot | re-shot |
+| `ai-attach` | re-shot | re-shot |
+| `ai-attach-menu` | re-shot | re-shot |
+| `ai-question` | re-shot | re-shot |
+| `ai-long` | re-shot | re-shot |
+| `ai-long-pinned` | re-shot | re-shot |
+| `ai-two-artboards` | re-shot | re-shot |
+| `ai-same-artboard` | re-shot | re-shot |
+| `ai-copy` | re-shot | re-shot |
+| `ai-queue-rule` | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) | unreachable (A drawn rule (timeline of queued asks), not an app surface. The rule itself is exercised in ai-same-artboard / ai-copy.) |
+| `ai-other-tab` | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) | unreachable (Needs a second project tab with a running chat (desktop shell tabs); the browser lane has one project.) |
+| `ai-tereza` | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) | unreachable (Needs a second person's AI on the same canvas (hub / cloud project).) |
+| `ai-chat-list` | re-shot | re-shot |
+| `ai-panel-closed` | re-shot | re-shot |
+| `ai-quit` | re-shot | re-shot |
+| `ai-needs-hidden` | re-shot | re-shot |
+| `ai-needs-tab` | unreachable (Needs a second project tab (desktop shell tabs).) | unreachable (Needs a second project tab (desktop shell tabs).) |
+| `ai-needs-away` | unreachable (The app in the background: an OS notification and Dock badge, native only.) | unreachable (The app in the background: an OS notification and Dock badge, native only.) |
+| `ai-permission` | re-shot | re-shot |
+| `ai-choice-fail` | re-shot | re-shot |
+| `ai-not-ready` | re-shot | re-shot |
+| `ai-advanced` | re-shot | re-shot |
+| `ai-adv-edges` | re-shot | re-shot |
+| `ai-history` | re-shot | re-shot |
+
+- D7 harness note: on the merged tip the Version-history step of s03e left the app in Viewing (esc stands down while the composer has focus), which blocked the next ask; s03e now leaves Viewing through the view bar's `vh-viewbar-back` button. The s03e + s03h frames (ai-long, ai-done, ai-hero, ai-history, ai-panel-closed, ai-choice-q, ai-question, ai-adv-edges, ai-quit, ai-chat-list) come from that second run of the same chain (`chain.sh 03x`); the other frames from the first full `chain.sh 03` run.

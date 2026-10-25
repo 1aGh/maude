@@ -284,3 +284,40 @@ Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reuse
 | --- | --- | --- | --- |
 | `md-inspect` | dark | re-shot | camera 68 % before the cmd-click, Advanced open with the raw CSS rows, target + "97 x 35" tag clear of the island |
 | `md-inspect` | light | re-shot | camera 68 % before the cmd-click, Advanced open with the raw CSS rows, target + "97 x 35" tag clear of the island |
+
+## FINAL (D7, 98ed9c011)
+
+Final verification re-shoot of the IMPL side (every artboard id x light + dark) on the merged `feat/maude-v2` tip 98ed9c011 (stage C rounds 1-10 merged, release client); no product code changed. Supersedes every earlier "after" / FINAL / ROUND section, round 10 included. 20 of 26 artboards with pairs. Evidence only: no match / mismatch judged here.
+
+- **IMPL.** `_d7-harness-g1/g2/` (the D6 G2 harness + the round-10 s04a delta (md-inspect: camera <= 69 %, Advanced open)), shot on the Mac mini through `scripts/remote-lane.sh` in Google Chrome (viewport 1600 x 1000), throwaway HOME/XDG + stub claude, `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`, release-built client.
+- **SPEC.** reused: the boards `.design/ui/v2/04*` (.tsx / .css / .meta.json) have not changed since the D3 shoot (last board edits on 2026-10-19 / 10-24 touch other canvases); the spec PNGs are the D3 set.
+- **Pairs.** full-size: `.scr/pairs/04-modes/<id>-<theme>.png` in the p8-d7-g1 worktree (spec left | impl right); the committed `<id>-<theme>.jpg` here were overwritten (<= 1100 px, q55).
+
+| id | dark | light |
+|---|---|---|
+| `md-model` | re-shot | re-shot |
+| `md-keys` | re-shot | re-shot |
+| `md-edit` | re-shot | re-shot |
+| `md-edit-image` | re-shot | re-shot |
+| `md-edit-component` | re-shot | re-shot |
+| `md-motion` | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) | unreachable (An animation storyboard of Edit to Preview (frames over 0 to 220 ms), not a state.) |
+| `md-annotate` | re-shot | re-shot |
+| `md-preview` | re-shot | re-shot |
+| `md-preview-follow` | re-shot | re-shot |
+| `md-preview-combine` | re-shot | re-shot |
+| `md-present-menu` | re-shot | re-shot |
+| `md-present-lift` | re-shot | re-shot |
+| `md-present-full` | re-shot | re-shot |
+| `md-present-video` | re-shot | re-shot |
+| `md-present-canvas` | re-shot | re-shot |
+| `md-presenter` | unreachable (Presenter view needs a second display (desktop shell).) | unreachable (Presenter view needs a second display (desktop shell).) |
+| `md-present-link` | unreachable (A cloud viewer link needs a hub project.) | unreachable (A cloud viewer link needs a hub project.) |
+| `md-comment` | re-shot | re-shot |
+| `md-comment-only` | unreachable (A Can comment role needs a hub / second person.) | unreachable (A Can comment role needs a hub / second person.) |
+| `md-draw` | re-shot | re-shot |
+| `md-inspect` | re-shot | re-shot |
+| `md-edge-ai` | re-shot | re-shot |
+| `md-edge-viewer` | unreachable (A view-only link in a browser needs a cloud project.) | unreachable (A view-only link in a browser needs a cloud project.) |
+| `md-edge-mixed` | re-shot | re-shot |
+| `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) |
+| `md-esc` | re-shot | re-shot |
