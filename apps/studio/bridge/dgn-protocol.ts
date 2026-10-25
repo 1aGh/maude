@@ -543,7 +543,9 @@ export interface ShellToCanvas {
     label?: string;
     variant?: string;
     glyph?: string;
-    mode: 'ghost' | 'selection';
+    // P8 c8 (14 ed-comp-pick): 'preview' = the picker's highlighted row drawn as a ghost on the artboard's centre
+    // line; 'cancel' = the picker closed without a pick
+    mode: 'ghost' | 'selection' | 'preview' | 'cancel';
   };
   // S7.9 (07 ve-drop): footage is being dragged over the window while a video artboard is followed — that artboard
   // shows the chip "Or drop here — adds at the end" (`on: false` = the drag ended or left). The shell owns the drop
@@ -2129,7 +2131,7 @@ const s2c: S2C = {
       label: opt(shortStr(64)),
       variant: opt(dsSlug),
       glyph: opt(dsSlug),
-      mode: lit('ghost', 'selection'),
+      mode: lit('ghost', 'selection', 'preview', 'cancel'),
     }),
   },
   // S7.9 — the drop chip on the followed video artboard while footage is in flight (editing/drop-chip.tsx).
