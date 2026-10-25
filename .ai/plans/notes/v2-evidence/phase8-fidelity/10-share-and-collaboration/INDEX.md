@@ -176,3 +176,14 @@ Every reachable id re-shot on the merged tip `feat/maude-v2` @ `e37e7d82a` (rele
 | co-mention-notify | unreachable | unreachable | OS banner + hub mention e-mail template do not exist in the lane |
 
 Harness note: picture fixtures are drawn in Chromium (no ImageMagick on the runner), not `plasma:fractal` — only matters for canvases with placed photos (12).
+
+## Round 8 (p8-c8-exshare) — after
+
+Re-shot light + dark on the Mac mini (`_c8-harness-g4`: `s10e` for the tall Advanced frame, `s10cm`, `s10d`). Pairs overwritten; spec reused. No verdicts here.
+
+| id | after (round 8) |
+|---|---|
+| co-share-advanced | App link / This Mac / Hub values whole (no ellipsis); no "Opens the folder on this Mac only."; Role select live on a Team only link |
+| co-ask-edit | the view-only tip shows (the drag repeats until it does); Viewing pressed (the harness takes it; the view-only boot default stays Preview) |
+| co-comment-print | View › Print guides on (trim + safe margin guides); the board's "Bleed 3 mm · trim · safe margin 5 mm" legend is not a product element (open, see fix-c8-exshare.md) |
+| co-sync-offline, co-sync-back | not re-shot: per-row "not sent" / "sending" labels are a data gap (no per-canvas pending data; see fix-c8-exshare.md) |
