@@ -157,6 +157,16 @@ export function estimateWords({ files, bytes, seconds, lane }, { pdfPages = null
 }
 
 /** The summary line under the rows; null until the server has answered with something to say. */
+/**
+ * The estimate the footer words: when the sheet draws the Render row (cloud or this Mac), the footer names the lane that
+ * row has PICKED, not the one the server's estimate assumed — "about 45 seconds on this Mac" under a ticked cloud card
+ * was the two disagreeing (07 ve-export, 09 ex-video).
+ */
+export const estimateForLane = (est, render) =>
+  est && render?.show && (render.lane === 'cloud' || render.lane === 'this-mac')
+    ? { ...est, lane: render.lane }
+    : est;
+
 export const summaryWords = (est, opts) =>
   est && typeof est.files === 'number' && est.files > 0 ? estimateWords(est, opts) : null;
 

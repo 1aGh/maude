@@ -346,12 +346,15 @@ describe('a title (07 ve-text: Text · Font · Colour · Motion · Length)', () 
     const host = await frame(selection('title', TITLE_SEQ));
     expect(q(host, 'inspector-kind')?.textContent).toBe('Title');
     expect(rowsOf(host, 'title-motion')).toEqual([
-      'clip-text = Text',
       'title-font = Font',
       'title-colour = Colour',
       'title-motion = Motion',
       'clip-length = Length',
     ]);
+    // P8 C8 (07 · ve-text): the card draws no Text field, Apply text or helper line; the words are under Advanced
+    expect(q(host, 'timeline-inspector-text')).toBeNull();
+    expect(host.textContent).not.toContain('Rewrites the title text');
+    await openAdvanced(host);
     expect((q(host, 'timeline-inspector-text') as HTMLTextAreaElement).value).toBe(
       'PROČ ALLIGATORS'
     );
@@ -377,8 +380,9 @@ describe('a title (07 ve-text: Text · Font · Colour · Motion · Length)', () 
     expect(calls[1]).toEqual(['op', 'title.motion', { preset: 'none' }]);
   });
 
-  test('Apply text is clip.set-text with what is in the field (the v1 Text tab’s two testids)', async () => {
+  test('Apply text (under Advanced) is clip.set-text with what is in the field (the v1 Text tab’s two testids)', async () => {
     const host = await frame(selection('title', TITLE_SEQ));
+    await openAdvanced(host);
     const ta = q(host, 'timeline-inspector-text') as HTMLTextAreaElement;
     await act(async () => {
       ta.value = 'Nábor 2027';

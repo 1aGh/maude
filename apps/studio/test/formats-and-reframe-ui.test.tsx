@@ -355,9 +355,8 @@ describe('the Re-frame island (ve-reframe)', () => {
     expect(q(host, 'reframe-window-tag')?.textContent).toBe('Reels 9:16');
     expect(q(host, 'reframe-reset')?.textContent).toBe('Reset');
     expect(q(host, 'reframe-done')?.textContent).toBe('Done');
-    expect(q(host, 'reframe-note')?.textContent).toBe(
-      'Drag the window to frame it. Each format keeps its own.'
-    );
+    // P8 C8 (07 · ve-reframe): the footer says it once (the count line); no second hint under it
+    expect(q(host, 'reframe-note')).toBeNull();
     // B3: nothing about following a subject is drawn
     expect(host.textContent).not.toMatch(/follow|subject|#1/i);
   });

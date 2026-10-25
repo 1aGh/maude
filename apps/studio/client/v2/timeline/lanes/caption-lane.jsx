@@ -47,6 +47,18 @@ export function captionSelection({ canvas, artboardId, fps, media, key }) {
 }
 
 /**
+ * A caption chip is picked: the right-hand inspector becomes the Captions' (07 · ve-captions). One thing is selected at
+ * a time, so a clip's highlight lets go first. The seek that follows makes the canvas post its own `select` (the video
+ * artboard again), which would release the caption right away — the short shield is what keeps it (like "+ Title").
+ */
+export function pickCaption({ canvas, artboardId, fps, media, key }) {
+  const prev = timelineSelection.get();
+  if (prev && prev.kind !== 'caption') prev.deselect?.();
+  timelineSelection.set(captionSelection({ canvas, artboardId, fps, media, key }));
+  timelineSelection.shield();
+}
+
+/**
  * @param {{ canvas: string|null, artboardId: string|null, fps: number, frame: number,
  *   x: (frame: number) => number, axisPx: number, onSeek?: (frame: number) => void }} props
  */
@@ -93,10 +105,7 @@ export function CaptionLane({ canvas, artboardId, fps, frame, x, axisPx, onSeek 
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                // one thing is selected at a time: a clip's highlight lets go before the captions take the inspector
-                const prev = timelineSelection.get();
-                if (prev && prev.kind !== 'caption') prev.deselect?.();
-                timelineSelection.set(captionSelection({ canvas, artboardId, fps, media, key }));
+                pickCaption({ canvas, artboardId, fps, media, key });
                 onSeek?.(w.f0);
               }}
               onDoubleClick={(e) => {

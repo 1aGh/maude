@@ -140,42 +140,46 @@ function VolumeRow({ t }) {
 function FramingRow({ t, ctx }) {
   return (
     <Row k="Framing" name="clip-framing">
-      <Select
-        value={framingValue(t.seq.fit)}
-        options={FRAMING_OPTIONS}
-        ariaLabel="How the picture sits"
-        testId="insp-clip-framing"
-        onChange={(fit) => t.onOp('fit', { fit })}
-      />
-      {/* S7.13 (07 · ve-reframe): where each format looks inside the picture — the Re-frame island */}
-      <button
-        type="button"
-        className="insp-quietlink"
-        data-testid="insp-clip-reframe"
-        onClick={() =>
-          typeof ctx?.onShellAction === 'function'
-            ? ctx.onShellAction('video.reframe')
-            : reframeUi.open()
-        }
-      >
-        Re-frame…
-      </button>
-      {/* S7.15 (07 · ve-ai-adjust): the clip's other good moments, swapped in at the same length */}
-      {['Video', 'OffthreadVideo', 'MaudeVideo'].includes(t.seq.mediaTag ?? '') &&
-      t.seq.mediaSrc ? (
-        <button
-          type="button"
-          className="insp-quietlink"
-          data-testid="insp-clip-takes"
-          onClick={() =>
-            typeof ctx?.onShellAction === 'function'
-              ? ctx.onShellAction('video.take.swap')
-              : otherTakesUi.open()
-          }
-        >
-          Other takes…
-        </button>
-      ) : null}
+      <span className="insp-framing">
+        <Select
+          value={framingValue(t.seq.fit)}
+          options={FRAMING_OPTIONS}
+          ariaLabel="How the picture sits"
+          testId="insp-clip-framing"
+          onChange={(fit) => t.onOp('fit', { fit })}
+        />
+        <span className="insp-framing-links">
+          {/* S7.13 (07 · ve-reframe): where each format looks inside the picture — the Re-frame island */}
+          <button
+            type="button"
+            className="insp-quietlink"
+            data-testid="insp-clip-reframe"
+            onClick={() =>
+              typeof ctx?.onShellAction === 'function'
+                ? ctx.onShellAction('video.reframe')
+                : reframeUi.open()
+            }
+          >
+            Re-frame…
+          </button>
+          {/* S7.15 (07 · ve-ai-adjust): the clip's other good moments, swapped in at the same length */}
+          {['Video', 'OffthreadVideo', 'MaudeVideo'].includes(t.seq.mediaTag ?? '') &&
+          t.seq.mediaSrc ? (
+            <button
+              type="button"
+              className="insp-quietlink"
+              data-testid="insp-clip-takes"
+              onClick={() =>
+                typeof ctx?.onShellAction === 'function'
+                  ? ctx.onShellAction('video.take.swap')
+                  : otherTakesUi.open()
+              }
+            >
+              Other takes…
+            </button>
+          ) : null}
+        </span>
+      </span>
     </Row>
   );
 }
@@ -201,7 +205,6 @@ function TitleRows({ el, ctx }) {
   if (!t) return null;
   return (
     <div data-testid="timeline-inspector">
-      <TextRows t={t} />
       <StyleRows t={t} ctx={ctx} />
       <Row k="Motion" name="title-motion">
         <MotionGrid t={t} />
@@ -406,6 +409,8 @@ function TitleAdvanced({ el, open, onToggle }) {
   return (
     <AdvancedFold panel="inspector" hint={advancedHint(t)} open={open} onToggle={onToggle}>
       <div className="insp-adv insp-adv--title" data-testid="insp-adv-title">
+        {/* P8 C8 (07 · ve-text): the card is Font · Colour · Motion · Length; the words themselves live here */}
+        <TextRows t={t} />
         <div className="insp-css" data-testid="insp-adv-title-enter">
           <span className="insp-css-k k-mono">enter</span>
           <span className="insp-css-v k-mono">

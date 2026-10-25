@@ -6,12 +6,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = join(import.meta.dir, '..', 'client');
-const DEBT = new Set([
-  'client/v2/timeline/Timeline.jsx',
-  'client/v2/timeline/edit/drop.jsx',
-  'client/v2/timeline/other-takes.jsx',
-  'client/v2/timeline/reframe-island.jsx',
-]);
+const DEBT = new Set<string>([]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

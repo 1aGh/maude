@@ -178,3 +178,6 @@ Final verification shoot after stage C round 7, on the merged tip (release-built
 | ve-fit-fill | unreachable — the vertical-clip ask needs a real vertical file dropped; the lane has no real file drag | unreachable (same) |
 
 Totals: 38 id×theme re-shot (19 ids), 14 unreachable (7 ids). The committed `*-spec-only.jpg` for ve-render-light is stale (ve-render-light is now a pair). Harness note: t07 logs `MEDIA_ELEMENT_ERROR ... aaaa1111.mp4` page errors (the fixture's interview footage is a missing/placeholder file in the t07 lane; t07c replaces it with real media) — not harness-caused.
+
+## Round 8 (p8-c8-video) — pairs re-shot light + dark (impl frames overwritten in this folder)
+Changed and visible: the Full timeline gutter buttons (eye on Text / Graphics, speaker on Video) in every Full shot; the lane names once (no "beat-three" over "Video"); ve-captions shows the Captions inspector; ve-export draws In the cloud / On this Mac and the footer names the picked lane; ve-play is the playing frame with a loop range; the title card has no Text field. Details: `fix-c8-video.md`. ve-formats / ve-reframe still need a 3-format fixture; ve-advanced / 06 ad-timeline keyframes need keyframe data (06 ad-timeline NOT re-shot this round).

@@ -48,6 +48,8 @@ export const CLIP_VERB_LABELS = {
   'video.captions.add': 'edit captions',
   // S7.18 — a keyframe's curve (Advanced › Easing)
   'video.easing.set': 'set curve',
+  // P8 C8 — the per-track view / volume button: one write for the whole track
+  'clip.track': 'change a track',
   // S7.15 — Other takes: another shot of the same source at the same length (07 · ve-ai-adjust)
   'video.take.swap': 'swap a take',
 };
@@ -73,7 +75,7 @@ export function clipVerbRefusal(verb) {
 }
 
 /** Verbs that name no existing clip (a drop adds one). */
-const CLIPLESS_VERBS = new Set(['insert', 'video.captions.add', 'video.easing.set']);
+const CLIPLESS_VERBS = new Set(['insert', 'video.captions.add', 'video.easing.set', 'clip.track']);
 
 const mmss = (frame, fps) => {
   const s = Math.max(0, Math.floor(Math.max(0, frame) / Math.max(1, Math.round(fps || 30)) + 1e-9));
@@ -89,6 +91,17 @@ export function clipVerbToast(verb, { name, atFrame, fps, params } = {}) {
   if (verb === 'split' && name != null && Number.isFinite(atFrame))
     return { text: `Split ${name} at ${mmss(atFrame, fps)}.`, undo: true };
   if (verb === 'remove') return { text: 'Clip removed.', undo: false };
+  if (verb === 'clip.track') {
+    const t =
+      params?.hidden === true
+        ? 'Track hidden.'
+        : params?.hidden === false
+          ? 'Track shown.'
+          : params?.muted === true
+            ? 'Track muted.'
+            : 'Track sound on.';
+    return { text: t, undo: false };
+  }
   if (verb === 'video.easing.set')
     return { text: params?.bezier ? 'Curve set.' : 'Curve taken off.', undo: false };
   if (verb === 'retime')

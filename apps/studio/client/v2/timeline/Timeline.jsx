@@ -17,7 +17,7 @@
 // -play | -pause`), consumed by video-comp.tsx.
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { portalToBody } from '../portal-scope.jsx';
 
 import { isSilentVideo, timelineKindOf } from '../inspector/kinds/clip-model.js';
 import { foldStore } from '../fold/use-fold.js';
@@ -42,6 +42,7 @@ import { FitFillAsk, useFitFill } from './fit-fill.jsx';
 import { joinTitle, stillSecond, tileOfPresentation } from './joins/join-model.js';
 import { TransitionPicker } from './joins/transition-picker.jsx';
 import { MusicLaneOverlay, musicSelection, useMusicLane } from './lanes/music-lane.jsx';
+import { trackToggle } from './track-toggle.js';
 import { MusicHint, MusicTool } from './music-hint.jsx';
 import { TGlyph } from './glyphs.jsx';
 import { CaptionLane, CaptionsTool } from './lanes/caption-lane.jsx';
@@ -944,6 +945,33 @@ export default function TimelinePanel({
     music: 'music',
     music2: 'music',
   };
+  // P8 C8 (07 · .ve-lab-b) — the Full timeline's per-track button: an eye on Text / Graphics, a speaker on Video / Music.
+  // One `clip.track` write for the whole track, so one ⌘Z takes it back (track-toggle.js, edit-ops/clip/track.ts).
+  const trackButton = (id, label) => {
+    if (!full) return null;
+    const t = drawnTracks.find((d) => d.id === id);
+    const tt = trackToggle(id, label, {
+      seqs: (t?.members ?? []).filter((m) => m.kind === 'seq').map((m) => sequences[m.index]),
+      beds: (t?.members ?? [])
+        .filter((m) => m.kind === 'audio')
+        .map((m) => musicLane.forBed(m.index)),
+    });
+    const can = canEditHere && !!onClipVerb && tt.ids.length > 0;
+    return (
+      <button
+        type="button"
+        className={`tl-lab-b${tt.off ? ' is-off' : ''}`}
+        data-testid={`timeline-track-${tt.kind}-${id}`}
+        aria-label={tt.label}
+        title={tt.label}
+        aria-pressed={tt.off}
+        disabled={!can}
+        onClick={() => onClipVerb(null, 'clip.track', tt.params)}
+      >
+        <TGlyph name={tt.glyph} size={12} />
+      </button>
+    );
+  };
   const trackChip = (id, label, { foldable, folded, count }) => {
     const chip = (
       <span className="tl-lab-ic" aria-hidden="true">
@@ -971,6 +999,7 @@ export default function TimelinePanel({
             <span className="tl-track-name">{label}</span>
           </>
         )}
+        {folded ? null : trackButton(id, label)}
       </div>
     );
   };
@@ -2845,7 +2874,7 @@ export default function TimelinePanel({
         />
       ) : null}
       {commentDraft
-        ? createPortal(
+        ? portalToBody(
             <div
               className="tlci tlci--comment"
               style={{ left: commentDraft.x, top: commentDraft.y }}
@@ -2899,12 +2928,11 @@ export default function TimelinePanel({
                   </button>
                 </div>
               </div>
-            </div>,
-            document.body
+            </div>
           )
         : null}
       {commentPopover
-        ? createPortal(
+        ? portalToBody(
             (() => {
               const c = comments.find((k) => k.id === commentPopover.id);
               if (!c) return null;
@@ -2965,12 +2993,11 @@ export default function TimelinePanel({
                   </div>
                 </div>
               );
-            })(),
-            document.body
+            })()
           )
         : null}
       {joinPicker && picker
-        ? createPortal(
+        ? portalToBody(
             <TransitionPicker
               title={picker.title}
               tile={picker.tile}
@@ -2989,8 +3016,7 @@ export default function TimelinePanel({
                 setJoinPicker(null);
                 if (from?.isConnected) from.focus?.();
               }}
-            />,
-            document.body
+            />
           )
         : null}
       {/* S7.13 — Re-frame: the selected clip's window per format (drawn only while opened) */}
@@ -3018,13 +3044,12 @@ export default function TimelinePanel({
         }
       />
       {fitFill.ask
-        ? createPortal(
-            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />,
-            document.body
+        ? portalToBody(
+            <FitFillAsk ask={fitFill.ask} onAnswer={fitFill.answer} onClose={fitFill.dismiss} />
           )
         : null}
       {ctxMenu && sequences[ctxMenu.index]
-        ? createPortal(
+        ? portalToBody(
             (() => {
               const seq = sequences[ctxMenu.index];
               const i = ctxMenu.index;
@@ -3103,8 +3128,7 @@ export default function TimelinePanel({
                   }}
                 />
               );
-            })(),
-            document.body
+            })()
           )
         : null}
       {island?.fileDrag && island.dropRect && onDropMedia ? (

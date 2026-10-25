@@ -39,6 +39,7 @@ import {
   SCOPE_LABEL,
   sheetSub,
   sheetTitle,
+  estimateForLane,
   summaryWords,
 } from './export-copy.js';
 import { AdvancedSection, AdvancedToggle } from './advanced/advanced.jsx';
@@ -336,10 +337,8 @@ export function ExportSheet({
   const summary =
     mode === 'export'
       ? summaryWords(
-          // 09 ex-video: the words follow the Render card that is ticked, not the lane the estimate was asked in
-          render.show && est
-            ? { ...est, lane: render.lane === 'cloud' ? 'cloud' : 'this-mac' }
-            : est,
+          // 09 ex-video / 07 ve-export: the words follow the Render card that is ticked, not the estimate's lane
+          estimateForLane(est, render),
           printChoice.printPdf ? { pdfPages: printChoice.withBack ? 2 : 1 } : undefined
         )
       : null;

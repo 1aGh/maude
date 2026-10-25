@@ -553,6 +553,8 @@ export interface MusicInfo {
   loose?: true;
   /** literal `volume` of the `<Audio>`, 0..1 (1 when absent) */
   volume: number;
+  /** the `<Audio>` carries `muted` (or a literal volume of 0) — the Music track's volume button reads it */
+  muted: boolean;
   /** the `<Duck>` around it, or null */
   duck: DuckInfo | null;
   /** null = no beat sidecar for this song yet (the lane offers to find the beat) */
@@ -604,6 +606,7 @@ export function compMusic(
       from: span.from,
       durationInFrames: span.durationInFrames,
       volume: audioVolume(source, span.src),
+      muted: span.muted,
       duck: ducks.get(span.src) ?? null,
       grid: null,
     };

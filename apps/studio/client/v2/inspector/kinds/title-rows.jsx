@@ -10,7 +10,7 @@ import { paintFromCss, paintToCss } from '../../../../edit-ops/words-paint.ts';
 import { TITLE_MOTION_LABELS, TITLE_MOTIONS } from '../../../../video/title-motion.ts';
 import { Select } from '../../../inspector-controls.jsx';
 import { ColorControl } from '../sections/color-control.jsx';
-import { Quiet, Row } from '../sections/row.jsx';
+import { Row } from '../sections/row.jsx';
 import { useDsFamilies } from '../token-chip.jsx';
 
 const PIC = { 'slide-up': 'up', 'type-on': 'type', 'per-word': 'word' };
@@ -46,11 +46,6 @@ export function TextRows({ t }) {
         >
           Apply text
         </button>
-        <Quiet>
-          {slate
-            ? 'Updates the generation prompt on the slate.'
-            : 'Rewrites the title text in the composition.'}
-        </Quiet>
       </span>
     </Row>
   );
