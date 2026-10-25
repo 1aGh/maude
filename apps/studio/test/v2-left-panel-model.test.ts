@@ -222,6 +222,7 @@ describe('the pinned system rows (S10.13)', () => {
     expect(m.rows[0]).toMatchObject({
       label: 'Design system',
       sub: 'Alligators brand system · 87 canvases',
+      subLines: ['Alligators brand system', '87 canvases'],
       count: 87,
     });
     expect(m.header).toBeNull();

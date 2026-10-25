@@ -92,8 +92,12 @@ export function decorateRows(rows, groups, info) {
     const amber = dsAmber(st);
     const isDefault = r.dsName === theDefault;
     let sub;
-    if (total <= 1) sub = `${name} · ${canvasesWord(files.length)}`;
-    else if (amber && st?.level === 11) sub = amber.title;
+    let subLines = null;
+    if (total <= 1) {
+      sub = `${name} · ${canvasesWord(files.length)}`;
+      // 11 pn-ds: the one system is a card of two lines — the system's name, then what uses it
+      subLines = [name, canvasesWord(files.length)];
+    } else if (amber && st?.level === 11) sub = amber.title;
     else if (files.length === 0)
       sub = isDefault ? 'Default · no canvas uses it' : 'Draft · no canvas uses it';
     else if (isDefault) sub = `Default · ${canvasesWord(files.length)}`;
@@ -106,6 +110,7 @@ export function decorateRows(rows, groups, info) {
       ...(total > 1 ? { label: name } : {}),
       systemLabel: name,
       sub,
+      ...(subLines ? { subLines } : {}),
       count: files.length,
       isDefault,
       draft: total > 1 && files.length === 0,

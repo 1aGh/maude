@@ -15,7 +15,12 @@ afterAll(async () => {
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { compareStore, nowWords } from '../client/v2/history/compare-store.js';
-import { CompareHost, CompareView, changesUrl } from '../client/v2/history/compare-view.jsx';
+import {
+  CompareHost,
+  CompareView,
+  changesUrl,
+  useFrameTheme,
+} from '../client/v2/history/compare-view.jsx';
 import { VersionHistoryHost } from '../client/v2/history/history-host.jsx';
 import { VersionHistoryPanel } from '../client/v2/history/history-panel.jsx';
 import { shellMode } from '../client/v2/shell/use-canvas-mode-lane.js';
@@ -623,5 +628,36 @@ describe('Version history › Advanced', () => {
     await openFold();
     await click(q('[data-testid="vh-compare-pictures"]'));
     expect(opened).toEqual([{ file: PATH, beforeSha: 'HEAD' }]);
+  });
+});
+
+// P8 C7 (11 · pn-compare): the two frames get the chrome's theme (they started dark in a light window)
+describe('the compare frames follow the theme', () => {
+  test('both frames are told the theme on the ladder and again when it flips', async () => {
+    const posted: Array<[number, unknown]> = [];
+    const mk = (i: number) => ({
+      contentWindow: { postMessage: (m: unknown) => posted.push([i, m]) },
+    });
+    const frames = { current: [mk(0), mk(1)] };
+    function Probe() {
+      useFrameTheme(frames as never, 'x');
+      return null;
+    }
+    document.documentElement.dataset.theme = 'light';
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => root.render(<Probe />));
+    await act(async () => new Promise((r) => setTimeout(r, 30)));
+    expect(posted).toContainEqual([0, { dgn: 'theme', theme: 'light' }]);
+    expect(posted).toContainEqual([1, { dgn: 'theme', theme: 'light' }]);
+    posted.length = 0;
+    await act(async () => {
+      document.documentElement.dataset.theme = 'dark';
+      await new Promise((r) => setTimeout(r, 60));
+    });
+    expect(posted).toContainEqual([1, { dgn: 'theme', theme: 'dark' }]);
+    await act(async () => root.unmount());
+    host.remove();
   });
 });
