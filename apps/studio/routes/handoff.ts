@@ -116,7 +116,8 @@ interface TargetRow extends HandoffTarget {
 function targetRows(deps: HandoffRouteDeps, subject: Subject): TargetRow[] {
   const source = subject.canvas ? (deps.readCanvas(subject.canvas) ?? '') : '';
   return targetsFromConfig(deps.config(), deps.designRel)
-    .filter((t) => (subject.canvas ? true : t.kind === 'tokens'))
+    // P8 c7 (09 ex-handoff): a canvas hands off to code (Web, App, Lottie); the tokens row is the design system's own
+    .filter((t) => (subject.canvas ? t.kind !== 'tokens' : t.kind === 'tokens'))
     .map((t) => {
       const outRel = outPathFor(t, { canvas: subject.canvas, ds: subject.ds }, deps.designRel);
       let off: string | null = null;

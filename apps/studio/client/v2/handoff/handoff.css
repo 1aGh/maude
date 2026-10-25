@@ -162,6 +162,13 @@
   .ho-connect {
     display: grid;
   }
+  /* the AI island's inline sheet floats (position: absolute); here it is the sheet's own body, in flow */
+  .ho-connect .ai-conn-sheet--inline {
+    position: static;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
   @media (prefers-reduced-motion: reduce) {
     .ho-target {
       transition-duration: 1ms;

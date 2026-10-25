@@ -32,6 +32,8 @@ export function ConnectSheet({
   title = 'Connect your Claude account?',
   lead = 'Connect your Claude account to let AI draft this.',
   fine = "Your prompt waits here and runs as soon as it's connected.",
+  // 09 ex-handoff-edges draws the card without the "Claude Pro or Max" row: just the words and the two buttons
+  option = true,
   children,
 }) {
   const titleId = useId();
@@ -52,15 +54,17 @@ export function ConnectSheet({
       </p>
       <div className="ai-conn-b">
         {lead ? <p>{lead}</p> : null}
-        <span className="ai-conn-opt">
-          <span className="ai-conn-ic" aria-hidden="true">
-            <Spark size={14} />
+        {option ? (
+          <span className="ai-conn-opt">
+            <span className="ai-conn-ic" aria-hidden="true">
+              <Spark size={14} />
+            </span>
+            <span className="ai-conn-txt">
+              <strong>Claude Pro or Max</strong>
+              <span>Sign in through your browser. Claude Code is set up for you.</span>
+            </span>
           </span>
-          <span className="ai-conn-txt">
-            <strong>Claude Pro or Max</strong>
-            <span>Sign in through your browser. Claude Code is set up for you.</span>
-          </span>
-        </span>
+        ) : null}
         {children}
         {error ? (
           <p className="ai-conn-err" role="alert" data-testid="ai-connect-error">

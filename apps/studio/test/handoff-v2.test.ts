@@ -289,6 +289,16 @@ describe('S8.10 targets come from settings', () => {
     expect(h.asks).toHaveLength(0);
   });
 
+  test('a canvas offers Web, App and Lottie only — the tokens row belongs to the design system (P8 c7 ex-handoff)', async () => {
+    const h = harness();
+    const t = await h.call('GET', '/_api/handoff/targets?canvas=ui/Pricing.tsx');
+    expect((t.body.targets as Array<{ kind: string }>).map((x) => x.kind)).toEqual([
+      'web',
+      'rn',
+      'lottie',
+    ]);
+  });
+
   test('a design system hands off its tokens (S10.19 `target: tokens`)', async () => {
     const h = harness();
     const t = await h.call('GET', '/_api/handoff/targets?ds=studio');

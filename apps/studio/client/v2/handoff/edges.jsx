@@ -5,10 +5,13 @@
 //   QueuedLine    offline / waiting: "Queued — starts when this Mac is online", it starts by itself.
 
 import { ConnectSheet } from '../ai/ConnectSheet.jsx';
+import { Hint } from '../export/parts.jsx';
 import {
   BLOCKERS_NOTE,
   blockersLine,
   CONNECT_FINE,
+  CONNECT_LEAD,
+  CONNECT_TITLE,
   NO_BLOCKERS,
   NOT_REVIEWED,
   QUEUED_CAP,
@@ -36,9 +39,10 @@ export function ReviewHint({ review, onShowOnCanvas }) {
     );
   }
   return (
-    <p className="ho-review" data-testid="handoff-review" data-tone="info">
+    // 09 ex-handoff: the review line is the sheet's own hint pill — a done glyph, then the words
+    <Hint icon="done" testid="handoff-review" tone="info">
       {review?.reviewed ? NO_BLOCKERS : NOT_REVIEWED}
-    </p>
+    </Hint>
   );
 }
 
@@ -47,6 +51,9 @@ export function HandoffConnect({ phase, error, onConnect, onCancel }) {
     <div className="ho-connect" data-testid="handoff-connect">
       <ConnectSheet
         inline
+        option={false}
+        title={CONNECT_TITLE}
+        lead={CONNECT_LEAD}
         phase={phase}
         error={error}
         fine={CONNECT_FINE}

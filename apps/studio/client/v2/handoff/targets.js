@@ -29,6 +29,10 @@ export function blockersLine(blockers) {
   return `The last review found ${n} ${n === 1 ? 'blocker' : 'blockers'}: ${list}.`;
 }
 
+// 09 ex-handoff-edges: the card's own words (CONTRACT §7's sentence is the title; the lead says why AI is needed)
+export const CONNECT_TITLE = 'Connect your Claude account to let AI draft this.';
+export const CONNECT_LEAD =
+  'Handoff to production has AI write the code. Cloud doesn’t include AI — use your own Claude subscription or API key.';
 export const CONNECT_FINE =
   'After connecting, the handoff you asked for runs — no need to start again.';
 export const DRAFTING = (name) =>

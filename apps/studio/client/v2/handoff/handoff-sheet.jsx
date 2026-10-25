@@ -264,7 +264,12 @@ export function HandoffSheet({
         data-phase={phase}
         onKeyDown={onKeyDown}
       >
-        <div className="ex-sheet-hd" data-testid="handoff-sheet">
+        {/* the connect step is its own card (09 ex-handoff-edges): no sheet title above it */}
+        <div
+          className="ex-sheet-hd"
+          data-testid="handoff-sheet"
+          hidden={phase === 'connect' ? true : undefined}
+        >
           <h2 className="ex-title" id="ho-title" data-testid="export-title">
             {handoffTitle(name)}
           </h2>

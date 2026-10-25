@@ -178,6 +178,9 @@ describe('S8.10 ⇧⌘H — pick where the code goes', () => {
     expect(lottie?.textContent).toContain('needs an animated frame; Pricing has none');
     expect(text('[data-testid="handoff-use-ds"]')).toContain('Use the design system');
     expect(text('[data-testid="handoff-review"]')).toContain('Last review: no blockers.');
+    // P8 c7 ex-handoff: the review line is a hint pill with its glyph, not bare text
+    expect($('[data-testid="handoff-review"]')?.classList.contains('ex-hint')).toBe(true);
+    expect($('[data-testid="handoff-review"] .ex-hint-ic svg')).not.toBeNull();
   });
 
   test('picking App and Hand off posts the target and Use the design system', async () => {
@@ -276,6 +279,10 @@ describe('S8.10 edges — not connected, queued', () => {
       'Connect your Claude account to let AI draft this.'
     );
     expect(text('[data-testid="ai-connect-sheet"]')).toContain(CONNECT_FINE);
+    // P8 c7 ex-handoff-edges: the card carries its own body line (why AI), no Pro/Max row, no sheet title above it
+    expect(text('[data-testid="ai-connect-sheet"]')).toContain('use your own Claude subscription');
+    expect(text('[data-testid="ai-connect-sheet"]')).not.toContain('Claude Pro or Max');
+    expect($('[data-testid="handoff-sheet"]')?.hasAttribute('hidden')).toBe(true);
     expect(calls.some((c) => c.url === '/_api/handoff')).toBe(false);
   });
 
