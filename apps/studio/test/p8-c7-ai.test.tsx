@@ -136,6 +136,15 @@ describe('Advanced › AI may (03 ai-advanced)', () => {
   });
 });
 
+describe('the [maude-may …] line is part of the context block the thread never shows', () => {
+  test('stripContextBlock takes it away with the head and scope lines', async () => {
+    const { stripContextBlock } = await import('../acp/transcript.ts');
+    const text =
+      'Make it greener\n[maude-context canvas=".design/ui/C.tsx" mtime=1]\n[maude-may no-web]\n[maude-scope whole-canvas]';
+    expect(stripContextBlock(text)).toBe('Make it greener');
+  });
+});
+
 describe('the panel-closed done toast (03 ai-panel-closed offers Show; 01 cf-ai-done, a whole-canvas draft, Undo)', () => {
   const changed = (artboards: string | string[]) => ({
     scope: { canvas: 'ui/c.tsx', artboards },

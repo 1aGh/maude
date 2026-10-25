@@ -251,8 +251,7 @@ export function ChatAdvanced({
   const modes = caps?.modes ?? null;
   const modeList = modeOptions(modes);
   // "Change canvases" is the ask-before mode seen as a switch: the "AI changes nothing" modes are off.
-  const changesNothing =
-    modeList.find((m) => m.id === modes?.currentModeId)?.group === 'nochange';
+  const changesNothing = modeList.find((m) => m.id === modes?.currentModeId)?.group === 'nochange';
   const askingMode = modeList.find((m) => m.group === 'asks')?.id ?? modes?.currentModeId;
   const noChangeMode = modeList.find((m) => m.group === 'nochange')?.id ?? modes?.currentModeId;
   const noCaps = !modeList.length && !parsed.model && !parsed.effort && !parsed.fast;
