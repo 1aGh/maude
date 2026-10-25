@@ -7,11 +7,12 @@
 //
 // Rows that need a substrate this build does not have are not drawn: a row that does nothing is worse than no
 // row. S5.17b: "Folders AI may read" IS drawn — S5.10's consent store backs it (GET /_api/ai/attach/folders,
-// Reset = POST …/folder/revoke). Not drawn, with no capability behind them: the "AI may" switches (Change
-// canvases · Use Assets and footage · Search the web — the allowed tools are fixed in acp/bridge.ts), "Write
-// outside this project" (always asks, nothing to set), "Always allowed on this canvas · Reset" (Claude Code's
-// own session rule, no Maude store to reset) and Images, video and voice (the Generate dialog's per-use choices;
-// nothing persists a default). Each lands as a row the day its setting exists.
+// Reset = POST …/folder/revoke). P8 c7 (03 `ai-advanced`) adds the rest of the "AI may" group that something
+// backs: Change canvases (the ask-before mode seen as a switch), Use Assets and footage / Search the web (a per-Mac
+// choice the agent is TOLD with every ask — ai-may.js; Claude Code's tool permissions stay the hard limit) and
+// "Write outside this project · Asks every time" (a fact of bridge.ts). Still not drawn, with no store behind them:
+// "Always allowed on this canvas · Reset" (Claude Code's own session rule) and Images, video and voice (the
+// Generate dialog's per-use choices; nothing persists a default). Each lands as a row the day its setting exists.
 //
 // The suggest-only banner (`SuggestOnlyBanner`) is the other half of 03 `ai-adv-edges`: a mode where AI
 // changes nothing is said up front, with ONE verb to undo it.

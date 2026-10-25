@@ -136,6 +136,17 @@ describe('Advanced › AI may (03 ai-advanced)', () => {
   });
 });
 
+describe('the permission strip names the four artboards once (03 PERM_DETAIL "Obrana, útok, speciální týmy, trenéři")', () => {
+  test('a shared lead is said once; unrelated names keep the dot', async () => {
+    const { willNames } = await import('../client/v2/ai/WillChange.jsx');
+    expect(
+      willNames(['Foto · obrana', 'Foto · útok', 'Foto · speciální týmy', 'Foto · trenéři'])
+    ).toBe('Obrana, útok, speciální týmy, trenéři');
+    expect(willNames(['Post 1:1', 'Story 9:16'])).toBe('Post 1:1 · Story 9:16');
+    expect(willNames(['Foto · obrana'])).toBe('Foto · obrana');
+  });
+});
+
 describe('the [maude-may …] line is part of the context block the thread never shows', () => {
   test('stripContextBlock takes it away with the head and scope lines', async () => {
     const { stripContextBlock } = await import('../acp/transcript.ts');
