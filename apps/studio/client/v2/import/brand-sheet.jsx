@@ -238,7 +238,10 @@ export default function BrandSheet({ open, onClose }) {
               }}
             >
               <span
-                className={`bi-drop-ic${logoUrl ? ' bi-drop-ic--logo' : ''}`}
+                // the chosen logo sits on a light-fixed checker like 12 `.ia-logo` (`data-theme="light"` re-opens
+                // the light token scope), so a dark wordmark stays legible in a dark app
+                className={logoUrl ? 'bi-drop-ic bi-drop-ic--logo maude-v2' : 'bi-drop-ic'}
+                data-theme={logoUrl ? 'light' : undefined}
                 aria-hidden="true"
               >
                 {logoUrl ? (

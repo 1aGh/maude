@@ -35,6 +35,7 @@ describe('12 ia-brand-steps — the chosen logo on the checker tile', () => {
     });
     const ic = document.querySelector('.bi-drop-ic') as HTMLElement;
     expect(ic.textContent).toBe('+');
+    expect(ic.getAttribute('data-theme')).toBeNull();
     expect(tid('brand-up-logo-preview')).toBeNull();
 
     // choose a file through the hidden input's own React onChange
@@ -57,6 +58,12 @@ describe('12 ia-brand-steps — the chosen logo on the checker tile', () => {
     expect(document.querySelector('.bi-drop-ic')?.classList.contains('bi-drop-ic--logo')).toBe(
       true
     );
+    // P8-C10: 12 `.ia-logo` is light-fixed — the user's logo stays legible in a dark app, so the tile
+    // re-opens the LIGHT token scope (not hard-coded hex); the empty "+" tile follows the theme.
+    const tile = document.querySelector('.bi-drop-ic') as HTMLElement;
+    expect(tile.getAttribute('data-theme')).toBe('light');
+    expect(tile.classList.contains('maude-v2')).toBe(true);
+    expect(ic.getAttribute('data-theme')).toBe('light');
     expect(made.length).toBe(1);
   });
 });
