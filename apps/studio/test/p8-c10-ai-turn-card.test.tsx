@@ -55,7 +55,7 @@ describe('an earlier reply keeps its result card', () => {
     GlobalRegistrator.unregister();
   });
 
-  async function mount(runs: unknown[], latestId: string | null) {
+  async function mount(runs: unknown[]) {
     const React = await import('react');
     const { createRoot } = await import('react-dom/client');
     const { act } = await import('react');
@@ -94,7 +94,7 @@ describe('an earlier reply keeps its result card', () => {
       return (
         <AssistantRuntimeProvider runtime={runtime}>
           <ChatMediaContext.Provider
-            value={{ designRel: '.design', chatRuns: { runs, latestId }, chipName: () => '' }}
+            value={{ designRel: '.design', chatRuns: { runs }, chipName: () => '' }}
           >
             <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
           </ChatMediaContext.Provider>
@@ -115,10 +115,7 @@ describe('an earlier reply keeps its result card', () => {
   }
 
   test('the turn with a run draws Before / After, Undo · Compare and the fold; the newest turn does not (RunSurface owns it)', async () => {
-    const { all } = await mount(
-      [run('r_old', T0 + 2_000), run('r_new', T0 + 20 * MIN + 2_000)],
-      'r_new'
-    );
+    const { all } = await mount([run('r_old', T0 + 2_000), run('r_new', T0 + 20 * MIN + 2_000)]);
     const cards = all('[data-testid="ai-turn-result"]');
     expect(cards).toHaveLength(1);
     const card = cards[0] as HTMLElement;
@@ -133,7 +130,7 @@ describe('an earlier reply keeps its result card', () => {
   });
 
   test('a reply that changed nothing and has no run keeps "The canvas didn’t change."; a changed one does not claim it', async () => {
-    const { all } = await mount([run('r_old', T0 + 2_000)], null);
+    const { all } = await mount([run('r_old', T0 + 2_000)]);
     // the first reply used Edit → no note, with a card; the second used no tool → note, no card
     expect(all('[data-testid="ai-turn-result"]')).toHaveLength(1);
     expect(all('[data-testid="ai-canvas-unchanged"]')).toHaveLength(1);
@@ -211,8 +208,76 @@ describe('an earlier reply keeps its result card', () => {
     expect(msg.textContent).not.toContain('maude-attachments');
   });
 
+  test('the feed’s tail draws a result only for the LAST ask’s run; an earlier turn’s run is left to its reply', async () => {
+    const React = await import('react');
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const { AssistantRuntimeProvider, useLocalRuntime } = await import('@assistant-ui/react');
+    const { RunSurface } = await import('../client/v2/ai/RunSurface.jsx');
+    const listeners = new Set<(r: unknown) => void>();
+    const conn = {
+      onRun(fn: (r: unknown) => void) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
+    };
+    const adapter = {
+      async *run() {
+        await new Promise(() => {});
+      },
+    };
+    function Host() {
+      const runtime = useLocalRuntime(adapter as never, {
+        initialMessages: [
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'Make a story' }],
+            createdAt: new Date(T0),
+          },
+          {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Done.' }],
+            status: { type: 'complete', reason: 'stop' },
+          },
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'Which green?' }],
+            createdAt: new Date(T0 + 10 * MIN),
+          },
+          {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Club green.' }],
+            status: { type: 'complete', reason: 'stop' },
+          },
+        ] as never,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <RunSurface conn={conn} chatId="c1" tools={[]} artboards={[]} designRel=".design" />
+        </AssistantRuntimeProvider>
+      );
+    }
+    document.body.innerHTML = '';
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<Host />);
+    });
+    const emit = async (r: unknown) => {
+      await act(async () => {
+        for (const fn of listeners) fn(r);
+        await new Promise((res) => setTimeout(res, 20));
+      });
+    };
+    await emit(run('r_old', T0 + 2_000));
+    expect(document.querySelector('[data-testid="ai-result"]')).toBeNull();
+    await emit(run('r_new', T0 + 10 * MIN + 2_000));
+    expect(document.querySelector('[data-testid="ai-result"]')).not.toBeNull();
+  });
+
   test('no registry run, no card', async () => {
-    const { all } = await mount([], null);
+    const { all } = await mount([]);
     expect(all('[data-testid="ai-turn-result"]')).toHaveLength(0);
   });
 });

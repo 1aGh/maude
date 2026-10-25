@@ -304,11 +304,8 @@ function ChatThread({
   // props through, so this context is the only way it reaches the filter.
   const [lightboxSrc, setLightboxSrc] = useState(null);
   // P8 c10 (03 `ai-long`): the chat's runs, so an earlier reply can draw its own result card (v2/ai/TurnResult.jsx)
-  const { run: latestChatRun, runs: chatRunList } = useChatRuns(conn, chatId);
-  const chatRuns = useMemo(
-    () => ({ runs: chatRunList, latestId: latestChatRun?.runId ?? null }),
-    [chatRunList, latestChatRun]
-  );
+  const { runs: chatRunList } = useChatRuns(conn, chatId);
+  const chatRuns = useMemo(() => ({ runs: chatRunList }), [chatRunList]);
   const media = useMemo(
     () => ({
       chipName: (token) => attachmentName(attachmentsRef.current.map.get(token) || ''),

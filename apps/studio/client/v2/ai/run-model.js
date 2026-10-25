@@ -329,6 +329,15 @@ export function turnRunFor(runs, userAt, nextUserAt) {
   return best;
 }
 
+/**
+ * Does this run belong to a turn BEFORE the chat's last ask? Then the run's result lives under its own reply
+ * (TurnResult) and the tail of the feed has nothing to say about it. No time known = false (the tail keeps it).
+ */
+export const runIsFromEarlierTurn = (run, lastAskAt) =>
+  Number.isFinite(lastAskAt) &&
+  Number.isFinite(run?.createdAt) &&
+  run.createdAt < lastAskAt - TURN_SKEW_MS;
+
 /** The verbs under an older turn: the run's own, without "Keep going" (a finished turn has nothing to resume). */
 export function turnCardVerbs(run, { canCompare = false } = {}) {
   return resultVerbs(run, { canCompare }).filter((v) => v !== 'Keep going');

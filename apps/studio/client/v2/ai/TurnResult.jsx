@@ -50,7 +50,7 @@ export function useTurnRun(ctx) {
     const next = list.slice(at + 1).find((m) => m[1] === 'user');
     if (!ask || !next) return null;
     const run = turnRunFor(ctx.runs, ask[2], next[2]);
-    return run && run.runId !== ctx.latestId ? run : null;
+    return run ?? null;
   }, [ctx, key, id]);
 }
 

@@ -4,12 +4,14 @@ import { describe, expect, test } from 'bun:test';
 import {
   changedSomething,
   partSteps,
+  runIsFromEarlierTurn,
   turnCardVerbs,
   turnRunFor,
 } from '../client/v2/ai/run-model.js';
 import { shortArtboardName } from '../client/v2/ai/scope.js';
 
 const T = 1_700_000_000_000;
+const MIN = 60_000;
 const run = (id: string, over: Record<string, unknown> = {}) => ({
   runId: id,
   state: 'ended',
@@ -40,6 +42,16 @@ describe('which run was this turn', () => {
     expect(turnRunFor(runs, null, null)).toBeNull();
     expect(turnRunFor([], T, null)).toBeNull();
     expect(turnRunFor(runs, T + 200_000, null)).toBeNull();
+  });
+});
+
+describe('who owns a result: the tail of the feed or its own reply', () => {
+  test('a run from before the last ask lives under its reply; the last ask’s run stays at the tail', () => {
+    expect(runIsFromEarlierTurn(run('r', { createdAt: T }), T + 20 * MIN)).toBe(true);
+    expect(runIsFromEarlierTurn(run('r', { createdAt: T + 20 * MIN + 2_000 }), T + 20 * MIN)).toBe(
+      false
+    );
+    expect(runIsFromEarlierTurn(run('r'), null)).toBe(false);
   });
 });
 
