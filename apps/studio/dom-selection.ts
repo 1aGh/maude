@@ -491,6 +491,19 @@ export function worldGeometry(el: HTMLElement): {
   };
 }
 
+const DS_TOKEN_RE = /^--[A-Za-z0-9_-]{1,128}$/;
+const DS_MASTER_RE = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+
+/** `[data-ds-token="--accent"]` / `[data-ds-master="Button"]` for a Design system board element, else null. Only
+ *  names that pass the go-to patterns (client/v2/ds/go-to.js), so nothing here can close the attribute selector. */
+export function dsAnchorOf(el: Element): string | null {
+  const token = el.getAttribute?.('data-ds-token');
+  if (token && DS_TOKEN_RE.test(token)) return `[data-ds-token="${token}"]`;
+  const master = el.getAttribute?.('data-ds-master');
+  if (master && DS_MASTER_RE.test(master)) return `[data-ds-master="${master}"]`;
+  return null;
+}
+
 export function hoverTargetToSelection(target: HoverTarget, file?: string): Selection {
   const el = target.el;
   const rect =
@@ -501,6 +514,11 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
   // climbs to an ancestor. Falls back to cssPath of the hit when no stable
   // anchor exists.
   const cdId = target.cdId;
+  // P8 round 7 (13 · ds-edit-colour) — a token / component master the Design system canvas draws has no data-cd-id
+  // (the board renders it), so it is named by its own attribute inside its section, and it carries NO artboard:
+  // "no id + an artboard" means a whole-artboard pick everywhere (its eight handles, Delete, ⌘C), and a swatch is
+  // not one. Selected, it is the swatch: the selection ring sits on it.
+  const ds = !cdId && el ? dsAnchorOf(el) : null;
   // Selector resolution order:
   //   1. data-cd-id anchor — stable pipeline-stamped id (preferred). SCOPED by
   //      the hit's artboard (`[data-dc-screen=…] [data-cd-id=…]`) — a component
@@ -513,9 +531,13 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
   //   3. cssPath of the hit — last-resort path string.
   const selector = cdId
     ? scopedCdSelector(cdId, target.artboardId)
-    : target.artboardId
-      ? `[data-dc-screen="${target.artboardId}"]`
-      : cssPath(el);
+    : ds
+      ? target.artboardId
+        ? `[data-dc-screen="${target.artboardId}"] ${ds}`
+        : ds
+      : target.artboardId
+        ? `[data-dc-screen="${target.artboardId}"]`
+        : cssPath(el);
   // Disambiguate repeated instances within the same artboard (list rows, a
   // reusable used twice) — the index is which `querySelectorAll(selector)`
   // match this element is. cssPath is already unique, so 0 there.
@@ -524,7 +546,7 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     file: file ?? deriveFile(),
     id: cdId ?? undefined,
     selector,
-    artboardId: target.artboardId,
+    artboardId: ds ? null : target.artboardId,
     index,
     tag: el?.tagName.toLowerCase() ?? '',
     classes: realClasses(el),
