@@ -92,7 +92,7 @@ import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 // S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
-import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
+import { liftCard, panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { commitTextInPlace, textOpDeps } from './editing/text-actions.ts';
 import { forwardUndoKey } from './editing/undo-mode.ts';
@@ -4369,9 +4369,8 @@ function ReorderDrag() {
         }
         d.el.style.zIndex = '9990';
         d.el.style.pointerEvents = 'none'; // so elementFromPoint sees what's beneath
-        d.el.style.opacity = '0.9';
         d.el.style.cursor = 'grabbing';
-        d.el.style.boxShadow = '0 10px 28px rgba(0, 0, 0, 0.28)';
+        liftCard(d.el); // 14 ed-lay-reorder: tilted, accent-ringed, deep shadow, opaque
         d.el.style.willChange = 'transform';
         d.el.style.transition = 'none';
       }
