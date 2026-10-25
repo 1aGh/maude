@@ -32,6 +32,7 @@ import { isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
+import { overlayLiveSize, useLiveArtboardSize } from '../v2/inspector/live-size.js';
 import {
   createCanvasesFold,
   isFollowable,
@@ -1269,6 +1270,9 @@ export function useShellCore({}) {
       }),
     [activePath]
   );
+  // P8 c6 (14 ed-ab-resize): while an artboard edge is dragged the inspector reads the size the drag asks for
+  const liveSize = useLiveArtboardSize({ activePath, iframesRef, canvasOrigin: cfg?.canvasOrigin });
+  const selectedShown = useMemo(() => overlayLiveSize(selected, liveSize), [selected, liveSize]);
   return {
     activeArtboards,
     activeComps,
@@ -1365,7 +1369,7 @@ export function useShellCore({}) {
     scheduleHaloRestore,
     search,
     sectionsExpanded,
-    selected,
+    selected: selectedShown,
     selectedRef,
     setActiveArtboards,
     setActiveComps,
