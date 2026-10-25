@@ -117,10 +117,51 @@ describe('the arrow toolbar', () => {
 
   test('two-way gives the start the end’s head; pressed once both ends have one', async () => {
     const { host, calls } = await mountToolbar([arrow()]);
+    // P8-C8: Two-way is a row of the closing "…", not a button on the bar
+    expect(host.querySelector('[data-testid="annot-arrow-two-way"]')).toBeNull();
+    await click(host.querySelector('[data-testid="annot-ctx-more"]'));
     const two = host.querySelector('[data-testid="annot-arrow-two-way"]');
-    expect(two?.getAttribute('aria-pressed')).toBe('false');
+    expect(two?.getAttribute('aria-checked')).toBe('false');
     await click(two);
     expect(calls.at(-1)?.patches).toEqual([{ startHead: 'triangle', endHead: 'triangle' }]);
+  });
+
+  test('the bar reads kind · head · inks · Lock · "…" - no dash, widths or trash on it (the board order)', async () => {
+    const { host } = await mountToolbar([arrow()]);
+    const order = [
+      '[data-testid="annot-arrow-kind-straight"]',
+      'button[aria-label^="Arrowhead"]',
+      '[data-testid="annot-arrow-ink-ink"], [data-testid^="annot-arrow-ink-"]',
+      '[data-testid="annot-ctx-lock"]',
+      '[data-testid="annot-ctx-more"]',
+    ].map((q) => host.querySelector(q));
+    for (const el of order) expect(el).not.toBeNull();
+    for (let i = 1; i < order.length; i++) {
+      expect(!!((order[i - 1] as Element).compareDocumentPosition(order[i] as Element) & 4)).toBe(
+        true
+      );
+    }
+    for (const gone of [
+      'Dashed line',
+      'Thin stroke',
+      'Thick stroke',
+      'Delete selected annotations',
+    ])
+      expect(host.querySelector(`[aria-label="${gone}"]`)).toBeNull();
+  });
+
+  test('the "…" keeps what the bar does not draw: dashes, widths and Move to trash', async () => {
+    const { host, calls } = await mountToolbar([arrow()]);
+    await click(host.querySelector('[data-testid="annot-ctx-more"]'));
+    await click(host.querySelector('[data-testid="annot-ctx-dashed"]'));
+    expect(calls.at(-1)?.patches).toEqual([{ dashed: true }]);
+    await click(host.querySelector('[data-testid="annot-ctx-more"]'));
+    await click(host.querySelector('[data-testid="annot-ctx-thick"]'));
+    expect(calls.at(-1)?.patches).toEqual([{ width: 6 }]);
+    await click(host.querySelector('[data-testid="annot-ctx-more"]'));
+    expect(host.querySelector('[data-testid="annot-ctx-delete"]')?.textContent).toBe(
+      'Move to trash'
+    );
   });
 
   test('the head picker names the six heads', async () => {

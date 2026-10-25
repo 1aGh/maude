@@ -1091,13 +1091,16 @@ export const OPENERS = [
       { wait: 500 },
       { frameClick: tid('annot-arrow-ink-more'), optional: true },
       { wait: 300 },
+      // the closing "…": Two-way · Dashed line · Thin / Thick · Move to trash
+      { frameClick: tid('annot-ctx-more'), optional: true },
+      { wait: 300 },
     ],
   },
   // the field a double-click on an arrow opens
   { id: 'annot-arrow-label-edit', steps: [PREVIEW, { frameDblclick: A('a2') }, { wait: 600 }] },
   // an arrow whose element is gone: the open circle, then (selected) the card with Point to…
   { id: 'annot-arrow-dangling', steps: [PREVIEW, { frameClick: A('a3') }, { wait: 600 }] },
-  // a sticky: Resolve · Turn into a comment · List · Size · the other papers
+  // a sticky: Turn into a comment · List · Size · the other papers · the "…" (Resolve)
   {
     id: 'annot-sticky-sel',
     steps: [
@@ -1105,6 +1108,9 @@ export const OPENERS = [
       { frameClick: A('st1') },
       { wait: 500 },
       { frameClick: tid('annot-sticky-paper-more'), optional: true },
+      { wait: 300 },
+      // the closing "…": Resolve · Move to trash
+      { frameClick: tid('annot-ctx-more'), optional: true },
       { wait: 300 },
     ],
   },
