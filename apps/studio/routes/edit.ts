@@ -27,6 +27,7 @@
 import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { frameSubjectOf } from '../access/frame.ts';
 import type { Access } from '../access/scope.ts';
 import type { RunRegistry } from '../ai/runs.ts';
 import { artboardMembers } from '../annotations/artboard-members.ts';
@@ -54,8 +55,9 @@ import {
 } from '../edit-ops/layout-patch.ts';
 import type { ReferenceLanes } from '../edit-ops/references.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
-import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
+import { type ClipScope, type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
 import { sourceHold, type WriteHold } from '../sync/write-hold.ts';
+import { isWorkspaceMode } from '../workspace-mode.ts';
 import { heldByAi } from './agent.ts';
 import { createPhotoEveryUseRoutes, type PhotoEveryUseDeps } from './photo-every-use.ts';
 import type { RouteSpec } from './table.ts';
@@ -417,7 +419,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     };
   };
 
-  const run = (body: unknown) => {
+  const run = (body: unknown, clipScope?: ClipScope) => {
     const file = (body as { file?: unknown } | null)?.file;
     const key =
       typeof file === 'string'
@@ -470,8 +472,22 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
         }),
         ...(deps.references ? { references: deps.references } : {}),
         ...(deps.ops ? { ops: deps.ops } : {}),
+        ...(clipScope ? { clipScope } : {}),
       })
     );
+  };
+
+  /**
+   * V2-8.9 defender L1 / attacker L3 — whose clipboard this request uses: the cell member the proxy
+   * vouched for (`frameSubjectOf`, the frame key's own rule), '' on a desktop whatever the headers say;
+   * and what that session sees now (a paste re-checks the clip's canvas). No access → sees nothing.
+   */
+  const clipScopeOf = (req: Request): ClipScope => {
+    const access = deps.access?.(req);
+    return {
+      subject: isWorkspaceMode() ? (frameSubjectOf(req.headers) ?? '') : '',
+      sees: (canvas) => access?.seesCanvas(canvas) ?? false,
+    };
   };
 
   return [
@@ -492,7 +508,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
         } catch {
           return json(400, { ok: false, code: 'invalid', message: 'The edit is not readable.' });
         }
-        const result = await run(body);
+        const result = await run(body, clipScopeOf(req));
         return json(statusOf(result), result);
       },
     },

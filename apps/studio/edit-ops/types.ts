@@ -68,6 +68,18 @@ export interface ResolvedEditOp {
   exists?: (rel: string) => boolean;
   /** What the SERVER knows about this canvas (never the request): its meta's `dsRev` (S2.16). */
   ctx?: EditCtx;
+  /** V2-8.9 L1 — whose clipboard a copy / paste uses; absent = the desktop's one person ('', sees all). */
+  clipScope?: ClipScope;
+}
+
+/**
+ * V2-8.9 defender L1 / attacker L3 — the object clipboard's owner, from the REQUEST (never its body):
+ * the cell member it is vouched for (`frameSubjectOf`), '' on a desktop; and what that session sees, so
+ * a paste re-checks the canvas a clip was read from.
+ */
+export interface ClipScope {
+  subject: string;
+  sees(canvas: string): boolean;
 }
 
 /** Server-side facts an op may read; the client cannot set them. */

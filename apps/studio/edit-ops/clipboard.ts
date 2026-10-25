@@ -44,7 +44,7 @@ import { artboardLabels, copyId, copyName } from './duplicate-at-width.ts';
 import { isCoord } from './layout-patch.ts';
 import { needsOf, scopeAt } from './scope-names.ts';
 import { lineIndent, reindent } from './siblings.ts';
-import type { EditOp, ElementRef, LayoutPatch, ResolvedEditOp } from './types.ts';
+import type { ClipScope, EditOp, ElementRef, LayoutPatch, ResolvedEditOp } from './types.ts';
 
 export type ClipKind = 'objects' | 'artboards';
 
@@ -73,17 +73,44 @@ interface Clip extends ClipHandle {
 export const CLIP_ID_RE = /^c_[0-9a-f]{16}$/;
 /** Objects / artboards one copy may hold (the op's own target bound is 200). */
 export const MAX_CLIP_ITEMS = 50;
-/** Clips the server keeps (the shell holds one; older handles are other windows' or stale). */
+/** Clips the server keeps per subject (the shell holds one; older handles are other windows' or stale). */
 const MAX_CLIPS = 16;
-/** Text the server keeps for every clip together. */
+/** Text the server keeps for one subject's clips together. */
 const MAX_CLIP_BYTES = 16 * 1024 * 1024;
+/** Text the server keeps for every subject together (V2-8.9 L1: the process-wide bound). */
+const MAX_ALL_CLIP_BYTES = 64 * 1024 * 1024;
 const ARTBOARD_GAP = 80;
 
 // ── the store (per server process: a restart forgets — "copy it again") ─────────────────────
+//
+// V2-8.9 defender L1 / attacker L3: one shelf per SUBJECT (the cell member a request is vouched
+// for, '' on a desktop — `ClipScope`, set by the route from the request, never its body). A handle
+// names a clip only on its copier's shelf, a paste re-checks that the paster still sees the canvas
+// the clip was read from (a revoked member's leftover handle pastes nothing), and the caps are per
+// shelf (one member copying a lot evicts none of another's clips).
 
-const clips = new Map<string, Clip>();
+/** The desktop's one person: no route-supplied scope (an op called directly). */
+const DESKTOP_SCOPE: ClipScope = { subject: '', sees: () => true };
+/** Subjects with a shelf at once (a cell's members); the least recently used shelf goes first. */
+const MAX_SHELVES = 64;
 
-function keep(clip: Omit<Clip, 'id' | 'bytes' | 'count'>): ClipHandle {
+const shelves = new Map<string, Map<string, Clip>>();
+
+function shelfOf(subject: string): Map<string, Clip> {
+  let shelf = shelves.get(subject);
+  if (shelf)
+    shelves.delete(subject); // re-insert: the Map's order is the use order
+  else shelf = new Map();
+  shelves.set(subject, shelf);
+  for (const k of shelves.keys()) {
+    if (shelves.size <= MAX_SHELVES) break;
+    if (k !== subject) shelves.delete(k);
+  }
+  return shelf;
+}
+
+function keep(clip: Omit<Clip, 'id' | 'bytes' | 'count'>, scope: ClipScope): ClipHandle {
+  const clips = shelfOf(scope.subject);
   const id = `c_${randomBytes(8).toString('hex')}`;
   const bytes = clip.items.reduce((n, t) => n + t.length * 2, 0);
   clips.set(id, { ...clip, id, bytes, count: clip.items.length });
@@ -95,12 +122,21 @@ function keep(clip: Omit<Clip, 'id' | 'bytes' | 'count'>): ClipHandle {
     clips.delete(k);
     total -= c.bytes;
   }
+  // the process-wide memory bound: only under real pressure, the least recently used OTHER shelves
+  let all = 0;
+  for (const s of shelves.values()) for (const c of s.values()) all += c.bytes;
+  for (const [subject, s] of shelves) {
+    if (all <= MAX_ALL_CLIP_BYTES) break;
+    if (subject === scope.subject) continue;
+    for (const c of s.values()) all -= c.bytes;
+    shelves.delete(subject);
+  }
   return { id, kind: clip.kind, count: clip.items.length, from: clip.from };
 }
 
 /** Tests only. */
 export function _resetClips(): void {
-  clips.clear();
+  shelves.clear();
 }
 
 // ── reading a range ───────────────────────────────────────────────────────────────────────────
@@ -207,7 +243,7 @@ export const objectCopy: EditOp = {
   locked: 'allow', // a locked object can be copied (Figma's rule); the copy starts unlocked
   apply(source, req) {
     const { clip } = readObjects(source, req);
-    return { source, detail: { clip: keep(clip) } };
+    return { source, detail: { clip: keep(clip, req.clipScope ?? DESKTOP_SCOPE) } };
   },
 };
 
@@ -216,7 +252,10 @@ export const artboardCopy: EditOp = {
   read: true,
   locked: 'allow',
   apply(source, req) {
-    return { source, detail: { clip: keep(readArtboards(source, req)) } };
+    return {
+      source,
+      detail: { clip: keep(readArtboards(source, req), req.clipScope ?? DESKTOP_SCOPE) },
+    };
   },
 };
 
@@ -228,7 +267,7 @@ export const objectCut: EditOp = {
     // last first: removing a later range never moves an earlier one
     for (const el of [...els].reverse())
       out = applyDeleteElement(req.file, out, el.id as string).source;
-    const handle = keep(clip);
+    const handle = keep(clip, req.clipScope ?? DESKTOP_SCOPE);
     return {
       source: out,
       detail: { clip: handle },
@@ -269,8 +308,11 @@ function clipOf(req: ResolvedEditOp): Clip {
   const id = req.params.clip;
   if (typeof id !== 'string' || !CLIP_ID_RE.test(id))
     return fail(req.file, 'Nothing to paste. Copy an object or an artboard first.');
-  const clip = clips.get(id);
-  if (!clip) return fail(req.file, 'That copy is gone; copy it again.');
+  // V2-8.9 L1: only the copier's own shelf, and only while the paster still sees where it came from
+  // (the same words either way — a refusal never says whose handle it was)
+  const scope = req.clipScope ?? DESKTOP_SCOPE;
+  const clip = shelves.get(scope.subject)?.get(id);
+  if (!clip || !scope.sees(clip.from)) return fail(req.file, 'That copy is gone; copy it again.');
   return clip;
 }
 
