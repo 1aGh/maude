@@ -60,7 +60,7 @@ export function cardBody({ kind, error, lastGood }) {
       ? `The last change has a mistake the canvas can't show. Behind this card is the last good version, from ${when} — nothing is lost, and every version stays in Version history.`
       : "The last change has a mistake the canvas can't show. Nothing is lost; every version stays in Version history.";
   }
-  if (error?.line) return `Its code stops halfway on line ${error.line}. ${tail}`;
+  // 01 cf-render-error: the body is one plain sentence; the error and the line live under Show details
   // the load gave up and the server knows of no mistake in the code: say that, not a guess about it
   if (!error)
     return "It didn't finish loading. Nothing is lost. Reload the canvas, or ask AI to look.";
