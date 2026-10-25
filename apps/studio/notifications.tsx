@@ -263,7 +263,9 @@ function MountedNotice({
 const NOTICE_CSS = `
 .maude-notifications [data-sonner-toaster] { --width: min(640px, calc(100vw - 32px)); z-index: 8000; }
 /* the kit pill hugs its sentence (one line, up to the list's width); it does not stretch to a fixed card */
-.maude-notifications [data-sonner-toast] { width: fit-content; max-width: var(--width); margin-inline: auto; }
+/* P8 C9 (01 cf-open-big): the toast is absolutely positioned in its toaster, so margin-inline: auto centres only
+   with both offsets set (left: 0 + right: 0) - without them the pill hugged the toaster's left edge, off the window centre */
+.maude-notifications [data-sonner-toast] { left: 0; right: 0; width: fit-content; max-width: var(--width); margin-inline: auto; }
 .maude-notifications [data-sonner-toast][data-expanded=false][data-front=false] {
   overflow: hidden; border-radius: var(--radius-md, 8px);
 }
