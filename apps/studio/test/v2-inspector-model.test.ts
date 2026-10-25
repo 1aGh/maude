@@ -178,6 +178,19 @@ describe('the model', () => {
     ],
   };
 
+  test('a picture pasted from Figma is named by its frame, in the title and the last crumb (14 ed-edge-paste)', () => {
+    const el = {
+      id: 'book-call',
+      index: 0,
+      tag: 'img',
+      attrs: { 'data-source': 'figma', 'data-source-name': 'Hero / v3' },
+    };
+    expect(titleOf(el, TREE)).toBe('Hero / v3');
+    expect(crumbsOf(TREE, el).at(-1)).toBe('Hero / v3');
+    // a plain picture keeps its layer name
+    expect(titleOf({ ...el, attrs: {} }, TREE)).toBe('Book a call');
+  });
+
   test('title: the layer name, else the element text, else its tag', () => {
     expect(titleOf({ id: 'book-call', index: 0 }, TREE)).toBe('Book a call');
     expect(titleOf({ id: 'x', text: '  See   pricing  ', tag: 'a' }, null)).toBe('See pricing');

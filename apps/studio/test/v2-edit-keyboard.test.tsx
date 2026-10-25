@@ -179,6 +179,73 @@ describe('reading order', () => {
   });
 });
 
+// V2-8.5 c7 (14 ed-edge-keys): an artboard's page is ONE stamped root that fills it — the artboard itself, not an
+// object (input-router `pageRootOf`). Tab walks the sections under it as the top level (1…6), never the page as 1.
+function pageWrapped() {
+  page();
+  const body = document.querySelector('.dc-artboard-body') as Element;
+  body.setAttribute('data-r', '0,0,1440,1220');
+  const root = document.createElement('div');
+  root.setAttribute('data-cd-id', 'pg');
+  root.setAttribute('data-dc-element', 'Page');
+  root.setAttribute('data-r', '0,0,1440,1220');
+  while (body.firstChild) root.appendChild(body.firstChild);
+  body.appendChild(root);
+}
+
+describe('the page root is the artboard, not an object (14 ed-edge-keys)', () => {
+  test('the sections under the page are the top level 1…6; the page is not one of them', () => {
+    pageWrapped();
+    expect(siblingsOf(el('nav'), M).map(idOf)).toEqual([
+      'nav',
+      'hero',
+      'eyebrow',
+      'svc',
+      'work',
+      'foot',
+    ]);
+    expect(['nav', 'svc', 'card-a', 'c-title'].map((i) => orderBadge(el(i), M))).toEqual([
+      '1',
+      '4',
+      '4.1',
+      '4.3.1',
+    ]);
+  });
+
+  test('tab from nothing takes the first SECTION, and walks on to Services', () => {
+    pageWrapped();
+    expect(idOf(stepFrom(document, [], 1, M))).toBe('nav');
+    const board = { selector: '[data-dc-screen="desk"]', artboardId: 'desk' };
+    expect(idOf(stepFrom(document, [board], 1, M))).toBe('nav');
+    expect(idOf(stepFrom(document, [sel('eyebrow')], 1, M))).toBe('svc');
+  });
+
+  test('the badges number the sections 1…6 with Services as 4 and its cards 4.1…4.3', () => {
+    pageWrapped();
+    const b = badgesFor(el('svc'), M);
+    expect(b.filter((x) => !x.inside).map((x) => x.text)).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect(b.filter((x) => x.inside).map((x) => x.text)).toEqual(['4.1', '4.2', '4.3']);
+  });
+
+  test('the section discs sit in the page margin (edge); the cards’ own discs sit on the cards', () => {
+    pageWrapped();
+    const b = badgesFor(el('svc'), M);
+    expect(b.filter((x) => !x.inside).every((x) => x.edge)).toBe(true);
+    expect(b.filter((x) => x.inside).some((x) => x.edge)).toBe(false);
+    expect(
+      badgesFor(el('card-b'), M)
+        .filter((x) => !x.inside)
+        .some((x) => x.edge)
+    ).toBe(false);
+  });
+
+  test('a lone card smaller than the artboard is an object like any other (no collapse)', () => {
+    pageWrapped();
+    el('pg').setAttribute('data-r', '100,100,400,300');
+    expect(siblingsOf(el('pg'), M).map(idOf)).toEqual(['pg']);
+  });
+});
+
 describe('what VoiceOver hears', () => {
   test('the design’s sentence, word for word', () => {
     page();

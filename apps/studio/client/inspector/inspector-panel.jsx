@@ -49,6 +49,21 @@ export function isPhotoPerUse(photoTarget, el) {
   return photoTarget?.kind === 'artboard-img' && !!el?.id && !!el?.photoAsset;
 }
 
+/**
+ * 12 · ia-photo-inspector: a placed photo opens on its Photo card. A picture pasted from Figma is Figma's exact
+ * picture, not a photo to retouch — 14 · ed-edge-paste draws its Image card (From Figma · W · H · Fit), so that is
+ * where it opens; Photo stays one click away on the seg.
+ */
+export function opensOnPhotoCard({ layersOnly, photoPerUse, el, picked, selKey }) {
+  return (
+    !layersOnly &&
+    !!photoPerUse &&
+    (el?.tag || '').toLowerCase() === 'img' &&
+    el?.attrs?.['data-source'] !== 'figma' &&
+    picked !== selKey
+  );
+}
+
 export function photoAssetOfSelection(el) {
   if (!el || Array.isArray(el)) return null;
   // V2-8.5 C2 (08 · ak-web-hug) — a whole artboard is never a photo, however many pictures it holds
@@ -602,8 +617,7 @@ export function InspectorPanel({
       counts.all > 0 && isFilterKind(kindFilter) && kindFilter !== 'all' && counts[kindFilter] === 0
     );
   }, [layersBoards, kindFilter]);
-  const opensOnPhoto =
-    !layersOnly && photoPerUse && (el?.tag || '').toLowerCase() === 'img' && picked !== selKey;
+  const opensOnPhoto = opensOnPhotoCard({ layersOnly, photoPerUse, el, picked, selKey });
   const effTab = photoOnly
     ? 'photo'
     : opensOnPhoto

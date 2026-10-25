@@ -84,7 +84,10 @@ export function crumbNodeOf(el: Element): CrumbNode {
   return {
     id,
     ...(occ ? { occurrence: occ } : {}),
-    name: el.getAttribute('data-dc-element'),
+    // a picture pasted from Figma is named by its frame ("Hero / v3"; 14 · ed-edge-paste), not by its file
+    name:
+      el.getAttribute('data-dc-element') ||
+      (el.getAttribute('data-source') === 'figma' ? el.getAttribute('data-source-name') : null),
     aria: el.getAttribute('aria-label'),
     text: ownText(el),
     tag: el.tagName.toLowerCase(),
