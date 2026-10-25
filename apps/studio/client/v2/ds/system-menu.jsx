@@ -4,7 +4,7 @@
 //   Use for new canvases                  now Alligators brand
 //   Switch canvases to another system…                 (S10.14)
 //   Preview in…                                        (S10.14)
-//   Check the system                                   (S10.19)
+//   Rename…                                            (P8 round 7: the row's name turns into a field)
 //
 // Pure: the model of the rows. A row whose registry action is not registered yet (the switch / preview /
 // check rows belong to later slices) is simply absent — hidden, never a dead row — and the server keeps
@@ -68,12 +68,14 @@ export function systemMenuItems({ row, rows = [], canEdit = true, has = () => fa
       note: row.amber.title,
       action: { id: 'ds.upgrade', params: { ds: row.dsName } },
     });
-  // S10.19 — running the check is Can edit (it keeps a file under `_state/`); a viewer reads the last answer in the panel
-  if (canEdit && has('ds.check-system'))
+  // P8 round 7 — the board's last row (13 · ds-multi-menu): the row's name turns into a field (tree.jsx); its ↵ runs
+  // `ds.rename` with the new name. "Check the system" is not a row here: the board puts it in Design system ›
+  // Advanced (its button) and ⌘K (search-ds.js) keeps it findable.
+  if (canEdit && has('ds.rename'))
     items.push({
-      id: 'check',
-      label: 'Check the system',
-      action: { id: 'ds.check-system', params: { ds: row.dsName } },
+      id: 'rename',
+      label: 'Rename…',
+      action: { id: 'ds.rename', params: { ds: row.dsName } },
     });
   return items;
 }

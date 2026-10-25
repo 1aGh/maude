@@ -125,6 +125,18 @@
     align-items: center;
     padding-block: var(--space-1);
   }
+  /* P8 round 7 — Rename… (13 · ds-multi-menu): the row's name is the field (canvases' own cv-rename look) */
+  .lp-ds--rename {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    cursor: text;
+  }
+  .lp-ds-rename {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
   .lp-ds-two {
     display: flex;
     flex-direction: column;

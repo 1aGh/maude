@@ -926,6 +926,8 @@ export function Sidebar({
   // non-DS canvas group folder (incl. each group's own root) is a valid
   // "Move to…" destination.
   const rowMenu = useRowMenu();
+  // P8 round 7 — the pinned system row whose name is a field (Rename…, 13 · ds-multi-menu)
+  const [renamingDs, setRenamingDs] = useState(null);
   const destinations = useMemo(() => {
     const out = [];
     for (const g of groups) {
@@ -955,6 +957,8 @@ export function Sidebar({
           onSelect: () => {
             rowMenu.close();
             if (it.id === 'open') openDs(menuExtra.row.dsName);
+            // P8 round 7 — Rename…: the row's name turns into a field; its ↵ runs ds.rename (below)
+            else if (it.id === 'rename') setRenamingDs(menuExtra.row.dsName);
             else
               onDsAction?.(it.action.id, { ...it.action.params, label: menuExtra.row.systemLabel });
           },
@@ -1434,6 +1438,9 @@ export function Sidebar({
               onBringUp={
                 onDsAction && !readOnly ? (ds) => onDsAction('ds.upgrade', { ds }) : undefined
               }
+              renaming={renamingDs}
+              onRename={(row, label) => onDsAction?.('ds.rename', { ds: row.dsName, label })}
+              onRenameDone={() => setRenamingDs(null)}
             />
           )}
           {showHidden ? (

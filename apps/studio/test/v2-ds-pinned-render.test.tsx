@@ -172,7 +172,7 @@ describe('the pinned system rows', () => {
     expect(opened).toEqual(['combine-2026']);
   });
 
-  test('the menu: Open · Use for new canvases (now …) · Switch… · Preview in…; the default row says "Default for new canvases"', async () => {
+  test('the menu: Open · Use for new canvases (now …) · Switch… · Preview in… · Rename…; the default row says "Default for new canvases"', async () => {
     installFetch({ '/_api/ds/state': STATE, '/_api/sync/trash': { entries: [], total: 0 } });
     const ran: Array<[string, Record<string, unknown>]> = [];
     const host = await sidebar({
@@ -189,8 +189,8 @@ describe('the pinned system rows', () => {
       'Preview in…',
       // S10.15b: Combine 2026 is a pre-schema system (the amber dot): its menu offers the door too
       'Bring it up to the schema…',
-      // S10.19 registered ds.check-system (Can edit): "Check the system" appears on its own
-      'Check the system',
+      // P8 round 7 (13 · ds-multi-menu): the board's last row is Rename…; Check the system lives in Advanced
+      'Rename…',
     ]);
     expect(items[1].querySelector('.lp-dd-note')?.textContent).toBe('now Alligators brand system');
     await click(items[1]);
@@ -201,6 +201,60 @@ describe('the pinned system rows', () => {
     const again = Array.from(document.querySelectorAll('[role="menuitem"]'));
     const dflt = again.find((i) => i.textContent?.includes('Default for new canvases'));
     expect(dflt?.hasAttribute('disabled')).toBe(true);
+  });
+
+  test('Rename… turns the row into a field: ↵ sends ds.rename once, esc keeps the name, a name another system shows is refused in place', async () => {
+    installFetch({ '/_api/ds/state': STATE, '/_api/sync/trash': { entries: [], total: 0 } });
+    const ran: Array<[string, Record<string, unknown>]> = [];
+    const host = await sidebar({
+      onDsAction: (id: string, p: Record<string, unknown>) => ran.push([id, p]),
+    });
+    const openRename = async () => {
+      await click(qa(host, 'canvases-ds-row-menu')[1]);
+      const items = Array.from(document.querySelectorAll('[role="menuitem"]'));
+      await click(items.find((i) => i.textContent?.includes('Rename…')) ?? null);
+      return q(host, 'canvases-ds-rename-input') as HTMLInputElement | null;
+    };
+    const type = (el: HTMLInputElement, v: string) =>
+      act(async () => {
+        const set = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          'value'
+        )?.set;
+        set?.call(el, v);
+        el.dispatchEvent(new window.Event('input', { bubbles: true }));
+        // the change reaches React on the next task here; a person's key never comes before it
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    const key = (el: HTMLElement, k: string) =>
+      act(async () => {
+        el.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true }));
+      });
+    // the field holds the current name, selected; it is the row (no second row appears)
+    let field = await openRename();
+    expect(field).not.toBeNull();
+    expect(field?.value).toBe('Combine 2026');
+    expect(field?.getAttribute('aria-label')).toBe('Design system name');
+    expect(document.activeElement).toBe(field);
+    expect(qa(host, 'canvases-ds-row')).toHaveLength(1);
+    // esc keeps the name: nothing sent, the row is back
+    await key(field as HTMLInputElement, 'Escape');
+    expect(q(host, 'canvases-ds-rename-input')).toBeNull();
+    expect(qa(host, 'canvases-ds-row')).toHaveLength(2);
+    expect(ran).toEqual([]);
+    // a name the other system shows is refused under the field, nothing sent
+    field = await openRename();
+    await type(field as HTMLInputElement, 'alligators brand system');
+    await key(field as HTMLInputElement, 'Enter');
+    expect(q(host, 'canvases-ds-rename-error')?.textContent).toBe(
+      'Another design system already has that name.'
+    );
+    expect(ran).toEqual([]);
+    // ↵ with a new name: one ds.rename with the system's id and the cleaned name
+    await type(field as HTMLInputElement, '  Combine   kampaň ');
+    await key(field as HTMLInputElement, 'Enter');
+    expect(ran).toEqual([['ds.rename', { ds: 'combine-2026', label: 'Combine kampaň' }]]);
+    expect(q(host, 'canvases-ds-rename-input')).toBeNull();
   });
 
   test('Can view sees the rows, Open and Preview in… — and no way to change the default or to switch', async () => {

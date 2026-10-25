@@ -6,6 +6,7 @@
 
 import { StIcon } from '../../shell/icons.jsx';
 import { trashRowCount } from './left-panel-model.js';
+import { SystemRenameField } from '../ds/system-rename.jsx';
 
 /** A trash can on the shell's 16-box icon grid (the icon set has none). */
 export function TrashIcon({ size = 14 }) {
@@ -37,7 +38,9 @@ export function TrashIcon({ size = 14 }) {
  *  sit under "Design systems · 2 in use". A project with none shows "Make a design system".
  *    header  { title, note } | null      onMenu(event, row)      the row's ⋯ (omit = no menu)
  *    empty   { label } | null            onMake()                the empty row's door
- *                                        onBringUp(ds)           S10.15b: a click on the amber dot (omit = the dot is only a mark) */
+ *                                        onBringUp(ds)           S10.15b: a click on the amber dot (omit = the dot is only a mark)
+ *    renaming  dsName | null             onRename(row, name)     P8 round 7: that row's name is a field (Rename…, 13 · ds-multi-menu)
+ *                                        onRenameDone()          the field closed (↵ or esc) */
 export function DsPinnedRows({
   rows,
   activeDsName,
@@ -47,6 +50,9 @@ export function DsPinnedRows({
   onMenu,
   onMake,
   onBringUp,
+  renaming = null,
+  onRename,
+  onRenameDone,
 }) {
   if (!rows?.length && !empty) return null;
   return (
@@ -59,6 +65,30 @@ export function DsPinnedRows({
       ) : null}
       {(rows || []).map((r) => {
         const on = activeDsName != null && activeDsName === r.dsName;
+        if (renaming === r.dsName)
+          return (
+            <div key={r.dsName} className="lp-ds-wrap">
+              <div
+                className={`lp-row lp-ds lp-ds--rename${on ? ' is-sel' : ''}`}
+                data-testid="canvases-ds-row-renaming"
+                data-ds={r.dsName}
+              >
+                <span className="lp-ds-ic">
+                  <StIcon name="system" size={14} />
+                </span>
+                <SystemRenameField
+                  ds={r.dsName}
+                  current={r.systemLabel || r.label || r.dsName}
+                  others={(rows || [])
+                    .filter((o) => o.dsName !== r.dsName)
+                    .flatMap((o) => [o.systemLabel || o.label, o.dsName])
+                    .filter(Boolean)}
+                  onCommit={(name) => onRename?.(r, name)}
+                  onDone={() => onRenameDone?.()}
+                />
+              </div>
+            </div>
+          );
         return (
           <div key={r.dsName} className="lp-ds-wrap">
             <button

@@ -42,6 +42,7 @@ import { undoHistoryOpen } from '../undo/undo-history.jsx';
 import { requestDsAdvanced } from '../ds/advanced-bus.js';
 import { requestDsReview } from '../ds/review-bus.js';
 import { setDefaultSystem, requestDsMake } from '../ds/default-write.js';
+import { renameSystem } from '../ds/rename-write.js';
 import { requestDsPreview, requestDsSwitch } from '../ds/switch-bus.js';
 import { requestDsLibrary } from '../ds/library-bus.js';
 import { requestDsUpgrade } from '../ds/upgrade-bus.js';
@@ -404,6 +405,23 @@ export function createMenuHandlers(d) {
     'ds.set-default': async (p) => {
       const r = await setDefaultSystem(String(p?.ds ?? ''), { label: p?.label });
       d.toast?.(r.message, r.ok);
+    },
+    // P8 round 7 — Rename… (13 · ds-multi-menu): the row's inline field sends the new name here; the toast's Undo puts
+    // the previous name back with the same writer (one write each way — the label is the only thing that moves).
+    'ds.rename': async (p) => {
+      const ds = String(p?.ds ?? '');
+      if (p?.label === undefined) return;
+      const r = await renameSystem(ds, p.label === null ? null : String(p.label));
+      if (r.ok && r.changed)
+        d.toast?.(r.message, true, {
+          label: 'Undo',
+          onClick: async () => {
+            const u = await renameSystem(ds, r.previous ?? null);
+            if (!u.ok) d.toast?.(u.message, false);
+          },
+        });
+      else d.toast?.(r.message, r.ok);
+      return r;
     },
     // S10.21b — a left-out canvas's Update (its row menu), a token's Restore and Clear out (the Trash): one writer each
     // (door-write.js), the one the rows call

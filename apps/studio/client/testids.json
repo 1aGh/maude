@@ -11259,10 +11259,62 @@
     "hook": "canvases-ds-row-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The ⋯ button of a pinned system row (`data-ds`): Open · Use for new canvases · Switch… · Preview in… · Check the system.",
+    "meaning": "The ⋯ button of a pinned system row (`data-ds`): Open · Use for new canvases · Switch… · Preview in… · Rename….",
     "producer": {
       "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
       "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-row-renaming",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 round 7: a pinned system row while its name is a field (Rename…, `data-ds`).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-rename-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 round 7: the system name field of Rename… (`data-ds`): ↵ renames, esc keeps the name.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/system-rename.jsx",
+      "symbol": "SystemRenameField"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-rename-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 round 7: the refusal under the system name field (empty, too long, a name another system shows).",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/system-rename.jsx",
+      "symbol": "SystemRenameField"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-rename-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "P8 round 7: “↵ rename · esc keep …” under the system name field.",
+    "producer": {
+      "file": "apps/studio/client/v2/ds/system-rename.jsx",
+      "symbol": "SystemRenameField"
     },
     "region": "sidebar/tree",
     "consumers": [],
@@ -11291,7 +11343,9 @@
       "symbol": "CanvasesAdvanced"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/desktop/e2e/scenarios/ds-review.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/ds-review.e2e.ts"
+    ],
     "v2": "new"
   },
   {
