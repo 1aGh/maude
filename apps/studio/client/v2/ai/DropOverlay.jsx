@@ -44,7 +44,12 @@ export function DropOverlay({ attach, disabled = false }) {
     const host = anchor.current?.parentElement;
     const composer = host?.querySelector('[data-testid="chat-composer"]');
     if (!host || !composer) return setFoot(0);
-    setFoot(Math.max(0, Math.round(host.getBoundingClientRect().bottom - composer.getBoundingClientRect().top)));
+    setFoot(
+      Math.max(
+        0,
+        Math.round(host.getBoundingClientRect().bottom - composer.getBoundingClientRect().top)
+      )
+    );
   }, [over]);
 
   useEffect(() => {

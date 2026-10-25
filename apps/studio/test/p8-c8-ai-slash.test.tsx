@@ -18,7 +18,16 @@ describe('slash menu placement', () => {
     const { CommandPopover } = await import('../client/v2/ai/Composer.jsx');
     const host = document.createElement('div');
     host.getBoundingClientRect = () =>
-      ({ left: 40, top: 700, right: 340, bottom: 740, width: 300, height: 40, x: 40, y: 700 }) as DOMRect;
+      ({
+        left: 40,
+        top: 700,
+        right: 340,
+        bottom: 740,
+        width: 300,
+        height: 40,
+        x: 40,
+        y: 700,
+      }) as DOMRect;
     document.body.append(host);
     const root = createRoot(host);
     const items = [

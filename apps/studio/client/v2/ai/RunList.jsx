@@ -322,7 +322,9 @@ function RunListOpen({ view, designRel, onOpenList, ...rest }) {
       setPlace({
         position: 'fixed',
         right: Math.max(8, Math.round(window.innerWidth - a.right)),
-        ...(up ? { bottom: Math.round(window.innerHeight - a.top + 8), top: 'auto' } : { top: Math.round(a.bottom + 8) }),
+        ...(up
+          ? { bottom: Math.round(window.innerHeight - a.top + 8), top: 'auto' }
+          : { top: Math.round(a.bottom + 8) }),
       });
       setWidth(
         fitRunListWidth({

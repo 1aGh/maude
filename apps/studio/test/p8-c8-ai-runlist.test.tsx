@@ -10,7 +10,13 @@ beforeAll(() => {
     String(url).startsWith('/_api/acp/chats')
       ? Response.json({
           groups: [
-            { canvas: 'ui/combine.tsx', chats: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }] },
+            {
+              canvas: 'ui/combine.tsx',
+              chats: [
+                { id: 'a', title: 'A' },
+                { id: 'b', title: 'B' },
+              ],
+            },
             { canvas: null, chats: [{ id: 'c', title: 'C' }] },
           ],
         })
@@ -70,22 +76,6 @@ async function storeWith(body: Record<string, unknown>) {
   await store.refresh();
   return { store, posts };
 }
-
-async function storeWith(body: Record<string, unknown>) {
-  const { createRunsStore } = await import('../client/v2/ai/runs-store.js');
-  const posts: string[] = [];
-  const fetchImpl = (async (url: string, init?: RequestInit) => {
-    if (init?.method === 'POST') {
-      posts.push(url);
-      return new Response('{}', { status: 200 });
-    }
-    return new Response(JSON.stringify({ seq: 1, ...body }), { status: 200 });
-  }) as unknown as typeof fetch;
-  const store = createRunsStore({ fetchImpl, target: new EventTarget() as unknown as Window });
-  await store.refresh();
-  return { store, posts };
-}
-
 
 async function mount(node: unknown) {
   const { createRoot } = await import('react-dom/client');
