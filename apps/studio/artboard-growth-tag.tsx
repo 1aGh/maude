@@ -98,6 +98,9 @@ export function ArtboardGrowthTag({
         font: '600 12px/16px system-ui, -apple-system, sans-serif',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
+        // screen-sized at any zoom: 12 world px is 3 px at the 28 % a long page is seen at
+        transformOrigin: '0 0',
+        transform: 'scale(calc(1 / var(--dc-zoom, 1)))',
       }}
     >
       {growthWords(delta)}
