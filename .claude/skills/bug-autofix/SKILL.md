@@ -1,6 +1,6 @@
 ---
 name: bug-autofix
-description: Triage one staged user report — quick change, bug, or something that needs a plan — and take it to a reviewable PR using the repo's own flow:* commands. Use when invoked as `/bug-autofix <report-dir>` — by the productivity-stack hub's unattended fix bot, or by hand when picking up an escalated report. Reads the `maude-report/v1` block + screenshots from the staged dir, classifies it, then drives flow:quick / flow:bug-rca+flow:bug-fix / flow:plan, closes out with flow:validate, and records the outcome. Never commits, never pushes, never opens a PR.
+description: Triage one staged user report — quick change, bug, or something that needs a plan — and take it to a reviewable PR using the repo's own flow:* commands. Use when invoked as `/bug-autofix <report-dir>` — by the productivity-stack hub's unattended fix bot, or by hand when picking up an escalated report. Reads the `maude-report/v1` block + screenshots from the staged dir, classifies it, then drives flow:execute --quick / flow:bug-rca+flow:bug-fix / flow:plan, closes out with flow:validate, and records the outcome. Never commits, never pushes, never opens a PR.
 ---
 
 # bug-autofix — one report → triage → one reviewable PR
@@ -50,15 +50,15 @@ Read the report first, then classify it into exactly one of three tiers. Say whi
 
 | Tier | What it means | What you run |
 | --- | --- | --- |
-| **`quick`** | A small, obvious, self-contained change. A typo, a wrong label, an off-by-one, a missing null check, a small feature with one clear place to put it. You can see the whole change from here and it touches one area. | `/flow:quick` |
+| **`quick`** | A small, obvious, self-contained change. A typo, a wrong label, an off-by-one, a missing null check, a small feature with one clear place to put it. You can see the whole change from here and it touches one area. | `/flow:execute --quick` |
 | **`bug`** | Something is broken and the *mechanism* is not obvious yet. Needs reproduction and root-cause work before a fix is safe. This is the default for anything reported as broken. | `/flow:bug-rca`, then `/flow:bug-fix` |
 | **`plan`** | The change is architecturally significant, spans several subsystems, needs a new dependency or a schema/API change, or the report is really a feature request with design questions in it. | `/flow:plan` — **plan only, no implementation** |
 
 Signals that force `plan` regardless of how small the diff looks: a new dependency, a database/schema change, a public API or CLI-flag change, anything touching auth/permissions/containment, or a report that asks for a behaviour the owner has not decided on.
 
-## Tier `quick` — `/flow:quick`
+## Tier `quick` — `/flow:execute --quick`
 
-1. Run `/flow:quick` and make the change.
+1. Run `/flow:execute --quick` and make the change.
 2. Add a regression test (the test rule below applies here too).
 3. Go to **Close-out**.
 

@@ -7,7 +7,9 @@
 //   FLOW_HOOK_UNDER_TEST=plugins/flow/hooks/noop-hook.mjs node --test plugins/flow/hooks/run-hook.test.mjs
 //
 // Guardrail 5: every hook runs with an isolated HOME and a stub `claude` first on PATH, and the
-// suite asserts the real ~/.claude.json was not touched and the stub was never called.
+// suite asserts the hooks wrote nothing at all under that HOME (so they cannot have touched the
+// real one either) and the stub was never called. The real ~/.claude.json's mtime is no witness:
+// every other Claude session on the machine rewrites it.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -15,12 +17,12 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -36,9 +38,6 @@ const SANDBOX = mkdtempSync(join(tmpdir(), 'flow-run-hook-'));
 const FAKE_HOME = join(SANDBOX, 'home');
 const STUB_BIN = join(SANDBOX, 'bin');
 const STUB_HIT = join(SANDBOX, 'claude-was-called');
-const REAL_PREFS = join(homedir(), '.claude.json');
-const prefsMtime = () => (existsSync(REAL_PREFS) ? statSync(REAL_PREFS).mtimeMs : null);
-const PREFS_BEFORE = prefsMtime();
 mkdirSync(FAKE_HOME, { recursive: true });
 mkdirSync(STUB_BIN, { recursive: true });
 writeFileSync(join(STUB_BIN, 'claude'), `#!/bin/sh\ntouch "${STUB_HIT}"\nexit 0\n`);
@@ -93,7 +92,7 @@ function run(root, event, input = {}, env = {}) {
 
 after(() => {
   assert.equal(existsSync(STUB_HIT), false, 'a hook spawned claude');
-  assert.equal(prefsMtime(), PREFS_BEFORE, 'the real ~/.claude.json changed during the suite');
+  assert.deepEqual(readdirSync(FAKE_HOME), [], 'a hook wrote under HOME');
   rmSync(SANDBOX, { recursive: true, force: true });
 });
 

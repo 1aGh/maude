@@ -64,7 +64,7 @@ maude kg doctor                                              # active: ✓ yes
 maude kg context --about "<something your team decided>"     # recalls prior decisions
 ```
 
-From now on: `/flow:record-ddr`, `/flow:plan`, `/flow:done`, `/design:new`, `/design:edit` read/write the graph automatically. `maude kg sync` runs at `/flow:done` + `/flow:pause` and on session start (pull) — you don't call it by hand in normal work. If a repo still has `.ai/archive`-era decisions to fold in, `/flow:migrate-kgai` remains the one-time path (see [`flow:kgai-migrate`](../plugins/flow/skills/kgai-migrate/SKILL.md)).
+From now on: `/flow:record-ddr`, `/flow:plan`, `/flow:done`, `/design:new`, `/design:edit` read/write the graph automatically. `maude kg sync` runs at `/flow:done` + `/flow:run --pause` and on session start (pull) — you don't call it by hand in normal work. If a repo still has `.ai/archive`-era decisions to fold in, `/flow:init --kgai` remains the one-time path (see [`/flow:init --kgai`](../plugins/flow/skills/kgai-migrate/SKILL.md)).
 
 ## Safety reminder (read once)
 

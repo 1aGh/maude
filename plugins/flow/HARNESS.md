@@ -11,4 +11,4 @@ Use these conventions in Claude Code and Codex. They translate names in the shar
 
 - **Runs and hooks.** `/flow:run` relies on Claude Code plugin hooks (SubagentStart, SubagentStop, Stop) that are off unless the repo sets `run.hooks: true`. Codex runs none of them: `/flow:run` still writes the run marker, so `--status`, `--pause`, `--resume` and `--stop` work as plain state commands through `hooks/run-hook.mjs`; the context-budget rules travel in each brief instead of a hook; nothing holds the session open.
 
-For project instructions, Claude reads `CLAUDE.md`; Codex reads `AGENTS.md`. Keep the active host's file current through `flow:claude-md-keeper`. Never mechanically replace product names, tool names, URLs or filenames throughout an existing instruction file.
+For project instructions, Claude reads `CLAUDE.md`; Codex reads `AGENTS.md`. Keep the active host's file current through the CLAUDE.md debrief step of `/flow:done`. Never mechanically replace product names, tool names, URLs or filenames throughout an existing instruction file.

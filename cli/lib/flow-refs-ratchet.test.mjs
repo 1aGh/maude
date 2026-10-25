@@ -1,7 +1,7 @@
 // Flow refactor guardrail 1 — deprecate before deleting, and never leave a dangling reference.
 // Every `flow:<name>` reference in shipped text (plugins, CLI, the init skeleton, site docs,
 // README, CLAUDE.md) must resolve to a command, a skill folder or an agent of the flow plugin.
-// A retired command stays as a stub until a later release removes it AND its references.
+// A retired command is either a short stub that forwards, or gone together with every reference.
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -31,8 +31,18 @@ const PLACEHOLDERS = new Set([
   'source-command-verb',
 ]);
 
-const ROOTS = ['plugins', 'cli', 'site/content', 'README.md', 'CLAUDE.md', 'apps/studio/actions'];
-const SKIP_DIR = new Set(['node_modules', '.git', 'dist', 'archive']);
+const ROOTS = [
+  'plugins',
+  'cli',
+  'site/content',
+  'README.md',
+  'CLAUDE.md',
+  'apps/studio/actions',
+  '.claude/skills',
+  '.claude/commands',
+  'docs',
+];
+const SKIP_DIR = new Set(['node_modules', '.git', 'dist', 'archive', 'research', 'audits']);
 const EXT = /\.(md|mdx|mjs|js|ts|tsx|json|ya?ml|sh)$/;
 
 function* files(p) {

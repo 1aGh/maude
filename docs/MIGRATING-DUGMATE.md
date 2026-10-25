@@ -91,7 +91,7 @@ If you want different filenames, override `paths.prd` / `paths.designSystem`.
 
 ### 6. Remove the now-duplicated workflow files
 
-Once you've confirmed `/flow:status`, `/flow:plan`, `/flow:execute` work from the plugin:
+Once you've confirmed `/flow:run --status`, `/flow:plan`, `/flow:execute` work from the plugin:
 
 ```sh
 cd /Volumes/D/git/dugmate
@@ -133,8 +133,8 @@ Adjust to taste. Dugmate's existing settings (PostHog, Vercel, etc.) stay untouc
 Inside Claude Code with `dugmate` open:
 
 ```
-/flow:status            # should resolve to dugmate's .ai/state/STATE.md
-/flow:maintain-ai-health         # should print "5 dugmate-* skills found" etc.
+/flow:run --status            # should resolve to dugmate's .ai/state/STATE.md
+maude doctor         # should print "5 dugmate-* skills found" etc.
 ```
 
 Then try a small loop end-to-end on a throwaway branch:
@@ -142,7 +142,7 @@ Then try a small loop end-to-end on a throwaway branch:
 ```
 /flow:plan "demo plan for migration verification"
 /flow:execute           # cancel after a step or two
-/flow:status            # confirms phase tracking works
+/flow:run --status            # confirms phase tracking works
 ```
 
 ## What can go wrong

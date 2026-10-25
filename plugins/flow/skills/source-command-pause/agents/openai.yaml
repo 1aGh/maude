@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:pause"
-  short_description: "Retired — use /flow:run --pause."
-  default_prompt: "Use $flow:source-command-pause with the task details I provide."
-policy:
-  allow_implicit_invocation: false

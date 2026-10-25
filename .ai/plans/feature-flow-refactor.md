@@ -336,14 +336,14 @@ No UI, so no scenario-runner, design-system-guard or a11y-auditor.
 - [ ] P1: monorepo task tokens drop versus baseline with an equal pass rate; small repo is not worse; nothing removed
 - [x] P2: `/flow:run` stops only on green, honours the waiting file, auto-pauses after `maxStopBlocks`, honours `expires`/`maxRunTokens`, names the kill switch in every block, and is a no-op when `run.hooks` is off
 - [x] P3: 10 commands plus stubs; every reference resolves (ratchet); the Codex mirrors are regenerated; the migration doc is published
-- [ ] P4: stubs deleted only after measured non-use or Michal's go
+- [x] P4: stubs deleted only after measured non-use or Michal's go
 - [x] Guardrails 1–5 each have a test or a check that fails without them
 - [x] No hook or harness touched the real HOME/prefs or spawned the real `claude`
 - [x] Decisions recorded in kg; `site/lib/roadmap.json` regenerated in the commit that adds this plan
 
 ## Progress log
 
-- 2026-10-25 P0 (55d7d9387): T0 capabilities + T0b baseline notes. P1 (41083dfc3): context-budget, worker/spike/scout, run.* config, execute/plan slices, critic tiers, `maude flow usage`. P2 (218c9c6f9): /flow:run + run-hook.mjs (24 tests, dogfood note). P3: 10 commands + stubs, ui-rules, refs ratchet, migration doc. Deviations: no `gen-plugin-surfaces` on main (mirrors by hand, ratchet checks parity); `quality.lane` → `run.lane`; Stop hook timeout 300 s; P1 cost A/B deferred to the first real runs after release (`P1-ab.md`). P4 open (stub deletion after a census or Michal's go).
+- 2026-10-25 P0 (55d7d9387): T0 capabilities + T0b baseline notes. P1 (41083dfc3): context-budget, worker/spike/scout, run.* config, execute/plan slices, critic tiers, `maude flow usage`. P2 (218c9c6f9): /flow:run + run-hook.mjs (24 tests, dogfood note). P3: 10 commands + stubs, ui-rules, refs ratchet, migration doc. Deviations: no `gen-plugin-surfaces` on main (mirrors by hand, ratchet checks parity); `quality.lane` → `run.lane`; Stop hook timeout 300 s; P1 cost A/B deferred to the first real runs after release (`P1-ab.md`). P4 done the same day on Michal's go ("udělej to vše teď"): stubs, their mirrors and the retired skills deleted in the same release; kgai-migrate guides kept under `skills/kgai-backend/migrate/`; the ratchet now also covers `.claude/skills`, `.claude/commands` and `docs/`. P1 A/B small repo: −20 % cost, same pass (`P1-ab.md`); monorepo row pending a real run.
 
 ## Key risks
 

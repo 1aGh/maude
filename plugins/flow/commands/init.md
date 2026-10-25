@@ -132,7 +132,7 @@ Never touch `motion`, `responsive.*`, `boundaries`, `ux`, `skills`, `paths.*` �
 
 ## Step 5: Instruction-file handoff
 
-`INSTRUCTIONS_EXIST=true` → note the file. Otherwise recommend the active host's `/init` (`CLAUDE.md` in Claude Code, `AGENTS.md` in Codex; Codex uses nested `AGENTS.md`, Claude may use `.claude/rules/*.md` with `paths:` for path-scoped rules; `CLAUDE_CODE_NEW_INIT` is Claude-only, never a prerequisite for Codex). Later convention updates: `flow:claude-md-keeper`.
+`INSTRUCTIONS_EXIST=true` → note the file. Otherwise recommend the active host's `/init` (`CLAUDE.md` in Claude Code, `AGENTS.md` in Codex; Codex uses nested `AGENTS.md`, Claude may use `.claude/rules/*.md` with `paths:` for path-scoped rules; `CLAUDE_CODE_NEW_INIT` is Claude-only, never a prerequisite for Codex). Later convention updates: the CLAUDE.md debrief step of `/flow:done`.
 
 ## Step 6: Report
 
@@ -167,7 +167,7 @@ Sections: Identity · Stack · Architecture (annotated tree, package table) · K
 
 ## `--kgai` — import existing decisions into kgai
 
-One-time, idempotent migration of the file-based decision store (`.ai/decisions/DDR-*.md`) and review verdicts into the kgai graph. Old files are **kept as a read-only archive, never deleted**. Load **`flow:kgai-backend`** (resolver) and read **`skills/kgai-migrate/`** guides for the stage you are in (store resolution, graph shape, edge reconstruction, safety invariants, `--archive`). Plugin markdown reaches the importer via `maude` only (DDR-062).
+One-time, idempotent migration of the file-based decision store (`.ai/decisions/DDR-*.md`) and review verdicts into the kgai graph. Old files are **kept as a read-only archive, never deleted**. Load **`flow:kgai-backend`** (resolver) and read the [`kgai-backend/migrate/`](../skills/kgai-backend/migrate/_guide-00-overview.md) guides for the stage you are in (store resolution, graph shape, edge reconstruction, safety invariants, `--archive`). Plugin markdown reaches the importer via `maude` only (DDR-062).
 
 1. **Pre-flight.** `maude kg doctor`, then `kg config` → `store_root`: the import lands in the store the engine resolves (for a `.kgairc`-enrolled repo usually a shared parent-folder store). If `kg config` reports `pending_approval`, stop and tell the user to review (`kg trust --show`) and approve (`kg trust`) the committed `.kgairc` themselves — **never approve it, enable a store, or trust a config to make a check pass.** Only a repo with no `.kgairc` falls back to `kg init` + a local store. Set `knowledgeGraph.scope` (`repo`/`dept`) in `.ai/workflows.config.json` so decisions are scope-tagged (DDR-189).
 2. **Dry-run first, always:** `maude kg import --dry-run` (source dir, scope, decision / mutation / cross-ref counts, a sample). Nothing is written.

@@ -26,7 +26,7 @@ Drive the **real bundled `Maude.app`** through DOM-driven scenarios and report p
 5. **Run.** `pnpm test:e2e:desktop` (all) or scope to the slug:
    `pnpm --filter @maude/desktop-e2e exec wdio run ./wdio.conf.ts --spec scenarios/<slug>.e2e.ts`.
 
-6. **Report.** Surface: pass/fail per scenario, the evidence dir — same place as `/flow:scenario`: `.ai/device/scenario-runs/<slug>/<YYYY-MM-DD-HHMM>/` (`report.md` + `native-desktop/*.png`, gitignored) — and read the screenshots into context to confirm the render actually looks right (don't trust a green exit alone — DDR-021 lesson). On failure, give the failing step + the WebdriverIO error.
+6. **Report.** Surface: pass/fail per scenario, the evidence dir — same place as `/flow:validate --scenario`: `.ai/device/scenario-runs/<slug>/<YYYY-MM-DD-HHMM>/` (`report.md` + `native-desktop/*.png`, gitignored) — and read the screenshots into context to confirm the render actually looks right (don't trust a green exit alone — DDR-021 lesson). On failure, give the failing step + the WebdriverIO error.
 
 ## Notes
 

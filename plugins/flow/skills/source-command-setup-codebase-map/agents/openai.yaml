@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:setup-codebase-map"
-  short_description: "Retired — use /flow:init --map."
-  default_prompt: "Use $flow:source-command-setup-codebase-map with the task details I provide."
-policy:
-  allow_implicit_invocation: false

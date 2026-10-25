@@ -16,7 +16,7 @@ Background + decisions: `.ai/plans/feature-desktop-e2e-scenario-harness.md`, mem
 ## What it is
 
 - **Harness:** `apps/desktop/e2e/` — WebdriverIO + [`@wdio/tauri-service`](https://www.npmjs.com/package/@wdio/tauri-service) (Tauri's official E2E path). On macOS the service runs an **embedded W3C WebDriver server inside the app** (no external driver — Apple ships none for WKWebView). The Rust crate `tauri-plugin-wdio-webdriver` is registered in `apps/desktop/src-tauri/src/lib.rs` under `#[cfg(debug_assertions)]`, so the **shipped release `.app` never starts a WebDriver server** — only `tauri dev` and the `--debug` test build do.
-- **Scenarios:** `apps/desktop/e2e/scenarios/*.e2e.ts`. The committed **spec** lives in `.ai/scenarios/<slug>/spec.md`. **Run outputs go to the SAME place as `/flow:scenario`** — `.ai/device/scenario-runs/<slug>/<YYYY-MM-DD-HHMM>/` (gitignored): `report.md` at the run root + screenshots under `native-desktop/`. Per the scenario convention, **never write run outputs into `.ai/scenarios/<slug>/`** (that's spec/runners only).
+- **Scenarios:** `apps/desktop/e2e/scenarios/*.e2e.ts`. The committed **spec** lives in `.ai/scenarios/<slug>/spec.md`. **Run outputs go to the SAME place as `/flow:validate --scenario`** — `.ai/device/scenario-runs/<slug>/<YYYY-MM-DD-HHMM>/` (gitignored): `report.md` at the run root + screenshots under `native-desktop/`. Per the scenario convention, **never write run outputs into `.ai/scenarios/<slug>/`** (that's spec/runners only).
 - **Fixture:** `apps/desktop/e2e/fixtures/project/` — a minimal `.design/` project the test app opens via `MAUDE_PROJECT_ROOT`, bypassing first-run/project-picker so scenarios need no native dialog.
 
 ## How to run

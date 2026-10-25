@@ -26,12 +26,12 @@ Ingesting a folder does **not** license moving it. Archive only when BOTH hold:
 | --- | --- | --- |
 | `decisions/`, `logs/` | ✓ | **yes** — write-once, superseded by the graph. Archived. |
 | `state/STATE.md` + `templates/` | ✓ (216 milestone events) | **yes, once the writers are gated** — see below |
-| `docs/`, `context/`, `dev-logs/` | ✓ (`doc:` nodes, full body) | **no** — LIVE workspace dirs in the plugin contract: `paths.codebaseMap` defaults to `.ai/context/codebase-map.md`, and `/flow:setup-prd`/`/flow:plan`/`/flow:maintain-docs` write real prose into them. The graph makes them searchable; it does not replace them. |
+| `docs/`, `context/`, `dev-logs/` | ✓ (`doc:` nodes, full body) | **no** — LIVE workspace dirs in the plugin contract: `paths.codebaseMap` defaults to `.ai/context/codebase-map.md`, and `/flow:plan --prd`/`/flow:plan`/`a docs review` write real prose into them. The graph makes them searchable; it does not replace them. |
 
 ### The trap: test #2 against the ACTIVE behavior, not the classic one
 
-"Nothing writes it any more" must be evaluated for the backend you are ON. `STATE.md` and `templates/` *look* live because `/flow:execute`, `/flow:pause`, `/flow:setup-prd` and `/flow:maintain-ai-health` touch them — but every one of those steps is **classic-path only**. Under an active graph: pause writes a `session:` event, execute checkpoints into the graph, and `STATE.md` is a pointer-stub. So they are dead, and archivable.
+"Nothing writes it any more" must be evaluated for the backend you are ON. `STATE.md` and `templates/` *look* live because `/flow:execute`, `/flow:run --pause`, `/flow:plan --prd` and `maude doctor` touch them — but every one of those steps is **classic-path only**. Under an active graph: pause writes a `session:` event, execute checkpoints into the graph, and `STATE.md` is a pointer-stub. So they are dead, and archivable.
 
-They only became *genuinely* dead once those four commands were explicitly gated (`skip when active`). **Gate the writers first, then archive** — archiving while an ungated command still writes the file just resurrects it on the next run, and worse, forks the handoff across two stores (a stale `HANDOFF.md` that `/flow:resume` might trust over the graph).
+They only became *genuinely* dead once those four commands were explicitly gated (`skip when active`). **Gate the writers first, then archive** — archiving while an ungated command still writes the file just resurrects it on the next run, and worse, forks the handoff across two stores (a stale `HANDOFF.md` that `/flow:run --resume` might trust over the graph).
 
 Under kgai a migrated repo therefore keeps: `plans/`, `scenarios/`, `docs/`, `context/`, `dev-logs/`, a stub `STATE.md`, `workflows.config.json` — and an `archive/` holding everything the graph took over.

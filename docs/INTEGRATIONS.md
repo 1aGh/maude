@@ -77,7 +77,7 @@ Currently:
 - `/flow:done` — at step 6b, offers to update the ticket status and link the PR.
 - `/flow:bug-rca` — at step 0, fetches issue context from the configured provider (GitHub via `gh`, others via MCP).
 - `/flow:bug-fix` — reads tracker context; at post-commit, offers to mark the ticket fixed.
-- `/flow:status` — shows the ticket linked from the branch name (read-only).
+- `/flow:run --status` — shows the ticket linked from the branch name (read-only).
 
 These commands all degrade to no-op when `provider === "none"` or no matching MCP tool is available. The flow loop never depends on a tracker existing.
 
@@ -88,7 +88,7 @@ These commands all degrade to no-op when `provider === "none"` or no matching MC
 - `/flow:plan` — resolves the `ORB-<n>` key (from the arguments or the branch name) or asks once to create the task (`orbit_create_task`); the plan's Metadata **Ticket** line becomes `ORB-<n> — <title>`.
 - `/flow:execute` — reports working state at milestones (`orbit_state_report`: before Task 1, per task checkpoint, when blocked, at the end), so the board shows where a session got to.
 - `/flow:done` — Step 6b updates the task (`orbit_update_task`, done status + PR link); at the end of Step 7 it pushes whatever artifacts are still missing (`orbit_artifact_push`, versioned) and reports `done`. With `artifacts.store: "orbit"` most of them landed as they were written, so this is a sweep, not the main path.
-- `/flow:status`, `/flow:bug-rca`, `/flow:bug-fix` — read the task with `orbit_get_task`.
+- `/flow:run --status`, `/flow:bug-rca`, `/flow:bug-fix` — read the task with `orbit_get_task`.
 
 ```json
 {

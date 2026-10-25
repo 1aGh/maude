@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:validate-security"
-  short_description: "Retired — use /flow:validate --security."
-  default_prompt: "Use $flow:source-command-validate-security with the task details I provide."
-policy:
-  allow_implicit_invocation: false

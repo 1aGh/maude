@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:help"
-  short_description: "Retired — Claude Code's native /help lists every /flow:* co…"
-  default_prompt: "Use $flow:source-command-help with the task details I provide."
-policy:
-  allow_implicit_invocation: false

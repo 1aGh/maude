@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:maintain-discover"
-  short_description: "Retired — Claude Code discovers installed skills natively."
-  default_prompt: "Use $flow:source-command-maintain-discover with the task details I provide."
-policy:
-  allow_implicit_invocation: false

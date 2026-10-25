@@ -11,7 +11,7 @@ The flow plugin used to ship 30 slash commands and a pile of overlapping skills.
 - **Current models need less hand-holding.** Most of the removed text was narration a modern model does not need. Real checks, gates and safety rules were kept.
 - **Cost is measured, not guessed.** `maude flow usage` reads a session transcript and reports tokens per agent, so the budget rules below rest on numbers.
 
-## Old to new
+## Rename history (old to new)
 
 | Old | New |
 | --- | --- |
@@ -40,7 +40,7 @@ Skills:
 | `ddr-keeper`, `claude-md-keeper`, `kgai-migrate` | `/flow:record-ddr`, `/flow:done`, `/flow:init --kgai` |
 | `skill-loader`, `make-skill-template`, `codebase-intelligence` | Retired. Native skills, `skill-creator`, `/flow:init --map`. |
 
-**Old names keep working as stubs for one release.** A retired command or skill still resolves and forwards to its replacement; the stub is removed in the release after.
+**The old names are gone in this release.** Typing a retired command does nothing; use the new form from the table above.
 
 ## What is new
 

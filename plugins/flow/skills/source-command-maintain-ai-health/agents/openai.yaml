@@ -1,6 +1,0 @@
-interface:
-  display_name: "flow:maintain-ai-health"
-  short_description: "Retired — ask Claude directly, or run maude doctor."
-  default_prompt: "Use $flow:source-command-maintain-ai-health with the task details I provide."
-policy:
-  allow_implicit_invocation: false

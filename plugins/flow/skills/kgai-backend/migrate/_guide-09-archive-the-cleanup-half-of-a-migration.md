@@ -14,7 +14,7 @@ What it moves:
 | `.ai/logs/**` | `.ai/archive/logs/` | gitignored — the graph is now their only inheritable copy |
 | `.ai/templates/{STATE,HANDOFF,PROJECT}.md` | `.ai/archive/templates/` | seeds for the two files the graph replaced; `PROJECT.md` had zero references even classically |
 | `.ai/state/STATE.md` | `.ai/archive/state/STATE-pre-kgai-<date>.md` **+ pointer-stub in place** | the path stays live (flow commands read it), so it is snapshotted, not moved |
-| `.ai/state/HANDOFF.md` | `.ai/archive/state/HANDOFF-pre-kgai-<date>.md` | under the graph it never gets refreshed again — a stale handoff `/flow:resume` might trust |
+| `.ai/state/HANDOFF.md` | `.ai/archive/state/HANDOFF-pre-kgai-<date>.md` | under the graph it never gets refreshed again — a stale handoff `/flow:run --resume` might trust |
 
 `plans/`, `scenarios/`, `docs/`, `context/`, `dev-logs/`, `business/` stay **live** — narrative or procedural, not an event stream the graph owns.
 

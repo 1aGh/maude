@@ -13,13 +13,13 @@
 Rules:
 
 1. The `category:` frontmatter field must match one of the nine groups below.
-2. Non-daily filenames **must** start with the group name + dash (the bare verb `init` is the lone exception). The `name:` frontmatter field is the **bare** slug — `<filename-sans-md>` (e.g. `bug-fix`, `setup-prd`), with no `flow:` prefix. Claude Code namespaces it to `flow:bug-fix` / `flow:setup-prd` itself at registration (per [DDR-191](../../.ai/archive/decisions/DDR-191-revert-plugin-name-prefix-claude-code-now-namespaces.md) — superseding the older [DDR-006](../../.ai/archive/decisions/DDR-006-plugin-namespace-in-name-frontmatter.md), which had us prefix it by hand as a workaround for a since-fixed Claude Code bug; doing that today stutters the namespace twice in autocomplete).
+2. Non-daily filenames **must** start with the group name + dash (the bare verb `init` is the lone exception). The `name:` frontmatter field is the **bare** slug — `<filename-sans-md>` (e.g. `bug-fix`, `record-ddr`), with no `flow:` prefix. Claude Code namespaces it to `flow:bug-fix` / `flow:record-ddr` itself at registration (per [DDR-191](../../.ai/archive/decisions/DDR-191-revert-plugin-name-prefix-claude-code-now-namespaces.md) — superseding the older [DDR-006](../../.ai/archive/decisions/DDR-006-plugin-namespace-in-name-frontmatter.md), which had us prefix it by hand as a workaround for a since-fixed Claude Code bug; doing that today stutters the namespace twice in autocomplete).
 3. Slash-command namespacing via subdirectories is **not supported by Claude Code** ([issue #2422](https://github.com/anthropics/claude-code/issues/2422), [open feature request #44678](https://github.com/anthropics/claude-code/issues/44678)). Claude Code's own `flow:` namespacing (added at registration, not written in `name:`) is the working substitute — typing `/flow:bug-` then narrows autocomplete to `bug-rca` + `bug-fix`.
-4. Run `/flow:help` for the live, auto-generated grouped index.
+4. Claude Code's native `/help` lists every `/flow:*` command.
 
 ## Groups
 
-Since the flow refactor (v1.10) the plugin keeps **ten** commands. Everything else was folded into one of them as a flag or lane; the old files stay one release as stubs that forward to the new form (see the history below), then are removed.
+Since the flow refactor (v1.10) the plugin keeps **ten** commands. Everything else was folded into one of them as a flag or lane; the old names were removed in the same release (Michal's call — 30-day census: 0–2 uses each); the history below maps old to new.
 
 ### daily — every-cycle workflow
 
@@ -53,7 +53,7 @@ Since the flow refactor (v1.10) the plugin keeps **ten** commands. Everything el
 
 > **Bookend debate layer (DDR-130) adds no commands.** It rides inside `plan` (and `--prd`), `validate --security` and `bug-rca`. The seats (`builder`, `shipper`, `breaker`, `user-advocate`, `investigator`) are agents. The role agents `worker`, `spike` and `scout` (skill `flow:context-budget`) do the work inside `execute` and `run`.
 
-## Refactor history (v1.10 — stubs for one release)
+## Refactor history (v1.10 — the old names were removed in the same release)
 
 | Old | New |
 | --- | --- |
