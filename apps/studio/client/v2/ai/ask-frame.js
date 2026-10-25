@@ -5,8 +5,10 @@
 //                                 askId, so a retry of the same frame folds into the run it already made.
 //   runScopeOf({canvas, scope})   `{canvas, artboards, elements?}` (ids, or '*' for the whole canvas) for the server's lease
 //                                 registry; undefined when the ask has no canvas scope.
-//   promptFrame({...})            `{t:'prompt', text, chat, model, effort, mode, askId, scope}` — the text still
-//                                 carries the `[maude-scope …]` line, which is what an older server reads.
+//   promptFrame({...})            `{t:'prompt', text, chat, model, effort, mode, askId, scope, may}` — the text still
+//                                 carries the `[maude-scope …]` line, which is what an older server reads. `may` is
+//                                 Advanced › AI may (`{assets, web}`, ai-may.js): the server HOLDS an off switch.
+//   mayField(may)                 that field: both keys, booleans only; undefined when there is nothing to send.
 //   reduceQueued(list, frame)     the chat's waiting prompts, from `{t:'queued'}` (add) and `{t:'run'}` (the drain
 //                                 released one into a run: its `askId` matches, so it leaves the list).
 //   mergeOutbox(list, fromOutbox) after a reload: the same list, from `GET /_api/outbox`.
@@ -68,7 +70,13 @@ export function runScopeOf({ canvas, scope } = {}) {
   return undefined;
 }
 
-export function promptFrame({ text, chat, model, effort, mode, askId, scope }) {
+/** P8 c7 — the frame's `may` field (acp/may-scope.ts `parseMay` reads it; only an explicit false is off). */
+export function mayField(may) {
+  if (!may || typeof may !== 'object') return undefined;
+  return { assets: may.assets !== false, web: may.web !== false };
+}
+
+export function promptFrame({ text, chat, model, effort, mode, askId, scope, may }) {
   return {
     t: 'prompt',
     text,
@@ -78,6 +86,7 @@ export function promptFrame({ text, chat, model, effort, mode, askId, scope }) {
     mode: mode || undefined,
     askId: isAskId(askId) ? askId : undefined,
     scope: scope || undefined,
+    may: mayField(may),
   };
 }
 

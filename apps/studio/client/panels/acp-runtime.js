@@ -6,7 +6,8 @@
 // JSON frames into the streamed assistant message parts assistant-ui renders.
 
 import { attachmentBlock } from '../v2/ai/attach.js';
-import { mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
+import { readMay } from '../v2/ai/ai-may.js';
+import { mayField, mergeOutbox, newAskId, promptFrame, reduceQueued } from '../v2/ai/ask-frame.js';
 import { noteAskedAnnotations } from '../v2/ai/ai-offer.js';
 
 const WS_PATH = '/_ws/acp';
@@ -658,6 +659,7 @@ export function createAcpConnection() {
             model: model || undefined,
             effort: effort || undefined,
             mode: mode || undefined,
+            may: mayField(readMay()), // P8 c7 — a warmed session is spawned with the AI may rules
           })
         );
       } catch {
@@ -735,6 +737,8 @@ export function createAcpConnection() {
               mode,
               askId: ask?.askId || newAskId(),
               scope: ask?.scope,
+              // P8 c7 — Advanced › AI may, read per send: the server holds an off switch (bridge.ts)
+              may: readMay(),
             })
           )
         );

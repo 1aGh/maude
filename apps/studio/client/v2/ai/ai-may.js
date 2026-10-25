@@ -1,10 +1,12 @@
 // client/v2/ai/ai-may.js — P8 c7 (03 `ai-advanced`, "AI may"): what the person lets AI use, per Mac.
 //
 //   Change canvases        is the ask-before mode ("AI changes nothing" modes = off) — not stored here
-//   Use Assets and footage \ stored here, and said to the agent with every ask as ONE bracket line
-//   Search the web         /  (`[maude-may no-assets no-web]`) — an instruction to the agent, which is what it
-//                             is: Claude Code's own tool permissions stay the hard limit (bridge.ts)
-// Both default ON; nothing is sent while both are on, so a prompt is byte-for-byte what it was.
+//   Use Assets and footage \ stored here, sent as the `may` field of every prompt / warm frame (ask-frame.js) and
+//   Search the web         /  HELD by the server: an off switch is a deny rule the session is spawned with plus a
+//                             refusal in the bridge's permission gate (acp/may-scope.ts, decision
+//                             maude/v2-p8-c7-ai-may-enforced). The agent is also told with ONE bracket line
+//                             (`[maude-may no-assets no-web]`): a hint that saves it wasted calls, never the control.
+// Both default ON; no bracket line while both are on, so the ask text is byte-for-byte what it was.
 
 export const MAY_KEY = 'maude-ai-may';
 export const MAY_DEFAULT = Object.freeze({ assets: true, web: true });
