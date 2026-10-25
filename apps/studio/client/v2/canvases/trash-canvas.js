@@ -62,6 +62,9 @@ export async function restoreTrashedCanvas({ trashDir, fetchImpl = fetch }) {
   return { ok: restored > 0 && failed === 0, restored, failed };
 }
 
+/** The toast's own glyph (06 `.k-toast` icon="trash"): the move is what happened, so it is what the pill shows. */
+const TRASH_TOAST = Object.freeze({ icon: 'trash' });
+
 /**
  * Move one canvas to the trash and toast it with Undo.
  * @param toast (message, ok, action?) — the shell's `shellToast`
@@ -94,18 +97,24 @@ export async function trashCanvas({
   }
   await reload?.();
   onTrashed?.(path);
-  toast?.(TRASH_WORDS.moved(label), true, {
-    label: TRASH_WORDS.undo,
-    onClick: async () => {
-      const res = await restoreTrashedCanvas({ trashDir: j.trashDir, fetchImpl });
-      if (!res.ok) {
-        toast?.(TRASH_WORDS.stuck(label), false);
-        return;
-      }
-      await reload?.();
-      onUndone?.(path);
-      toast?.(TRASH_WORDS.back(label), true);
+  // the board's toast wears the trash glyph, not a check (11 · pn-trash)
+  toast?.(
+    TRASH_WORDS.moved(label),
+    true,
+    {
+      label: TRASH_WORDS.undo,
+      onClick: async () => {
+        const res = await restoreTrashedCanvas({ trashDir: j.trashDir, fetchImpl });
+        if (!res.ok) {
+          toast?.(TRASH_WORDS.stuck(label), false);
+          return;
+        }
+        await reload?.();
+        onUndone?.(path);
+        toast?.(TRASH_WORDS.back(label), true);
+      },
     },
-  });
+    TRASH_TOAST
+  );
   return { ok: true, trashDir: j.trashDir };
 }

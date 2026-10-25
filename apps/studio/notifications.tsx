@@ -279,6 +279,8 @@ const NOTICE_CSS = `
 .maude-notice[data-kind=success] .maude-notice-ic { color: var(--status-success-text, var(--status-success, #4caf7d)); }
 .maude-notice[data-kind=error] .maude-notice-ic, .maude-notice[data-kind=warning] .maude-notice-ic {
   color: var(--status-error-text, var(--status-error, #d65b4d)); }
+/* P8 C7: a toast that says WHAT happened (the trash, the tabs, a link) wears that glyph quietly, not the kind's green */
+.maude-notice[data-kind] .maude-notice-ic--trash, .maude-notice[data-kind] .maude-notice-ic--tab, .maude-notice[data-kind] .maude-notice-ic--link { color: var(--fg-1, #ddd); }
 .maude-notice-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
   padding-right: var(--space-2, 8px); }
 .maude-notice-title { font-weight: 500; }

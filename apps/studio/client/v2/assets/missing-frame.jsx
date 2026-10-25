@@ -46,7 +46,7 @@ const subscribeHost = (fn) => {
 const hostSnapshot = () => hostVersion;
 
 /** The Inspector's box for one selected element. Draws nothing unless its picture is waiting or missing. */
-export function AssetAbsentBox({ el, canvas }) {
+export function AssetAbsentBox({ el, canvas, onReplace }) {
   useAnswers();
   useSyncExternalStore(subscribeHost, hostSnapshot, hostSnapshot);
   const { canEdit, open: onRelink } = host;
@@ -75,6 +75,17 @@ export function AssetAbsentBox({ el, canvas }) {
           >
             Relink…
           </button>
+          {/* ia-missing-gone: Relink… points at a copy, Replace… picks another picture for this frame (the asset picker) */}
+          {missing && typeof onReplace === 'function' ? (
+            <button
+              type="button"
+              className="btn btn--sm"
+              data-testid="asset-absent-replace"
+              onClick={() => onReplace(el)}
+            >
+              Replace…
+            </button>
+          ) : null}
         </p>
       ) : null}
     </div>

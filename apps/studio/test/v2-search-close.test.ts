@@ -216,3 +216,23 @@ describe('design-system pages are found like canvases and say what they are', ()
     expect(slice(remote[0].meta, remote[0].metaMarks)).toEqual(['preview']);
   });
 });
+
+// P8 C7 (11 · pn-k-close): canvases and artboards are ONE list, "Canvases and artboards" — not two headings
+describe('one list for canvases and artboards', () => {
+  test('"letak a6": a single group, canvas and artboards in it, each still its own kind', () => {
+    const { res } = view('letak a6');
+    const groups = res.groups.filter(
+      (g: { id: string }) => g.id === 'canvases' || g.id === 'artboards'
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].title).toBe('Canvases and artboards');
+    const kinds = new Set(groups[0].rows.map((r: { group: string }) => r.group));
+    expect([...kinds].sort()).toEqual(['artboards', 'canvases']);
+  });
+
+  test('"unifromy 2027": the canvas leads its own artboards on a tie', () => {
+    const { res } = view('unifromy 2027');
+    expect(res.groups[0].title).toBe('Canvases and artboards');
+    expect(res.groups[0].rows[0].name).toBe('Uniformy-2027');
+  });
+});

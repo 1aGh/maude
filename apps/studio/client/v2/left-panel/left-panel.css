@@ -154,6 +154,13 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
+  /* 11 pn-ds: the one system's card stacks its two lines (the board's .pn-ds-l) */
+  .lp-ds-line {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .lp-ds-warn {
     flex: none;
     width: 8px;
@@ -1318,14 +1325,15 @@
     color: var(--fg-2);
   }
   .lp-tidy-foot {
+    container-type: inline-size;
     flex: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    /* P8 C4 (12 ia-assets-tidy): in a narrow panel the button drops under the numbers instead of running past the
-       panel's edge */
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-2);
+    /* P8 C7 (12 ia-assets-tidy): ONE line inside the panel, as the board draws it — the numbers give way (ellipsis),
+       the button never wraps or runs past the edge (C4's wrap made it two stacked lines) */
+    flex-wrap: nowrap;
+    gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     box-shadow: inset 0 0.5px 0 var(--border-default);
     font-size: var(--type-xs);
@@ -1334,7 +1342,15 @@
   }
   .lp-tidy-foot > span {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* a narrow panel keeps the count and the button on ONE line: the size gives way first (it is in the title and the dialog) */
+  @container (max-width: 270px) {
+    .lp-tidy-size {
+      display: none;
+    }
   }
   .lp-tidy-foot .btn {
     flex: none;

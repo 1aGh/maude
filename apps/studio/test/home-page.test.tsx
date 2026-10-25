@@ -437,13 +437,16 @@ describe('Home page in the desktop app', () => {
     // The question sits under the (transparent) sticky header long before it leaves the viewport, so the
     // observer's root must stop at the header's lower edge — otherwise the bar never docks (11 pn-home).
     const seen: Array<{ rootMargin?: string }> = [];
+    const watched: string[] = [];
     const G = globalThis as unknown as { IntersectionObserver?: unknown };
     const real = G.IntersectionObserver;
     G.IntersectionObserver = class {
       constructor(_cb: unknown, opts: { rootMargin?: string } = {}) {
         seen.push(opts);
       }
-      observe() {}
+      observe(el: Element) {
+        watched.push(el.className);
+      }
       disconnect() {}
     };
     try {
@@ -454,6 +457,9 @@ describe('Home page in the desktop app', () => {
     }
     expect(seen.length).toBeGreaterThan(0);
     expect(seen[0].rootMargin).toMatch(/^-\d+px 0px 0px 0px$/);
+    // it watches the composer card itself (the bar docks when the card is under the header), not the whole block
+    expect(watched.some((c) => /home-ask-card/.test(c))).toBe(true);
+    expect(watched.some((c) => /home-question/.test(c))).toBe(false);
   });
 
   test('the account whose project was used last leads the Projects list (Work above Personal)', async () => {

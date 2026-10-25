@@ -7,6 +7,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   BRAND_HANDOFF_KEY,
   brandPayload,
+  coloursWords,
   DS_REVIEW_FROM_BRAND,
   handOff,
   handoffBrief,
@@ -136,5 +137,13 @@ describe('Use as the project’s style → S10, the AI composer, or the clipboar
       via: 'copy',
       text: '/design:setup-ds --from-brand assets/logos/abcd1234.svg',
     });
+  });
+});
+
+describe('P8 c7: the reading row counts colours in words', () => {
+  test('one is singular', () => {
+    expect(coloursWords(1)).toBe('1 colour');
+    expect(coloursWords(0)).toBe('0 colours');
+    expect(coloursWords(4)).toBe('4 colours');
   });
 });

@@ -186,9 +186,12 @@ describe('the jump list rendered (11 · pn-jump)', () => {
     expect(rows).toHaveLength(21);
     expect(rows.filter((r) => r.dataset.kind === 'print')).toHaveLength(2);
     expect(q(host, 'canvases-foot')?.textContent).toBe('21 artboards · 19 digital, 2 print');
+    // pn-jump: the opened canvas row says how many it holds; a closed one does not
+    expect(q(host, 'canvas-row-count-ui-combine-kampan')?.textContent).toBe('21');
     // closing it takes the foot away (P8 C5: no foot line at rest)
     await click(q(host, 'canvas-jump-toggle-ui-combine-kampan'));
     expect(q(host, 'canvases-foot')).toBeNull();
+    expect(q(host, 'canvas-row-count-ui-combine-kampan')).toBeNull();
   });
 
   test('the artboard in view is highlighted (aria-current); a click jumps to it', async () => {

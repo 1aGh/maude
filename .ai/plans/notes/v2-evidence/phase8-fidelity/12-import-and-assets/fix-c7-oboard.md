@@ -17,14 +17,17 @@ Checklist: critic-bar2.md MUST rows. Branch p8-c7-g1112.
   "N photos" tag when the selection is only pictures (`groupPhotoCount`). Whether the Frame inspector still opens for
   the photo group is unverified until the re-shoot.
 
+## Round 7 continuation (p8-c7-g1112b) — done, re-shot (dark + light)
+
+- **ia-assets-keys / ia-assets-browse / ia-placed** — harness: `s12c7.mjs` selects the artboard first, right-clicks a tile (menu open, mouse off the tile so no tooltip), ⇧-clicks the sixth tile in Browse; ia-placed (s12h) shows the photo group with its "6 photos" tag and the Photo inspector (not the Frame's).
+- **ia-assets-tidy** — foot is ONE line in the panel (`.lp-tidy-foot` nowrap; in a panel under 270 px the size gives way: "23 assets" + the button, the size stays in the title and the dialog). C4's wrap made it two stacked lines.
+- **ia-photo-inspector** — Photo tab has Placement Fill · Fit · Crop (the Image tab's `image.crop` edit-op, same ask) and Light / Colour as a track + a signed value; the SliderField number boxes are gone (`photo-section.jsx`).
+- **ia-photo-steps** — the crop step is the real crop mode (double-click after Placement › Crop; tag "photo · crop"; 14 owns that tag's words) plus the line "The whole photo stays — only the frame moves." under Placement while Crop is on. The board's "4:5 · from the artboard" pill is NOT built (board 14, the owner of editing, draws "<name> · crop").
+- **ia-brand-steps** — "1 colour" singular (`coloursWords`), the failed site is the callout only (no second amber row).
+- **ia-missing-gone** — "Replace…" beside "Relink…" in the Missing box (the asset picker, `onReplaceMedia`); the shot selects the picture inside the frame through the shell's select-by-id lane.
+
 ## Open
 
-- ia-assets-browse — the selection foot bar IS built (browse-view.jsx "N selected · size · Clear · Place N in …"); the
-  shot needs the harness to pick tiles (⇧-click 6) after opening Photos. Harness fix, not product.
-- ia-assets-keys — the shot must open the tile menu (right-click a tile with an artboard selected) to evidence the rows.
-- ia-assets-tidy — one-line foot inside the panel (the two-row cap is ruled out: v2-p8-lead-rulings-06-folds-keys-notused).
-- ia-photo-inspector (Fill / Fit / Crop segment, extra numeric fields), ia-photo-steps (crop step), ia-brand-steps
-  ("1 colours" plural; duplicate amber row), ia-missing-gone ("Replace…"). Not started.
-- ia-gen-ask stays inline (v2-p8-c9-ask-stays-inline) — only the in-card look is in scope.
-- Re-shoot of all 12 light + dark with the `_d2-harness-g4` scripts (copied to `.scr/`, REPO repointed; spec PNGs come
-  from the stage-A worktree) — not done this round.
+- ia-photo-steps — only the crop step is a real state; "Remove background" in progress / done and the Apply-to-every-use sheet are the other three columns of the board (reachable but not shot: need the model).
+- ia-gen-ask stays inline (v2-p8-c9-ask-stays-inline).
+- ia-more-ways, ia-gen-placed, ia-figma-arrived, ia-figjam, ia-brand, ia-missing, ia-edges — unreachable here (fixtures / providers / peers).

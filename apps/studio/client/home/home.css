@@ -223,6 +223,18 @@
   .home-top > * {
     pointer-events: auto;
   }
+  /* what scrolls under the header fades out behind it, so the docked ask bar (11 pn-home) never sits on top of text */
+  .home-top::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(100% + var(--space-4));
+    background: linear-gradient(to bottom, var(--canvas-bg) 68%, transparent);
+    z-index: -1;
+    pointer-events: none;
+  }
   /* the Home pill is the project pill (ProjectPill): in the header's row, not floating at the window's corner */
   .home-top .st-pill.island {
     position: relative;

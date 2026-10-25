@@ -156,7 +156,9 @@ describe('assembleAcross — grouped by project once another project answers', (
     const a = assembleAcross({ query: 'mobil', remote: OWN, others: [], own });
     const b = assemble({ query: 'mobil', remote: OWN });
     expect(a).toEqual(b);
-    expect(a.groups.map((g) => g.id)).toEqual(['canvases', 'artboards']);
+    // 11 pn-k-close: canvases and artboards are one list under one heading
+    expect(a.groups.map((g) => g.id)).toEqual(['canvases']);
+    expect(a.groups[0].title).toBe('Canvases and artboards');
   });
 
   test('2+ projects: this tab first under its square, then the others with where they are', () => {

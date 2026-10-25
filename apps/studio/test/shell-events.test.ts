@@ -101,14 +101,18 @@ beforeEach(() => {
 
 function start() {
   const toasts: string[] = [];
+  const extras: unknown[] = [];
   const navs: unknown[] = [];
   const stop = startShellEvents({
     invoke,
     listen: listenHere,
-    toast: (t: string) => toasts.push(t),
+    toast: (t: string, _ok?: boolean, _a?: unknown, extra?: unknown) => {
+      toasts.push(t);
+      extras.push(extra);
+    },
     onNavigate: (p: unknown) => navs.push(p),
   });
-  return { toasts, navs, stop };
+  return { toasts, extras, navs, stop };
 }
 
 describe('shell events reach this window', () => {
@@ -139,6 +143,8 @@ describe('shell events reach this window', () => {
     await tick();
     expect(invokes).toContain('take_tabs_restored');
     expect(s.toasts).toEqual(['20 tabs reopened. Each one starts when you open it.']);
+    // 11 pn-relaunch: the one-line top pill wears the tabs glyph (the board's icon="tab"), no success colouring
+    expect(s.extras[0]).toEqual({ kind: 'info', placement: 'top', icon: 'tab' });
     // the event arriving too (page was up in time) never toasts twice
     here['shell://tabs-restored']?.({ payload: { count: 20 } });
     expect(s.toasts.length).toBe(1);

@@ -556,8 +556,12 @@
     flex: 1;
     min-height: 0;
     width: 100%;
-    border: 1px solid var(--border-default);
+    /* 11 pn-compare: the stage is the canvas itself, two of its pictures side by side — not two framed panes
+       (the hairline only keeps the two surfaces apart) */
+    border: 0;
     border-radius: var(--radius-sm);
+    outline: 0.5px solid var(--border-default);
+    outline-offset: -0.5px;
     background: var(--bg-0);
   }
   /* Overlay: B over A, the slider decides how much of B shows (from its left edge) */

@@ -60,8 +60,10 @@ export function HomeAsk({
   const [prompt, setPrompt] = useState('');
   const own = useRef(null);
   const field = inputRef ?? own;
-  const block = useRef(null);
-  const condensed = useCondensed(block);
+  // the composer card is the question: the slim bar docks as soon as IT is under the header, not once the starters, the
+  // sign-in card and the What's New line below it have scrolled away too (11 pn-home)
+  const card = useRef(null);
+  const condensed = useCondensed(card);
   const canSend = native && online && !busy && prompt.trim().length > 0;
 
   const send = useCallback(() => {
@@ -109,7 +111,7 @@ export function HomeAsk({
 
   return (
     <div className="home-ask" data-slot="home-ask">
-      <div className="home-question" ref={block}>
+      <div className="home-question">
         <span className={`home-ask-spark${busy ? ' home-ask-spark--busy' : ''}`} aria-hidden="true">
           <HSpark size={48} />
         </span>
@@ -117,7 +119,7 @@ export function HomeAsk({
         <p className="home-question-sub">
           Describe it in a sentence. AI puts a first draft on a new canvas — you take it from there.
         </p>
-        <div className="island home-ask-card">
+        <div className="island home-ask-card" ref={card}>
           <div className="home-ask-field">
             <textarea
               ref={field}

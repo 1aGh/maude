@@ -17,10 +17,11 @@
 // keeps the attribute.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SliderField, Toggle } from '../../inspector-controls.jsx';
+import { Segmented, Slider, Toggle } from '../../inspector-controls.jsx';
 import { PhotoKnobs } from '../../photo-knobs.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { bindInspectorActions } from '../inspector/inspector-actions.js';
+import { askCrop, fitOf } from '../inspector/kinds/image.jsx';
 import { ApplyEveryUseSheet } from './apply-every-use-sheet.jsx';
 import { sameCanvas } from './canvas-rel.js';
 import {
@@ -36,6 +37,8 @@ import {
 
 export const PHOTO_WORDS = Object.freeze({
   chip: 'Photo',
+  placement: 'Placement',
+  cropLine: 'The whole photo stays — only the frame moves.',
   look: 'Look',
   light: 'Light',
   colour: 'Colour',
@@ -50,6 +53,54 @@ export const PHOTO_WORDS = Object.freeze({
   advancedHint: 'sliders · grain · mask',
   failed: 'Not changed; try again.',
 });
+
+const PLACEMENTS = Object.freeze([
+  { value: 'fill', label: 'Fill' },
+  { value: 'fit', label: 'Fit' },
+  { value: 'crop', label: 'Crop' },
+]);
+
+/**
+ * Placement · Fill · Fit · Crop (12 · ia-photo-inspector: the first row under the file's name). The same `image.crop`
+ * edit-op as the Image tab's Fit row, asked of the canvas through `run-action`; Crop says what it does to the photo.
+ */
+function PlacementRow({ el, editable, onRunAction }) {
+  const [asked, setAsked] = useState(null);
+  const fresh = `${el?.id ?? ''}#${el?.index ?? 0}~${JSON.stringify(el?.authored ?? null)}~${JSON.stringify(el?.attrs ?? null)}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear on a fresh selection payload only
+  useEffect(() => setAsked(null), [fresh]);
+  // a refused write never re-posts: give the control back to the file after a moment
+  useEffect(() => {
+    if (!asked) return undefined;
+    const t = setTimeout(() => setAsked(null), 2500);
+    return () => clearTimeout(t);
+  }, [asked]);
+  const fit = asked ?? fitOf(el);
+  const can = editable && !!el?.id && typeof onRunAction === 'function';
+  return (
+    <>
+      <div className="ph-row ph-place" data-testid="photo-placement">
+        <span>{PHOTO_WORDS.placement}</span>
+        <span data-testid="photo-ctl-placement">
+          <Segmented
+            value={fit}
+            ariaLabel={PHOTO_WORDS.placement}
+            options={PLACEMENTS}
+            onChange={(next) => {
+              if (can && next !== fit && askCrop({ onRunAction }, el, { fit: next }))
+                setAsked(next);
+            }}
+          />
+        </span>
+      </div>
+      {fit === 'crop' ? (
+        <p className="ph-quiet" data-testid="photo-crop-line">
+          {PHOTO_WORDS.cropLine}
+        </p>
+      ) : null}
+    </>
+  );
+}
 
 /** The scope line under "Only this use changes". */
 export function scopeLine(name, more) {
@@ -221,6 +272,7 @@ export function PhotoSection({
   onRemoveBackground,
   onReplaceMedia,
   onRecordEdit,
+  onRunAction,
   intent,
   onIntentUsed,
   ColorPicker,
@@ -408,6 +460,7 @@ export function PhotoSection({
         <span className="ph-chip">{PHOTO_WORDS.chip}</span>
       </div>
       <fieldset className="ph-fs" disabled={!editable}>
+        <PlacementRow el={el} editable={editable} onRunAction={onRunAction} />
         <p className="ph-l" id="photo-look-l">
           {PHOTO_WORDS.look}
         </p>
@@ -433,7 +486,7 @@ export function PhotoSection({
         </div>
         <div className="ph-sl" data-testid="photo-light">
           <span className="ph-sl-l">{PHOTO_WORDS.light}</span>
-          <SliderField
+          <Slider
             value={light}
             min={-100}
             max={100}
@@ -448,7 +501,7 @@ export function PhotoSection({
         </div>
         <div className="ph-sl" data-testid="photo-colour">
           <span className="ph-sl-l">{PHOTO_WORDS.colour}</span>
-          <SliderField
+          <Slider
             value={colour}
             min={-100}
             max={100}

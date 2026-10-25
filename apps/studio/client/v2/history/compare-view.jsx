@@ -66,6 +66,39 @@ function useFrameFocus(frames, path, focus, trigger) {
   }, [focus, path, trigger, frames]);
 }
 
+/** The canvas frames start dark (no `dgn:'theme'` reaches a frame the shell does not track): tell both the chrome's theme on a
+ *  short ladder (a frame mounts late) and again whenever it flips — 11 · pn-compare is the light canvas in light. */
+export function useFrameTheme(frames, trigger) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `trigger` re-arms it when a frame is replaced
+  useEffect(() => {
+    const post = () => {
+      const theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+      for (const f of frames.current) {
+        try {
+          f?.contentWindow?.postMessage({ dgn: 'theme', theme }, '*');
+        } catch {
+          /* frame navigated away — the next rung re-posts */
+        }
+      }
+    };
+    const timers = [0, 300, 1200, 2500, 5000].map((ms) => setTimeout(post, ms));
+    // a frame that loads late (bundling a canvas can take longer than the ladder) says `loaded`: ladder again from then
+    const onMessage = (e) => {
+      if (e.data?.dgn !== 'loaded' || !frames.current.some((f) => f?.contentWindow === e.source))
+        return;
+      for (const ms of [0, 300, 1200, 2500]) timers.push(setTimeout(post, ms));
+    };
+    window.addEventListener('message', onMessage);
+    const mo = new MutationObserver(post);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => {
+      for (const t of timers) clearTimeout(t);
+      window.removeEventListener('message', onMessage);
+      mo.disconnect();
+    };
+  }, [frames, trigger]);
+}
+
 function Frame({ src, title, label, fref, testid }) {
   return (
     <div className="cmp-pane">
@@ -108,6 +141,7 @@ export function CompareView({ state, cfg, onMode, onFocus, onRetry }) {
   const target = focusGroup(groups, focus);
   const focusId = target?.id ?? null;
   useFrameFocus(frames, path, focusId, `${srcA}|${srcB}|${mode}`);
+  useFrameTheme(frames, `${srcA}|${srcB}|${mode}`);
 
   const setWipe = useCallback((v) => {
     wipe.current = v;

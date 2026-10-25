@@ -124,6 +124,31 @@ describe('pn-deeplink: a link to an artboard says where it came from', () => {
     );
     expect(said).toEqual(['Opened from a link — Pozvanka · story.']);
   });
+
+  // P8 C7: the toast names the artboard as the canvas shows it, and the link's artboard is selected, not only shown
+  test('the toast names the artboard by its label; the artboard is selected', async () => {
+    const said: string[] = [];
+    const posted: unknown[] = [];
+    const frame = { contentWindow: { postMessage: (m: unknown) => posted.push(m) } };
+    applyShellNavigate(
+      { canvas: 'ui/Pozvanka.tsx', artboard: 'a-story' },
+      {
+        paths: ['.design/ui/Pozvanka.tsx'],
+        designRel: '.design',
+        activePath: null,
+        openLinkedFile() {},
+        openTab() {},
+        frameFor: () => frame,
+        setPresent() {},
+        schedule: (fn: () => void) => fn(),
+        toast: (t: string) => said.push(t),
+        artboardLabel: async () => 'Story 9:16',
+      }
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(said).toEqual(['Opened from a link — Pozvanka · Story 9:16.']);
+    expect(posted).toContainEqual({ dgn: 'select-by-id', artboardId: 'a-story', index: 0 });
+  });
 });
 
 describe('pn-tab-b: the strip wears the DS ladder and pill tabs', () => {

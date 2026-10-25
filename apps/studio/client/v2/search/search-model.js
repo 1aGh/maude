@@ -6,7 +6,7 @@
 //
 //   rows    = registry actions (visible, runnable) · toolbar tools · Settings rows   (local, sync)
 //   remote  = canvases + artboards from /_api/index?q=                                 (async)
-//   groups  = Canvases · Artboards · Actions · Tools · Settings · (Ask AI, last, desktop only)
+//   groups  = Canvases and artboards (one list) · Actions · Tools · Settings · (Ask AI, last, desktop only)
 //
 // One matcher: index/match.ts `scoreRow` (accent fold, every word, any order) on a sanitised query —
 // "New artboard — A4" has a dash a word-split would keep as a word and then fail on.
@@ -344,6 +344,8 @@ export function remoteRows(result, { designRel = '.design', query = '', project 
     const shown = qWords.length ? scoreRow({ key: r.key, name: r.name, meta }, qWords) : null;
     out.push({
       group: board ? 'artboards' : 'canvases',
+      // the index's own score: canvases and artboards share one list now, ranked by it (a tie: the canvas first)
+      score: Number.isFinite(r.score) ? r.score : 0,
       id: `${board ? 'artboard' : 'canvas'}:${r.key}`,
       // the system's own canvas is "Design system" to people, never its file slug (CONTRACT §7)
       name: r.name === 'design-system' ? 'Design system' : r.name,
@@ -380,7 +382,17 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   const byGroup = new Map(GROUPS.map((g) => [g.id, []]));
   for (const h of localHits)
     byGroup.get(h.row.group)?.push({ ...h.row, marks: h.marks, close: h.close, weak: h.weak });
-  for (const r of remote) byGroup.get(r.group)?.push(r);
+  // 11 pn-k-close: canvases and artboards are ONE list in the order the index ranked them ("Canvases and artboards"); a row
+  // keeps its own `group` (an artboard still opens as an artboard), only the heading is shared
+  for (const r of remote) byGroup.get(r.group === 'artboards' ? 'canvases' : r.group)?.push(r);
+  // one list: by the index's score, and on a tie a canvas before its artboards (Array.sort is stable)
+  byGroup
+    .get('canvases')
+    ?.sort(
+      (a, b) =>
+        (b.score || 0) - (a.score || 0) ||
+        (a.group === 'artboards' ? 1 : 0) - (b.group === 'artboards' ? 1 : 0)
+    );
   // Hidden tools lead under "Actions" with their count; the plain actions that matched too go under "Also".
   // With no hidden tool among the matches there is nothing to set apart, and they stay under "Actions".
   const acts = byGroup.get('actions');
@@ -398,26 +410,29 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   let total = 0;
   // 11 pn-k-across / pn-k-close: next to canvases and artboards the hidden tools are "Tools and settings · not on
   // screen" (what they are), not 06's "Actions · N hidden tools" (that is the search with only tools in it).
-  const withProjectRows =
-    (byGroup.get('canvases')?.length ?? 0) + (byGroup.get('artboards')?.length ?? 0) > 0;
+  const withProjectRows = (byGroup.get('canvases')?.length ?? 0) > 0;
   for (const g of GROUPS) {
     const all = byGroup.get(g.id) ?? [];
     if (all.length === 0) continue;
     const rows = all.slice(
       0,
-      g.id === 'canvases' || g.id === 'artboards'
-        ? 12
-        : g.id === 'in-design-system'
-          ? Math.min(cap, 4)
-          : cap
+      g.id === 'canvases' ? 12 : g.id === 'in-design-system' ? Math.min(cap, 4) : cap
     );
     // S11.18 (a11y): the count is the rows drawn — "31 results" over 13 rows told a screen reader a lie
     total += rows.length;
     const hidden = all.filter((r) => r.advanced).length;
     const toolsNextToProjects = g.id === 'actions' && hidden > 0 && withProjectRows;
+    const both = g.id === 'canvases' && rows.some((r) => r.group === 'artboards');
+    const onlyBoards = both && rows.every((r) => r.group === 'artboards');
     groups.push({
       id: g.id,
-      title: toolsNextToProjects ? 'Tools and settings' : g.title,
+      title: toolsNextToProjects
+        ? 'Tools and settings'
+        : onlyBoards
+          ? 'Artboards'
+          : both
+            ? 'Canvases and artboards'
+            : g.title,
       ...(toolsNextToProjects
         ? { aside: 'not shown' }
         : g.id === 'actions' && hidden

@@ -113,7 +113,13 @@ export function DsPinnedRows({
                 <span className="lp-ds-two">
                   <span className="lp-name">{r.label}</span>
                   <span className="lp-ds-sub" data-testid="canvases-ds-row-sub">
-                    {r.sub}
+                    {r.subLines
+                      ? r.subLines.map((line) => (
+                          <span key={line} className="lp-ds-line">
+                            {line}
+                          </span>
+                        ))
+                      : r.sub}
                   </span>
                 </span>
               ) : (
