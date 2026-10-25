@@ -2820,7 +2820,7 @@ export function DCArtboard({
     ctx.reportMeasuredHeight(id, Math.round(measured.height));
   }, [ctx, dragHook.dragState.kind, measured.height, id]);
   // S7.21 (08 ak-web-hug) — "+ 373 px" beside a web page that just grew (a hugging page only; never exported)
-  const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height);
+  const growth = useGrowthDelta(resolvedKind === 'web' && !fixed, measured.height, id);
   // P8 C3 (04 X1) - the breakpoint chip and the growth tag are Edit's chrome (the what-shows `object-tools` cell;
   // an ungoverned canvas keeps v1): Preview / Viewing / Present show the design, not Maude's marks on it.
   const governedMode = useGovernedMode();
@@ -2832,7 +2832,7 @@ export function DCArtboard({
   // they are drawn over it, not over the frame with its label strip.
   const bodyRef = useRef<HTMLDivElement | null>(null);
   // ... and the section that arrived, framed and named beside it (08 ak-web-hug "Rozpis zápasů · new section")
-  const newSection = useNewSection(bodyRef, resolvedKind === 'web' && !fixed, measured.height);
+  const newSection = useNewSection(bodyRef, resolvedKind === 'web' && !fixed, measured.height, id);
   // S7.25 — the one warning style: this artboard checks itself (print · web · video) and marks its label
   const warnings = useArtboardWarnings({
     id,
