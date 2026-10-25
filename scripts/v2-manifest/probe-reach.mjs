@@ -410,9 +410,27 @@ export default function Welcome() {
 export default function Flyer() {
   return (
     <DesignCanvas>
-      <DCArtboard id="flyer" kind="print" label="Flyer" width={420} height={594}>
+      <DCArtboard id="flyer" kind="print" print={{ paper: 'a6', orientation: 'portrait', bleedMm: 3 }} label="Flyer" width={420} height={594}>
         <main style={{ padding: 40, fontFamily: 'system-ui' }}>
           <h1 data-cd-id="flyer-title">Flyer</h1>
+        </main>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`
+  );
+  // a web page: the only kind whose Inspector draws the Layout row (Top to bottom · …)
+  put(
+    '.design/ui/Page.tsx',
+    `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+
+export default function Page() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="page" kind="web" label="Page" width={1280} height={720}>
+        <main style={{ padding: 40, fontFamily: 'system-ui' }}>
+          <h1 data-cd-id="page-title">Page</h1>
         </main>
       </DCArtboard>
     </DesignCanvas>
@@ -525,7 +543,14 @@ const PNG_1X1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const TAURI_STUB = `window.__TAURI__ = {
   core: {
+    // the one channel the page hands the shell (client/shell-bus.js): a probe step (shellMsg) speaks through it
+    Channel: class {
+      set onmessage(fn) {
+        window.__PROBE_SHELL_CHANNEL__ = fn;
+      }
+    },
     invoke: (cmd) => {
+      if (cmd === 'shell_subscribe') return Promise.resolve(true);
       const answers = window.__PROBE_INVOKE__ || {};
       if (!(cmd in answers)) return Promise.reject(new Error('reachability probe: ' + cmd));
       const a = answers[cmd];
@@ -809,6 +834,48 @@ async function runOpener(browser, srv, probe, opener) {
           f?.contentWindow?.postMessage(msg, '*');
         }, step.frameMsg);
         await sleep(250);
+      } else if (step.dumpFrame) {
+        if (process.env.PROBE_DEBUG)
+          console.log(
+            `  [dumpFrame ${opener.id}] ${await page
+              .frameLocator(tid('canvas-frame'))
+              .locator(step.dumpFrame)
+              .first()
+              .evaluate(
+                (el) => el.outerHTML.replace(/<svg.*?<\/svg>/gs, '<svg/>').slice(0, 2500),
+                null,
+                { timeout: 4000 }
+              )
+              .catch((e) => `ERR ${e.message.slice(0, 80)}`)}`
+          );
+      } else if (step.dump) {
+        // debugging aid: print what a selector holds (PROBE_DEBUG only)
+        if (process.env.PROBE_DEBUG)
+          console.log(
+            `  [dump ${opener.id}] ${await page
+              .locator(step.dump)
+              .first()
+              .evaluate((el) => {
+                let h = '';
+                for (let n = el; n && n !== document.body; n = n.parentElement) {
+                  const cs = getComputedStyle(n);
+                  if (cs.display === 'none' || n.hidden)
+                    h += ` HIDDEN<${n.tagName}.${n.className}>(${cs.display})`;
+                }
+                return `rects=${el.getClientRects().length} ${h}`;
+              })
+              .catch((e) => `ERR ${e.message.slice(0, 80)}`)}`
+          );
+      } else if (step.selectOption) {
+        await page
+          .locator(step.selectOption[0])
+          .first()
+          .selectOption(step.selectOption[1], { timeout: 4000 });
+        await sleep(300);
+      } else if (step.shellMsg) {
+        // what the Rust shell tells this page (`update-ready`…): handed to the channel the page gave it
+        await page.evaluate((m) => window.__PROBE_SHELL_CHANNEL__?.(m), step.shellMsg);
+        await sleep(300);
       } else if (step.frameDblclick) {
         const target = page.frameLocator(tid('canvas-frame')).locator(step.frameDblclick).first();
         if (step.optional) {

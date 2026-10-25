@@ -224,6 +224,45 @@ export const ACP_SCRIPTS = {
     warm: [],
     prompt: [],
   },
+  // a finished turn that read two files first: the feed holds a live reply back until the turn ends (P8-C6 ai-working),
+  // so the tool-call cards of "Show in chat › Verbose" only exist in a turn that is over
+  'chat-done-tools': {
+    open: OPEN,
+    warm: [],
+    prompt: [
+      U({
+        sessionUpdate: 'tool_call',
+        toolCallId: 't1',
+        title: 'Read Home.tsx',
+        kind: 'read',
+        rawInput: { file_path: '.design/ui/Home.tsx' },
+      }),
+      U({
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 't1',
+        status: 'completed',
+        rawOutput: 'ok',
+      }),
+      U({
+        sessionUpdate: 'tool_call',
+        toolCallId: 't2',
+        title: 'Read Home.meta.json',
+        kind: 'read',
+        rawInput: { file_path: '.design/ui/Home.meta.json' },
+      }),
+      U({
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 't2',
+        status: 'completed',
+        rawOutput: 'ok',
+      }),
+      U({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Done — the headline is tighter.' },
+      }),
+      { t: 'turn-end' },
+    ],
+  },
   // a finished turn: the reply stays, the turn ends
   'chat-done': {
     open: OPEN,

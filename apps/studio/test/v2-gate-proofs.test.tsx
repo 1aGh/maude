@@ -6,6 +6,8 @@
 //   · .dc-participants / .dc-participant   the canvas's own participant stack: the shell hosts the faces (the Share
 //                                    cluster) so a canvas inside it draws none; a standalone canvas still does
 //   · [data-section-chip]            a section's label chip: the probe fixture draws no section
+//   · artboard-new-section           the frame round a section the page just grew (V2-8.5 c7 08 ak-web-hug): it shows
+//                                    for a few seconds after the page changes, and the probe fixture's board never grows
 //   · Annotation node labels         the text and sticky editors' aria-labels: an editor is open only mid-edit
 //   · root-missing-*                 the moved-folder card of apps/desktop/src/root-missing.html: an app-local page
 //                                    the desktop shell shows, never served by the studio the probe boots
@@ -27,6 +29,7 @@ afterAll(() => {
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ElementNode } from '../annotations/ui/element-node.tsx';
+import { ArtboardNewSection } from '../artboard-new-section.tsx';
 import { PhotoBgRemoveHarness } from '../canvas-lib.tsx';
 import { ReadinessDialog } from '../client/panels/ReadinessList.jsx';
 import { ParticipantsChrome } from '../participants-chrome.tsx';
@@ -140,6 +143,21 @@ describe('V2-4.gate proofs: a section on a board', () => {
     const chip = document.querySelector('[data-section-chip]');
     expect(chip).not.toBeNull();
     expect(chip?.textContent).toContain('Ideas');
+  });
+});
+
+describe('V2-8.6 proofs: the frame round a new section', () => {
+  test('artboard-new-section is on the page, named for the section, once the page grew one', () => {
+    mount(
+      <ArtboardNewSection
+        x={0}
+        y={0}
+        section={{ name: 'Rozpis zápasů', x: 0, y: 205, w: 432, h: 112 }}
+      />
+    );
+    const frame = document.querySelector('[data-testid="artboard-new-section"]');
+    expect(frame).not.toBeNull();
+    expect(frame?.textContent).toContain('Rozpis zápasů · new section');
   });
 });
 

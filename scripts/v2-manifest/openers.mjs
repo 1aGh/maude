@@ -248,6 +248,15 @@ export const ROUTE_ANSWERS = {
   // ── other connections ──────────────────────────────────────────────────────────────────────
   // ── the ACP chat (desktop): the bridge's availability probe and the readiness report behind it ────
   acpAvailable: { available: true },
+  sharePosture: {
+    linked: true,
+    reachable: true,
+    you: { invite: true },
+    hub: HUB,
+    capabilities: [],
+    access: null,
+  },
+  acpChatSession: { sessionId: 'sess-probe-1' },
   acpMissing: { available: false, reason: 'Claude Code is not installed.' },
   preflightNoClaude: {
     ready: false,
@@ -453,6 +462,11 @@ export const STATES = {
     routes: { '/_api/project/history*': 'projectLegacy', '/_api/cloud/history*': 'serverError' },
   },
   'git-clean-behind': { dropFrames: ['git-status'], routes: { '/_api/git/status*': 'gitClean' } },
+  // …and the hub answers the Share sheet's posture (linked, reachable, may invite): the sheet draws its full body
+  'share-linked': {
+    extends: 'linked-project',
+    routes: { '/_api/share/posture': 'sharePosture' },
+  },
   'trash-full': { routes: { '/_api/sync/trash': 'syncTrash' } },
   'git-on-draft': { extends: 'git-dirty', routes: { '/_api/git/status*': 'gitOnDraft' } },
   'cloud-in': {
@@ -567,10 +581,15 @@ export const STATES = {
   'figma-in': { routes: { '/_api/figma/status': 'figmaIn' } },
   // the desktop's AI chat with an agent behind it (acp-stub.mjs plays the bridge): `acp` names the script
   'acp-chat': { acp: 'chat', routes: { '/_api/acp/status': 'acpAvailable' } },
-  'acp-connecting': { acp: 'chat-connecting', routes: { '/_api/acp/status': 'acpAvailable' } },
+  // the session exists (its id is what the fold shows) but no capability has arrived: the fold says "Connecting…"
+  'acp-connecting': {
+    acp: 'chat-connecting',
+    routes: { '/_api/acp/status': 'acpAvailable', '/_api/acp/chat/session*': 'acpChatSession' },
+  },
   'acp-plan': { acp: 'chat-plan', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-elicit': { acp: 'chat-elicit', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-error': { acp: 'chat-error', routes: { '/_api/acp/status': 'acpAvailable' } },
+  'acp-done-tools': { acp: 'chat-done-tools', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-done': { acp: 'chat-done', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-limit': { acp: 'chat-limit', routes: { '/_api/acp/status': 'acpAvailable' } },
   // a Home canvas with an open comment (Tereza's own) and a resolved one: the panel, the pin, the thread
@@ -696,6 +715,22 @@ export const OPENERS = [
     steps: settingsTab(s),
   })),
   // ── a project linked to a workspace: Settings › Advanced › This project, the Sync view ────────
+  // a build the shell has downloaded and staged: Update › "<version> is ready" with Restart now
+  {
+    id: 'settings-update-staged',
+    steps: [
+      ...settingsTab('advanced'),
+      { shellMsg: { kind: 'update-ready', payload: { version: '2.0.1', notes: '' } } },
+      { wait: 400 },
+    ],
+  },
+  // a project linked to a hub: its Share sheet offers the links (this Mac, the app) under › Advanced · Other ways in. An
+  // unlinked local project on the desktop is offered "Move to the cloud" instead.
+  {
+    id: 'share-linked',
+    state: 'share-linked',
+    steps: [{ click: tid('share-cluster-share') }, { ensureOpen: tid('share-other-ways-toggle') }],
+  },
   { id: 'settings-advanced-linked', state: 'linked-project', steps: settingsTab('advanced') },
   {
     id: 'settings-advanced-adopt',
@@ -805,6 +840,20 @@ export const OPENERS = [
       { frameClick: '[data-cd-id="home-hero-body"]', at: [8, 8] },
     ],
   },
+  // a comment on a print board says where it sits in millimetres from the trim ("14 mm from the left · 2 mm above the trim")
+  {
+    id: 'preview-comment-print',
+    steps: [
+      { click: tid('canvas-row-ui-flyer') },
+      { wait: 3500 },
+      { click: tid('palette-mode-preview') },
+      { frameKey: 'Meta+0' },
+      { wait: 700 },
+      { frameClick: tid('toolbar-slot-comment') },
+      { frameClick: '[data-cd-id="flyer-title"]', at: [8, 8] },
+      { wait: 600 },
+    ],
+  },
   { id: 'palette', steps: [{ palette: true }] },
   { id: 'shortcuts', steps: [{ key: 'Shift+Slash' }] },
   { id: 'export', steps: [{ key: 'Shift+Meta+E' }] },
@@ -822,7 +871,7 @@ export const OPENERS = [
       { ensureOpen: tid('share-other-ways-toggle') },
     ],
   },
-  { id: 'comments', steps: [{ click: tid('share-cluster-comments') }] },
+  { id: 'comments', state: 'comments', steps: [{ click: tid('share-cluster-comments') }] },
   { id: 'ai-chat', steps: [{ key: 'Meta+Slash' }] },
   { id: 'history', steps: [{ key: 'Alt+Meta+H' }] },
   // the project's history: the rows, then one previewed (the version bar, Restore)
@@ -957,6 +1006,14 @@ export const OPENERS = [
       { frameDom: tid('canvas-menu-item-theme'), optional: true },
     ],
   },
+  // the shell names a pair of boards "Run on a copy" made: the dashed link between them and "Copied from <name>"
+  {
+    id: 'ai-copies',
+    steps: [
+      { frameMsg: { dgn: 'ai-copies', v: 1, copies: [{ from: 'home-hero', to: 'home-pricing' }] } },
+      { wait: 600 },
+    ],
+  },
   // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector. Since
   // S2.2 `css-panel`, `inspector-section-*` and `inspector-body-layout` sit inside the Inspector's
   // › Advanced fold, so each opener opens it first (`ensureOpen`, a no-op when it is open already).
@@ -999,7 +1056,19 @@ export const OPENERS = [
     id: 'photo',
     steps: [
       { frameClick: '[data-cd-id="home-hero-photo"]' },
-      { click: 'button.st-rp-tab:has-text("Photo")', optional: true },
+      { click: tid('inspector-view-photo'), optional: true },
+    ],
+  },
+  // a web page's Inspector: the one Layout row (Top to bottom · …) — only a `web` board has it
+  {
+    id: 'inspector-artboard-web',
+    steps: [
+      { click: tid('canvas-row-ui-page') },
+      { wait: 3500 },
+      { frameClick: '[data-dc-screen="page"] .dc-artboard-label', optional: true },
+      { key: 'Shift+Meta+I', unless: tid('inspector-panel') },
+      { wait: 400 },
+      { ensureOpen: tid('fold-inspector-toggle') },
     ],
   },
   { id: 'left-trash', state: 'trash-full', steps: [{ click: tid('canvases-trash-row') }] },
@@ -1611,6 +1680,26 @@ export const OPENERS = [
     state: 'acp-connecting',
     steps: [{ key: 'Meta+Slash' }, { wait: 500 }, { ensureOpen: tid('ai-advanced') }],
   },
+  // "Show in chat › Everything" draws the tool-call cards (one card per run of calls) in the feed
+  {
+    id: 'acp-turn-verbose',
+    state: 'acp-done-tools',
+    steps: [
+      { key: 'Meta+Slash' },
+      { wait: 800 },
+      { ensureOpen: tid('ai-advanced') },
+      { selectOption: [tid('chat-transcript-menu'), 'verbose'] },
+      { fill: ['.chat-input', 'Tighten the hero'] },
+      { click: '[aria-label="Send message"]' },
+      { wait: 1500 },
+    ],
+  },
+  // Diagnostics › AI setup on a Mac with no Claude Code: the "Set up AI editing" button
+  {
+    id: 'diag-ai-install',
+    routes: { '/_api/preflight': 'preflightNoClaude' },
+    steps: diagView('ai'),
+  },
   { id: 'acp-plan', state: 'acp-plan', steps: [{ key: 'Meta+Slash' }] },
   // the panel as it is at rest (caps, the gauge, the rate-limit banner), its slash menu and its info popover
   {
@@ -1768,6 +1857,17 @@ export const OPENERS = [
       { wait: 400 },
     ],
   },
+  // the artboard menu's Duplicate at another width › Laptop: the copy lands under the board and the canvas draws the gap
+  // (value, dashed edge, guide) for six seconds. LAST in the list: the copy is written into Home.tsx and every opener after it would see an extra board
+  {
+    id: 'canvas-menu-duplicate-below',
+    steps: [
+      { frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      { frameDom: tid('canvas-menu-item-duplicate-at-width'), optional: true },
+      { frameDom: tid('canvas-menu-item-duplicate-at-laptop'), optional: true },
+      { wait: 1500 },
+    ],
+  },
 ];
 
 // Openers only the shells that draw their surface need to run (the full probe is ~100 openers × 7 shells).
@@ -1780,10 +1880,13 @@ const WHERE = [
   // Settings has General only inside a cloud tab (DDR-209 D1, S11.13): Connections / Advanced are the Mac's
   [/^settings-(connections|advanced|cloud-in|cloud-signin$|github-in|figma-in|team-server)/, LOCAL],
   [
-    /^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share|export-print|left-trash)$/,
+    /^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|preview-comment-print|share|export-print|left-trash)$/,
     EDITORS,
   ],
-  [/^(acp-|deeplink-|team-|settings-cloud-signin-link|palette-projects)/, ['desktop']],
+  [
+    /^(acp-|deeplink-|team-|settings-cloud-signin-link|settings-update-staged|share-linked|diag-ai-install|acp-turn-verbose|palette-projects)/,
+    ['desktop'],
+  ],
   // the git buttons are the desktop app's (a browser tab reads the fold, it does not press it)
   [/^history-(save|branch|add)-dialog$/, ['desktop']],
   [
@@ -1791,7 +1894,7 @@ const WHERE = [
     LOCAL,
   ],
   [
-    /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
+    /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-chrome|ai-copies|canvas-menu-duplicate-below|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
   [/^(comments-panel|comment-thread|comment-thread-converted|comment-refused)$/, LOCAL],
