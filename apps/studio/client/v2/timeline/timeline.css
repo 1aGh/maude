@@ -258,6 +258,27 @@
   .tl-name .tl-ic {
     flex: none;
   }
+  /* 10 co-comment-video — "2 comments on this video" at the header's right, over the markers it counts */
+  .tl-comments-n {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    white-space: nowrap;
+  }
+  /* …and each marker is its author's face on their tone (the board's `.co-tl-mk .k-cpin-dot`, 20 px) */
+  .tl-comment-pin.tl-comment-pin--face {
+    width: 20px;
+    height: 20px;
+    filter: none;
+  }
+  .tl-comment-pin--face .k-av {
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--bg-2);
+  }
   .tl-name.is-unknown {
     color: var(--status-warn-text);
   }
