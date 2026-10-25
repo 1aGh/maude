@@ -236,3 +236,7 @@ Re-shot 60 of 62 pairs; 2 unreachable. Supersedes the per-round "after" sections
 ## After (round 7, c7-g15) — IMPL re-shot on the p8-c7-g15 tip, both themes
 
 All 62 pairs `<id>-<theme>.jpg` overwritten in place (SPEC unchanged). Harness `_c7g15-harness-g5`: Desktop framed at ~60 %, an-place with the Sticky tool armed, an-sticky zoomed, an-marker with the one-row pill, an-section selected in Preview, an-vote through ⌘K. Done / open per row: `fix-c7-oboard.md`. Full-size pairs: last line of `full-size-path.txt` ("round 7:").
+
+## Round 7 (p8-c7-g15b)
+
+Every pair in this folder re-shot on the p8-c7-g15b tip (light + dark), SPEC side unchanged; the "after" table above is overwritten in place. Full-size pairs: last line of `full-size-path.txt` ("round 7 (g15b):"). New in the impl frames: the dock presses **E** (and Hand lets go) while the Stickers gallery is open (an-stk-gallery, an-stk-search, an-stk-drop); sticker result tiles take the well surface so they read in light (an-stk-search); the **"Not printed" pill sits under the note**, not on its text (an-print); an-arrow-bind shows the candidate outlines + snap ring + "Button · See the work" tag mid-drag; an-arrow-kinds has the Arrowhead menu open; an-convert has the note's menu open after one note was turned into a comment; an-visibility shows the shift-P hidden state + its toast (the harness key was `Shift+p`, which never fired); an-video places a note on the video artboard; an-stamps shows the running vote bar. 04 `md-edit-image` is re-shot with the Image slot pressed beside the Assets panel.
