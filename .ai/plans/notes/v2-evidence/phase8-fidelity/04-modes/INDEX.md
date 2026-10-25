@@ -275,3 +275,12 @@ Final verification shoot on the merged tip after stage C round 8 (harness `_d6-h
 | `md-edge-mixed` | re-shot | re-shot |
 | `md-edge-offline` | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) | unreachable (Offline Present with a missing clip is a desktop-shell state (Presenter view).) |
 | `md-esc` | re-shot | re-shot |
+
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `md-inspect` | dark | re-shot | camera 68 % before the cmd-click, Advanced open with the raw CSS rows, target + "97 x 35" tag clear of the island |
+| `md-inspect` | light | re-shot | camera 68 % before the cmd-click, Advanced open with the raw CSS rows, target + "97 x 35" tag clear of the island |

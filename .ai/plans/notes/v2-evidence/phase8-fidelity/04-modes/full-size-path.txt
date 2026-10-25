@@ -42,3 +42,4 @@ final (D6, 3d58f57df): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8
 final (D6) IMPL frames alone: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/d6/04-modes/
 final (D6) SPEC images (reused from stage A): /Users/iagh/git/personal/maude/.claude/worktrees/agent-a8e434254e5deab1e/.scr/spec/04/
 final (D6) harness: .ai/plans/notes/v2-evidence/phase8-fidelity/_d6-harness-g2/ (chain.sh 04 on the remote lane, then mkpairs.sh 04-modes)
+round 10: /Users/iagh/git/personal/maude/.claude/worktrees/agent-a9edb1b6ebcc9cfe4/.scr/pairs/04-modes (p8-c10-misc; re-shot light + dark: md-inspect; raw impl .scr/d6/04-modes)

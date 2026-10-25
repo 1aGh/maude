@@ -581,3 +581,16 @@ Shot on the Mac mini (`scripts/remote-lane.sh`) with its installed Google Chrome
 | `ds-where-gator` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | dark | re-shot | spec reused (board unchanged since the stage-A shot) |
 | `ds-where-studio` | light | re-shot | spec reused (board unchanged since the stage-A shot) |
+
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `ds-edit-reach` | dark | re-shot | the canvas island (name, Light | Dark, "1 change waiting", Review...) is no longer drawn inside the Patterns frame |
+| `ds-edit-reach` | light | re-shot | the canvas island (name, Light | Dark, "1 change waiting", Review...) is no longer drawn inside the Patterns frame |
+| `ds-multi-panel` | dark | re-shot | light re-shot with the two-systems-in-use state ("Design systems . 2 in use", amber dot, "Uses maude") |
+| `ds-multi-panel` | light | re-shot | light re-shot with the two-systems-in-use state ("Design systems . 2 in use", amber dot, "Uses maude") |
+| `ds-edit-review` | dark | re-shot | re-shot with the same chain (unchanged) |
+| `ds-edit-review` | light | re-shot | re-shot with the same chain (unchanged) |

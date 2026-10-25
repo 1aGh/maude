@@ -76,7 +76,7 @@
     color: var(--fg-1);
     font-size: var(--type-md, 15px);
   }
-  /* the chosen logo on the transparency checker (12 `.ia-logo`) */
+  /* the chosen logo on the transparency checker (12 `.ia-logo`), light-fixed: the tile carries data-theme="light" so these tokens resolve light in a dark app */
   .bi-drop-ic--logo {
     overflow: hidden;
     background: repeating-conic-gradient(var(--bg-3) 0 25%, var(--bg-2) 0 50%) 0 0 / 12px 12px;

@@ -212,3 +212,15 @@ Every reachable id re-shot, light + dark, IMPL side only, on the merged tip `fea
 | artboard id | after (round 10) |
 |---|---|
 | co-comment-print | re-shot (View > Print guides on): the legend "Bleed 3 mm · trim · safe margin 5 mm" under each print sheet, the dashed print-area outline and the crop marks now draw on the un-clipped print layer |
+## after (round 10, p8-c10-misc)
+
+Re-shot light + dark on the Mac mini (Google Chrome), impl side only; spec reused.
+
+| id | theme | after | note |
+| --- | --- | --- | --- |
+| `co-comment-thread` | dark | re-shot | the location heading keeps min-width 8em; Edit / Resolve / Delete wrap instead of cutting it to "S..." |
+| `co-comment-thread` | light | re-shot | the location heading keeps min-width 8em; Edit / Resolve / Delete wrap instead of cutting it to "S..." |
+| `co-comment-video` | dark | re-shot | Preview + Comment tool, a pin on the picture and its thread card over it (made through the product) |
+| `co-comment-video` | light | re-shot | Preview + Comment tool, a pin on the picture and its thread card over it (made through the product) |
+| `co-comment-print` | dark | re-shot | re-shot with the same chain (unchanged) |
+| `co-comment-print` | light | re-shot | re-shot with the same chain (unchanged) |

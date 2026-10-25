@@ -187,6 +187,17 @@ describe('the card is drawn like the board (CSS pins)', () => {
     expect(send).not.toContain('border-radius: 50%');
   });
 
+  test("P8-C10: the location heading keeps a minimum width - an owner's Edit / Resolve / Delete wrap, they do not crush it", () => {
+    const where = rule('.cm-thread__where');
+    const m = where.match(/min-width:\s*([\d.]+)em/);
+    expect(m).not.toBeNull();
+    expect(Number(m?.[1])).toBeGreaterThanOrEqual(7);
+    const end = rule('.cm-thread__head-end');
+    expect(end).not.toMatch(/flex:\s*none/); // the actions give way ...
+    expect(end).toContain('min-width: 0');
+    expect(rule('.cm-thread__actions')).toContain('flex-wrap: wrap'); // ... by wrapping
+  });
+
   test('the @ picker is a menu: island material, a face, the role at the right, the highlight in accent-muted', () => {
     const pop = rule('.cm-mention-popup');
     expect(pop).toContain('--maude-hud-radius-md');

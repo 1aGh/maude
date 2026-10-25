@@ -9,6 +9,7 @@
 
 import { createPortal } from 'react-dom';
 import { DsIcon } from '../../canvas-ds-icons.tsx';
+import { isEmbedCanvas } from '../../read-only-mode.ts';
 import { setBoardMode, useBoardMode, useBoardModel } from './state.ts';
 import type { BoardMode, BoardModel } from './types.ts';
 
@@ -100,7 +101,8 @@ export function DsBar({ onReview, portal = true }: { onReview?: () => void; port
   const ask = onReview ?? (() => window.parent.postMessage({ dgn: 'ds-review' }, '*'));
   const model = useBoardModel();
   const mode = useBoardMode();
-  if (!model) return null;
+  // an embed (the reach view's Patterns frame, DDR-247) shows the design alone: the bar is Maude's chrome
+  if (!model || isEmbedCanvas()) return null;
   const bar = <DsBarView model={model} mode={mode} onMode={setBoardMode} onReview={ask} />;
   return portal && typeof document !== 'undefined' ? createPortal(bar, document.body) : bar;
 }

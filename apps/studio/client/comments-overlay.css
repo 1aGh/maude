@@ -488,7 +488,11 @@
  * messages carry a face; a refused write says so in a sentence. Same tokens as the rest of this file. */
 .cm-thread__where {
   flex: 1 1 auto;
-  min-width: 0;
+  /* P8-C10: the heading keeps its words when the viewer owns the comment (Edit + Resolve + Delete comment + x
+     would otherwise take the whole row and cut it to "S…"): the actions give way and wrap instead. */
+  min-width: 8em;
+  align-self: flex-start;
+  line-height: 27px; /* = the .cm-btn height, so a one-line heading sits level with Resolve */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -498,16 +502,18 @@
 }
 
 .cm-thread__head-end {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   margin-left: auto;
 }
 
 .cm-thread__head-end .cm-thread__close {
   margin-left: 0;
-  align-self: center;
+  align-self: flex-start;
+  flex: none;
 }
 
 .cm-thread__actions {
