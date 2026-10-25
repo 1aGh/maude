@@ -7,8 +7,8 @@
 //   · ask-selection.js the composer hand-off event, the bubble's placement
 //   · the lane        input → asked → closed; the canvas's two messages validated by the dgn table
 
-import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
 import { buildChatContext } from '../client/panels/chat-context.js';
