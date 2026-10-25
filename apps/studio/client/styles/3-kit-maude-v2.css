@@ -13,6 +13,15 @@
  * its rule here, and on any v2 element whose classes have no rule at all. */
 
 @layer shell {
+  /* P8 C9 (01 cf-panel-search): every v2 search field draws ONE clear control - Maude's own x. WebKit (WKWebView
+     too) adds a native cancel button to input[type="search"]; hide it and the decoration for every surface. */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+
   /* ─── Square icon button — the unit of every island (_components.css .icon-btn) ─── */
   :where(.maude) .icon-btn {
     appearance: none;
